@@ -146,6 +146,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2019-09-27  Su      - add hilbert curve application to aircraft winds
 !   2019-12-05  mmorris - Update adjust_goescldobs to reject ALL clear cloud obs at night
 !
+!   2020-05-04  wu      - no rotate_wind for fv3_regional
+!   2020-09-05  CAPS(C. Tong) - add flag for new vadwind obs to assimilate around the analysis time only
+
 !   input argument list:
 !     infile   - unit from which to read BUFR data
 !     obstype  - observation type to process
@@ -173,7 +176,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use constants,only: rearth,stndrd_atmos_ps,rd,grav
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
       tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
-      rlats,rlons,twodvar_regional
+      rlats,rlons,twodvar_regional,fv3_regional
   use convinfo, only: nconvtype,ctwind, &
       ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
       ithin_conv,rmesh_conv,pmesh_conv,pmot_conv,ptime_conv, &
@@ -181,7 +184,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use convinfo, only: id_drifter,id_ship
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
-  use obsmod, only: blacklst,offtime_data,bmiss,ext_sonde,time_offset
+  use obsmod, only: blacklst,offtime_data,bmiss,ext_sonde,time_offset, vad_near_analtime
   use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,ntail,taillist,idx_tail,npredt,predt, &
       aircraft_t_bc_ext,ntail_update,max_tail,nsort,itail_sort,idx_sort,timelist
   use converr,only: etabl
@@ -613,7 +616,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   ncount_ps=0;ncount_q=0;ncount_t=0;ncount_uv=0;ncount_pw=0
 
 ! Open, then read date from bufr data
-  call closbf(lunin)
   open(lunin,file=trim(infile),form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
@@ -908,6 +910,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
        
 
      call closbf(lunin)
+     close(lunin)
      open(lunin,file=infile,form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -990,12 +993,16 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               !* thin new VAD in time level
               if(kx==224.and.newvad)then
                 icase=0
-                if(abs(hdr(4))>0.17_r_kind.and.abs(hdr(4))<0.32_r_kind) icase=1
-                if(abs(hdr(4))>0.67_r_kind.and.abs(hdr(4))<0.82_r_kind) icase=1
-                if(abs(hdr(4))>1.17_r_kind.and.abs(hdr(4))<1.32_r_kind) icase=1
-                if(abs(hdr(4))>1.67_r_kind.and.abs(hdr(4))<1.82_r_kind) icase=1
-                if(abs(hdr(4))>2.17_r_kind.and.abs(hdr(4))<2.62_r_kind) icase=1
-                if(abs(hdr(4))>2.67_r_kind.and.abs(hdr(4))<2.82_r_kind) icase=1
+                if ( vad_near_analtime ) then 
+                   if(abs(hdr(4))<0.25_r_kind) icase=1
+                else
+                   if(abs(hdr(4))>0.17_r_kind.and.abs(hdr(4))<0.32_r_kind) icase=1
+                   if(abs(hdr(4))>0.67_r_kind.and.abs(hdr(4))<0.82_r_kind) icase=1
+                   if(abs(hdr(4))>1.17_r_kind.and.abs(hdr(4))<1.32_r_kind) icase=1
+                   if(abs(hdr(4))>1.67_r_kind.and.abs(hdr(4))<1.82_r_kind) icase=1
+                   if(abs(hdr(4))>2.17_r_kind.and.abs(hdr(4))<2.62_r_kind) icase=1
+                   if(abs(hdr(4))>2.67_r_kind.and.abs(hdr(4))<2.82_r_kind) icase=1
+                endif
                 if(icase/=1) cycle
               end if
 
@@ -1106,6 +1113,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            if (sfctype) then
               call ufbint(lunin,r_prvstg,1,1,iret,prvstr)
               call ufbint(lunin,r_sprvstg,1,1,iret,sprvstr)
+           else if(kx == 120 .and. tob .or. qob .or. psob)then
+              c_prvstg=cspval
+              c_sprvstg='PREP'
+           else if(kx == 220 .and. uvob)then
+              c_prvstg=cspval
+              c_sprvstg='PREP'
            else
               c_prvstg=cspval
               c_sprvstg=cspval
@@ -2185,7 +2198,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                      if(sqrt(uob**2+vob**2)>60.0_r_kind)cycle LOOP_readsb
                  end if
 
-                 if(regional)then
+                 if(regional .and. .not. fv3_regional)then
                     u0=uob
                     v0=vob
                     call rotate_wind_ll2xy(u0,v0,uob,vob,dlon_earth,dlon,dlat)
@@ -2341,7 +2354,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if(perturb_obs)cdata_all(24,iout)=ran01dom()*perturb_fact ! q perturbation
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(15,iout),cdata_all(16,iout),cdata_all(12,iout),cdata_all(1,iout))
- 
+  
 !             Total precipitable water (ssm/i)
               else if(pwob) then
 
@@ -2906,8 +2919,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !
 !   End of bufr read loop
      enddo loop_msg
-!    Close unit to bufr file
-     call closbf(lunin)
 
 !    Deallocate arrays used for thinning data
      if (.not.use_all) then
@@ -2924,6 +2935,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   enddo loop_convinfo! loops over convinfo entry matches
   deallocate(lmsg,tab,nrep)
+! Close unit to bufr file
+  call closbf(lunin)
+  close(lunin)
 
 ! Apply hilbert curve for cross validation if requested
 
@@ -3150,10 +3164,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   if(diagnostic_reg .and. nvtest>0) write(6,*)'READ_PREPBUFR:  ',&
      'nvtest,vdisterrmax=',ntest,vdisterrmax
 
-  call closbf(lunin)
   if(print_verbose)write(6,*)'READ_PREPBUFR:  closbf(',lunin,')'
 
-  close(lunin)
 
 ! End of routine
   return

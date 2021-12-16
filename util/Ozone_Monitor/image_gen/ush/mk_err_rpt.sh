@@ -78,20 +78,11 @@ hyperlink_base="http://www.emc.ncep.noaa.gov/gmb/gdas/es_ozn/index.html?"
 
 if [[ "$standalone" -eq 1 ]]; then
    #--------------------------------------------------
-   # source verison, config, and user_settings files
+   # source config and user_settings files
    #--------------------------------------------------
    this_dir=`dirname $0`
    top_parm=${this_dir}/../../parm
 
-
-   oznmon_version_file=${oznmon_version:-${top_parm}/OznMon.ver}
-   if [[ -s ${oznmon_version_file} ]]; then
-      . ${oznmon_version_file}
-      echo "able to source ${oznmon_version_file}"
-   else
-      echo "Unable to source ${oznmon_version_file} file"
-      exit 2
-   fi
 
    oznmon_user_settings=${oznmon_user_settings:-${top_parm}/OznMon_user_settings}
    if [[ -s ${oznmon_user_settings} ]]; then
@@ -125,6 +116,9 @@ fi
 
 
 OZN_TANKDIR_TIME=${TANKDIR}/${RUN}.${PDY}/${cyc}/oznmon/time
+if [[ ! -d ${OZN_TANKDIR_TIME} ]]; then
+   OZN_TANKDIR_TIME=${TANKDIR}/${RUN}.${PDY}/time
+fi
 echo "OZN_TANKDIR_TIME = $OZN_TANKDIR_TIME"
 
 
@@ -141,6 +135,9 @@ prev_pdy=`echo $prev_cycle | cut -c1-8`
 prev_cyc=`echo $prev_cycle | cut -c9-10`
 
 OZN_TANKDIR_PREV=${TANKDIR}/${RUN}.${prev_pdy}/${prev_cyc}/oznmon/time
+if [[ ! -d ${OZN_TANKDIR_PREV} ]]; then
+   OZN_TANKDIR_TIME=${TANKDIR}/${RUN}.${prev_pdy}/time
+fi
 echo "OZN_TANKDIR_PREV = $OZN_TANKDIR_PREV"
 
 prev_bad_cnt=`ls $OZN_TANKDIR_PREV/bad_cnt.${prev_cycle}`
@@ -233,7 +230,6 @@ if [[ -s $bad_cnt || -s $bad_diag || -s $bad_pen ]]; then
          link="${link}&stat=${stat}"
          link="${link}&src=${OZNMON_SUFFIX}/${RUN}"
 
-#         echo "link = $link"
 
          if [[ ${#test} -gt 0 ]]; then   
 
@@ -361,4 +357,3 @@ fi
 
 echo end mk_err_rpt.sh
 
-#exit( $err )

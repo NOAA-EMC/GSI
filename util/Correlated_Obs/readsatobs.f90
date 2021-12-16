@@ -11,11 +11,17 @@ use read_diag
 implicit none
 
 public :: get_satobs_data, get_chaninfo
-public :: indR, chaninfo, errout
+public :: indR,indRf,indapR,indapR2,chaninfo, errout
 public :: nch_active,nctot
 public :: RadData
+public:: inds1a,inds1b,inds2a,inds2b,indoza,indozb,indwva,indwvb,napd,napd2
+public:: apodize,isis
 
-integer(i_kind),dimension(:),allocatable:: indR  !indices of the assimlated channels
+integer(i_kind),dimension(:),allocatable:: indR,indRf  !indices of the assimlated channels
+integer(i_kind),dimension(:),allocatable:: indapR,indapR2!indices of apodized channels
+integer(i_kind):: inds1a,inds1b,inds2a,inds2b,indoza,indozb,indwva,indwvb,napd,napd2
+logical:: apodize
+character(20):: isis
 real(r_kind),dimension(:),allocatable:: chaninfo !wavenumbers of assimilated channels
 real(r_kind),dimension(:),allocatable:: errout   !satinfo obs errors of assimilated channels
 integer(i_kind):: nch_active                     !number of actively assimilated channels
@@ -77,6 +83,9 @@ subroutine get_chaninfo_bin(filename,chan_choice)
    call open_radiag(trim(filename),iunit,istatus)
    call read_radiag_header(iunit,.false.,header_fix0,header_chan0,data_name0,iflag,.false.)
    nctot=header_fix0%nchan
+   apodize=.false.
+   napd=0
+   napd2=0
    if (chan_choice==full_chan) then
       nch_active=nctot
    else
@@ -86,7 +95,7 @@ subroutine get_chaninfo_bin(filename,chan_choice)
          nch_active=nch_active+1
       end do 
    endif
-   allocate(indR(nch_active),chaninfo(nch_active),errout(nch_active))
+   allocate(indRf(nch_active),indR(nch_active),chaninfo(nch_active),errout(nch_active))
    i=0
    do n=1,header_fix0%nchan
       if (chan_choice==full_chan) then
@@ -96,6 +105,7 @@ subroutine get_chaninfo_bin(filename,chan_choice)
          indR(i)=n
       endif
    end do
+   indRf=indR
    do n=1,nch_active
       chaninfo(n)=header_chan0(indR(n))%wave
       errout(n)=header_chan0(indR(n))%varch
@@ -104,18 +114,18 @@ subroutine get_chaninfo_bin(filename,chan_choice)
 end subroutine get_chaninfo_bin
 
 subroutine get_chaninfo_nc(filename,chan_choice)
-  use nc_diag_read_mod, only: nc_diag_read_get_var
+  use nc_diag_read_mod, only: nc_diag_read_get_var,nc_diag_read_get_global_attr
   use nc_diag_read_mod, only: nc_diag_read_get_dim
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_close
   implicit none
 
    character(len=9), intent(in)  :: filename
    integer(i_kind), intent(in):: chan_choice
-   integer(i_kind) iunit, nobs, i,j
-   integer(i_kind), dimension(:), allocatable ::Use_Flag,chind
+   integer(i_kind) iunit, nobs, i,j,napodize,napodize2,coun,chnm1
+   integer(i_kind), dimension(:), allocatable ::Use_Flag,chind,schind
    real(r_double), dimension(:), allocatable:: Waves,Inv_Errors
    real(r_kind), dimension(:), allocatable:: Wave,Inv_Error
-
+   real(r_kind):: wvn,wvm1 
    iunit = 7
    call nc_diag_read_init(filename, iunit)
    nobs = nc_diag_read_get_dim(iunit,'nobs')
@@ -124,31 +134,135 @@ subroutine get_chaninfo_nc(filename,chan_choice)
    allocate(Use_Flag(nctot),chind(nobs),Wave(nctot),Inv_Error(nctot))
    allocate(Waves(nctot),Inv_Errors(nctot))
    call nc_diag_read_get_var(iunit, 'use_flag', Use_Flag)
+   call nc_diag_read_get_var(iunit, 'sensor_chan',schind)
    call nc_diag_read_get_var(iunit, 'Channel_Index', chind)
    call nc_diag_read_get_var(iunit, 'wavenumber', Waves)
    call nc_diag_read_get_var(iunit, 'error_variance', Inv_Errors)
+   call nc_diag_read_get_global_attr(iunit, 'Satellite_Sensor',isis)
    Wave=real(Waves,r_kind)
    Inv_Error=real(Inv_Errors,r_kind)
    call nc_diag_read_close(filename)
+   napodize=0
+   napodize2=0
+   apodize=.false.
+   if ((isis=='iasi_metop-a').or.(isis=='iasi_metop-b').or.(isis=='iasi_metop-c')) apodize=.true.
+!   if ((isis=='cris-fsr_n20').or.(isis=='cris-fsr_npp')) apodize=.true.
    if (chan_choice==full_chan) then
       nch_active=nctot
+      if (apodize) then
+         do i=1,nctot
+            if (i==1) chnm1=schind(i)
+            if ((schind(i)>chnm1).and.(schind(i)-chnm1==1).and.(Wave(chind(i))<751.0_r_kind))  napodize=napodize+1
+            if ((schind(i)>chnm1).and.(schind(i)-chnm1==2).and.(Wave(chind(i))<751.0_r_kind))  napodize2=napodize2+1
+            chnm1=schind(i)
+         enddo
+      endif
    else
       nch_active=0
       do i=1,nctot
          if(Use_Flag(chind(i)) < 1 ) cycle 
          nch_active=nch_active+1
+         if (apodize) then
+            if (nch_active==1) chnm1=schind(i)
+            if ((schind(i)>chnm1).and.(schind(i)-chnm1==2).and.(Wave(chind(i))<751.0_r_kind))  napodize=napodize+1
+           if ((schind(i)>chnm1).and.(schind(i)-chnm1==1).and.(Wave(chind(i))<751.0_r_kind)) napodize2=napodize2+1
+            chnm1=schind(i)
+         endif
       enddo
    endif
-   allocate(indR(nch_active),chaninfo(nch_active),errout(nch_active))
+   napd=napodize
+   napd2=napodize2
+   allocate(indRf(nch_active),indR(nch_active),chaninfo(nch_active),errout(nch_active))
+   if (apodize) then
+      napodize=0
+      napodize2=0
+      if (napd>0) allocate(indapR(napd))
+      if (napd2>0) allocate(indapR2(napd2))
+      if (chan_choice==full_chan) then
+         do i=1,nctot
+            if (i==1) chnm1=schind(i)
+            if ((schind(i)>chnm1).and.(schind(i)-chnm1==1).and.(Wave(chind(i))<751.0_r_kind)) then
+               napodize=napodize+1
+               indapR(napodize)=i
+            endif
+            if ((schind(i)>chnm1).and.(schind(i)-chnm1==2).and.(Wave(chind(i))<751.0_r_kind)) then
+               napodize2=napodize2+1
+               indapR2(napodize2)=i
+            endif
+            chnm1=schind(i)
+         enddo
+      else
+         coun=0
+         do i=1,nctot
+            if(Use_Flag(chind(i)) < 1 ) cycle
+            coun=coun+1
+            if (coun==1) chnm1=schind(i)
+            if ((schind(i)>chnm1).and.(schind(i)-chnm1==2).and.(Wave(chind(i))<751.0_r_kind)) then
+               napodize=napodize+1
+               indapR(napodize)=coun
+            endif
+            if ((schind(i)>chnm1).and.(schind(i)-chnm1==1).and.(Wave(chind(i))<751.0_r_kind)) then
+               napodize2=napodize2+1
+               indapR2(napodize2)=coun
+            endif
+            chnm1=schind(i)
+         enddo
+      endif
+   endif
+   inds1a=0
+   inds2a=0
+   inds1b=0
+   inds2b=0
+   indoza=0
+   indozb=0
+   indwva=0
+   indwvb=0 
    i=0
    do j=1,nctot
       if (chan_choice==full_chan) then
+         wvn=Wave(chind(j))
          indR(j)=j
+         indRf(j)=schind(j)
+         if (j>1) then
+           wvm1=Wave(chind(j-1))
+           if ((wvn>=751.0_r_kind).and.(wvm1<751.0_r_kind)) inds1a=j
+           if ((wvn>=1014.5_r_kind).and.(wvm1<1014.5_r_kind).and.(wvn<=1062.5_r_kind)) then
+              indoza=j
+              inds1b=j-1
+           endif
+           if ((wvn>1062.5_r_kind).and.(wvm1<=1062.5_r_kind).and.(indoza>0)) indozb=j-1
+           if ((wvn>1062.5_r_kind).and.(wvm1<=1062.5_r_kind).and.(wvn<1315.0_r_kind)) inds2a=j
+           if ((wvn>=1315.0_r_kind).and.(wvm1<1315.0_r_kind).and.(wvn<2015.0_r_kind)) then
+              indwva=j
+              inds2b=j-1
+           endif
+           if ((wvn>=2015.0_r_kind).and.(wvm1<2015.0_r_kind).and.(indwva>0)) indwvb=j
+         endif
       else if (Use_Flag(chind(j))>0) then
          i=i+1
          indR(i)=j
+         indRf(i)=schind(j)
+         wvn=Wave(chind(indR(i)))
+         if (i>1) then
+            wvm1=Wave(chind(indR(i-1)))
+            if ((wvn>=751.0_r_kind).and.(wvm1<751.0_r_kind)) inds1a=i
+            if ((wvn>=1014.5_r_kind).and.(wvm1<1014.5_r_kind).and.(wvn<=1062.5_r_kind)) then
+               indoza=i
+               inds1b=i-1
+            endif
+            if ((wvn>1062.5_r_kind).and.(wvm1<=1062.5_r_kind).and.(indoza>0)) indozb=i-1
+            if ((wvn>1062.5_r_kind).and.(wvm1<=1062.5_r_kind).and.(wvn<1315.0_r_kind)) inds2a=i
+            if ((wvn>=1315.0_r_kind).and.(wvm1<1315.0_r_kind).and.(wvn<2015.0_r_kind)) then
+               indwva=i
+               inds2b=i-1
+            endif
+            if ((wvn>=2015.0_r_kind).and.(wvm1<2015.0_r_kind).and.(indwva>0)) indwvb=i
+         endif
       end if
    end do
+   if (inds2b==0) inds2b=inds1b
+   if ((indwva > 0).and.(indwvb==0)) indwvb=nch_active
+
    do j=1,nch_active
       chaninfo(j)=Wave(chind(indR(j)))
       errout(j)=Inv_Error(chind(indR(j)))

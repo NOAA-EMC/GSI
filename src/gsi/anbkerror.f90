@@ -1,4 +1,4 @@
-subroutine anbkerror(gradx,grady)
+subroutine anbkerror(grady)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    anbkerror apply anisotropic background error covariance  
@@ -33,10 +33,10 @@ subroutine anbkerror(gradx,grady)
 !   2015-07-02  pondeca - update slab mode option to work with any number of control variables
 !
 !   input argument list:
-!     gradx    - input field  
+!     grady    - input field  
 !
 !   output
-!     grady    - background structure * gradx 
+!     grady    - background structure * grady 
 !
 ! attributes:
 !   language: f90
@@ -57,7 +57,6 @@ subroutine anbkerror(gradx,grady)
   implicit none
 
 ! Declare passed variables
-  type(control_vector),intent(inout) :: gradx
   type(control_vector),intent(inout) :: grady
 
 ! Declare local variables
@@ -81,9 +80,6 @@ subroutine anbkerror(gradx,grady)
 
 ! Initialize timer
   call timer_ini('anbkerror')
-
-! Put things in grady first since operations change input variables
-  grady=gradx
 
 ! Since each internal vector [step(jj)] of grad has the same structure, pointers
 ! are the same independent of the subwindow jj

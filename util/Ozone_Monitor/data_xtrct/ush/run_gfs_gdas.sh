@@ -12,13 +12,9 @@ MY_MACHINE=wcoss_d
 package="ProdGSI/util/Ozone_Monitor"
 #package="OznMon"
 
-if [[ $MY_MACHINE = "cray" ]]; then
+if [[ $MY_MACHINE = "wcoss_c" ]]; then
    . /opt/modules/3.2.6.7/init/sh
    module use -a /gpfs/hps/nco/ops/nwprod/modulefiles
-   module load prod_util
-elif [[ $MY_MACHINE = "wcoss" ]]; then
-   shell=sh
-   . /usrx/local/Modules/default/init/${shell}
    module load prod_util
 elif [[ $MY_MACHINE = "wcoss_d" ]]; then 
    shell=sh
@@ -34,11 +30,9 @@ fi
 
 if [[ $MY_MACHINE = "hera" ]]; then
    scripts=/scratch4/NCEPDEV/da/noscrub/Edward.Safford/ProdGSI/util/Ozone_Monitor/data_xtrct/ush
-elif [[ $MY_MACHINE = "wcoss" ]]; then
-   scripts=/gpfs/gd2/emc/da/noscrub/Edward.Safford/${package}/data_xtrct/ush
 elif [[ $MY_MACHINE = "wcoss_d" ]]; then
    scripts=/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/ProdGSI/util/Ozone_Monitor/data_xtrct/ush
-elif [[ $MY_MACHINE = "cray" ]]; then
+elif [[ $MY_MACHINE = "wcoss_c" ]]; then
    scripts=/gpfs/hps3/emc/da/noscrub/Edward.Safford/ProdGSI/util/Ozone_Monitor/data_xtrct/ush
 fi
 

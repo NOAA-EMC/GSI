@@ -92,6 +92,7 @@ module enkf_obsmod
 !        for oz and it crashes EnKF compiled by GNU Fortran
 !     NOTE: this requires anavinfo file to be present at running directory
 !   2016-11-29  shlyaeva: Added the option of writing out ensemble spread in diag files
+!   2019-03-21  CAPS(C. Tong) - added the code for direct reflecitivity DA capability
 !
 ! attributes:
 !   language: f95
@@ -109,7 +110,10 @@ use params, only: &
       corrlengthtr, corrlengthsh, obtimelnh, obtimeltr, obtimelsh,&
       lnsigcutoffsatnh, lnsigcutoffsatsh, lnsigcutoffsattr,&
       varqc, huber, zhuberleft, zhuberright, modelspace_vloc, &
-      lnsigcutoffpsnh, lnsigcutoffpssh, lnsigcutoffpstr, neigv
+      lnsigcutoffpsnh, lnsigcutoffpssh, lnsigcutoffpstr, neigv, &
+      lnsigcutoffrdrnh, lnsigcutoffrdrsh, lnsigcutoffrdrtr,&
+      corrlengthrdrnh, corrlengthrdrtr, corrlengthrdrsh,   &
+      l_use_enkf_directZDA
 
 use state_vectors, only: init_anasv
 use mpi_readobs, only:  mpi_getobs
@@ -145,6 +149,9 @@ type(c_ptr)                             :: anal_ob_cp           ! C pointer
 real(r_single),public,pointer, dimension(:,:) :: anal_ob_modens ! Fortran pointer
 type(c_ptr)                             :: anal_ob_modens_cp    ! C pointer
 integer :: shm_win, shm_win2
+
+! ob-space posterior ensemble, needed for EFSOI
+real(r_single),public,allocatable, dimension(:,:) :: anal_ob_post   ! Fortran pointer
 
 contains
 
@@ -260,11 +267,16 @@ do nob=1,nobstot
       lnsigl(nob) = latval(deglat,lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh)
    else if (obtype(nob)(1:3) == ' ps') then
       lnsigl(nob) = latval(deglat,lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh)
+   else if ( (obtype(nob)(1:3) == 'dbz' .or. obtype(nob)(1:3) == ' rw') .and. l_use_enkf_directZDA ) then
+      lnsigl(nob) = latval(deglat,lnsigcutoffrdrnh,lnsigcutoffrdrtr,lnsigcutoffrdrsh)
    else
       lnsigl(nob)=latval(deglat,lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh)
    end if
    endif
    corrlengthsq(nob)=latval(deglat,corrlengthnh,corrlengthtr,corrlengthsh)**2
+   if ( (obtype(nob)(1:3) == 'dbz' .or. obtype(nob)(1:3) == ' rw') .and. l_use_enkf_directZDA ) then
+       corrlengthsq(nob)=latval(deglat,corrlengthrdrnh,corrlengthrdrtr,corrlengthrdrsh)**2
+   end if
    obtimel(nob)=latval(deglat,obtimelnh,obtimeltr,obtimelsh)
 end do
 
@@ -453,6 +465,7 @@ if (allocated(obtype)) deallocate(obtype)
 if (allocated(probgrosserr)) deallocate(probgrosserr)
 if (allocated(prpgerr)) deallocate(prpgerr)
 if (allocated(diagused)) deallocate(diagused)
+if (allocated(anal_ob_post)) deallocate(anal_ob_post)
 ! free shared memory segement, fortran pointer to that memory.
 nullify(anal_ob)
 call MPI_Barrier(mpi_comm_world,ierr)

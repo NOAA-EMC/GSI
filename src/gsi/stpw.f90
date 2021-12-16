@@ -105,7 +105,7 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
   real(r_kind) valu,facu,valv,facv,w1,w2,w3,w4,w5,w6,w7,w8
   real(r_kind) cg_t,t_pg,var_jb 
   real(r_kind) uu,vv
-  real(r_kind),dimension(max(1,nstep))::pen
+  real(r_kind),dimension(max(1,nstep))::pen,penu,penv
   real(r_kind),pointer,dimension(:):: ru,rv,su,sv
   type(wNode), pointer :: wptr
 
@@ -157,41 +157,39 @@ subroutine stpw(whead,rval,sval,out,sges,nstep)
            do kk=1,nstep
               uu=facu+sges(kk)*valu
               vv=facv+sges(kk)*valv
-              pen(kk)= (uu*uu+vv*vv)*wptr%err2
+              penu(kk)= (uu*uu)*wptr%err2
+              penv(kk)= (vv*vv)*wptr%err2
            end do
         else
-           pen(1)= (wptr%ures*wptr%ures+wptr%vres*wptr%vres)*wptr%err2
+           penu(1)= (wptr%ures*wptr%ures)*wptr%err2
+           penv(1)= (wptr%vres*wptr%vres)*wptr%err2
         end if
 
 !  Modify penalty term if nonlinear QC
 
-       if (vqc  .and. nlnqc_iter .and. wptr%pg > tiny_r_kind .and. &
+        t_pg=zero
+        cg_t=zero
+        var_jb=zero
+        ibb=0
+        ikk=0
+        if (vqc  .and. nlnqc_iter .and. wptr%pg > tiny_r_kind .and. &
                              wptr%b  > tiny_r_kind) then
            t_pg=wptr%pg*varqc_iter
            cg_t=cg_term/wptr%b
-        else
-           t_pg=zero
-           cg_t=zero
-        endif
-
+        else if(njqc  .and. wptr%jb > tiny_r_kind .and. wptr%jb <10.0_r_kind) then
 !   for Dr. Jim purser' non liear quality control
-        if(njqc  .and. wptr%jb > tiny_r_kind .and. wptr%jb <10.0_r_kind) then
            var_jb =wptr%jb
-        else
-           var_jb=zero
-        endif
+        else if(nvqc .and. wptr%ib >0) then
 !  mix model VQC
-        if(nvqc .and. wptr%ib >0) then
            ibb=wptr%ib
            ikk=wptr%ik
-        else
-           ibb=0
-           ikk=0
         endif
         
-
-        call vqc_stp(pen,nstep,t_pg,cg_t,var_jb,ibb,ikk)
-
+        call vqc_stp(penu,nstep,t_pg,cg_t,var_jb,ibb,ikk)
+        call vqc_stp(penv,nstep,t_pg,cg_t,var_jb,ibb,ikk)
+        do kk=1,nstep
+          pen(kk)=penu(kk)+penv(kk)
+        end do
         out(1) = out(1)+pen(1)*wptr%raterr2
         do kk=2,nstep
            out(kk) = out(kk)+(pen(kk)-pen(1))*wptr%raterr2

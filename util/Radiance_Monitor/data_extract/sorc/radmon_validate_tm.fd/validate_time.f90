@@ -7,7 +7,7 @@ program time
 !    08/2013	safford  created from time.f90
 !************************************************************************
 
-  use bad_obs
+  use low_count
   use bad_penalty
   use bad_chan
   use valid 
@@ -25,12 +25,12 @@ program time
   integer :: ios = 0
   integer :: iret 
 
-  real bound
+  real bound, avg_cnt
   real rmiss
   real,allocatable,dimension(:,:):: count,penalty
   real,allocatable,dimension(:):: test_pen
 
-  logical valid_penalty
+  logical valid_penalty, valid_count
   integer :: nchanl
   integer,allocatable,dimension(:) :: test_iuse,test_chan
 
@@ -91,10 +91,16 @@ program time
    date = stringd(2:9)
    cycle = stringd(10:11) 
    write(6,*) 'date, cycle = ', date, cycle
+
    call open_bad_penalty_file( date, cycle, ios )
    write(6,*) 'open_bad_penalty_file = ', ios
+
+   call open_low_count_file( date, cycle, ios )
+   write(6,*) 'open_low_count_file = ', ios
+
    call open_bad_chan_file( date, cycle, ios )
    write(6,*) 'open_bad_chan_file = ', ios
+
    call load_base( satname, ios )
    write(6,*) 'load_base = ', ios
 
@@ -103,9 +109,20 @@ program time
 !  validate penalty values if there is a valid count and if iuse flag=1
    k=1
    do j=1,nchanl
+
+
+      if ( test_iuse(j) == 1 ) then
+         call validate_count( j, k, count(j,k), valid_count, avg_cnt, iret)
+         write (*,*) ' valid_count, iret = ', valid_count, iret
+
+         if (  (iret == 0) .AND. (valid_count .eqv. .FALSE.) ) then
+            write (*,*) ' calling write_low_count '
+            call write_low_count( satname, test_chan(j), k, count(j,k), avg_cnt )
+         end if
+      end if
+
       if (count(j,k)>0 .AND. test_iuse(j) == 1 ) then
          test_pen(j)=penalty(j,k)/count(j,k)
-!         write(6,*) 'test_pen = ', j, test_pen(j)
          call validate_penalty( j, k, test_pen(j), valid_penalty, bound, iret )
          write(6,*) ' valid_penalty, iret = ', valid_penalty, iret
          if( (iret == 0) .AND. (valid_penalty .eqv. .FALSE.) ) then
@@ -120,6 +137,9 @@ program time
   write(6,*)'deallocate arrays'
   deallocate(test_iuse,test_chan,test_pen,count,penalty)
 
+  call close_low_count_file()
+  call close_bad_penalty_file()
+  call close_bad_chan_file()
 
   write(6,*) '<-- validate_time'
   stop

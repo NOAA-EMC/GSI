@@ -155,6 +155,8 @@ module obsmod
 !                          model (e.g., HWRF) aircraft recon dynamic
 !                          observation error (DOE) specification to
 !                          GSI namelist level.  
+!  2020-09-15  Wu        - add option tcp_posmatch to mitigate possibility of erroneous TC initialization
+!  2020-09-19  CAPS(J. Park) - add 'vad_near_analtime' flag to assimilate newvad obs around analysis time only
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -174,6 +176,9 @@ module obsmod
 ! Variable Definitions:
 !   def oberror_tune - namelist logical to tune (=true) oberror
 !   def perturb_obs  - namelist logical to perturb (=true) observations
+!   def tcp_posmatch - namelist integer =1 to move TC to guess position,
+!                                       =2 set pges to the minimum Psfc 
+!   def tcp_box      - namelist integer (=5) to define search box size in gridpoints
 !   def perturb_fact - namelist scaling factor for observation perturbations
 !   def write_diag   - namelist logical array to compute/write (=true) diag files
 !   def diag_radardbz- namelist logical to compute/write (=true) radar
@@ -427,8 +432,8 @@ module obsmod
   public :: diag_radardbz
   public :: lsaveobsens
   public ::                  iout_cldch, mype_cldch
-  public ::          nprof_gps,time_offset,ianldate
-  public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,perturb_obs,ditype,dsfcalc,dplat
+  public ::          nprof_gps,time_offset,ianldate,tcp_box
+  public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,tcp_posmatch,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
   public :: lobsdiagsave,lobsdiag_forenkf,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
   public :: neutral_stability_windfact_2dvar
@@ -460,7 +465,7 @@ module obsmod
   ! ==== DBZ DA ===
   public :: ntilt_radarfiles
   public :: whichradar
-  public :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw
+  public :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, l2rwthin 
 
   public :: doradaroneob,oneoblat,oneoblon
   public :: oneobddiff,oneobvalue,oneobheight,oneobradid
@@ -482,6 +487,7 @@ module obsmod
 
   public :: l_wcp_cwm
   public :: aircraft_recon
+  public :: hurricane_radar 
 
   ! The following public variables are the coefficients that describe
   ! the linear regression fits that are used to define the dynamic
@@ -496,7 +502,7 @@ module obsmod
 
   ! 1/237: Dropsonde observations.
 
-  ! 292: SFMR observations.
+  ! 213: SFMR observations.
   
   ! The following correspond to the specific humidity (q)
   ! observations:
@@ -517,11 +523,16 @@ module obsmod
   
   public :: uv_doe_a_236
   public :: uv_doe_a_237
-  public :: uv_doe_a_292
+  public :: uv_doe_a_213
   public :: uv_doe_b_236
   public :: uv_doe_b_237
-  public :: uv_doe_b_292
-  
+  public :: uv_doe_b_213
+
+  public :: vad_near_analtime
+
+  ! The following correspond to OMPS LP observations:
+
+  public :: ompslp_mult_fact
 
   interface obsmod_init_instr_table
           module procedure init_instr_table_
@@ -595,10 +606,10 @@ module obsmod
   real(r_kind) ,allocatable,dimension(:):: dval
   real(r_kind) ,allocatable,dimension(:):: time_window
 
-  integer(i_kind) ntilt_radarfiles
+  integer(i_kind) ntilt_radarfiles,tcp_posmatch,tcp_box
 
   logical ::  doradaroneob
-  logical :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw
+  logical :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, l2rwthin
   character(4) :: whichradar,oneobradid
   real(r_kind) :: oneoblat,oneoblon,oneobddiff,oneobvalue,oneobheight
   logical :: radar_no_thinning
@@ -634,6 +645,7 @@ module obsmod
 
   logical l_wcp_cwm
   logical aircraft_recon
+  logical hurricane_radar 
 
   character(len=*),parameter:: myname='obsmod'
 
@@ -650,7 +662,7 @@ module obsmod
 
   ! 1/237: Dropsonde observations.
 
-  ! 292: SFMR observations.
+  ! 213: SFMR observations.
 
   ! The following correspond to the specific humidity (q)
   ! observations:
@@ -667,8 +679,14 @@ module obsmod
   
   real(r_kind) :: uv_doe_a_236, uv_doe_b_236
   real(r_kind) :: uv_doe_a_237, uv_doe_b_237
-  real(r_kind) :: uv_doe_a_292, uv_doe_b_292
+  real(r_kind) :: uv_doe_a_213, uv_doe_b_213
+
+  logical vad_near_analtime 
   
+ ! The following correspond to OMPS LP observations:
+
+  real(r_kind) :: ompslp_mult_fact
+
 contains
 
   subroutine init_obsmod_dflts
@@ -718,6 +736,7 @@ contains
     ntilt_radarfiles=1
     vr_dealisingopt=.false.
     if_vterminal=.false.
+    l2rwthin    =.false.  
     if_vrobs_raw=.false.
     if_model_dbz=.true.
     inflate_obserr=.false.
@@ -751,6 +770,8 @@ contains
 
 !   Set logical flag
     perturb_obs = .false.   ! .true. = perturb observations
+    tcp_posmatch = 0     
+    tcp_box = 5     
     oberror_tune = .false.   ! .true. = tune oberror
     perturb_fact = one 
     do i=0,50
@@ -892,6 +913,7 @@ contains
 
     l_wcp_cwm          = .false.                 ! .true. = use operator that involves cwm
     aircraft_recon     = .false.                 ! .true. = use DOE for aircraft data
+    hurricane_radar    = .false.                 ! .true. = use radar data for hurricane application 
 
     ! The following variable initializations pertain to the
     ! coefficients that describe the linear regression fits that are
@@ -907,7 +929,7 @@ contains
     
     ! 1/237: Dropsonde observations.
     
-    ! 292: SFMR observations.
+    ! 213: SFMR observations.
     
     ! The following correspond to the specific humidity (q)
     ! observations:
@@ -930,9 +952,17 @@ contains
     uv_doe_b_236 = 0.0_r_kind
     uv_doe_a_237 = 1.0_r_kind
     uv_doe_b_237 = 0.0_r_kind      
-    uv_doe_a_292 = 1.0_r_kind
-    uv_doe_b_292 = 0.0_r_kind
+    uv_doe_a_213 = 1.0_r_kind
+    uv_doe_b_213 = 0.0_r_kind
+
+    ! This flag was set to assimilate newvad obs around anaylsis time only.
+    ! see 'read_prepbufr.f90'
+    vad_near_analtime = .false.
     
+    ! The following correspond to OMPS LP  observations:
+
+    ompslp_mult_fact = 2.0_r_kind
+
     return
   end subroutine init_obsmod_dflts
   
@@ -971,7 +1001,7 @@ contains
     if (lrun_subdirs) then
        write(pe_name,'(i4.4)') mype
        dirname = 'dir.'//trim(pe_name)//'/'
-       command = 'mkdir -m 755 ' // trim(dirname)
+       command = 'mkdir -p -m 755 ' // trim(dirname)
        call system(command)
     else
        write(pe_name,100) mype

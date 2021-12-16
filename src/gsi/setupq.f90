@@ -149,13 +149,13 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
   use oneobmod, only: oneobtest,maginnov,magoberr
-  use guess_grids, only: ges_lnprsl,hrdifsig,nfldsig,ges_tsen,ges_prsl,pbl_height
+  use guess_grids, only: ges_lnprsl,hrdifsig,nfldsig,ges_tsen,ges_prsl,pbl_height,ges_qsat
   use gridmod, only: lat2,lon2,nsig,get_ijk,twodvar_regional
   use constants, only: zero,one,r1000,r10,r100
   use constants, only: huge_single,wgtlim,three
   use constants, only: tiny_r_kind,five,half,two,huge_r_kind,r0_01
   use qcmod, only: npres_print,ptopq,pbotq,dfact,dfact1,njqc,vqc,nvqc
-  use jfunc, only: jiter,last,jiterstart,miter
+  use jfunc, only: jiter,last,jiterstart,miter,superfact,limitqobs
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: ibeta,ikapa
   use convinfo, only: icsubtype
@@ -169,6 +169,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use sparsearr, only: sparr2, new, size, writearray, fullarray
   use state_vectors, only: svars3d, levels
+  use hdraobmod, only: nhdq,hdqlist
 
   ! The following variables are the coefficients that describe the
   ! linear regression fits that are used to define the dynamic
@@ -231,15 +232,15 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_single),allocatable,dimension(:,:)::rdiagbufp
 
 
-  integer(i_kind) i,nchar,nreal,ii,l,jj,mm1,itemp,iip
+  integer(i_kind) i,j,nchar,nreal,ii,l,jj,mm1,itemp,iip
   integer(i_kind) jsig,itype,k,nn,ikxx,iptrb,ibin,ioff,ioff0,icat,ijb
   integer(i_kind) ier,ilon,ilat,ipres,iqob,id,itime,ikx,iqmax,iqc
   integer(i_kind) ier2,iuse,ilate,ilone,istnelv,iobshgt,izz,iprvd,isprvd
   integer(i_kind) idomsfc,iderivative
-  integer(i_kind) ibb,ikk
+  integer(i_kind) ibb,ikk,idddd
   real(r_kind) :: delz
   type(sparr2) :: dhx_dx
-  integer(i_kind) :: iz, q_ind, nind, nnz
+  integer(i_kind) :: iz, q_ind, nind, nnz,iprev_station
 
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf,cdiagbufp
@@ -317,6 +318,32 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
+!  If HD raobs available move prepbufr version to monitor
+  if(nhdq > 0)then
+     iprev_station=0
+     do i=1,nobs
+        ikx=nint(data(ikxx,i))
+        itype=ictype(ikx)
+        if(itype == 120) then
+           rstation_id     = data(id,i)
+           read(station_id,'(i5,3x)',err=1200) idddd
+           if(idddd == iprev_station)then
+             data(iuse,i)=108._r_kind
+             muse(i) = .false.
+           else
+              stn_loop:do j=1,nhdq
+                if(idddd == hdqlist(j))then
+                   iprev_station=idddd
+                   data(iuse,i)=108._r_kind
+                   muse(i) = .false.
+                   exit stn_loop
+                end if
+              end do stn_loop
+           end if
+        end if
+1200    continue
+     end do
+  end if
 
   var_jb=zero
 
@@ -390,19 +417,19 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   iderivative=0
   do jj=1,nfldsig
      call genqsat(qg(1,1,1,jj),ges_tsen(1,1,1,jj),ges_prsl(1,1,1,jj),lat2,lon2,nsig,ice,iderivative)
-     call genqsat(qg2m(1,1,jj),ges_tsen(1,1,1,jj),ges_prsl(1,1,1,jj),lat2,lon2,   1,ice,iderivative)
+     qg2m(:,:,jj)=qg(:,:,1,jj)
   end do
 
 
 ! Prepare specific humidity data
   call dtime_setup()
   do i=1,nobs
+     ikx=nint(data(ikxx,i))
+     itype=ictype(ikx)
      dtime=data(itime,i)
      call dtime_check(dtime, in_curbin, in_anybin)
      if(.not.in_anybin) cycle
 
-     ikx=nint(data(ikxx,i))
-     itype=ictype(ikx)
 
      ! Flag static conditions to create PBL_pseudo_surfobsq obs.
      l_pbl_pseudo_itype = l_pbl_pseudo_surfobsq .and.         &
@@ -415,7 +442,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         dpres=data(ipres,i)
 
         rmaxerr=data(iqmax,i)
-         rstation_id     = data(id,i)
         error=data(ier2,i)
         prest=r10*exp(dpres)     ! in mb
         var_jb=data(ijb,i)
@@ -490,9 +516,15 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 !    Scale errors by guess saturation q
  
+     qob = data(iqob,i) 
+     if(limitqobs) then
+        call tintrp31(ges_qsat,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
+          mype,nfldsig)
+        qob=min(qob,superfact*qsges)
+     end if
+
      call tintrp31(qg,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
           mype,nfldsig)
-
 ! Interpolate 2-m qs to obs locations/times
      if((i_use_2mq4b > 0) .and. ((itype > 179 .and. itype < 190) .or. itype == 199) &
             .and.  .not.twodvar_regional)then
@@ -501,7 +533,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 !    Load obs error and value into local variables
      obserror = max(cermin(ikx)*r0_01,min(cermax(ikx)*r0_01,data(ier,i)))
-     qob = data(iqob,i) 
 
      rmaxerr=rmaxerr*qsges
      rmaxerr=max(small2,rmaxerr)
@@ -1047,7 +1078,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         endif
      end if
 
-     call nc_diag_init(diag_conv_file)
+     call nc_diag_init(diag_conv_file, append=append_diag)
 
      if (.not. append_diag) then ! don't write headers on append - the module will break?
         call nc_diag_header("date_time",ianldate )
@@ -1059,6 +1090,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   end subroutine init_netcdf_diag_
   subroutine contents_binary_diag_(odiag)
     type(obs_diag),pointer,intent(in):: odiag
+
         cdiagbuf(ii)    = station_id         ! station id
 
         rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
