@@ -37,7 +37,7 @@ elif [[ -d /scratch1 ]] ; then
     . /apps/lmod/lmod/init/sh
     target=hera
 elif [[ -d /data ]] ; then
-    . /opt/apps/lmod/lmod/init/sh
+    . /usr/share/lmod/lmod/init/sh
     target=s4
 elif [[ -d /work ]]; then
     . $MODULESHOME/init/sh
