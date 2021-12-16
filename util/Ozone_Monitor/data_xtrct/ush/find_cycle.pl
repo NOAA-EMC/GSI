@@ -134,10 +134,13 @@
       do {
  
          $hr_ctr = $hr_ctr - 1;
-         
+
          $newdir = "${dirpath}/${sortmm[$ctr]}/${hrs[$hr_ctr]}/atmos/oznmon/time";
          if( ! -d $newdir ) {
             $newdir = "${dirpath}/${sortmm[$ctr]}/${hrs[$hr_ctr]}/oznmon/time";
+            if( ! -d $newdir ) {
+               $newdir = "${dirpath}/${sortmm[$ctr]}/time";
+            }
          }
 
          if( -d $newdir ) {
