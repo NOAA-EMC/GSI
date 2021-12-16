@@ -16,6 +16,8 @@ program calc_analysis_main
   use inc2anl, only: gen_anl, close_files 
   use vars_calc_analysis, only: mype, npes
   implicit none
+! Declare externals
+  external :: w3tagb, w3tage
   integer :: ierr
   call mpi_init(ierr)
   call mpi_comm_rank(mpi_comm_world, mype, ierr)

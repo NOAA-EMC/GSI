@@ -30,6 +30,10 @@ program recenternemsiop_hybgain
 
   include "mpif.h"
 
+! Declare externals
+  external :: MPI_Init, MPI_Comm_rank, MPI_Comm_size, w3tagb, MPI_Abort,&
+     checkheader, getorder, MPI_Barrier, w3tage, MPI_Finalize
+
   character*500 filename_fg,filename_anal1,filename_anal2,filenamein,&
                 filenameout,filename_anal,filename
   character*3 charnanal
@@ -290,9 +294,11 @@ subroutine checkheader(gfile,filename,nrec,nlons,nlats,nlevs)
    implicit none
    include "mpif.h"
    integer, intent(in) :: nrec,nlons,nlats,nlevs
-   integer nrec2,nlons2,nlats2,nlevs2,iret
    character*500, intent(in) :: filename
    type(nemsio_gfile) :: gfile
+! Declare externals
+   external :: MPI_Abort
+   integer nrec2,nlons2,nlats2,nlevs2,iret
    call nemsio_getfilehead(gfile, nrec=nrec2, dimx=nlons2, dimy=nlats2, dimz=nlevs2, iret=iret)
    if (iret /= 0) then
       print *,'error getting header from ',trim(filename)

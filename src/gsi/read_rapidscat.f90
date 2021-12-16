@@ -16,6 +16,7 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
 !   2015-04-03 Ling Liu    
 !   2015-09-17 Thomas  - add l4densvar and thin4d to data selection procedure
 !   2016-03-11 j. guo  - Fixed {dlat,dlon}_earth_deg in the obs data stream
+!   2020-05-04  wu   - no rotate_wind for fv3_regional
 !
 !   input argument list:
 !     ithin    - flag to thin data
@@ -41,7 +42,7 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   use kinds, only: r_kind,r_double,i_kind,r_single
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
-       rlats,rlons
+       rlats,rlons,fv3_regional
   use qcmod, only: errormod,noiqc
   use convthin, only: make3grids,map3grids,del3grids,use_all
   use constants, only: deg2rad,zero,rad2deg,one_tenth,&
@@ -243,7 +244,6 @@ loopd : do
 !!  go through the satedump to find out how many subset to process
 !** Open and read data from bufr data file
 
-  call closbf(lunin)
   open(lunin,file=trim(infile),form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
@@ -388,6 +388,7 @@ loopd : do
      endif
 
      call closbf(lunin)
+     close(lunin)
      open(lunin,file=infile,form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -620,7 +621,7 @@ loopd : do
            woe=obserr
            oelev=r10
 
-           if(regional)then
+           if(regional .and. .not. fv3_regional)then
               u0=uob
               v0=vob
               call rotate_wind_ll2xy(u0,v0,uob,vob,dlon_earth,dlon,dlat)
@@ -662,8 +663,6 @@ loopd : do
         enddo  loop_readsb
 
      enddo loop_msg
-!    Close unit to bufr file
-     call closbf(lunin)
 !    Deallocate arrays used for thinning data
      if (.not.use_all) then
         deallocate(presl_thin)
@@ -673,6 +672,7 @@ loopd : do
 
   enddo loop_convinfo! loops over convinfo entry matches
   deallocate(lmsg,tab,nrep)
+  call closbf(lunin)
  
 ! Write header record and data to output file for further processing
   allocate(iloc(ndata))
@@ -709,10 +709,7 @@ loopd : do
   if(diagnostic_reg .and. nvtest>0) write(6,*)'READ_RAPIDSCAT:  ',&
        'nvtest,vdisterrmax=',ntest,vdisterrmax
 
-  if (ndata == 0) then
-     call closbf(lunin)
-     write(6,*)'READ_RAPIDSCAT:  closbf(',lunin,')'
-  endif
+  write(6,*)'READ_RAPIDSCAT:  closbf(',lunin,')'
   
   write(6,*) 'READ_RAPIDSCAT,nread,ndata,nreal,nodata=',nread,ndata,nreal,nodata
 

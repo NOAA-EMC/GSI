@@ -26,6 +26,11 @@ function time_bias (args)
    say ixc
    say 'iyc=' iyc
 
+   '!echo $CONMON_RESTRICT_PLOT_AREAS > rest.txt'
+   rest=read(rest.txt)
+   restrict=subwrd(rest,2)
+   say 'restrict=' restrict
+
    ix=1
    while(ix <=ixc)
       '!rm -f info.txt'
@@ -41,18 +46,26 @@ function time_bias (args)
       endif
       result=close(info.txt)
 
-*      if( iuse = -1);ix=ix+1;continue;endif
-
       iy=1
       while(iy <=iyc)
 
+*        In order to save space skip certain redundant regions.
+         if ( restrict = 1 )
+            if ( iy = 2 | iy = 3 | iy = 5 | iy = 6 )
+               iy=iy+1
+               continue
+            endif
+         endif
+
          say 'iy=' iy
          '!rm -f area.txt'
+
          if ( iy <10)
             '!cat ges_'dtype'_stas.ctl |grep "region=  'iy' " > area.txt'
          else
             '!cat ges_'dtype'_stas.ctl |grep "region= 'iy' " > area.txt'
          endif
+
          result=read(area.txt)
          rc=sublin(result,1)
          area="uknown"
@@ -61,7 +74,7 @@ function time_bias (args)
             area=substr(info,14,25)
          endif
          result=close(area.txt)
-*         say 'area = 'area
+         say 'area = 'area
          iz=1
 
          while(iz <=izc)

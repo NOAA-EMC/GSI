@@ -98,26 +98,17 @@ fi
 
 
 #--------------------------------------------------------------------
-#  Check for my monitoring use.  Abort if running on prod machine.
-#--------------------------------------------------------------------
-
-if [[ RUN_ONLY_ON_DEV -eq 1 ]]; then
-   is_prod=`${IG_SCRIPTS}/onprod.sh`
-   if [[ $is_prod = 1 ]]; then
-      exit 10
-   fi
-fi
-
-#--------------------------------------------------------------------
 
 log_file=${LOGdir}/Transfer_${RADMON_SUFFIX}.log
 err_file=${LOGdir}/Transfer_${RADMON_SUFFIX}.err
 
+echo "IMGNDIR = ${IMGNDIR}"
+echo "WEBDIR  = ${WEBDIR}"
+
 if [[ ${IMGNDIR} != "/" ]]; then
-   if [[ $MY_MACHINE = "wcoss" || $MY_MACHINE = "wcoss_d" || \
-	 $MY_MACHINE = "cray" ]]; then
+   if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss_c" ]]; then
       /usr/bin/rsync -ave ssh --exclude *.ctl.${Z} \
-         --exclude 'horiz' --exclude *.png ${IMGNDIR}/ \
+         --exclude 'horiz' --exclude *.png --delete-during ${IMGNDIR}/ \
          ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
    fi
 fi

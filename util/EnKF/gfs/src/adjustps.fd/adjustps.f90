@@ -32,6 +32,9 @@ program adjustps
 
   real,parameter:: zero=0.0_4, one=1.0_4
 
+! Declare externals
+  external:: w3tagb, vintg, w3tage
+
   character*500 filename_1,filename_2,filename_o
   character*3 charnlev
   integer iret,latb,lonb,nlevs,npts,k,n,nlevt,idsl
@@ -505,6 +508,9 @@ END program adjustps
       REAL,  PARAMETER :: DLTDZ=-6.5E-3*287.05/9.80665
       REAL,  PARAMETER :: DLPVDRT=-2.5E6/461.50
 
+! Declare externals
+      EXTERNAL :: TERP3
+
       REAL,allocatable :: Z1(:,:),Z2(:,:)
       REAL,allocatable :: C1(:,:,:),C2(:,:,:),J2(:,:,:)
       real dz
@@ -651,6 +657,10 @@ END program adjustps
       REAL Z2(1+(IM-1)*IXZ2+(KM2-1)*KXZ2)
       REAL Q2(1+(IM-1)*IXQ2+(KM2-1)*KXQ2+(NM-1)*NXQ2)
       REAL J2(1+(IM-1)*IXQ2+(KM2-1)*KXQ2+(NM-1)*NXQ2)
+
+! Declare externals
+      EXTERNAL :: RSEARCH
+
       REAL FFA(IM),FFB(IM),FFC(IM),FFD(IM)
       REAL GGA(IM),GGB(IM),GGC(IM),GGD(IM)
       INTEGER K1S(IM,KM2)

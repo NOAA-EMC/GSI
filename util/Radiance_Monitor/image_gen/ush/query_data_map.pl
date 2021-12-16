@@ -1,1 +1,0 @@
-../../data_extract/ush/query_data_map.pl

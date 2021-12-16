@@ -68,7 +68,7 @@ for ptype in ${process_type}; do
       #
       if [[ $type != "omi_aura" && $type != "gome_metop-a" && \
 	    $type != "gome_metop-b" && $type != "ompstc8_npp" ]]; then
-         if [[ ${MY_MACHINE} = "hera" ]]; then
+         if [[ ${MY_MACHINE} = "hera" || ${MY_MACHINE} = "jet" || ${MY_MACHINE} = "s4" ]]; then
             echo "${ctr} ${OZN_IG_SCRIPTS}/plot_summary.sh $type $ptype" >> $cmdfile
          else
             echo "${OZN_IG_SCRIPTS}/plot_summary.sh $type $ptype" >> $cmdfile
@@ -94,17 +94,17 @@ for ptype in ${process_type}; do
       rm -f $errf
    fi
 
-   if [[ ${MY_MACHINE} = "wcoss" ]]; then
-
-      $SUB -q ${JOB_QUEUE} -P ${PROJECT} -M 50 -R affinity[core] \
-           -o ${logf} -e ${errf} -W 0:05 -J ${job} -cwd ${WORKDIR} ${WORKDIR}/${cmdfile}
-
-   elif [[ ${MY_MACHINE} = "hera" ]]; then
+   if [[ ${MY_MACHINE} = "hera" || ${MY_MACHINE} = "s4" ]]; then
 
       $SUB --account ${ACCOUNT} -n $ctr  -o ${logf} -D . -J ${job} --time=10 \
            --wrap "srun -l --multi-prog ${cmdfile}"
 
-   elif [[ ${MY_MACHINE} = "cray" ]]; then
+   elif [[ ${MY_MACHINE} = "jet" ]]; then
+
+      $SUB --account ${ACCOUNT} -n $ctr -p ${PARTITION_OZNMON} -o ${logf} -D . -J ${job} --time=10 \
+           --wrap "srun -l --multi-prog ${cmdfile}"
+
+   elif [[ ${MY_MACHINE} = "wcoss_c" ]]; then
 
       $SUB -q ${JOB_QUEUE} -P ${PROJECT} -o ${logf} -e ${errf} \
            -R "select[mem>100] rusage[mem=100]" \

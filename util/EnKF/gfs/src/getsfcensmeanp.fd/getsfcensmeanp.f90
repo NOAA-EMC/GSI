@@ -34,6 +34,11 @@ program getsfcensmeanp
 
   real(4),parameter:: zero=0.0_4
 
+! Declare externals
+  external :: mpi_init, MPI_Comm_rank, MPI_Comm_size, w3tagb,&
+     MPI_Abort, mpi_comm_group, mpi_group_incl, mpi_comm_create,&
+     mpi_allreduce, mpi_barrier, w3tage, mpi_finalize
+
   logical:: nemsio, sfcio, ncio
 
   type(Dataset) :: dset,dseto

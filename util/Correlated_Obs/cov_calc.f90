@@ -36,7 +36,7 @@ integer(i_kind), parameter:: dsize=4500                  !cap size on the number
 integer(i_kind):: lencov, lencorr, lenwave, lenerr
 integer(i_kind):: reclen, leninstr
 logical:: out_wave                                       !option to output channel wavenumbers
-logical:: out_err                                        !option to output assigned obs errors
+logical:: out_err                                        !option to output obs errors
 logical:: out_corr                                       !option to output correlation matrix
 
 !Diag data
@@ -79,9 +79,10 @@ real(r_kind), dimension(:,:), allocatable:: Rout
 real(r_kind):: kreq, mx, mn
 integer(i_kind):: rec_method
 real(r_kind), parameter:: errt=0.0001_r_kind
+real(r_kind)::infl,inflwv,inflsurf
 
 read(5,*) ntimes, Surface_Type, Cloud_Type, satang, instr, out_wave, out_err,  &
-   out_corr, kreq, rec_method, cov_method, chan_choice, timeth, bin_size, &
+   out_corr, kreq, infl,inflsurf,inflwv,rec_method, cov_method, chan_choice, timeth, bin_size, &
    bin_center, netcdf_in
 netcdf=.false.
 if (netcdf_in>0) netcdf=.true.
@@ -305,8 +306,66 @@ if (kreq>zero) then
       if ((eigs(r) < mn).and.(eigs(r)>=0)) mn=eigs(r)
       if (eigs(r)<0) print *, 'Negative eigenvalue after reconditioning:',  eigs(r)
    end do
-   print *, 'New condition number: ', mx/mn
+   print *, 'New condition number before variance inflation: ', mx/mn
 end if
+if (apodize) then
+  do r=1,napd
+      val=Rcov(indapR(r),indapR(r))*Rcov(indapR(r)-1,indapR(r)-1)
+      if ((Rcov(indapR(r),indapR(r)-1)/sqrt(val)>0.15)) then
+         Rcov(indapR(r),indapR(r)-1)=Rcov(indapR(r),indapR(r)-1)*infl*infl
+         Rcov(indapR(r)-1,indapR(r))=Rcov(indapR(r)-1,indapR(r))*infl*infl
+      endif
+  enddo
+  if (napd2>0) then
+     val=Rcov(indapR2(r),indapR2(r))*Rcov(indapR2(r)-2,indapR2(r)-2)
+     if ((Rcov(indapR2(r),indapR2(r)-2)/sqrt(val)>0.15)) then
+       do r=1,napd2
+          Rcov(indapR2(r),indapR2(r)-2)=Rcov(indapR2(r),indapR2(r)-2)*infl*infl
+          Rcov(indapR2(r)-2,indapR2(r))=Rcov(indapR2(r)-2,indapR2(r))*infl*infl
+       enddo
+     endif
+   endif
+endif
+if (inds1a==0) then !MW instrument or binary file
+   do r=1,nch_active
+     Rcov(r,r)=Rcov(r,r)*infl*infl
+   enddo
+else
+   do r=1,inds1a-1
+     Rcov(r,r)=Rcov(r,r)*infl*infl
+   enddo
+   if (indoza>0) then
+     do r=inds1a,inds1b
+        Rcov(r,r)=Rcov(r,r)*inflsurf*inflsurf
+     enddo
+     do r=indoza,indozb
+        Rcov(r,r)=Rcov(r,r)*infl*infl
+     enddo
+     if (inds2a>0) then
+        do r=inds2a,inds2b
+           Rcov(r,r)=Rcov(r,r)*inflsurf*inflsurf
+        enddo
+     endif
+   else
+     do r=inds1a,inds2b
+        Rcov(r,r)=Rcov(r,r)*inflsurf*inflsurf
+     enddo
+   endif
+endif
+
+
+if (indwva>0) then !assimilate WV channels
+  do r=indwva,indwvb
+    Rcov(r,r)=Rcov(r,r)*inflwv*inflwv
+  enddo
+endif
+if (((indwvb>0).and.(indwvb<nch_active)).or.((inds2b>0).and.(inds2b<nch_active).and.(indwvb==0))) then !assimilate SW channels
+  c=indwvb
+  if (c==0) c=inds2b
+  do r=c,nch_active
+    Rcov(r,r)=Rcov(r,r)*infl*infl
+  enddo
+endif
 if (out_corr) then
    do c=1,nch_active
       do r=1,nch_active
@@ -325,6 +384,17 @@ if (out_corr) then
    end do
    Rcorr=(Rcorr+TRANSPOSE(Rcorr))/two
 end if
+if (kreq>zero) then
+   call eigdecomp(Rcov,nch_active,eigs,eigv)
+   mx=0
+   mn=1000
+   do r=1,nch_active
+      if (eigs(r) > mx) mx=eigs(r)
+      if ((eigs(r) < mn).and.(eigs(r)>=0)) mn=eigs(r)
+      if (eigs(r)<0) print *, 'Negative eigenvalue after variance inflation:', eigs(r)
+   end do
+   print *, 'Final condition number: ', mx/mn
+end if
 deallocate(ges_ave,bin_dist,obs_pairs)
 if (cov_method==desroziers) then
    deallocate(anl_ave)
@@ -332,12 +402,11 @@ else if (cov_method==hl_method) then
    deallocate(Rcovbig,divbig,ges_avebig1,ges_avebig2)
    deallocate(n_pair_hl, obs_pairs_hl)
 end if
-
 !output
 reclen=kind(Rcov(1,1))
 open(26,file=trim(cov_file),form='unformatted')
 write(26) nch_active, nctot, reclen
-write(26) indR
+write(26) indRf
 write(26) Rcov
 close(26)
 
@@ -347,6 +416,9 @@ if (out_wave) then
    close(28)
 end if
 if (out_err) then
+   do r=1,nch_active
+     errout(r)=sqrt(Rcov(r,r))
+   enddo
    open(29,file=trim(err_file),form='unformatted',access='direct',recl=nch_active)
    write(29,rec=1) errout
    close(29)
@@ -356,9 +428,8 @@ if (out_corr) then
    write(25,rec=1) Rcorr
    close(25)
 end if
-
 deallocate(Rcov,chaninfo,errout)
-deallocate(indR)
+deallocate(indR,indRf)
 deallocate(divider)
 if (out_corr) then
    deallocate(Rcorr)

@@ -15,8 +15,13 @@
 set -ax
 
 mode=${1:-}
+MY_RADMON=${2:-}
+
 top_level=${PWD}
 echo "top_level = ${top_level}"
+
+export MY_RADMON=${MY_RADMON:-$top_level}
+echo "MY_RADMON = ${MY_RADMON}"
 
 if [[ -d /dcom && -d /hwrf ]] ; then
     . /usrx/local/Modules/3.2.10/init/sh
@@ -31,6 +36,15 @@ elif [[ -d /ioddev_dell ]]; then
 elif [[ -d /scratch1 ]] ; then
     . /apps/lmod/lmod/init/sh
     target=hera
+elif [[ -d /data ]] ; then
+    . /opt/apps/lmod/lmod/init/sh
+    target=s4
+elif [[ -d /work ]]; then
+    . $MODULESHOME/init/sh
+    target=orion
+elif [[ -d /jetmon ]] ; then
+    . /apps/lmod/lmod/init/sh
+    target=jet
 else
     echo "unknown target = $target"
     exit 9
@@ -59,7 +73,9 @@ fi
 #---------------------------------------------------           
 
 if [[ ${target} = "hera"     || ${target} = "wcoss" \
-   || ${target} = "wcoss_c"  || ${target} = "wcoss_d" ]]; then
+   || ${target} = "wcoss_c"  || ${target} = "wcoss_d" \
+   || ${target} = "orion" || ${target} = "jet" \
+   || ${target} = "s4" ]]; then
    echo Building nwprod executables on ${target}
    echo
 
@@ -74,7 +90,11 @@ if [[ ${target} = "hera"     || ${target} = "wcoss" \
    elif [ $target = wcoss -o $target = gaea ]; then
       module purge
       module load $dir_modules/modulefile.ProdGSI.$target
-   elif [ $target = hera -o $target = cheyenne ]; then
+   elif [ $target = hera -o $target = orion -o $target = jet -o $target = s4 ]; then
+    module purge
+    module use $dir_modules
+    module load modulefile.ProdGSI.$target
+   elif [ $target = cheyenne ]; then
       module purge
       source $dir_modules/modulefile.ProdGSI.$target
    elif [ $target = wcoss_c ]; then

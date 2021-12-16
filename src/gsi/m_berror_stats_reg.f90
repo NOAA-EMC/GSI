@@ -10,10 +10,10 @@
 
     module m_berror_stats_reg
       use kinds,only : i_kind,r_kind
-      use constants, only: zero,one,max_varname_length
+      use constants, only: zero,one,max_varname_length,half
       use gridmod, only: nsig
       use chemmod, only : berror_chem,upper2lower,lower2upper
-      use m_berror_stats, only: berror_stats
+      use m_berror_stats, only: usenewgfsberror,berror_stats
 
       implicit none
 
@@ -24,9 +24,9 @@
 
         ! interfaces to file berror_stats.
       public :: berror_set_reg          ! set internal parameters
-      public :: berror_get_dims_reg	! get dimensions, jfunc::createj_func()
-      public :: berror_read_bal_reg	! get cross-cov.stats., balmod::prebal()
-      public :: berror_read_wgt_reg	! get auto-cov.stats., prewgt()
+      public :: berror_get_dims_reg     ! get dimensions, jfunc::createj_func()
+      public :: berror_read_bal_reg     ! get cross-cov.stats., balmod::prebal()
+      public :: berror_read_wgt_reg     ! get auto-cov.stats., prewgt()
 
 ! !REVISION HISTORY:
 !       25Feb10 - Zhu - adopt code format from m_berror_stats
@@ -112,7 +112,6 @@ end subroutine berror_get_dims_reg
 
   character(len=*),parameter :: myname_=myname//'::berror_set_reg'
   logical found
-
   found=.false.
   if(trim(opt)=='cwcoveqqcov') then
      cwcoveqqcov_=value
@@ -153,19 +152,19 @@ end subroutine berror_set_reg
 !                      - make changes for generalized control variables
 !EOP ___________________________________________________________________
 
-  character(len=*),parameter :: myname_=myname//'::berror_read_bal_reg'
+    character(len=*),parameter :: myname_=myname//'::berror_read_bal_reg'
 
-!   workspaces/variables for data not returned
+!     workspaces/variables for data not returned
 
-  integer(i_kind) k,i,m,j,m1,l1,l
-  integer(i_kind):: nsigstat,nlatstat
-  integer(i_kind):: inerr
+    integer(i_kind) k,i,m,j,m1,l1,l
+    integer(i_kind):: nsigstat,nlatstat
+    integer(i_kind):: inerr
 
-  real(r_kind),dimension(nsig) :: rlsig
-  real(r_single),dimension(:),allocatable::  clat_avn,sigma_avn
-  real(r_single),dimension(:,:),allocatable::  bv_avn,wgv_avn
-  real(r_single),dimension(:,:,:),allocatable:: agv_avn
-  real(r_kind),dimension(:),allocatable::  rlsigo
+    real(r_kind),dimension(nsig) :: rlsig
+    real(r_single),dimension(:),allocatable::  clat_avn,sigma_avn
+    real(r_single),dimension(:,:),allocatable::  bv_avn,wgv_avn
+    real(r_single),dimension(:,:,:),allocatable:: agv_avn
+    real(r_kind),dimension(:),allocatable::  rlsigo
 
 !   Open background error statistics file
     inerr=default_unit_
@@ -186,11 +185,18 @@ end subroutine berror_set_reg
     allocate ( clat_avn(mlat) )
     allocate ( sigma_avn(1:msig) )
     allocate ( rlsigo(1:msig) )
-    allocate ( agv_avn(0:mlat+1,1:msig,1:msig) )
-    allocate ( bv_avn(0:mlat+1,1:msig),wgv_avn(0:mlat+1,1:msig) )
+    if(usenewgfsberror)then
+      allocate ( agv_avn(mlat,1:msig,1:msig) )
+      allocate ( bv_avn(mlat,1:msig),wgv_avn(mlat,1:msig) )
+    else
+      allocate ( agv_avn(0:mlat+1,1:msig,1:msig) )
+      allocate ( bv_avn(0:mlat+1,1:msig),wgv_avn(0:mlat+1,1:msig) )
+    end if
 
 !   Read background error file to get balance variables
     read(inerr)clat_avn,(sigma_avn(k),k=1,msig)
+          
+
     read(inerr)agv_avn,bv_avn,wgv_avn
     close(inerr)
 
@@ -254,6 +260,8 @@ end subroutine berror_set_reg
        enddo
     enddo
 
+    deallocate (agv_avn,bv_avn,wgv_avn,clat_avn,sigma_avn,rlsigo)
+
     agvi(0,:,:)=agvi(1,:,:)
     wgvi(0,:)=wgvi(1,:)
     bvi(0,:)=bvi(1,:)
@@ -261,7 +269,6 @@ end subroutine berror_set_reg
     wgvi(mlat+1,:)=wgvi(mlat,:)
     bvi(mlat+1,:)=bvi(mlat,:)
      
-    deallocate (agv_avn,bv_avn,wgv_avn,clat_avn,sigma_avn,rlsigo)
     return
 end subroutine berror_read_bal_reg
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -277,7 +284,7 @@ end subroutine berror_read_bal_reg
     subroutine berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,varq,qoption,varcw,cwoption,mype,unit)
 
       use kinds,only : r_single,r_kind
-      use gridmod,only : nsig
+      use gridmod,only : nsig, twodvar_regional
       use gsi_io, only : verbose
       use control_vectors,only: nrf,nc2d,nc3d,mvars,nvars
       use control_vectors,only: cvars => nrf_var
@@ -332,6 +339,11 @@ end subroutine berror_read_bal_reg
 !                     variances/correlations for all-sky radiance assimilation
 !       05May16 pondeca - add uwnd10m, vuwn10m
 !       29Aug16 stelios -  Update the constants for howv #ww3
+!       2016-09-xx CAPS(G. Zhao) 
+!                       - add same error stats as q for hydrometeor variables,
+!                       - which can be tuned in sub prewgt_reg.f90.
+!                       - extra caution required for using logarithmic transformation
+!       2018-10-22 CAPS(C.Liu) - add w
 !
 !EOP ___________________________________________________________________
 
@@ -342,9 +354,7 @@ end subroutine berror_read_bal_reg
   real(r_kind),parameter:: vz_oz    = 0.53333333_r_kind
 
 !  workspace variables not returned
-  real(r_single),dimension(:),allocatable::  clat_avn,sigma_avn
-  real(r_single),dimension(:,:),allocatable::  bv_avn,wgv_avn,corqq_avn
-  real(r_single),dimension(:,:,:),allocatable:: agv_avn
+  real(r_single),dimension(:,:),allocatable::  corqq_avn
   real(r_single),dimension(:,:),allocatable:: corz_avn,hwll_avn,vztdq_avn
 
   real(r_single),dimension(1:mlat,msig,nrf):: corz_tmp
@@ -362,12 +372,14 @@ end subroutine berror_read_bal_reg
   integer(i_kind) :: nrf2_uwnd10m,nrf2_vwnd10m
   integer(i_kind) :: nrf3_sfwter,nrf3_vpwter
   integer(i_kind) :: nrf3_dbz
+  integer(i_kind) :: nrf3_ql,nrf3_qi,nrf3_qr,nrf3_qs,nrf3_qg,nrf3_qnr,nrf3_w
   integer(i_kind) :: inerr,istat
   integer(i_kind) :: nsigstat,nlatstat,isig
-  integer(i_kind) :: loc,m1,m,i,n,j,k,n0,ivar,ic
+  integer(i_kind) :: loc,m1,m,i,n,j,k,ivar,ic
   integer(i_kind),allocatable,dimension(:) :: nrf2_loc,nrf3_loc,nmotl_loc
   real(r_kind) :: factoz
   real(r_kind) :: raux
+  real(r_kind),dimension(nsig):: dlsig
 
   ! corz = sqrt(corz)
   real(r_kind), parameter :: corz_default=one,hwll_default=100000_r_kind,vz_default=one
@@ -377,13 +389,13 @@ end subroutine berror_read_bal_reg
 !  character(256) :: filename 
 !  filename = 'howv_var_berr.bin'
 
-  allocate ( clat_avn(mlat) )
-  allocate ( sigma_avn(1:msig) )
-  allocate ( agv_avn(0:mlat+1,1:msig,1:msig) )
-  allocate ( bv_avn(0:mlat+1,1:msig),wgv_avn(0:mlat+1,1:msig) )
-
   print_verbose=.false.
   if(verbose)print_verbose=.true.
+
+  do k=1,nsig
+     rlsig(k)=log(ges_prslavg(k)/ges_psfcavg)
+  enddo
+
 ! Open background error statistics file
   inerr=default_unit_
   if(present(unit)) inerr=unit
@@ -393,14 +405,6 @@ end subroutine berror_read_bal_reg
   rewind inerr
   read(inerr) nsigstat,nlatstat
 
-! Read background error file to get balance variables
-  read(inerr)clat_avn,(sigma_avn(k),k=1,msig)
-  read(inerr)agv_avn,bv_avn,wgv_avn
-
-! compute vertical(pressure) interpolation index and weight
-  do k=1,nsig
-     rlsig(k)=log(ges_prslavg(k)/ges_psfcavg)
-  enddo
 
   if(mype==0) then
      write(6,*) myname_,'(PREWGT_REG):  read error amplitudes ', &
@@ -409,16 +413,20 @@ end subroutine berror_read_bal_reg
         mype,nsigstat,nlatstat
   end if
 
-   allocate(nrf3_loc(nc3d),nrf2_loc(nc2d),nmotl_loc(mvars))
-   do n=1,nc3d
-      nrf3_loc(n)=getindex(cvars,cvars3d(n))
-   enddo
-   do n=1,nc2d
-      nrf2_loc(n)=getindex(cvars,cvars2d(n))
-   enddo
-   do n=1,mvars
-      nmotl_loc(n)=getindex(cvars,cvarsmd(n))
-   enddo
+! Read background error file to get past alance variables
+  read(inerr)
+  read(inerr)
+
+  allocate(nrf3_loc(nc3d),nrf2_loc(nc2d),nmotl_loc(mvars))
+  do n=1,nc3d
+     nrf3_loc(n)=getindex(cvars,cvars3d(n))
+  enddo
+  do n=1,nc2d
+     nrf2_loc(n)=getindex(cvars,cvars2d(n))
+  enddo
+  do n=1,mvars
+     nmotl_loc(n)=getindex(cvars,cvarsmd(n))
+  enddo
 
 
 ! Read amplitudes
@@ -427,32 +435,14 @@ end subroutine berror_read_bal_reg
      if (berror_chem) then
         read(inerr,iostat=istat) varshort,isig
         var=upper2lower(varshort)
-        if (var == 'pm25') var = 'pm2_5'
+        if (trim(var) == 'pm25') var = 'pm2_5'
      else 
         read(inerr,iostat=istat) varshort, isig
         var=varshort
      endif
-
-     if (istat /= 0) exit
-     allocate ( corz_avn(1:mlat,1:isig) )
-     allocate ( hwll_avn(0:mlat+1,1:isig) )
-     allocate ( vztdq_avn(1:isig,0:mlat+1) )
-
-     if (var/='q' .or. (var=='cw' .and. cwoption==2)) then
-        read(inerr) corz_avn
-     else
-        allocate ( corqq_avn(1:mlat,1:isig) )
-        read(inerr) corz_avn,corqq_avn
-     end if
-
-     read(inerr) hwll_avn
-     if (isig>1) then
-        read(inerr) vztdq_avn
-     end if
-
-!    load the variances
+     if (istat /= 0) exit read
      do n=1,nrf
-        if (var==cvars(n)) then
+        if (trim(var)==cvars(n)) then
            nrf_err(n)=.true.
            loc=n
            exit
@@ -460,11 +450,41 @@ end subroutine berror_read_bal_reg
            loc=-999
         end if
      end do
+     if(loc == -999)then
+        if(mype == 0)write(6,*) 'variable in input file, but not used in analysis ',var,isig
+        read(inerr)
+        read(inerr)
+        if(isig > 1)read(inerr)
+        cycle read
+     end if
+
+     allocate ( corz_avn(1:mlat,1:isig) )
+
+     if (trim(var)/='q' .or. (trim(var)=='cw' .and. cwoption==2)) then
+        read(inerr) corz_avn
+     else
+        allocate ( corqq_avn(1:mlat,1:isig) )
+        read(inerr) corz_avn,corqq_avn
+     end if
+
+     if(usenewgfsberror)then
+       allocate ( hwll_avn(mlat,1:isig) )
+     else
+       allocate ( hwll_avn(0:mlat+1,1:isig) )
+     end if
+     read(inerr) hwll_avn
+
 
      if (isig==msig) then
+        if(usenewgfsberror)then
+          allocate ( vztdq_avn(mlat,1:isig) )
+        else
+          allocate ( vztdq_avn(1:isig,0:mlat+1) )
+        end if
+        read(inerr) vztdq_avn
         do n=1,nc3d
            if (nrf3_loc(n)==loc) then
-              if ((var=='q' .and. qoption==2) .or. (var=='cw' .and. cwoption==2)) then
+              if ((trim(var)=='q' .and. qoption==2) .or. (trim(var)=='cw' .and. cwoption==2)) then
 !                choose which q stat to use
                  do k=1,msig
                     do i=1,mlat
@@ -479,43 +499,55 @@ end subroutine berror_read_bal_reg
                  end do
               end if
               do k=1,msig
-                 do i=0,mlat+1
-                    hwll_tmp(i,k,n)=hwll_avn(i,k)
-                    vz_tmp(k,i,n)=vztdq_avn(k,i)
-                 end do
+                 if(usenewgfsberror)then
+                    do i=1,mlat
+                       hwll_tmp(i,k,n)=hwll_avn(i,k)
+                       vz_tmp(k,i,n)=vztdq_avn(i,k)
+                    end do
+                    hwll_tmp(0,k,n)=hwll_avn(1,k)
+                    hwll_tmp(mlat+1,k,n)=hwll_avn(mlat,k)
+                    vz_tmp(k,0,n)=vztdq_avn(1,k)
+                    vz_tmp(k,mlat+1,n)=vztdq_avn(mlat,k)
+                 else
+                    do i=0,mlat+1
+                       hwll_tmp(i,k,n)=hwll_avn(i,k)
+                       vz_tmp(k,i,n)=vztdq_avn(k,i)
+                    end do
+                 end if
               end do
               exit
            end if
         end do
-     end if
+        deallocate ( vztdq_avn )
 
-     if (isig==1) then
+     else if(isig == 1)then
        do n=1,nc2d
           if (nrf2_loc(n)==loc) then
              do i=1,mlat
                  corp(i,n)=corz_avn(i,1)
                  hwllp(i,n)=hwll_avn(i,1)
              end do
-             hwllp(0,n)=hwll_avn(0,1)
-             hwllp(mlat+1,n)=hwll_avn(mlat+1,1)
+             if(usenewgfsberror)then
+                hwllp(0,n)=hwll_avn(1,1)
+                hwllp(mlat+1,n)=hwll_avn(mlat,1)
+             else
+                hwllp(0,n)=hwll_avn(0,1)
+                hwllp(mlat+1,n)=hwll_avn(mlat+1,1)
+             end if
              exit
           end if
        end do
      end if
-
      deallocate ( corz_avn )
      deallocate ( hwll_avn )
-     deallocate ( vztdq_avn )
-     if (var=='q' .or. var=='cw') deallocate ( corqq_avn )
+     if(allocated(corqq_avn)) deallocate ( corqq_avn )
   enddo read
   close(inerr)
-
-  deallocate(clat_avn,sigma_avn)
-  deallocate(agv_avn,bv_avn,wgv_avn)
 
 ! 3d variable
   do n=1,nc3d
      loc=nrf3_loc(n)
+     if (loc <= 0)cycle
      if (nrf_err(loc)) then
         do k=1,nsig
            m=lsig(k)
@@ -573,6 +605,15 @@ end subroutine berror_read_bal_reg
   nrf2_uwnd10m=getindex(cvars2d,'uwnd10m')
   nrf2_vwnd10m=getindex(cvars2d,'vwnd10m')
 
+! W, Cloud and hydrometeor fields
+  nrf3_ql  =getindex(cvars3d,'ql')
+  nrf3_qi  =getindex(cvars3d,'qi')
+  nrf3_qr  =getindex(cvars3d,'qr')
+  nrf3_qs  =getindex(cvars3d,'qs')
+  nrf3_qg  =getindex(cvars3d,'qg')
+  nrf3_qnr =getindex(cvars3d,'qnr')
+  nrf3_w   =getindex(cvars3d,'w')
+
   if(nrf3_q>0 .and. qoption==2)then
      do k=1,nsig
         do j=1,mlat
@@ -599,39 +640,38 @@ end subroutine berror_read_bal_reg
      vz(:,:,nrf3_oz)=vz_oz
   end if
 
-  if (cwcoveqqcov_ .and. nrf3_cw>0) then
-     corz(:,:,nrf3_cw)=corz(:,:,nrf3_q)
-     hwll(:,:,nrf3_cw)=hwll(:,:,nrf3_q)
-     vz(:,:,nrf3_cw)=vz(:,:,nrf3_q)
-  end if
+  if(nrf3_cw > 0)then
+     if (cwcoveqqcov_ ) then
+        corz(:,:,nrf3_cw)=corz(:,:,nrf3_q)
+        hwll(:,:,nrf3_cw)=hwll(:,:,nrf3_q)
+        vz(:,:,nrf3_cw)=vz(:,:,nrf3_q)
 
-  if ((.not. cwcoveqqcov_) .and. nrf3_cw>0) then
-     corz(:,:,nrf3_cw)=zero
-     if (cwoption==2) then
-        do k=1,nsig
-           if (ges_prslavg(k)>15.0_r_kind) then
-              do j=1,mlat
-                 varcw(j,k)=max(real(corz(j,k,nrf3_cw),r_kind),zero)
-                 corz(j,k,nrf3_cw)=one
-              enddo
-           end if
-        enddo
+     else
+        corz(:,:,nrf3_cw)=zero
+        if (cwoption==2) then
+           do k=1,nsig
+              if (ges_prslavg(k)>15.0_r_kind) then
+                 do j=1,mlat
+                    varcw(j,k)=max(real(corz(j,k,nrf3_cw),r_kind),zero)
+                    corz(j,k,nrf3_cw)=one
+                 enddo
+              end if
+           enddo
+        end if
+
+        if (cwoption==1 .or. cwoption==3) then
+           do k=1,nsig
+              if (ges_prslavg(k)>15.0_r_kind) then
+                 do j=1,mlat
+                    corz(j,k,nrf3_cw)=one
+                 end do
+              end if
+           end do
+           hwll(:,:,nrf3_cw)=0.5_r_kind*hwll(:,:,nrf3_q)
+           vz(:,:,nrf3_cw)=0.5_r_kind*vz(:,:,nrf3_q)
+        end if
      end if
-
-     if (cwoption==1 .or. cwoption==3) then
-        do k=1,nsig
-           if (ges_prslavg(k)>15.0_r_kind) then
-              do j=1,mlat
-                 corz(j,k,nrf3_cw)=one
-              end do
-           end if
-        end do
-        hwll(:,:,nrf3_cw)=0.5_r_kind*hwll(:,:,nrf3_q)
-        vz(:,:,nrf3_cw)=0.5_r_kind*vz(:,:,nrf3_q)
-     end if
-  end if
-
-  if (icloud_cv .and. n_clouds_fwd>0 .and. nrf3_cw<=0 .and. cwoption==3) then
+  else if (icloud_cv .and. n_clouds_fwd>0 .and. cwoption==3) then
      do n=1,size(cvars3d)
         do ic=1,n_clouds_fwd
            if(trim(cvars3d(n))==trim(cloud_names_fwd(ic))) then
@@ -662,53 +702,107 @@ end subroutine berror_read_bal_reg
       hwll(0:mlat+1,1:nsig,nrf3_vpwter)=hwll(0:mlat+1,1:nsig,nrf3_vp)
   endif
 
+! W and Cloud/hydrometeor variables share same error structure with humidity q by default
+!  (not with log transformed cloud variables)
+  if (nrf3_ql>0) then
+      if(mype==0) &
+          write(6,*)myname_,"@pe=",mype," set b_error stats of ql = qv(moisture) and nrf3_ql=",nrf3_ql
+      corz(:,:,nrf3_ql) = corz(:,:,nrf3_q)
+      hwll(:,:,nrf3_ql) = hwll(:,:,nrf3_q)
+      vz(:,:,  nrf3_ql) = vz(:,:,  nrf3_q)
+  end if
+
+  if (nrf3_qi>0) then
+      if(mype==0) &
+          write(6,*)myname_,"@pe=",mype," set b_error stats of qi = qv(moisture) and nrf3_qi=",nrf3_qi
+      corz(:,:,nrf3_qi) = corz(:,:,nrf3_q)
+      hwll(:,:,nrf3_qi) = hwll(:,:,nrf3_q)
+      vz(:,:,  nrf3_qi) = vz(:,:,  nrf3_q)
+  end if
+
+  if (nrf3_qr>0) then
+      if(mype==0) &
+          write(6,*)myname_,"@pe=",mype," set b_error stats of qr = qv(moisture) and nrf3_qr=",nrf3_qr
+      corz(:,:,nrf3_qr) = corz(:,:,nrf3_q)
+      hwll(:,:,nrf3_qr) = hwll(:,:,nrf3_q)
+      vz(:,:,  nrf3_qr) = vz(:,:,  nrf3_q)
+  end if
+
+  if (nrf3_qs>0) then
+      if(mype==0) &
+          write(6,*)myname_,"@pe=",mype," set b_error stats of qs = qv(moisture) and nrf3_qs=",nrf3_qs
+      corz(:,:,nrf3_qs) = corz(:,:,nrf3_q)
+      hwll(:,:,nrf3_qs) = hwll(:,:,nrf3_q)
+      vz(:,:,  nrf3_qs) = vz(:,:,  nrf3_q)
+  end if
+
+  if (nrf3_qg>0) then
+      if(mype==0) &
+          write(6,*)myname_,"@pe=",mype," set b_error stats of qg = qv(moisture) and nrf3_qg=",nrf3_qg
+      corz(:,:,nrf3_qg) = corz(:,:,nrf3_q)
+      hwll(:,:,nrf3_qg) = hwll(:,:,nrf3_q)
+      vz(:,:,  nrf3_qg) = vz(:,:,  nrf3_q)
+  end if
+
+  if (nrf3_qnr>0) then
+      if(mype==0) &
+          write(6,*)myname_,"@pe=",mype," set b_error stats of qnr = qv(moisture) and nrf3_nr=",nrf3_qnr
+      corz(:,:,nrf3_qnr) = corz(:,:,nrf3_q)
+      hwll(:,:,nrf3_qnr) = hwll(:,:,nrf3_q)
+      vz(:,:,  nrf3_qnr) = vz(:,:,  nrf3_q)
+  end if
+
+  if (nrf3_w>0) then
+      if(mype==0) &
+          write(6,*)myname_,"@pe=",mype," set b_error stats of w = qv(moisture) and nrf3_w=",nrf3_w
+      corz(:,:,nrf3_w) = corz(:,:,nrf3_q)
+      hwll(:,:,nrf3_w) = hwll(:,:,nrf3_q)
+      vz(:,:,  nrf3_w) = vz(:,:,  nrf3_q)
+  end if
+
 ! 2d variable
   do n=1,nc2d
      loc=nrf2_loc(n)
-     if (nrf_err(loc)) cycle
+     if(loc <= 0)cycle
+!  If we want to use the sst in global file uncomment the following if statement
      if (n==nrf2_sst) then
-        do i=1,mlat
-           corp(i,n)=zero_3
-        end do
-        do i=0,mlat+1
-           hwllp(i,n)=hwll(i,1,nrf3_sf)
-           hwllp(i,nc2d+1)=hwll(i,1,nrf3_sf) !not very nice, since it assumes that stl and sti
-           hwllp(i,nc2d+2)=hwll(i,1,nrf3_sf) !are always the first motley variables in convinfo
-        end do
-     end if
-     if (n==nrf2_gust) then
+!       if(.not. usenewgfsberror)then
+          do i=1,mlat
+             corp(i,n)=zero_3
+          end do
+          do i=0,mlat+1
+             hwllp(i,n)=hwll(i,1,nrf3_sf)
+          end do
+!       end if
+     else if (n==nrf2_gust) then
         do i=1,mlat
            corp(i,n)=three
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_q)
         end do
-     end if
-     if (n==nrf2_vis) then
+     else if (n==nrf2_vis) then
         do i=1,mlat
            corp(i,n)=3.0_r_kind
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
-     end if
-     if (n==nrf2_pblh) then
+     else if (n==nrf2_pblh) then
         do i=1,mlat
            corp(i,n)=500.0_r_kind
         end do
         do i=0,mlat+1
            hwllp(i,n)=three*hwll(i,1,nrf3_t)
         end do
-     end if
-     if (n==nrf2_wspd10m) then
+     else if (n==nrf2_wspd10m) then
         do i=1,mlat
            corp(i,n)=three
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_q)
         end do
-     end if
-     if (n==nrf2_td2m) then
+     else if (n==nrf2_td2m) then
         raux=maxval(corz(1:mlat,1,nrf3_q))
         do i=1,mlat
            corp(i,n)=(corz(i,1,nrf3_q)/raux)*three !tentatively
@@ -716,32 +810,28 @@ end subroutine berror_read_bal_reg
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_q) !tentatively
         end do
-     end if
-     if (n==nrf2_mxtm) then
+     else if (n==nrf2_mxtm) then
         do i=1,mlat
            corp(i,n)=corz(i,1,nrf3_t)
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
-     end if
-     if (n==nrf2_mitm) then
+     else if (n==nrf2_mitm) then
         do i=1,mlat
            corp(i,n)=corz(i,1,nrf3_t)
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
-     end if
-     if (n==nrf2_pmsl) then
+     else if (n==nrf2_pmsl) then
         do i=1,mlat
            corp(i,n)=corp(i,nrf2_ps)
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwllp(i,nrf2_ps)
         end do
-     end if
-     if (n==nrf2_howv) then
+     else if (n==nrf2_howv) then
          call read_howv_stats(mlat,1,2,cov_dum)
          do i=1,mlat
             corp(i,n)=cov_dum(i,1,1)     !#ww3
@@ -759,16 +849,14 @@ end subroutine berror_read_bal_reg
 !        do i=0,mlat+1
 !           hwllp(i,n)=hwll(i,1,nrf3_sf) !tentatively !#ww3  hwllp(i,n)=150000_r_kind  !
 !        end do
-     end if
-     if (n==nrf2_tcamt) then
+     else if (n==nrf2_tcamt) then
         do i=1,mlat
            corp(i,n)=50.0_r_kind
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
-     end if
-     if (n==nrf2_lcbas) then
+     else if (n==nrf2_lcbas) then
         do i=1,mlat
            corp(i,n)=40000.0_r_kind
         end do
@@ -776,8 +864,7 @@ end subroutine berror_read_bal_reg
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
         if(print_verbose)print*, 'm_berror_reg: maxhwllp_lcbas=',maxval(hwllp(:,n))
-     end if
-     if (n==nrf2_cldch) then
+     else if (n==nrf2_cldch) then
         do i=1,mlat
            corp(i,n)=3.0_r_kind
         end do
@@ -785,16 +872,14 @@ end subroutine berror_read_bal_reg
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
         if(print_verbose)print*, 'm_berror_reg: maxhwllp_cldch=',maxval(hwllp(:,n))
-     end if
-     if (n==nrf2_uwnd10m) then
+     else if (n==nrf2_uwnd10m) then
         do i=1,mlat
            corp(i,n)=three
         end do
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_q)
         end do
-     end if
-     if (n==nrf2_vwnd10m) then
+     else if (n==nrf2_vwnd10m) then
         do i=1,mlat
            corp(i,n)=three
         end do
@@ -807,103 +892,126 @@ end subroutine berror_read_bal_reg
 
 
 ! motley variable
-  n0=nc2d 
   do n=1,mvars
-     if (cvarsmd(n)=='stl') cycle
-     if (cvarsmd(n)=='sti') cycle
-
-     if (cvarsmd(n)=='pswter') then
+     loc=nmotl_loc(n)
+     if(loc <=0)cycle
+     loc=n+nc2d
+     if (cvarsmd(n)=='sti' .or. cvarsmd(n)=='stl') then
         do i=1,mlat
-           corp(i,n0+n)=corp(i,nrf2_ps)
+           corp(i,loc)=corz(i,1,nrf3_sf)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwllp(i,nrf2_ps)
+           hwllp(i,loc)=hwll(i,1,nrf3_sf) 
         end do
-     endif
 
-     if (cvarsmd(n)=='twter') then
+     else if (cvarsmd(n)=='pswter') then
         do i=1,mlat
-           corp(i,n0+n)=corz(i,1,nrf3_t)
+           corp(i,loc)=corp(i,nrf2_ps)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwll(i,1,nrf3_t)
+           hwllp(i,loc)=hwllp(i,nrf2_ps)
         end do
-     endif
 
-     if (cvarsmd(n)=='qwter') then
+     else if (cvarsmd(n)=='twter') then
         do i=1,mlat
-           corp(i,n0+n)=corz(i,1,nrf3_q)
+           corp(i,loc)=corz(i,1,nrf3_t)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwll(i,1,nrf3_q)
+           hwllp(i,loc)=hwll(i,1,nrf3_t)
         end do
-     endif
 
-     if (cvarsmd(n)=='gustwter') then
+     else if (cvarsmd(n)=='qwter') then
         do i=1,mlat
-           corp(i,n0+n)=corp(i,nrf2_gust)
+           corp(i,loc)=corz(i,1,nrf3_q)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwllp(i,nrf2_gust)
+           hwllp(i,loc)=hwll(i,1,nrf3_q)
         end do
-     endif
 
-     if (cvarsmd(n)=='wspd10mwter') then
+     else if (cvarsmd(n)=='gustwter') then
         do i=1,mlat
-           corp(i,n0+n)=corp(i,nrf2_wspd10m)
+           corp(i,loc)=corp(i,nrf2_gust)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwllp(i,nrf2_wspd10m)
+           hwllp(i,loc)=hwllp(i,nrf2_gust)
         end do
-     endif
 
-     if (cvarsmd(n)=='td2mwter') then
+     else if (cvarsmd(n)=='wspd10mwter') then
         do i=1,mlat
-           corp(i,n0+n)=corp(i,nrf2_td2m)
+           corp(i,loc)=corp(i,nrf2_wspd10m)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwllp(i,nrf2_td2m)
+           hwllp(i,loc)=hwllp(i,nrf2_wspd10m)
         end do
-     endif
 
-     if (cvarsmd(n)=='mxtmwter') then
+     else if (cvarsmd(n)=='td2mwter') then
         do i=1,mlat
-           corp(i,n0+n)=corp(i,nrf2_mxtm)
+           corp(i,loc)=corp(i,nrf2_td2m)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwllp(i,nrf2_mxtm)
+           hwllp(i,loc)=hwllp(i,nrf2_td2m)
         end do
-     endif
 
-     if (cvarsmd(n)=='mitmwter') then
+     else if (cvarsmd(n)=='mxtmwter') then
         do i=1,mlat
-           corp(i,n0+n)=corp(i,nrf2_mitm)
+           corp(i,loc)=corp(i,nrf2_mxtm)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwllp(i,nrf2_mitm)
+           hwllp(i,loc)=hwllp(i,nrf2_mxtm)
         end do
-     endif
 
-     if (cvarsmd(n)=='uwnd10mwter') then
+     else if (cvarsmd(n)=='mitmwter') then
         do i=1,mlat
-           corp(i,n0+n)=corp(i,nrf2_uwnd10m)
+           corp(i,loc)=corp(i,nrf2_mitm)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwllp(i,nrf2_uwnd10m)
+           hwllp(i,loc)=hwllp(i,nrf2_mitm)
         end do
-     endif
 
-     if (cvarsmd(n)=='vwnd10mwter') then
+     else if (cvarsmd(n)=='uwnd10mwter') then
         do i=1,mlat
-           corp(i,n0+n)=corp(i,nrf2_vwnd10m)
+           corp(i,loc)=corp(i,nrf2_uwnd10m)
         end do
         do i=0,mlat+1
-           hwllp(i,n0+n)=hwllp(i,nrf2_vwnd10m)
+           hwllp(i,loc)=hwllp(i,nrf2_uwnd10m)
         end do
-     endif
+
+     else if (cvarsmd(n)=='vwnd10mwter') then
+        do i=1,mlat
+           corp(i,loc)=corp(i,nrf2_vwnd10m)
+        end do
+        do i=0,mlat+1
+           hwllp(i,loc)=hwllp(i,nrf2_vwnd10m)
+        end do
+!  if not found use default
+     else 
+        do i=1,mlat
+           corp(i,loc)=corz_default
+        end do
+        do i=0,mlat+1
+           hwllp(i,loc)=hwll_default
+        end do
+     end if
   enddo
 
   deallocate(nrf3_loc,nrf2_loc,nmotl_loc)
+! Normalize vz with del sigmma and convert to vertical grid units!
+  if(.not. twodvar_regional)then
+     dlsig(1)=rlsig(1)-rlsig(2)
+     do k=2,nsig-1
+        dlsig(k)=half*(rlsig(k-1)-rlsig(k+1))
+     enddo
+     dlsig(nsig)=rlsig(nsig-1)-rlsig(nsig)
+
+     do n=1,nc3d
+        do j=0,mlat+1
+           do k=1,nsig
+              vz(k,j,n)=vz(k,j,n)*dlsig(k)
+           end do
+        end do
+     end do
+  end if
+
 
   return
 end subroutine berror_read_wgt_reg

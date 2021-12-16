@@ -468,6 +468,7 @@ contains
     implicit none
 
     call closbf(lnbufr)
+    close(lnbufr)
     return
   end subroutine finish_sst_retrieval
     

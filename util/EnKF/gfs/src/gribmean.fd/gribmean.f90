@@ -14,6 +14,10 @@ program gribmean
 implicit none
 
 integer, parameter :: lunin=11,lunout=12
+
+! Declare externals
+external :: baopenr, getgbh, getgb, baclose, baopenwt, putgbe
+
 integer :: iret,iargc,i,j
 integer :: nlons,nlats,nmsg,nbyte,ndata,nanals,nanal,nrecs,kskp
 integer,   dimension(200)                :: kpds,kgds,kens,jpds,jgds

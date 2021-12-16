@@ -27,7 +27,11 @@ ncp=/bin/cp
 # Given the analysis date, compute the date from which the
 # first guess comes.  Extract cycle and set prefix and suffix
 # for guess and observation data files
+PDY=`echo $global_C96_fv3aero_adate | cut -c1-8`
+cyc=`echo $global_C96_fv3aero_adate | cut -c9-10`
 gdate=`$ndate -06 $global_C96_fv3aero_adate`
+gPDY=`echo $gdate | cut -c1-8`
+gcyc=`echo $gdate | cut -c9-10`
 hha=`echo $global_C96_fv3aero_adate | cut -c9-10`
 hhg=`echo $gdate | cut -c9-10`
 prefix_obs=gfs.t${hha}z.
@@ -37,6 +41,10 @@ prefix_sfc=gfsC96.t${hhg}z
 prefix_atm=gfsC96.t${hhg}z
 suffix_obs=gdas.${global_C96_fv3aero_adate}
 suffix_bias=gdas.${gdate}
+
+datobs=$global_C96_fv3aero_obs/gfs.$PDY/$cyc
+datanl=$global_C96_fv3aero_obs/gfs.$PDY/$cyc
+datges=$global_C96_fv3aero_ges/gfs.$gPDY/$gcyc
 
 
 # Set up $tmpdir
@@ -235,32 +243,32 @@ $ncp $fixcrtm/v.modis_terra.SpcCoeff.bin ./crtm_coeffs/v.modis_terra.SpcCoeff.bi
 $ncp $fixcrtm/v.modis_terra.TauCoeff.bin ./crtm_coeffs/v.modis_terra.TauCoeff.bin
 
 # Copy observational data to $tmpdir
-ln -s -f $global_C96_fv3aero_obs/${prefix_obs}modisaod.tm00.bufr ./modisaodbufr
+ln -s -f $datobs/${prefix_obs}modisaod.tm00.bufr ./modisaodbufr
 
 
 # Copy bias correction, atmospheric and surface files
-ln -s -f $global_C96_fv3aero_ges/gfs.t18z.abias           ./satbias_in
-ln -s -f $global_C96_fv3aero_ges/gfs.t18z.abias_pc        ./satbias_pc
-#ln -s -f $global_C96_fv3aero_ges/gfs.t18z.radstat         ./radstat.gdas
+ln -s -f $datges/gfs.t18z.abias           ./satbias_in
+ln -s -f $datges/gfs.t18z.abias_pc        ./satbias_pc
+#ln -s -f $datges/gfs.t18z.radstat         ./radstat.gdas
 
 if [[ "$endianness" = "Big_Endian" ]]; then
-   ln -s -f $global_C96_fv3aero_ges/${prefix_sfc}.sfcf03            ./sfcf03
-   ln -s -f $global_C96_fv3aero_ges/${prefix_sfc}.sfcf06            ./sfcf06
-   ln -s -f $global_C96_fv3aero_ges/${prefix_sfc}.sfcf09            ./sfcf09
+   ln -s -f $datges/${prefix_sfc}.sfcf03            ./sfcf03
+   ln -s -f $datges/${prefix_sfc}.sfcf06            ./sfcf06
+   ln -s -f $datges/${prefix_sfc}.sfcf09            ./sfcf09
 elif [[ "$endianness" = "Little_Endian" ]]; then
-   ln -s -f $global_C96_fv3aero_ges/${prefix_sfc}.sfcf03.le         ./sfcf03
-   ln -s -f $global_C96_fv3aero_ges/${prefix_sfc}.sfcf06.le         ./sfcf06
-   ln -s -f $global_C96_fv3aero_ges/${prefix_sfc}.sfcf09.le         ./sfcf09
+   ln -s -f $datges/${prefix_sfc}.sfcf03.le         ./sfcf03
+   ln -s -f $datges/${prefix_sfc}.sfcf06.le         ./sfcf06
+   ln -s -f $datges/${prefix_sfc}.sfcf09.le         ./sfcf09
 fi
 
 if [[ "$endianness" = "Big_Endian" ]]; then
-   ln -s -f $global_C96_fv3aero_ges/${prefix_atm}.sigf03        ./sigf03
-   ln -s -f $global_C96_fv3aero_ges/${prefix_atm}.sigf06        ./sigf06
-   ln -s -f $global_C96_fv3aero_ges/${prefix_atm}.sigf09        ./sigf09
+   ln -s -f $datges/${prefix_atm}.sigf03        ./sigf03
+   ln -s -f $datges/${prefix_atm}.sigf06        ./sigf06
+   ln -s -f $datges/${prefix_atm}.sigf09        ./sigf09
 elif [[ "$endianness" = "Little_Endian" ]]; then
-   ln -s -f $global_C96_fv3aero_ges/${prefix_atm}.sigf03.le     ./sigf03
-   ln -s -f $global_C96_fv3aero_ges/${prefix_atm}.sigf06.le     ./sigf06
-   ln -s -f $global_C96_fv3aero_ges/${prefix_atm}.sigf09.le     ./sigf09
+   ln -s -f $datges/${prefix_atm}.sigf03.le     ./sigf03
+   ln -s -f $datges/${prefix_atm}.sigf06.le     ./sigf06
+   ln -s -f $datges/${prefix_atm}.sigf09.le     ./sigf09
 fi
 
 # Run GSI

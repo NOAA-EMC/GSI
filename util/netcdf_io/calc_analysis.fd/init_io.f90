@@ -89,6 +89,8 @@ contains
     use netcdf, only: nf90_max_name
     use nemsio_module
     implicit none
+    ! Declare externals
+    external :: w3movdat
     ! variables local to this subroutine
     integer :: iret, nrecs
     real, dimension(5) :: fha

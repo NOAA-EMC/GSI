@@ -5,9 +5,9 @@
 #   Cheyenne: source /glade/p/ral/jntp/gge/modulefiles/modulefile.cheyenne.GSI_UPP_WRF
 #
 #  build commands:
-#    cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON path_to_GSI
-#    cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON -DBUILD_UTIL_COM=ON -DBUILD_ENKF_PREPROCESS_ARW=ON path_to_GSI"
-#    (for global: cmake -D-DENKF_MODE=GFS -DBUILD_CORELIBS=ON path_to_GSI)
+#    cmake -DCOMGSI=ON -DENKF_MODE=WRF -DBUILD_GSDCLOUD_ARW=ON path_to_GSI
+#    cmake -DCOMGSI=ON -DENKF_MODE=WRF -DBUILD_GSDCLOUD_ARW=ON -DBUILD_UTIL_COM=ON -DBUILD_ENKF_PREPROCESS_ARW=ON path_to_GSI"
+#    (for global: cmake -DCOMGSI=ON -DENKF_MODE=GFS path_to_GSI)
 #    make -j8
 #
 
@@ -16,79 +16,118 @@ dir_root=$(pwd)
 ################# Hera ####################
 if [[ "`grep -i "hera" /etc/hosts | head -n1`" != "" ]] ; then
     source /etc/profile.d/modules.sh
-    modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.hera.GSI_UPP_WRF"
-    NCEPLIBS="/scratch1/BMC/comgsi/precompiled/NCEPLIBS/b_intel18.0.5.274_impi2018.0.4/install"
-    GSILIBS="/scratch1/BMC/comgsi/precompiled/GSILIBS/b_intel18.0.5.274_impi2018.0.4"
+    module purge
+    module load cmake/3.20.1
+    module load intel/18.0.5.274
+    module load impi/2018.0.4
+    module load netcdf/4.7.0
+
+    module use /scratch2/NCEPDEV/nwprod/hpc-stack/libs/hpc-stack/modulefiles/stack
+    module load hpc/1.1.0
+    module load hpc-intel/18.0.5.274
+    module load hpc-impi/2018.0.4
+    module load bufr/11.4.0
+    module load ip/3.3.3
+    module load nemsio/2.5.2
+    module load sfcio/1.4.1
+    module load sigio/2.3.2
+    module load sp/2.3.3
+    module load w3nco/2.4.1
+    module load w3emc/2.7.3
+    module load bacio/2.4.1
+    module load crtm/2.3.0
+    module load wrf_io/1.2.0
 
 ################# Jet ####################
 elif [[ -d /jetmon ]] ; then
     source /etc/profile.d/modules.sh
-    modulefile="/home/rtrr/PARM_EXEC/modulefiles/modulefile.jet.GSI_UPP_WRF"
-    NCEPLIBS="/lfs4/BMC/wrfruc/gge/precompiled/NCEPLIBS/b_intel18.0.5.274_impi2018.4.274/install"
-    GSILIBS="/lfs4/BMC/wrfruc/gge/precompiled/GSILIBS/b_intel18.0.5.274_impi2018.4.274"
+    module purge
+    module load cmake/3.16.1
+    module load intel/18.0.5.274
+    module load impi/2018.4.274
+    module load netcdf/4.7.0 #don't load netcdf/4.7.4 from hpc-stack, GSI does not compile with it.
+
+    module use /lfs4/HFIP/hfv3gfs/nwprod/hpc-stack/libs/modulefiles/stack
+    module load hpc/1.1.0
+    module load hpc-intel/18.0.5.274
+    module load hpc-impi/2018.4.274
+    module load bufr/11.4.0
+    module load bacio/2.4.1
+    module load crtm/2.3.0
+    module load ip/3.3.3
+    module load nemsio/2.5.2
+    module load sp/2.3.3
+    module load w3emc/2.7.3
+    module load w3nco/2.4.1
+    module load sfcio/1.4.1
+    module load sigio/2.3.2
+    module load wrf_io/1.2.0
 
 ################# Cheyenne ####################
 elif [[ -d /glade ]] ; then
     source /etc/profile.d/modules.sh
-    modulefile="/glade/p/ral/jntp/gge/modulefiles/modulefile.cheyenne.GSI_UPP_WRF"
-    NCEPLIBS="/glade/p/ral/jntp/gge/precompiled/NCEPLIBS/b_intel18.0.5_impi2018.4.274/install"
-    GSILIBS="/glade/p/ral/jntp/gge/precompiled/GSILIBS/b_intel18.0.5_impi2018.4.274"
-    #modulefile="/glade/p/ral/jntp/gge/precompiled/NCEPLIBS/modulefile.cheyenne.GSI_UPP_WRF.gnu"
-    #NCEPLIBS="/glade/p/ral/jntp/gge/precompiled/NCEPLIBS/b_gnu8.3.0_openmpi3.1.4/install"
-    #GSILIBS="/glade/p/ral/jntp/gge/precompiled/GSILIBS/b_gnu8.3.0_openmpi3.1.4/"
+    module purge
+    module load intel/18.0.5 ncarenv ncarcompilers
+    module load impi/2018.4.274
+    module load mkl/2018.0.5
+    module load netcdf/4.7.4
+
+    module use /glade/p/ral/jntp/gge/hpc-stacks/modulefiles/stack
+    module load hpc/1.1.0
+    module load hpc-intel/18.0.5
+    module load hpc-impi/2018.4.274
+    module load bufr/11.5.0
+    module load ip/3.3.3
+    module load nemsio/2.5.2
+    module load sfcio/1.4.1
+    module load sigio/2.3.2
+    module load sp/2.3.3
+    module load w3nco/2.4.1
+    module load w3emc/2.7.3
+    module load bacio/2.4.1
+    module load crtm/2.3.0
+    module load wrf_io/1.2.0
+    module load cmake/3.18.2
 
 ################# Orion ####################
 elif [[ -d /work/noaa ]] ; then  ### orion
-    modulefile="/home/gge/modulefiles/modulefile.orion.GSI_UPP_WRF"
-    NCEPLIBS="/work/noaa/wrfruc/gge/precompiled/NCEPLIBS/b_intel2018.4_impi2018.4/install"
-    GSILIBS="/work/noaa/wrfruc/gge/precompiled/GSILIBS/b_intel2018.4_impi2018.4"
+    module purge
+    module load intel/2018.4
+    module load impi/2018.4
+    module load netcdf/4.7.2
+
+    module use /apps/contrib/NCEP/libs/hpc-stack/modulefiles/stack 
+    module load hpc/1.1.0
+    module load hpc-intel/2018.4
+    module load hpc-impi/2018.4
+    module load bufr/11.4.0
+    module load ip/3.3.3
+    module load nemsio/2.5.2
+    module load sfcio/1.4.1
+    module load sigio/2.3.2
+    module load sp/2.3.3
+    module load w3nco/2.4.1
+    module load w3emc/2.7.3
+    module load bacio/2.4.1
+    module load crtm/2.3.0
+    module load wrf_io/1.2.0
+    module load cmake
 
 ################# Generic ####################
 else
     echo -e "\nunknown machine"
     echo "Please modify build.comgsi at this location"
-    echo "to load required modules and setup NCEPLIBS and GSILIBS"
+    echo "to load required modules"
     ##follow the above examples and delete the following "exit 9" to go forward
     exit 9
     source /etc/profile.d/modules.sh
-    modulefile="/my/modulefile.me.GSI_UPP_WRF"
-    NCEPLIBS="/my/NCEPLIBS/b_intel18.0.5_impi2018.4.274/install"
-    GSILIBS="/my/GSILIBS/b_intel18.0.5_impi2018.4.274/"
+    #load modules from the NOAA hpc-stack
 fi
-
-if [ ! -f $modulefile ]; then
-    echo "modulefiles $modulefile does not exist"
-    exit 10
-fi
-source $modulefile
 
 ## if NETCDF4 is set to 0 or 1, unset it
 if [[ "$NETCDF4" == "1" ]] || [[ "$NETCDF4" == "0" ]]; then
   unset NETCDF4
 fi
-
-export BACIO_LIB4=${NCEPLIBS}/lib/libbacio_4.a
-#export  BUFR_LIBd=${NCEPLIBS}/lib/libbufr_d.a
-  export  BUFR_LIBd=${GSILIBS}/lib/libbufr_v.a
-  export GSIWRF_LIB=${GSILIBS}/lib/libWRFLIB.a
-export   CRTM_LIB=${NCEPLIBS}/lib/libcrtm.a
-export   CRTM_INC=${NCEPLIBS}/include
-export NEMSIO_LIB=${NCEPLIBS}/lib/libnemsio.a
-export NEMSIO_INC=${NCEPLIBS}/include
-export SFCIO_LIB4=${NCEPLIBS}/lib/libsfcio_4.a
-export SFCIO_INC4=${NCEPLIBS}/include_4
-export SIGIO_LIB4=${NCEPLIBS}/lib/libsigio_4.a
-export SIGIO_INC4=${NCEPLIBS}/include_4
-export    SP_LIBd=${NCEPLIBS}/lib/libsp_d.a
-export    SP_LIB4=${NCEPLIBS}/lib/libsp_4.a
-export W3EMC_LIBd=${NCEPLIBS}/lib/libw3emc_d.a
-export W3EMC_LIB4=${NCEPLIBS}/lib/libw3emc_4.a
-export W3EMC_INCd=${NCEPLIBS}/include_d
-export W3EMC_INC4=${NCEPLIBS}/include_4
-export W3NCO_LIBd=${NCEPLIBS}/lib/libw3nco_d.a
-export W3NCO_LIB4=${NCEPLIBS}/lib/libw3nco_4.a
-export    IP_LIBd=${NCEPLIBS}/lib/libip_d.a
-export    IP_LIB4=${NCEPLIBS}/lib/libip_4.a
 
 set -x
 rm -rf $dir_root/build
@@ -107,12 +146,12 @@ git log -1 | head -n1 >> output.log
 echo -e "\ngit status:" >> output.log
 git status >> output.log
 echo -e "\nCompiling commands:" >> output.log
-echo "  cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON -DBUILD_ENKF_PREPROCESS_ARW=ON -DBUILD_UTIL_COM=ON -Wno-dev .." >> output.log
+echo "  cmake -DCOMGSI=ON -DENKF_MODE=WRF -DBUILD_GSDCLOUD_ARW=ON -DBUILD_ENKF_PREPROCESS_ARW=ON -DBUILD_UTIL_COM=ON .." >> output.log
 echo "  make -j8" >> output.log
 cat output.log
 
 
-cmake -DENKF_MODE=WRF -DBUILD_CORELIBS=ON -DBUILD_GSDCLOUD_ARW=ON -DBUILD_ENKF_PREPROCESS_ARW=ON -DBUILD_UTIL_COM=ON -Wno-dev ..  2>&1  | tee output.cmake
+cmake -DCOMGSI=ON -DENKF_MODE=WRF -DBUILD_GSDCLOUD_ARW=ON -DBUILD_ENKF_PREPROCESS_ARW=ON -DBUILD_UTIL_COM=ON ..  2>&1  | tee output.cmake
 make -j 8 2>&1 | tee output.compile
 
 ###aftermath

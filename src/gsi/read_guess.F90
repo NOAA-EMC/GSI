@@ -75,6 +75,7 @@ subroutine read_guess(iyear,month,idd,mype)
 !   2017-10-10  Wu W    - add code for FV3 netcdf guess input 
 !   2019-09-18  martin  - added new fields to save guess tsen, q, geop_hgt for writing increment
 !   2019-09-23  martin  - add code for FV3 GFS netcdf guess input
+!   2021-01-05  x.zhang/lei  - add code for updating delz analysis in regional da 
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -88,7 +89,7 @@ subroutine read_guess(iyear,month,idd,mype)
 !$$$
 
   use kinds, only: r_kind,i_kind
-  use jfunc, only: bcoption,clip_supersaturation
+  use jfunc, only: bcoption,clip_supersaturation,superfact
   use guess_grids, only: nfldsig,ges_tsen,load_prsges,load_geop_hgt,ges_prsl,&
                          ges_tsen1, geop_hgti, ges_geopi, ges_q1
   use m_gsiBiases,only : bkg_bias_correction,nbc
@@ -112,6 +113,10 @@ subroutine read_guess(iyear,month,idd,mype)
   use read_wrf_mass_guess_mod, only: read_wrf_mass_guess_class
   use read_wrf_nmm_guess_mod, only: read_wrf_nmm_guess_class
   use gsi_rfv3io_mod, only: read_fv3_netcdf_guess
+
+  use gridmod,only: l_reg_update_hydro_delz
+  use guess_grids, only:geom_hgti,geom_hgti_bg
+
   use gsi_rfv3io_mod, only: bg_fv3regfilenameg
   use mpimod, only: mpi_comm_world
 
@@ -245,7 +250,7 @@ subroutine read_guess(iyear,month,idd,mype)
       do k=1,nsig
          do j=1,lon2
             do i=1,lat2
-               satval = min(ges_q(i,j,k),satq(i,j,k))
+               satval = min(ges_q(i,j,k),superfact*satq(i,j,k))
                satval = max(qmin,satval)
                ges_q(i,j,k) = satval
                ges_tsen(i,j,k,it)= ges_tv(i,j,k)/(one+fv*ges_q(i,j,k))
@@ -259,6 +264,10 @@ subroutine read_guess(iyear,month,idd,mype)
 
 ! Compute 3d subdomain geopotential heights from the guess fields
   call load_geop_hgt
+
+   if(l_reg_update_hydro_delz) then
+     geom_hgti_bg=geom_hgti
+   endif
 
 ! save guess geopotential height at level interface for use in write_atm
   ges_geopi=geop_hgti

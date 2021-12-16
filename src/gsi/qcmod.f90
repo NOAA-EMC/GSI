@@ -84,6 +84,7 @@ module qcmod
 !   sub create_qcvars
 !   sub destroy_qcvars
 !   sub errormod
+!   sub errormod_hdraob
 !   sub errormod_aircraft
 !   sub setup_tzr_qc    - set up QC with Tz retrieval
 !   sub tz_retrieval    - Apply Tz retrieval
@@ -162,6 +163,7 @@ module qcmod
   public :: create_qcvars
   public :: destroy_qcvars
   public :: errormod
+  public :: errormod_hdraob
   public :: errormod_aircraft
   public :: setup_tzr_qc
   public :: qc_ssmi
@@ -634,10 +636,10 @@ contains
     implicit none
 
     integer(i_kind)                     ,intent(in   ) :: levs,k,nsig,lim_qm
-    real(r_kind)   ,dimension(255)      ,intent(in   ) :: plevs
+    real(r_kind)   ,dimension(*)        ,intent(in   ) :: plevs
     real(r_kind)   ,dimension(nsig)     ,intent(in   ) :: presl
     real(r_kind)   ,dimension(nsig-1)   ,intent(in   ) :: dpres
-    integer(i_kind),dimension(255)      ,intent(in   ) :: pq,vq
+    integer(i_kind),dimension(*)        ,intent(in   ) :: pq,vq
     real(r_kind)                        ,intent(inout) :: errout
 
     integer(i_kind) n,l,ilev
@@ -696,6 +698,114 @@ contains
 
     return
 end subroutine errormod
+  subroutine errormod_hdraob(pq,vq,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    errormod
+!   prgmmr: derber           org: np23                date: 2003-09-30
+!
+! abstract: adjust observation error for conventional obs
+!
+! program history log:
+!   2003-09-30  derber
+!   2004-05-18  kleist, documentation
+!   2004-10-26  kleist - add 0.5 half-layer factor
+!   2006-02-15  treadon - add (l==levs,1) exit to upprof and dwprof loops
+!   2006-12-20  Sienkiewicz  multiply tiny_r_kind in errout div-by-zero
+!                            check by expected largest value for numerator
+!                            max(2*vmax) = max(dpres) ~= 5 cb
+!   2008-04-23  safford - rm unused vars and uses
+!   2008-09-05  lueken  - merged ed's changes into q1fy09 code
+!
+!   input argument list:
+!     pq     - pressure quality mark
+!     vq     - observation quality mark (t,q,wind)
+!     levs   - number of levels in profile for observation
+!     plevs  - observation pressures
+!     errout - observation error 
+!     k      - observation level 
+!     presl  - model pressure at half sigma levels
+!     dpres  - delta pressure between model pressure levels
+!     nsig   - number of vertical levels
+!     lim_qm - qc limit 
+!
+!   output argument list:
+!     errout - adjusted observation error
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    implicit none
+
+    integer(i_kind)                     ,intent(in   ) :: levs,k,nsig,lim_qm
+    real(r_kind)   ,dimension(*)        ,intent(in   ) :: plevs
+    real(r_kind)   ,dimension(nsig)     ,intent(in   ) :: presl
+    real(r_kind)   ,dimension(nsig-1)   ,intent(in   ) :: dpres
+    integer(i_kind),dimension(*)        ,intent(in   ) :: pq,vq
+    real(r_kind)                        ,intent(inout) :: errout
+
+    integer(i_kind) n,l,ilev
+    real(r_kind):: vmag,pdiffu,pdiffd
+    
+    errout=one
+    if(levs == 1)return
+    ilev=1
+    do n=2,nsig-1
+       if(plevs(k) < presl(n))ilev=n
+    end do
+    vmag=abs(dpres(ilev))
+
+    pdiffu=vmag
+    pdiffd=vmag
+    if(pq(k) < lim_qm .and. vq(k) < lim_qm)then
+! Move up through the profile.  
+       l=k
+
+! Array plevs is only defined from l=1 to l=levs.  Hence the check below
+       if (l+1<=levs) then
+          upprof: do while (abs(plevs(k)-plevs(l+1)) < vmag .and. l <= levs-1) 
+             l=l+1
+             if(pq(l) < lim_qm .and. vq(l) < lim_qm)then
+                pdiffu=abs(plevs(k)-plevs(l))
+                exit upprof
+             end if
+             if (l==levs) exit upprof
+          end do upprof
+       endif
+        
+! Reset the level and move down through the profile
+       l=k
+
+! The check (l>=2) ensures that plevs(l-1) is defined
+       if (l>=2) then
+          dwprof: do while (abs(plevs(l-1)-plevs(k)) < vmag .and. l >= 2) 
+             l=l-1
+             if(pq(l) < lim_qm .and. vq(l) < lim_qm)then
+                pdiffd=abs(plevs(l)-plevs(k))
+                exit dwprof
+             end if
+             if (l==1) exit dwprof
+          end do dwprof
+       endif
+
+! Set adjusted error
+       if(plevs(k) > presl(1))then
+          errout=errout*(dpres(1)+plevs(k)-presl(1))/dpres(1)
+       else if(plevs(k) < presl(nsig))then
+          errout=errout*(dpres(nsig-1)+presl(nsig)-plevs(k))/dpres(nsig-1)
+       else
+          errout=sqrt(two*vmag/max(pdiffd+pdiffu,five*tiny_r_kind))
+       end if
+
+! Quality marks indicate bad data.  Set error to large value.
+    else
+       errout=1.e6_r_kind
+    end if
+
+    return
+end subroutine errormod_hdraob
 
   subroutine errormod_aircraft(pq,vq,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
 !$$$  subprogram documentation block

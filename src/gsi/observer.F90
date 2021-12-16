@@ -173,12 +173,6 @@ subroutine guess_init_
 #endif /* _LAG_MODEL_ */
   endif
  
-! Read output from previous min.
-  if (l4dvar.and.jiterstart>1) then
-  else
-  ! If requested and if available, read guess solution.
-  endif
-
 ! Generate coefficients for compact differencing
   if(.not.regional)then
      if(.not.cdiff_created()) call create_cdiff_coefs()
