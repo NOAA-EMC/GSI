@@ -361,6 +361,13 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
          endif
          jb2=jb1
          jb1=gya
+         if(ib1+1 > nx)then  !this block( 6 lines)  is copied from GSL gsi repository 
+            ib1=ib1-1
+         endif
+         if(jb1+1 > ny)then
+            jb1=jb1-1
+         endif
+
 
          if((ib1 == ib2) .and. (jb1 == jb2)) exit
          if(n==3 ) then     
