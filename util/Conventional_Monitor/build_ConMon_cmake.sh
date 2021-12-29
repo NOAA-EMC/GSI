@@ -39,6 +39,12 @@ elif [[ -d /scratch1 ]] ; then
 elif [[ -d /work ]]; then
     . $MODULESHOME/init/sh
     target=orion
+elif [[ -d /data/prod ]]; then
+    . $MODULESHOME/init/sh
+    target=s4
+elif [[ -d /jetmon ]]; then
+    . /apps/lmod/lmod/init/sh
+    target=jet
 elif [[ -d /lfs && -d /dfs ]]; then
     . $MODULESHOME/init/bash
     target=wcoss2
@@ -83,7 +89,7 @@ if [ $target = wcoss_d -o $target = wcoss2 ]; then
 elif [ $target = wcoss -o $target = gaea ]; then
    module purge
    module load $dir_modules/modulefile.ProdGSI.$target
-elif [ $target = hera -o $target = orion ]; then
+elif [ $target = hera -o $target = orion -o $target = s4 -o $target = jet ]; then
    module purge
    module use $dir_modules
    module load modulefile.ProdGSI.$target
