@@ -110,9 +110,7 @@ status=$?
 # Link observational data
 export PREPQC="$COMIN_ANL/${OPREFIX}prepbufr"
 if [ ! -f $PREPQC ]; then
-    echo "WARNING: PREPBUFR FILE $PREPQC MISSING"
-    msg="WARNING : Global PREPBUFR file is missing"
-    postmsg "$jlogfile" "$msg"
+    echo "WARNING: Global PREPBUFR FILE $PREPQC MISSING"
 fi
 export PREPQCPF="$COMIN_ANL/${OPREFIX}prepbufr.acft_profiles"
 export TCVITL="$COMIN_ANL/${OPREFIX}syndata.tcvitals.tm00"
@@ -155,8 +153,7 @@ done
 ###############################################################
 # Run relevant script
 env
-msg="HAS BEGUN on `hostname`"
-postmsg "$jlogfile" "$msg"
+echo "HAS BEGUN on $(hostname)"
 $LOGSCRIPT
 
 
@@ -185,8 +182,7 @@ if [ -e "$pgmout" ] ; then
 fi
 
 
-msg="ENDED NORMALLY."
-postmsg "$jlogfile" "$msg"
+echo "ENDED NORMALLY."
 
 
 ##########################################
