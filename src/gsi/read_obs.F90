@@ -140,6 +140,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
 !   2019-09-20  X.Su     -add read new variational qc table
 !   2019-08-21  H. Shao  - add METOPC-C, COSMIC-2 and PAZ to the GPS check list                           
 !   2020-05-21  H. Shao  - add commercial GNSSRO (Spire, PlanetIQ, GeoOptics) and other existing missions to the check list                           
+!   2021-02-20  X.Li      - add viirs-m and get_hsst
 !
 !   input argument list:
 !    lexist    - file status
@@ -718,6 +719,7 @@ subroutine read_obs(ndata,mype)
     use qcmod, only: njqc,vadwnd_l2rw_qc,nvqc
     use gsi_4dvar, only: l4dvar
     use satthin, only: super_val,super_val1,superp,makegvals,getsfc,destroy_sfc
+    use satthin, only: get_hsst
     use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_max,mpi_rtype,mpi_integer,npe,&
          setcomm
     use constants, only: one,zero,izero
@@ -753,6 +755,7 @@ subroutine read_obs(ndata,mype)
 
     use mrmsmod,only: l_mrms_sparse_netcdf
     use directDA_radaruse_mod, only: l_use_dbz_directDA
+    use gridmod, only: regional
 
     implicit none
 
@@ -915,7 +918,7 @@ subroutine read_obs(ndata,mype)
                amsre  .or. ssmis      .or. obstype == 'ssmi'      .or.  &
                obstype == 'ssu'       .or. obstype == 'atms'      .or.  &
                obstype == 'cris'      .or. obstype == 'cris-fsr'  .or.  &
-               obstype == 'amsr2'     .or.  &
+               obstype == 'amsr2'     .or. obstype == 'viirs-m'   .or.  &
                obstype == 'gmi'       .or. obstype == 'saphir'   ) then
           ditype(i) = 'rad'
        else if (is_extOzone(dfile(i),obstype,dplat(i))) then
@@ -1018,6 +1021,8 @@ subroutine read_obs(ndata,mype)
              else if(obstype == 'cris' .or. obstype == 'cris-fsr')then
                 parallel_read(i)= .true.
              else if(avhrr)then
+                parallel_read(i)= .true.
+             else if(obstype == 'viirs-m' )then
                 parallel_read(i)= .true.
              else if(amsre)then
                 parallel_read(i)= .true.
@@ -1305,6 +1310,8 @@ subroutine read_obs(ndata,mype)
 
 !   Create full horizontal surface fields from local fields in guess_grids
     call getsfc(mype,mype_io_sfc,use_sfc,use_sfc_any)
+    if ( .not. regional )  call get_hsst(mype_io_sfc)
+   
 
     if(mype == mype_io) call prt_guessfc2('sfcges2',use_sfc)
 
@@ -1823,6 +1830,13 @@ subroutine read_obs(ndata,mype)
                        mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
                        nobs_sub1(1,i),read_rec(i),dval_use)
                   string='READ_AVHRR'
+  !            Process SST VIIRS RADIANCE  data
+               else if(obstype == 'viirs-m') then
+                  call read_sst_viirs(mype,val_dat,ithin,rmesh,platid,gstime,&
+                       infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
+                       mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
+                       nobs_sub1(1,i),read_rec(i),dval_use)
+                  string='READ_VIIRS'
                end if rad_obstype_select
 
 !         Process ozone data

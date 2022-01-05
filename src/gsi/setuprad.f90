@@ -215,6 +215,7 @@ contains
 !   2019-03-13  eliu    - add calculation of scattering index for MHS/ATMS 
 !   2019-03-27  h. liu  - add ABI assimilation
 !   2019-08-20  zhu     - add flexibility to allow radiances being assimilated without bias correction
+!   2021-02-20  x.li    - add viirs
 !
 !  input argument list:
 !     lunin   - unit from which to read radiance (brightness temperature, tb) obs
@@ -361,7 +362,7 @@ contains
   logical cao_flag                       
   logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,ahi,mhs,abi
   type(sparr2) :: dhx_dx
-  logical avhrr,avhrr_navy,lextra,ssu,iasi,cris,seviri,atms
+  logical avhrr,avhrr_navy,viirs,lextra,ssu,iasi,cris,seviri,atms
   logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,amsr2,gmi,saphir
   logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
   logical sea,mixed,land,ice,snow,toss,l_may_be_passive,eff_area
@@ -497,6 +498,7 @@ contains
   goes_img   = obstype == 'goes_img'
   ahi        = obstype == 'ahi'
   avhrr      = obstype == 'avhrr'
+  viirs      = obstype == 'viirs-m'
   avhrr_navy = obstype == 'avhrr_navy'
   ssmi       = obstype == 'ssmi'
   amsre_low  = obstype == 'amsre_low'
@@ -1510,6 +1512,28 @@ contains
               wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts, &
               id_qc,aivals,errf,varinv,varinv_use,cld,cldp)
 
+        else if (viirs) then
+
+           frac_sea=data_s(ifrac_sea,n)
+
+!  NOTE:  use qc_avhrr for viirs qc
+           do i=1,nchanl
+              m=ich(i)
+              if (varinv(i) < tiny_r_kind) then
+                 varinv_use(i) = zero
+              else
+                 if ((icld_det(m)>0)) then
+                    varinv_use(i) = varinv(i)
+                 else
+                    varinv_use(i) = zero
+                 end if
+              end if
+           end do
+
+           call qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),   &
+              zsges,cenlat,frac_sea,pangs,trop5,tzbgr,tsavg5,tbc,tb_obs,tnoise, &
+              wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts, &
+              id_qc,aivals,errf,varinv,varinv_use,cld,cldp)
 
 !  ---------- SSM/I , SSMIS, AMSRE  -------------------
 !       SSM/I, SSMIS, & AMSRE Q C
