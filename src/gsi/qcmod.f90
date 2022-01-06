@@ -580,7 +580,7 @@ contains
       tzchk = 0.50_r_kind
     elseif ( obstype == 'amsua' .or. obstype == 'ssmis' .or. obstype == 'ssmi' ) then
       tzchk = 0.12_r_kind
-    elseif (  obstype == 'avhrr' .or. obstype == 'avhrr_navy' ) then 
+    elseif (  obstype == 'avhrr' .or. obstype == 'avhrr_navy' .or. obstype == 'viirs') then 
       tzchk = 0.85_r_kind
     elseif (  obstype == 'hirs2' .or. obstype == 'hirs3' .or. obstype == 'hirs4' .or. & 
               obstype == 'sndr' .or. obstype == 'sndrd1' .or. obstype == 'sndrd2'.or. &
