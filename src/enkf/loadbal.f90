@@ -383,7 +383,7 @@ allocate(recvbuf(numproc*nanals_per_iotask*npts_max*ncdim))
 
 ! allocate array to hold pieces of state vector on each proc.
 allocate(anal_chunk(nanals,npts_max,ncdim,nbackgrounds))
-if (nproc == 0) print *,'anal_chunk size = ',size(anal_chunk)
+if (nproc == 0) print *,'anal_chunk size = ',size(anal_chunk,kind=8)
 
 allocate(anal_chunk_prior(nanals,npts_max,ncdim,nbackgrounds))
 allocate(ensmean_chunk(npts_max,ncdim,nbackgrounds))

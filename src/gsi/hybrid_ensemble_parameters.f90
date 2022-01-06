@@ -87,6 +87,9 @@ module hybrid_ensemble_parameters
 !                  relative weight given to static background B when (readin_beta=.false.)
 !                  when (readin_beta=.true.), the vertical weighting parameters are read from a file,
 !                  instead of being defined based on beta_s0 namelist or default value. 
+!      beta_e0 - default weight given to ensemble background error covariance
+!                (if .not. readin_beta). if beta_e0<0, then it is set to
+!                1.-beta_s0 (this is the default)
 !      s_ens_h:    horizontal localization correlation length (units of km), default = 2828.0
 !      s_ens_v:    vertical localization correlation length (grid units), default = 30.0
 !      generate_ens:  if .true., generate ensemble perturbations internally as random samples of background B.
@@ -255,7 +258,7 @@ module hybrid_ensemble_parameters
 ! set passed variables to public
   public :: generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,l_hyb_ens,&
        s_ens_h,oz_univ_static,vvlocal
-  public :: uv_hyb_ens,q_hyb_ens,s_ens_v,beta_s0,aniso_a_en,s_ens_hv,s_ens_vv
+  public :: uv_hyb_ens,q_hyb_ens,s_ens_v,beta_s0,beta_e0,aniso_a_en,s_ens_hv,s_ens_vv
   public :: readin_beta,beta_s,beta_e
   public :: readin_localization
   public :: eqspace_ensgrid,grid_ratio_ens
@@ -309,7 +312,7 @@ module hybrid_ensemble_parameters
   logical ens_fast_read
   integer(i_kind) i_en_perts_io
   integer(i_kind) n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test
-  real(r_kind) beta_s0,s_ens_h,s_ens_v,grid_ratio_ens
+  real(r_kind) beta_s0,beta_e0,s_ens_h,s_ens_v,grid_ratio_ens
   type(sub2grid_info),save :: grd_ens,grd_loc,grd_sploc,grd_anl,grd_e1,grd_a1
   type(spec_vars),save :: sp_ens,sp_loc
   type(egrid2agrid_parm),save :: p_e2a,p_sploc2ens
@@ -401,6 +404,7 @@ subroutine init_hybrid_ensemble_parameters
   jcap_ens_test=0
   nlon_ens=0
   beta_s0=one
+  beta_e0=-one
   grid_ratio_ens=one
   s_ens_h = 2828._r_kind     !  km (this was optimal value in 
                              !   Wang, X.,D. M. Barker, C. Snyder, and T. M. Hamill, 2008: A hybrid
