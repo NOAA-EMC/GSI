@@ -34,9 +34,9 @@ echo "--> mk_time_vert.sh"
       $SUB -q ${JOB_QUEUE} -P ${PROJECT} -o ${logfile} -R affinity[core] \
 		-M 100 -W 0:50 -J ${jobname} -cwd ${PWD} ${pltfile}
 
-   elif [[ $MY_MACHINE == "hera" ]]; then
+   elif [[ $MY_MACHINE == "hera" || $MY_MACHINE == "s4" || $MY_MACHINE == "jet" ]]; then
       ${SUB} -A ${ACCOUNT} --ntasks=1 --time=00:15:00 \
-                -p service -J ${jobname} -o ${logfile} ${pltfile}
+                -p ${SERVICE_PARTITION} -J ${jobname} -o ${logfile} ${pltfile}
 
    elif [[ $MY_MACHINE = "wcoss2" ]]; then
         $SUB -V -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e ${logfile} -l walltime=50:00 -N ${jobname} \
@@ -66,7 +66,7 @@ echo "--> mk_time_vert.sh"
          $SUB -q ${JOB_QUEUE} -P ${PROJECT} -o ${logfile} -R affinity[core] \
 		-M 100 -W ${walltime} -J ${jobname} -cwd ${PWD} ${pltfile}
 
-      elif [[ $MY_MACHINE == "hera" ]]; then
+      elif [[ $MY_MACHINE == "hera" || $MY_MACHINE == "s4" || $MY_MACHINE == "jet" ]]; then
          if [[ ${type} == "uv" || ${type} == "u" || ${type} == "v" ]]; then
             walltime="02:30:00"
          else
@@ -74,7 +74,7 @@ echo "--> mk_time_vert.sh"
          fi
  
          ${SUB} -A ${ACCOUNT} --ntasks=1 --time=${walltime} \
-                -p service -J ${jobname} -o ${logfile} ${pltfile}
+                -p ${SERVICE_PARTITION} -J ${jobname} -o ${logfile} ${pltfile}
 
       elif [[ $MY_MACHINE = "wcoss2" ]]; then
 
@@ -108,7 +108,7 @@ echo "--> mk_time_vert.sh"
          $SUB -q ${JOB_QUEUE} -P ${PROJECT} -o ${logfile} -R affinity[core] \
 	      -M 100 -W 1:30 -J ${jobname} -cwd ${PWD} ${pltfile}
 
-      elif [[ $MY_MACHINE == "hera" ]]; then
+      elif [[ $MY_MACHINE == "hera" || $MY_MACHINE == "s4" || $MY_MACHINE == "jet" ]]; then
          if [[ ${type} == "uv" || ${type} == "u" || ${type} == "v" ]]; then
             walltime="00:50:00"
          else
@@ -116,7 +116,7 @@ echo "--> mk_time_vert.sh"
          fi
 
          ${SUB} -A ${ACCOUNT} --ntasks=1 --time=${walltime} \
-                -p service -J ${jobname} -o ${logfile} ${pltfile}
+                -p ${SERVICE_PARTITION} -J ${jobname} -o ${logfile} ${pltfile}
      
       elif [[ $MY_MACHINE == "wcoss2" ]]; then
         $SUB -V -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e ${logfile} -l walltime=50:00 \

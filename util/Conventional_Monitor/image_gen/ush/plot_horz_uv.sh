@@ -126,14 +126,14 @@ set -ax
             sdir=" dset ${dtype}.grads.${cycle}.${PDATE}"
             title="title  ${dtype}  ${cycle}"
             sed -e "s/^title.*/${title}/" ${dtype}.ctl >tmp.ctl
-            echo $sdir >${dtype}_grads_${cycle}.ctl
-            cat tmp.ctl >>${dtype}_grads_${cycle}.ctl
+            echo $sdir >${dtype}.grads.${cycle}.ctl
+            cat tmp.ctl >>${dtype}.grads.${cycle}.ctl
             rm -f tmp.ctl
             rm -f ${dtype}.ctl
 
 
             #--------------------------------------------------------------
-            #  link in the ${dtype}_grads.${PDATE} data file from TANKDIR
+            #  link in the ${dtype}.grads.${PDATE} data file from TANKDIR
             #--------------------------------------------------------------
             grads_file=${hh_tankdir}/${cycle}/${dtype}.grads.${cycle}.${PDATE}
 
@@ -149,7 +149,7 @@ set -ax
                continue
             fi
 
-            stnmap -1 -i ${dtype}_grads_${cycle}.ctl
+            stnmap -1 -i ${dtype}.grads.${cycle}.ctl
 
          done         ## done with cycle
    

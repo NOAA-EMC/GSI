@@ -196,9 +196,6 @@
 
    done      ### type loop
 
-   ${COMPRESS} ${hh_tankdir}/ges/*
-   ${COMPRESS} ${hh_tankdir}/anl/*
-
 
    if [[ ${C_IG_SAVE_WORK} -eq 0 ]]; then
       cd $workdir
