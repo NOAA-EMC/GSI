@@ -115,6 +115,9 @@ integer(i_kind),public :: iseed_perturbed_obs = 0
 real(r_single),public ::  covinflatemax,covinflatemin,smoothparm,biasvar
 real(r_single),public ::  corrlengthnh,corrlengthtr,corrlengthsh
 real(r_single),public ::  obtimelnh,obtimeltr,obtimelsh
+! factor for minimum allowed horiz cov length scale
+! to apply for LETKF when corrlengthnh,tr,sh < 0 and nobsl_max > 0
+real(r_single),public ::  mincorrlength_fact = 0.1
 real(r_single),public ::  zhuberleft,zhuberright
 real(r_single),public ::  lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
                lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
@@ -129,7 +132,10 @@ real(r_single),public :: wmoist,adrate
 real(r_single),public :: tar_minlat,tar_maxlat,tar_minlon,tar_maxlon
 real(r_single),public :: covl_minfact, covl_efold
 
-real(r_single),public :: covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff
+real(r_single),public :: covinflatenh=0
+real(r_single),public :: covinflatetr=0
+real(r_single),public :: covinflatesh=0
+real(r_single),public :: lnsigcovinfcutoff
 ! if npefiles=0, diag files are read (concatenated pe* files written by gsi)
 ! if npefiles>0, npefiles+1 pe* files read directly
 ! the pe* files are assumed to be located in <obspath>/gsitmp_mem###
@@ -245,10 +251,12 @@ logical, public :: nccompress = .false.
 ! for writing increments
 logical,public :: write_fv3_incr = .false.
 character(len=12),dimension(10),public :: incvars_to_zero='NONE' !just picking 10 arbitrarily
+! write ensemble mean analysis (or analysis increment)
+logical,public :: write_ensmean = .false.
 
 namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
-                   corrlengthnh,corrlengthtr,corrlengthsh,&
+                   mincorrlength_fact,corrlengthnh,corrlengthtr,corrlengthsh,&
                    varqc,huber,nlons,nlats,smoothparm,use_qsatensmean,&
                    readin_localization, zhuberleft,zhuberright,&
                    obtimelnh,obtimeltr,obtimelsh,reducedgrid,&
@@ -273,7 +281,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    eft,wmoist,adrate,andataname,&
                    gdatehr,datehr,&
                    tar_minlat,tar_maxlat,tar_minlon,tar_maxlon,tar_minlev,tar_maxlev,&
-                   fv3_native, paranc, nccompress, write_fv3_incr,incvars_to_zero, &
+                   fv3_native, paranc, nccompress, write_fv3_incr,incvars_to_zero,write_ensmean, &
                    corrlengthrdrnh,corrlengthrdrsh,corrlengthrdrtr,&
                    lnsigcutoffrdrnh,lnsigcutoffrdrsh,lnsigcutoffrdrtr,&
                    l_use_enkf_directZDA
@@ -663,6 +671,10 @@ if (nproc == 0) then
    if ((obtimelnh < 1.e10 .or. obtimeltr < 1.e10 .or. obtimelsh < 1.e10) .and. &
        letkf_flag) then
      print *,'warning: no time localization in LETKF!'
+   endif
+   if ((write_ensmean .and. pseudo_rh) .and. .not. use_qsatensmean) then
+      print *,'write_ensmean=T requires use_qsatensmean=T when pseudo_rh=T'
+      call stop2(19)
    endif
 
 
