@@ -135,7 +135,7 @@ while( i<=2)
  endwhile
 
 
-    'printim 'plotfile'_hist.png 'xsize' 'ysize' white'
+    'printim 'plotfile'_hist.png x'xsize' y'ysize' white'
 
 
 return
