@@ -322,6 +322,7 @@ contains
 !   2018-04-04  zhu -- move rad_type_info(k)%cclr and rad_type_info(k)%ccld to this subroutine
 !   2018-04-06  derber -- change rad_type_info(k)%cclr default value from zero to a large number
 !   2019-03-21  Wei/Martin - fix capabilities for AOD assimilation
+!   2021-03-05  X.Li - add viirs (viirs-m with sstviirs data set)
 !
 !   input argument list:
 !
@@ -401,6 +402,7 @@ contains
        if (index(dtype(i),'sndr') /= 0)   rtype(i)='sndr'
        if (index(dtype(i),'hirs') /= 0)   rtype(i)='hirs'
        if (index(dtype(i),'avhrr') /= 0)  rtype(i)='avhrr'
+       if (index(dtype(i),'viirs-m') /= 0)  rtype(i)='viirs'
        if (index(dtype(i),'modis') /= 0)  rtype(i)='modis'
        if (index(dtype(i),'seviri') /= 0) rtype(i)='seviri'
 
@@ -411,7 +413,7 @@ contains
           rtype(i) == 'avhrr'  .or. rtype(i) == 'amsre'    .or.  rtype(i) == 'ssmis'  .or. & 
           rtype(i) == 'ssmi'   .or. rtype(i) == 'atms'     .or.  rtype(i) == 'cris'   .or. & 
           rtype(i) == 'amsr2'  .or. rtype(i) == 'gmi'      .or.  rtype(i) == 'saphir' .or. &
-          rtype(i) == 'cris-fsr' .or. rtype(i) == 'abi' ) then
+          rtype(i) == 'cris-fsr' .or. rtype(i) == 'abi'    .or.  rtype(i) == 'viirs' ) then
           drtype(i)='rads'
        end if
     end do
