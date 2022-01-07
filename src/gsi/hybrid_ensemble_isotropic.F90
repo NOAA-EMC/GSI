@@ -1167,7 +1167,7 @@ end subroutine normal_new_factorization_rf_y
     use constants, only: zero,one
     use hybrid_ensemble_parameters, only: n_ens,generate_ens,grd_ens,grd_anl,ntlevs_ens, &
                                           pseudo_hybens,regional_ensemble_option,&
-                                          i_en_perts_io
+                                          i_en_perts_io,write_generated_ens
     use hybrid_ensemble_parameters, only: nelen,en_perts,ps_bar
     use gsi_enscouplermod, only: gsi_enscoupler_put_gsi_ens
     use mpimod, only: mype
@@ -1175,26 +1175,37 @@ end subroutine normal_new_factorization_rf_y
     use get_wrf_mass_ensperts_mod, only: get_wrf_mass_ensperts_class
     use get_fv3_regional_ensperts_mod, only: get_fv3_regional_ensperts_class
     use get_wrf_nmm_ensperts_mod, only: get_wrf_nmm_ensperts_class
-  use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
+    use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
     use mpimod, only: mpi_comm_world
+    use gsi_bundlemod, only: gsi_bundlegetpointer
 
     implicit none
 
-   type(get_pseudo_ensperts_class) :: pseudo_enspert
-   type(get_wrf_mass_ensperts_class) :: wrf_mass_enspert
-   type(get_wrf_nmm_ensperts_class) :: wrf_nmm_enspert
-   type(get_fv3_regional_ensperts_class) :: fv3_regional_enspert
+    type(get_pseudo_ensperts_class) :: pseudo_enspert
+    type(get_wrf_mass_ensperts_class) :: wrf_mass_enspert
+    type(get_wrf_nmm_ensperts_class) :: wrf_nmm_enspert
+    type(get_fv3_regional_ensperts_class) :: fv3_regional_enspert
     type(gsi_bundle),allocatable:: en_bar(:)
     type(gsi_bundle):: bundle_anl,bundle_ens
     type(gsi_grid)  :: grid_anl,grid_ens
-    integer(i_kind) i,j,n,ii,m
+    integer(i_kind) i,j,n,ii,m,m1,m2,k
     integer(i_kind) istatus
     real(r_kind),allocatable:: seed(:,:)
     real(r_kind),pointer,dimension(:,:)   :: cv_ps=>NULL()
+    real(r_kind),pointer,dimension(:,:,:)   :: cv_q=>NULL()
+    real(r_kind),pointer,dimension(:,:,:)   :: cv_t=>NULL()
     real(r_kind) sig_norm,bar_norm
     character(len=*),parameter::myname_=trim(myname)//'*load_ensemble'
+    real(r_kind),allocatable,dimension(:,:,:) :: work,work1
 
 !      create simple regular grid
+
+    m1=1; m2 = ntlevs_ens
+    if (write_generated_ens) then
+      ! only write out one sample
+      m1=ntlevs_ens/2 + 1 
+      m2=ntlevs_ens/2 + 1 
+    endif
 
     if(generate_ens) then
 
@@ -1204,7 +1215,7 @@ end subroutine normal_new_factorization_rf_y
 
        allocate(en_bar(ntlevs_ens))
 
-       do m=1,ntlevs_ens
+       do m=m1,m2
           call gsi_bundlecreate(en_bar(m),grid_ens,'ensemble',istatus, &
                                 names2d=cvars2d,names3d=cvars3d,bundle_kind=r_kind)
        enddo
@@ -1221,7 +1232,7 @@ end subroutine normal_new_factorization_rf_y
        allocate(seed(nval2f,nscl))
        seed=-one
  
-       do m=1,ntlevs_ens
+       do m=m1,m2
          en_bar(m)%values=zero
        enddo
 
@@ -1240,7 +1251,7 @@ end subroutine normal_new_factorization_rf_y
           call stop2(999)
        endif
 
-       do m=1,ntlevs_ens
+       do m=m1,m2
           do n=1,n_ens
              call generate_one_ensemble_perturbation(bundle_anl,bundle_ens,seed)
              do ii=1,nelen
@@ -1258,6 +1269,50 @@ end subroutine normal_new_factorization_rf_y
           enddo
        enddo
 
+!      remove mean, which is locally significantly non-zero, due to sample size.
+!      with real ensembles, the mean of the actual sample will be removed.
+
+       do m=m1,m2
+          do n=1,n_ens
+             do ii=1,nelen
+                en_perts(n,m)%valuesr4(ii)=(en_perts(n,m)%valuesr4(ii)-en_bar(m)%values(ii)*bar_norm)*sig_norm
+             enddo
+          enddo
+          call gsi_bundledestroy(en_bar(m),istatus)
+          if(istatus/=0) then
+             write(6,*)trim(myname_),': trouble destroying en_bar bundle'
+             call stop2(999)
+          end if
+       enddo
+
+       if (write_generated_ens) then
+          allocate ( work(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig) )
+          allocate ( work1(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig+1) )
+
+          do m=m1,m2
+             do n=1,n_ens
+                if (mype == 0) print *,'write out ens perturbation',n
+                do ii=1,nelen
+                   bundle_ens%values(ii) = en_perts(n,m)%valuesr4(ii)/sig_norm
+                enddo
+                call gsi_bundlegetpointer (bundle_ens,'q' ,cv_q ,istatus)
+                work(:,:,:) = cv_q(:,:,:) ! make a copy
+                call gsi_bundlegetpointer (bundle_ens,'t' ,cv_t ,istatus)
+                call gsi_bundlegetpointer (bundle_ens,'ps',cv_ps ,istatus)
+                !  Get 3d pressure
+                call getprs_tl(cv_ps,cv_t,work1)
+                !  Convert input normalized RH to q
+                call normal_rh_to_q(work,cv_t,work1,cv_q)
+                call gsi_enscoupler_put_gsi_ens(grd_ens,n,m,bundle_ens,istatus)
+                if(istatus/=0) then
+                    write(6,*)trim(myname_),': trouble writing perts'
+                    call stop2(999)
+                endif
+             enddo
+          enddo
+          deallocate(work,work1)
+       end if
+
 ! do some cleanning
        call gsi_bundledestroy(bundle_anl,istatus)
        if(istatus/=0) then
@@ -1269,27 +1324,6 @@ end subroutine normal_new_factorization_rf_y
           write(6,*)trim(myname_),': trouble destroying bundle_ens bundle'
           call stop2(999)
        endif
-!                          remove mean, which is locally significantly non-zero, due to sample size.
-!                           with real ensembles, the mean of the actual sample will be removed.
-
-       do m=1,ntlevs_ens
-          do n=1,n_ens
-             do ii=1,nelen
-                en_perts(n,m)%valuesr4(ii)=(en_perts(n,m)%valuesr4(ii)-en_bar(m)%values(ii)*bar_norm)*sig_norm
-             enddo
-             call gsi_enscoupler_put_gsi_ens(grd_ens,n,m,en_perts(n,m),istatus)
-             if(istatus/=0) then
-                 write(6,*)trim(myname_),': trouble writing perts'
-                 call stop2(999)
-             endif
-          enddo
-
-          call gsi_bundledestroy(en_bar(m),istatus)
-          if(istatus/=0) then
-          write(6,*)trim(myname_),': trouble destroying en_bar bundle'
-          call stop2(999)
-         end if
-       enddo
 
        deallocate(en_bar)
        deallocate(seed)
@@ -1499,7 +1533,7 @@ end subroutine normal_new_factorization_rf_y
 !     temporarily redefine nval_lenz
     nval_lenz_save=nval_lenz
     nval_lenz=nval2f*nnnn1o*nscl
-    call ckgcov(z,bundle_anl,nval_lenz)
+    call ckgcov(grd_anl,z,bundle_anl,nval_lenz)
 !     restore nval_lenz
     nval_lenz=nval_lenz_save
 
@@ -4017,7 +4051,7 @@ subroutine hybens_localization_setup
    if(verbose .and. mype == 0)print_verbose=.true.
 
    ! Allocate
-   call create_hybens_localization_parameters
+   !call create_hybens_localization_parameters
 
    if ( readin_localization .or. readin_beta ) then ! read info from file
 

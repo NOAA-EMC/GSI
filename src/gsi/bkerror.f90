@@ -62,6 +62,9 @@ subroutine bkerror(grady)
   use control_vectors, only: mvars,nrf,nrf_var,nrf_3d
   use timermod, only: timer_ini,timer_fnl
   use gsi_bundlemod, only: gsi_bundlegetpointer,gsi_bundlemerge,gsi_bundle,gsi_bundledup,gsi_bundledestroy
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use general_commvars_mod, only: s2g_raf
+  use general_commvars_mod, only: s2g_cv
   use hybrid_ensemble_isotropic, only: sqrt_beta_s_mult
   use hybrid_ensemble_parameters, only: l_hyb_ens
   implicit none
@@ -126,7 +129,7 @@ subroutine bkerror(grady)
      endif
 
 !    Apply variances, as well as vertical & horizontal parts of background error
-     call bkgcov(mbundle)
+     call bkgcov(s2g_raf,mbundle)
 
 !    The following lines test that indeed proper application of cgkcov
 !    reproduces results of bkgcov - left as comments (please do not remove

@@ -236,7 +236,7 @@ do jj=1,nsubwin
    enddo
 
 !  Apply adjoint of sqrt-B
-   call ckgcov_ad(gradz,wbundle,nval_lenz)
+   call ckgcov_ad(grid,gradz,wbundle,nval_lenz)
 
 !  Clean up
    call gsi_bundledestroy(wbundle,istatus)

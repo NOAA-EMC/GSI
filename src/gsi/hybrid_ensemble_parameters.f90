@@ -92,6 +92,9 @@ module hybrid_ensemble_parameters
 !      generate_ens:  if .true., generate ensemble perturbations internally as random samples of background B.
 !                       (used primarily for testing/debugging)
 !                     if .false., read external ensemble perturbations
+!      write_generate_ens:  if .true., write out ens perturbations generated internally as 
+!                           as samples of static B and exit.
+!      aniso_a_en: if .true., then allow anisotropic localization correlation (not active yet)
 !      aniso_a_en: if .true., then allow anisotropic localization correlation (not active yet)
 !      uv_hyb_ens: if .true., then ensemble perturbation wind stored as u,v
 !                  if .false., ensemble perturbation wind stored as psi,chi.
@@ -159,6 +162,7 @@ module hybrid_ensemble_parameters
 !   def aniso_a_en    - if true, then use anisotropic rf for localization
 !   def generate_ens   - if true, then create ensemble members internally
 !                              using sqrt of static background error acting on N(0,1) random vectors
+!   def write_generated_ens - if true, write out generated ensemble members
 !   def n_ens               - number of ensemble members
 !   def nlon_ens            - number of longitudes to use for ensemble members and ensemble control vector
 !   def nlat_ens            - number of latitudes to use for ensemble members and ensemble control vector
@@ -254,7 +258,7 @@ module hybrid_ensemble_parameters
        destroy_hybens_localization_parameters
 ! set passed variables to public
   public :: generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,l_hyb_ens,&
-       s_ens_h,oz_univ_static,vvlocal
+       s_ens_h,oz_univ_static,vvlocal,write_generated_ens
   public :: uv_hyb_ens,q_hyb_ens,s_ens_v,beta_s0,aniso_a_en,s_ens_hv,s_ens_vv
   public :: readin_beta,beta_s,beta_e
   public :: readin_localization
@@ -294,7 +298,7 @@ module hybrid_ensemble_parameters
   logical l_hyb_ens,uv_hyb_ens,q_hyb_ens,oz_univ_static,sst_staticB
   logical aniso_a_en
   logical full_ensemble,pwgtflg
-  logical generate_ens
+  logical generate_ens, write_generated_ens
   logical dual_res
   logical pseudo_hybens
   logical merge_two_grid_ensperts
@@ -383,6 +387,7 @@ subroutine init_hybrid_ensemble_parameters
   sst_staticB=.true.
   aniso_a_en=.false.
   generate_ens=.true.
+  write_generated_ens=.false.
   pseudo_hybens=.false.
   merge_two_grid_ensperts=.false.
   regional_ensemble_option=0

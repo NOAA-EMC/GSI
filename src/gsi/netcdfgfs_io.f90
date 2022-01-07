@@ -52,6 +52,7 @@ module netcdfgfs_io
   public intrp22
   public tran_gfsncsfc
   public write_gfsncatm
+  public write_gfsncatm_pert
 
   interface read_gfsnc
      module procedure read_
@@ -88,6 +89,10 @@ module netcdfgfs_io
 
   interface write_gfsncatm
      module procedure write_atm_
+  end interface
+
+  interface write_gfsncatm_pert
+     module procedure write_atm_pert_
   end interface
 
   character(len=*),parameter::myname='netcdfgfs_io'
@@ -2255,6 +2260,447 @@ contains
     endif
 
   end subroutine write_atm_
+
+  subroutine write_atm_pert_ (grd,sp_a,filename,mype_out,gfs_bundle,ibin)
+
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    write_ncatm --- Gather, transform, and write out to netcdf
+!
+!   prgmmr: whitaker         org: oar                  date: 2019-10-03
+!
+! abstract: This routine gathers fields needed for the GSI analysis
+!           file from subdomains and then transforms the fields from
+!           analysis grid to model guess grid, then written to an
+!           netcdf atmospheric analysis file.
+!
+! program history log:
+!   2019-10-03  whitaker initial version
+!
+!   input argument list:
+!     filename  - file to open and write to
+!     mype_out  - mpi task to write output file
+!    gfs_bundle - bundle containing fields on subdomains
+!     ibin      - time bin
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machines: ibm RS/6000 SP; SGI Origin 2000; Compaq HP
+!
+!$$$ end documentation block
+
+! !USES:
+    use kinds, only: r_kind,i_kind
+
+    use constants, only: r1000,fv,one,zero,qcmin,r0_05,t0c
+
+    use mpimod, only: mpi_rtype
+    use mpimod, only: mpi_comm_world
+    use mpimod, only: ierror
+    use mpimod, only: mype
+
+    use guess_grids, only: ifilesig
+    use guess_grids, only: load_geop_hgt,geop_hgti,ges_geopi
+
+    use gridmod, only: ntracer
+    use gridmod, only: ncloud
+    use gridmod, only: strip,jcap_b,bk5
+
+    use general_commvars_mod, only: load_grid,fill2_ns,filluv2_ns
+    use general_specmod, only: spec_vars
+
+    use obsmod, only: iadate
+
+    use gsi_4dvar, only: ibdate,nhr_obsbin,lwrite4danl
+    use general_sub2grid_mod, only: sub2grid_info
+    use egrid2agrid_mod,only: g_egrid2agrid,g_create_egrid2agrid,egrid2agrid_parm,destroy_egrid2agrid
+    use constants, only: two,pi,half,deg2rad
+    use gsi_bundlemod, only: gsi_bundle
+    use gsi_bundlemod, only: gsi_bundlegetpointer
+    use cloud_efr_mod, only: cloud_calc_gfs
+
+    use netcdf, only: nf90_max_name
+    use module_fv3gfs_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
+         read_attribute, write_attribute,get_dim, create_dataset, write_vardata, read_vardata,&
+         get_idate_from_time_units,quantize_data,get_time_units_from_idate,has_attr,has_var
+    use ncepnems_io, only: error_msg
+
+    implicit none
+
+! !INPUT PARAMETERS:
+
+    type(sub2grid_info), intent(in) :: grd
+    type(spec_vars),     intent(in) :: sp_a
+    character(len=24),   intent(in) :: filename  ! file to open and write to
+    integer(i_kind),     intent(in) :: mype_out  ! mpi task to write output file
+    type(gsi_bundle),    intent(in) :: gfs_bundle
+    integer(i_kind),     intent(in) :: ibin      ! time bin
+
+!-------------------------------------------------------------------------
+
+    real(r_kind),parameter:: r0_001 = 0.001_r_kind
+    character(6):: fname_ges
+    character(len=120) :: my_name = 'WRITE_GFSNCATM'
+    character(len=1)   :: null = ' '
+    integer(i_kind),dimension(6):: idate,jdate
+    integer(i_kind) :: k, mm1, nlatm2, nord_int, i, j, kk, kr, nbits
+    integer(i_kind) :: iret, lonb, latb, levs, istatus
+    integer(i_kind) :: nfhour
+    integer(i_kind) :: istop = 104
+    integer(i_kind),dimension(5):: mydate
+    integer(i_kind),dimension(8) :: ida,jda
+    real(r_kind),dimension(5)    :: fha
+    real(r_kind), allocatable, dimension(:)  :: fhour
+    real(r_kind),allocatable,dimension(:) :: rlats_tmp,rlons_tmp
+
+    real(r_kind),pointer,dimension(:,:)   :: sub_ps
+    real(r_kind),pointer,dimension(:,:,:) :: sub_u,sub_v,sub_t
+    real(r_kind),pointer,dimension(:,:,:) :: sub_q,sub_oz,sub_cwmr
+
+
+    real(r_kind),dimension(grd%lat1*grd%lon1)     :: psm
+    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: tsm, usm, vsm
+    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: qsm, ozsm
+    real(r_kind),dimension(grd%lat1*grd%lon1,grd%nsig):: cwsm
+    real(r_kind),dimension(max(grd%iglobal,grd%itotsub))     :: work1,work2
+    real(r_kind),dimension(grd%nlon,grd%nlat-2):: grid
+    real(r_kind),allocatable,dimension(:) :: rlats,rlons,clons,slons
+    real(4), allocatable, dimension(:,:) :: values_2d,values_2d_tmp
+    real(4), allocatable, dimension(:,:,:) :: values_3d,values_3d_tmp,ug3d,vg3d
+    real(4) compress_err
+    type(Dataset) :: atmges, atmanl
+    type(Dimension) :: ncdim
+    character(len=nf90_max_name) :: time_units
+
+    logical diff_res,eqspace,nocompress
+    logical,dimension(1) :: vector
+    type(egrid2agrid_parm) :: p_low,p_high
+
+!*************************************************************************
+!   Initialize local variables
+    mm1=mype+1
+    nlatm2=grd%nlat-2
+    diff_res=.false.
+    nocompress = .true.
+
+    istatus=0
+    call gsi_bundlegetpointer(gfs_bundle,'ps', sub_ps,  iret); istatus=istatus+iret
+    if (iret /= 0 .and. mype == 0) print *,'error getting ps from bundle'
+    call gsi_bundlegetpointer(gfs_bundle,'sf',  sub_u,   iret); istatus=istatus+iret
+    if (iret /= 0 .and. mype == 0) print *,'error getting sf from bundle'
+    call gsi_bundlegetpointer(gfs_bundle,'vp',  sub_v,   iret); istatus=istatus+iret
+    if (iret /= 0 .and. mype == 0) print *,'error getting vp from bundle'
+    call gsi_bundlegetpointer(gfs_bundle,'t ', sub_t,   iret); istatus=istatus+iret
+    if (iret /= 0 .and. mype == 0) print *,'error getting t from bundle'
+    call gsi_bundlegetpointer(gfs_bundle,'q',  sub_q,   iret); istatus=istatus+iret
+    if (iret /= 0 .and. mype == 0) print *,'error getting q from bundle'
+    call gsi_bundlegetpointer(gfs_bundle,'oz', sub_oz,  iret); istatus=istatus+iret
+    if (iret /= 0 .and. mype == 0) print *,'error getting oz from bundle'
+    call gsi_bundlegetpointer(gfs_bundle,'cw', sub_cwmr,iret); istatus=istatus+iret
+    if (iret /= 0 .and. mype == 0) print *,'error getting cw from bundle'
+    if ( istatus /= 0 ) then
+       if ( mype == 0 ) then
+         write(6,*) 'write_atm_: ERROR'
+         write(6,*) 'Missing some of the required fields'
+         write(6,*) 'Aborting ... '
+      endif
+      call stop2(999)
+    endif
+
+    if ( sp_a%jcap /= jcap_b ) then
+        if ( mype == 0 ) write(6, &
+            '('' dual resolution for nems sp_a%jcap,jcap_b = '',2i6)') &
+            sp_a%jcap,jcap_b
+        diff_res = .true.
+        call stop2(999)
+    endif
+
+
+    ! Single task writes analysis data to analysis file
+    if ( mype == mype_out ) then
+       write(fname_ges,'(''sigf'',i2.2)') ifilesig(ibin)
+
+       ! open the netCDF file
+       atmges = open_dataset(fname_ges,errcode=iret)
+       if ( iret /= 0 ) call error_msg(trim(my_name),null,null,'open',istop,iret)
+       ! get dimension sizes
+       ncdim = get_dim(atmges, 'grid_xt'); lonb = ncdim%len
+       ncdim = get_dim(atmges, 'grid_yt'); latb = ncdim%len
+       ncdim = get_dim(atmges, 'pfull'); levs = ncdim%len
+
+       if ( levs /= grd%nsig ) then
+          write(6,*) trim(my_name),': problem in data dimension background levs = ',levs,' nsig = ',grd%nsig
+          call stop2(103)
+       endif
+       
+       ! get time information
+       idate = get_idate_from_time_units(atmges)
+       call read_vardata(atmges, 'time', fhour) ! might need to change this to attribute later
+                                               ! depends on model changes from Jeff Whitaker
+       nfhour = fhour(1)
+
+       atmanl = create_dataset(filename, atmges, &
+                               copy_vardata=.false., nocompress=nocompress, errcode=iret)
+       if ( iret /= 0 ) call error_msg(trim(my_name),trim(filename),null,'open',istop,iret)
+
+       ! Update time information (with ibdate) and write it to analysis file
+       mydate=ibdate
+       fha(:)=zero ; ida=0; jda=0
+       fha(2)=real(nhr_obsbin*(ibin-1))  ! relative time interval in hours
+       ida(1)=mydate(1) ! year
+       ida(2)=mydate(2) ! month
+       ida(3)=mydate(3) ! day
+       ida(4)=0         ! time zone
+       ida(5)=mydate(4) ! hour
+
+       ! Move date-time forward by nhr_assimilation hours
+       call w3movdat(fha,ida,jda)
+
+       jdate(1) = jda(1)     ! analysis year
+       jdate(2) = jda(2)     ! analysis month
+       jdate(3) = jda(3)     ! analysis day
+       jdate(4) = jda(5)     ! analysis hour
+       jdate(5) = iadate(5)  ! analysis minute
+       jdate(6) = 0          ! analysis second
+       fhour = zero
+
+       call write_vardata(atmanl, 'time', fhour)
+       time_units = get_time_units_from_idate(jdate)
+       call write_attribute(atmanl, 'units', time_units, 'time')
+
+       ! Allocate structure arrays to hold data
+       allocate(ug3d(lonb,latb,levs),vg3d(lonb,latb,levs),values_3d_tmp(lonb,latb,levs),values_2d_tmp(lonb,latb))
+       allocate(values_3d(lonb,latb,levs))
+       allocate( rlats(latb+2),rlons(lonb),clons(lonb),slons(lonb))
+       call read_vardata(atmges, 'grid_xt', rlons_tmp, errcode=iret)
+       call read_vardata(atmges, 'grid_yt', rlats_tmp, errcode=iret)
+       do j=1,latb
+         rlats(latb+2-j)=deg2rad*rlats_tmp(j)
+       enddo
+       rlats(1)=-half*pi
+       rlats(latb+2)=half*pi
+       do j=1,lonb
+         rlons(j)=deg2rad*rlons_tmp(j)
+       enddo
+       deallocate(rlons_tmp, rlats_tmp)
+       do j=1,lonb
+          clons(j)=cos(rlons(j))
+          slons(j)=sin(rlons(j))
+       enddo
+
+       nord_int=4
+       eqspace=.false.
+       call g_create_egrid2agrid(grd%nlat,sp_a%rlats,grd%nlon,sp_a%rlons, &
+                             latb+2,rlats,lonb,rlons,&
+                             nord_int,p_low,.false.,eqspace=eqspace)
+       call g_create_egrid2agrid(latb+2,rlats,lonb,rlons, &
+                             grd%nlat,sp_a%rlats,grd%nlon,sp_a%rlons,&
+                             nord_int,p_high,.false.,eqspace=eqspace)
+
+       deallocate(rlats,rlons)
+
+    endif ! if ( mype == mype_out )
+
+    ! Strip off boundary points from subdomains
+    call strip(sub_ps  ,psm)
+    call strip(sub_t   ,tsm   ,grd%nsig)
+    call strip(sub_q   ,qsm   ,grd%nsig)
+    call strip(sub_oz  ,ozsm  ,grd%nsig)
+    call strip(sub_cwmr,cwsm  ,grd%nsig)
+    call strip(sub_u   ,usm   ,grd%nsig)
+    call strip(sub_v   ,vsm   ,grd%nsig)
+
+    ! Thermodynamic variable
+    ! The GSI analysis variable is virtual temperature (Tv).   For NEMSIO
+    ! output we need the sensible temperature.
+
+    ! Generate and write analysis fields
+
+    ! Surface pressure 
+    call mpi_gatherv(psm,grd%ijn(mm1),mpi_rtype,&
+         work1,grd%ijn,grd%displs_g,mpi_rtype,&
+         mype_out,mpi_comm_world,ierror)
+    if (mype==mype_out) then
+       call load_grid(work1,grid)
+       values_2d = grid*r1000
+       if (.not. nocompress .and. has_attr(atmges, 'nbits', 'pressfc')) then
+         call read_attribute(atmges, 'nbits', nbits, 'pressfc')
+         values_2d_tmp = values_2d
+         call quantize_data(values_2d_tmp, values_2d, nbits, compress_err)
+         call write_attribute(atmanl,&
+         'max_abs_compression_error',compress_err,'pressfc')
+       endif
+       print *,'min/max pressfc pert',minval(values_2d),maxval(values_2d)
+       call write_vardata(atmanl,'pressfc',values_2d,errcode=iret)
+       if (iret /= 0) call error_msg(trim(my_name),trim(filename),'pressfc','write',istop,iret)
+    endif
+
+!   u, v
+    do k=1,grd%nsig
+       kr = grd%nsig-k+1
+       call mpi_gatherv(usm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work1,grd%ijn,grd%displs_g,mpi_rtype,&
+            mype_out,mpi_comm_world,ierror)
+       call mpi_gatherv(vsm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work2,grd%ijn,grd%displs_g,mpi_rtype,&
+            mype_out,mpi_comm_world,ierror)
+       if (mype==mype_out) then
+          call load_grid(work1,grid)
+          ug3d(:,:,kr) = grid
+          call load_grid(work2,grid)
+          vg3d(:,:,kr) = grid
+       endif ! mype_out
+    end do
+    ! Zonal wind
+    if (mype==mype_out) then
+       if (.not. nocompress .and. has_attr(atmges, 'nbits', 'ugrd')) then
+         call read_attribute(atmges, 'nbits', nbits, 'ugrd')
+         values_3d_tmp = ug3d 
+         call quantize_data(values_3d_tmp, ug3d, nbits, compress_err)
+         call write_attribute(atmanl,&
+         'max_abs_compression_error',compress_err,'ugrd')
+       endif
+       print *,'min/max ugrd pert',minval(ug3d),maxval(ug3d)
+       call write_vardata(atmanl,'ugrd',ug3d,errcode=iret)
+       if (iret /= 0) call error_msg(trim(my_name),trim(filename),'ugrd','write',istop,iret)
+       ! Meridional wind
+       if (.not. nocompress .and. has_attr(atmges, 'nbits', 'vgrd')) then
+         call read_attribute(atmges, 'nbits', nbits, 'vgrd')
+         values_3d_tmp = vg3d 
+         call quantize_data(values_3d_tmp, vg3d, nbits, compress_err)
+         call write_attribute(atmanl,&
+         'max_abs_compression_error',compress_err,'vgrd')
+       endif
+       print *,'min/max vgrd pert',minval(vg3d),maxval(vg3d)
+       call write_vardata(atmanl,'vgrd',vg3d,errcode=iret)
+       if (iret /= 0) call error_msg(trim(my_name),trim(filename),'vgrd','write',istop,iret)
+    endif
+
+!   Thermodynamic variable
+    do k=1,grd%nsig
+       kr = grd%nsig-k+1
+       call mpi_gatherv(tsm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work1,grd%ijn,grd%displs_g,mpi_rtype,&
+            mype_out,mpi_comm_world,ierror)
+       if (mype == mype_out) then
+          call load_grid(work1,grid)
+          values_3d(:,:,kr) = grid
+       endif
+    end do
+    if (mype==mype_out) then
+       if (.not. nocompress .and. has_attr(atmges, 'nbits', 'tmp')) then
+         call read_attribute(atmges, 'nbits', nbits, 'tmp')
+         values_3d_tmp = values_3d 
+         call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
+         call write_attribute(atmanl,&
+         'max_abs_compression_error',compress_err,'tmp')
+       endif
+       print *,'min/max tv pert',minval(values_3d),maxval(values_3d)
+       call write_vardata(atmanl,'tmp',values_3d,errcode=iret)
+       if (iret /= 0) call error_msg(trim(my_name),trim(filename),'tmp','write',istop,iret)
+    endif
+
+!   Specific humidity
+    do k=1,grd%nsig
+       kr = grd%nsig-k+1
+       call mpi_gatherv(qsm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work1,grd%ijn,grd%displs_g,mpi_rtype,&
+            mype_out,mpi_comm_world,ierror)
+       if (mype == mype_out) then
+          call load_grid(work1,grid)
+          values_3d(:,:,kr) = grid
+       endif
+    end do
+    if (mype==mype_out) then
+       if (.not. nocompress .and. has_attr(atmges, 'nbits', 'spfh')) then
+         call read_attribute(atmges, 'nbits', nbits, 'spfh')
+         values_3d_tmp = values_3d 
+         call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
+         call write_attribute(atmanl,&
+         'max_abs_compression_error',compress_err,'spfh')
+       endif
+       print *,'min/max spfh pert',minval(values_3d),maxval(values_3d)
+       call write_vardata(atmanl,'spfh',values_3d,errcode=iret)
+       if (iret /= 0) call error_msg(trim(my_name),trim(filename),'spfh','write',istop,iret)
+    endif
+
+!   Ozone
+    do k=1,grd%nsig
+       kr = grd%nsig-k+1
+       call mpi_gatherv(ozsm(1,k),grd%ijn(mm1),mpi_rtype,&
+            work1,grd%ijn,grd%displs_g,mpi_rtype,&
+            mype_out,mpi_comm_world,ierror)
+       if (mype == mype_out) then
+          call load_grid(work1,grid)
+          values_3d(:,:,kr) = grid
+       endif
+    end do
+    if (mype==mype_out) then
+       if (.not. nocompress .and. has_attr(atmges, 'nbits', 'o3mr')) then
+         call read_attribute(atmges, 'nbits', nbits, 'o3mr')
+         values_3d_tmp = values_3d 
+         call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
+         call write_attribute(atmanl,&
+         'max_abs_compression_error',compress_err,'o3mr')
+       endif
+       print *,'min/max o3mr pert',minval(values_3d),maxval(values_3d)
+       call write_vardata(atmanl,'o3mr',values_3d,errcode=iret)
+       if (iret /= 0) call error_msg(trim(my_name),trim(filename),'o3mr','write',istop,iret)
+    endif
+
+!   Cloud condensate mixing ratio
+    if (ntracer>2 .or. ncloud>=1) then
+
+       do k=1,grd%nsig
+          kr = grd%nsig-k+1
+          call mpi_gatherv(cwsm(1,k),grd%ijn(mm1),mpi_rtype,&
+               work1,grd%ijn,grd%displs_g,mpi_rtype,&
+               mype_out,mpi_comm_world,ierror)
+          if (mype == mype_out) then
+             call load_grid(work1,grid)
+             values_3d(:,:,kr) = grid
+          endif !mype == mype_out
+       end do
+       if (mype==mype_out) then
+          if (.not. nocompress .and. has_attr(atmges, 'nbits', 'clwmr')) then
+            call read_attribute(atmges, 'nbits', nbits, 'clwmr')
+            values_3d_tmp = values_3d 
+            call quantize_data(values_3d_tmp, values_3d, nbits, compress_err)
+            call write_attribute(atmanl,&
+            'max_abs_compression_error',compress_err,'clwmr')
+          endif
+          print *,'min/max clwmr pert',minval(values_3d),maxval(values_3d)
+          call write_vardata(atmanl,'clwmr',values_3d,errcode=iret)
+          if (iret /= 0) call error_msg(trim(my_name),trim(filename),'clwmr','write',istop,iret)
+       endif
+    endif !ntracer
+
+!
+! Deallocate local array
+!
+    if (mype==mype_out) then
+       call close_dataset(atmges, errcode=iret)
+       if (iret /= 0) call error_msg(trim(my_name),trim(fname_ges),null,'close',istop,iret)
+
+       call close_dataset(atmanl, errcode=iret)
+       if (iret /= 0) call error_msg(trim(my_name),trim(filename),null,'close',istop,iret)
+!
+! Deallocate local array
+!
+       if (allocated(values_2d)) deallocate(values_2d)
+       if (allocated(values_3d)) deallocate(values_3d)
+       if (allocated(values_2d_tmp)) deallocate(values_2d_tmp)
+       if (allocated(values_3d_tmp)) deallocate(values_3d_tmp)
+       if (allocated(ug3d)) deallocate(ug3d)
+       if (allocated(vg3d)) deallocate(vg3d)
+!
+       write(6,'(a,'': atm pert written for lonb,latb,levs= '',3i6,'',valid hour= '',f4.1,'',idate= '',4i5)') &
+          trim(my_name),lonb,latb,levs,fhour(1),jdate(1:4)
+    endif
+
+  end subroutine write_atm_pert_
 
 
   subroutine write_sfc_ (filename,mype_sfc,dsfct)
