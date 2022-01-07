@@ -137,6 +137,8 @@ contains
         allocate(meta_ncio%lon(meta_ncio%dimx*meta_ncio%dimy))
     if (.not. allocated(meta_ncio%lat)) &
         allocate(meta_ncio%lat(meta_ncio%dimx*meta_ncio%dimy))
+    if (.not. allocated(meta_ncio%vcoord)) &
+        allocate(meta_ncio%vcoord(meta_ncio%dimz+1,2))
     call read_vardata(gfile,'lon', tmp2d)
     meta_ncio%lon = reshape(tmp2d, (/meta_ncio%dimx*meta_ncio%dimy/))
     call read_vardata(gfile,'lat', tmp2d)
@@ -148,6 +150,10 @@ contains
     meta_ncio%idvm=1
     meta_ncio%ntrac = 8
     meta_ncio%ncldt = 5
+    call read_attribute(gfile,'ak',tmp1d)
+    meta_ncio%vcoord(:,1) = tmp1d(:)
+    call read_attribute(gfile,'bk',tmp1d)
+    meta_ncio%vcoord(:,2) = tmp1d(:)
 
     call read_vardata(gfile,'time',tmp1d)
     meta_ncio%fhour = nint(tmp1d(1))

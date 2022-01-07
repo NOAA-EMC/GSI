@@ -133,6 +133,7 @@ contains
 
     integer :: j, k ! loop indices within a variable
     integer :: ivar !! loop index over variables in input_vars & output_vars
+    real :: taper
 
     ! Formats for print statements:
 100 format(A,': ',A)
@@ -185,6 +186,9 @@ contains
        an_grid%ilev(k) = real(k)
        an_grid%hyai(k) = real(k)
        an_grid%hybi(k) = real(k)
+       an_grid%ak(k) = meta_ncio%vcoord(k,1)
+       an_grid%bk(k) = meta_ncio%vcoord(k,2) 
+       an_grid%ck(k) = 0
     end do nzp1_init
 
     ! Deallocate entire grid.
@@ -240,7 +244,25 @@ contains
           
           ! Subtract and write
           an_grid%var3d = an_grid%var3d - fg_grid%var3d
+          if (mype == 0) print *,trim(input_vars(ivar)),minval(an_grid%var3d),maxval(an_grid%var3d)
        endif zero_or_read
+
+       ! taper humidity, microphysics increments in stratosphere
+       if (taper_strat .and. (trim(input_vars(ivar)) == 'spfh' .or. &
+                              trim(input_vars(ivar)) == 'icmr' .or. &
+                              trim(input_vars(ivar)) == 'clwmr')) then
+          if (mype == 0) print *,'k,ak,bk,taper,min/max increment for ',trim(input_vars(ivar))
+          do k=1,an_grid%nz
+             taper =  1.0
+             if (k < an_grid%nz/2 .and. (an_grid%ak(k) <= ak_bot .and. an_grid%ak(k) >= ak_top)) then
+                taper = (an_grid%ak(k) - ak_top)/(ak_bot - ak_top)
+             else if (an_grid%bk(k) .eq. 0. .and. an_grid%ak(k) < ak_top) then
+                taper = 0.
+             endif
+             an_grid%var3d(:,:,k) = an_grid%var3d(:,:,k)*taper
+             if (mype == 0) print *,k,an_grid%ak(k),an_grid%bk(k),taper,minval(an_grid%var3d(:,:,k)),maxval(an_grid%var3d(:,:,k))
+          enddo
+        endif
 
        call fv3_netcdf_write_var3d(ncdat,output_vars(ivar),an_grid%var3d)
     enddo var_loop
