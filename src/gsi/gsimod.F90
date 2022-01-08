@@ -118,7 +118,7 @@
   use mod_strong, only: l_tlnmc,reg_tlnmc_type,nstrong,tlnmc_option,&
        period_max,period_width,init_strongvars,baldiag_full,baldiag_inc
   use gridmod, only: nlat,nlon,nsig,wrf_nmm_regional,nems_nmmb_regional,fv3_regional,cmaq_regional,&
-     nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass,grid_ratio_fv3_regional,&
+     nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass,grid_ratio_fv3_regional,fv3_io_layout_y,&
      filled_grid,half_grid,wrf_mass_regional,nsig1o,nnnn1o,update_regsfc,&
      diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
@@ -468,7 +468,10 @@
 !  2021-01-05  x.zhang/lei  - add code for updating delz analysis in regional da
 !  09-07-2020 CAPS            Add options for directDA_radaruse_mod to use direct radar DA capabilities
 !  02-09-2021 CAPS(J. Park)   Add vad_near_analtime flag (obsqc) to assimilate newvad obs around analysis time only
-!
+!  01-07-2022 Hu        Add fv3_io_layout_y to let fv3lam interface read/write subdomain restart
+!                       files. The fv3_io_layout_y needs to match fv3lam model
+!                       option io_layout(2).
+!                       
 !EOP
 !-------------------------------------------------------------------------
 
@@ -754,6 +757,7 @@
 !                                = 'V', then analysis grid covers V grid domain
 !     grid_ratio_nmmb   - ratio of analysis grid to nmmb model grid in nmmb model grid units.
 !     grid_ratio_fv3_regional - ratio of analysis grid to fv3 grid in fv3 grid units.
+!     fv3_io_layout_y    - set to the same number as io_layout of fv3 regional model in y direction.
 !     grid_ratio_wrfmass - ratio of analysis grid to wrf mass grid in wrf grid units.
 !     grid_type_fv3_regional - type of fv3 model grid (grid orientation).
 !     twodvar_regional  - logical for regional 2d-var analysis
@@ -774,7 +778,7 @@
        diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,fv3_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,cmaq_regional,&
        nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_fv3_regional,grid_ratio_wrfmass,jcap_gfs,jcap_cut,&
-       wrf_mass_hybridcord,grid_type_fv3_regional
+       wrf_mass_hybridcord,grid_type_fv3_regional,fv3_io_layout_y
 
 ! BKGERR (background error related variables):
 !     vs       - scale factor for vertical correlation lengths for background error
