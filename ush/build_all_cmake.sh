@@ -82,7 +82,7 @@ elif [ $target = wcoss_c ]; then
 elif [ $target = discover ]; then
     module load $dir_modules/modulefile.ProdGSI.$target
 elif [ $target = wcoss2 ]; then
-    module purge
+    module reset
     module use $dir_modules
     module load modulefile.ProdGSI.$target
     module list
