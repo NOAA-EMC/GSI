@@ -14,19 +14,19 @@ if [[ $MINMON_USER_SETTINGS -ne 1 ]]; then
    #  ACCOUNT is used on zeus only for use with the qsub -a flag.  It is
    #  empty on other platforms.
    #
-   export ACCOUNT=${ACCOUNT:-fv3-cpu}
+   export ACCOUNT=${ACCOUNT:-}
 
    #
    #  PROJECT is used on wcoss only with the bjob -P flag.  It is 
    #  empty on other platforms.
    #
-   export PROJECT=${PROJECT:-}
+   export PROJECT=${PROJECT:-GDAS-DEV}
 
    #
-   #  JOB_QUEUE is used on wcoss only with the bjob -q flag.  It is 
+   #  JOB_QUEUE is used on wcoss and wcoss2 bjob/qsub -q flag.  It is 
    #  empty on other platforms.
    #
-   export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
+   export JOB_QUEUE=${JOB_QUEUE:-dev}
 
    #
    #  RUN_ONLY_ON_DEV  1 = dev machine only, 0 = run anywhere
@@ -64,7 +64,7 @@ if [[ $MINMON_USER_SETTINGS -ne 1 ]]; then
    #
    #  MAIL_TO is the mail recpient list for error reporting
    #
-   export MAIL_TO=${MAIL_TO:-""}
+   export MAIL_TO=${MAIL_TO:-"edward.safford@noaa.gov"}
 
    #
    #  MAIL_CC is the mail recpient cc list for error reporting
