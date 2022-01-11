@@ -1848,6 +1848,7 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     real(r_kind),pointer,dimension(:,:,:):: ges_w   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_delzinc   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_delp  =>NULL()
+    real(r_kind),dimension(:,:  ),allocatable:: ges_ps_write
 
 
     real(r_kind), dimension(lat2,lon2,nsig) :: io_arr_qr, io_arr_qs
@@ -1918,8 +1919,10 @@ subroutine wrfv3_netcdf(fv3filenamegin)
       deallocate(g_prsi,ges_ps_inc)
     
     else
-      ges_ps=ges_ps*1000.0_r_kind
-      call gsi_bundleputvar (gsibundle_fv3lam_dynvar_nouv,'ps',ges_ps,istatus)
+      allocate(ges_ps_write(lat2,lon2))
+      ges_ps_write=ges_ps*1000.0_r_kind
+      call gsi_bundleputvar (gsibundle_fv3lam_dynvar_nouv,'ps',ges_ps_write,istatus)
+      deallocate(ges_ps_write)
     endif
 !   write out
     if (ier/=0) call die('get ges','cannot get pointers for fv3 met-fields, ier =',ier)
