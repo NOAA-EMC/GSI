@@ -48,7 +48,7 @@ use control_vectors, only: cvars3d,cvars2d,cvarsmd
 use control_vectors, only: nc2d,mvars
 use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, l4dvar, lsqrtb
-use gridmod, only: lat2,lon2,nsig
+use gridmod, only: grd_a,lat2,lon2,nsig
 use jfunc, only: nsclen,npclen,ntclen
 use berror, only: varprd,fpsproj,fut2ps
 use balmod, only: balance
@@ -173,7 +173,7 @@ do jj=1,nsubwin
 !  Apply sqrt of variance, as well as vertical & horizontal parts of background
 !  error
 
-   call ckgcov(grid,xhat%step(jj)%values(:),wbundle,size(xhat%step(jj)%values(:)))
+   call ckgcov(grd_a,,xhat%step(jj)%values(:),wbundle,size(xhat%step(jj)%values(:)))
 
 !  Get pointers to required state variables
    call gsi_bundlegetpointer (sval(jj),'u'   ,sv_u,   istatus)

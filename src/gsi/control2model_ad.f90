@@ -40,7 +40,7 @@ use control_vectors, only: cvars3d,cvars2d,cvarsmd
 use control_vectors, only: nc2d,mvars
 use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, lsqrtb
-use gridmod, only: lat2,lon2,nsig
+use gridmod, only: grd_a,lat2,lon2,nsig
 use berror, only: varprd,fpsproj,fut2ps
 use balmod, only: tbalance
 use jfunc, only: nsclen,npclen,ntclen,nval_lenz
@@ -236,7 +236,7 @@ do jj=1,nsubwin
    enddo
 
 !  Apply adjoint of sqrt-B
-   call ckgcov_ad(grid,gradz,wbundle,nval_lenz)
+   call ckgcov_ad(grd_a,gradz,wbundle,nval_lenz)
 
 !  Clean up
    call gsi_bundledestroy(wbundle,istatus)
