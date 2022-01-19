@@ -41,16 +41,22 @@ contains
       stop 99
     end if
 
+    if (fhr > 0) then
     write(hrstr,'(I0.2)') fhr
     anal_file = trim(adjustl(datapath)) // '/' // trim(adjustl(analysis_filename)) // '.' // hrstr 
     fcst_file = trim(adjustl(datapath)) // '/' // trim(adjustl(firstguess_filename)) // '.' // hrstr 
     incr_file = trim(adjustl(datapath)) // '/' // trim(adjustl(increment_filename)) // '.' // hrstr
+    else
+    anal_file = trim(adjustl(datapath)) // '/' // trim(adjustl(analysis_filename)) 
+    fcst_file = trim(adjustl(datapath)) // '/' // trim(adjustl(firstguess_filename)) 
+    incr_file = trim(adjustl(datapath)) // '/' // trim(adjustl(increment_filename))
+    endif
 
     if (mype == 0) then
       write(6,*) 'Analysis File    = ', trim(anal_file)
       write(6,*) 'First Guess File = ', trim(fcst_file)
       write(6,*) 'Increment File   = ', trim(incr_file) 
-      write(6,*) 'Forecast Hour    = ', fhr
+      if (fhr > 0) write(6,*) 'Forecast Hour    = ', fhr
       write(6,*) 'Number of PEs    = ', npes
       write(6,*) 'input guess file and increment file should be in netCDF format'
       if (use_nemsio_anl) then

@@ -4001,7 +4001,7 @@ subroutine hybens_localization_setup
    use gfs_stratosphere, only: use_gfs_stratosphere,blend_rm
    use hybrid_ensemble_parameters, only: grd_ens,jcap_ens,n_ens,grd_loc,sp_loc,&
                                          nval_lenz_en,regional_ensemble_option
-   use hybrid_ensemble_parameters, only: readin_beta,beta_s,beta_e,beta_s0,sqrt_beta_s,sqrt_beta_e
+   use hybrid_ensemble_parameters, only: readin_beta,beta_s,beta_e,beta_s0,beta_e0,sqrt_beta_s,sqrt_beta_e
    use hybrid_ensemble_parameters, only: readin_localization,create_hybens_localization_parameters, &
                                          vvlocal,s_ens_h,s_ens_hv,s_ens_v,s_ens_vv
    use gsi_io, only: verbose
@@ -4067,7 +4067,11 @@ subroutine hybens_localization_setup
 
    if ( .not. readin_beta ) then ! assign all levels to same value, sum = 1.0
       beta_s = beta_s0
-      beta_e = one - beta_s0
+      if (beta_e0 < 0) then
+         beta_e = one - beta_s0
+      else
+         beta_e = beta_e0
+      endif
    endif
 
    if ( regional_ensemble_option == 2 .and. use_gfs_stratosphere .and. .not. readin_beta ) then
