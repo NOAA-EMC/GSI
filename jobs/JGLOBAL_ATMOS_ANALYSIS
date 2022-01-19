@@ -81,8 +81,8 @@ export ASUFFIX=${ASUFFIX:-$SUFFIX}
 if [ $RUN_ENVIR = "nco" -o ${ROTDIR_DUMP:-NO} = "YES" ]; then
     export COMIN=${COMIN:-$ROTDIR/$RUN.$PDY/$cyc/$COMPONENT}
     export COMOUT=${COMOUT:-$ROTDIR/$RUN.$PDY/$cyc/$COMPONENT}
-    export COMIN_OBS=${COMIN_OBS:-$ROTDIR/$RUN.$PDY/$cyc/$COMPONENT}
-    export COMIN_GES_OBS=${COMIN_GES_OBS:-$ROTDIR/$GDUMP.$gPDY/$gcyc/$COMPONENT}
+    export COMIN_OBS=${COMIN_OBS:-$(compath.py ${envir}/obsproc/${obsproc_ver})/$RUN.$PDY/$cyc/$COMPONENT}
+    export COMIN_GES_OBS=${COMIN_GES_OBS:-$(compath.py ${envir}/obsproc/${obsproc_ver})/$GDUMP.$gPDY/$gcyc/$COMPONENT}
 else
     export COMOUT="$ROTDIR/$CDUMP.$PDY/$cyc/$COMPONENT"
     export COMIN_OBS="$DMPDIR/$CDATE/$CDUMP"
@@ -122,11 +122,11 @@ fi
 
 
 # Link observational data
-export PREPQC="${COMOUT}/${OPREFIX}prepbufr"
+export PREPQC="${COMIN_OBS}/${OPREFIX}prepbufr"
 if [ ! -f $PREPQC ]; then
     echo "WARNING: Global PREPBUFR FILE $PREPQC MISSING"
 fi
-export PREPQCPF="${COMOUT}/${OPREFIX}prepbufr.acft_profiles"
+export PREPQCPF="${COMIN_OBS}/${OPREFIX}prepbufr.acft_profiles"
 export TCVITL="${COMOUT}/${OPREFIX}syndata.tcvitals.tm00"
 [[ $DONST = "YES" ]] && export NSSTBF="${COMOUT}/${OPREFIX}nsstbufr"
 
