@@ -42,7 +42,7 @@ export cyc=${2:-${cyc:?}}
 
 #  Directories
 export DATA=${DATA:-$(pwd)}
-export COM_IN=${COMROOT}/${NET}/${envir}
+export COM_IN=${COM_IN:-$(compath.py ${envir}/${NET}/${gfs_ver})}
 export COMIN=${COMIN:-$COM_IN/${RUN}.${PDY}/${cyc}/$COMPONENT}
 
 
