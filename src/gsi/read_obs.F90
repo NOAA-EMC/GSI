@@ -448,6 +448,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
                trim(subset) == 'NC005039' .or. &
                trim(subset) == 'NC005090' .or. trim(subset) == 'NC005091' .or.&
                trim(subset) == 'NC005067' .or. trim(subset) == 'NC005068' .or. trim(subset) == 'NC005069' .or.&
+               trim(subset) == 'NC005047' .or. trim(subset) == 'NC005048' .or. trim(subset) == 'NC005049' .or.&
                trim(subset) == 'NC005081' .or. &
                trim(subset) == 'NC005072' ) then
                lexist = .true.
