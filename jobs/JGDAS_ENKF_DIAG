@@ -102,13 +102,13 @@ fi
 
 
 # Link observational data
-export PREPQC="$COMIN_ANL/${OPREFIX}prepbufr"
+export PREPQC="$COMIN_OBS/${OPREFIX}prepbufr"
 if [ ! -f $PREPQC ]; then
     echo "WARNING: Global PREPBUFR FILE $PREPQC MISSING"
 fi
-export PREPQCPF="$COMIN_ANL/${OPREFIX}prepbufr.acft_profiles"
+export PREPQCPF="$COMIN_OBS/${OPREFIX}prepbufr.acft_profiles"
 export TCVITL="$COMIN_ANL/${OPREFIX}syndata.tcvitals.tm00"
-[[ $DONST = "YES" ]] && export NSSTBF="$COMIN_ANL/${OPREFIX}nsstbufr"
+[[ $DONST = "YES" ]] && export NSSTBF="$COMIN_OBS/${OPREFIX}nsstbufr"
 
 # Guess Bias correction coefficients related to control
 export GBIAS=${COMIN_GES_CTL}/${GPREFIX}abias

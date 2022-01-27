@@ -128,7 +128,7 @@ if [ ! -f $PREPQC ]; then
 fi
 export PREPQCPF="${COMIN_OBS}/${OPREFIX}prepbufr.acft_profiles"
 export TCVITL="${COMOUT}/${OPREFIX}syndata.tcvitals.tm00"
-[[ $DONST = "YES" ]] && export NSSTBF="${COMOUT}/${OPREFIX}nsstbufr"
+[[ $DONST = "YES" ]] && export NSSTBF="${COMIN_OBS}/${OPREFIX}nsstbufr"
 
 
 # Update surface fields with global_cycle
