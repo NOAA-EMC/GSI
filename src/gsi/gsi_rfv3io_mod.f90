@@ -2075,7 +2075,6 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     real(r_kind), dimension(lat2,lon2,nsig) :: io_arr_qg, io_arr_qnr
     real(r_kind), dimension(:,:,:),allocatable ::g_prsi 
 
-    real(r_kind), dimension(:,:),allocatable ::ges_ps_write
 
     it=ntguessig
     ier=0
