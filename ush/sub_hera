@@ -136,7 +136,8 @@ echo "" >>$cfile
 
 echo ". /apps/lmod/lmod/init/sh"                           >> $cfile
 echo "module purge"                                        >> $cfile
-echo "source $gsisrc/modulefiles/modulefile.ProdGSI.hera" >> $cfile
+echo "module use $gsisrc/modulefiles"                      >> $cfile
+echo "module load modulefile.ProdGSI.hera" >> $cfile
 echo "module list"                                         >> $cfile
 echo "" >>$cfile
 
