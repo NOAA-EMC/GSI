@@ -342,7 +342,9 @@ program getsigensmeanp_smooth
         call nemsio_readrecv(gfile,'hgt','sfc',1,rwork_hgt,iret=iret)
 
         rwork_avg = zero
-        call mpi_allreduce(rwork_mem,rwork_avg,nsize,mpi_real,mpi_sum,new_comm,iret)
+        do n = 1,nrec
+            call mpi_allreduce(rwork_mem(:,n),rwork_avg(:,n),npts,mpi_real,mpi_sum,new_comm,iret)
+        end do
         rwork_avg = rwork_avg * rnanals
 
         if ( mype == 0 ) then
