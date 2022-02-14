@@ -353,8 +353,8 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chem bundle,ier= ',ier
            call stop2(453)
         endif
-        !!! apcsoj
-        do i=2,naero_cmaq_fv3-1
+        !!!
+        do i=2,naero_cmaq_fv3
         aeroname=trim(aeronames_cmaq_fv3(i))
         call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
              rank3,ier)

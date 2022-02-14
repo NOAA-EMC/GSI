@@ -233,8 +233,8 @@ contains
                w7* spm2_5(j7)+w8* spm2_5(j8)
           val=val *pm2_5ptr%pm25wc(imodes_cmaq_fv3(iaero))
           nullify(spm2_5)
-!remove apcsoj
-          do iaero=2, naero_cmaq_fv3-1
+!
+          do iaero=2, naero_cmaq_fv3
           aeroname=aeronames_cmaq_fv3(iaero) 
           call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
           if(istatus /= 0) then

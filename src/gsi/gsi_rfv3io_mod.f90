@@ -1000,7 +1000,8 @@ subroutine read_fv3_cmaq_regional_netcdf_guess(fv3filenamegin)
                                ges_apah1j(i,j,k) +ges_apah2j(i,j,k)+ges_apah3j(i,j,k)+&
                                ges_aorgcj(i,j,k) +ges_aolgbj(i,j,k)+ges_aolgaj(i,j,k)+&
                                ges_alvoo1j(i,j,k)+ges_alvoo2j(i,j,k)+& 
-                               ges_asvoo1j(i,j,k)+ges_asvoo2j(i,j,k)+ges_asvoo3j(i,j,k) 
+                               ges_asvoo1j(i,j,k)+ges_asvoo2j(i,j,k)+ges_asvoo3j(i,j,k)+& 
+                               ges_apcsoj(i,j,k)
              ! kmodes: 7v
              ges_amassk(i,j,k)=ges_aso4k(i,j,k)+ges_ano3k(i,j,k)+ges_anh4k(i,j,k)+ &
                                ges_asoil(i,j,k)+ges_acors(i,j,k)+ges_aseacat(i,j,k)+ges_aclk(i,j,k)
@@ -2270,6 +2271,7 @@ subroutine wrfv3_cmaq_regional_netcdf(fv3filenamegin)
       call gsi_fv3ncdf_write(tracers,'asvoo1j',ges_asvoo1j,mype_aero,add_saved)
       call gsi_fv3ncdf_write(tracers,'asvoo2j',ges_asvoo2j,mype_aero,add_saved)
       call gsi_fv3ncdf_write(tracers,'asvoo3j',ges_asvoo3j,mype_aero,add_saved)
+      call gsi_fv3ncdf_write(tracers,'apcsoj',ges_apcsoj,mype_aero,add_saved)
 
 !        'atol2j','atol3j',          &
 !        'abnz1j','abnz2j','abnz3j', &

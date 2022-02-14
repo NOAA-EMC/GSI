@@ -63,9 +63,8 @@ call gsi_bundlegetpointer (wbundle,'amassi',cv_amassi,istatus)
 call gsi_bundlegetpointer (wbundle,'amassj',cv_amassj,istatus)
 call gsi_bundlegetpointer (wbundle,'amassk',cv_amassk,istatus)
 
-! Split amass into aerosol speccies 
-! -1 is to remove apcsoj in aerolist in chemmod
-do ic=1,naerosols-1
+! Split amass into aerosol species 
+do ic=1,naerosols
    call GSI_BundleGetPointer (GSI_ChemGuess_Bundle(it),trim(aerosols(ic)),ges_aero,istatus )
    call gsi_bundlegetpointer (sval,trim(aerosols(ic)),sv_rank3,istatus)
    if (istatus/=0) cycle
@@ -84,7 +83,7 @@ do ic=1,naerosols-1
          do i=1,lat2
             sv_rank3(i,j,k)=cv_amassj(i,j,k)*ges_aero(i,j,k)/ges_amassj(i,j,k)
          if(ges_aero(i,j,k)/ges_amassj(i,j,k).ge.1.0)then
-  print*,"amas2aero_tl:wg.ge.1 ",trim(aerosols(ic)),ges_aero(i,j,k),ges_amassj(i,j,k)
+           !print*,"amas2aero_tl:wg.ge.1 ",trim(aerosols(ic)),ges_aero(i,j,k),ges_amassj(i,j,k)
          end if
          end do
       end do
@@ -144,7 +143,7 @@ call gsi_bundlegetpointer (wbundle,'amassj',cv_amassj,istatus)
 call gsi_bundlegetpointer (wbundle,'amassk',cv_amassk,istatus)
 
 ! ad of partitioning amass into aerosol speccies 
-do ic=1,naerosols-1
+do ic=1,naerosols
    ier = 0.0
    call GSI_BundleGetPointer (GSI_ChemGuess_Bundle(it),trim(aerosols(ic)),ges_aero,istatus );ier=ier+istatus
    call gsi_bundlegetpointer (rval,trim(aerosols(ic)),sv_rank3,istatus);ier=ier+istatus
