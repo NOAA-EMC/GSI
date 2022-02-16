@@ -2,12 +2,6 @@ help([[
 Load environment to compile GSI on Orion
 ]])
 
-cmake_ver=os.getenv("cmake_ver") or "3.17.3"
-load(pathJoin("cmake", cmake_ver))
-
-python_ver=os.getenv("python_ver") or "3.7.5"
-load(pathJoin("python", python_ver))
-
 prepend_path("MODULEPATH", "/apps/contrib/NCEP/libs/hpc-stack/modulefiles/stack")
 
 hpc_ver=os.getenv("hpc_ver") or "1.1.0"
@@ -18,6 +12,12 @@ load(pathJoin("hpc-intel", hpc_intel_ver))
 
 impi_ver=os.getenv("hpc_impi_ver") or "2018.4"
 load(pathJoin("hpc-impi", hpc_impi_ver))
+
+cmake_ver=os.getenv("cmake_ver") or "3.17.3"
+load(pathJoin("cmake", cmake_ver))
+
+python_ver=os.getenv("python_ver") or "3.7.5"
+load(pathJoin("python", python_ver))
 
 prod_util_ver=os.getenv("prod_util_ver") or "1.2.2"
 load(pathJoin("prod_util", prod_util_ver))
@@ -43,7 +43,7 @@ load(pathJoin("sp", sp_ver))
 w3nco_ver=os.getenv("w3nco_ver") or "2.4.1"
 load(pathJoin("w3nco", w3nco_ver))
 
-w3emc_ver=os.getenv("w3emc_ver") or "2.7.3"
+w3emc_ver=os.getenv("w3emc_ver") or "2.9.2"
 load(pathJoin("w3emc", w3emc_ver))
 
 bacio_ver=os.getenv("bacio_ver") or "2.4.1"

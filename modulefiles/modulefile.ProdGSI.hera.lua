@@ -45,7 +45,7 @@ load(pathJoin("sp", sp_ver))
 w3nco_ver=os.getenv("w3nco_ver") or "2.4.1"
 load(pathJoin("w3nco", w3nco_ver))
 
-w3emc_ver=os.getenv("w3emc_ver") or "2.7.3"
+w3emc_ver=os.getenv("w3emc_ver") or "2.9.2"
 load(pathJoin("w3emc", w3emc_ver))
 
 bacio_ver=os.getenv("bacio_ver") or "2.4.1"

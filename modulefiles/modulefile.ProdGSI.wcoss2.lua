@@ -17,15 +17,15 @@ local prod_util_ver= os.getenv("prod_util_ver") or "2.0.10"
 local sfcio_ver=os.getenv("sfcio_ver") or "1.4.1"
 local sigio_ver=os.getenv("sigio_ver") or "2.3.2"
 local sp_ver=os.getenv("sp_ver") or "2.3.3"
-local w3emc_ver=os.getenv("w3emc_ver") or "2.7.3"
+local w3emc_ver=os.getenv("w3emc_ver") or "2.9.2"
 local w3nco_ver=os.getenv("w3nco_ver") or "2.4.1"
 local netcdf_ver=os.getenv("netcdf_ver") or "4.7.4"
 
 load(pathJoin("PrgEnv-intel", PrgEnv_intel_ver))
 load(pathJoin("intel", intel_ver))
-load(pathJoin("cmake", cmake_ver))
 load(pathJoin("craype", craype_ver))
 load(pathJoin("cray-mpich", cray_mpich_ver))
+load(pathJoin("cmake", cmake_ver))
 load(pathJoin("python", python_ver))
 load(pathJoin("bacio", bacio_ver))
 load(pathJoin("bufr", bufr_ver))
