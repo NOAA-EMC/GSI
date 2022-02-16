@@ -82,23 +82,23 @@ program recentersigp
   NSIGO=61
 
 ! read data from this file
-  call getarg(1,filenamein)
+  call getarg(1,filenamein) ! increment or analysis
 
 ! subtract this mean
-  call getarg(2,filename_meani)
+  call getarg(2,filename_meani)  ! mean increment or analysis
 
 ! then add to this mean
-  call getarg(3,filename_meano)
+  call getarg(3,filename_meano) ! new mean analysis
 
 ! and put in this file.
-  call getarg(4,filenameout)
+  call getarg(4,filenameout) ! new increment of analysis
 
 ! how many ensemble members to process
   call getarg(5,charnin)
   read(charnin,'(i4)') nanals
 
 ! option for increment, read in ens mean guess
-  call getarg(6,filename_meang)
+  call getarg(6,filename_meang) ! background ens mean fcst
 
 
   if (mype==0) then
@@ -294,6 +294,9 @@ program recentersigp
               end select
               values_3d(:,:,:) = zero
               do j=1,latb
+! updated member increment = original member increment - background ens mean - original
+! mean increment + gsi control analysis
+! = original member increment + gsi control analysis - enkf mean analysis
                  values_3d(:,j,:) = values_3d_i(:,j,:) - values_3d_mb(:,latb-j+1,:) - values_3d_mi(:,j,:) + values_3d_anl(:,latb-j+1,:)
               end do
               if (should_zero_increments_for(trim(dseti%variables(nvar)%name))) values_3d = zero

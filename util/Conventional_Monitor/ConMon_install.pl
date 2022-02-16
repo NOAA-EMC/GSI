@@ -18,8 +18,8 @@
    my $machine = `/usr/bin/perl ./get_hostname.pl`;
    my $my_machine="export MY_MACHINE=$machine";
 
-   if( $machine ne "hera" && $machine ne "wcoss" && 
-       $machine ne "wcoss_c" && $machine ne "wcoss_d" ) {
+   if( $machine ne "hera" && $machine ne "wcoss" && $machine ne "wcoss_c" 
+       && $machine ne "wcoss_d" && $machine ne "wcoss2" ) {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
    else {
@@ -75,6 +75,9 @@
    }
    elsif( $machine eq "wcoss_d" ) {
       $tankdir = "/gpfs/dell2/emc/modeling/noscrub/$user_name/nbns";
+   }
+   elsif( $machine eq "wcoss2" ){
+      $tankdir = "/lfs/h2/emc/da/noscrub/$user_name/nbns";
    }
 
    print "Please specify TANKDIR location for storage of data and image files.\n";
@@ -177,6 +180,10 @@
       $my_ptmp="export C_PTMP=\${C_PTMP:-/gpfs/dell2/ptmp}";
       $my_stmp="export C_STMP=\${C_STMP:-/gpfs/dell2/stmp}";
    }
+   elsif( $machine eq "wcoss2" ){
+      $my_ptmp="export MY_PTMP=\${MY_PTMP:-/lfs/h2/emc/ptmp}";
+      $my_stmp="export MY_STMP=\${MY_STMP:-/lfs/h2/emc/stmp}";
+   }
 
    #---------------------------------------
    #
@@ -235,11 +242,26 @@
    print "\n";
 
 
-   my $account = "export ACCOUNT=\${ACCOUNT:-fv3-cpu}";
-   if( $machine ne "hera" ) {
-      $account = "export ACCOUNT=\${ACCOUNT:-}";
+   my $account = "export ACCOUNT=\${ACCOUNT:-}";
+   if( $machine eq "hera" ) {
+      $account = "export ACCOUNT=\${ACCOUNT:-fv3-cpu}";
+   } elsif( $machine eq "wcoss2" ){
+      $account = "export ACCOUNT=\${ACCOUNT:-GFS-DEV}";
    }
 
+   my $project = "export PROJECT=\${PROJECT:-GDAS-T2O}";
+   if( $machine eq "wcoss2" ){
+      $project = "export PROJECT=\${PROJECT:-GDAS-DEV}";
+   } elsif( $machine ne "wcoss" && $machine ne "cray" && $machine ne "wcoss_d" ) {
+      $project="export PROJECT=";
+   }
+
+   my $job_queue="export JOB_QUEUE=";
+   if( $machine eq "cray" || $machine eq "wcoss2" ) {
+      $job_queue="export JOB_QUEUE=\${JOB_QUEUE:-dev}";
+   } elsif( $machine eq "wcoss" || $machine eq "wcoss_d" ){
+      $job_queue = "export JOB_QUEUE=\${JOB_QUEUE:-dev_shared}";
+   }
    
    #------------------------------------------------------------
    #
@@ -255,6 +277,12 @@
       }
       elsif( $_ =~ "ACCOUNT=" ) {
          print $out "$account\n";
+      }
+      elsif( $_ =~ "PROJECT=" ) {
+         print $out "$project\n";
+      }
+      elsif( $_ =~ "JOB_QUEUE=" ) {
+         print $out "$job_queue\n";
       }
       elsif( $_ =~ "CONMON_TANKDIR=" ) {
          print $out "$my_tankdir\n";

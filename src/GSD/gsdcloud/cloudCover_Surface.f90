@@ -1,4 +1,4 @@
-SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
+SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,thunderRadius,&
                         cld_bld_hgt,t_bk,p_bk,q,h_bk,zh,  &
                         mxst_p,NVARCLD_P,numsao,OI,OJ,OCLD,OWX,Oelvtn,Odist,&
                         cld_cover_3d,cld_type_3d,wthr_type,pcp_type_3d,     &
@@ -23,7 +23,6 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
 !     nlon        - no. of lons on subdomain (buffer points on ends)
 !     nlat        - no. of lats on subdomain (buffer points on ends)
 !     nsig        - no. of levels
-!     r_radius    - influence radius of the cloud observation
 !     thunderRadius -
 !     cld_bld_hgt - Height below which cloud building is done 
 !
@@ -71,7 +70,6 @@ SUBROUTINE cloudCover_Surface(mype,nlat,nlon,nsig,r_radius,thunderRadius,&
   implicit none
 
   integer(i_kind),intent(in) :: mype
-  REAL(r_single), intent(in) :: r_radius
   integer(i_kind),intent(in) :: nlat,nlon,nsig
   real(r_single), intent(in) :: thunderRadius
   real(r_kind),   intent(in) :: cld_bld_hgt

@@ -27,7 +27,7 @@ function uvallev (args)
    'open guess.ctl'
    'open 'plotfile2'.grads.anl.ctl'
    'open 'plotfile2'.grads.ges.ctl'
-   say  'open the file:' plotfile2'_grads_anl.ctl'
+   say  'open the file:' plotfile2'.grads.anl.ctl'
 
    if(plotfile = uv220 | plotfile = uv223 | plotfile = uv224 | plotfile = uv228); hint=0;endif
 
