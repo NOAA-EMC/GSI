@@ -502,6 +502,7 @@ read_prepbufr.f90
 read_radar.f90
 read_radar_wind_ascii.f90
 read_radarref_mosaic.f90
+read_radarref_mosaic_directDA.f90
 read_rapidscat.f90
 read_saphir.f90
 read_satmar.f90
@@ -511,6 +512,7 @@ read_sfcwnd.f90
 read_ssmi.f90
 read_ssmis.f90
 read_tcps.f90
+read_viirs.f90
 read_wcpbufr.f90
 reorg_metar_cloud.f90
 rfdpar.f90
@@ -657,6 +659,7 @@ wrf_params_mod.f90
 wrf_vars_mod.f90
 write_all.F90
 write_bkgvars_grid.f90
+write_fv3_spread.f90
 write_incr.f90
 xhat_vordivmod.f90
 zrnmi_mod.f90

@@ -67,7 +67,7 @@ find_package(ncio REQUIRED)
 find_package(sp REQUIRED)
 find_package(ip REQUIRED)
 find_package(w3emc REQUIRED)
-find_package(w3nco REQUIRED)
+#find_package(w3nco REQUIRED)
 find_package(bufr REQUIRED)
 find_package(crtm REQUIRED)
 
