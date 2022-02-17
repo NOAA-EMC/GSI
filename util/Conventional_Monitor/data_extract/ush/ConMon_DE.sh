@@ -233,10 +233,19 @@ if [ -s $cnvstat  -a -s $pgrbf00 -a -s $pgrbf06 ]; then
 		-R affinity[core] -W 0:50 -J ${jobname} \
 		-cwd $PWD ${HOMEgdas_conmon}/jobs/JGDAS_ATMOS_CONMON
 
-      elif [[ $MY_MACHINE = "hera" ]]; then
+      elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "s4" ]]; then
          $SUB -A $ACCOUNT --ntasks=1 --time=00:30:00 \
-		-p service -J ${jobname} -o $C_LOGDIR/DE.${PDY}.${CYC}.log \
+		-p ${SERVICE_PARTITION} -J ${jobname} -o $C_LOGDIR/DE.${PDY}.${CYC}.log \
 		${HOMEgdas_conmon}/jobs/JGDAS_ATMOS_CONMON
+
+      elif [[ $MY_MACHINE = "jet" ]]; then
+         $SUB -A $ACCOUNT -ntasks=1 --time=00:30:00 --mem=5000 \
+		-p ${SERVICE_PARTITION} -J ${jobname} -o $C_LOGDIR/DE.${PDY}.${CYC}.log \
+		${HOMEgdas_conmon}/jobs/JGDAS_ATMOS_CONMON
+      
+      elif [[ $MY_MACHINE = "wcoss2" ]]; then
+        $SUB -V -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e ${logfile} -l walltime=30:00 -N ${jobname} \
+		-l select=1:mem=5000M ${HOMEgdas_conmon}/jobs/JGDAS_ATMOS_CONMON
       fi
 
    else

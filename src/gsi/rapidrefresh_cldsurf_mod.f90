@@ -22,6 +22,13 @@ module rapidrefresh_cldsurf_mod
 !  04-01-2017 Hu        added option i_gsdqc to turn on special observation qc
 !                              from GSD (for RAP/HRRR application)
 !   2018-09-12 Ladwig   added options l_precip_clear_only
+!   2019-10-10 Zhao     added options l_rtma3d and l_precip_vertical_check (for
+!                             RTMA3D only now)
+!   2020-04-16 Zhao     change option l_precip_vertical_check to i_precip_vertical_check
+!                       option for checking and adjusting the profile of Qr/Qs/Qg/Qnr
+!                       retrieved through cloud analysis to reduce the background
+!                       reflectivity ghost in analysis. (default is 0)
+!
 ! 
 ! Subroutines Included:
 !   sub init_rapidrefresh_cldsurf  - initialize RR related variables to default values
@@ -33,6 +40,20 @@ module rapidrefresh_cldsurf_mod
 !   def metar_impact_radius - impact radius for METAR cloud observation
 !   def metar_impact_radius_lowCloud - impact radius for METAR cloud observation
 !                                      that indicate low cloud base
+!   def l_metar_impact_radius_change - if .true. the impact radius will change
+!                            with height that set up with the
+!                            metar_impact_radius_max, min, max_height,
+!                            min_height, (default:false)
+!   def metar_impact_radius_max  - The max impact radius of metar cloud
+!                            observation in meter (default: 100000 m).
+!   def metar_impact_radius_min  - The min impact radius of metar cloud
+!                            observation in meter (default: 10000 m).
+!   def metar_impact_radius_max_height - The hight above which
+!                            metar_impact_radius_max apply
+!                            in meter (default: 1200m).
+!   def metar_impact_radius_min_height - The hight below which
+!                            metar_impact_radius_min apply
+!                            in meter (default: 200m).
 !   def l_gsd_terrain_match_surfTobs - namelist logical for GSD terrain
 !                                       match for  surface temperature observation
 !   def l_sfcobserror_ramp_t  - namelist logical for adjusting surface temperature observation error
@@ -135,12 +156,31 @@ module rapidrefresh_cldsurf_mod
 !      i_cloud_q_innovation - integer to choose if and how cloud obs are used
 !                           0= no innovations 
 !                           1= cloud total innovations
-!                           2= water vapor innovations
+!                           20= cloud build/clear derived water vapor innovations
+!                           21= cloud build derived water vapor innovations
+!                           22= cloud clear derived water vapor innovations
 !                           3= cloud total & water vapor innovations
 !      i_ens_mean    - integer for setupcldtot behavior
 !                           0=single model run
 !                           1=ensemble mean
 !                           2=ensemble members
+!      i_T_Q_adjust -     =0 no temperature and moisture adjustment in hydrometeor analyis
+!                         =1 (default) temperature and moisture are adjusted in hydrometeor analyis
+!                         =2 temperature and moisture only adjusted for clearing (warmer, drier)
+!      l_saturate_bkCloud - if .true. ensure saturation for all cloud 3-d points
+!                        in background where observed cloud cover is missing
+!                        (default:true).
+!      l_rtma3d      - logical option for turning on configuration for RTMA3D
+!                           (default is .FALSE.)
+!      i_precip_vertical_check - integer option for checking and adjusting
+!                                Qr/Qs/Qg and Qnr after precipitation analysis
+!                                to reduce the background reflectivity ghost in
+!                                analysis. (default is 0)
+!                          = 0(no adjustment)
+!                          = 1(Clean off Qg only, where dbz_obs_max<=35dbz in the profile)
+!                          = 2(clean Qg as in 1, and adjustment to the retrieved Qr/Qs/Qnr throughout the whole profile)
+!                          = 3(similar to 2, but adjustment to Qr/Qs/Qnr only below maximum reflectivity level
+!                           and where the dbz_obs is missing);
 !
 ! attributes:
 !   language: f90
@@ -159,6 +199,11 @@ module rapidrefresh_cldsurf_mod
   public :: dfi_radar_latent_heat_time_period
   public :: metar_impact_radius
   public :: metar_impact_radius_lowCloud
+  public :: l_metar_impact_radius_change
+  public :: metar_impact_radius_max
+  public :: metar_impact_radius_min
+  public :: metar_impact_radius_max_height
+  public :: metar_impact_radius_min_height
   public :: l_gsd_terrain_match_surfTobs
   public :: l_sfcobserror_ramp_t
   public :: l_sfcobserror_ramp_q
@@ -203,11 +248,20 @@ module rapidrefresh_cldsurf_mod
   public :: i_cloud_q_innovation
   public :: i_ens_mean
   public :: DTsTmax 
+  public :: i_T_Q_adjust
+  public :: l_saturate_bkCloud
+  public :: l_rtma3d
+  public :: i_precip_vertical_check
 
   logical l_hydrometeor_bkio
   real(r_kind)  dfi_radar_latent_heat_time_period
   real(r_kind)  metar_impact_radius
   real(r_kind)  metar_impact_radius_lowCloud
+  logical l_metar_impact_radius_change
+  real(r_kind)  metar_impact_radius_max
+  real(r_kind)  metar_impact_radius_min
+  real(r_kind)  metar_impact_radius_max_height
+  real(r_kind)  metar_impact_radius_min_height
   logical l_gsd_terrain_match_surfTobs
   logical l_sfcobserror_ramp_t
   logical l_sfcobserror_ramp_q
@@ -252,6 +306,10 @@ module rapidrefresh_cldsurf_mod
   integer(i_kind)      i_cloud_q_innovation
   integer(i_kind)      i_ens_mean
   real(r_kind)         DTsTmax
+  integer(i_kind)      i_T_Q_adjust
+  logical              l_saturate_bkCloud
+  logical              l_rtma3d
+  integer(i_kind)      i_precip_vertical_check
 
 contains
 
@@ -293,6 +351,11 @@ contains
     dfi_radar_latent_heat_time_period = 30.0_r_kind   ! in minutes
     metar_impact_radius = 10.0_r_kind                 ! in grid
     metar_impact_radius_lowCloud = 4.0_r_kind         ! in grid
+    l_metar_impact_radius_change = .false.            ! .true. =radius change vertically
+    metar_impact_radius_max        = 50000.0_r_kind   ! in meter
+    metar_impact_radius_min        = 20000.0_r_kind   ! in meter
+    metar_impact_radius_max_height = 3000.0_r_kind    ! in meter
+    metar_impact_radius_min_height = 200.0_r_kind     ! in meter
     l_gsd_terrain_match_surfTobs = .false.            ! .true. = turn on GSD terrain 
                                                       !          match for  surface
                                                       !          temperature observation
@@ -351,6 +414,11 @@ contains
     i_cloud_q_innovation = 0                          ! 0 = no increments from cloud obs
     i_ens_mean = 0                                    ! typical ob behavior
     DTsTmax = 20.0_r_kind                             ! maximum allowed difference between Ts and T 1st level
+    i_T_Q_adjust= 1                                   ! temperature and moisture are adjusted
+    l_saturate_bkCloud= .true.
+    l_rtma3d            = .false.                     ! turn configuration for rtma3d off          
+    i_precip_vertical_check = 0                       ! No check and adjustment to retrieved Qr/Qs/Qg (default)
+
     return
   end subroutine init_rapidrefresh_cldsurf
 
