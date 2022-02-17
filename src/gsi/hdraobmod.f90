@@ -976,7 +976,7 @@ contains
                  cdata_all(19,iout)=stnelev                ! station elevation (m)
                  cdata_all(20,iout)=levdat(2,k)            ! observation height (m)
                  cdata_all(21,iout)=zz                     ! terrain height at ob location
-                 cdata_all(22,iout)='88888888'             ! provider name
+                 cdata_all(22,iout)=88888888               ! provider name
                  cdata_all(23,iout)='HDRAOB'               ! subprovider name
                  cdata_all(24,iout)=2                      ! cat
                  cdata_all(25,iout)=var_jb(3,k)            ! non linear qc for T
@@ -1075,7 +1075,7 @@ contains
                  cdata_all(19,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
                  cdata_all(20,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
                  cdata_all(21,iout)=zz                     ! terrain height at ob location
-                 cdata_all(22,iout)='88888888'             ! provider name
+                 cdata_all(22,iout)=88888888               ! provider name
                  cdata_all(23,iout)='HDRAOB'               ! subprovider name
                  cdata_all(24,iout)=2                      ! cat
                  cdata_all(25,iout)=var_jb(5,k)            ! non linear qc parameter
@@ -1157,7 +1157,7 @@ contains
                  cdata_all(17,iout)=stnelev                ! station elevation (m)
                  cdata_all(18,iout)=levdat(2,k)            ! observation height (m)
                  cdata_all(19,iout)=zz                     ! terrain height at ob location
-                 cdata_all(20,iout)='88888888'             ! provider name
+                 cdata_all(20,iout)=88888888               ! provider name
                  cdata_all(21,iout)='HDRAOB'               ! subprovider name
                  cdata_all(22,iout)=2                      ! cat
                  cdata_all(23,iout)=var_jb(2,k)            ! non linear qc b parameter
@@ -1222,7 +1222,7 @@ contains
                  cdata_all(15,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
                  cdata_all(16,iout)=stnelev                ! station elevation (m)
                  cdata_all(17,iout)=zz                     ! terrain height at ob location
-                 cdata_all(18,iout)='88888888'             ! provider name
+                 cdata_all(18,iout)=88888888               ! provider name
                  cdata_all(19,iout)='HDRAOB'               ! subprovider name
                  cdata_all(20,iout)=var_jb(1,k)            ! non linear qc b parameter
                  if(perturb_obs)cdata_all(21,iout)=ran01dom()*perturb_fact ! ps perturbation

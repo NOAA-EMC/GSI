@@ -146,6 +146,7 @@ cwhydromod.f90
 derivsmod.f90
 deter_sfc_mod.f90
 dtast.f90
+directDA_radaruse_mod.f90
 egrid2agrid_mod.f90
 en_perts_io.f90
 enorm_state.f90
@@ -258,6 +259,7 @@ gsi_wspd10mOper.F90
 gsisub.F90
 guess_grids.F90
 half_nmm_grid2.f90
+hdraobmod.f90
 hilbert_curve.f90
 hybrid_ensemble_isotropic.F90
 hybrid_ensemble_parameters.f90
@@ -448,6 +450,9 @@ pvqc_tables.f90
 q_diag.f90
 qcmod.f90
 qnewton3.f90
+radarZ_global_module.f90
+radarZ_interface.f90
+radarZ_module.f90
 radiance_mod.f90
 radinfo.f90
 raflib.f90
