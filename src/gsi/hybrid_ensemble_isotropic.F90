@@ -1175,8 +1175,7 @@ end subroutine normal_new_factorization_rf_y
     use get_wrf_mass_ensperts_mod, only: get_wrf_mass_ensperts_class
     use get_fv3_regional_ensperts_mod, only: get_fv3_regional_ensperts_class
     use get_wrf_nmm_ensperts_mod, only: get_wrf_nmm_ensperts_class
-    use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
-    use hybrid_ensemble_parameters, only: l_both_fv3sar_gfs_ens 
+  use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
     use mpimod, only: mpi_comm_world
 
     implicit none
@@ -1360,10 +1359,6 @@ end subroutine normal_new_factorization_rf_y
                 call get_nmmb_ensperts
              case(5)
 !     regional_ensemble_option = 5: ensembles are fv3 regional.
-                if (l_both_fv3sar_gfs_ens) then ! first read in gfs ensembles for regional 
-                   call get_gefs_for_regional
-!clthink do we need mpi_bar here? 
-                endif
                 call fv3_regional_enspert%get_fv3_regional_ensperts(en_perts,nelen,ps_bar)
    
 
@@ -3846,7 +3841,6 @@ subroutine hybens_grid_setup
 !   2010-02-20  parrish, adapt for dual resolution
 !   2011-01-30  parrish, fix so regional application depends only on parameters regional
 !                  and dual_res.  Rename subroutine get_regional_gefs_grid to get_regional_dual_res_grid.
-!   2021-02-01  Lu & Wang - add vars for hafs dual ens.  POC: xuguang.wang@ou.edu
 !
 !   input argument list:
 !
@@ -3872,10 +3866,6 @@ subroutine hybens_grid_setup
   use constants, only: zero,one
   use control_vectors, only: cvars3d,nc2d,nc3d
   use gridmod, only: region_lat,region_lon,region_dx,region_dy
-  use hybrid_ensemble_parameters, only:regional_ensemble_option 
-  use gsi_rfv3io_mod,only:gsi_rfv3io_get_ens_grid_specs
-  use gridmod, only: itotsub
-  use mpimod, only: npe
 
   implicit none
 
@@ -3884,8 +3874,6 @@ subroutine hybens_grid_setup
   logical,allocatable::vector(:)
   real(r_kind) eps,r_e
   real(r_kind) rlon_a(nlon),rlat_a(nlat),rlon_e(nlon),rlat_e(nlat)
-  character(:),allocatable:: fv3_spec_grid_filename 
-  integer :: ierr
 
   nord_e2a=4       !   soon, move this to hybrid_ensemble_parameters
 
@@ -3971,12 +3959,7 @@ subroutine hybens_grid_setup
                                nord_e2a,p_e2a,.true.,eqspace=use_sp_eqspace)
   else
      if(dual_res) then
-!cltthinktodo
         call get_region_dx_dy_ens(region_dx_ens,region_dy_ens)
-        if(regional_ensemble_option) then
-           fv3_spec_grid_filename="fv3_ens_grid_spec" 
-           call gsi_rfv3io_get_ens_grid_specs(fv3_spec_grid_filename,ierr)
-        endif
      else
         region_dx_ens=region_dx
         region_dy_ens=region_dy
@@ -4018,7 +4001,7 @@ subroutine hybens_localization_setup
    use gfs_stratosphere, only: use_gfs_stratosphere,blend_rm
    use hybrid_ensemble_parameters, only: grd_ens,jcap_ens,n_ens,grd_loc,sp_loc,&
                                          nval_lenz_en,regional_ensemble_option
-   use hybrid_ensemble_parameters, only: readin_beta,beta_s,beta_e,beta_s0,sqrt_beta_s,sqrt_beta_e
+   use hybrid_ensemble_parameters, only: readin_beta,beta_s,beta_e,beta_s0,beta_e0,sqrt_beta_s,sqrt_beta_e
    use hybrid_ensemble_parameters, only: readin_localization,create_hybens_localization_parameters, &
                                          vvlocal,s_ens_h,s_ens_hv,s_ens_v,s_ens_vv
    use gsi_io, only: verbose
@@ -4084,7 +4067,11 @@ subroutine hybens_localization_setup
 
    if ( .not. readin_beta ) then ! assign all levels to same value, sum = 1.0
       beta_s = beta_s0
-      beta_e = one - beta_s0
+      if (beta_e0 < 0) then
+         beta_e = one - beta_s0
+      else
+         beta_e = beta_e0
+      endif
    endif
 
    if ( regional_ensemble_option == 2 .and. use_gfs_stratosphere .and. .not. readin_beta ) then

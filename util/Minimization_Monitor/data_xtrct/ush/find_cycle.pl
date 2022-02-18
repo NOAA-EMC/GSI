@@ -1,4 +1,4 @@
-#! /usr/bin/perl
+#!/usr/bin/env perl
 
 #-----------------------------------------------------------------------
 #  find_cycle.pl
@@ -148,8 +148,9 @@
          $hr_ctr = $hr_ctr - 1;
          
          $newdir = "${dirpath}/${sortmm[$ctr]}/${hrs[$hr_ctr]}/${lcm}";
-#         print " newdir = $newdir \n";
-
+         if( ! -d $newdir ){
+            $newdir = "${dirpath}/${sortmm[$ctr]}";
+         }
 
          if( -d $newdir ) {
             opendir DIR, $newdir or die "Cannot open the current directory: $!";
@@ -197,13 +198,10 @@
           
       } while $hr_ctr > 0 && $found_cycle == 0;
 
-#      print " found_cycle, ctr, end_ctr = $found_cycle, $ctr, $end_ctr \n";
 
       if( $cyc == 0 && $ctr >= $end_ctr ){  
-#         print " exiting from if\n";
          $exit_flag = 1;
       } elsif( $cyc == 1 && $ctr <= $end_ctr ){
-#         print " exiting from elsif\n";
          $exit_flag = 1;
       }
    

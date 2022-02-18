@@ -10,7 +10,6 @@ module general_commvars_mod
 ! program history log:
 !   2012-06-25 parrish
 !   2013-10-24 todling - move vars ltosj/i to from gridmod here; same for load and fill routines
-!   2021-02-01 Lu & Wang - add vars for hafs dual ens. POC: xuguang.wang@ou.edu
 !
 ! Subroutines Included:
 !   sub init_general_commvars - initialize type(sub2grid_info) structure variables 
@@ -63,13 +62,11 @@ module general_commvars_mod
    public :: filluv2_ns
    public :: load_grid
    public :: ltosj_s,ltosi_s,ltosj,ltosi
-   public :: ltosj_sens,ltosi_sens
 
    integer(i_kind),allocatable,dimension(:):: ltosi   !   lats in iglobal array excluding buffer
    integer(i_kind),allocatable,dimension(:):: ltosj   !   lons in iglobal array excluding buffer
    integer(i_kind),allocatable,dimension(:):: ltosi_s !   lats in itotsub array including buffer
    integer(i_kind),allocatable,dimension(:):: ltosj_s !   lons in itotsub array including buffer
-   integer(i_kind),allocatable,dimension(:):: ltosj_sens,ltosi_sens !  lats/lons for ens
 
 ! Declare types
 
@@ -199,7 +196,6 @@ contains
       displs_s=s2g_raf%displs_s
       itotsub=s2g_raf%itotsub
       allocate(ltosi_s(itotsub),ltosj_s(itotsub))
-      allocate(ltosi_sens(itotsub),ltosj_sens(itotsub))
       ltosi_s=s2g_raf%ltosi_s
       ltosj_s=s2g_raf%ltosj_s
 
@@ -356,8 +352,6 @@ contains
        implicit none
  
        deallocate(ltosi,ltosj,ltosi_s,ltosj_s)
-       if (allocated(ltosj_sens)) deallocate(ltosj_sens)
-       if (allocated(ltosi_sens)) deallocate(ltosi_sens)
        deallocate(levs_id,nvar_id,nvar_pe)
        call general_sub2grid_destroy_info(s2g_cv,s_ref=s2g_raf)
        call general_sub2grid_destroy_info(s2g2,s_ref=s2g_raf)

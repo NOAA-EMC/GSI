@@ -588,6 +588,7 @@ contains
     oz_ind  = getindex(vars3d, 'oz')  ! Oz (3D)
     delp_ind   = getindex(vars3d, 'delp')   ! delp (3D)
     cw_ind  = getindex(vars3d, 'cw')  ! CWM for WRF-NMM
+    oz_ind  = getindex(vars3d, 'oz')  ! Oz (3D)
     w_ind   = getindex(vars3d, 'w')   ! W for WRF-ARW
     ph_ind  = getindex(vars3d, 'ph')  ! PH for WRF-ARW
 

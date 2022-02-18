@@ -150,6 +150,7 @@ GMI1CRBF=${GMI1CRBF:-${COMIN_OBS}/${OPREFIX}gmi1cr.tm00.bufr_d${OSUFFIX}}
 SAPHIRBF=${SAPHIRBF:-${COMIN_OBS}/${OPREFIX}saphir.tm00.bufr_d${OSUFFIX}}
 SEVIRIBF=${SEVIRIBF:-${COMIN_OBS}/${OPREFIX}sevcsr.tm00.bufr_d${OSUFFIX}}
 AHIBF=${AHIBF:-${COMIN_OBS}/${OPREFIX}ahicsr.tm00.bufr_d${OSUFFIX}}
+SSTVIIRS=${SSTVIIRS:-${COMIN_OBS}/${OPREFIX}sstvcw.tm00.bufr_d${OSUFFIX}}
 ABIBF=${ABIBF:-${COMIN_OBS}/${OPREFIX}gsrcsr.tm00.bufr_d${OSUFFIX}}
 CRISBF=${CRISBF:-${COMIN_OBS}/${OPREFIX}cris.tm00.bufr_d${OSUFFIX}}
 ESCRIS=${ESCRIS:-${COMIN_OBS}/${OPREFIX}escris.tm00.bufr_d${OSUFFIX}}
@@ -165,10 +166,10 @@ SSMISBF=${SSMISBF:-${COMIN_OBS}/${OPREFIX}ssmisu.tm00.bufr_d${OSUFFIX}}
 SBUVBF=${SBUVBF:-${COMIN_OBS}/${OPREFIX}osbuv8.tm00.bufr_d${OSUFFIX}}
 OMPSNPBF=${OMPSNPBF:-${COMIN_OBS}/${OPREFIX}ompsn8.tm00.bufr_d${OSUFFIX}}
 OMPSTCBF=${OMPSTCBF:-${COMIN_OBS}/${OPREFIX}ompst8.tm00.bufr_d${OSUFFIX}}
+OMPSLPBF=${OMPSLPBF:-${COMIN_OBS}/${OPREFIX}ompslp.tm00.bufr_d${OSUFFIX}}
 GOMEBF=${GOMEBF:-${COMIN_OBS}/${OPREFIX}gome.tm00.bufr_d${OSUFFIX}}
 OMIBF=${OMIBF:-${COMIN_OBS}/${OPREFIX}omi.tm00.bufr_d${OSUFFIX}}
 MLSBF=${MLSBF:-${COMIN_OBS}/${OPREFIX}mls.tm00.bufr_d${OSUFFIX}}
-OMPSLPBF=${OMPSLPBF:-${COMIN_OBS}/${OPREFIX}ompslp.tm00.bufr_d${OSUFFIX}}
 SMIPCP=${SMIPCP:-${COMIN_OBS}/${OPREFIX}spssmi.tm00.bufr_d${OSUFFIX}}
 TMIPCP=${TMIPCP:-${COMIN_OBS}/${OPREFIX}sptrmm.tm00.bufr_d${OSUFFIX}}
 GPSROBF=${GPSROBF:-${COMIN_OBS}/${OPREFIX}gpsro.tm00.bufr_d${OSUFFIX}}
@@ -499,6 +500,7 @@ $NLN $AMUBDB           amsubbufr_db
 #$NLN $MHSDB            mhsbufr_db
 $NLN $SBUVBF           sbuvbufr
 $NLN $OMPSNPBF         ompsnpbufr
+$NLN $OMPSLPBF         ompslpbufr
 $NLN $OMPSTCBF         ompstcbufr
 $NLN $GOMEBF           gomebufr
 $NLN $OMIBF            omibufr
@@ -532,6 +534,7 @@ $NLN $B1AVHPM          avhpmbufr
 $NLN $AHIBF            ahibufr
 $NLN $ABIBF            abibufr
 $NLN $HDOB             hdobbufr
+$NLN $SSTVIIRS         sstviirs
 
 [[ $DONST = "YES" ]] && $NLN $NSSTBF nsstbufr
 
@@ -801,7 +804,7 @@ cat > gsiparm.anl << EOF
   $OBSQC
 /
 &OBS_INPUT
-  dmesh(1)=145.0,dmesh(2)=150.0,dmesh(3)=100.0,time_window_max=3.0,
+  dmesh(1)=145.0,dmesh(2)=150.0,dmesh(3)=100.0,dmesh(4)=70.0,time_window_max=3.0,
   $OBSINPUT
 /
 OBS_INPUT::
@@ -892,10 +895,10 @@ OBS_INPUT::
    gsnd1bufr      sndrd4      g15         sndrD4_g15          0.0     1     0
    oscatbufr      uv          null        uv                  0.0     0     0
    mlsbufr        mls30       aura        mls30_aura          0.0     0     0
-   avhambufr      avhrr       metop-a     avhrr3_metop-a      0.0     1     0
-   avhpmbufr      avhrr       n18         avhrr3_n18          0.0     1     0
-   avhambufr      avhrr       metop-b     avhrr3_metop-b      0.0     1     0
-   avhpmbufr      avhrr       n19         avhrr3_n19          0.0     1     0
+   avhambufr      avhrr       metop-a     avhrr3_metop-a      0.0     4     0
+   avhpmbufr      avhrr       n18         avhrr3_n18          0.0     4     0
+   avhambufr      avhrr       metop-b     avhrr3_metop-b      0.0     4     0
+   avhpmbufr      avhrr       n19         avhrr3_n19          0.0     4     0
    amsr2bufr      amsr2       gcom-w1     amsr2_gcom-w1       0.0     3     0
    gmibufr        gmi         gpm         gmi_gpm             0.0     3     0
    saphirbufr     saphir      meghat      saphir_meghat       0.0     3     0
@@ -904,10 +907,15 @@ OBS_INPUT::
    abibufr        abi         g17         abi_g17             0.0     1     0
    rapidscatbufr  uv          null        uv                  0.0     0     0
    ompsnpbufr     ompsnp      npp         ompsnp_npp          0.0     0     0
+   ompslpbufr     ompslp      npp         ompslp_npp          0.0     0     0
    ompstcbufr     ompstc8     npp         ompstc8_npp         0.0     2     0
+   ompsnpbufr     ompsnp      n20         ompsnp_n20          0.0     0     0
+   ompstcbufr     ompstc8     n20         ompstc8_n20         0.0     2     0
    amsuabufr      amsua       metop-c     amsua_metop-c       0.0     1     1
    mhsbufr        mhs         metop-c     mhs_metop-c         0.0     1     1
    iasibufr       iasi        metop-c     iasi_metop-c        0.0     1     1
+   sstviirs       viirs-m     npp         viirs-m_npp         0.0     4     0
+   sstviirs       viirs-m     j1          viirs-m_j1          0.0     4     0
 ::
 &SUPEROB_RADAR
   $SUPERRAD

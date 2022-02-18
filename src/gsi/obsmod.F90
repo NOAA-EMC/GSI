@@ -530,6 +530,10 @@ module obsmod
 
   public :: vad_near_analtime
 
+  ! The following correspond to OMPS LP observations:
+
+  public :: ompslp_mult_fact
+
   interface obsmod_init_instr_table
           module procedure init_instr_table_
   end interface
@@ -679,6 +683,10 @@ module obsmod
 
   logical vad_near_analtime 
   
+ ! The following correspond to OMPS LP observations:
+
+  real(r_kind) :: ompslp_mult_fact
+
 contains
 
   subroutine init_obsmod_dflts
@@ -951,6 +959,10 @@ contains
     ! see 'read_prepbufr.f90'
     vad_near_analtime = .false.
     
+    ! The following correspond to OMPS LP  observations:
+
+    ompslp_mult_fact = 2.0_r_kind
+
     return
   end subroutine init_obsmod_dflts
   

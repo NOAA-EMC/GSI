@@ -402,11 +402,6 @@ subroutine read_lightning_grid(nread,ndata,infile,obstype,lunout,twind,sis,nobs)
             call stop2(50)
          endif
          loop_report: do while (ireadsb(lunin) == 0)
-            ntb = ntb+1
-            if (ntb>maxobs) then
-                write(6,*)'read_lightning: reports exceed maximum ',maxobs
-                call stop2(50)
-            endif
 
 !    Extract type, date, and location information
            call ufbint(lunin,hdr,5,1,iret,hdrstr)
@@ -425,6 +420,12 @@ subroutine read_lightning_grid(nread,ndata,infile,obstype,lunout,twind,sis,nobs)
                        timeo,' skip this report'
                   cycle loop_report
                endif
+            endif
+!
+            ntb = ntb+1
+            if (ntb>maxobs) then
+                write(6,*)'read_lightning: reports exceed maximum ',maxobs
+                call stop2(50)
             endif
 
 ! read in observations

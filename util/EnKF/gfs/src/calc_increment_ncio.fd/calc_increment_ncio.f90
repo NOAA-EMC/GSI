@@ -21,6 +21,14 @@ PROGRAM calc_increment_ncio
 
 !   4th command line arg is logical for controlling whether microphysics
 !   increment is computed. 
+!   5th command line arg is logical for controlling whether delz
+!   increment should be computed
+!   6th command line arg is logical for controlling whether humidity
+!   and microphysics vars should be tapered to zero in stratosphere.
+!   The vertical profile of the taper is controlled by ak_top and ak_bot.
+
+!   If delp and/or delz are not in the background history files, then
+!   their increments are inferred (from ps, T and humidity increments).
 !
 ! attributes:
 !   language: f95
@@ -48,21 +56,24 @@ PROGRAM calc_increment_ncio
   real, allocatable, dimension(:,:)   :: values_2d_fg,values_2d_anal,values_2d_inc,&
                                          ps_fg, ps_anal
   real, allocatable, dimension(:,:,:) :: values_3d_fg,values_3d_anal,values_3d_inc,&
-                                         q_fg, q_anal, tmp_fg, tmp_anal, delzb, delza
+                                         taper_vert,q_fg, q_anal, tmp_fg, tmp_anal, delzb, delza
   type(Dataset) :: dset_anal,dset_fg
   type(Dimension) :: londim,latdim,levdim
   integer, dimension(3) :: dimid_3d
   integer, dimension(1) :: dimid_1d
   integer varid_lon,varid_lat,varid_lev,varid_ilev,varid_hyai,varid_hybi,&
           dimid_lon,dimid_lat,dimid_lev,dimid_ilev,ncfileid,ncstatus
-  logical :: no_mpinc, no_delzinc, has_dpres, has_delz
+  logical :: no_mpinc, no_delzinc, has_dpres, has_delz, taper_strat
   character(len=10) :: bufchar
-  real rd,rv,fv,grav
+  real rd,rv,fv,grav,ak_bot,ak_top
 
   rd     = 2.8705e+2
   rv     = 4.6150e+2
   fv     = rv/rd-1.    ! used in virtual temperature equation 
   grav   = 9.80665
+  ! damp humidity increments between these two levels if taper_strat=T
+  ak_bot = 10000. ! units Pa
+  ak_top = 5000.
 
   call getarg(1,filename_fg)    ! first guess ncio file
   call getarg(2,filename_anal)  ! analysis ncio file
@@ -71,6 +82,8 @@ PROGRAM calc_increment_ncio
   read(bufchar,'(L)') no_mpinc  ! if T, no microphysics increments computed
   call getarg(5, bufchar)
   read(bufchar,'(L)') no_delzinc  ! if T, no delz increments computed
+  call getarg(6, bufchar)
+  read(bufchar,'(L)') taper_strat  ! if T, taper sphum,liq_wat,ice_wat in strat
 
   write(6,*)'CALC_INCREMENT_NCIO:'
   write(6,*)'filename_fg=',trim(filename_fg)
@@ -78,6 +91,7 @@ PROGRAM calc_increment_ncio
   write(6,*)'filename_inc=',trim(filename_inc)
   write(6,*)'no_mpinc',no_mpinc
   write(6,*)'no_delzinc',no_delzinc
+  write(6,*)'taper_strat',taper_strat
 
   dset_fg = open_dataset(trim(filename_fg),errcode=iret)
   if (iret .ne. 0) then
@@ -259,6 +273,7 @@ PROGRAM calc_increment_ncio
 
   ! ps increment.
   allocate(values_2d_inc(nlons,nlats))
+  allocate(taper_vert(nlons,nlats,nlevs))
   allocate(values_3d_inc(nlons,nlats,nlevs))
   do nvar=1,dset_fg%nvars
      ndims = dset_fg%variables(nvar)%ndims
@@ -267,6 +282,19 @@ PROGRAM calc_increment_ncio
         call read_vardata(dset_anal,trim(dset_fg%variables(nvar)%name),values_2d_anal)
         ! increment (flip lats)
         values_2d_inc(:,nlats:1:-1) = values_2d_anal - values_2d_fg
+     endif
+  enddo
+  ! taper function for humidity, ice and liq water increments.
+  taper_vert=1.
+  if (taper_strat) print *,'profile to taper strat humid inc (k,ak,bk,taper):'
+  do k=1,nlevs
+     if (k < nlevs/2 .and. (ak(k) <= ak_bot .and. ak(k) >= ak_top)) then
+        taper_vert(:,:,k)= (ak(k) - ak_top)/(ak_bot - ak_top)
+     else if (bk(k) .eq. 0. .and. ak(k) < ak_top) then
+        taper_vert(:,:,k) = 0.
+     endif
+     if (taper_strat) then
+       print *,k,ak(k),bk(k),taper_vert(1,1,k)
      endif
   enddo
 
@@ -302,7 +330,13 @@ PROGRAM calc_increment_ncio
            call read_vardata(dset_fg,trim(dset_fg%variables(nvar)%name),values_3d_fg)
            call read_vardata(dset_anal,trim(dset_fg%variables(nvar)%name),values_3d_anal)
            ! increment (flip lats)
-           values_3d_inc(:,nlats:1:-1,:) = values_3d_anal - values_3d_fg
+           if (taper_strat .and. (trim(ncvarname) .eq. 'sphum_inc' .or. &
+                                  trim(ncvarname) .eq. 'liq_wat_inc' .or. &
+                                  trim(ncvarname) .eq. 'ice_wat_inc')) then
+               values_3d_inc(:,nlats:1:-1,:) = taper_vert*(values_3d_anal - values_3d_fg)
+           else
+               values_3d_inc(:,nlats:1:-1,:) = values_3d_anal - values_3d_fg
+           endif 
            call write_ncdata3d(values_3d_inc,ncvarname,nlons,nlats,nlevs,ncfileid,dimid_3d)
         endif
      endif ! ndims == 4

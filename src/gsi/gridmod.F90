@@ -91,7 +91,8 @@ module gridmod
 !   2019-04-19  martin  - add use_fv3_aero option to distingiush between NGAC and FV3-Chem
 !   2019-09-04  martin  - add write_fv3_incr to write netCDF increment rather than analysis in NEMSIO format
 !   2019-09-23  martin  - add use_gfs_ncio to read global first guess from netCDF file
-!   2021-02-01  Lu & Wang - add vars for hafs dual ens. POC: xuguang.wang@ou.edu
+!   2020-12-18  Hu      - add grid_type_fv3_regional
+!   2021-12-30  Hu      - add fv3_io_layout_y
 !
 !                        
 !
@@ -131,9 +132,8 @@ module gridmod
   public :: strip_periodic
 
 ! set passed variables to public
-  public :: nnnn1o,iglobal,itotsub,ijn,ijn_s,lat2,lon2,lat1,lon1,nsig,nsig_soil,itotsubens
+  public :: nnnn1o,iglobal,itotsub,ijn,ijn_s,lat2,lon2,lat1,lon1,nsig,nsig_soil
   public :: ncloud,nlat,nlon,ntracer,displs_s,displs_g
-  public :: ijn_sens,ijnens,displs_sens
   public :: bk5,regional,latlon11,latlon1n,twodvar_regional
   public :: netcdf,nems_nmmb_regional,wrf_mass_regional,wrf_nmm_regional,cmaq_regional
   public :: aeta2_ll,pdtop_ll,pt_ll,eta1_ll,eta2_ll,aeta1_ll,idsl5,ck5,ak5
@@ -147,9 +147,8 @@ module gridmod
   public :: nlat_regional,nlon_regional,update_regsfc,half_grid,gencode
   public :: diagnostic_reg,nmmb_reference_grid,filled_grid
   public :: grid_ratio_nmmb,isd_g,isc_g,dx_gfs,lpl_gfs,nsig5,nmmb_verttype
-  public :: grid_ratio_fv3_regional,fv3_regional
+  public :: grid_ratio_fv3_regional,fv3_io_layout_y,fv3_regional,grid_type_fv3_regional
   public :: l_reg_update_hydro_delz
-  public :: fv3_regional_dd_reduce,nlon_fv3_regional_reduce,nlat_fv3_regional_reduce
   public :: nsig3,nsig4,grid_ratio_wrfmass
   public :: use_gfs_ozone,check_gfs_ozone_date,regional_ozone,nvege_type
   public :: jcap,jcap_b,hires_b,sp_a,grd_a
@@ -207,6 +206,7 @@ module gridmod
   character(1) nmmb_reference_grid      ! ='H': use nmmb H grid as reference for analysis grid
                                         ! ='V': use nmmb V grid as reference for analysis grid
   real(r_kind) grid_ratio_fv3_regional  ! ratio of analysis grid to fv3 model grid in fv3 grid units.
+  integer(i_kind) fv3_io_layout_y       ! = io_layout(2) of fv3 regional model (subdomain y direction).
   integer(i_kind) grid_type_fv3_regional! type of fv3 model grid (grid orientation).
   real(r_kind) grid_ratio_nmmb ! ratio of analysis grid to nmmb model grid in nmmb model grid units.
   real(r_kind) grid_ratio_wrfmass ! ratio of analysis grid to wrf model grid in wrf mass grid units.
@@ -214,8 +214,6 @@ module gridmod
                                !                old def: p = eta1*pdtop+eta2*(psfc-pdtop-ptop)+ptop
                                !   'NEW' for new vertical coordinate definition
                                !                new def: p = eta1*pdtop+eta2*(psfc-ptop)+ptop
-  logical fv3_regional_dd_reduce  ! used to reject obs near the lateral bounddary
-  integer(i_kind) nlon_fv3_regional_reduce,nlat_fv3_regional_reduce
 
   integer(i_kind) vlevs             ! no. of levels distributed on all processors
   integer(i_kind) nsig1o            ! max no. of levels distributed on each processor
@@ -262,7 +260,6 @@ module gridmod
   integer(i_kind) latlon1n1         ! no. of points in subdomain for 3d prs (with buffer)
   integer(i_kind) iglobal           ! number of horizontal points on global grid
   integer(i_kind) itotsub           ! number of horizontal points of all subdomains combined
-  integer(i_kind) itotsubens           ! number of horizontal points of all subdomains combined
   integer(i_kind) msig              ! number of profile layers to use when calling RTM
 
   integer(i_kind) jcap_cut          ! spectral triangular truncation beyond which you recalculate pln and plntop - default 600 - used to save memory
@@ -289,9 +286,6 @@ module gridmod
   integer(i_kind),allocatable,dimension(:):: isd_g     !   displacement for send to global
   integer(i_kind),allocatable,dimension(:):: displs_s  !   displacement for send from subdomain
   integer(i_kind),allocatable,dimension(:):: displs_g  !   displacement for receive on global grid
-  integer(i_kind),allocatable,dimension(:):: ijn_sens
-  integer(i_kind),allocatable,dimension(:):: ijnens
-  integer(i_kind),allocatable,dimension(:):: displs_sens
 
   integer(i_kind),dimension(200):: nlayers        ! number of RTM layers per model layer
                                                   ! (k=1 is near surface layer), default is 1
@@ -471,6 +465,7 @@ contains
     filled_grid = .false.
     half_grid = .false.
     grid_ratio_fv3_regional = one
+    fv3_io_layout_y = 1
     grid_type_fv3_regional = 0
     grid_ratio_nmmb = sqrt(two)
     grid_ratio_wrfmass = one
@@ -641,7 +636,6 @@ contains
 ! Initialize structures for grid(s)
     inner_vars=1
     num_fields=n3d*nsig+n2d
-    write(6,*)'thinkdeb250 num_fiels ',n3d,nsig,n2d ,num_fields
     allocate(vector(num_fields))
     vector=.false.
 
@@ -675,8 +669,6 @@ contains
        endif
 
     endif
-    write(6,*)'thinkdeb250 ',inner_vars,nlat,nlon,nsig,num_fields
-    call flush(6)
     call general_sub2grid_create_info(grd_a,inner_vars,nlat,nlon,nsig,num_fields, &
          regional,vector)
     deallocate(vector)
@@ -936,8 +928,7 @@ contains
     allocate(periodic_s(npe),jstart(npe),istart(npe),&
          ilat1(npe),jlon1(npe),&
        ijn_s(npe),irc_s(npe),ird_s(npe),displs_s(npe),&
-       ijn(npe),isc_g(npe),isd_g(npe),displs_g(npe), &
-       ijn_sens(npe),ijnens(npe),displs_sens(npe))
+       ijn(npe),isc_g(npe),isd_g(npe),displs_g(npe))
 
     do i=1,npe
        periodic_s(i)= .false.
@@ -953,9 +944,6 @@ contains
        isc_g(i)     = 0
        isd_g(i)     = 0
        displs_g(i)  = 0
-       ijn_sens(i)  = 0
-       displs_sens(i)= 0
-       ijnens(i)    = 0
     end do
 
     return
@@ -996,7 +984,6 @@ contains
     deallocate(periodic_s,jstart,istart,ilat1,jlon1,&
        ijn_s,irc_s,ird_s,displs_s,&
        ijn,isc_g,isd_g,displs_g)
-    deallocate(ijn_sens,ijnens,displs_sens)
 
     return
   end subroutine destroy_mapping
@@ -1123,19 +1110,6 @@ contains
        rlat_max_dd=rlat_max_ll-r1_5/grid_ratio_fv3_regional
        rlon_min_dd=rlon_min_ll+r1_5/grid_ratio_fv3_regional
        rlon_max_dd=rlon_max_ll-r1_5/grid_ratio_fv3_regional
-!clt follow Hongli Wang's codes 
-       !print*,'original rlat_min_dd,rlat_max_dd,rlon_min_dd,rlon_max_dd=',&
-       !                 rlat_min_dd,rlat_max_dd,rlon_min_dd,rlon_max_dd
-     
-       if(fv3_regional_dd_reduce) then
-         rlat_min_dd=rlat_min_dd+nlat_fv3_regional_reduce
-         rlat_max_dd=rlat_max_dd-nlat_fv3_regional_reduce
-         rlon_min_dd=rlon_min_dd+nlon_fv3_regional_reduce
-         rlon_max_dd=rlon_max_ll-nlon_fv3_regional_reduce
-       !print*,'nlat_fv3_regional_reduce,nlon_fv3_regional_reduce=',nlat_fv3_regional_reduce,nlon_fv3_regional_reduce
-       !print*,'reduced rlat_min_dd,rlat_max_dd,rlon_min_dd,rlon_max_dd=',&
-       !                 rlat_min_dd,rlat_max_dd,rlon_min_dd,rlon_max_dd
-       endif
        pt_ll=zero
     endif    !  fv3_regional
 
@@ -1172,7 +1146,6 @@ contains
               (regional_time (i),i=1,6)       
        
        regional_fhr=zero  !  with wrf nmm fcst hr is not currently available.
-       regional_fmin=zero  !  for being now
 
        if(diagnostic_reg.and.mype==0) then
            write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') &
@@ -1352,7 +1325,6 @@ contains
        rewind lendian_in
        read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig,pt,nsig_soil 
        regional_fhr=zero  !  with wrf mass core fcst hr is not currently available.
-       regional_fmin=zero  !  with wrf mass core fcst mn is not currently available.
 
        if(diagnostic_reg.and.mype==0) then
           write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)') regional_time
@@ -1688,7 +1660,6 @@ contains
           dy_mc(nlon_regional,nlat_regional))
     
        regional_fhr=zero !that is not available/nor seems currently necessary 
-       regional_fmin=zero !that is not available/nor seems currently necessary 
      
        read(lendian_in) aeta1,aeta2 ! 2 to skip
        read(lendian_in) eta1,eta2  ! 3 to skip
@@ -1794,7 +1765,6 @@ contains
        rewind lendian_in
        read(lendian_in) regional_time,nlon_regional,nlat_regional,nsig
        regional_fhr=zero  !  with twodvar analysis fcst hr is not currently available.
-       regional_fmin=zero  !  with twodvar analysis fcst hr is not currently available.
  
        if(diagnostic_reg.and.mype==0) then
            write(6,'(" in init_reg_glob_ll, yr,mn,dy,h,m,s=",6i6)')regional_time
