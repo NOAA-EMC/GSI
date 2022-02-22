@@ -973,11 +973,11 @@ if [ $DOGCYCLE = "YES" ]; then
 
     # Global cycle requires these files
     export FNTSFA=${FNTSFA:-$COMIN_OBS/${OPREFIX}rtgssthr.grb}
-    export FNACNA=${FNACNA:-$COMIN_OBS/${OPREFIX}seaice.5min.blend.grb}
-    export FNSNOA=${FNSNOA:-$COMIN_OBS/${OPREFIX}snogrb_t${JCAP_CASE}.${LONB_CASE}.${LATB_CASE}}
-    [[ ! -f $FNSNOA ]] && export FNSNOA="$COMIN_OBS/${OPREFIX}snogrb_t1534.3072.1536"
-    FNSNOG=${FNSNOG:-$COMIN_GES_OBS/${GPREFIX}snogrb_t${JCAP_CASE}.${LONB_CASE}.${LATB_CASE}}
-    [[ ! -f $FNSNOG ]] && FNSNOG="$COMIN_GES_OBS/${GPREFIX}snogrb_t1534.3072.1536"
+    export FNACNA=${FNACNA:-$COMIN/${OPREFIX}seaice.5min.blend.grb}
+    export FNSNOA=${FNSNOA:-$COMIN/${OPREFIX}snogrb_t${JCAP_CASE}.${LONB_CASE}.${LATB_CASE}}
+    [[ ! -f $FNSNOA ]] && export FNSNOA="$COMIN/${OPREFIX}snogrb_t1534.3072.1536"
+    FNSNOG=${FNSNOG:-$COMIN_GES/${GPREFIX}snogrb_t${JCAP_CASE}.${LONB_CASE}.${LATB_CASE}}
+    [[ ! -f $FNSNOG ]] && FNSNOG="$COMIN_GES/${GPREFIX}snogrb_t1534.3072.1536"
 
     # Set CYCLVARS by checking grib date of current snogrb vs that of prev cycle
     if [ $RUN_GETGES = "YES" ]; then
