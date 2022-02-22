@@ -103,22 +103,30 @@ this_dir=`dirname $0`
 
 top_parm=${this_dir}/../../parm
 
-export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
-if [[ -s ${RADMON_CONFIG} ]]; then
-   . ${RADMON_CONFIG}
-else
-   echo "Unable to source ${RADMON_CONFIG} (radmon config) file"
+radmon_config=${radmon_config:-${top_parm}/RadMon_config}
+if [[ ! -e ${radmon_config} ]]; then
+   echo "Unable to source ${radmon_config} file"
    exit 2
 fi
 
-if [[ -s ${RADMON_USER_SETTINGS} ]]; then
-   . ${RADMON_USER_SETTINGS}
-else
-   echo "Unable to source ${RADMON_USER_SETTINGS} (radmon user settings) file"
+. ${radmon_config}
+if [[ $? -ne 0 ]]; then
+   echo "Error detected while sourcing ${radmon_config} file"
+   exit $?
+fi
+
+
+radmon_user_settings=${radmon_user_settings:-${top_parm}/RadMon_user_settings}
+if [[ ! -e ${radmon_user_settings} ]]; then
+   echo "Unable to source ${radmon_user_settings} file"
    exit 3
 fi
 
-export USHradmon=${USHradmon:-$HOMEradmon/ush}
+. ${radmon_user_settings}
+if [[ $? -ne 0 ]]; then
+   echo "Unable to source ${radmon_user_settings} file"
+   exit $?
+fi
 
 
 #---------------------------------------------------------------
@@ -150,7 +158,7 @@ export CYC=`echo $PDATE|cut -c9-10`
 #  Set data and radstat locations     
 #---------------------------------------------------------------
 if [[ -n ${radstat_loc} ]]; then 
-   export RADSTAT_LOCATION=${radstat_loc}
+   RADSTAT_LOCATION=${radstat_loc}
 fi
 export RADSTAT_LOCATION=${RADSTAT_LOCATION}/${RUN}.${PDY}/${CYC}/atmos
 
@@ -182,6 +190,10 @@ if [[  -d ${DATA_LOCATION} ]]; then
    elif [[ $MY_MACHINE = "hera" ]]; then
       $SUB --account=${ACCOUNT} --time=10 -J ${jobname} -D . \
         -o ${logfile} --ntasks=1 --mem=5g ${job}
+
+   elif [[ $MY_MACHINE = "wcoss2" ]]; then
+      $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -V \
+           -l select=1:mem=5000M -l walltime=20:00 -N ${jobname} ${job}
    fi
 else
    echo "Unable to locate DATA_LOCATION: ${DATA_LOCATION}"

@@ -182,7 +182,7 @@ if [[ -s ${radstat} && -s ${biascr} ]]; then
     #  optionally run clean_tankdir script
     #
     if [[ ${CLEAN_TANKVERF} -eq 1 ]]; then
-       ${USHradmon}/clean_tankdir.sh glb 40
+       ${USHradmon}/clean_tankdir.sh glb 60
        rc_clean_tankdir=$?
        echo "rc_clean_tankdir = $rc_clean_tankdir"
     fi
