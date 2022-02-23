@@ -23,28 +23,17 @@ echo "top_level = ${top_level}"
 export MY_RADMON=${MY_RADMON:-$top_level}
 echo "MY_RADMON = ${MY_RADMON}"
 
-if [[ -d /dcom && -d /hwrf ]] ; then
-    . /usrx/local/Modules/3.2.10/init/sh
-    target=wcoss
+target=`./get_machine.sh`
+echo "target = $target"
+
+if [[ $target = "wcoss_c" || $target = "wcoss_d" ||
+      $target = "orion"   || $target = "wcoss2"  || 
+      $target = "s4" ]] ; then
     . $MODULESHOME/init/sh
-elif [[ -d /cm ]] ; then
-    . $MODULESHOME/init/sh
-    target=wcoss_c
-elif [[ -d /ioddev_dell ]]; then
-    . $MODULESHOME/init/sh
-    target=wcoss_d
-elif [[ -d /scratch1 ]] ; then
+elif [[ $target = "hera" ]] ; then
     . /apps/lmod/lmod/init/sh
-    target=hera
-elif [[ -d /data ]] ; then
-    . /usr/share/lmod/lmod/init/sh
-    target=s4
-elif [[ -d /work ]]; then
-    . $MODULESHOME/init/sh
-    target=orion
-elif [[ -d /jetmon ]] ; then
+elif [[ $target = "jet" ]] ; then
     . /apps/lmod/lmod/init/sh
-    target=jet
 else
     echo "unknown target = $target"
     exit 9
@@ -74,8 +63,8 @@ fi
 
 if [[ ${target} = "hera"     || ${target} = "wcoss" \
    || ${target} = "wcoss_c"  || ${target} = "wcoss_d" \
-   || ${target} = "orion" || ${target} = "jet" \
-   || ${target} = "s4" ]]; then
+   || ${target} = "orion"    || ${target} = "jet" \
+   || ${target} = "s4"       || ${target} = "wcoss2" ]]; then
    echo Building nwprod executables on ${target}
    echo
 
@@ -100,6 +89,10 @@ if [[ ${target} = "hera"     || ${target} = "wcoss" \
    elif [ $target = wcoss_c ]; then
       module purge
       module load $dir_modules/modulefile.ProdGSI.$target
+   elif [ $target = wcoss2 ]; then
+      module purge
+      module use -a $dir_modules
+      module load modulefile.ProdGSI.$target.lua 
    fi
 
 

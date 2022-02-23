@@ -126,7 +126,7 @@ if [[ ${exit_value} -eq 0 ]]; then
 
 
    if [[ ${CLEAN_TANKVERF} -eq 1 ]]; then
-      days_to_keep=40
+      days_to_keep=60
       ${HOMEradmon}/ush/clean_tankdir.sh ${RAD_AREA} ${days_to_keep}
    fi
 

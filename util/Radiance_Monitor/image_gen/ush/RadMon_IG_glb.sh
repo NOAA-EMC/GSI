@@ -83,24 +83,31 @@ rad_area=glb
 this_dir=`dirname $0`
 top_parm=${this_dir}/../../parm
 
-export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
-
-if [[ -s ${RADMON_CONFIG} ]]; then
-   . ${RADMON_CONFIG}
-else
-   echo "Unable to source ${RADMON_CONFIG}"
+radmon_config=${radmon_config:-${top_parm}/RadMon_config}
+if [[ ! -e ${radmon_config} ]]; then
+   echo "Unable to source ${radmon_config}"
    exit 2
 fi
 
-if [[ -s ${RADMON_USER_SETTINGS} ]]; then 
-   . ${RADMON_USER_SETTINGS}
-else
-   echo "Unable to source ${RADMON_USER_SETTINGS}"
-   exit 3
+. ${radmon_config}
+if [[ $? -ne 0 ]]; then
+   echo "Error detected while sourcing ${radmon_config} file"
+   exit $?
 fi
 
-#. ${IG_PARM}/plot_rad_conf
-. ${IG_PARM}/glbl_conf
+
+radmon_user_settings=${radmon_user_settings:-${top_parm}/RadMon_user_settings}
+if [[ ! -e ${radmon_user_settings} ]]; then
+   echo "Unable to locate ${radmon_user_settings} file"
+   exit 4
+fi
+
+. ${radmon_user_settings}
+if [[ $? -ne 0 ]]; then
+   echo "Error detected while sourcing ${radmon_user_settings} file"
+   exit $?
+fi
+
 
 #--------------------------------------------------------------------
 # Determine cycle to plot.  Exit if cycle is > last available
@@ -112,21 +119,21 @@ fi
 #   2.  Read from ${TANKimg}/last_plot_time file and advanced
 #        one cycle.
 #   3.  Using the last available cycle for which there is
-#        data in ${TANKDIR}.
+#        data in ${TANKverf}.
 #
-# If option 2 has been used the ${IMGNDIR}/last_plot_time file
-# will be updated with ${PDATE} if the plot is able to run.
+# If option 2 has been used the last_plot_time file will be
+# updated with ${PDATE} if the plot is able to run.
 #--------------------------------------------------------------------
 
 echo "TANKimg = ${TANKimg}"
-last_plot_time=${TANKimg}/${RUN}/radmon/last_plot_time
+last_plot_time=${TANKimg}/last_plot_time
 echo "last_plot_time file = ${last_plot_time}"
 
 latest_data=`${IG_SCRIPTS}/nu_find_cycle.pl --cyc 1 \
-                           --dir ${TANKDIR} --run ${RUN}`
+                           --dir ${TANKverf} --run ${RUN}`
 if [[ ${latest_data} = "" ]]; then
    latest_data=`${IG_SCRIPTS}/find_cycle.pl --cyc 1 \
-                           --dir ${TANKDIR} --run ${RUN}`
+                           --dir ${TANKverf} --run ${RUN}`
 fi
 
 if [[ ${pdate} = "" ]]; then
@@ -163,7 +170,6 @@ fi
 #  Calculate start date (first cycle to be included in the plots --
 #  PDATE is the latest/last cycle in the plots. 
 #--------------------------------------------------------------------
-export NUM_CYCLES=${NUM_CYCLES:-121}
 hrs=`expr ${NUM_CYCLES} \\* -6`
 echo "hrs = $hrs"
 
@@ -175,7 +181,7 @@ export PDY=`echo $PDATE|cut -c1-8`
 
 
 #--------------------------------------------------------------------
-#  Locate ieee_src in $TANKDIR and verify data files are present
+#  Locate ieee_src in $TANKverf and verify data files are present
 #
 
 ieee_src=${TANKverf}/${RUN}.${PDY}/${CYC}/${MONITOR}
@@ -211,9 +217,9 @@ cd $PLOT_WORK_DIR
 
 #-------------------------------------------------------------
 #  Locate the satype file or set SATYPE by assembling a list 
-#  from available data files in $TANKDIR/angle. 
+#  from available data files in $TANKverf/angle. 
 #-------------------------------------------------------------
-tankdir_info=${TANKDIR}/info
+tankdir_info=${TANKverf}/info
 satype_file=${satype_file:-${tankdir_info}/gdas_radmon_satype.txt}
 if [[ ! -e $satype_file ]]; then
    satype_file=${HOMEgdas}/fix/gdas_radmon_satype.txt
@@ -268,9 +274,9 @@ fi
 #--------------------------------------------------------------------
 #  Check for log file and extract data for error report there
 #--------------------------------------------------------------------
-if [[ $DO_DATA_RPT -eq 1 || $DO_DIAG_RPT -eq 1 ]]; then
+if [[ $DO_DATA_RPT -eq 1 ]]; then
 
-   warn_file=${TANKDIR}/${RUN}.${PDY}/${CYC}/${MONITOR}/warning.${PDATE}
+   warn_file=${TANKverf}/${RUN}.${PDY}/${CYC}/${MONITOR}/warning.${PDATE}
    if [[ -e ${warn_file} ]]; then
       echo "mailing warning report"
       /bin/mail -s "RadMon warning" -c "${MAIL_CC}" ${MAIL_TO} < ${warn_file}
@@ -290,7 +296,7 @@ fi
 #--------------------------------------------------------------------
 #  Remove all but the last 30 cycles worth of data image files.
 #--------------------------------------------------------------------
-${IG_SCRIPTS}/rm_img_files.pl --dir ${TANKimg}/radmon/pngs --nfl 30
+${IG_SCRIPTS}/rm_img_files.pl --dir ${TANKimg}/pngs --nfl 30
 
 
 
@@ -302,7 +308,7 @@ ${IG_SCRIPTS}/rm_img_files.pl --dir ${TANKimg}/radmon/pngs --nfl 30
 #----------------------------------------------------------------------
 if [[ $RUN_TRANSFER -eq 1 ]]; then
 
-   if [[ $MY_MACHINE = "wcoss_c" || $MY_MACHINE = "wcoss_d" ]]; then
+   if [[ $MY_MACHINE = "wcoss_c" || $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss2" ]]; then
       cmin=`date +%M`		# minute (MM)
       ctime=`date +%G%m%d%H`	# YYYYMMDDHH
       rtime=`$NDATE +1 $ctime`	# ctime + 1 hour
@@ -311,21 +317,30 @@ if [[ $RUN_TRANSFER -eq 1 ]]; then
       run_time="$rhr:$cmin"	# HH:MM format for lsf (bsub command) 		
 
       transfer_log=${LOGdir}/Transfer_${RADMON_SUFFIX}.log
+      if [[ -e ${transfer_log} ]]; then
+         rm ${transfer_log}
+      fi
 
       transfer_queue=transfer
-      if [[ $MY_MACHINE = "wcoss_d" ]]; then
+      if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss2" ]]; then
          transfer_queue=dev_transfer
       fi
 
       jobname=transfer_${RADMON_SUFFIX}
-      job="${IG_SCRIPTS}/Transfer.sh --nosrc --area ${rad_area} ${RADMON_SUFFIX}"
+      job="${IG_SCRIPTS}/Transfer.sh --nosrc ${RADMON_SUFFIX}"
 
-      if [[ $TANK_USE_RUN -eq 1 ]]; then
-         job="${job} --run $RUN"
+      export WEBDIR=${WEBDIR}/${RADMON_SUFFIX}/${RUN}/pngs
+
+      if [[ $MY_MACHINE = "wcoss2" ]]; then 
+         cmdfile=transfer_cmd
+         echo "${IG_SCRIPTS}/Transfer.sh --nosrc ${RADMON_SUFFIX}" >$cmdfile
+
+         $SUB -q $transfer_queue -A $ACCOUNT -o ${transfer_log} -V \
+              -l select=1:mem=500M -l walltime=45:00 -N ${jobname} ${cmdfile}
+      else
+         $SUB -P $PROJECT -q $transfer_queue -o ${transfer_log} -M 80 -W 0:45 \
+              -R affinity[core] -J ${jobname} -cwd ${PWD} -b $run_time ${job}
       fi
-      echo "job = $job"
-
-      $SUB -P $PROJECT -q $transfer_queue -o ${transfer_log} -M 80 -W 0:45 -R affinity[core] -J ${jobname} -cwd ${PWD} -b $run_time ${job}
 
    fi
 fi
