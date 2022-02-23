@@ -17,14 +17,14 @@ echo "begin mk_bcoef_plots.sh"
 echo "NUM_CYCLES, CYCLE_INTERVAL = ${NUM_CYCLES}, ${CYCLE_INTERVAL}"
 
 imgndir="${IMGNDIR}/bcoef"
-tankdir="${TANKDIR}/bcoef"
+tankdir="${TANKverf}/bcoef"
 
 if [[ ! -d ${imgndir} ]]; then
    mkdir -p ${imgndir}
 fi
 
 #-------------------------------------------------------------------
-#  Locate/update the control files in $TANKDIR/radmon.$PDY.  $PDY
+#  Locate/update the control files in $TANKverf/radmon.$PDY.  $PDY
 #  starts at END_DATE and walks back to START_DATE until ctl files
 #  are found or we run out of dates to check.  Report an error to
 #  the log file and exit if no ctl files are found.
@@ -94,7 +94,7 @@ for type in ${SATYPE}; do
 done
 
 if [[ $allmissing = 1 ]]; then
-   echo "ERROR:  Unable to plot.  All bcoef control files are missing from ${TANKDIR} for requested date range."
+   echo "ERROR:  Unable to plot.  All bcoef control files are missing from ${TANKverf} for requested date range."
    exit 2
 fi
 
@@ -129,9 +129,14 @@ elif [[ $MY_MACHINE = "wcoss_c" ]]; then
 elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "s4" ]]; then
    $SUB --account $ACCOUNT --ntasks=1 --mem=5g --time=1:00:00 -J ${jobname} \
         -o ${logfile} -D . $IG_SCRIPTS/plot_bcoef.sh 
+
 elif [[ $MY_MACHINE = "jet" ]]; then
    $SUB --account $ACCOUNT --ntasks=1 --mem=5g --time=1:00:00 -J ${jobname} \
         -p ${RADMON_PARTITION} -o ${logfile} -D . $IG_SCRIPTS/plot_bcoef.sh
+
+elif [[ $MY_MACHINE = "wcoss2" ]]; then
+   $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -V \
+        -l select=1:mem=1g -l walltime=1:00:00 -N ${jobname} $IG_SCRIPTS/plot_bcoef.sh
 fi
 
 echo "end mk_bcoef_plots.sh"

@@ -51,7 +51,7 @@ imgdef=`echo ${#IMGNDIR}`
 if [[ $imgdef -gt 0 ]]; then
   ctldir=$IMGNDIR/bcor
 else
-  ctldir=$TANKDIR/bcor
+  ctldir=$TANKverf/bcor
 fi
 
 echo ctldir = $ctldir
@@ -62,8 +62,8 @@ echo ctldir = $ctldir
 # place on the web server.
 #
 # Data file location may either be in angle, bcoef, bcor, and time
-# subdirectories under $TANKDIR, or in the Operational organization
-# of radmon.YYYYMMDD directories under $TANKDIR.
+# subdirectories under $TANKverf, or in the Operational organization
+# of radmon.YYYYMMDD directories under $TANKverf
 
 for type in ${SATYPE2}; do
 

@@ -95,20 +95,31 @@ this_dir=`dirname $0`
 
 top_parm=${this_dir}/../../parm
 
-export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
-if [[ -s ${RADMON_CONFIG} ]]; then
-   . ${RADMON_CONFIG}
-else
-   echo "Unable to source ${RADMON_CONFIG} file"
+radmon_config=${radmon_config:-${top_parm}/RadMon_config}
+if [[ ! -e ${radmon_config} ]]; then
+   echo "Unable to source ${radmon_config} file"
    exit 2
 fi
 
-if [[ -s ${RADMON_USER_SETTINGS} ]]; then
-   . ${RADMON_USER_SETTINGS}
-else
-   echo "Unable to source ${RADMON_USER_SETTINGS} file"
+. ${radmon_config}
+if [[ $? -ne 0 ]]; then
+   echo "Error detected while sourcing ${radmon_config} file"
+   exit $?
+fi
+
+
+radmon_user_settings=${radmon_user_settings:-${top_parm}/RadMon_user_settings}
+if [[ ! -e ${radmon_user_settings} ]]; then
+   echo "Unable to source ${radmon_user_settings} file"
    exit 3
 fi
+
+. ${radmon_user_settings}
+if [[ $? -ne 0 ]]; then
+   echo "Unable to source ${radmon_user_settings} file"
+   exit $?
+fi 
+
 
 #-------------------------------------------------------
 #  Create log and TANK directories if they don't exist
@@ -226,15 +237,19 @@ if [[ -e ${radstat} && -e ${biascr} ]]; then
 
    if [[ $MY_MACHINE = "wcoss_d" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} \
-           -M 100 -R affinity[core] -W 0:20 -J ${jobname} -cwd ${PWD} ${job}
+           -M 5000 -R affinity[core] -W 0:20 -J ${jobname} -cwd ${PWD} ${job}
 
    elif [[ $MY_MACHINE = "wcoss_c" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} \
-           -M 100 -W 0:20 -J ${jobname} -cwd ${PWD} ${job}
+           -M 5000 -W 0:20 -J ${jobname} -cwd ${PWD} ${job}
 
    elif [[ $MY_MACHINE = "hera" ]]; then
       $SUB --account=${ACCOUNT} --time=10 -J ${jobname} -D . \
         -o ${logfile} --ntasks=1 --mem=5g ${job} 
+
+   elif [[ $MY_MACHINE = "wcoss2" ]]; then
+      $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -V \
+        -l select=1:mem=5000M -l walltime=20:00 -N ${jobname} ${job}
    fi
 
 else  # radstat and/or biascr not found

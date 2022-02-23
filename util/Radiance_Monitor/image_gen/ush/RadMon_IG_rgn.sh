@@ -93,8 +93,7 @@ else
    exit 2
 fi
 
-. ${IG_PARM}/plot_rad_conf
-. ${IG_PARM}/rgnl_conf
+export PLOT_ALL_REGIONS=""
 
 
 #--------------------------------------------------------------------
@@ -115,17 +114,17 @@ fi
 #   2.  Read from ${TANKimg}/last_plot_time file and advanced
 #        one cycle.
 #   3.  Using the last available cycle for which there is
-#        data in ${TANKDIR}.
+#        data in ${TANKverf}.
 #
-# If option 2 has been used the ${IMGNDIR}/last_plot_time file
-# will be updated with ${PDATE} if the plot is able to run.
+# If option 2 has been used the last_plot_time file will be 
+# updated with ${PDATE} if the plot is able to run.
 #--------------------------------------------------------------------
 
 echo "TANKimg = ${TANKimg}"
-last_plot_time=${TANKimg}/radmon/last_plot_time
+last_plot_time=${TANKimg}/last_plot_time
 echo "last_plot_time file = ${last_plot_time}"
 
-latest_data=`${IG_SCRIPTS}/find_cycle.pl --cyc 1 --dir ${TANKDIR}`
+latest_data=`${IG_SCRIPTS}/find_cycle.pl --cyc 1 --dir ${TANKverf}`
 
 if [[ ${pdate} = "" ]]; then
    if [[ -e ${last_plot_time} ]]; then
@@ -177,7 +176,7 @@ else
    export PDY=`echo $PDATE|cut -c1-8`
 fi
 
-satype_file=${TANKDIR}/info/${TANKDIR_INFO}/nam_radmon_satype.txt
+satype_file=${TANKverf}/info/nam_radmon_satype.txt
 
 if [[ ! -e $satype_file ]]; then
    satype_file=${HOMEnam}/fix/nam_radmon_satype.txt
@@ -193,8 +192,8 @@ echo "satype : ${satype}"
 #  data.  This will get us a list of satypes to plot even if
 #  the $satype_file can't be found.
 #
-if [[ -d ${TANKDIR}/radmon.${PDY} ]]; then
-   test_list=`ls ${TANKDIR}/radmon.${PDY}/*angle.*${PDATE}.ieee_d.*`
+if [[ -d ${TANKverf}/radmon.${PDY} ]]; then
+   test_list=`ls ${TANKverf}/radmon.${PDY}/*angle.*${PDATE}.ieee_d.*`
 fi
 
 for test in ${test_list}; do
@@ -221,7 +220,6 @@ echo $SATYPE
 pid=${pid:-$$}
 export PLOT_WORK_DIR=${STMP_USER}/${RADMON_SUFFIX}/radmon/plotjobs.${pid}
 mkdir -p $PLOT_WORK_DIR
-#cd $PLOT_WORK_DIR
 if [[ ! -d ${PLOT_WORK_DIR} ]]; then
    echo "Unable to create PLOT_WORK_DIR:  ${PLOT_WORK_DIR}"
    exit 6
@@ -260,7 +258,7 @@ if [[ $RUN_TRANSFER -eq 1 ]]; then
    cyc=`echo $PDATE|cut -c9-10`
    if [[ ${cyc} = "00" || ${cyc} = "06" || ${cyc} = "12" || ${cyc} = "18" ]]; then
 
-      if [[ $MY_MACHINE = "wcoss_c" || $MY_MACHINE = "wcoss_d" ]]; then
+      if [[ $MY_MACHINE = "wcoss_c" || $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss2" ]]; then
          cmin=`date +%M`           # minute (MM)
          ctime=`date +%G%m%d%H`    # YYYYMMDDHH
          rtime=`$NDATE +1 $ctime`  # ctime + 1 hour
@@ -269,19 +267,32 @@ if [[ $RUN_TRANSFER -eq 1 ]]; then
          run_time="$rhr:$cmin"     # HH:MM format for lsf (bsub command)
 
          transfer_log=${LOGdir}/Transfer_${RADMON_SUFFIX}.log
+         if [[ -e ${transfer_log} ]]; then
+            rm ${transfer_log}
+         fi
 
          transfer_queue=transfer
-         if [[ $MY_MACHINE = "wcoss_d" ]]; then
+         if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss2" ]]; then
             transfer_queue=dev_transfer
          fi
 
          jobname=transfer_${RADMON_SUFFIX}
-         job="${IG_SCRIPTS}/Transfer.sh --nosrc --area ${RAD_AREA} ${RADMON_SUFFIX}"
-
+         job="${IG_SCRIPTS}/Transfer.sh --nosrc ${RADMON_SUFFIX}"
          echo "job = $job"
 
-         $SUB -P $PROJECT -q $transfer_queue -o ${transfer_log} -M 80 -W 0:45 \
-              -R affinity[core] -J ${jobname} -cwd ${PWD} -b $run_time ${job}
+         export WEBDIR=${WEBDIR}/regional/${RADMON_SUFFIX}/pngs
+
+	 if [[ $MY_MACHINE = "wcoss2" ]]; then
+	    cmdfile=transfer_cmd
+	    echo "${IG_SCRIPTS}/Transfer.sh --nosrc ${RADMON_SUFFIX}" >$cmdfile
+
+	    $SUB -q $transfer_queue -A $ACCOUNT -o ${transfer_log} -V \
+	         -l select=1:mem=500M -l walltime=45:00 -N ${jobname} ${cmdfile}
+
+	 else
+            $SUB -P $PROJECT -q $transfer_queue -o ${transfer_log} -M 80 -W 0:45 \
+                 -R affinity[core] -J ${jobname} -cwd ${PWD} -b $run_time ${job}
+         fi
 
       fi
    fi
@@ -289,24 +300,9 @@ fi
 
 
 #--------------------------------------------------------------------
-#  remove all but the last 30 cycles of date image files.
+#  remove all but the last 30 cycles of image files.
 #--------------------------------------------------------------------
-${IG_SCRIPTS}/rm_img_files.pl --dir ${TANKimg}/radmon/pngs --nfl 30
-
-
-#--------------------------------------------------------------------
-#  Check for log file and extract data for error report there
-#--------------------------------------------------------------------
-#if [[ $DO_DATA_RPT -eq 1 || $DO_DIAG_RPT -eq 1 ]]; then
-#
-#   logfile=${LOGdir}/data_extract.${RADMON_SUFFIX}.${sdate}.${CYA}.log
-#
-#   if [[ -s $logfile ]]; then
-#      ${IG_SCRIPTS}/extract_err_rpts.sh $sdate $CYA $logfile
-#   fi
-#fi
-#
-#--------------------------------------------------------------------
+${IG_SCRIPTS}/rm_img_files.pl --dir ${TANKimg}/pngs --nfl 30
 
 
 echo end RadMon_IG_rgn.sh
