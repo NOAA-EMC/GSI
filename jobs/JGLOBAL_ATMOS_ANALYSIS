@@ -139,6 +139,13 @@ export DOGCYCLE=${DOGCYCLE:-"YES"}
 export DOGAUSFCANL=${DOGAUSFCANL:-"YES"}
 
 
+# Copy fix file for obsproc
+if [ $RUN = "gfs" ]; then
+    mkdir -p $COMOUT/fix
+    cp $FIXgsi/prepobs_errtable.global $COMOUT/fix/
+fi
+
+
 ###############################################################
 # Run relevant script
 env
