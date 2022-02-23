@@ -35,6 +35,7 @@
   use obsmod, only: luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag
   use obsmod, only: l_wcp_cwm,ompslp_mult_fact
+  use obsmod, only: l_obsprvdiag
   use obsmod, only: aircraft_recon, &
        
        ! The following variables are the coefficients that describe
@@ -480,6 +481,9 @@
 !                       option for checking and adjusting the profile of Qr/Qs/Qg/Qnr
 !                       retrieved through cloud analysis to reduce the background
 !                       reflectivity ghost in analysis. (default is 0)
+!  2021-11-16 Zhao    - add option l_obsprvdiag (if true) to trigger the output of
+!                       observation provider and sub-provider information into
+!                       obsdiags files (used for AutoObsQC)
 !  01-07-2022 Hu        Add fv3_io_layout_y to let fv3lam interface read/write subdomain restart
 !                       files. The fv3_io_layout_y needs to match fv3lam model
 !                       option io_layout(2).
@@ -699,6 +703,8 @@
 !                     (.TRUE.: on; .FALSE.: off) / Inputfile: l2rwbufr_cltl (bufr format)
 !     l_use_dbz_directDA - option to assimilate radar reflectivity obs directly in GSI 
 !                     (.TRUE.: on; .FALSE.: off) / Inputfile: dbzbufr (bufr format)
+!     l_obsprvdiag - trigger (if true) writing out observation provider and sub-provider
+!                    information into obsdiags files (used for AutoObsQC)
 !
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -743,7 +749,7 @@
        if_model_dbz,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,aircraft_recon,diag_version,&
        write_fv3_incr,incvars_to_zero,incvars_zero_strat,incvars_efold,diag_version,&
        cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef,cnvw_option,l2rwthin,hurricane_radar,&
-       l_reg_update_hydro_delz, &
+       l_reg_update_hydro_delz, l_obsprvdiag,&
        l_use_dbz_directDA, l_use_rw_columntilt
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
