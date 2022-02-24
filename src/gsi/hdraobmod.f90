@@ -225,7 +225,7 @@ contains
   print_verbose=.false.
   if(verbose) print_verbose=.true.
   c_prvstg = '88888888'
-  c_sprvstg ='HDRAOB'
+  c_sprvstg =HDRAOB'
 
 ! Initialize variables
 
@@ -982,8 +982,8 @@ contains
                  cdata_all(19,iout)=stnelev                ! station elevation (m)
                  cdata_all(20,iout)=levdat(2,k)            ! observation height (m)
                  cdata_all(21,iout)=zz                     ! terrain height at ob location
-                 cdata_all(22,iout)='88888888'             ! provider name
-                 cdata_all(23,iout)='HDRAOB'               ! subprovider name
+                 cdata_all(22,iout)=r_prvstg               ! provider name
+                 cdata_all(23,iout)=r_sprvstg              ! subprovider name
                  cdata_all(24,iout)=2                      ! cat
                  cdata_all(25,iout)=var_jb(3,k)            ! non linear qc for T
                  if(perturb_obs)cdata_all(nreal,iout)=ran01dom()*perturb_fact ! t perturbation
@@ -1081,8 +1081,8 @@ contains
                  cdata_all(19,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
                  cdata_all(20,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
                  cdata_all(21,iout)=zz                     ! terrain height at ob location
-                 cdata_all(22,iout)='88888888'             ! provider name
-                 cdata_all(23,iout)='HDRAOB'               ! subprovider name
+                 cdata_all(22,iout)=r_prvstg               ! provider name
+                 cdata_all(23,iout)=r_sprvstg              ! subprovider name
                  cdata_all(24,iout)=2                      ! cat
                  cdata_all(25,iout)=var_jb(5,k)            ! non linear qc parameter
                  cdata_all(26,iout)=one                    ! hilbert curve weight, modified later 
@@ -1163,8 +1163,8 @@ contains
                  cdata_all(17,iout)=stnelev                ! station elevation (m)
                  cdata_all(18,iout)=levdat(2,k)            ! observation height (m)
                  cdata_all(19,iout)=zz                     ! terrain height at ob location
-                 cdata_all(20,iout)='88888888'             ! provider name
-                 cdata_all(21,iout)='HDRAOB'               ! subprovider name
+                 cdata_all(20,iout)=r_prvstg               ! provider name
+                 cdata_all(21,iout)=r_sprvstg              ! subprovider name
                  cdata_all(22,iout)=2                      ! cat
                  cdata_all(23,iout)=var_jb(2,k)            ! non linear qc b parameter
                  if(perturb_obs)cdata_all(24,iout)=ran01dom()*perturb_fact ! q perturbation
