@@ -1,2 +1,6 @@
 build*/
+install*/
 .*.swp
+*.[aox]
+*.mod
+.DS_Store

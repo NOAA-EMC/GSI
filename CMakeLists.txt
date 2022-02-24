@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(GSI
+project(gsi
         VERSION 1.0.0
         LANGUAGES C Fortran)
 

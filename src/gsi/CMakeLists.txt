@@ -156,9 +156,38 @@ if(BUILD_REGIONAL)
   target_link_libraries(regional_gsi.x PUBLIC wrf_io::wrf_io)
 endif()
 
+# Install executable targets
+install(TARGETS ${GSI_APP_Targets} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# Install library archive targets
 install(
-  TARGETS ${GSI_LIB_Targets} ${GSI_APP_Targets}
+  TARGETS ${GSI_LIB_Targets}
   EXPORT ${PROJECT_NAME}Exports
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+### Package config
+include(CMakePackageConfigHelpers)
+set(CONFIG_INSTALL_DESTINATION lib/cmake/${PROJECT_NAME})
+
+export(EXPORT ${PROJECT_NAME}Exports
+  NAMESPACE ${PROJECT_NAME}::
+  FILE ${PROJECT_NAME}-targets.cmake)
+
+configure_package_config_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/PackageConfig.cmake.in ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-config.cmake
+  INSTALL_DESTINATION ${CONFIG_INSTALL_DESTINATION})
+install(FILES ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-config.cmake
+  DESTINATION ${CONFIG_INSTALL_DESTINATION})
+
+write_basic_package_version_file(
+  ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY AnyNewerVersion)
+install(FILES ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake
+  DESTINATION ${CONFIG_INSTALL_DESTINATION})
+
+install(EXPORT ${PROJECT_NAME}Exports
+  NAMESPACE ${PROJECT_NAME}::
+  FILE ${PROJECT_NAME}-targets.cmake
+  DESTINATION ${CONFIG_INSTALL_DESTINATION})
