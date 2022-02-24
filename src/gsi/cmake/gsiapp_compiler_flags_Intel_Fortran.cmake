@@ -2,7 +2,7 @@
 # FLAGS COMMON TO ALL BUILD TYPES
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -assume byterecl -convert big_endian -implicitnone")
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -g -traceback -assume byterecl -convert big_endian -implicitnone")
 
 ####################################################################
 # RELEASE FLAGS

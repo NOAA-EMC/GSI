@@ -29,54 +29,10 @@ endif()
 # User options
 option(OPENMP "Enable OpenMP Threading" OFF)
 option(ENABLE_MKL "Use MKL for LAPACK implementation (if available)" ON)
-option(BUILD_NCDIAG "Build and use inline NetCDF diagnostics library" ON)
-option(BUILD_REGIONAL "Build Regional GSI" OFF)
 
 # Echo user options
 message(STATUS "OPENMP ................. ${OPENMP}")
 message(STATUS "ENABLE_MKL ............. ${ENABLE_MKL}")
-message(STATUS "BUILD_NCDIAG ........... ${BUILD_NCDIAG}")
-message(STATUS "BUILD_REGIONAL ......... ${BUILD_REGIONAL}")
-
-# Dependencies
-if(ENABLE_MKL)
-  find_package(MKL QUIET)
-endif()
-if(MKL_FOUND)
-  set(LAPACK_LIBRARIES ${MKL_LIBRARIES})
-else()
-  find_package(LAPACK REQUIRED)
-endif()
-find_package(MPI REQUIRED)
-find_package(NetCDF REQUIRED Fortran)
-if(OPENMP)
-  find_package(OpenMP REQUIRED)
-endif()
-
-# NetCDF Diagnostic IO library dependency
-if(NOT BUILD_NCDIAG)
-  find_package(ncdiag REQUIRED)
-endif()
-
-# NCEPLibs dependencies
-find_package(bacio REQUIRED)
-find_package(sigio REQUIRED)
-find_package(sfcio REQUIRED)
-find_package(nemsio REQUIRED)
-find_package(ncio REQUIRED)
-find_package(sp REQUIRED)
-find_package(ip REQUIRED)
-find_package(w3emc REQUIRED)
-#find_package(w3nco REQUIRED)
-find_package(bufr REQUIRED)
-find_package(crtm REQUIRED)
-
-if(BUILD_REGIONAL)
-  find_package(wrf_io REQUIRED)
-endif()
-
-# See https://github.com/NOAA-EMC/NCEPLIBS-nemsio/pull/22
-target_link_libraries(nemsio::nemsio INTERFACE w3emc::w3emc_d bacio::bacio_4)
 
 # Build components
 add_subdirectory(src)

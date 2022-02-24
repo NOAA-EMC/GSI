@@ -2,37 +2,41 @@
 # FLAGS COMMON TO ALL BUILD TYPES
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian -fno-second-underscore -ffast-math")
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -g -fbacktrace -ffree-line-length-none -fconvert=big-endian -fno-second-underscore -ffast-math")
+
+if(${CMAKE_Fortran_COMPILER_VERSION} VERSION_GREATER_EQUAL 10)
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fallow-argument-mismatch -fallow-invalid-boz")
+endif()
 
 ####################################################################
 # RELEASE FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE}")
+set(CMAKE_Fortran_FLAGS_RELEASE "-O3")
 
 ####################################################################
 # DEBUG FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG}")
+set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -ggdb -static -Wall -fcheck=bounds -ffpe-trap=invalid,zero,overflow")
 
 ####################################################################
 # PRODUCTION FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_PRODUCTION "${CMAKE_Fortran_FLAGS_PRODUCTION}")
+set(CMAKE_Fortran_FLAGS_PRODUCTION "-O2 -funroll-all-loops -finline-functions")
 
 ####################################################################
 # LINK FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_LINK_FLAGS "${CMAKE_Fortran_LINK_FLAGS}")
+set(CMAKE_Fortran_LINK_FLAGS "")
 
 ####################################################################
 # FLAGS FOR AUTOPROFILING
 ####################################################################
 
-set(Fortran_AUTOPROFILING_FLAGS "")
+set(Fortran_AUTOPROFILING_FLAGS "-finstrument-functions")
 
 ####################################################################
 

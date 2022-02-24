@@ -28,7 +28,7 @@ find_package(MPI REQUIRED)
 find_package(NetCDF REQUIRED COMPONENTS Fortran)
 
 # Echo user options
-message(STATUS "ENABLE_NCDIAG_SERIAL .. ${ENABLE_NCDIAG_SERIAL}")
+message(STATUS "ENABLE_NCDIAG_SERIAL ... ${ENABLE_NCDIAG_SERIAL}")
 
 # Get list of files
 include(ncdiag_files.cmake)

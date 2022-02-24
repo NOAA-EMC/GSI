@@ -2,7 +2,7 @@
 # FLAGS COMMON TO ALL BUILD TYPES
 ####################################################################
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
 
 ####################################################################
 # RELEASE FLAGS
@@ -14,7 +14,7 @@ set(CMAKE_C_FLAGS_RELEASE "")
 # DEBUG FLAGS
 ####################################################################
 
-set(CMAKE_C_FLAGS_DEBUG "")
+set(CMAKE_C_FLAGS_DEBUG "-Wall")
 
 ####################################################################
 # PRODUCTION FLAGS
