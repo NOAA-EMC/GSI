@@ -3,15 +3,15 @@
 #@PROJECT_NAME@-config.cmake
 #
 # Imported interface targets provided:
-#  * @PROJECT_NAME@::gsi - GSI library target
+#  * @PROJECT_NAME@::enkf - EnKF library target
 
 # Include targets file.  This will create IMPORTED target @PROJECT_NAME@
 include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@-targets.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@-config-version.cmake")
 include(CMakeFindDependencyMacro)
 
-# Set the GSI Application this library is built for
-set(GSI_APP @GSI_APP@)
+# Set the EnKF Application this library is built for
+set(ENKF_APP @ENKF_APP@)
 
 find_dependency(MPI)
 find_dependency(NetCDF COMPONENTS Fortran)
@@ -41,7 +41,7 @@ find_dependency(w3emc REQUIRED)
 find_dependency(bufr REQUIRED)
 find_dependency(crtm REQUIRED)
 
-if(GSI_APP MATCHES "Regional")
+if(ENKF_APP MATCHES "^(WRF|NMMB|FV3REG)$")
   find_dependency(wrf_io REQUIRED)
 endif()
 
@@ -57,5 +57,5 @@ check_required_components("@PROJECT_NAME@")
 
 get_target_property(location @PROJECT_NAME@::@PROJECT_NAME@ LOCATION)
 message(STATUS "Found @PROJECT_NAME@: ${location} (found version \"${PACKAGE_VERSION}\")")
-message(STATUS "FindGSI defines targets:")
-message(STATUS "  - GSI_APP [${GSI_APP}]")
+message(STATUS "FindENKF defines targets:")
+message(STATUS "  - ENKF_APP [${ENKF_APP}]")

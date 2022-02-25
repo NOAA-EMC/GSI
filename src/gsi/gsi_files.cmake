@@ -19,7 +19,7 @@ class_wrwrfnmma.f90
 )
 
 # Stubs for Global interface
-list(APPEND GSI_SRC_stub
+list(APPEND GSI_SRC_gfs_stub
 stub_get_pseudo_ensperts.f90
 stub_get_wrf_mass_ensperts.f90
 stub_get_wrf_nmm_ensperts.f90
@@ -34,7 +34,7 @@ stub_wrwrfmassa.f90
 stub_wrwrfnmma.f90
 )
 
-list(APPEND GSI_SRC_cplr
+list(APPEND GSI_SRC_regional_cplr
 cplr_get_pseudo_ensperts.f90
 cplr_get_wrf_mass_ensperts.f90
 cplr_get_wrf_nmm_ensperts.f90
@@ -68,7 +68,7 @@ gsi_fixture_REGIONAL.F90
 )
 
 # All else Fortran sources that are not in above categories
-list(APPEND GSI_SRC_Fortran
+list(APPEND GSI_SRC_srcs
 abstract_ensmod.f90
 adjtest.f90
 adjtest_obs.f90

@@ -7,7 +7,6 @@ project(gsi
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(CMAKE_DIRECTORY_LABELS ${PROJECT_NAME})
 
-include(compiler_flags)
 include(GNUInstallDirs)
 
 if(NOT CMAKE_BUILD_TYPE MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel|Production)$")
@@ -30,13 +29,15 @@ endif()
 option(OPENMP "Enable OpenMP Threading" OFF)
 option(ENABLE_MKL "Use MKL for LAPACK implementation (if available)" ON)
 option(USE_NCDIAG "Use NetCDF diagnostics library" ON)
-option(BUILD_GSI_REGIONAL "Build Regional GSI" OFF)
+
+set(GSI_APP "GFS" CACHE STRING "Choose the GSI Application.")
+set_property(CACHE GSI_APP PROPERTY STRINGS "GFS" "Regional")
 
 # Echo user options
 message(STATUS "OPENMP ................. ${OPENMP}")
 message(STATUS "ENABLE_MKL ............. ${ENABLE_MKL}")
 message(STATUS "USE_NCDIAG ............. ${USE_NCDIAG}")
-message(STATUS "BUILD_GSI_REGIONAL ..... ${BUILD_GSI_REGIONAL}")
+message(STATUS "GSI_APP ................ ${GSI_APP}")
 
 # Dependencies
 if(ENABLE_MKL)
@@ -45,6 +46,7 @@ endif()
 if(MKL_FOUND)
   set(LAPACK_LIBRARIES ${MKL_LIBRARIES})
 else()
+  set(ENABLE_MKL OFF CACHE INTERNAL "Disable MKL since it was NOT FOUND")
   find_package(LAPACK REQUIRED)
 endif()
 find_package(MPI REQUIRED)
@@ -64,22 +66,19 @@ find_package(ip REQUIRED)
 find_package(w3emc REQUIRED)
 find_package(bufr REQUIRED)
 find_package(crtm REQUIRED)
-
-if(BUILD_GSI_REGIONAL)
+if(GSI_APP MATCHES "Regional")
   find_package(wrf_io REQUIRED)
-endif()
-
-# NetCDF Diagnostic IO library dependency
-if(USE_NCDIAG)
-  if(NOT TARGET ncdiag::ncdiag)
-    find_package(ncdiag REQUIRED)
-  endif()
 endif()
 
 # See https://github.com/NOAA-EMC/NCEPLIBS-nemsio/pull/22
 target_link_libraries(nemsio::nemsio INTERFACE w3emc::w3emc_d bacio::bacio_4)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+# NetCDF Diagnostic IO library dependency
+if(USE_NCDIAG)
+  if(NOT TARGET ncdiag)
+    find_package(ncdiag REQUIRED)
+  endif()
+endif()
 
 # Get compiler flags for the GSI application
 include(gsiapp_compiler_flags)
@@ -87,166 +86,118 @@ include(gsiapp_compiler_flags)
 # Get the list of all source files
 include(gsi_files.cmake)
 
+# Collect common files for GSI Fortran library
+list(APPEND GSI_SRC_Fortran
+  ${GSI_SRC_srcs}
+  ${GSI_SRC_class})
+
+# Collect files for specific GSI Application
+if(GSI_APP MATCHES "GFS") # GFS GSI application
+list(APPEND GSI_SRC_Fortran
+    ${GSI_SRC_gfs_stub}
+    ${GSI_SRC_fixture_gfs})
+elseif(GSI_APP MATCHES "Regional") # Regional GSI application
+  list(APPEND GSI_SRC_Fortran
+    ${GSI_SRC_regional_cplr}
+    ${GSI_SRC_fixture_regional})
+endif()
+
 # Include GSI ncdiag files if NetCDF Diagnostics is disabled
 if(NOT USE_NCDIAG)
   list(APPEND GSI_SRC_Fortran
-    ${GSI_SRC_ncdiag}
-  )
+    ${GSI_SRC_ncdiag})
 endif()
-
-# Collect files specific for each application
-# Global GSI application
-list(APPEND GSI_SRC_Fortran_global
-  ${GSI_SRC_Fortran}
-  ${GSI_SRC_class}
-  ${GSI_SRC_stub}
-  ${GSI_SRC_fixture_gfs}
-)
-
-# Regional GSI application
-list(APPEND GSI_SRC_Fortran_regional
-  ${GSI_SRC_Fortran}
-  ${GSI_SRC_class}
-  ${GSI_SRC_cplr}
-  ${GSI_SRC_fixture_regional}
-)
 
 # Compiler options and definitions
 list(APPEND GSI_C_DEFS
   FortranByte=char
   FortranInt=int
   funder
-  "FortranLlong=long long"
-)
+  "FortranLlong=long long")
 
 # Create object libraries for various components
-# GSI_SRC_C files
+# Create a library of GSI C Objects
 add_library(gsi_c_obj OBJECT ${GSI_SRC_C})
 target_compile_definitions(gsi_c_obj PUBLIC ${GSI_C_DEFS})
 
-# Create a library of GLOBAL GSI Fortran Objects
-set(module_dir "${CMAKE_CURRENT_BINARY_DIR}/include/global_gsi")
-add_library(global_gsi_fortran_obj OBJECT ${GSI_SRC_Fortran_global})
-set_target_properties(global_gsi_fortran_obj PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
-target_include_directories(global_gsi_fortran_obj INTERFACE
+# Create a library of GSI Fortran Objects
+set(module_dir "${CMAKE_CURRENT_BINARY_DIR}/include/gsi")
+add_library(gsi_fortran_obj OBJECT ${GSI_SRC_Fortran})
+set_target_properties(gsi_fortran_obj PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
+target_include_directories(gsi_fortran_obj INTERFACE
   $<BUILD_INTERFACE:${module_dir}>
-  $<INSTALL_INTERFACE:include/global_gsi>)
-list(APPEND GSI_LIB_Fortran_Targets
-  global_gsi_fortran_obj
-)
-
-# Create a library of REGIONAL GSI Fortran objects
-if(BUILD_GSI_REGIONAL)
-  set(module_dir "${CMAKE_CURRENT_BINARY_DIR}/include/regional_gsi")
-  add_library(regional_gsi_fortran_obj OBJECT ${GSI_SRC_Fortran_regional})
-  set_target_properties(regional_gsi_fortran_obj PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
-  target_include_directories(regional_gsi_fortran_obj INTERFACE
-    $<BUILD_INTERFACE:${module_dir}>
-    $<INSTALL_INTERFACE:include/regional_gsi>)
-  list(APPEND GSI_LIB_Fortran_Targets
-    regional_gsi_fortran_obj
-  )
-endif()
+  $<INSTALL_INTERFACE:include/gsi>)
 
 # Link the Fortran targets with dependencies
-foreach(lib ${GSI_LIB_Fortran_Targets})
-  target_compile_definitions(${lib} PUBLIC "_REAL8_")
-  target_link_libraries(${lib} PUBLIC bacio::bacio_4)
-  target_link_libraries(${lib} PUBLIC sigio::sigio)
-  target_link_libraries(${lib} PUBLIC sfcio::sfcio)
-  target_link_libraries(${lib} PUBLIC nemsio::nemsio)
-  target_link_libraries(${lib} PUBLIC ncio::ncio)
-  target_link_libraries(${lib} PUBLIC w3emc::w3emc_d)
-  target_link_libraries(${lib} PUBLIC crtm::crtm)
-  target_link_libraries(${lib} PUBLIC NetCDF::NetCDF_Fortran)
-  target_link_libraries(${lib} PUBLIC MPI::MPI_Fortran)
-  if(OpenMP_Fortran_FOUND)
-    target_link_libraries(${lib} PRIVATE OpenMP::OpenMP_Fortran)
+target_compile_definitions(gsi_fortran_obj PUBLIC "_REAL8_")
+target_link_libraries(gsi_fortran_obj PUBLIC NetCDF::NetCDF_Fortran)
+target_link_libraries(gsi_fortran_obj PUBLIC MPI::MPI_Fortran)
+target_link_libraries(gsi_fortran_obj PUBLIC ${LAPACK_LIBRARIES})
+target_link_libraries(gsi_fortran_obj PUBLIC bacio::bacio_4)
+target_link_libraries(gsi_fortran_obj PUBLIC sigio::sigio)
+target_link_libraries(gsi_fortran_obj PUBLIC sfcio::sfcio)
+target_link_libraries(gsi_fortran_obj PUBLIC nemsio::nemsio)
+target_link_libraries(gsi_fortran_obj PUBLIC ncio::ncio)
+target_link_libraries(gsi_fortran_obj PUBLIC w3emc::w3emc_d)
+target_link_libraries(gsi_fortran_obj PUBLIC crtm::crtm)
+if(GSI_APP MATCHES "Regional")
+  target_link_libraries(gsi_fortran_obj PUBLIC wrf_io::wrf_io)
+endif()
+if(USE_NCDIAG)
+  if(TARGET ncdiag)
+    add_dependencies(gsi_fortran_obj ncdiag)
+    add_library(ncdiag::ncdiag ALIAS ncdiag)
   endif()
-  if(USE_NCDIAG)
-    if(TARGET ncdiag::ncdiag)
-      add_dependencies(${lib} ncdiag::ncdiag)
-      add_library(ncdiag::ncdiag ALIAS ncdiag)
-    endif()
-    target_link_libraries(${lib} PUBLIC ncdiag::ncdiag)
-  endif()
-endforeach()
-
-# Create a GLOBAL GSI library
-add_library(global_gsi STATIC $<TARGET_OBJECTS:gsi_c_obj>
-                              $<TARGET_OBJECTS:global_gsi_fortran_obj>)
-add_library(${PROJECT_NAME}::global_gsi ALIAS global_gsi)
-target_include_directories(global_gsi PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/global_gsi>
-                                             $<INSTALL_INTERFACE:include/global_gsi>)
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/global_gsi DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
-list(APPEND GSI_LIB_Targets global_gsi)
-
-# Create a REGIONAL GSI library
-if(BUILD_GSI_REGIONAL)
-  add_library(regional_gsi STATIC $<TARGET_OBJECTS:gsi_c_obj>
-                                  $<TARGET_OBJECTS:regional_gsi_fortran_obj>)
-  add_library(${PROJECT_NAME}::regional_gsi ALIAS regional_gsi)
-  target_include_directories(regional_gsi PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/regional_gsi>
-                                                 $<INSTALL_INTERFACE:include/regional_gsi>)
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/regional_gsi DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
-  list(APPEND GSI_LIB_Targets regional_gsi)
+  target_link_libraries(gsi_fortran_obj PUBLIC ncdiag::ncdiag)
+endif()
+if(OpenMP_Fortran_FOUND)
+  target_link_libraries(gsi_fortran_obj PRIVATE OpenMP::OpenMP_Fortran)
 endif()
 
-# Create a GLOBAL GSI executable
-set(module_dir "${CMAKE_CURRENT_BINARY_DIR}/include/global_gsi")
-add_executable(global_gsi.x ${GSI_SRC_main})
-add_dependencies(global_gsi.x global_gsi)
-set_target_properties(global_gsi.x PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
-target_link_libraries(global_gsi.x PRIVATE global_gsi)
-list(APPEND GSI_APP_Targets
-  global_gsi.x
-)
+# Create a GSI library
+add_library(gsi STATIC $<TARGET_OBJECTS:gsi_c_obj>
+                       $<TARGET_OBJECTS:gsi_fortran_obj>)
+add_library(${PROJECT_NAME}::gsi ALIAS gsi)
+target_include_directories(gsi PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/gsi>
+                                      $<INSTALL_INTERFACE:include/gsi>)
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/gsi DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
 
-# Create a REGIONAL GSI executable
-if(BUILD_GSI_REGIONAL)
-  set(module_dir "${CMAKE_CURRENT_BINARY_DIR}/include/regional_gsi")
-  add_executable(regional_gsi.x ${GSI_SRC_main})
-  add_dependencies(regional_gsi.x regional_gsi)
-  set_target_properties(regional_gsi.x PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
-  target_link_libraries(regional_gsi.x PRIVATE regional_gsi)
-  list(APPEND GSI_APP_Targets
-    regional_gsi.x
-  )
-endif()
+# Create a GSI executable
+set(module_dir "${CMAKE_CURRENT_BINARY_DIR}/include/gsi")
+add_executable(gsi.x ${GSI_SRC_main})
+add_dependencies(gsi.x gsi)
+set_target_properties(gsi.x PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
+target_link_libraries(gsi.x PRIVATE gsi)
 
 # Link the application targets with dependencies
-foreach(app ${GSI_APP_Targets})
-  target_link_libraries(${app} PUBLIC bacio::bacio_4)
-  target_link_libraries(${app} PUBLIC sigio::sigio)
-  target_link_libraries(${app} PUBLIC sfcio::sfcio)
-  target_link_libraries(${app} PUBLIC nemsio::nemsio)
-  target_link_libraries(${app} PUBLIC ncio::ncio)
-  target_link_libraries(${app} PUBLIC w3emc::w3emc_d)
-  target_link_libraries(${app} PUBLIC sp::sp_d)
-  target_link_libraries(${app} PUBLIC bufr::bufr_d)
-  target_link_libraries(${app} PUBLIC crtm::crtm)
-  if(USE_NCDIAG)
-    target_link_libraries(${app} PUBLIC ncdiag::ncdiag)
-  endif()
-  target_link_libraries(${app} PUBLIC NetCDF::NetCDF_Fortran)
-  target_link_libraries(${app} PUBLIC MPI::MPI_Fortran)
-  target_link_libraries(${app} PUBLIC ${LAPACK_LIBRARIES})
-  if(OpenMP_Fortran_FOUND)
-    target_link_libraries(${app} PRIVATE OpenMP::OpenMP_Fortran)
-  endif()
-endforeach()
-
-# REGIONAL GSI Application specific library dependencies
-if(BUILD_GSI_REGIONAL)
-  target_link_libraries(regional_gsi.x PUBLIC wrf_io::wrf_io)
+target_link_libraries(gsi.x PUBLIC NetCDF::NetCDF_Fortran)
+target_link_libraries(gsi.x PUBLIC MPI::MPI_Fortran)
+target_link_libraries(gsi.x PUBLIC ${LAPACK_LIBRARIES})
+target_link_libraries(gsi.x PUBLIC bacio::bacio_4)
+target_link_libraries(gsi.x PUBLIC sigio::sigio)
+target_link_libraries(gsi.x PUBLIC sfcio::sfcio)
+target_link_libraries(gsi.x PUBLIC nemsio::nemsio)
+target_link_libraries(gsi.x PUBLIC ncio::ncio)
+target_link_libraries(gsi.x PUBLIC w3emc::w3emc_d)
+target_link_libraries(gsi.x PUBLIC sp::sp_d)
+target_link_libraries(gsi.x PUBLIC bufr::bufr_d)
+target_link_libraries(gsi.x PUBLIC crtm::crtm)
+if(GSI_APP MATCHES "Regional")
+  target_link_libraries(gsi.x PUBLIC wrf_io::wrf_io)
+endif()
+if(USE_NCDIAG)
+  target_link_libraries(gsi.x PUBLIC ncdiag::ncdiag)
+endif()
+if(OpenMP_Fortran_FOUND)
+  target_link_libraries(gsi.x PRIVATE OpenMP::OpenMP_Fortran)
 endif()
 
 # Install executable targets
-install(TARGETS ${GSI_APP_Targets} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS gsi.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # Install library archive targets
 install(
-  TARGETS ${GSI_LIB_Targets}
+  TARGETS gsi
   EXPORT ${PROJECT_NAME}Exports
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
