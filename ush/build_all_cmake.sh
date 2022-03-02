@@ -16,7 +16,7 @@ if [ $mode = NCO ]; then
     $dir_root/ush/prune_4nco_global.sh prune
 fi
 
-
+set +x
 # Initialize and load modules
 if [[ -d /dcom && -d /hwrf ]] ; then
     . /usrx/local/Modules/3.2.10/init/sh
@@ -49,7 +49,7 @@ elif [[ -d /discover ]] ; then
     build_type=0
     export SPACK_ROOT=/discover/nobackup/mapotts1/spack
     export PATH=$PATH:$SPACK_ROOT/bin
-    . $SPACK_ROOT/share/spack/setup-env.sh    
+    . $SPACK_ROOT/share/spack/setup-env.sh
 elif [[ -d /work ]]; then
     . $MODULESHOME/init/sh
     target=orion
@@ -59,6 +59,7 @@ else
     echo "unknown target = $target"
     exit 9
 fi
+set -x
 
 dir_modules=$dir_root/modulefiles
 if [ ! -d $dir_modules ]; then
@@ -71,6 +72,7 @@ rm -rf $dir_root/build
 mkdir -p $dir_root/build
 cd $dir_root/build
 
+set +x
 if [ $target = wcoss_d ]; then
     module purge
     module use -a $dir_modules
@@ -98,16 +100,29 @@ elif [ $target = acorn ]; then
     source /apps/prod/lmodules/startLmod
     module use $dir_modules
     module load modulefile.ProdGSI.$target
-else 
+else
     module purge
     source $dir_modules/modulefile.ProdGSI.$target
 fi
+set -x
 
-if [ $build_type = PRODUCTION -o $build_type = DEBUG ] ; then
-  cmake -DBUILD_UTIL=ON -DBUILD_NCDIAG_SERIAL=ON -DCMAKE_BUILD_TYPE=$build_type -DBUILD_CORELIBS=OFF ..
-else 
-  cmake ..
-fi
+cmake_opts=""
+cmake_opts+=" -DCMAKE_BUILD_TYPE=$build_type"
+
+# Install destination for built executables, libraries, CMake Package config
+cmake_opts+=" -DCMAKE_INSTALL_PREFIX=$dir_root/install"
+
+# NCO wants executables in `exec`, not the standard `bin`
+cmake_opts+=" -DCMAKE_INSTALL_BINDIR=exec"
+
+# By default; build the global applications
+cmake_opts+=" -DGSI_APP=GFS -DENKF_APP=GFS"
+
+# Valid combination of applications are:
+# Global  : -DGSI_APP=GFS -DENKF_APP=GFS
+# Regional: -DGSI_APP=Regional -DENKF_APP=WRF|NMMB|FV3REG
+
+cmake $cmake_opts $dir_root
 
 # Build apps.  Echo extra printout for NCO build
 if [ $mode = NCO ]; then
@@ -116,6 +131,14 @@ else
     make -j 8
 fi
 rc=$?
+
+# Install the built package
+make install
+
+# move the installed executables for NCO
+if [ $mode = NCO ]; then
+  mv $dir_root/install/exec/* $dir_root/exec/
+fi
 
 # If NCO build is successful, remove build directory
 if [ $mode = NCO -a $rc -eq 0 ]; then

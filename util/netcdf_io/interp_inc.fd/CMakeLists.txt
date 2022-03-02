@@ -11,8 +11,8 @@ target_include_directories(interp_inc.x INTERFACE $<BUILD_INTERFACE:${module_dir
 target_link_libraries(interp_inc.x PRIVATE NetCDF::NetCDF_Fortran)
 target_link_libraries(interp_inc.x PRIVATE MPI::MPI_Fortran)
 target_link_libraries(interp_inc.x PRIVATE w3emc::w3emc_d)
-target_link_libraries(interp_inc.x PRIVATE sp::sp_d)
 target_link_libraries(interp_inc.x PRIVATE ip::ip_d)
+target_link_libraries(interp_inc.x PRIVATE sp::sp_d)
 
 # Install executable targets
 install(TARGETS interp_inc.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
