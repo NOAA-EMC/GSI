@@ -72,7 +72,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2019-9-25        Su - modified ithin value criteria to distinguash thinning
 !                         or hilber curve downweighting
 ! 
-!   2020-05-04  Wu      - no rotate_wind for fv3_regional
+!   2020-05-04  wu   - no rotate_wind for fv3_regional
 !
 !   
 !
