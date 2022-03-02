@@ -3911,7 +3911,7 @@
                       start = ncstart, count = nccount))
   ! spfh2m increment
   inc(:) = zero
-  if (tmp2m_ind > 0) then
+  if (spfh2m_ind > 0) then
     call copyfromgrdin(grdin(:,spfh2m_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
@@ -3922,12 +3922,12 @@
                       start = ncstart, count = nccount))
   ! soilt1 increment
   inc(:) = zero
-  if (tmp2m_ind > 0) then
+  if (soilt1_ind > 0) then
     call copyfromgrdin(grdin(:,soilt1_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
   inc2dout=0.
-  do j=1,nlats
+  do j=1,nlats 
     do i = 1, nlons
         if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
     enddo
@@ -3936,7 +3936,7 @@
                       start = ncstart, count = nccount))
   ! soilt2 increment
   inc(:) = zero
-  if (tmp2m_ind > 0) then
+  if (soilt2_ind > 0) then
     call copyfromgrdin(grdin(:,soilt2_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
@@ -3950,7 +3950,7 @@
                       start = ncstart, count = nccount))
   ! soilt3 increment
   inc(:) = zero
-  if (tmp2m_ind > 0) then
+  if (soilt3_ind > 0) then
     call copyfromgrdin(grdin(:,soilt3_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
@@ -3964,7 +3964,7 @@
                       start = ncstart, count = nccount))
   ! soilt4 increment
   inc(:) = zero
-  if (tmp2m_ind > 0) then
+  if (soilt4_ind > 0) then
     call copyfromgrdin(grdin(:,soilt4_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
@@ -3978,7 +3978,7 @@
                       start = ncstart, count = nccount))
   ! slc1 increment
   inc(:) = zero
-  if (tmp2m_ind > 0) then
+  if (slc1_ind > 0) then
     call copyfromgrdin(grdin(:,slc1_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
@@ -3989,7 +3989,7 @@
                       start = ncstart, count = nccount))
   ! slc2 increment
   inc(:) = zero
-  if (tmp2m_ind > 0) then
+  if (slc2_ind > 0) then
     call copyfromgrdin(grdin(:,slc2_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
@@ -4000,7 +4000,7 @@
                       start = ncstart, count = nccount))
   ! slc3 increment
   inc(:) = zero
-  if (tmp2m_ind > 0) then
+  if (slc3_ind > 0) then
     call copyfromgrdin(grdin(:,slc3_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
@@ -4011,7 +4011,7 @@
                       start = ncstart, count = nccount))
   ! slc4 increment
   inc(:) = zero
-  if (tmp2m_ind > 0) then
+  if (slc4_ind > 0) then
     call copyfromgrdin(grdin(:,slc4_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
