@@ -23,7 +23,12 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    export DO_DATA_RPT=${DO_DATA_RPT:-1}
 
    export MAIL_TO=${MAIL_TO:-"edward.safford@noaa.gov"}
-   export MAIL_CC=${MAIL_CC:=""}
+   if [[ -e /u/${LOGNAME}/bin/get_cc_list.pl ]]; then
+      cc_list=`/u/${LOGNAME}/bin/get_cc_list.pl --nr ${CONMON_SUFFIX}_${RUN} --mon ConMon`
+   else
+      cc_list=""
+   fi
+   export MAIL_CC=${MAIL_CC:=${cc_list}}
 
    #-----------------------------------------------------
    #   The grib2 flag indicates if the data files are in
@@ -35,7 +40,17 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    # MY_CONMON should point to your working directory which contains the
    # top level directory to the ConMon package. 
    #
-   export MY_CONMON=${MY_CONMON:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Conventional_Monitor}
+   export MY_CONMON=/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Conventional_Monitor
+
+   
+   #---------------------------------------------------------------------
+   # The ConMon time and vert plots include 10 regions, some of which   
+   # include others.  This takes up an inordinate amount of server space.
+   # The CONMON_RESTRICT_PLOT_AREAS reduces the regions to Global, 
+   # N. America, S. America, Tropics, Europe, and Asia.
+   #
+   export CONMON_RESTRICT_PLOT_AREAS=1
+
 
    #---------------------------------------------------------------------------
    #  The CONMON_TANKDIR will be the location for the extracted data files and
@@ -43,9 +58,7 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    #  and the succedding scripts will construct and use subdirectories under
    #  this location.
    #
-
-   export MY_TANKDIR=${MY_TANKDIR:-/u/Edward.Safford/nbns}
-   export CONMON_TANKDIR=$MY_TANKDIR
+   export CONMON_TANKDIR=/u/Edward.Safford/nbns
    export C_TANKverf=${C_TANKverf:-${CONMON_TANKDIR}}
 
    export C_TANKDIR=${CONMON_TANKDIR}/stats/${CONMON_SUFFIX}
@@ -61,8 +74,6 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
       export SUB="bsub"
       export COMPRESS=gzip
       export UNCOMPRESS="gunzip -f"
-      export PROJECT=${PROJECT:-GDAS-DEV}
-      export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
 
    elif [[ $MY_MACHINE = "wcoss_d" ]]; then
       shell=sh
@@ -93,9 +104,44 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
       export SUB="bsub"
       export COMPRESS=/usr/bin/gzip
       export UNCOMPRESS="/usr/bin/gunzip -f"
-      export PROJECT=${PROJECT:-GFS-DEV}
-      export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
  
+   elif [[ $MY_MACHINE = "s4" ]]; then
+      module load license_intel
+      module use /data/prod/hpc-stack/modulefiles/stack
+      module load hpc/1.1.0 hpc-intel/18.0.4 hpc-impi/18.0.4
+      module load wgrib2/2.0.8
+      module load grads/2.2.1
+      module load prod_util/1.2.2
+
+      export WGRIB2=`which wgrib2`
+
+      export GRADS=`which grads`
+      export STNMAP=`which stnmap`
+
+      export SUB=/usr/bin/sbatch
+      export NDATE=/data/prod/hpc-stack/intel-18.0.4/prod_util/1.2.2/bin/ndate
+      export COMPRESS=${COMPRESS:-gzip}
+      export UNCOMPRESS=${UNCOMPRESS:-"gunzip -f"}
+      export SERVICE_PARTITION="serial"
+
+   elif [[ $MY_MACHINE = "jet" ]]; then
+      module use /lfs4/HFIP/hfv3gfs/nwprod/hpc-stack/libs/modulefiles/stack
+      module load hpc/1.1.0 hpc-intel/18.0.5.274 hpc-impi/2018.4.274
+      module load wgrib2/2.0.8
+      module load grads/2.2.1
+      module load prod_util/1.2.2
+
+      export WGRIB2=`which wgrib2`
+
+      export GRADS=`which grads`
+      export STNMAP=`which stnmap`
+
+      export SUB=/apps/slurm/default/bin/sbatch
+      export NDATE=/lfs4/HFIP/hfv3gfs/nwprod/hpc-stack/libs/intel-18.0.5.274/prod_util/1.2.2/bin/ndate
+      export COMPRESS=${COMPRESS:-gzip}
+      export UNCOMPRESS=${UNCOMPRESS:-"gunzip -f"}
+      export SERVICE_PARTITION="service"
+
    elif [[ $MY_MACHINE = "hera" ]]; then
       module use -a /apps/modules/modulefamilies/intel
       module load wgrib2/2.0.8
@@ -110,11 +156,18 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
       export NDATE=/home/Edward.Safford/bin/ndate
       export COMPRESS=${COMPRESS:-gzip}
       export UNCOMPRESS=${UNCOMPRESS:-"gunzip -f"}
+      export SERVICE_PARTITION="service"
+
+   elif [[ $MY_MACHINE = "wcoss2" ]]; then
+      export COMPRESS=/usr/bin/gzip
+      export UNCOMPRESS="/usr/bin/gunzip -f"
    fi
 
    export Z="gz"
 
    export ACCOUNT=${ACCOUNT:-}
+   export PROJECT=
+   export JOB_QUEUE=
  
    export C_STMP=${C_STMP:-/gpfs/dell2/stmp}
    export C_STMP_USER=${C_STMP_USER:-${C_STMP}/${LOGNAME}}
@@ -132,7 +185,7 @@ if [[ $CONMON_CONFIG -ne 1 ]]; then
    #
    #  Number of cycles worth of image data to be retained in tankdir
    #
-   export NUM_IMG_CYCLES=${NUM_IMG_CYCLES:-20}
+   export NUM_IMG_CYCLES=${NUM_IMG_CYCLES:-4}
 
    #
    #  Web server resources include the sever name (WEB_SVR), the user name

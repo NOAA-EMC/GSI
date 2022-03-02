@@ -7,17 +7,19 @@
    implicit none
 
 
-   integer np,mregion,nobs
-   integer ntype_ps,ntype_q,ntype_t,ntype_uv
+   integer np,mregion,nobs, np_gps
+   integer ntype_ps,ntype_q,ntype_t,ntype_uv,ntype_gps
 
    parameter(np=13)
+   parameter(np_gps=25)
    parameter(mregion=10)
-   real(4),dimension(np) :: ptop,pbot,ptopq,pbotq
-   integer,dimension(200) :: iotype_ps,iotype_q,iotype_uv,iotype_t
-   integer,dimension(200) :: iosubtype_ps,iosubtype_q,iosubtype_uv,iosubtype_t
-   integer,dimension(200) :: ituse_ps,ituse_q,ituse_uv,ituse_t
-   real(4),dimension(200,2) :: varqc_ps,varqc_q,varqc_uv,varqc_t
-   character(len=7) dtype_ps,dtype_uv,dtype_t,dtype_q
+   real(4),dimension(np)  :: ptop,pbot,ptopq,pbotq
+   real(4),dimension(np_gps) :: htop_gps, hbot_gps
+   integer,dimension(200) :: iotype_ps,iotype_q,iotype_uv,iotype_t, iotype_gps
+   integer,dimension(200) :: iosubtype_ps,iosubtype_q,iosubtype_uv,iosubtype_t, iosubtype_gps
+   integer,dimension(200) :: ituse_ps,ituse_q,ituse_uv,ituse_t, ituse_gps
+   real(4),dimension(200,2) :: varqc_ps,varqc_q,varqc_uv,varqc_t, varqc_gps
+   character(len=7) dtype_ps,dtype_uv,dtype_t,dtype_q, dtype_gps
 
    character(40),dimension(mregion):: region
 
@@ -44,6 +46,7 @@
    dtype_uv='uv'
    dtype_t='t'
    dtype_q='q'
+   dtype_gps='gps'
 
 
    nobs=0
@@ -75,17 +78,36 @@
    ptopq(12) =  300.0;   pbotq(12) =  399.9
    ptopq(13) =    0.0;   pbotq(13) =  299.9
 
+   !------------------------------------------------------------
+   ! htop and hbot for gpsro data is height in km, not pressure
+   !
+   htop_gps(1)  =    0.0;    hbot_gps(1)  = 60.0         ! all levels
+   htop_gps(2)  =   55.01;   hbot_gps(2)  = 60.0
+   htop_gps(3)  =   50.01;   hbot_gps(3)  = 55.0
+   htop_gps(4)  =   45.01;   hbot_gps(4)  = 50.0
+   htop_gps(5)  =   40.01;   hbot_gps(5)  = 45.0
+   htop_gps(6)  =   35.01;   hbot_gps(6)  = 40.0
+   htop_gps(7)  =   30.01;   hbot_gps(7)  = 35.0
+   htop_gps(8)  =   25.01;   hbot_gps(8)  = 30.0
+   htop_gps(9)  =   20.01;   hbot_gps(9)  = 25.0
+   htop_gps(10) =   15.01;   hbot_gps(10) = 20.0
+   htop_gps(11) =   10.01;   hbot_gps(11) = 15.0
+   htop_gps(12) =    5.01;   hbot_gps(12) = 10.0
+   htop_gps(13) =    0.0;    hbot_gps(13) =  5.0
 
-   call convinfo(iotype_ps,iotype_q,iotype_t,iotype_uv,ntype_ps,ntype_q,ntype_t,ntype_uv,&
-                varqc_ps,varqc_q,varqc_t,varqc_uv,&
-                ituse_ps,ituse_q,ituse_t,ituse_uv,&
-                iosubtype_ps,iosubtype_q,iosubtype_t,iosubtype_uv)
+
+   call convinfo(iotype_ps,iotype_q,iotype_t,iotype_uv,iotype_gps,ntype_ps,ntype_q,ntype_t,ntype_uv, ntype_gps,&
+                varqc_ps,varqc_q,varqc_t,varqc_uv, varqc_gps,&
+                ituse_ps,ituse_q,ituse_t,ituse_uv, ituse_gps,&
+                iosubtype_ps,iosubtype_q,iosubtype_t,iosubtype_uv, iosubtype_gps)
+   print *, 'iotype_gps = ', iotype_gps
 
    call process_conv_diag(input_file,ctype,mregion,nregion,np,ptop,pbot,ptopq,pbotq,&
+                          htop_gps, hbot_gps, &
                  rlatmin,rlatmax,rlonmin,rlonmax,iotype_ps,iotype_q,&
-                 iotype_t,iotype_uv,varqc_ps,varqc_q,varqc_t,varqc_uv,&
-                 ntype_ps,ntype_q,ntype_t,ntype_uv,&
-                 iosubtype_ps,iosubtype_q,iosubtype_t,iosubtype_uv) 
+                 iotype_t,iotype_uv,iotype_gps, varqc_ps,varqc_q,varqc_t,varqc_uv, varqc_gps,&
+                 ntype_ps,ntype_q,ntype_t,ntype_uv, ntype_gps,&
+                 iosubtype_ps,iosubtype_q,iosubtype_t,iosubtype_uv, iosubtype_gps) 
    
 
    call creatstas_ctl(dtype_ps,iotype_ps,ituse_ps,100,ntype_ps,1,nregion,18,region,&
@@ -96,6 +118,9 @@
                      region,rlatmin,rlatmax,rlonmin,rlonmax,iosubtype_t) 
    call creatstas_ctl(dtype_uv,iotype_uv,ituse_uv,100,ntype_uv,np,nregion,18,&
                      region,rlatmin,rlatmax,rlonmin,rlonmax,iosubtype_uv) 
+
+   call creatstas_ctl(dtype_gps,iotype_gps,ituse_gps,100,ntype_gps,np,nregion,18,region,&
+                     rlatmin,rlatmax,rlonmin,rlonmax,iosubtype_gps) 
 
    stop
 

@@ -253,9 +253,9 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_double) rstation_id
   real(r_kind) qcu,qcv,trop5,tfact,fact
   real(r_kind) scale,ratio,obserror,obserrlm
-  real(r_kind) residual,ressw,ress,val,vals,val2,valqc2,dudiff,dvdiff
-  real(r_kind) valqc,valu,valv,dx10,rlow,rhgh,drpx,prsfc,var_jb
-  real(r_kind) cg_t,cvar,wgt,term,rat_err2,qcgross
+  real(r_kind) residual,ressw,ress,vals,val2,dudiff,dvdiff,rat_err2u
+  real(r_kind) valqc,valu,valv,dx10,rlow,rhgh,drpx,prsfc,var_jb,rat_err2v
+  real(r_kind) cg_t,cvar,wgt,term,qcgross,valqcu,valqcv
   real(r_kind) presw,factw,dpres,ugesin,vgesin,rwgt,dpressave
   real(r_kind) sfcchk,prsln2,error,dtime,dlon,dlat,r0_001,rsig,thirty,rsigp
   real(r_kind) ratio_errors,goverrd,spdges,spdob,ten,psges,zsges
@@ -1222,8 +1222,6 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      ratio_errors=ratio_errors*sqrt(data(ihil,i))       ! hilbert weight
 !    Compute penalty terms (linear & nonlinear qc).
      if(luse(i))then
-        val      = valu*valu+valv*valv
-        vals=sqrt(val)
         if(vqc) then
            cg_t=cvar_b(ikx)
            cvar=cvar_pg(ikx)
@@ -1238,17 +1236,23 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            ibb=0
            ikk=0
         endif
+        vals=valu
         call vqc_setup(vals,ratio_errors,error,cvar,&
-                      cg_t,ibb,ikk,var_jb,rat_err2,wgt,valqc)
-        rwgt = wgt/wgtlim
+                      cg_t,ibb,ikk,var_jb,rat_err2u,wgt,valqcu)
+        rwgt = 0.5_r_kind*wgt/wgtlim
+        vals=valv
+        call vqc_setup(vals,ratio_errors,error,cvar,&
+                      cg_t,ibb,ikk,var_jb,rat_err2v,wgt,valqcv)
+        rwgt = rwgt+0.5_r_kind*wgt/wgtlim
+        valqc=valqcu+valqcv
 
 !       Accumulate statistics for obs belonging to this task
         if (muse(i)) then
            if(rwgt < one) awork(21) = awork(21)+one
            jsig = dpres
            jsig=max(1,min(jsig,nsig))
-           awork(4*nsig+jsig+100)=awork(4*nsig+jsig+100)+valu*valu*rat_err2
-           awork(5*nsig+jsig+100)=awork(5*nsig+jsig+100)+valv*valv*rat_err2
+           awork(4*nsig+jsig+100)=awork(4*nsig+jsig+100)+valu*valu*rat_err2u
+           awork(5*nsig+jsig+100)=awork(5*nsig+jsig+100)+valv*valv*rat_err2v
            awork(6*nsig+jsig+100)=awork(6*nsig+jsig+100)+one
            awork(3*nsig+jsig+100)=awork(3*nsig+jsig+100)+valqc
         end if
@@ -1257,8 +1261,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !       as a function of observation type.
         ress  = scale*sqrt(dudiff**2+dvdiff**2)
         ressw = ress*ress
-        val2    = half*(valu*valu+valv*valv)
-        valqc2  = half*valqc
+        val2    = half*(valu*valu*rat_err2u+valv*valv*rat_err2v)
         nn=1
         if (.not. muse(i)) then
            nn=2
@@ -1269,8 +1272,8 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               bwork(k,ikx,1,nn) = bwork(k,ikx,1,nn)+one            ! count
               bwork(k,ikx,2,nn) = bwork(k,ikx,2,nn)+spdb           ! speed bias
               bwork(k,ikx,3,nn) = bwork(k,ikx,3,nn)+ressw          ! (o-g)**2
-              bwork(k,ikx,4,nn) = bwork(k,ikx,4,nn)+val2*rat_err2  ! penalty
-              bwork(k,ikx,5,nn) = bwork(k,ikx,5,nn)+valqc2         ! nonlin qc penalty
+              bwork(k,ikx,4,nn) = bwork(k,ikx,4,nn)+val2           ! penalty
+              bwork(k,ikx,5,nn) = bwork(k,ikx,5,nn)+valqc          ! nonlin qc penalty
  
            end if
         end do

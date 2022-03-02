@@ -22,14 +22,14 @@ export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
 echo "START_DATE, CYCLE_INTERVAL = ${START_DATE}, ${CYCLE_INTERVAL}"
 
 imgndir=${IMGNDIR}/angle
-tankdir=${TANKDIR}/angle
+tankdir=${TANKverf}/angle
 
 if [[ ! -d ${imgndir} ]]; then
    mkdir -p ${imgndir}
 fi
 
 #-------------------------------------------------------------------
-#  Locate/update the control files in $TANKDIR/radmon.$PDY.  $PDY 
+#  Locate/update the control files in $TANKverf/radmon.$PDY.  $PDY 
 #  starts at END_DATE and walks back to START_DATE until ctl files
 #  are found or we run out of dates to check.  Report an error to 
 #  the log file and exit if no ctl files are found. 
@@ -98,7 +98,7 @@ for type in ${SATYPE}; do
 done
 
 if [[ $allmissing = 1 ]]; then
-   echo ERROR:  Unable to plot.  All angle control files are missing from ${TANKDIR} for requested date range.
+   echo ERROR:  Unable to plot.  All angle control files are missing from ${TANKverf} for requested date range.
    exit 2
 fi
 
@@ -169,7 +169,7 @@ rm ${LOGdir}/plot_angle_${suffix}.log
 ctr=0
 for type in ${satlist}; do
 
-   if [[ ${MY_MACHINE} = "hera" ]]; then
+   if [[ ${MY_MACHINE} = "hera" || ${MY_MACHINE} = "jet" || ${MY_MACHINE} = "s4" ]]; then
       echo "${ctr} ${IG_SCRIPTS}/plot_angle.sh ${type} ${suffix} '${list}'" >> ${cmdfile}
    else
       echo "${IG_SCRIPTS}/plot_angle.sh ${type} ${suffix} '${list}'" >> ${cmdfile}
@@ -187,13 +187,21 @@ if [[ ${MY_MACHINE} = "wcoss_d" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 500 -W ${wall_tm} \
         -R "affinity[core]" -J ${jobname} -cwd ${PWD} $cmdfile
 
-elif [[ ${MY_MACHINE} = "hera" ]]; then
+elif [[ ${MY_MACHINE} = "hera" || ${MY_MACHINE} = "s4" ]]; then
    $SUB --account ${ACCOUNT} -n $ctr  -o ${logfile} -D . -J ${jobname} --time=30:00 \
         --wrap "srun -l --multi-prog ${cmdfile}"
+
+elif [[ ${MY_MACHINE} = "jet" ]]; then
+   $SUB --account ${ACCOUNT} -n $ctr  -o ${logfile} -D . -J ${jobname} --time=30:00 \
+        -p ${RADMON_PARTITION} --wrap "srun -l --multi-prog ${cmdfile}"
 
 elif [[ ${MY_MACHINE} = "wcoss_c" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 600 -W ${wall_tm} \
         -J ${jobname} -cwd ${PWD} $cmdfile
+
+elif [[ $MY_MACHINE = "wcoss2" ]]; then
+   $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -V \
+        -l select=1:mem=1g -l walltime=30:00 -N ${jobname} ${cmdfile}
 fi
 
 
@@ -237,7 +245,7 @@ for sat in ${big_satlist}; do
       fi
 
 
-   elif [[ $MY_MACHINE = "hera" ]]; then		# hera, submit 1 job for each sat/list item
+   elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "jet" || $MY_MACHINE = "s4" ]]; then		# hera|jet|s4, submit 1 job for each sat/list item
 
       ii=0
       logfile=${LOGdir}/plot_angle_${sat}.log
@@ -252,8 +260,13 @@ for sat in ${big_satlist}; do
          (( ii=ii+1 ))
       done
 
-      $SUB --account ${ACCOUNT} -n $ii  -o ${logfile} -D . -J ${jobname} --time=4:00:00 \
-           --wrap "srun -l --multi-prog ${cmdfile}"
+      if [[ ! $MY_MACHINE = "jet" ]]; then
+         $SUB --account ${ACCOUNT} -n $ii  -o ${logfile} -D . -J ${jobname} --time=4:00:00 \
+              --wrap "srun -l --multi-prog ${cmdfile}"
+      else
+         $SUB --account ${ACCOUNT} -n $ii  -o ${logfile} -D . -J ${jobname} --time=4:00:00 \
+              -p ${RADMON_PARTITION} --wrap "srun -l --multi-prog ${cmdfile}"
+      fi
 
    fi
 

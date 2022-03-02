@@ -32,7 +32,8 @@ module gsdcloudlib_pseudoq_mod
 
 contains
 
-SUBROUTINE cloudCover_Surface_col(mype,nsig,&
+SUBROUTINE cloudCover_Surface_col(mype,nsig, &
+                        i_cloud_q_innovation,&
                         cld_bld_hgt,h_bk,zh,  &
                         NVARCLD_P,ocld,Oelvtn,&
                         wthr_type,pcp_type_obs,     &
@@ -57,6 +58,7 @@ SUBROUTINE cloudCover_Surface_col(mype,nsig,&
 !   input argument list:
 !     mype        - processor ID
 !     nsig        - no. of levels
+!     i_cloud_q_innovation  - flag to control building/clearing/both 
 !     cld_bld_hgt - Height below which cloud building is done
 !
 !     h_bk        - 3D background height  (m)
@@ -96,6 +98,7 @@ SUBROUTINE cloudCover_Surface_col(mype,nsig,&
 
   integer(i_kind),intent(in) :: mype
   integer(i_kind),intent(in) :: nsig
+  integer(i_kind),intent(in) :: i_cloud_q_innovation
   real(r_kind),   intent(in) :: cld_bld_hgt
 !
 !  surface observation
@@ -124,7 +127,7 @@ SUBROUTINE cloudCover_Surface_col(mype,nsig,&
   INTEGER(i_kind) :: k
   INTEGER(i_kind) :: ic
   integer(i_kind) :: firstcloud,cl_base_broken_k,obused
-  integer(i_kind) :: kcld
+  integer(i_kind) :: kcld,kclr
   real(r_single)  ::    underlim
   REAL(r_kind) :: zdiff
   REAL(r_kind) :: zlev_clr,cloud_dz,cl_base_ista,betav
@@ -140,6 +143,7 @@ SUBROUTINE cloudCover_Surface_col(mype,nsig,&
    firstcloud = 0
    obused =0
    kcld=-9
+   kclr=99
 !
 !*****************************************************************
 !  analysis of surface/METAR cloud observations
@@ -160,6 +164,15 @@ SUBROUTINE cloudCover_Surface_col(mype,nsig,&
               call stop2(114)
            endif
         enddo
+
+        ! cloud clearing obs
+        if(i_cloud_q_innovation==20 .or. i_cloud_q_innovation==22) then
+           do k=3,nsig,5
+              if (h_bk(k) < zlev_clr) then
+                 cld_cover_obs(k)=0.0_r_single
+              endif
+           enddo
+        endif
 
 ! -- Now consider non-clear obs
 !    --------------------------
@@ -203,10 +216,12 @@ SUBROUTINE cloudCover_Surface_col(mype,nsig,&
                        if(k==8)  underlim=95.0_r_kind    ! 3000 feet
                        if(k>=9 .and. k<nsig-1) underlim=(h_bk(k+1)-h_bk(k))*0.8_r_kind
                        if (zdiff<underlim) then
+                          !build cloud
+                          if(i_cloud_q_innovation==20 .or. i_cloud_q_innovation==21) then
                           !double check logic for following if statement
                           if((cl_base_ista >= 1.0_r_kind .and. (firstcloud==0 .or. abs(zdiff)<cloud_dz)) .or. &
                              (cl_base_ista < 1.0_r_kind  .and. (abs(zdiff)<cloud_dz)) ) then
-                           !limit cloud building to below a specified height 
+                             !limit cloud building to below a specified height 
                              if (h_bk(k) < cld_bld_hgt) then 
                                if(ocld(ic) == 1 ) then
                                   pcp_type_obs(k)=0
@@ -233,11 +248,18 @@ SUBROUTINE cloudCover_Surface_col(mype,nsig,&
                              kcld=k
                              firstcloud = firstcloud + 1
                           endif  ! zdiff < cloud_dz
-                       endif  ! underlim
+                          endif ! i_cloud_q_innovation=20or21
+                       endif  ! zdiff<underlim
                     endif ! firstcloud
                  enddo  ! end K loop
+              endif  ! end if ocld valid
 
-              endif     ! end if ocld valid
+              ! after cloud base is found, clear ~half way below
+              if(i_cloud_q_innovation==20 .or. i_cloud_q_innovation==22) then
+                 kclr=kcld/2
+                 if(kclr>= 3) cld_cover_obs(kclr)=0.0_r_single
+              endif
+
            endif  ! obused
         enddo      ! end IC loop
      endif      ! end if cloudy ob  

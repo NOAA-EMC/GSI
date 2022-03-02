@@ -334,14 +334,19 @@
 
   if (iope==0) then
      do k=1,nlevs
-        krev = nlevs-k+1
-        ! layer pressure from phillips vertical interolation
+        ! pressure at bottom of layer interface (for gps jacobian, see prsltmp in setupbend.f90)
+        if (prse_ind > 0) then
+           ug(:) = pressi(:,k)
+           call copytogrdin(ug,pslg(:,k))
+           ! Jacobian for gps in pressure is saved in different units in GSI; need to
+           ! multiply pressure by 0.1
+           grdin(:,levels(prse_ind-1)+k,nb,ne) = 0.1*pslg(:,k)
+        endif
+        ! layer pressure from phillips vertical interolation (used for qsat
+        ! calculation)
         ug(:) = ((pressi(:,k)**kap1-pressi(:,k+1)**kap1)/&
                 (kap1*(pressi(:,k)-pressi(:,k+1))))**kapr
         call copytogrdin(ug,pslg(:,k))
-        ! Jacobian for gps in pressure is saved in different units in GSI; need to
-        ! multiply pressure by 0.1
-        if (prse_ind > 0)     grdin(:,levels(prse_ind-1)+k,nb,ne) = 0.1*pslg(:,k)
      end do
      if (pseudo_rh) then
         call genqsat1(q,qsat(:,:,nb,ne),pslg,tv,ice,npts,nlevs)
@@ -1133,15 +1138,19 @@
 
   ! compute saturation q.
   do k=1,nlevs
-    ! layer pressure from phillips vertical interolation
+    ! pressure at bottom of layer interface (for gps jacobian, see prsltmp in setupbend.f90)
+    if (prse_ind > 0) then
+       ug(:) = pressi(:,k)
+       call copytogrdin(ug,pslg(:,k))
+       ! Jacobian for gps in pressure is saved in different units in GSI; need to
+       ! multiply pressure by 0.1
+       grdin(:,levels(prse_ind-1)+k,nb,ne) = 0.1*pslg(:,k)
+    endif
+    ! layer pressure from phillips vertical interolation (used for qsat
+    ! calculation)
     ug(:) = ((pressi(:,k)**kap1-pressi(:,k+1)**kap1)/&
             (kap1*(pressi(:,k)-pressi(:,k+1))))**kapr
-
     call copytogrdin(ug,pslg(:,k))
-    ! Jacobian for gps in pressure is saved in different units in GSI; need to
-    ! multiply pressure by 0.1
-    if (prse_ind > 0)     grdin(:,levels(prse_ind-1)+k,nb,ne) = 0.1*pslg(:,k)
-
   end do
   if (pseudo_rh) then
      call genqsat1(q,qsat(:,:,nb,ne),pslg,tv,ice,npts,nlevs)

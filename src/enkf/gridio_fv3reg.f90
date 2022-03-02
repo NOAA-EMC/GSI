@@ -18,6 +18,11 @@ module gridio
   !   2011-11-30 Winterbottom - Initial version.
   !
   !   2019-01- Ting  --  modified for fv3sar  
+  !   2021-02-08 CAPS (C. Tong and J. Park)
+  !                   -- add variables for direct reflectivitiy DA capability
+  !                      (hydrometeors and 'w')
+  !                   -- add code to update 'delp' directly 
+  !                      from analysis icnrements
   ! attributes:
   !   language:  f95
   !
@@ -31,7 +36,7 @@ module gridio
   use netcdf_io
   use params,   only: nlevs, cliptracers, datapath, arw, nmm, datestring
   use params,   only: nx_res,ny_res,nlevs,ntiles
-  use params,   only:  pseudo_rh
+  use params,   only:  pseudo_rh, l_use_enkf_directZDA
   use mpeu_util, only: getindex
   use read_fv3regional_restarts,only:read_fv3_restart_data1d,read_fv3_restart_data2d
   use read_fv3regional_restarts,only:read_fv3_restart_data3d,read_fv3_restart_data4d
@@ -76,7 +81,7 @@ contains
     integer(i_kind) file_id
     real(r_single), dimension(:,:,:), allocatable ::workvar3d,uworkvar3d,&
                         vworkvar3d,tvworkvar3d,tsenworkvar3d,&
-                        workprsi,qworkvar3d
+                        workprsi,qworkvar3d,wworkvar3d
     real(r_double),dimension(:,:,:),allocatable:: qsatworkvar3d
     real(r_single), dimension(:,:),   allocatable ::pswork
 
@@ -91,6 +96,7 @@ contains
     integer :: nlevsp1
     integer :: i,j, k,nn,ntile,nn_tile0, nb,nanal,ne
     integer :: u_ind, v_ind, tv_ind,tsen_ind, q_ind, oz_ind
+    integer :: w_ind, ql_ind, qi_ind, qr_ind, qs_ind, qg_ind, qnr_ind
     integer :: ps_ind, sst_ind
     integer :: tmp_ind
     logical :: ice
@@ -101,11 +107,19 @@ contains
     nlevsp1=nlevs+1
     u_ind   = getindex(vars3d, 'u')   !< indices in the state var arrays
     v_ind   = getindex(vars3d, 'v')   ! U and V (3D)
+    w_ind   = getindex(vars3d, 'w')   ! W (3D)
     tv_ind  = getindex(vars3d, 't')  ! Tv (3D)
     q_ind   = getindex(vars3d, 'q')   ! Q (3D)
     oz_ind  = getindex(vars3d, 'oz')  ! Oz (3D)
     tsen_ind = getindex(vars3d, 'tsen') !sensible T (3D)
 !    prse_ind = getindex(vars3d, 'prse') ! pressure
+
+    ql_ind  = getindex(vars3d, 'ql')   ! Q cloud water (3D)
+    qi_ind  = getindex(vars3d, 'qi')   ! Q cloud ice (3D)
+    qr_ind  = getindex(vars3d, 'qr')   ! Q rain water (3D)
+    qs_ind  = getindex(vars3d, 'qs')   ! Q snow (3D)
+    qg_ind  = getindex(vars3d, 'qg')   ! Q graupel (3D)
+    qnr_ind  = getindex(vars3d, 'qnr') ! N rain (3D)    
 
     ps_ind  = getindex(vars2d, 'ps')  ! Ps (2D)
     sst_ind = getindex(vars2d, 'sst') ! SST (2D)
@@ -191,6 +205,27 @@ contains
     deallocate(vworkvar3d)
 
     endif
+    if (w_ind > 0) then
+    allocate(wworkvar3d(nx_res,ny_res,nlevs))
+       varstrname = 'W'
+       call read_fv3_restart_data3d(varstrname,fv3filename,file_id,wworkvar3d)
+    do k=1,nlevs
+       nn = nn_tile0
+       do j=1,ny_res
+         do i=1,nx_res
+            nn=nn+1
+            vargrid(nn,levels(w_ind-1)+k,nb,ne)=wworkvar3d(i,j,k)
+         enddo
+       enddo
+    enddo
+    do k = levels(w_ind-1)+1, levels(w_ind)
+        if (nproc .eq. 0)                                               &
+             write(6,*) 'READFVregional : w ',                           &
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
+    enddo
+    deallocate(wworkvar3d)
+
+    endif
 
     if (tv_ind > 0.or.tsen_ind) then
        allocate(tsenworkvar3d(nx_res,ny_res,nlevs))
@@ -267,6 +302,126 @@ contains
       do k = levels(oz_ind-1)+1, levels(oz_ind)
           if (nproc .eq. 0)                                               &
              write(6,*) 'READFVregional : oz ',                           &
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
+       enddo
+
+    endif
+
+   if (ql_ind > 0) then
+       varstrname = 'liq_wat'
+       call read_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+      do k=1,nlevs
+          nn = nn_tile0
+        do j=1,ny_res
+         do i=1,nx_res
+            nn=nn+1
+            vargrid(nn,levels(ql_ind-1)+k,nb,ne)=workvar3d(i,j,k)
+         enddo
+        enddo
+      enddo
+      do k = levels(ql_ind-1)+1, levels(ql_ind)
+          if (nproc .eq. 0)                                               &
+             write(6,*) 'READFVregional : ql ',                           &
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
+       enddo
+
+    endif
+
+   if (qi_ind > 0) then
+       varstrname = 'ice_wat'
+       call read_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+      do k=1,nlevs
+          nn = nn_tile0
+        do j=1,ny_res
+         do i=1,nx_res
+            nn=nn+1
+            vargrid(nn,levels(qi_ind-1)+k,nb,ne)=workvar3d(i,j,k)
+         enddo
+        enddo
+      enddo
+      do k = levels(qi_ind-1)+1, levels(qi_ind)
+          if (nproc .eq. 0)                                               &
+             write(6,*) 'READFVregional : qi ',                           &
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
+       enddo
+
+    endif
+
+   if (qr_ind > 0) then
+       varstrname = 'rainwat'
+       call read_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+      do k=1,nlevs
+          nn = nn_tile0
+        do j=1,ny_res
+         do i=1,nx_res
+            nn=nn+1
+            vargrid(nn,levels(qr_ind-1)+k,nb,ne)=workvar3d(i,j,k)
+         enddo
+        enddo
+      enddo
+      do k = levels(qr_ind-1)+1, levels(qr_ind)
+          if (nproc .eq. 0)                                               &
+             write(6,*) 'READFVregional : qr ',                           &
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
+       enddo
+
+    endif
+
+   if (qs_ind > 0) then
+       varstrname = 'snowwat'
+       call read_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+      do k=1,nlevs
+          nn = nn_tile0
+        do j=1,ny_res
+         do i=1,nx_res
+            nn=nn+1
+            vargrid(nn,levels(qs_ind-1)+k,nb,ne)=workvar3d(i,j,k)
+         enddo
+        enddo
+      enddo
+      do k = levels(qs_ind-1)+1, levels(qs_ind)
+          if (nproc .eq. 0)                                               &
+             write(6,*) 'READFVregional : qs ',                           &
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
+       enddo
+
+    endif
+
+   if (qg_ind > 0) then
+       varstrname = 'graupel'
+       call read_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+      do k=1,nlevs
+          nn = nn_tile0
+        do j=1,ny_res
+         do i=1,nx_res
+            nn=nn+1
+            vargrid(nn,levels(qg_ind-1)+k,nb,ne)=workvar3d(i,j,k)
+         enddo
+        enddo
+      enddo
+      do k = levels(qg_ind-1)+1, levels(qg_ind)
+          if (nproc .eq. 0)                                               &
+             write(6,*) 'READFVregional : qg ',                           &
+                 & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
+       enddo
+
+    endif
+
+   if (qnr_ind > 0) then
+       varstrname = 'rain_nc'
+       call read_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+      do k=1,nlevs
+          nn = nn_tile0
+        do j=1,ny_res
+         do i=1,nx_res
+            nn=nn+1
+            vargrid(nn,levels(qnr_ind-1)+k,nb,ne)=workvar3d(i,j,k)
+         enddo
+        enddo
+      enddo
+      do k = levels(qnr_ind-1)+1, levels(qnr_ind)
+          if (nproc .eq. 0)                                               &
+             write(6,*) 'READFVregional : qnr ',                           &
                  & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
        enddo
 
@@ -399,12 +554,15 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
     !----------------------------------------------------------------------
     integer(i_kind) :: u_ind, v_ind, tv_ind, tsen_ind,q_ind, ps_ind,oz_ind
     integer(i_kind) :: w_ind, cw_ind, ph_ind
+    integer(i_kind) :: ql_ind, qi_ind, qr_ind, qs_ind, qg_ind, qnr_ind
 
     integer(i_kind) file_id
-      real(r_single), dimension(:,:), allocatable ::pswork
+    real(r_single), dimension(:,:), allocatable ::pswork
     real(r_single), dimension(:,:,:), allocatable ::workvar3d,workinc3d,workinc3d2,uworkvar3d,&
                         vworkvar3d,tvworkvar3d,tsenworkvar3d,&
-                        workprsi,qworkvar3d
+                        workprsi,qworkvar3d,wworkvar3d
+
+    real(r_single)              :: clip
 
     !----------------------------------------------------------------------
     ! Define variables required by for extracting netcdf variable
@@ -433,9 +591,17 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
     tsen_ind  = getindex(vars3d, 'tsen')  ! Tv (3D)
     q_ind   = getindex(vars3d, 'q')   ! Q (3D)
     cw_ind  = getindex(vars3d, 'cw')  ! CWM for WRF-NMM
+    oz_ind  = getindex(vars3d, 'oz')  ! Oz (3D)
     w_ind   = getindex(vars3d, 'w')   ! W for WRF-ARW
     ph_ind  = getindex(vars3d, 'ph')  ! PH for WRF-ARW
 
+    ql_ind  = getindex(vars3d, 'ql')  ! QL (3D) for FV3
+    qi_ind  = getindex(vars3d, 'qi')  ! QI (3D) for FV3
+    qr_ind  = getindex(vars3d, 'qr')  ! QR (3D) for FV3
+    qs_ind  = getindex(vars3d, 'qs')  ! QS (3D) for FV3
+    qg_ind  = getindex(vars3d, 'qg')  ! QG (3D) for FV3
+    qnr_ind  = getindex(vars3d, 'qnr')  ! QNR (3D) for FV3
+    
     ps_ind  = getindex(vars2d, 'ps')  ! Ps (2D)
 
 
@@ -518,6 +684,28 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
 
        deallocate(vworkvar3d)
     endif
+
+    if (w_ind > 0) then
+       varstrname = 'W'
+       allocate(wworkvar3d(nx_res,ny_res,nlevs))
+
+       call read_fv3_restart_data3d(varstrname,fv3filename,file_id,wworkvar3d)
+      do k=1,nlevs
+          nn = nn_tile0
+      do j=1,ny_res
+         do i=1,nx_res
+            nn=nn+1
+            workinc3d(i,j,k)=vargrid(nn,levels(w_ind-1)+k,nb,ne)
+         enddo
+      enddo
+      enddo
+      wworkvar3d(1:nx_res,:,:)=wworkvar3d(1:nx_res,:,:)+workinc3d
+      wworkvar3d(nx_res+1,:,:)=wworkvar3d(nx_res,:,:)
+       call write_fv3_restart_data3d(varstrname,fv3filename,file_id,wworkvar3d)
+
+       deallocate(wworkvar3d)
+    endif
+
     if (tv_ind > 0.or.tsen_ind>0 ) then
          
        varstrname = 'T'
@@ -610,20 +798,151 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
        call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
 
     endif
-      if (ps_ind > 0) then
-       allocate(workprsi(nx_res,ny_res,nlevsp1))
-       allocate(pswork(nx_res,ny_res))
-       varstrname = 'delp'
-      call read_fv3_restart_data3d(varstrname,filename,file_id,workvar3d)  
+
+    if (ql_ind > 0) then
+       varstrname = 'liq_wat'
+
+       call read_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+      do k=1,nlevs
+          nn = nn_tile0
+      do j=1,ny_res
+         do i=1,nx_res
+            nn=nn+1
+            workinc3d(i,j,k)=vargrid(nn,levels(ql_ind-1)+k,nb,ne)
+         enddo
+      enddo
+      enddo
+      workvar3d=workvar3d+workinc3d
+       if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
+           clip = tiny(workvar3d(1,1,1))
+           where (workvar3d < clip) workvar3d = clip
+       end if
+       call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+
+    endif
+
+    if (qi_ind > 0) then
+       varstrname = 'ice_wat'
+
+       call read_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+      do k=1,nlevs
+          nn = nn_tile0
+      do j=1,ny_res
+         do i=1,nx_res
+            nn=nn+1
+            workinc3d(i,j,k)=vargrid(nn,levels(qi_ind-1)+k,nb,ne)
+         enddo
+      enddo
+      enddo
+      workvar3d=workvar3d+workinc3d
+       if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
+           clip = tiny(workvar3d(1,1,1))
+           where (workvar3d < clip) workvar3d = clip
+       end if
+       call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+
+    endif
+
+    if (qr_ind > 0) then
+       varstrname = 'rainwat'
+
+       call read_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+      do k=1,nlevs
+          nn = nn_tile0
+      do j=1,ny_res
+         do i=1,nx_res
+            nn=nn+1
+            workinc3d(i,j,k)=vargrid(nn,levels(qr_ind-1)+k,nb,ne)
+         enddo
+      enddo
+      enddo
+      workvar3d=workvar3d+workinc3d
+       if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
+           clip = tiny(workvar3d(1,1,1))
+           where (workvar3d < clip) workvar3d = clip
+       end if
+       call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+
+    endif
+
+    if (qs_ind > 0) then
+       varstrname = 'snowwat'
+
+       call read_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+      do k=1,nlevs
+          nn = nn_tile0
+      do j=1,ny_res
+         do i=1,nx_res
+            nn=nn+1
+            workinc3d(i,j,k)=vargrid(nn,levels(qs_ind-1)+k,nb,ne)
+         enddo
+      enddo
+      enddo
+      workvar3d=workvar3d+workinc3d
+       if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
+           clip = tiny(workvar3d(1,1,1))
+           where (workvar3d < clip) workvar3d = clip
+       end if
+       call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+
+    endif
+
+    if (qg_ind > 0) then
+       varstrname = 'graupel'
+
+       call read_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+      do k=1,nlevs
+          nn = nn_tile0
+      do j=1,ny_res
+         do i=1,nx_res
+            nn=nn+1
+            workinc3d(i,j,k)=vargrid(nn,levels(qg_ind-1)+k,nb,ne)
+         enddo
+      enddo
+      enddo
+      workvar3d=workvar3d+workinc3d
+       if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
+           clip = tiny(workvar3d(1,1,1))
+           where (workvar3d < clip) workvar3d = clip
+       end if
+       call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+
+    endif
+
+    if (qnr_ind > 0) then
+       varstrname = 'rain_nc'
+
+       call read_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+      do k=1,nlevs
+          nn = nn_tile0
+      do j=1,ny_res
+         do i=1,nx_res
+            nn=nn+1
+            workinc3d(i,j,k)=vargrid(nn,levels(qnr_ind-1)+k,nb,ne)
+         enddo
+      enddo
+      enddo
+      workvar3d=workvar3d+workinc3d
+       if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
+           clip = tiny(workvar3d(1,1,1))
+           where (workvar3d < clip) workvar3d = clip
+       end if
+       call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+
+    endif
+
+    if (ps_ind > 0) then
+      allocate(workprsi(nx_res,ny_res,nlevsp1))
+      allocate(pswork(nx_res,ny_res))
+      varstrname = 'delp'
+      call read_fv3_restart_data3d(varstrname,filename,file_id,workvar3d)   ! Pascal
       !print *,'min/max delp',ntile,minval(delp),maxval(delp)
       workprsi(:,:,nlevsp1)=eta1_ll(nlevsp1) !etal_ll is needed
       do i=nlevs,1,-1
         workprsi(:,:,i)=workvar3d(:,:,i)*0.01_r_kind+workprsi(:,:,i+1)
-       enddo
+      enddo
 
-
-
-          nn = nn_tile0
+      nn = nn_tile0
       do j=1,ny_res
          do i=1,nx_res
             nn=nn+1
@@ -642,16 +961,16 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
      else
         workprsi(:,:,1)=workprsi(:,:,1)+pswork
         do k=2,nlevsp1
-        workprsi(:,:,k)=eta1_ll(k)+eta2_ll(k)*workprsi(:,:,1)
+          workprsi(:,:,k)=eta1_ll(k)+eta2_ll(k)*workprsi(:,:,1)
         enddo
      endif
        do k=1,nlevs
-        workvar3d(:,:,k)=(workprsi(:,:,k)-workprsi(:,:,k+1))*100.0
+         workvar3d(:,:,k)=(workprsi(:,:,k)-workprsi(:,:,k+1))*100.0
        enddo
-        
+
 
        call write_fv3_restart_data3d(varstrname,filename,file_id,workvar3d)
-     endif
+    end if
  
     call nc_check( nf90_close(file_id),&
       myname_,'close '//trim(filename) )

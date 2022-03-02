@@ -311,6 +311,7 @@ program time
 
 !          If observation was assimilated, accumulate sums in appropriate regions
            if (data_chan(j)%errinv > 1.e-6) then
+                               
               pen        =  (data_chan(j)%errinv*(data_chan(j)%omgbc))**2
               cor_tot(1) =  (data_chan(j)%omgnbc - data_chan(j)%omgbc)
 

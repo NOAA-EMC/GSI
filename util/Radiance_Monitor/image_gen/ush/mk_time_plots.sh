@@ -15,7 +15,7 @@ echo Start mk_time_plots.sh
 set -ax
 
 imgndir=${IMGNDIR}/time
-tankdir=${TANKDIR}/time
+tankdir=${TANKverf}/time
 
 if [[ ! -d ${imgndir} ]]; then
    mkdir -p ${imgndir}
@@ -24,7 +24,7 @@ fi
 #-------------------------------------------------------------------
 #  Locate/update the control files.  If no ctl file is available
 #  report a warning to the log file.  Search order is $imgndir,
-#  the $TANKDIR/radmon.$pdy, then $tankdir.
+#  then $TANKverf/radmon.$pdy.
 #
 allmissing=1
 pdy=`echo $PDATE|cut -c1-8`
@@ -143,9 +143,17 @@ elif [[ ${MY_MACHINE} = "wcoss_c" ]]; then
    ${SUB} -q ${JOB_QUEUE} -P ${PROJECT} -M 100 -o ${logfile} -W 1:00 \
           -J ${jobname} -cwd ${PWD} ${IG_SCRIPTS}/plot_summary.sh
 
-elif [[ ${MY_MACHINE} = "hera" ]]; then
+elif [[ ${MY_MACHINE} = "hera" || ${MY_MACHINE} = "s4" ]]; then
    ${SUB} --account ${ACCOUNT}  --ntasks=1 --mem=5g --time=1:00:00 -J ${jobname} \
           -o ${logfile} ${IG_SCRIPTS}/plot_summary.sh
+
+elif [[ ${MY_MACHINE} = "jet" ]]; then
+   ${SUB} --account ${ACCOUNT}  --ntasks=1 --mem=5g --time=1:00:00 -J ${jobname} \
+          --partition ${RADMON_PARTITION} -o ${logfile} ${IG_SCRIPTS}/plot_summary.sh
+
+elif [[ $MY_MACHINE = "wcoss2" ]]; then
+   $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -V \
+          -l select=1:mem=1g -l walltime=10:00 -N ${jobname} ${IG_SCRIPTS}/plot_summary.sh
 fi
 
 
@@ -188,7 +196,7 @@ list="count penalty omgnbc total omgbc"
    ctr=0
 
    for sat in ${SATLIST}; do
-      if [[ ${MY_MACHINE} = "hera" ]]; then
+      if [[ ${MY_MACHINE} = "hera" || ${MY_MACHINE} = "jet" || ${MY_MACHINE} = "s4" ]]; then
          echo "${ctr} $IG_SCRIPTS/plot_time.sh $sat $suffix '$list'" >> $cmdfile
       else
          echo "$IG_SCRIPTS/plot_time.sh $sat $suffix '$list'" >> $cmdfile
@@ -208,14 +216,23 @@ list="count penalty omgnbc total omgbc"
       $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -R affinity[core] -o ${logfile} \
            -W ${wall_tm} -J ${jobname} -cwd ${PWD} ${cmdfile}
 
-   elif [[ $MY_MACHINE = "hera" ]]; then
+   elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "s4" ]]; then
       echo "using ctr = ${ctr}"
       $SUB --account ${ACCOUNT} -n ${ctr}  -o ${logfile} -D . -J ${jobname} --time=1:00:00 \
            --wrap "srun -l --multi-prog ${cmdfile}"
 
+   elif [[ $MY_MACHINE = "jet" ]]; then
+      echo "using ctr = ${ctr}"
+      $SUB --account ${ACCOUNT} -n ${ctr}  -o ${logfile} -D . -J ${jobname} --time=1:00:00 \
+           -p ${RADMON_PARTITION} --wrap "srun -l --multi-prog ${cmdfile}"
+
    elif [[ ${MY_MACHINE} = "wcoss_c" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -o ${logfile} -W ${wall_tm} \
            -J ${jobname} -cwd ${PWD} ${cmdfile}
+
+   elif [[ $MY_MACHINE = "wcoss2" ]]; then
+      $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -V \
+           -l select=1:mem=1g -l walltime=1:00:00 -N ${jobname} ${cmdfile}
    fi
       
 
@@ -238,7 +255,7 @@ list="count penalty omgnbc total omgbc"
 
       ctr=0 
       for var in $list; do
-         if [[ ${MY_MACHINE} = "hera" ]]; then
+         if [[ ${MY_MACHINE} = "hera" || ${MY_MACHINE} = "jet" || ${MY_MACHINE} = "s4" ]]; then
             echo "${ctr} $IG_SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
          else
             echo "$IG_SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
@@ -256,12 +273,22 @@ list="count penalty omgnbc total omgbc"
       if [[ $MY_MACHINE = "wcoss_d" ]]; then
          $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -R affinity[core] -o ${logfile} \
               -W ${wall_tm} -J ${jobname} -cwd ${PWD} ${cmdfile}
+
       elif [[ ${MY_MACHINE} = "wcoss_c" ]]; then
          $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -o ${logfile} -W ${wall_tm} \
               -J ${jobname} -cwd ${PWD} ${cmdfile}
-      elif [[ $MY_MACHINE = "hera" ]]; then	
+
+      elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "s4" ]]; then
          $SUB --account ${ACCOUNT} -n ${ctr}  -o ${logfile} -D . -J ${jobname} --time=4:00:00 \
               --wrap "srun -l --multi-prog ${cmdfile}"
+
+      elif [[ $MY_MACHINE = "jet" ]]; then
+         $SUB --account ${ACCOUNT} -n ${ctr}  -o ${logfile} -D . -J ${jobname} --time=4:00:00 \
+              -p ${RADMON_PARTITION} --wrap "srun -l --multi-prog ${cmdfile}"
+
+      elif [[ $MY_MACHINE = "wcoss2" ]]; then
+         $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -V \
+              -l select=1:mem=1g -l walltime=1:30:00 -N ${jobname} ${cmdfile}
       fi
 
    done

@@ -39,6 +39,15 @@ elif [[ -d /scratch1 ]] ; then
 elif [[ -d /work ]]; then
     . $MODULESHOME/init/sh
     target=orion
+elif [[ -d /data/prod ]]; then
+    . $MODULESHOME/init/sh
+    target=s4
+elif [[ -d /jetmon ]]; then
+    . /apps/lmod/lmod/init/sh
+    target=jet
+elif [[ -d /lfs && -d /dfs ]]; then
+    . $MODULESHOME/init/bash
+    target=wcoss2
 else
     echo "unknown target = $target"
     exit 9
@@ -66,33 +75,31 @@ fi
 #  Verify this is a supported machine
 #---------------------------------------------------           
 
-if [[ ${target} = "hera"  || ${target} = "wcoss_c"  \
-      || ${target} = "wcoss_d" || ${target} = "orion" ]]; then
-   echo Building nwprod executables on ${target}
-   echo
+echo Building nwprod executables on ${target}
+echo
 
 
-   #-------------------------------------
-   #  load modules 
-   #-------------------------------------
-   if [ $target = wcoss_d ]; then
-      module purge
-      module use -a $dir_modules
-      module load modulefile.ProdGSI.$target
-   elif [ $target = wcoss -o $target = gaea ]; then
-      module purge
-      module load $dir_modules/modulefile.ProdGSI.$target
-   elif [ $target = hera -o $target = orion ]; then
-      module purge
-      module use $dir_modules
-      module load modulefile.ProdGSI.$target
-   elif [ $target = cheyenne ]; then
-      module purge
-      source $dir_modules/modulefile.ProdGSI.$target
-   elif [ $target = wcoss_c ]; then
-      module purge
-      module load $dir_modules/modulefile.ProdGSI.$target
-   fi
+#-------------------------------------
+#  load modules 
+#-------------------------------------
+if [ $target = wcoss_d -o $target = wcoss2 ]; then
+   module purge
+   module use -a $dir_modules
+   module load modulefile.ProdGSI.$target
+elif [ $target = wcoss -o $target = gaea ]; then
+   module purge
+   module load $dir_modules/modulefile.ProdGSI.$target
+elif [ $target = hera -o $target = orion -o $target = s4 -o $target = jet ]; then
+   module purge
+   module use $dir_modules
+   module load modulefile.ProdGSI.$target
+elif [ $target = cheyenne ]; then
+   module purge
+   source $dir_modules/modulefile.ProdGSI.$target
+elif [ $target = wcoss_c ]; then
+   module purge
+   module load $dir_modules/modulefile.ProdGSI.$target
+fi
 
 
    #-------------------------------------
@@ -128,10 +135,6 @@ if [[ ${target} = "hera"  || ${target} = "wcoss_c"  \
    for file in $file_list_ig; do
       cp $file $C_IG_EXEC/.
    done
-
-else
-   echo ${machine} is not supported 
-fi
 
 
 set +x

@@ -142,6 +142,7 @@ module satthin
   public :: makegvals
   public :: makegrids
   public :: getsfc
+  public :: get_hsst
   public :: map2tgrid
   public :: destroygrids
   public :: destroy_sfc
@@ -154,6 +155,7 @@ module satthin
   public :: fact10_full,isli_full,soil_moi_full,veg_frac_full,soil_temp_full
   public :: isli_anl,sno_anl
   public :: checkob,score_crit,itxmax,finalcheck,zs_full_gfs,zs_full
+  public :: hsst
 
   integer(i_kind) mlat,superp,maxthin,itxmax
   integer(i_kind) itxmax0
@@ -183,6 +185,8 @@ module satthin
   integer(i_kind),allocatable, dimension(:,:)   :: isli_anl
 ! declare local array sno_anl 
   real(r_single),allocatable, dimension(:,:,:)   :: sno_anl
+! declare the dummy variables of routine berror_read_hsst
+  real(r_single), allocatable, dimension(:,:) :: hsst
 
   logical use_all
 
@@ -470,6 +474,22 @@ contains
 
     return
   end subroutine makegrids
+
+  subroutine get_hsst(mype_io)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    get_hsst
+!     prgmmr:    Xu     org: np23                date: 2020-03-13
+!
+! abstract:  read hsst from berror_stats
+  use gridmod, only:  nlat,nlon
+  use ncepnems_io, only: berror_read_hsst
+  integer(i_kind), intent(in) :: mype_io
+
+  allocate(hsst(nlat,nlon))
+  call berror_read_hsst(mype_io,hsst)
+
+  end subroutine get_hsst
 
   subroutine getsfc(mype,mype_io,use_sfc,use_sfc_any)
 !$$$  subprogram documentation block

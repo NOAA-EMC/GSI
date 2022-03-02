@@ -13,6 +13,7 @@ function usage {
   echo " "
 }
 
+
 echo start MinMonPlt.sh
 
 nargs=$#
@@ -21,7 +22,6 @@ if [[ $nargs -lt 1 || $nargs -gt 5 ]]; then
    exit 1
 fi
 
-RUN=gdas
 while [[ $# -ge 1 ]]
 do
    key="$1"
@@ -45,54 +45,50 @@ do
    shift
 done
 
+if [[ ${#MINMON_SUFFIX} -le 0 ]]; then 
+   echo "No suffix supplied, unable to proceed"
+   exit 2
+fi
+
 if [[ ${#RUN} -le 0 ]]; then 
    export RUN=gdas
 fi
+run_suffix=${MINMON_SUFFIX}_${RUN}
 
 echo "MINMON_SUFFIX = $MINMON_SUFFIX"
 echo "PDATE         = $PDATE"
 echo "RUN           = $RUN"
 
 
-
-if [[ ${#RUN} -gt 0 ]]; then 
-   run_suffix=${MINMON_SUFFIX}_${RUN}
-else
-   run_suffix=${MINMON_SUFFIX}
-fi
-
+#----------------------------------------
+# source config, and user_settings files
+#----------------------------------------
 this_dir=`dirname $0`
-
-#--------------------------------------------------
-# source verison, config, and user_settings files
-#--------------------------------------------------
 top_parm=${this_dir}/../../parm
 
-minmon_version_file=${minmon_version:-${top_parm}/MinMon.ver}
-if [[ -s ${minmon_version_file} ]]; then
-   . ${minmon_version_file}
-   echo "able to source ${minmon_version_file}"
-else
-   echo "Unable to source ${minmon_version_file} file"
-   exit 2
-fi
-
 minmon_config=${minmon_config:-${top_parm}/MinMon_config}
-if [[ -s ${minmon_config} ]]; then
-   . ${minmon_config}
-   echo "able to source ${minmon_config}"
-else
-   echo "Unable to source ${minmon_config} file"
+if [[ ! -e ${minmon_config} ]]; then
+   echo "Unable to locate ${minmon_config} file"
    exit 3
 fi
 
+. ${minmon_config}
+if [[ $? -ne 0 ]]; then
+   echo "Error detected while sourcing ${minmon_config} file"
+   exit $? 
+fi
+
+
 minmon_user_settings=${minmon_user_settings:-${top_parm}/MinMon_user_settings}
-if [[ -s ${minmon_user_settings} ]]; then
-   . ${minmon_user_settings}
-   echo "able to source ${minmon_user_settings}"
-else
-   echo "Unable to source ${minmon_user_settings} file"
+if [[ ! -e ${minmon_user_settings} ]]; then
+   echo "Unable to locate ${minmon_user_settings} file"
    exit 4
+fi
+
+. ${minmon_user_settings}
+if [[ $? -ne 0 ]]; then
+   echo "Error detected while sourcing ${minmon_user_settings} file"
+   exit $? 
 fi
 
 
@@ -106,14 +102,44 @@ else
 fi
 
 #--------------------------------------------------------------------
-#  If PDATE wasn't specified as an argument then plot the last
-#  available cycle.
+# Determine cycle to plot.  Exit if cycle is > last available
+# data.
+#
+# PDATE can be set one of 3 ways.  This is the order of priority:
+#
+#   1.  Specified via command line argument
+#   2.  Read from ${TANKimg}/last_plot_time file and advanced
+#        one cycle.
+#   3.  Using the last available cycle for which there is
+#        data in ${TANKDIR}.
+#
+# If option 2 has been used the ${IMGNDIR}/last_plot_time file
+# will be updated with ${PDATE} if the plot is able to run.
 #--------------------------------------------------------------------
-if [[ ${#PDATE} -le 0 ]]; then
-   echo "PDATE not specified:  setting PDATE using last cycle"
-   export PDATE=`${M_IG_SCRIPTS}/find_cycle.pl --cyc 1 --dir ${TANKDIR}`
+
+echo "MIN_IMGN_TANKDIR = ${MIN_IMGN_TANKDIR}"
+last_plot_time=${MIN_IMGN_TANKDIR}/${RUN}/minmon/last_plot_time
+echo "last_plot_time file = ${last_plot_time}"
+
+latest_data=`${M_IG_SCRIPTS}/find_cycle.pl --cyc 1 --dir ${TANKDIR} --run ${RUN}`
+
+if [[ ${PDATE} = "" ]]; then
+   if [[ -e ${last_plot_time} ]]; then
+      echo " USING last_plot_time file"
+      last_plot=`cat ${last_plot_time}`
+      PDATE=`$NDATE +6 ${last_plot}`
+   else
+      echo " USING find_cycle file"
+      PDATE=${latest_data}
+   fi
+fi
+
+
+if [[ ${PDATE} -gt ${latest_data} ]]; then
+  echo " Unable to plot, pdate is > latest_data, ${PDATE}, ${latest_data}"
+  exit 5
 else
-   echo "PDATE was specified:  $PDATE"
+  echo " OK to plot"
 fi
 
 
@@ -133,6 +159,7 @@ if [[ ! -d $WORKDIR ]]; then
 fi
 cd $WORKDIR
 
+
 #--------------------------------------------------------------------
 #  Copy gnorm_data.txt file to WORKDIR.
 #--------------------------------------------------------------------
@@ -141,6 +168,9 @@ cyc=`echo $PDATE|cut -c9-10`
 echo TANKDIR = ${TANKDIR}
 
 gnorm_dir=${TANKDIR}/${RUN}.${pdy}/${cyc}/minmon
+if [[ ! -d ${gnorm_dir} ]]; then
+   gnorm_dir=${TANKDIR}/${RUN}.${pdy}
+fi
 
 gnorm_file=${gnorm_dir}/gnorm_data.txt
 
@@ -187,6 +217,10 @@ while [[ $cdate -le $edate ]]; do
 
    gnorm_dir=${TANKDIR}/${RUN}.${pdy}/${cyc}/minmon
 
+   if [[ ! -d ${gnorm_dir} ]]; then
+      gnorm_dir=${TANKDIR}/${RUN}.${pdy}
+   fi
+
    gnorms_file=${gnorm_dir}/${cdate}.gnorms.ieee_d
    local_gnorm=${cdate}.gnorms.ieee_d
 
@@ -208,70 +242,49 @@ while [[ $cdate -le $edate ]]; do
    cdate=$adate
 done
 
-#--------------------------------------------------------------------
-#  Main processing loop.  
-#  Run extract_all_gnorms.pl script and generate single cycle plot.
-#
-#  RM this loop or add an optional end date to the args list and 
-#  process each date in turn.
-#
-#  And alternate plot method might be to simply plot the last 
-#  available cycle if no PDATE is included.  Could use find_cycle.pl
-#  to find the last one and done.
-#
-#  Also should an attempt to plot a date for which there is no data
-#  produce an error exit?  I think so.
-#--------------------------------------------------------------------
-not_done=1
-ctr=0
+
 area=glb
 if [[ $GLB_AREA -eq 0 ]]; then
    area=rgn
 fi
 
-while [ $not_done -eq 1 ] && [ $ctr -le 20 ]; do
-
-   #-----------------------------------------------------------------
-   #  copy over the control files and update the tdef lines 
-   #  according to the $suffix
-   #-----------------------------------------------------------------
-   if [[ ! -e ${WORKDIR}/allgnorm.ctl ]]; then
-      cp ${M_IG_GRDS}/${area}_allgnorm.ctl ${WORKDIR}/orig_allgnorm.ctl
-      cp ${WORKDIR}/orig_allgnorm.ctl ${WORKDIR}/allgnorm.ctl
-   fi
+#-----------------------------------------------------------------
+#  copy over the control files and update the tdef lines 
+#  according to the $suffix
+#-----------------------------------------------------------------
+if [[ ! -e ${WORKDIR}/allgnorm.ctl ]]; then
+   cp ${M_IG_GRDS}/${area}_allgnorm.ctl ${WORKDIR}/orig_allgnorm.ctl
+   cp ${WORKDIR}/orig_allgnorm.ctl ${WORKDIR}/allgnorm.ctl
+fi
  
-   if [[ ! -e ${WORKDIR}/reduction.ctl ]]; then
-      cp ${M_IG_GRDS}/${area}_reduction.ctl ${WORKDIR}/reduction.ctl
+if [[ ! -e ${WORKDIR}/reduction.ctl ]]; then
+   cp ${M_IG_GRDS}/${area}_reduction.ctl ${WORKDIR}/reduction.ctl
+   if [[ ${RUN} = "gfs" ]]; then
+      gfs_xdef="xdef  152 linear 1.0 1.0"
+      sed -i "/xdef/c ${gfs_xdef}" reduction.ctl
    fi
+fi
   
-   # 
-   # update the tdef line in the ctl files
-   # 
-   bdate=`$NDATE -168 $PDATE`
-   ${M_IG_SCRIPTS}/update_ctl_tdef.sh ${WORKDIR}/allgnorm.ctl ${bdate}
-   ${M_IG_SCRIPTS}/update_ctl_tdef.sh ${WORKDIR}/reduction.ctl ${bdate}
+#--------------------------------------- 
+# update the tdef line in the ctl files
+#--------------------------------------- 
+bdate=`$NDATE -168 $PDATE`
+${M_IG_SCRIPTS}/update_ctl_tdef.sh ${WORKDIR}/allgnorm.ctl ${bdate}
+${M_IG_SCRIPTS}/update_ctl_tdef.sh ${WORKDIR}/reduction.ctl ${bdate}
    
 
-   #######################
-   # Q:  does NDAS really use 101 instead of 102?  That can't be somehow....
-   #######################
-
-#   if [[ $MINMON_SUFFIX = "RAP" ]]; then
-#      ${M_IG_SCRIPTS}/update_ctl_xdef.sh ${WORKDIR}/allgnorm.ctl 102 
-#   fi
-
-   #-----------------------------------------------------------------
-   #  Copy the plot script and build the plot driver script 
-   #-----------------------------------------------------------------
-   if [[ ! -e ${WORKDIR}/plot_gnorms.gs ]]; then
-      cp ${M_IG_GRDS}/plot_gnorms.gs ${WORKDIR}/.
-   fi
-   if [[ ! -e ${WORKDIR}/plot_reduction.gs ]]; then
-      cp ${M_IG_GRDS}/plot_reduction.gs ${WORKDIR}/.
-   fi
-   if [[ ! -e ${WORKDIR}/plot_4_gnorms.gs ]]; then
-      cp ${M_IG_GRDS}/plot_4_gnorms.gs ${WORKDIR}/.
-   fi
+#-----------------------------------------------------------------
+#  Copy the plot script and build the plot driver script 
+#-----------------------------------------------------------------
+if [[ ! -e ${WORKDIR}/plot_gnorms.gs ]]; then
+   cp ${M_IG_GRDS}/plot_gnorms.gs ${WORKDIR}/.
+fi
+if [[ ! -e ${WORKDIR}/plot_reduction.gs ]]; then
+   cp ${M_IG_GRDS}/plot_reduction.gs ${WORKDIR}/.
+fi
+if [[ ! -e ${WORKDIR}/plot_4_gnorms.gs ]]; then
+   cp ${M_IG_GRDS}/plot_4_gnorms.gs ${WORKDIR}/.
+fi
 
  
 cat << EOF >${PDATE}_plot_gnorms.gs
@@ -292,33 +305,24 @@ cat << EOF >${PDATE}_plot_4_gnorms.gs
 'quit'
 EOF
 
+#-----------------------------------------------------------------
+#  Run the plot driver script and move the image into ./tmp
+#-----------------------------------------------------------------
+GRADS=`which grads`
 
-  #-----------------------------------------------------------------
-  #  Run the plot driver script and move the image into ./tmp
-  #-----------------------------------------------------------------
-  GRADS=`which grads`
+$TIMEX $GRADS -blc "run ${PDATE}_plot_gnorms.gs"
+$TIMEX $GRADS -blc "run ${PDATE}_plot_reduction.gs"
+$TIMEX $GRADS -blc "run ${PDATE}_plot_4_gnorms.gs"
 
-  $TIMEX $GRADS -blc "run ${PDATE}_plot_gnorms.gs"
-  $TIMEX $GRADS -blc "run ${PDATE}_plot_reduction.gs"
-  $TIMEX $GRADS -blc "run ${PDATE}_plot_4_gnorms.gs"
-
-  if [[ ! -d ${WORKDIR}/tmp ]]; then
-     mkdir ${WORKDIR}/tmp
-  fi
-  mv *.png tmp/.
-
-  #-----------------------------------------------------------------
-  #  copy the modified gnorm_data.txt file to tmp
-  #-----------------------------------------------------------------
-  cp gnorm_data.txt tmp/${run_suffix}.gnorm_data.txt
-
- 
-  ctr=`expr $ctr + 1`
-done
+if [[ ! -d ${WORKDIR}/tmp ]]; then
+   mkdir ${WORKDIR}/tmp
+fi
+mv *.png tmp/.
 
 #-----------------------------------------------------------------
-# copy all cost files to tmp 
+#  copy the modified gnorm_data.txt and cost files to tmp
 #-----------------------------------------------------------------
+cp gnorm_data.txt tmp/${run_suffix}.gnorm_data.txt
 cp *cost*.txt tmp/.
 
 #--------------------------------------------------------------------
@@ -329,6 +333,12 @@ cp *cost*.txt tmp/.
 if [[ ${DO_ERROR_RPT} -eq 1 ]]; then
 
    err_msg=${TANKDIR}/${RUN}.${pdy}/${cyc}/minmon/${PDATE}.errmsg.txt
+
+   if [[ $MAIL_CC == "" ]]; then
+      if [[ -e /u/Edward.Safford/bin/get_cc_list.pl ]]; then
+         MAIL_CC=`/u/Edward.Safford/bin/get_cc_list.pl --nr ${run_suffix} --mon MinMon`
+      fi
+   fi
 
    if [[ -e $err_msg ]]; then
       err_rpt="./err_rpt.txt"
@@ -351,26 +361,33 @@ if [[ ${DO_ERROR_RPT} -eq 1 ]]; then
 fi
 
 #--------------------------------------------------------------------
-#  Push the image & txt files over to the server
+#  Push the image & txt files over to the server 
+#  or move files to $MIN_IMGN_TANKDIR
 #--------------------------------------------------------------------
-   if [[ ${MY_MACHINE} = "wcoss" || ${MY_MACHINE} = "cray" || \
-	 ${MY_MACHINE} = "wcoss_d" ]]; then
-      cd ./tmp
-      $RSYNC -ave ssh --exclude *.ctl*  ./ \
-        ${WEBUSER}@${WEBSERVER}:${WEBDIR}/$run_suffix/
+cd ./tmp
+if [[ ${MY_MACHINE} = "wcoss" || ${MY_MACHINE} = "cray" || \
+   ${MY_MACHINE} = "wcoss_d" || ${MY_MACHINE} = "wcoss2" ]]; then
+   $RSYNC -ave ssh --exclude *.ctl*  ./ \
+     ${WEBUSER}@${WEBSERVER}:${WEBDIR}/$run_suffix/
+else
+   img_dir=${MIN_IMGN_TANKDIR}/${RUN}/minmon
+   if [[ ! -d ${img_dir} ]]; then
+      mkdir -p ${img_dir}
    fi
+   mv * ${img_dir}/.
+fi
 
 #--------------------------------------------------------------------
-#  Call nu_make_archive.sh to write archive files to hpss and
-#  update the prod machine with any missing M_TANKDIR directories.
+#  Update the last_plot_time file if found
 #--------------------------------------------------------------------
-#   if [[ ${DO_ARCHIVE} -eq 1 ]]; then
-#      ${M_IG_SCRIPTS}/nu_make_archive.sh
-#   fi
+if [[ -e ${last_plot_time} ]]; then
+   echo "update last_plot_time file"
+   echo ${PDATE} > ${last_plot_time}
+fi
 
-#cd ${WORKDIR}
-#cd ..
-#rm -rf ${WORKDIR}
+cd ${WORKDIR}
+cd ..
+rm -rf ${WORKDIR}
 
 echo "end MinMonPlt.sh"
 exit

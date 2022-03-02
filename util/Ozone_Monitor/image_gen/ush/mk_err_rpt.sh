@@ -116,6 +116,9 @@ fi
 
 
 OZN_TANKDIR_TIME=${TANKDIR}/${RUN}.${PDY}/${cyc}/oznmon/time
+if [[ ! -d ${OZN_TANKDIR_TIME} ]]; then
+   OZN_TANKDIR_TIME=${TANKDIR}/${RUN}.${PDY}/time
+fi
 echo "OZN_TANKDIR_TIME = $OZN_TANKDIR_TIME"
 
 
@@ -132,6 +135,9 @@ prev_pdy=`echo $prev_cycle | cut -c1-8`
 prev_cyc=`echo $prev_cycle | cut -c9-10`
 
 OZN_TANKDIR_PREV=${TANKDIR}/${RUN}.${prev_pdy}/${prev_cyc}/oznmon/time
+if [[ ! -d ${OZN_TANKDIR_PREV} ]]; then
+   OZN_TANKDIR_TIME=${TANKDIR}/${RUN}.${prev_pdy}/time
+fi
 echo "OZN_TANKDIR_PREV = $OZN_TANKDIR_PREV"
 
 prev_bad_cnt=`ls $OZN_TANKDIR_PREV/bad_cnt.${prev_cycle}`

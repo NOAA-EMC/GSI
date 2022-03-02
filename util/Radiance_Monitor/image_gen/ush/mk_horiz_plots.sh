@@ -114,8 +114,8 @@ cat << EOF > input.$sat.$ihh
 EOF
       ./horiz.x < input.$sat.$ihh >   stdout.$sat.$ihh
 
-      rm -f $TANKDIR/horiz/stdout.$sat.$ihh
-      $NCP stdout.$sat.$ihh        $TANKDIR/horiz/stdout.$sat.$ihh
+      rm -f $TANKverf/horiz/stdout.$sat.$ihh
+      $NCP stdout.$sat.$ihh        $TANKverf/horiz/stdout.$sat.$ihh
 
    done
 done
@@ -126,13 +126,13 @@ fi
 
 for sat in ${SATYPE}; do
 
-   if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "hera" || $MY_MACHINE = "wcoss_c" ]]; then
+   if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "hera" || $MY_MACHINE = "wcoss_c" || $MY_MACHINE = "jet" ]]; then
       sed -e 's/cray_32bit_ieee/ /' ${sat}.ctl > tmp_${type}.ctl
       mv -f tmp_${type}.ctl ${sat}.ctl
    fi
 
    $NCP ${sat}.ctl*             $IMGNDIR/horiz/${sat}.ctl
-   ${COMPRESS} -f $TANKDIR/horiz/${sat}.ctl
+   ${COMPRESS} -f $TANKverf/horiz/${sat}.ctl
    chmod a+r ${sat}*.ieee_d*
 done
 
@@ -182,7 +182,7 @@ if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss_c" ]]; then
            -J ${jobname} -cwd ${PWD} $cmdfile
    fi
 
-else							# hera
+else							# hera|jet|s4
    for sat in ${SATLIST}; do
       jobname=horiz_${sat}
       cmdfile="./cmdfile_horiz_${RADMON_SUFFIX}_${sat}"
@@ -193,8 +193,13 @@ else							# hera
 
       echo "$IG_SCRIPTS/plot_horiz.sh $sat" >> $cmdfile
 
-      $SUB -A $ACCOUNT -l procs=${ntasks},walltime=0:50:00 -N ${jobname} \
-           -V -j oe -o ${logfile} $cmdfile
+      if [[ ${MY_MACHINE} = "hera" || ${MY_MACHINE} = "s4" ]]; then
+         $SUB -A $ACCOUNT -l procs=${ntasks},walltime=0:50:00 -N ${jobname} \
+              -V -j oe -o ${logfile} $cmdfile
+      else
+         $SUB -A $ACCOUNT -l procs=${ntasks},walltime=0:50:00 -N ${jobname} \
+              -p ${RADMON_PARTITION} -V -j oe -o ${logfile} $cmdfile
+      fi
    done
 fi
 

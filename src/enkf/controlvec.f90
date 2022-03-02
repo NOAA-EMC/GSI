@@ -374,7 +374,6 @@ if (nproc <= ntasks_io-1) then
          enddo
       endif
    end if
-   end if
    if (.not. paranc) then
       if (write_fv3_incr) then
          if (global_2mDA) then

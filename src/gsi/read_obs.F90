@@ -11,6 +11,8 @@ module read_obsmod
 !   2015-05-01  Liu Ling - Add call to read_rapidscat 
 !   2015-08-20  zhu  - add flexibility for enabling all-sky and using aerosol info in radiance 
 !                      assimilation. Use radiance_obstype_search from radiance_mod.  
+!   2016-09-xx  CAPS(G. Zhao) - Add read radar reflectivtiy dbz bufr 
+!                               (from MRMS grib2 in BUFR for direct reflectivity DA)
 !   2017-05-12  Y. Wang and X. Wang - add dbz to be read in, POC: xuguang.wang@ou.edu
 !
 ! subroutines included:
@@ -131,12 +133,14 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
 !   2013-07-01  todling/guo - allow user to bypass this check (old bufr support)
 !   2014-10-01  ejones   - add gmi and amsr2
 !   2015-01-16  ejones   - add saphir
+!   2016-09-xx  CAPS(G. Zhao) - skipping check BUFR dbz when using dbzbufr for direct reflectivity DA
 !   2016-09-19  guo      - properly initialized nread, in case of for quick-return cases.
 !   2017-11-16  dutta    - adding KOMPSAT5 bufr i.d for reading the data.
 !   2019-03-27  h. liu   - add abi
 !   2019-09-20  X.Su     -add read new variational qc table
 !   2019-08-21  H. Shao  - add METOPC-C, COSMIC-2 and PAZ to the GPS check list                           
 !   2020-05-21  H. Shao  - add commercial GNSSRO (Spire, PlanetIQ, GeoOptics) and other existing missions to the check list                           
+!   2021-02-20  X.Li      - add viirs-m and get_hsst
 !
 !   input argument list:
 !    lexist    - file status
@@ -159,6 +163,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
   use convinfo, only: nconvtype,ictype,ioctype,icuse
   use chemmod, only : oneobtest_chem,oneob_type_chem,&
        code_pm25_ncbufr,code_pm25_anowbufr,code_pm10_ncbufr,code_pm10_anowbufr
+  use directDA_radaruse_mod, only: l_use_dbz_directDA
 
   implicit none
 
@@ -184,7 +189,9 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
   if(trim(dtype) == 'tcp' .or. trim(filename) == 'tldplrso')return
   if(trim(filename) == 'mitmdat' .or. trim(filename) == 'mxtmdat')return
   if(trim(filename) == 'satmar')return
-  if(trim(dtype) == 'dbz' )return
+  if ( .not. l_use_dbz_directDA) then
+     if(trim(dtype) == 'dbz' )return
+  end if
 
 ! Use routine as usual
 
@@ -668,6 +675,7 @@ subroutine read_obs(ndata,mype)
 !   2016-03-02  s.liu/carley - remove use_reflectivity and use i_gsdcldanal_type
 !   2016-04-28  J. Jung - added logic for RARS and direct broadcast data from NESDIS/UW.
 !   2016-05-05  pondeca - add 10-m u-wind and v-wind (uwnd10m, vwnd10m)
+!   2016-09-xx  CAPS(G. Zhao) - read mosaic dbz in BUFR (read_Radarref_directDA)
 !   2016-09-19  Guo     - replaced open(obs_input_common) with "call unformatted_open(obs_input_common)"
 !   2017-05-12  Y. Wang and X. Wang - add multi-interface to read in dBZ (nc) and radial velocity (ascii)
 !   2016-12-14  lippi   - Fixed bug of using observations twice when both
@@ -711,6 +719,7 @@ subroutine read_obs(ndata,mype)
     use qcmod, only: njqc,vadwnd_l2rw_qc,nvqc
     use gsi_4dvar, only: l4dvar
     use satthin, only: super_val,super_val1,superp,makegvals,getsfc,destroy_sfc
+    use satthin, only: get_hsst
     use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_max,mpi_rtype,mpi_integer,npe,&
          setcomm
     use constants, only: one,zero,izero
@@ -745,6 +754,8 @@ subroutine read_obs(ndata,mype)
     use gsi_unformatted, only: unformatted_open
 
     use mrmsmod,only: l_mrms_sparse_netcdf
+    use directDA_radaruse_mod, only: l_use_dbz_directDA
+    use gridmod, only: regional
 
     implicit none
 
@@ -907,7 +918,7 @@ subroutine read_obs(ndata,mype)
                amsre  .or. ssmis      .or. obstype == 'ssmi'      .or.  &
                obstype == 'ssu'       .or. obstype == 'atms'      .or.  &
                obstype == 'cris'      .or. obstype == 'cris-fsr'  .or.  &
-               obstype == 'amsr2'     .or.  &
+               obstype == 'amsr2'     .or. obstype == 'viirs-m'   .or.  &
                obstype == 'gmi'       .or. obstype == 'saphir'   ) then
           ditype(i) = 'rad'
        else if (is_extOzone(dfile(i),obstype,dplat(i))) then
@@ -1010,6 +1021,8 @@ subroutine read_obs(ndata,mype)
              else if(obstype == 'cris' .or. obstype == 'cris-fsr')then
                 parallel_read(i)= .true.
              else if(avhrr)then
+                parallel_read(i)= .true.
+             else if(obstype == 'viirs-m' )then
                 parallel_read(i)= .true.
              else if(amsre)then
                 parallel_read(i)= .true.
@@ -1297,6 +1310,8 @@ subroutine read_obs(ndata,mype)
 
 !   Create full horizontal surface fields from local fields in guess_grids
     call getsfc(mype,mype_io_sfc,use_sfc,use_sfc_any)
+    if ( .not. regional )  call get_hsst(mype_io_sfc)
+   
 
     if(mype == mype_io) call prt_guessfc2('sfcges2',use_sfc)
 
@@ -1547,7 +1562,7 @@ subroutine read_obs(ndata,mype)
                 if(i_gsdcldanal_type==2) then
                    call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,sis,nobs_sub1(1,i))
                 else if(i_gsdcldanal_type==1 .or. i_gsdcldanal_type==6 &
-                        .or. i_gsdcldanal_type==3 .or. i_gsdcldanal_type==7) then
+                        .or. i_gsdcldanal_type==3 .or. i_gsdcldanal_type==7 .or. i_gsdcldanal_type==99) then
                    call read_nasa_larc(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
                 end if
                 string='READ_NASA_LaRC'
@@ -1593,9 +1608,14 @@ subroutine read_obs(ndata,mype)
 !            Process radar reflectivity from MRMS
              else if (obstype == 'dbz' ) then
                 print *, "calling read_dbz"
+
                 if(trim(infile)=='dbzobs.nc')then
                   call read_dbz_nc(nread,npuse,nouse,infile,lunout,obstype,sis,hgtl_full,nobs_sub1(1,i))
                   string='READ_dBZ'
+                else if ( l_use_dbz_directDA ) then
+                  call read_radarref_directDA(nread,npuse,nouse,infile,obstype,lunout,twind,sis, &
+                                           nobs_sub1(1,i))
+                  string='READ_RADARREF_DIRECTDA'
                 else
                   call read_dbz_mrms_detect_format(infile,l_mrms_sparse_netcdf)
                   if(l_mrms_sparse_netcdf) then
@@ -1810,6 +1830,13 @@ subroutine read_obs(ndata,mype)
                        mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
                        nobs_sub1(1,i),read_rec(i),dval_use)
                   string='READ_AVHRR'
+  !            Process SST VIIRS RADIANCE  data
+               else if(obstype == 'viirs-m') then
+                  call read_sst_viirs(mype,val_dat,ithin,rmesh,platid,gstime,&
+                       infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
+                       mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
+                       nobs_sub1(1,i),read_rec(i),dval_use)
+                  string='READ_VIIRS'
                end if rad_obstype_select
 
 !         Process ozone data

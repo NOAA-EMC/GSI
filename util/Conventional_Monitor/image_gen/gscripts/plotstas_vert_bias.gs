@@ -13,7 +13,6 @@ function vert_bias (args)
    'clear'
    'open ges_'dtype'_stas.ctl'
    'open anl_'dtype'_stas.ctl'
-*   'open 'dtype'_stas_int.ctl'
    'set grads off'
    debug=0
 
@@ -32,9 +31,22 @@ function vert_bias (args)
    nyc=subwrd(size,6)
    nzc=subwrd(size,9)
 
-   iy=1
+   '!echo $CONMON_RESTRICT_PLOT_AREAS > rest.txt'
+   rest=read(rest.txt)
+   restrict=subwrd(rest,2)
+   say 'rs=' restrict
 
+   iy=1
    while(iy <=nyc)
+
+*     In order to save space skip certain redundant regions.
+      if ( restrict = 1 )
+         if ( iy = 2 | iy = 3 | iy = 5 | iy = 6 )
+            iy=iy+1
+            continue
+         endif
+      endif
+
       ix=1
       while(ix <=nxc)
          '!rm -f info.txt'
