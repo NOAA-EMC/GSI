@@ -139,7 +139,6 @@ subroutine guess_init_
   use compact_diffs,only: create_cdiff_coefs, inisph
   use mp_compact_diffs_mod1, only: init_mp_compact_diffs1
   use mpeu_util, only: die
-  use mpimod, only: ierror,mpi_comm_world,npe,mpi_rtype,mype
   implicit none
 
 ! Declare passed variables
@@ -304,7 +303,6 @@ subroutine set_
 
   use mpeu_util, only: tell,die
   use gsi_io, only: mype_io
-    use mpimod, only: ierror,mpi_comm_world
   implicit none
   character(len=*), parameter :: Iam="observer_set"
 

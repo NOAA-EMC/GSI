@@ -124,6 +124,7 @@ subroutine prt_guess(sgrep)
         ier=99
      endif
   end if
+  if (ier/=0) return ! this is a fundamental routine, when some not found just return
 
   cvar( 1)='U   '
   cvar( 2)='V   '

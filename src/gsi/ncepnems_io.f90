@@ -339,7 +339,7 @@ contains
     call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-read',istatus,names2d=vars2d,names3d=vars3d)
     if(istatus/=0) then
       write(6,*) myname_,': trouble creating atm_bundle'
-      call stop2(2999)
+      call stop2(999)
     endif
 
 
@@ -2340,7 +2340,7 @@ contains
          write(6,*) 'Missing some of the required fields'
          write(6,*) 'Aborting ... '
       endif
-      call stop2(1999)
+      call stop2(999)
     endif
 
     if ( sp_a%jcap /= jcap_b ) then

@@ -109,7 +109,7 @@ case $machine in
      export noscrub="/scratch1/NCEPDEV/da/$LOGNAME/noscrub"
    elif [ -d /scratch1/NCEPDEV/global/$LOGNAME ]; then 
      export noscrub="/scratch1/NCEPDEV/global/$LOGNAME/noscrub"
-   elif [ -d /scratch2/BMC/gsienkf/$LOGNAME ]; then
+    elif [ -d /scratch2/BMC/gsienkf/$LOGNAME ]; then
      export noscrub="/scratch2/BMC/gsienkf/$LOGNAME"
    fi
  
@@ -131,7 +131,7 @@ case $machine in
 
    #  On Hera, there are no scrubbers to remove old contents from stmp* directories.
    #  After completion of regression tests, will remove the regression test subdirecories
-#  export clean=".true."
+   export clean=".true."
    ;;
    Jet)
 

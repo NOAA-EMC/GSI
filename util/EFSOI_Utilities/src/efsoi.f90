@@ -42,7 +42,7 @@ use loadbal_efsoi, only: numptsperproc, indxproc, lnp_chunk, kdtree_grid, &
                    indxproc_obs, nobs_max
 use scatter_chunks_efsoi, only: fcerror_chunk, anal_chunk
 use enkf_obsmod, only: oberrvar, ob, ensmean_ob, obloc, obloclon, obloclat, oblnp, &
-                       obtime, nobstot, corrlengthsq, lnsigl, obtimel, anal_ob
+                       obtime, nobstot, corrlengthsq, lnsigl, obtimel, anal_ob_post
 use constants, only: constants_initialized, pi, zero, one
 use params, only: nanals, corrlengthnh, corrlengthtr, corrlengthsh, &
                   tar_minlon, tar_maxlon, tar_minlat, tar_maxlat, &
@@ -300,19 +300,19 @@ if(nproc /= 0) then
   call mpi_send(anal_obchunk_prior,numobsperproc(nproc+1)*nanals,mpi_real4,0, &
        1,mpi_comm_world,ierr)
 else
-   allocate(anal_ob(1:nanals,nobstot))
+!   allocate(anal_ob_post(1:nanals,nobstot))
    allocate(buffertmp(nanals,nobs_max))
    do np=1,numproc-1
       call mpi_recv(buffertmp,numobsperproc(np+1)*nanals,mpi_real4,np, &
            1,mpi_comm_world,mpi_status,ierr)
       do nob1=1,numobsperproc(np+1)
          nob2 = indxproc_obs(np+1,nob1)
-         anal_ob(:,nob2) = buffertmp(:,nob1)
+         anal_ob_post(:,nob2) = buffertmp(:,nob1)
       end do
    end do
    do nob1=1,numobsperproc(1)
       nob2 = indxproc_obs(1,nob1)
-      anal_ob(:,nob2) = anal_obchunk_prior(:,nob1)
+      anal_ob_post(:,nob2) = anal_obchunk_prior(:,nob1)
    end do
    deallocate(buffertmp)
 end if
