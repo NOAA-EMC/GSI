@@ -33,9 +33,15 @@ option(USE_NCDIAG "Use NetCDF diagnostics library" ON)
 set(GSI_APP "GFS" CACHE STRING "Choose the GSI Application.")
 set_property(CACHE GSI_APP PROPERTY STRINGS "GFS" "Regional")
 
+set(ENKF_APP "GFS" CACHE STRING "Choose the GSI Application.")
+set_property(CACHE ENKF_APP PROPERTY STRINGS "GFS" "Regional")
+
 # Echo user options
-message(STATUS "OPENMP ................. ${OPENMP}")
-message(STATUS "ENABLE_MKL ............. ${ENABLE_MKL}")
+message(STATUS "GSI Utils: OPENMP ................. ${OPENMP}")
+message(STATUS "GSI Utils: ENABLE_MKL ............. ${ENABLE_MKL}")
+message(STATUS "GSI Utils: USE_NCDIAG ............. ${USE_NCDIAG}")
+message(STATUS "GSI Utils: GSI_APP ................ ${GSI_APP}")
+message(STATUS "GSI Utils: ENKF_APP ............... ${ENKF_APP}")
 
 # Dependencies
 if(ENABLE_MKL)
@@ -44,7 +50,7 @@ endif()
 if(MKL_FOUND)
   set(LAPACK_LIBRARIES ${MKL_LIBRARIES})
 else()
-  set(ENABLE_MKL OFF CACHE INTERNAL "Disable MKL since it was NOT FOUND")
+  set(ENABLE_MKL OFF CACHE INTERNAL "GSI Utils: Disable MKL since it was NOT FOUND")
   find_package(LAPACK REQUIRED)
 endif()
 find_package(MPI REQUIRED)
@@ -64,6 +70,9 @@ find_package(ip REQUIRED)
 find_package(w3emc REQUIRED)
 find_package(bufr REQUIRED)
 find_package(crtm REQUIRED)
+if(GSI_APP MATCHES "Regional")
+  find_package(wrf_io REQUIRED)
+endif()
 
 # See https://github.com/NOAA-EMC/NCEPLIBS-nemsio/pull/22
 target_link_libraries(nemsio::nemsio INTERFACE w3emc::w3emc_d bacio::bacio_4)

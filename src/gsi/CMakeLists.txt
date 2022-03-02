@@ -34,10 +34,10 @@ set(GSI_APP "GFS" CACHE STRING "Choose the GSI Application.")
 set_property(CACHE GSI_APP PROPERTY STRINGS "GFS" "Regional")
 
 # Echo user options
-message(STATUS "OPENMP ................. ${OPENMP}")
-message(STATUS "ENABLE_MKL ............. ${ENABLE_MKL}")
-message(STATUS "USE_NCDIAG ............. ${USE_NCDIAG}")
-message(STATUS "GSI_APP ................ ${GSI_APP}")
+message(STATUS "GSI: OPENMP ................. ${OPENMP}")
+message(STATUS "GSI: ENABLE_MKL ............. ${ENABLE_MKL}")
+message(STATUS "GSI: USE_NCDIAG ............. ${USE_NCDIAG}")
+message(STATUS "GSI: GSI_APP ................ ${GSI_APP}")
 
 # Dependencies
 if(ENABLE_MKL)
@@ -46,7 +46,7 @@ endif()
 if(MKL_FOUND)
   set(LAPACK_LIBRARIES ${MKL_LIBRARIES})
 else()
-  set(ENABLE_MKL OFF CACHE INTERNAL "Disable MKL since it was NOT FOUND")
+  set(ENABLE_MKL OFF CACHE INTERNAL "GSI: Disable MKL since it was NOT FOUND")
   find_package(LAPACK REQUIRED)
 endif()
 find_package(MPI REQUIRED)
@@ -130,6 +130,7 @@ target_include_directories(gsi_fortran_obj INTERFACE
 
 # Link the Fortran targets with dependencies
 target_compile_definitions(gsi_fortran_obj PUBLIC "_REAL8_")
+target_compile_definitions(gsi_fortran_obj PUBLIC "POUND_FOR_STRINGIFY")
 target_link_libraries(gsi_fortran_obj PUBLIC NetCDF::NetCDF_Fortran)
 target_link_libraries(gsi_fortran_obj PUBLIC MPI::MPI_Fortran)
 target_link_libraries(gsi_fortran_obj PUBLIC ${LAPACK_LIBRARIES})

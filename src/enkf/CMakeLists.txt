@@ -34,10 +34,10 @@ set(ENKF_APP "GFS" CACHE STRING "Choose the EnKF Application.")
 set_property(CACHE ENKF_APP PROPERTY STRINGS "GFS" "WRF" "NMMB" "FV3REG")
 
 # Echo user options
-message(STATUS "OPENMP ................. ${OPENMP}")
-message(STATUS "ENABLE_MKL ............. ${ENABLE_MKL}")
-message(STATUS "USE_NCDIAG ............. ${USE_NCDIAG}")
-message(STATUS "ENKF_APP ............... ${ENKF_APP}")
+message(STATUS "EnKF: OPENMP ................. ${OPENMP}")
+message(STATUS "EnKF: ENABLE_MKL ............. ${ENABLE_MKL}")
+message(STATUS "EnKF: USE_NCDIAG ............. ${USE_NCDIAG}")
+message(STATUS "EnKF: ENKF_APP ............... ${ENKF_APP}")
 
 # Dependencies
 if(ENABLE_MKL)
@@ -46,7 +46,7 @@ endif()
 if(MKL_FOUND)
   set(LAPACK_LIBRARIES ${MKL_LIBRARIES})
 else()
-  set(ENABLE_MKL OFF CACHE INTERNAL "Disable MKL since it was NOT FOUND")
+  set(ENABLE_MKL OFF CACHE INTERNAL "EnKF: Disable MKL since it was NOT FOUND")
   find_package(LAPACK REQUIRED)
 endif()
 find_package(MPI REQUIRED)
