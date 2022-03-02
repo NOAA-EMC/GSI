@@ -62,7 +62,13 @@ for type in ${SATYPE_LIST}; do
    #  build input (namelist) file
    #
    nchanl=`cat ./${type}.ctl | grep title |gawk '{print $4}'`
-   ncycle=`ls -l ./${type}.*.ieee_d | wc -l`
+
+   ncycle=$NUM_CYCLES
+   ntimes=`ls -1 ${type}.*.*ieee_d | wc -l`
+   if [[ $ntimes -lt $ncycle ]]; then
+      ncycle=$ntimes
+   fi
+
    nregion=5
    if [[ $RAD_AREA = 'rgn' ]]; then
       nregion=1
@@ -107,7 +113,6 @@ EOF
       cdate=`$NDATE -${CYCLE_INTERVAL} $tdate`
       ctr=$(($ctr+1))
    done
-
 
    #------------------------------
    #  build chan.txt using ctl file

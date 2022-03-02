@@ -114,8 +114,8 @@ cat << EOF > input.$sat.$ihh
 EOF
       ./horiz.x < input.$sat.$ihh >   stdout.$sat.$ihh
 
-      rm -f $TANKDIR/horiz/stdout.$sat.$ihh
-      $NCP stdout.$sat.$ihh        $TANKDIR/horiz/stdout.$sat.$ihh
+      rm -f $TANKverf/horiz/stdout.$sat.$ihh
+      $NCP stdout.$sat.$ihh        $TANKverf/horiz/stdout.$sat.$ihh
 
    done
 done
@@ -132,7 +132,7 @@ for sat in ${SATYPE}; do
    fi
 
    $NCP ${sat}.ctl*             $IMGNDIR/horiz/${sat}.ctl
-   ${COMPRESS} -f $TANKDIR/horiz/${sat}.ctl
+   ${COMPRESS} -f $TANKverf/horiz/${sat}.ctl
    chmod a+r ${sat}*.ieee_d*
 done
 

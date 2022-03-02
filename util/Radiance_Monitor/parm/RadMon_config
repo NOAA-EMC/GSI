@@ -20,7 +20,7 @@ export MONITOR=radmon
 # you checked out only the Radiance_Monitor portion of the branch then
 # MY_RADMON should point to that.
 #
-export MY_RADMON=${MY_RADMON:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Radiance_Monitor}
+export MY_RADMON=${MY_RADMON:-/lfs/h2/emc/da/noscrub/Edward.Safford/git/gsi/GSI/util/Radiance_Monitor}
 
 #
 #  The MY_TANKDIR will be the location for the extracted data files and
@@ -28,7 +28,7 @@ export MY_RADMON=${MY_RADMON:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GS
 #  and the succedding scripts will construct and use subdirectories under
 #  this location.
 #
-export MY_TANKDIR=${MY_TANKDIR:-/u/Edward.Safford/nbns}
+export MY_TANKDIR=${MY_TANKDIR:-/lfs/h2/emc/da/noscrub/Edward.Safford/nbns}
 
 export RUN=${RUN:-gdas}
 
@@ -39,13 +39,16 @@ TANKimg=${TANKimg:-${MY_TANKDIR}/imgn}
 
 if [[ $RAD_AREA = "rgn" ]]; then
    TANKverf=${TANKverf}/regional
-   TANKimg=${TANKimg}/regional
+   TANKimg=${TANKimg}/regional/${RADMON_SUFFIX}
    export RUN=""
    export TANK_USE_RUN=""
+else
+   TANKimg=${TANKimg}/${RADMON_SUFFIX}/${RUN}
 fi
 
 export TANKverf=${TANKverf}/${RADMON_SUFFIX}
-export TANKimg=${TANKimg}/${RADMON_SUFFIX}
+export TANKimg=${TANKimg}/radmon
+export IMGNDIR=${TANKimg}/pngs
 
 
 #
@@ -67,16 +70,15 @@ export WEBDIR=${WEBDIR:-/home/people/emc/www/htdocs/gmb/gdas/radiance/esafford}
 ###############################################################################
 ###############################################################################
 
-export MY_MACHINE=wcoss_d
-export LITTLE_ENDIAN=${LITTLE_ENDIAN:-0}
+export MY_MACHINE=wcoss2
 
 
 #
 #  Log and work space definitions
 #
-export MY_PTMP=${MY_PTMP:-/gpfs/dell2/ptmp}
+export MY_PTMP=${MY_PTMP:-/lfs/h2/emc/ptmp}
 export PTMP_USER=${PTMP_USER:-${MY_PTMP}/${LOGNAME}}
-export MY_STMP=${MY_STMP:-/gpfs/dell2/stmp}
+export MY_STMP=${MY_STMP:-/lfs/h2/emc/stmp}
 export STMP_USER=${STMP_USER:-${MY_STMP}/${LOGNAME}}
 
 LOGdir=${LOGdir:-${PTMP_USER}/logs/${RADMON_SUFFIX}}
@@ -211,6 +213,20 @@ elif [[ $MY_MACHINE = "jet" ]]; then
 
    export RADMON_PARTITION=${RADMON_PARTITION:-kjet}
 
+elif [[ $MY_MACHINE = "wcoss2" ]]; then
+   module load prod_util/2.0.13
+   module load util_shared/1.4.0
+
+   #------------------------
+   # temporary workaround
+   #
+   module use /apps/test/modules		
+   module load GrADS/2.2.1-cce-11.0.4
+   #------------------------
+   
+   export SUB="qsub"
+   export COMPRESS=/usr/bin/gzip
+   export UNCOMPRESS="/usr/bin/gunzip -f"
 fi
 
 

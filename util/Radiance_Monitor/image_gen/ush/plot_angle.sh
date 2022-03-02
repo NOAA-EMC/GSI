@@ -57,7 +57,7 @@ imgdef=`echo ${#IMGNDIR}`
 if [[ $imgdef -gt 0 ]]; then
   ctldir=$IMGNDIR/angle
 else
-  ctldir=$TANKDIR/angle
+  ctldir=$TANKverf/angle
 fi
 
 echo ctldir = $ctldir
