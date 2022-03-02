@@ -118,7 +118,7 @@
   use mod_strong, only: l_tlnmc,reg_tlnmc_type,nstrong,tlnmc_option,&
        period_max,period_width,init_strongvars,baldiag_full,baldiag_inc
   use gridmod, only: nlat,nlon,nsig,wrf_nmm_regional,nems_nmmb_regional,fv3_regional,cmaq_regional,&
-     nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass,grid_ratio_fv3_regional,&
+     nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass,grid_ratio_fv3_regional,fv3_io_layout_y,&
      filled_grid,half_grid,wrf_mass_regional,nsig1o,nnnn1o,update_regsfc,&
      diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
      twodvar_regional,regional,init_grid,init_reg_glob_ll,init_grid_vars,netcdf,&
@@ -145,13 +145,16 @@
                          n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,oz_univ_static,&
                          regional_ensemble_option,fv3sar_ensemble_opt,merge_two_grid_ensperts, &
                          full_ensemble,pseudo_hybens,pwgtflg,&
-                         beta_s0,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
+                         beta_s0,beta_e0,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
                          readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,&
                          readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens,i_en_perts_io, &
                          l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
                             metar_impact_radius_lowcloud,l_gsd_terrain_match_surftobs, &
+                            l_metar_impact_radius_change, &
+                            metar_impact_radius_max,metar_impact_radius_min,&
+                            metar_impact_radius_max_height,metar_impact_radius_min_height,&
                             l_sfcobserror_ramp_t, l_sfcobserror_ramp_q, &
                             l_pbl_pseudo_surfobst,l_pbl_pseudo_surfobsq,l_pbl_pseudo_surfobsuv, &
                             pblh_ration,pps_press_incr,l_gsd_limit_ocean_q, &
@@ -165,7 +168,8 @@
                             i_lightpcp,i_sfct_gross,l_use_hydroretrieval_all,l_numconc,l_closeobs,&
                             i_coastline,i_gsdqc,qv_max_inc,ioption,l_precip_clear_only,l_fog_off,&
                             cld_bld_coverage,cld_clr_coverage,&
-                            i_cloud_q_innovation,i_ens_mean,DTsTmax
+                            i_cloud_q_innovation,i_ens_mean,DTsTmax,&
+                            i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
@@ -468,6 +472,17 @@
 !  2021-01-05  x.zhang/lei  - add code for updating delz analysis in regional da
 !  09-07-2020 CAPS            Add options for directDA_radaruse_mod to use direct radar DA capabilities
 !  02-09-2021 CAPS(J. Park)   Add vad_near_analtime flag (obsqc) to assimilate newvad obs around analysis time only
+!  10-10-2019 Zhao      added options l_rtma3d and l_precip_vertical_check
+!                       (adjustment to the cloud-analysis retrieved profile of
+!                        Qg/Qs/Qr/QnrQto to alleviate the reflectivity ghost in
+!                        RTMA3D.)
+!  04-16-2020 Zhao      change option l_precip_vertical_check to i_precip_vertical_check
+!                       option for checking and adjusting the profile of Qr/Qs/Qg/Qnr
+!                       retrieved through cloud analysis to reduce the background
+!                       reflectivity ghost in analysis. (default is 0)
+!  01-07-2022 Hu        Add fv3_io_layout_y to let fv3lam interface read/write subdomain restart
+!                       files. The fv3_io_layout_y needs to match fv3lam model
+!                       option io_layout(2).
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -754,6 +769,7 @@
 !                                = 'V', then analysis grid covers V grid domain
 !     grid_ratio_nmmb   - ratio of analysis grid to nmmb model grid in nmmb model grid units.
 !     grid_ratio_fv3_regional - ratio of analysis grid to fv3 grid in fv3 grid units.
+!     fv3_io_layout_y    - set to the same number as io_layout of fv3 regional model in y direction.
 !     grid_ratio_wrfmass - ratio of analysis grid to wrf mass grid in wrf grid units.
 !     grid_type_fv3_regional - type of fv3 model grid (grid orientation).
 !     twodvar_regional  - logical for regional 2d-var analysis
@@ -774,7 +790,7 @@
        diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,fv3_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,cmaq_regional,&
        nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_fv3_regional,grid_ratio_wrfmass,jcap_gfs,jcap_cut,&
-       wrf_mass_hybridcord,grid_type_fv3_regional
+       wrf_mass_hybridcord,grid_type_fv3_regional,fv3_io_layout_y
 
 ! BKGERR (background error related variables):
 !     vs       - scale factor for vertical correlation lengths for background error
@@ -1268,6 +1284,9 @@
 !                                        beta_s(:) = beta_s0     , vertically varying weights given to static B ; 
 !                                        beta_e(:) = 1 - beta_s0 , vertically varying weights given ensemble derived covariance.
 !                            If (readin_beta) then beta_s and beta_e are read from a file and beta_s0 is not used.
+!     beta_e0 - default weight given to ensemble background error covariance
+!               (if .not. readin_beta). if beta_e0<0, then it is set to
+!               1.-beta_s0 (this is the default)
 !     s_ens_h             - homogeneous isotropic horizontal ensemble localization scale (km)
 !     s_ens_v             - vertical localization scale (grid units for now)
 !                              s_ens_h, s_ens_v, and beta_s0 are tunable parameters.
@@ -1312,7 +1331,7 @@
 !                         
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,fv3sar_bg_opt,fv3sar_ensemble_opt,full_ensemble,pwgtflg,&
-                jcap_ens_test,beta_s0,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
+                jcap_ens_test,beta_s0,beta_e0,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
                 grid_ratio_ens, &
                 oz_univ_static,write_ens_sprd,use_localization_grid,use_gfs_ens, &
                 i_en_perts_io,l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB
@@ -1321,6 +1340,17 @@
 !                             enhancement for RR appilcation  ):
 !      dfi_radar_latent_heat_time_period     -   DFI forward integration window in minutes
 !      metar_impact_radius  - metar low cloud observation impact radius in grid number
+!      l_metar_impact_radius_change - if .true. the impact radius will change
+!                            with height that set up with the metar_impact_radius_max, min,
+!                            max_height, min_height, (default:false)
+!      metar_impact_radius_max  - The max impact radius of metar cloud observation
+!                            in meter (default: 100000 m).
+!      metar_impact_radius_min  - The min impact radius of metar cloud observation
+!                            in meter (default: 10000 m).
+!      metar_impact_radius_max_height - The hight above which metar_impact_radius_max apply
+!                            in meter (default: 1200m).
+!      metar_impact_radius_min_height - The hight below which metar_impact_radius_min apply
+!                            in meter (default: 200m).
 !      l_gsd_terrain_match_surftobs - if .true., GSD terrain match for surface temperature observation
 !      l_sfcobserror_ramp_t  - namelist logical for adjusting surface temperature observation error
 !      l_sfcobserror_ramp_q  - namelist logical for adjusting surface moisture observation error
@@ -1414,7 +1444,9 @@
 !      i_cloud_q_innovation - integer to choose if and how cloud obs are used
 !                          0= no innovations 
 !                          1= cloud total innovations
-!                          2= water vapor innovations
+!                          20= cloud build/clear derived water vapor innovations
+!                          21= cloud build derived water vapor innovations
+!                          22= cloud clear derived water vapor innovations
 !                          3= cloud total & water vapor innovations
 !      i_ens_mean    - integer for setupcldtot behavior
 !                           0=single model run
@@ -1422,10 +1454,28 @@
 !                           2=ensemble members
 !      DTsTmax       - maximum allowed difference between Tskin and the first
 !                           level T. This is to safety guard soil T adjustment.
+!      i_T_Q_adjust -     =0 no temperature and moisture adjustment in hydrometeor analyis
+!                         =1 (default) temperature and moisture are adjusted in hydrometeor analyis
+!                         =2 temperature and moisture only adjusted for clearing (warmer, drier)
+!      l_saturate_bkCloud - if .true. ensure saturation for all cloud 3-d points in background
+!                           where observed cloud cover is missing (default:true).
+!      l_rtma3d      - logical option for turning on configuration for RTMA3D
+!                           (default is .FALSE.)
+!      i_precip_vertical_check - integer option for checking and adjusting
+!                                Qr/Qs/Qg and Qnr after cloud analysis
+!                                to reduce the background reflectivity ghost in
+!                                analysis. (default is 0)
+!                           = 0(no adjustment)
+!                           = 1(Clean off Qg only, where dbz_obs_max<=35dbz in the profile)
+!                           = 2(clean Qg as in 1, and adjustment to the retrieved Qr/Qs/Qnr throughout the whole profile)
+!                           = 3(similar to 2, but adjustment to Qr/Qs/Qnr only below maximum reflectivity level
+!                             and where the dbz_obs is missing);
 !
   namelist/rapidrefresh_cldsurf/dfi_radar_latent_heat_time_period, &
                                 metar_impact_radius,metar_impact_radius_lowcloud, &
-                                l_gsd_terrain_match_surftobs, &
+                                l_metar_impact_radius_change,metar_impact_radius_max,&
+                                metar_impact_radius_min,metar_impact_radius_max_height,&
+                                metar_impact_radius_min_height,l_gsd_terrain_match_surftobs, &
                                 l_sfcobserror_ramp_t,l_sfcobserror_ramp_q, &
                                 l_pbl_pseudo_surfobst,l_pbl_pseudo_surfobsq,l_pbl_pseudo_surfobsuv, &
                                 pblh_ration,pps_press_incr,l_gsd_limit_ocean_q, &
@@ -1439,7 +1489,8 @@
                                 i_lightpcp,i_sfct_gross,l_use_hydroretrieval_all,l_numconc,l_closeobs,&
                                 i_coastline,i_gsdqc,qv_max_inc,ioption,l_precip_clear_only,l_fog_off,&
                                 cld_bld_coverage,cld_clr_coverage,&
-                                i_cloud_q_innovation,i_ens_mean,DTsTmax
+                                i_cloud_q_innovation,i_ens_mean,DTsTmax, &
+                                i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check
 
 ! chem(options for gsi chem analysis) :
 !     berror_chem       - .true. when background  for chemical species that require

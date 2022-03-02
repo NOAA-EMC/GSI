@@ -93,7 +93,12 @@ for type in ${SATYPE_LIST}; do
    #  build input (namelist) file
    #
    nchanl=`cat ./${type}.ctl | grep title |gawk '{print $4}'`
-   ncycle=`ls -l ./${type}.*.ieee_d | wc -l`
+
+   ncycle=$NUM_CYCLES
+   ntimes=`ls -1 ${type}.*.*ieee_d | wc -l`
+   if [[ $ntimes -lt $ncycle ]]; then
+      ncycle=$ntimes
+   fi
 
    scan_start=`cat ./$scaninfo | grep $type | gawk '{print $2}'`
    scan_stepsz=`cat ./$scaninfo | grep $type | gawk '{print $3}'`

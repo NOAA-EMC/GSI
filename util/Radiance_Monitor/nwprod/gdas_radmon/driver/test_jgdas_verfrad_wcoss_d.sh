@@ -14,7 +14,7 @@ set -x
 
 #export PDATE=2018091706	    	# binary radstat
 #export PDATE=2018110206		   # netcdf radstat
-export PDATE=2020022806 		   # netcdf radstat
+export PDATE=2022021506 		   # netcdf radstat
 
 #############################################################
 # Specify whether the run is production or development

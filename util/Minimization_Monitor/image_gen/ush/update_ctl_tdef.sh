@@ -109,15 +109,12 @@ function usage {
     tdef=`echo $line | gawk '{print $1}'`
 
     if [[ $tdef == "tdef" ]]; then
-#      echo "found tdef"
-#      echo "$line"
       v2=`echo $line | gawk '{print $2}'`
       v3=`echo $line | gawk '{print $3}'`
       v5=`echo $line | gawk '{print $5}'`
 
       ndate="${ihh}Z${idd}${smon}${iyy}"
       newline="${tdef} ${v2} ${v3} ${ndate} ${v5}"
-#      echo "$newline"
       echo "$newline" >> $tmp_file
       found_tdef=1
     else

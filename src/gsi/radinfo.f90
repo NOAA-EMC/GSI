@@ -1690,7 +1690,7 @@ contains
    logical mean_only
    logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,tmi,gmi,amsr2,saphir
    logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
-   logical avhrr,avhrr_navy,goessndr,goes_img,ahi,seviri,abi
+   logical avhrr,avhrr_navy,goessndr,goes_img,ahi,seviri,abi,viirs
 
    character(len=20):: obstype,platid
    character(len=20):: satsens,satsens_id
@@ -1872,6 +1872,7 @@ contains
       ahi        = obstype == 'ahi'
       abi        = obstype == 'abi'
       avhrr      = obstype == 'avhrr'
+      viirs      = obstype == 'viirs-m'
       avhrr_navy = obstype == 'avhrr_navy'
       ssmi       = obstype == 'ssmi'
       amsre_low  = obstype == 'amsre_low'

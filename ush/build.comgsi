@@ -45,7 +45,11 @@ elif [[ -d /jetmon ]] ; then
     module load cmake/3.16.1
     module load intel/18.0.5.274
     module load impi/2018.4.274
-    module load netcdf/4.7.0 #don't load netcdf/4.7.4 from hpc-stack, GSI does not compile with it.
+    module load szip/2.1
+    module load hdf5parallel/1.10.6
+    module load netcdf-hdf5parallel/4.7.4
+    module load pnetcdf/1.11.2
+    module load nco/4.9.1
 
     module use /lfs4/HFIP/hfv3gfs/nwprod/hpc-stack/libs/modulefiles/stack
     module load hpc/1.1.0
