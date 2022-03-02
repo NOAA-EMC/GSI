@@ -16,7 +16,7 @@ date
 echo "begin mk_bcor_plots.sh"
 
 imgndir=${IMGNDIR}/bcor
-tankdir=${TANKDIR}/bcor
+tankdir=${TANKverf}/bcor
 
 if [[ ! -d ${imgndir} ]]; then
    mkdir -p ${imgndir}
@@ -24,7 +24,7 @@ fi
 
 
 #-------------------------------------------------------------------
-#  Locate/update the control files in $TANKDIR/radmon.$pdy.  $pdy
+#  Locate/update the control files in $TANKverf/radmon.$pdy.  $pdy
 #  starts at END_DATE and walks back to START_DATE until ctl files
 #  are found or we run out of dates to check.  Report an error to
 #  the log file and exit if no ctl files are found.
@@ -245,6 +245,9 @@ for sat in ${bigSATLIST}; do
       $SUB --account ${ACCOUNT} -n $ctr  -o ${logfile} -D . -J ${jobname} \
            -p ${RADMON_PARTITION} --time=1:00:00 --wrap "srun -l --multi-prog ${cmdfile}"
 
+   elif [[ $MY_MACHINE = "wcoss2" ]]; then
+      $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -V \
+           -l select=1:mem=1g -l walltime=1:00:00 -N ${jobname} ${cmdfile}
    fi
 
    echo "submitted $sat"

@@ -79,14 +79,6 @@ export USE_TM=${USE_TM:-tm12}
 #    for most parallels.  0 = off, 1 = on
 export USE_STATIC_SATYPE=${USE_STATIC_SATYPE:-1}
 
-#
-#  DO_DIAG_RPT switches on/off the diagnostic error reporting.  This is check
-#    primarily intended for use with the operational data sets (GDAS,NDAS) where
-#    detection and reporting of a missing sat/instrument source in a given cycle run
-#    is desirable.  It is not normally necessary in parallels.  0 = off, 1 = on
-export DO_DIAG_RPT=${DO_DIAG_RPT:-0}
-
-
 #  DO_DATA_RPT switches on/off error checking and reporting of the penalty values
 #    by channel for each sat/instrument source.  This is a check primarily intended
 #    for use iwth the operational data sets (GDAS,NDAS) where detection and 
@@ -94,7 +86,9 @@ export DO_DIAG_RPT=${DO_DIAG_RPT:-0}
 #    desirable.  It is not normally necesary to apply this to parallels.  0 = off, 1 = on
 export DO_DATA_RPT=${DO_DATA_RPT:-0}
 
-
+#
+#  MAIL_TO and MAIL_CC are the email addresses used to distribute warning messages.
+#
 export MAIL_TO=${MAIL_TO:-'edward.safford@noaa.gov'}
 
 if [[ -e /u/${LOGNAME}/bin/get_cc_list.pl ]]; then
@@ -125,6 +119,11 @@ if [[ ${RAD_AREA} = "rgn" ]]; then
 else
    export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
 fi
+
+#
+#  NUM_CYCLES is the number of cycles to be used time series plots.
+#
+export NUM_CYCLES=${NUM_CYCLES:-121}
 
 #
 #  RUN_TRANSFER allows for an immediate invocation of the Transfer.sh script
