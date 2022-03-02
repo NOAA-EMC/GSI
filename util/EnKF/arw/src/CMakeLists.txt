@@ -2,11 +2,10 @@
 
 if(NOT TARGET gsi)
   find_package(gsi QUIET)
-endif()
-
-if(NOT gsi_FOUND)
-  message(STATUS "GSI library was not found. Disable EnKF ARW utilities")
-  return()
+  if(NOT gsi_FOUND)
+    message(STATUS "GSI library was not found. Disable EnKF ARW utilities")
+    return()
+  endif()
 endif()
 
 if(NOT GSI_APP MATCHES "Regional")

@@ -6,11 +6,10 @@ endif()
 
 if(NOT TARGET enkf)
   find_package(enkf QUIET)
-endif()
-
-if(NOT enkf_FOUND)
-  message(STATUS "EnKF library was not found. Disable EFSOI utilities")
-  return()
+  if(NOT enkf_FOUND)
+    message(STATUS "EnKF library was not found. Disable EFSOI utilities")
+    return()
+  endif()
 endif()
 
 if(NOT ENKF_APP MATCHES "GFS")
@@ -50,7 +49,7 @@ if(TARGET gsi)
   add_dependencies(global_efsoi.x gsi)
 endif()
 
-if(TARGET gsi)
+if(TARGET enkf)
   add_dependencies(global_efsoi.x enkf)
 endif()
 
