@@ -27,10 +27,10 @@ program getsigensmeanp_smooth
   use nemsio_module, only: nemsio_gfile,nemsio_getfilehead,nemsio_charkind8, &
                            nemsio_readrec,nemsio_writerec, &
                            nemsio_readrecv,nemsio_writerecv
-  use module_fv3gfs_ncio, only: open_dataset, create_dataset, read_attribute, &
-                           Dataset, Dimension, close_dataset, has_attr, &
-                           read_vardata, write_attribute, write_vardata, &
-                           get_dim, quantize_data, has_var
+  use module_ncio, only: open_dataset, create_dataset, read_attribute, &
+                         Dataset, Dimension, close_dataset, has_attr, &
+                         read_vardata, write_attribute, write_vardata, &
+                         get_dim, quantize_data, has_var
 
   implicit none
 
@@ -99,7 +99,7 @@ program getsigensmeanp_smooth
   filenameout = trim(adjustl(datapath)) // trim(adjustl(filenameout))
   ! if a 5th arg present, it's a filename to write out ensemble spread
   ! (only used for ncio)
-  if (nargs() > 5) then
+  if (iargc() > 5) then
      call getarg(5,filenameoutsprd)
      write_spread_ncio = .true.
      if (mype == 0) print *,'computing ensemble spread'

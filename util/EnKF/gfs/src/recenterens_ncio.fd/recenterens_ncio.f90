@@ -25,10 +25,10 @@ program recenterens_ncio
 !
 !$$$
 
-  use module_fv3gfs_ncio, only: open_dataset, create_dataset, read_attribute, &
-                           Dataset, Dimension, close_dataset, has_attr, has_var, &
-                           read_vardata, write_attribute, write_vardata, &
-                           get_dim, quantize_data
+  use module_ncio, only: open_dataset, create_dataset, read_attribute, &
+                         Dataset, Dimension, close_dataset, has_attr, has_var, &
+                         read_vardata, write_attribute, write_vardata, &
+                         get_dim, quantize_data
 
   implicit none
 
@@ -113,7 +113,7 @@ program recenterens_ncio
             if (ndims == 3 .and. trim(dseti%variables(nvar)%name) /= 'hgtsfc') then
                ! pressfc
                if (mype == 0) print *,'recentering ',&
-                trim(dseti%variables(nvar)%name) 
+                trim(dseti%variables(nvar)%name)
                call read_vardata(dseti,trim(dseti%variables(nvar)%name),values_2d_i)
                call read_vardata(dsetmi,trim(dseti%variables(nvar)%name),values_2d_mi)
                call read_vardata(dsetmo,trim(dseti%variables(nvar)%name),values_2d_mo)
@@ -135,7 +135,7 @@ program recenterens_ncio
                call write_vardata(dseto,trim(dseti%variables(nvar)%name),values_2d)
             else if (ndims == 4) then
                if (mype == 0) print *,'recentering ',&
-                trim(dseti%variables(nvar)%name) 
+                trim(dseti%variables(nvar)%name)
                call read_vardata(dseti,trim(dseti%variables(nvar)%name),values_3d_i)
                call read_vardata(dsetmi,trim(dseti%variables(nvar)%name),values_3d_mi)
                call read_vardata(dsetmo,trim(dseti%variables(nvar)%name),values_3d_mo)

@@ -1,10 +1,18 @@
-cmake_minimum_required(VERSION 2.6)
-if(BUILD_UTIL)
-  file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.f90)
-  set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
-  add_executable(recentersigp.x  ${LOCAL_SRC} )
-  set_target_properties( recentersigp.x PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
-  SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_Fortran_FLAGS}" )
-  include_directories( ${NEMSIOINC} ${SIGIOINC} ${NETCDF_INCLUDE_DIRS}  ${FV3GFS_NCIO_INCS}) 
-  target_link_libraries( recentersigp.x ${FV3GFS_NCIO_LIBRARIES} ${SIGIO_LIBRARY} ${NEMSIO_LIBRARY} ${BACIO_LIBRARY} ${W3NCO_4_LIBRARY} ${MPI_Fortran_LIBRARIES} ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES})
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fp-model strict -convert big_endian -assume byterecl")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian -ffree-line-length-0")
 endif()
+
+add_executable(recentersigp.x recentersigp.f90)
+target_link_libraries(recentersigp.x PRIVATE NetCDF::NetCDF_Fortran)
+target_link_libraries(recentersigp.x PRIVATE MPI::MPI_Fortran)
+target_link_libraries(recentersigp.x PRIVATE bacio::bacio_4)
+target_link_libraries(recentersigp.x PRIVATE w3emc::w3emc_d)
+target_link_libraries(recentersigp.x PRIVATE nemsio::nemsio)
+target_link_libraries(recentersigp.x PRIVATE sigio::sigio)
+target_link_libraries(recentersigp.x PRIVATE ncio::ncio)
+
+# Install executable targets
+install(TARGETS recentersigp.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+

@@ -30,11 +30,11 @@
  integer, parameter :: num_recs = 9
 
 ! Declare externals
- external :: w3tagb, netcdf_err, splat, ipolatev, &
-    mpi_send, ipolates, mpi_recv, w3tage
+ external :: w3tagb, netcdf_err, splat, ipolatev, ipolates, w3tage
+
 
  character(len=128) :: outfile, infile
- character(len=11)  :: records(num_recs) 
+ character(len=11)  :: records(num_recs)
 
  integer :: i, j, mi, iret, mo, rec
  integer :: lon_in, lat_in
@@ -113,88 +113,88 @@ call mpi_comm_size(mpi_comm_world, npes, mpierr)
  call mpi_barrier(mpi_comm_world, mpierr)
  if (mype == 0) then
    print*,'- OPEN OUTPUT FILE: ', trim(outfile)
-  
+
    error = nf90_create(outfile, cmode=IOR(NF90_CLOBBER,NF90_NETCDF4), ncid=ncid_out)
    call netcdf_err(error, 'CREATING FILE='//trim(outfile) )
-  
+
    error = nf90_def_dim(ncid_out, 'lon', lon_out, dim_lon_out)
    call netcdf_err(error, 'defining dimension lon for file='//trim(outfile) )
-  
+
    error = nf90_def_dim(ncid_out, 'lat', lat_out, dim_lat_out)
    call netcdf_err(error, 'defining dimension lat for file='//trim(outfile) )
-  
+
    error = nf90_def_dim(ncid_out, 'lev', lev, dim_lev_out)
    call netcdf_err(error, 'defining dimension lev for file='//trim(outfile) )
-  
+
    error = nf90_def_dim(ncid_out, 'ilev', ilev, dim_ilev_out)
    call netcdf_err(error, 'defining dimension ilev for file='//trim(outfile) )
-  
+
    error = nf90_def_var(ncid_out, 'lon', nf90_double, (/dim_lon_out/), id_lon_out)
    call netcdf_err(error, 'defining variable lon for file='//trim(outfile) )
-  
+
    error = nf90_put_att(ncid_out, id_lon_out, "units", "degrees_east")
    call netcdf_err(error, 'define lon attribute for file='//trim(outfile) )
-  
+
    error = nf90_def_var(ncid_out, 'lat', nf90_double, (/dim_lat_out/), id_lat_out)
    call netcdf_err(error, 'defining varable lat for file='//trim(outfile) )
-  
+
    error = nf90_put_att(ncid_out, id_lat_out, "units", "degrees_north")
    call netcdf_err(error, 'defining lat att for file='//trim(outfile) )
-  
+
    error = nf90_def_var(ncid_out, 'lev', nf90_float, (/dim_lev_out/), id_lev_out)
    call netcdf_err(error, 'defining variable lev for file='//trim(outfile) )
-  
+
    error = nf90_def_var(ncid_out, 'pfull', nf90_float, (/dim_lev_out/), id_pfull_out)
    call netcdf_err(error, 'defining variable pfull for file='//trim(outfile) )
-  
+
    error = nf90_def_var(ncid_out, 'ilev', nf90_float, (/dim_ilev_out/), id_ilev_out)
    call netcdf_err(error, 'defining variable ilev for file='//trim(outfile) )
-  
+
    error = nf90_def_var(ncid_out, 'hyai', nf90_float, (/dim_ilev_out/), id_hyai_out)
    call netcdf_err(error, 'defining variable hyai for file='//trim(outfile) )
-  
+
    error = nf90_def_var(ncid_out, 'hybi', nf90_float, (/dim_ilev_out/), id_hybi_out)
    call netcdf_err(error, 'defining variable hybi for file='//trim(outfile) )
-  
+
    error = nf90_def_var(ncid_out, 'u_inc', nf90_float, (/dim_lon_out,dim_lat_out,dim_lev_out/), id_u_inc_out)
    call netcdf_err(error, 'defining variable u_inc for file='//trim(outfile) )
-  
+
    error = nf90_def_var(ncid_out, 'v_inc', nf90_float, (/dim_lon_out,dim_lat_out,dim_lev_out/), id_v_inc_out)
    call netcdf_err(error, 'defining variable v_inc for file='//trim(outfile) )
-  
+
    error = nf90_def_var(ncid_out, 'delp_inc', nf90_float, (/dim_lon_out,dim_lat_out,dim_lev_out/), id_delp_inc_out)
    call netcdf_err(error, 'defining variable delp_inc for file='//trim(outfile) )
-  
+
    error = nf90_def_var(ncid_out, 'delz_inc', nf90_float, (/dim_lon_out,dim_lat_out,dim_lev_out/), id_delz_inc_out)
    call netcdf_err(error, 'defining variable delz_inc for file='//trim(outfile) )
-  
+
    error = nf90_def_var(ncid_out, 'T_inc', nf90_float, (/dim_lon_out,dim_lat_out,dim_lev_out/), id_t_inc_out)
    call netcdf_err(error, 'defining variable t_inc for file='//trim(outfile) )
-  
+
    error = nf90_def_var(ncid_out, 'sphum_inc', nf90_float, (/dim_lon_out,dim_lat_out,dim_lev_out/), id_sphum_inc_out)
    call netcdf_err(error, 'defining variable sphum_inc for file='//trim(outfile) )
-  
+
    error = nf90_def_var(ncid_out, 'liq_wat_inc', nf90_float, (/dim_lon_out,dim_lat_out,dim_lev_out/), id_liq_wat_inc_out)
    call netcdf_err(error, 'defining variable liq_wat_inc for file='//trim(outfile) )
-  
+
    error = nf90_def_var(ncid_out, 'o3mr_inc', nf90_float, (/dim_lon_out,dim_lat_out,dim_lev_out/), id_o3mr_inc_out)
    call netcdf_err(error, 'defining variable o3mr_inc for file='//trim(outfile) )
-  
+
    error = nf90_def_var(ncid_out, 'icmr_inc', nf90_float, (/dim_lon_out,dim_lat_out,dim_lev_out/), id_icmr_inc_out)
    call netcdf_err(error, 'defining variable icmr_inc for file='//trim(outfile) )
-  
+
    error = nf90_put_att(ncid_out, nf90_global, 'source', 'GSI')
    call netcdf_err(error, 'defining source attribute for file='//trim(outfile) )
-  
+
    error = nf90_put_att(ncid_out, nf90_global, 'comment', 'interpolated global analysis increment')
    call netcdf_err(error, 'defining comment attribute for file='//trim(outfile) )
-  
+
    error = nf90_enddef(ncid_out, header_buffer_val, 4,0,4)
    call netcdf_err(error, 'end meta define for file='//trim(outfile) )
  end if
 
 !-----------------------------------------------------------------
-! Compute latitude and longitude of output grid.  
+! Compute latitude and longitude of output grid.
 !-----------------------------------------------------------------
 
  allocate(latitude_out(lat_out))
@@ -336,13 +336,13 @@ call mpi_comm_size(mpi_comm_world, npes, mpierr)
 
    if (mype == rec) then
      print*,'- PROCESS RECORD: ', trim(records(rec))
-  
+
      error = nf90_inq_varid(ncid_in, trim(records(rec)), id_var)
      call netcdf_err(error, 'inquiring ' // trim(records(rec)) // ' id for file='//trim(infile) )
      error = nf90_get_var(ncid_in, id_var, dummy_in)
      call netcdf_err(error, 'reading ' //  trim(records(rec)) // ' for file='//trim(infile) )
-  
-  
+
+
      ip = 0 ! bilinear
      ipopt = 0
      ibi = 0
@@ -354,7 +354,7 @@ call mpi_comm_size(mpi_comm_world, npes, mpierr)
      lo = 0
      go = 0.0_8
      gi = reshape (dummy_in, (/mi, lev/))
-  
+
      if (trim(records(rec)) .eq. 'u_inc') then
         ! do u_inc,v_inc at the same time
         error = nf90_inq_varid(ncid_in, 'v_inc', id_var)
@@ -414,7 +414,7 @@ call mpi_comm_size(mpi_comm_world, npes, mpierr)
         error = nf90_put_var(ncid_out, id_var, dummy_out)
         call netcdf_err(error, 'writing v_inc for file='//trim(outfile) )
      endif
-   endif 
+   endif
  enddo  ! records
 
  error = nf90_close(ncid_in)
@@ -433,55 +433,55 @@ call mpi_comm_size(mpi_comm_world, npes, mpierr)
 
  if (mype == 0) then
    print*,"- WRITE OUTPUT FILE: ", trim(outfile)
-  
+
   ! lev
-  
+
    allocate(levs(lev))
    do j = 1, lev
      levs(j) = j
    enddo
-  
+
    error = nf90_put_var(ncid_out, id_lev_out, levs)
    call netcdf_err(error, 'writing levs for file='//trim(outfile) )
-  
+
   ! pfull
-  
+
    error = nf90_put_var(ncid_out, id_pfull_out, levs)
    call netcdf_err(error, 'writing pfull for file='//trim(outfile) )
-  
+
    deallocate (levs)
    allocate (levs(ilev))
    do j = 1, ilev
      levs(j) = j
    enddo
-  
+
   ! ilev
-  
+
    error = nf90_put_var(ncid_out, id_ilev_out, levs)
    call netcdf_err(error, 'writing ilev for file='//trim(outfile) )
-  
+
   ! hyai
-  
+
    error = nf90_put_var(ncid_out, id_hyai_out, levs)
    call netcdf_err(error, 'writing hyai for file='//trim(outfile) )
-  
+
   ! hybi
-  
+
    error = nf90_put_var(ncid_out, id_hybi_out, levs)
    call netcdf_err(error, 'writing hybi for file='//trim(outfile) )
-  
+
   ! latitude
-  
+
    error = nf90_put_var(ncid_out, id_lat_out, latitude_out)
    call netcdf_err(error, 'writing latitude for file='//trim(outfile) )
-  
+
   ! longitude
-  
+
    error = nf90_put_var(ncid_out, id_lon_out, longitude_out)
    call netcdf_err(error, 'writing longitude for file='//trim(outfile) )
-  
+
    deallocate(levs)
-  
+
    error = nf90_close(ncid_out)
  end if
 

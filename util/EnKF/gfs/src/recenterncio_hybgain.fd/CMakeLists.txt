@@ -1,10 +1,19 @@
-cmake_minimum_required(VERSION 2.6)
-if(BUILD_UTIL)
-  file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.f90)
-  set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
-  add_executable(recenterncio_hybgain.x  ${LOCAL_SRC} )
-  set_target_properties( recenterncio_hybgain.x PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
-  SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_Fortran_FLAGS}" )
-  include_directories( ${NETCDF_INCLUDE_DIRS}  ${FV3GFS_NCIO_INCS}) 
-  target_link_libraries( recenterncio_hybgain.x ${FV3GFS_NCIO_LIBRARIES} ${W3NCO_4_LIBRARY} ${MPI_Fortran_LIBRARIES} ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES})
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fp-model strict -convert big_endian -assume byterecl")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian -ffree-line-length-0")
 endif()
+
+add_executable(recenterncio_hybgain.x recenterncio_hybgain.f90)
+target_link_libraries(recenterncio_hybgain.x PRIVATE NetCDF::NetCDF_Fortran)
+target_link_libraries(recenterncio_hybgain.x PRIVATE MPI::MPI_Fortran)
+target_link_libraries(recenterncio_hybgain.x PRIVATE bacio::bacio_4)
+target_link_libraries(recenterncio_hybgain.x PRIVATE w3emc::w3emc_d)
+target_link_libraries(recenterncio_hybgain.x PRIVATE ncio::ncio)
+if(OpenMP_Fortran_FOUND)
+  target_link_libraries(recenterncio_hybgain.x PRIVATE OpenMP::OpenMP_Fortran)
+endif()
+
+# Install executable targets
+install(TARGETS recenterncio_hybgain.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+

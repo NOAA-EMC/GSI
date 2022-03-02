@@ -36,6 +36,6 @@ message(STATUS "ENABLE_MKL ............. ${ENABLE_MKL}")
 
 # Build components
 add_subdirectory(src)
-#add_subdirectory(util)
+add_subdirectory(util)
 #add_subdirectory(unit-tests)
 #add_subdirectory(regression)
