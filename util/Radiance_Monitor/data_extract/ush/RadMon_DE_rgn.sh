@@ -161,19 +161,30 @@ export RAD_AREA=rgn
 
 
 top_parm=${this_dir}/../../parm
-export RADMON_CONFIG=${RADMON_CONFIG:-${top_parm}/RadMon_config}
 
-if [[ -s ${RADMON_CONFIG} ]]; then
-   . ${RADMON_CONFIG}
-else
-   echo "Unable to source ${RADMON_CONFIG} file"
-   exit 2 
+radmon_config=${radmon_config:-${top_parm}/RadMon_config}
+if [[ ! -e ${radmon_config} ]]; then
+   echo "Unable to source ${radmon_config} file"
+   exit 2
 fi
-if [[ -s ${RADMON_USER_SETTINGS} ]]; then
-   . ${RADMON_USER_SETTINGS}
-else
-   echo "Unable to source ${RADMON_USER_SETTINGS} file"
-   exit 3 
+
+. ${radmon_config}
+if [[ $? -ne 0 ]]; then
+   echo "Error detected while sourcing ${radmon_config} file"
+   exit $?
+fi
+
+
+radmon_user_settings=${radmon_user_settings:-${top_parm}/RadMon_user_settings}
+if [[ ! -e ${radmon_user_settings} ]]; then
+   echo "Unable to source ${radmon_user_settings} file"
+   exit 3
+fi
+
+. ${radmon_user_settings}
+if [[ $? -ne 0 ]]; then
+   echo "Unable to source ${radmon_user_settings} file"
+   exit $?
 fi
 
 #---------------------------------------------
@@ -280,15 +291,23 @@ mkdir -p ${DATA}
 
 logfile=$LOGdir/DE.${PDY}.${cyc}.log
 
+job=$HOMEnam/jobs/JNAM_VERFRAD
+
 if [[ $MY_MACHINE = "wcoss_d" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -R affinity[core] -o ${logfile} \
-        -W 0:05 -J ${jobname} -cwd ${PWD} $HOMEnam/jobs/JNAM_VERFRAD
+        -W 0:05 -J ${jobname} -cwd ${PWD} ${job}
+
 elif [[ $MY_MACHINE = "wcoss_c" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -M 40 -o ${logfile} -W 0:10 \
-        -J ${jobname} -cwd ${PWD} $HOMEnam/jobs/JNAM_VERFRAD
+        -J ${jobname} -cwd ${PWD} ${job}
+
 elif [[ $MY_MACHINE = "hera" ]]; then
    $SUB -A $ACCOUNT -l procs=1,walltime=0:05:00 -N ${jobname} -V \
-        -j oe -o ${logfile} ${HOMEnam}/jobs/JNAM_VERFRAD
+        -j oe -o ${logfile} ${job}
+
+elif [[ $MY_MACHINE = "wcoss2" ]]; then
+   $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -V \
+        -l select=1:mem=5000M -l walltime=20:00 -N ${jobname} ${job}
 fi
 
 

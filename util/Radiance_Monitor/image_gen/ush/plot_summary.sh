@@ -36,7 +36,7 @@ imgdef=`echo ${#IMGNDIR}`
 if [[ $imgdef -gt 0 ]]; then
   ctldir=$IMGNDIR/time
 else
-  ctldir=$TANKDIR/time
+  ctldir=$TANKverf/time
 fi
 
 
@@ -47,7 +47,7 @@ chanf="chan.txt"
 #--------------------------------------------------------------------
 # Assemble the required data files (*.ieee_d), make txt files, and 
 # conditionally create static images (see below), and move all 
-# resulting files to the $TANKDIR/imgn directory for transfer to 
+# resulting files to the $TANKverf/imgn directory for transfer to 
 # server.
 #
 for type in ${SATYPE2}; do
@@ -151,7 +151,7 @@ EOF
    #       b) build the use.txt file from the ctl file
    #       c) build the input file (namelist for summary.x)
    #       d) run the summary.x executable
-   #       e) copy the [satype].sum.txt file to $TANKDIR/imgn/{suffix}/pngs/summary/.
+   #       e) copy the [satype].sum.txt file to $TANKverf/imgn/{suffix}/pngs/summary/.
    #       f) clean up
 
    echo "BEGIN data file generation:"

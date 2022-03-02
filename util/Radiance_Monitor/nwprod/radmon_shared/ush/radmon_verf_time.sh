@@ -27,8 +27,6 @@
 #  			yyyymmddcc format; required 
 #
 #   Imported Shell Variables:
-#     DO_DIAG_RPT	switch to build the diagnostic report
-#			defaults to 1 (on)
 #     DO_DATA_RPT	switch to build the data report
 #                       defaults to 1 (on)
 #     RADMON_SUFFIX	data source suffix
@@ -122,7 +120,6 @@ if [[ $RADMON_NETCDF -eq 1 ]]; then
    netcdf_boolean=".true."
 fi
 
-DO_DIAG_RPT=${DO_DIAG_RPT:-1}
 DO_DATA_RPT=${DO_DATA_RPT:-1}
 RADMON_SUFFIX=${RADMON_SUFFIX:-opr}
 RAD_AREA=${RAD_AREA:-glb}
@@ -291,10 +288,11 @@ fi
 #-------------------------------------------------------------------
 ####################################################################
 
-if [[ $DO_DIAG_RPT -eq 1 ]]; then
-   echo "DOING DIAG RPT!!!"
-#  build the disclaimer and region files 
+if [[ $DO_DATA_RPT -eq 1 ]]; then
 
+#---------------------------
+#  build report disclaimer 
+#
    cat << EOF > ${disclaimer}
 
 
@@ -338,7 +336,7 @@ EOF
       lines=`wc -l <${diag}`
       echo "lines in diag = $lines"   
    
-      if [[ $lines -gt 1 ]]; then
+      if [[ $lines -gt 0 ]]; then
          cat ${diag_report}
          cp ${diag}  ${TANKverf_rad}/bad_diag.${PDATE}
       else
@@ -346,13 +344,7 @@ EOF
       fi
    fi
 
-fi
 
-
-#-------------------------------------------------------------------
-#  Assemble the bad penalty/channel report
-
-if [[ $DO_DATA_RPT -eq 1 ]]; then
 
    #----------------------------------------------------------------
    #  Identify bad_pen and bad_chan files for this cycle and 
@@ -429,7 +421,6 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
       if [[ $do_pen -eq 1 ]]; then   
 
          echo "calling radmon_err_rpt for pen"
-#         $NCP ${TANKverf_radM1}/${prev_bad_pen} ./
          ${radmon_err_rpt} ${prev_bad_pen} ${bad_pen} pen ${qdate} \
 		${PDATE} ${diag_report} ${pen_err}
       fi
@@ -437,7 +428,6 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
       if [[ $do_chan -eq 1 ]]; then   
 
          echo "calling radmon_err_rpt for chan"
-#         $NCP ${TANKverf_radM1}/${prev_bad_chan} ./
          ${radmon_err_rpt} ${prev_bad_chan} ${bad_chan} chan ${qdate} \
 		${PDATE} ${diag_report} ${chan_err}
       fi
@@ -457,7 +447,6 @@ if [[ $DO_DATA_RPT -eq 1 ]]; then
 
          echo DOING ERROR REPORTING
 
-#         echo "Begin Cycle Data Integrity Report" > $report
 
          cat << EOF > $report
 Radiance Monitor warning report
@@ -527,13 +516,9 @@ EOF
             rm -f ${pen_err}
          fi 
 
-#         if [[ $USE_MAIL -eq 1 ]]; then
-            echo  >> $report
-            cat ${disclaimer} >> $report
-#         else
-#            echo End Cycle Data Integrity Report  >> $report
-            echo  >> $report
-#         fi
+         echo  >> $report
+         cat ${disclaimer} >> $report
+         echo  >> $report
       fi
 
       #-------------------------------------------------------------------
