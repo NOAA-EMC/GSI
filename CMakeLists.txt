@@ -7,7 +7,6 @@ project(gsi
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(CMAKE_DIRECTORY_LABELS ${PROJECT_NAME})
 
-#include(compiler_flags)
 include(GNUInstallDirs)
 
 if(NOT CMAKE_BUILD_TYPE MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel)$")
