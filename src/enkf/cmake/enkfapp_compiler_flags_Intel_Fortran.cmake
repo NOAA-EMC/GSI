@@ -17,12 +17,6 @@ set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -fp-model strict")
 set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -check bounds -warn -heap-arrays -fpe-all=0 -fpe:0 -check all")
 
 ####################################################################
-# PRODUCTION FLAGS
-####################################################################
-
-set(CMAKE_Fortran_FLAGS_PRODUCTION "-O3 -fp-model strict")
-
-####################################################################
 # LINK FLAGS
 ####################################################################
 

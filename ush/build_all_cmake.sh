@@ -5,7 +5,7 @@ set -ex
 cd ..
 pwd=$(pwd)
 
-build_type=${1:-'PRODUCTION'}
+build_type=${1:-'Release'}
 dir_root=${2:-$pwd}
 mode=${3:-'EMC'}
 

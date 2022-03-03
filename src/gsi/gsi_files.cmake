@@ -67,6 +67,12 @@ list(APPEND GSI_SRC_fixture_regional
 gsi_fixture_REGIONAL.F90
 )
 
+# List of all includes/headers in Fortran sources
+list(APPEND GSI_SRC_hdr
+myassert.H
+mytrace.H
+)
+
 # All else Fortran sources that are not in above categories
 list(APPEND GSI_SRC_srcs
 abstract_ensmod.f90

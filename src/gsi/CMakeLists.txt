@@ -9,12 +9,12 @@ set(CMAKE_DIRECTORY_LABELS ${PROJECT_NAME})
 
 include(GNUInstallDirs)
 
-if(NOT CMAKE_BUILD_TYPE MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel|Production)$")
+if(NOT CMAKE_BUILD_TYPE MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel)$")
   message(STATUS "Setting build type to 'Release' as none was specified.")
   set(CMAKE_BUILD_TYPE
       "Release"
       CACHE STRING "Choose the type of build." FORCE)
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo" "Production")
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
 if(NOT CMAKE_C_COMPILER_ID MATCHES "^(GNU|Intel|Clang|AppleClang)$")
@@ -130,7 +130,10 @@ target_include_directories(gsi_fortran_obj INTERFACE
 
 # Link the Fortran targets with dependencies
 target_compile_definitions(gsi_fortran_obj PUBLIC "_REAL8_")
-target_compile_definitions(gsi_fortran_obj PUBLIC "POUND_FOR_STRINGIFY")
+if(CMAKE_C_COMPILER_ID MATCHES "^(Intel)$")
+  target_compile_definitions(gsi_fortran_obj PUBLIC "POUND_FOR_STRINGIFY")
+endif()
+target_include_directories(gsi_fortran_obj PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 target_link_libraries(gsi_fortran_obj PUBLIC NetCDF::NetCDF_Fortran)
 target_link_libraries(gsi_fortran_obj PUBLIC MPI::MPI_Fortran)
 target_link_libraries(gsi_fortran_obj PUBLIC ${LAPACK_LIBRARIES})
@@ -161,6 +164,7 @@ add_library(gsi STATIC $<TARGET_OBJECTS:gsi_c_obj>
 add_library(${PROJECT_NAME}::gsi ALIAS gsi)
 target_include_directories(gsi PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/gsi>
                                       $<INSTALL_INTERFACE:include/gsi>)
+target_include_directories(gsi PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/gsi DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
 
 # Create a GSI executable
