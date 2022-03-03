@@ -6,7 +6,7 @@ program recenterncio_hybgain
 ! prgmmr: whitaker         org: esrl/psd               date: 2009-02-23
 !
 ! abstract:  Recenter ensemble analysis files about new
-!            mean, computed from blended 3DVar and EnKF increments
+!            mean, computed from blended 3DVar and EnKF increments 
 !            (optionally applying RTPS inflation).
 !
 ! program history log:
@@ -45,7 +45,7 @@ program recenterncio_hybgain
   real alpha,beta,rtps,infmin,infmax,clip
   real(4),allocatable,dimension(:,:) :: values_2d_varanal,values_2d_enkfanal,&
                          values_2d_varfg,values_2d_enkffg,values_2d_anal,&
-                         values_2d,asprd_2d,fsprd_2d,inf_2d,values_2d_tmp
+                         values_2d,asprd_2d,fsprd_2d,inf_2d,values_2d_tmp 
   real(4),allocatable,dimension(:,:,:) :: values_3d_varanal,values_3d_enkfanal,&
                          values_3d_varfg,values_3d_enkffg,values_3d_anal,&
                          values_3d,asprd_3d,fsprd_3d,inf_3d,values_3d_tmp
@@ -207,7 +207,7 @@ program recenterncio_hybgain
                ! blended analysis
                values_2d_anal = values_2d_enkffg + beta*(values_2d_enkfanal-values_2d_enkffg)
                if (alpha > 0) &
-               values_2d_anal = values_2d_anal + alpha*(values_2d_varanal-values_2d_varfg)
+               values_2d_anal = values_2d_anal + alpha*(values_2d_varanal-values_2d_varfg) 
                ! recentered ensemble member
                if (rtps > 0) then ! RTPS inflation
                   call read_vardata(dset_fsprd,trim(dset_enkffg%variables(nvar)%name),fsprd_2d)
@@ -261,9 +261,9 @@ program recenterncio_hybgain
                call read_vardata(dset_enkfanal,trim(dset_enkffg%variables(nvar)%name),values_3d_enkfanal)
                call read_vardata(dseti,trim(dset_enkffg%variables(nvar)%name),values_3d)
                ! blended analysis
-               values_3d_anal = values_3d_enkffg + beta*(values_3d_enkfanal-values_3d_enkffg)
+               values_3d_anal = values_3d_enkffg + beta*(values_3d_enkfanal-values_3d_enkffg) 
                if (alpha > 0)  &
-               values_3d_anal = values_3d_anal + alpha*(values_3d_varanal-values_3d_varfg)
+               values_3d_anal = values_3d_anal + alpha*(values_3d_varanal-values_3d_varfg) 
                ! recentered ensemble member
                if (rtps > 0) then ! RTPS inflation
                   call read_vardata(dset_fsprd,trim(dset_enkffg%variables(nvar)%name),fsprd_3d)

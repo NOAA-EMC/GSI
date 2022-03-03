@@ -20,7 +20,7 @@ PROGRAM calc_increment_ncio
 !   output files: filename_inc (3rd command line arg)
 
 !   4th command line arg is logical for controlling whether microphysics
-!   increment is computed.
+!   increment is computed. 
 !   5th command line arg is logical for controlling whether delz
 !   increment should be computed
 !   6th command line arg is logical for controlling whether humidity
@@ -69,7 +69,7 @@ PROGRAM calc_increment_ncio
 
   rd     = 2.8705e+2
   rv     = 4.6150e+2
-  fv     = rv/rd-1.    ! used in virtual temperature equation
+  fv     = rv/rd-1.    ! used in virtual temperature equation 
   grav   = 9.80665
   ! damp humidity increments between these two levels if taper_strat=T
   ak_bot = 10000. ! units Pa
@@ -336,7 +336,7 @@ PROGRAM calc_increment_ncio
                values_3d_inc(:,nlats:1:-1,:) = taper_vert*(values_3d_anal - values_3d_fg)
            else
                values_3d_inc(:,nlats:1:-1,:) = values_3d_anal - values_3d_fg
-           endif
+           endif 
            call write_ncdata3d(values_3d_inc,ncvarname,nlons,nlats,nlevs,ncfileid,dimid_3d)
         endif
      endif ! ndims == 4
@@ -362,7 +362,7 @@ PROGRAM calc_increment_ncio
      call read_vardata(dset_fg,'pressfc',ps_fg)
      call read_vardata(dset_anal,'pressfc',ps_anal)
      tmp_fg = tmp_fg * ( 1.0 + fv*q_fg ) ! convert T to Tv
-     tmp_anal = tmp_anal * ( 1.0 + fv*q_anal )
+     tmp_anal = tmp_anal * ( 1.0 + fv*q_anal ) 
      allocate(delzb(nlons,nlats,nlevs))
      allocate(delza(nlons,nlats,nlevs))
      delzb = (rd/grav)*tmp_fg
