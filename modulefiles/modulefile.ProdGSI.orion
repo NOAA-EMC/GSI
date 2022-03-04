@@ -35,6 +35,8 @@ module load hpc-impi/2018.4
 # Load production utilities
 module load prod_util/1.2.2
 
+module load netcdf/4.7.4
+
 # Load nceplibs
 module load bufr/11.4.0
 module load ip/3.3.3
@@ -45,6 +47,10 @@ module load sp/2.3.3
 module load w3emc/2.9.1
 module load bacio/2.4.1
 module load crtm/2.3.0
-module load netcdf/4.7.4
 module load ncio/1.0.0
 module load wrf_io/1.2.0
+module load ncio/1.0.0
+
+# Compiler flags specific to this platform
+setenv CFLAGS "-xHOST"
+setenv FFLAGS "-xHOST"

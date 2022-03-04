@@ -50,3 +50,8 @@ module load crtm-intel/2.3.0
 
 # Loading python
 module load python/3.6.3
+
+# Compiler flags specific to this platform
+setenv CFLAGS "-xHOST"
+setenv FFLAGS "-xHOST"
+

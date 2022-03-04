@@ -13,4 +13,8 @@ module load mkl/2018.0.1
 module load netcdf/4.5.0  
 module list
 
+# Compiler flags specific to this platform
+setenv CFLAGS "-xHOST"
+setenv FFLAGS "-xHOST"
+
 echo "done loading modules"

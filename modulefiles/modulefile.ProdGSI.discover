@@ -13,3 +13,8 @@ module load other/comp/gcc-9.1
 module load other/cmake-3.8.2
 
 setenv BASEDIR /discover/nobackup/projects/gmao/share/gmao_ops/Baselibs/v5.1.3_build1/x86_64-unknown-linux-gnu/ifort_18.0.3.222-mpt_2.17
+
+# Compiler flags specific to this platform
+setenv CFLAGS "-xHOST"
+setenv FFLAGS "-xHOST"
+
