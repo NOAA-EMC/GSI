@@ -4,7 +4,6 @@ project(gsi
         VERSION 1.0.0
         LANGUAGES C Fortran)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(CMAKE_DIRECTORY_LABELS ${PROJECT_NAME})
 
 include(GNUInstallDirs)
