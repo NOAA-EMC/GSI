@@ -30,14 +30,14 @@ option(OPENMP "Enable OpenMP Threading" OFF)
 option(ENABLE_MKL "Use MKL for LAPACK implementation (if available)" ON)
 option(USE_NCDIAG "Use NetCDF diagnostics library" ON)
 
-set(ENKF_APP "GFS" CACHE STRING "Choose the EnKF Application.")
-set_property(CACHE ENKF_APP PROPERTY STRINGS "GFS" "WRF" "NMMB" "FV3REG")
+set(ENKF_MODE "GFS" CACHE STRING "Choose the EnKF Application.")
+set_property(CACHE ENKF_MODE PROPERTY STRINGS "GFS" "WRF" "NMMB" "FV3REG")
 
 # Echo user options
 message(STATUS "EnKF: OPENMP ................. ${OPENMP}")
 message(STATUS "EnKF: ENABLE_MKL ............. ${ENABLE_MKL}")
 message(STATUS "EnKF: USE_NCDIAG ............. ${USE_NCDIAG}")
-message(STATUS "EnKF: ENKF_APP ............... ${ENKF_APP}")
+message(STATUS "EnKF: ENKF_MODE .............. ${ENKF_MODE}")
 
 # Dependencies
 if(ENABLE_MKL)
@@ -63,7 +63,7 @@ find_package(nemsio REQUIRED)
 find_package(ncio REQUIRED)
 find_package(sp REQUIRED)
 find_package(w3emc REQUIRED)
-if(ENKF_APP MATCHES "^(WRF|NMMB|FV3REG)$")
+if(ENKF_MODE MATCHES "^(WRF|NMMB|FV3REG)$")
   find_package(wrf_io REQUIRED)
 endif()
 
@@ -92,16 +92,16 @@ list(APPEND EnKF_SRC_Fortran
   ${EnKF_SRC_srcs})
 
 # Collect files for specific EnKF Application
-if(ENKF_APP MATCHES "GFS") # GFS application
+if(ENKF_MODE MATCHES "GFS") # GFS application
   list(APPEND EnKF_SRC_Fortran
     ${EnKF_SRC_gfs})
-elseif(ENKF_APP MATCHES "WRF") # WRF application
+elseif(ENKF_MODE MATCHES "WRF") # WRF application
   list(APPEND EnKF_SRC_Fortran
     ${EnKF_SRC_wrf})
-elseif(ENKF_APP MATCHES "NMMB") # NMMB application
+elseif(ENKF_MODE MATCHES "NMMB") # NMMB application
   list(APPEND EnKF_SRC_Fortran
     ${EnKF_SRC_nmmb})
-elseif(ENKF_APP MATCHES "FV3REG") # WRF application
+elseif(ENKF_MODE MATCHES "FV3REG") # WRF application
   list(APPEND EnKF_SRC_Fortran
     ${EnKF_SRC_fv3reg})
 endif()
@@ -141,6 +141,7 @@ endif()
 add_library(enkf STATIC)
 add_library(${PROJECT_NAME}::enkf ALIAS enkf)
 set_target_properties(enkf PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
+set_target_properties(enkf PROPERTIES MODE "${ENKF_MODE}")
 target_include_directories(enkf PUBLIC $<BUILD_INTERFACE:${module_dir}>
                                        $<INSTALL_INTERFACE:include/enkf>)
 target_link_libraries(enkf PUBLIC enkf_fortran_obj)
@@ -174,23 +175,23 @@ include(CMakePackageConfigHelpers)
 set(CONFIG_INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
 export(EXPORT ${PROJECT_NAME}Exports
-  NAMESPACE ${PROJECT_NAME}::
-  FILE ${PROJECT_NAME}-targets.cmake)
+       NAMESPACE ${PROJECT_NAME}::
+       FILE ${PROJECT_NAME}-targets.cmake)
 
 configure_package_config_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake/PackageConfig.cmake.in ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-config.cmake
   INSTALL_DESTINATION ${CONFIG_INSTALL_DESTINATION})
 install(FILES ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-config.cmake
-  DESTINATION ${CONFIG_INSTALL_DESTINATION})
+        DESTINATION ${CONFIG_INSTALL_DESTINATION})
 
 write_basic_package_version_file(
   ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake
   VERSION ${PROJECT_VERSION}
   COMPATIBILITY AnyNewerVersion)
 install(FILES ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake
-  DESTINATION ${CONFIG_INSTALL_DESTINATION})
+        DESTINATION ${CONFIG_INSTALL_DESTINATION})
 
 install(EXPORT ${PROJECT_NAME}Exports
-  NAMESPACE ${PROJECT_NAME}::
-  FILE ${PROJECT_NAME}-targets.cmake
-  DESTINATION ${CONFIG_INSTALL_DESTINATION})
+        NAMESPACE ${PROJECT_NAME}::
+        FILE ${PROJECT_NAME}-targets.cmake
+        DESTINATION ${CONFIG_INSTALL_DESTINATION})

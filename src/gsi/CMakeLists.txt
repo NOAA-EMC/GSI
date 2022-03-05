@@ -29,15 +29,17 @@ endif()
 option(OPENMP "Enable OpenMP Threading" OFF)
 option(ENABLE_MKL "Use MKL for LAPACK implementation (if available)" ON)
 option(USE_NCDIAG "Use NetCDF diagnostics library" ON)
+option(USE_GSDCLOUD "Use GSD Cloud Analysis library" OFF)
 
-set(GSI_APP "GFS" CACHE STRING "Choose the GSI Application.")
-set_property(CACHE GSI_APP PROPERTY STRINGS "GFS" "Regional")
+set(GSI_MODE "GFS" CACHE STRING "Choose the GSI Application.")
+set_property(CACHE GSI_MODE PROPERTY STRINGS "GFS" "Regional")
 
 # Echo user options
 message(STATUS "GSI: OPENMP ................. ${OPENMP}")
 message(STATUS "GSI: ENABLE_MKL ............. ${ENABLE_MKL}")
 message(STATUS "GSI: USE_NCDIAG ............. ${USE_NCDIAG}")
-message(STATUS "GSI: GSI_APP ................ ${GSI_APP}")
+message(STATUS "GSI: USE_GSDCLOUD ........... ${USE_GSDCLOUD}")
+message(STATUS "GSI: GSI_MODE ............... ${GSI_MODE}")
 
 # Dependencies
 if(ENABLE_MKL)
@@ -66,7 +68,7 @@ find_package(ip REQUIRED)
 find_package(w3emc REQUIRED)
 find_package(bufr REQUIRED)
 find_package(crtm REQUIRED)
-if(GSI_APP MATCHES "Regional")
+if(GSI_MODE MATCHES "Regional")
   find_package(wrf_io REQUIRED)
 endif()
 
@@ -77,6 +79,13 @@ target_link_libraries(nemsio::nemsio INTERFACE w3emc::w3emc_d bacio::bacio_4)
 if(USE_NCDIAG)
   if(NOT TARGET ncdiag)
     find_package(ncdiag REQUIRED)
+  endif()
+endif()
+
+# GSD Cloud Analysis library dependency
+if(USE_GSDCLOUD)
+  if(NOT TARGET gsdcloud)
+    find_package(gsdcloud REQUIRED)
   endif()
 endif()
 
@@ -92,11 +101,11 @@ list(APPEND GSI_SRC_Fortran
   ${GSI_SRC_class})
 
 # Collect files for specific GSI Application
-if(GSI_APP MATCHES "GFS") # GFS GSI application
+if(GSI_MODE MATCHES "GFS") # GFS GSI application
 list(APPEND GSI_SRC_Fortran
     ${GSI_SRC_gfs_stub}
     ${GSI_SRC_fixture_gfs})
-elseif(GSI_APP MATCHES "Regional") # Regional GSI application
+elseif(GSI_MODE MATCHES "Regional") # Regional GSI application
   list(APPEND GSI_SRC_Fortran
     ${GSI_SRC_regional_cplr}
     ${GSI_SRC_fixture_regional})
@@ -118,6 +127,9 @@ list(APPEND GSI_C_defs
 list(APPEND GSI_Fortran_defs _REAL8_)
 if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
   list(APPEND GSI_Fortran_defs POUND_FOR_STRINGIFY)
+endif()
+if(USE_GSDCLOUD)
+  list(APPEND GSI_Fortran_defs RR_CLOUDANALYSIS)
 endif()
 
 # Create a library of GSI C sources
@@ -144,7 +156,7 @@ target_link_libraries(gsi_fortran_obj PUBLIC w3emc::w3emc_d)
 target_link_libraries(gsi_fortran_obj PUBLIC sp::sp_d)
 target_link_libraries(gsi_fortran_obj PUBLIC bufr::bufr_d)
 target_link_libraries(gsi_fortran_obj PUBLIC crtm::crtm)
-if(GSI_APP MATCHES "Regional")
+if(GSI_MODE MATCHES "Regional")
   target_link_libraries(gsi_fortran_obj PUBLIC wrf_io::wrf_io)
 endif()
 if(USE_NCDIAG)
@@ -154,6 +166,13 @@ if(USE_NCDIAG)
   endif()
   target_link_libraries(gsi_fortran_obj PUBLIC ncdiag::ncdiag)
 endif()
+if(USE_GSDCLOUD)
+  if(TARGET gsdcloud)
+    add_dependencies(gsi_fortran_obj gsdcloud)
+    add_library(gsdcloud::gsdcloud ALIAS gsdcloud)
+  endif()
+  target_link_libraries(gsi_fortran_obj PUBLIC gsdcloud::gsdcloud)
+endif()
 if(OpenMP_Fortran_FOUND)
   target_link_libraries(gsi_fortran_obj PRIVATE OpenMP::OpenMP_Fortran)
 endif()
@@ -162,6 +181,7 @@ endif()
 add_library(gsi STATIC)
 add_library(${PROJECT_NAME}::gsi ALIAS gsi)
 set_target_properties(gsi PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
+set_target_properties(gsi PROPERTIES MODE "${GSI_MODE}")
 target_include_directories(gsi PUBLIC $<BUILD_INTERFACE:${module_dir}>
                                       $<INSTALL_INTERFACE:include/gsi>)
 target_link_libraries(gsi PUBLIC gsi_c_obj)
@@ -197,23 +217,23 @@ include(CMakePackageConfigHelpers)
 set(CONFIG_INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
 export(EXPORT ${PROJECT_NAME}Exports
-  NAMESPACE ${PROJECT_NAME}::
-  FILE ${PROJECT_NAME}-targets.cmake)
+       NAMESPACE ${PROJECT_NAME}::
+       FILE ${PROJECT_NAME}-targets.cmake)
 
 configure_package_config_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake/PackageConfig.cmake.in ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-config.cmake
   INSTALL_DESTINATION ${CONFIG_INSTALL_DESTINATION})
 install(FILES ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-config.cmake
-  DESTINATION ${CONFIG_INSTALL_DESTINATION})
+        DESTINATION ${CONFIG_INSTALL_DESTINATION})
 
 write_basic_package_version_file(
   ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake
   VERSION ${PROJECT_VERSION}
   COMPATIBILITY AnyNewerVersion)
 install(FILES ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake
-  DESTINATION ${CONFIG_INSTALL_DESTINATION})
+        DESTINATION ${CONFIG_INSTALL_DESTINATION})
 
 install(EXPORT ${PROJECT_NAME}Exports
-  NAMESPACE ${PROJECT_NAME}::
-  FILE ${PROJECT_NAME}-targets.cmake
-  DESTINATION ${CONFIG_INSTALL_DESTINATION})
+        NAMESPACE ${PROJECT_NAME}::
+        FILE ${PROJECT_NAME}-targets.cmake
+        DESTINATION ${CONFIG_INSTALL_DESTINATION})

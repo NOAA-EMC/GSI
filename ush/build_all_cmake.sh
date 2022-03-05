@@ -116,11 +116,11 @@ cmake_opts+=" -DCMAKE_INSTALL_PREFIX=$dir_root/install"
 cmake_opts+=" -DCMAKE_INSTALL_BINDIR=exec"
 
 # By default; build the global applications
-cmake_opts+=" -DGSI_APP=GFS -DENKF_APP=GFS"
+cmake_opts+=" -DGSI_MODE=GFS -DENKF_MODE=GFS"
 
 # Valid combination of applications are:
-# Global  : -DGSI_APP=GFS -DENKF_APP=GFS
-# Regional: -DGSI_APP=Regional -DENKF_APP=WRF|NMMB|FV3REG
+# Global  : -DGSI_MODE=GFS -DENKF_MODE=GFS
+# Regional: -DGSI_MODE=Regional -DENKF_MODE=WRF|NMMB|FV3REG
 
 cmake $cmake_opts $dir_root
 

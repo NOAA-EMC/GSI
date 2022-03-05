@@ -12,9 +12,6 @@ list(APPEND SRCS
   vars_calc_analysis.f90)
 
 add_executable(calc_analysis.x ${SRCS})
-set(module_dir "${CMAKE_CURRENT_BINARY_DIR}/include/calc_analysis")
-set_target_properties(calc_analysis.x PROPERTIES Fortran_MODULE_DIRECTORY ${module_dir})
-target_include_directories(calc_analysis.x INTERFACE $<BUILD_INTERFACE:${module_dir}>)
 target_link_libraries(calc_analysis.x PRIVATE NetCDF::NetCDF_Fortran)
 target_link_libraries(calc_analysis.x PRIVATE MPI::MPI_Fortran)
 target_link_libraries(calc_analysis.x PRIVATE bacio::bacio_4)

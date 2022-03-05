@@ -11,7 +11,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@-config-version.cmake")
 include(CMakeFindDependencyMacro)
 
 # Set the EnKF configuration attributes
-set(ENKF_APP @ENKF_APP@)
+set(ENKF_MODE @ENKF_MODE@)
 set(ENKF_USE_NCDIAG @USE_NCDIAG@)
 
 find_dependency(MPI)
@@ -41,7 +41,7 @@ find_dependency(ncio REQUIRED)
 find_dependency(sp REQUIRED)
 find_dependency(w3emc REQUIRED)
 
-if(ENKF_APP MATCHES "^(WRF|NMMB|FV3REG)$")
+if(ENKF_MODE MATCHES "^(WRF|NMMB|FV3REG)$")
   find_dependency(wrf_io REQUIRED)
 endif()
 
@@ -58,5 +58,5 @@ check_required_components("@PROJECT_NAME@")
 get_target_property(location @PROJECT_NAME@::@PROJECT_NAME@ LOCATION)
 message(STATUS "Found @PROJECT_NAME@: ${location} (found version \"${PACKAGE_VERSION}\")")
 message(STATUS "FindEnKF defines targets:")
-message(STATUS "  - ENKF_APP [${ENKF_APP}]")
+message(STATUS "  - ENKF_MODE [${ENKF_MODE}]")
 message(STATUS "  - ENKF_USE_NCDIAG [${GSI_USE_NCDIAG}]")

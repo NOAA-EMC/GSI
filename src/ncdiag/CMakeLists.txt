@@ -52,8 +52,7 @@ target_link_libraries(ncdiag PUBLIC NetCDF::NetCDF_Fortran)
 target_link_libraries(ncdiag PUBLIC MPI::MPI_Fortran)
 target_include_directories(ncdiag PUBLIC $<BUILD_INTERFACE:${module_dir}>
                                          $<INSTALL_INTERFACE:include/ncdiag>)
-list(APPEND NCDIAG_Targets
-  ncdiag)
+list(APPEND NCDIAG_Targets ncdiag)
 install(DIRECTORY ${module_dir} DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
 
 # Build applications
@@ -65,8 +64,7 @@ foreach(app ${NCDIAG_SRC_app})
   target_link_libraries(${app_name}.x PUBLIC ncdiag)
   target_link_libraries(${app_name}.x PUBLIC NetCDF::NetCDF_Fortran)
   target_link_libraries(${app_name}.x PUBLIC MPI::MPI_Fortran)
-  list(APPEND NCDIAG_Targets
-    ${app_name}.x)
+  list(APPEND NCDIAG_Targets ${app_name}.x)
 endforeach()
 
 # Build serial library and applications
@@ -80,16 +78,14 @@ if(ENABLE_NCDIAG_SERIAL)
   target_link_libraries(ncdiag_serial PUBLIC NetCDF::NetCDF_Fortran)
   target_include_directories(ncdiag_serial PUBLIC $<BUILD_INTERFACE:${module_dir}>
                                                   $<INSTALL_INTERFACE:include/ncdiag_serial>)
-  list(APPEND  NCDIAG_Targets
-    ncdiag_serial)
+  list(APPEND NCDIAG_Targets ncdiag_serial)
 
   set(app_name "ncdiag_cat_serial")
   add_executable(${app_name}.x nc_diag_cat.F90)
   add_dependencies(${app_name}.x ncdiag_serial)
   target_link_libraries(${app_name}.x PUBLIC ncdiag_serial)
   target_link_libraries(${app_name}.x PUBLIC NetCDF::NetCDF_Fortran)
-  list(APPEND NCDIAG_Targets
-    ${app_name}.x)
+  list(APPEND NCDIAG_Targets ${app_name}.x)
   install(DIRECTORY ${module_dir} DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
 endif()
 
@@ -100,27 +96,28 @@ install(
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
+# Package config
 include(CMakePackageConfigHelpers)
 set(CONFIG_INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
 export(EXPORT ${PROJECT_NAME}Exports
-  NAMESPACE ${PROJECT_NAME}::
-  FILE ${PROJECT_NAME}-targets.cmake)
+       NAMESPACE ${PROJECT_NAME}::
+       FILE ${PROJECT_NAME}-targets.cmake)
 
 configure_package_config_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake/PackageConfig.cmake.in ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-config.cmake
   INSTALL_DESTINATION ${CONFIG_INSTALL_DESTINATION})
 install(FILES ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-config.cmake
-  DESTINATION ${CONFIG_INSTALL_DESTINATION})
+        DESTINATION ${CONFIG_INSTALL_DESTINATION})
 
 write_basic_package_version_file(
   ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake
   VERSION ${PROJECT_VERSION}
   COMPATIBILITY AnyNewerVersion)
 install(FILES ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake
-  DESTINATION ${CONFIG_INSTALL_DESTINATION})
+        DESTINATION ${CONFIG_INSTALL_DESTINATION})
 
 install(EXPORT ${PROJECT_NAME}Exports
-  NAMESPACE ${PROJECT_NAME}::
-  FILE ${PROJECT_NAME}-targets.cmake
-  DESTINATION ${CONFIG_INSTALL_DESTINATION})
+        NAMESPACE ${PROJECT_NAME}::
+        FILE ${PROJECT_NAME}-targets.cmake
+        DESTINATION ${CONFIG_INSTALL_DESTINATION})

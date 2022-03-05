@@ -4,32 +4,6 @@ elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian -ffree-line-length-0 -ffast-math -fno-second-underscore -frecord-marker=4")
 endif()
 
-if(NOT TARGET enkf)
-  find_package(enkf QUIET)
-  if(NOT enkf_FOUND)
-    message(STATUS "GSI Utils: EnKF library was not found. Disable EFSOI utilities")
-    return()
-  endif()
-endif()
-
-if(NOT ENKF_APP MATCHES "GFS")
-  message(STATUS "GSI Utils: Incompatible EnKF = ${ENKF_APP}. Disable EFSOI utilities")
-  return()
-endif()
-
-if(NOT TARGET gsi)
-  find_package(gsi REQUIRED)
-endif()
-
-if(NOT GFS_APP MATCHES "GFS")
-  message(STATUS "GSI Utils: Incompatible GFS = ${GFS_APP}. Disable EFSOI utilities")
-  return()
-endif()
-
-if(NOT TARGET ncdiag)
-  find_package(ncdiag REQUIRED)
-endif()
-
 list(APPEND SRCS
   efsoi.f90
   efsoi_main.f90
@@ -45,14 +19,6 @@ if(TARGET enkf)
   add_dependencies(efsoi.x enkf)
 endif()
 target_link_libraries(efsoi.x PRIVATE enkf::enkf)
-if(TARGET gsi)
-  add_dependencies(efsoi.x gsi)
-endif()
-target_link_libraries(efsoi.x PRIVATE gsi::gsi)
-if(TARGET ncdiag)
-  add_dependencies(efsoi.x ncdiag)
-endif()
-target_link_libraries(efsoi.x PRIVATE ncdiag::ncdiag)
 target_link_libraries(efsoi.x PRIVATE NetCDF::NetCDF_Fortran)
 target_link_libraries(efsoi.x PRIVATE MPI::MPI_Fortran)
 target_link_libraries(efsoi.x PRIVATE ${LAPACK_LIBRARIES})
