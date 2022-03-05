@@ -50,9 +50,8 @@ target_compile_definitions(ncdiag PRIVATE "USE_MPI")
 target_compile_definitions(ncdiag PRIVATE "${debug_defs}")
 target_link_libraries(ncdiag PUBLIC NetCDF::NetCDF_Fortran)
 target_link_libraries(ncdiag PUBLIC MPI::MPI_Fortran)
-target_include_directories(ncdiag INTERFACE
-  $<BUILD_INTERFACE:${module_dir}>
-  $<INSTALL_INTERFACE:include/ncdiag>)
+target_include_directories(ncdiag PUBLIC $<BUILD_INTERFACE:${module_dir}>
+                                         $<INSTALL_INTERFACE:include/ncdiag>)
 list(APPEND NCDIAG_Targets
   ncdiag)
 install(DIRECTORY ${module_dir} DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
@@ -79,9 +78,8 @@ if(ENABLE_NCDIAG_SERIAL)
   target_compile_definitions(ncdiag_serial PRIVATE "_REAL4_")
   target_compile_definitions(ncdiag_serial PRIVATE "${debug_defs}")
   target_link_libraries(ncdiag_serial PUBLIC NetCDF::NetCDF_Fortran)
-  target_include_directories(ncdiag_serial INTERFACE
-    $<BUILD_INTERFACE:${module_dir}>
-    $<INSTALL_INTERFACE:include/ncdiag_serial>)
+  target_include_directories(ncdiag_serial PUBLIC $<BUILD_INTERFACE:${module_dir}>
+                                                  $<INSTALL_INTERFACE:include/ncdiag_serial>)
   list(APPEND  NCDIAG_Targets
     ncdiag_serial)
 

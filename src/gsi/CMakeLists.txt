@@ -109,31 +109,29 @@ if(NOT USE_NCDIAG)
 endif()
 
 # Compiler options and definitions
-list(APPEND GSI_C_DEFS
+list(APPEND GSI_C_defs
   FortranByte=char
   FortranInt=int
   funder
   "FortranLlong=long long")
 
-# Create object libraries for various components
-# Create a library of GSI C Objects
-add_library(gsi_c_obj OBJECT ${GSI_SRC_C})
-target_compile_definitions(gsi_c_obj PUBLIC ${GSI_C_DEFS})
+list(APPEND GSI_Fortran_defs _REAL8_)
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  list(APPEND GSI_Fortran_defs POUND_FOR_STRINGIFY)
+endif()
 
-# Create a library of GSI Fortran Objects
+# Create a library of GSI C sources
+add_library(gsi_c_obj OBJECT ${GSI_SRC_C})
+target_compile_definitions(gsi_c_obj PRIVATE ${GSI_C_defs})
+
+# Create a library of GSI Fortran sources
 set(module_dir "${CMAKE_CURRENT_BINARY_DIR}/include/gsi")
 add_library(gsi_fortran_obj OBJECT ${GSI_SRC_Fortran})
 set_target_properties(gsi_fortran_obj PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
-target_include_directories(gsi_fortran_obj INTERFACE
-  $<BUILD_INTERFACE:${module_dir}>
-  $<INSTALL_INTERFACE:include/gsi>)
-
-# Link the Fortran targets with dependencies
-target_compile_definitions(gsi_fortran_obj PUBLIC "_REAL8_")
-if(CMAKE_C_COMPILER_ID MATCHES "^(Intel)$")
-  target_compile_definitions(gsi_fortran_obj PUBLIC "POUND_FOR_STRINGIFY")
-endif()
-target_include_directories(gsi_fortran_obj PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+target_include_directories(gsi_fortran_obj INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+                                                     $<BUILD_INTERFACE:${module_dir}>
+                                                     $<INSTALL_INTERFACE:include/gsi>)
+target_compile_definitions(gsi_fortran_obj PRIVATE ${GSI_Fortran_defs})
 target_link_libraries(gsi_fortran_obj PUBLIC NetCDF::NetCDF_Fortran)
 target_link_libraries(gsi_fortran_obj PUBLIC MPI::MPI_Fortran)
 target_link_libraries(gsi_fortran_obj PUBLIC ${LAPACK_LIBRARIES})
@@ -143,6 +141,8 @@ target_link_libraries(gsi_fortran_obj PUBLIC sfcio::sfcio)
 target_link_libraries(gsi_fortran_obj PUBLIC nemsio::nemsio)
 target_link_libraries(gsi_fortran_obj PUBLIC ncio::ncio)
 target_link_libraries(gsi_fortran_obj PUBLIC w3emc::w3emc_d)
+target_link_libraries(gsi_fortran_obj PUBLIC sp::sp_d)
+target_link_libraries(gsi_fortran_obj PUBLIC bufr::bufr_d)
 target_link_libraries(gsi_fortran_obj PUBLIC crtm::crtm)
 if(GSI_APP MATCHES "Regional")
   target_link_libraries(gsi_fortran_obj PUBLIC wrf_io::wrf_io)
@@ -158,56 +158,41 @@ if(OpenMP_Fortran_FOUND)
   target_link_libraries(gsi_fortran_obj PRIVATE OpenMP::OpenMP_Fortran)
 endif()
 
-# Create a GSI library
-add_library(gsi STATIC $<TARGET_OBJECTS:gsi_c_obj>
-                       $<TARGET_OBJECTS:gsi_fortran_obj>)
+# Create the GSI library
+add_library(gsi STATIC)
 add_library(${PROJECT_NAME}::gsi ALIAS gsi)
-target_include_directories(gsi PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/gsi>
+set_target_properties(gsi PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
+target_include_directories(gsi PUBLIC $<BUILD_INTERFACE:${module_dir}>
                                       $<INSTALL_INTERFACE:include/gsi>)
-target_include_directories(gsi PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/gsi DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
+target_link_libraries(gsi PUBLIC gsi_c_obj)
+target_link_libraries(gsi PUBLIC gsi_fortran_obj)
+if(OpenMP_Fortran_FOUND)
+  target_link_libraries(gsi PRIVATE OpenMP::OpenMP_Fortran)
+endif()
 
-# Create a GSI executable
-set(module_dir "${CMAKE_CURRENT_BINARY_DIR}/include/gsi")
+# Create the GSI executable
 add_executable(gsi.x ${GSI_SRC_main})
 add_dependencies(gsi.x gsi)
 set_target_properties(gsi.x PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
 target_link_libraries(gsi.x PRIVATE gsi)
-
-# Link the application targets with dependencies
-target_link_libraries(gsi.x PRIVATE NetCDF::NetCDF_Fortran)
-target_link_libraries(gsi.x PRIVATE MPI::MPI_Fortran)
-target_link_libraries(gsi.x PRIVATE ${LAPACK_LIBRARIES})
-target_link_libraries(gsi.x PRIVATE bacio::bacio_4)
-target_link_libraries(gsi.x PRIVATE sigio::sigio)
-target_link_libraries(gsi.x PRIVATE sfcio::sfcio)
-target_link_libraries(gsi.x PRIVATE nemsio::nemsio)
-target_link_libraries(gsi.x PRIVATE ncio::ncio)
-target_link_libraries(gsi.x PRIVATE w3emc::w3emc_d)
-target_link_libraries(gsi.x PRIVATE sp::sp_d)
-target_link_libraries(gsi.x PRIVATE bufr::bufr_d)
-target_link_libraries(gsi.x PRIVATE crtm::crtm)
-if(GSI_APP MATCHES "Regional")
-  target_link_libraries(gsi.x PRIVATE wrf_io::wrf_io)
-endif()
-if(USE_NCDIAG)
-  target_link_libraries(gsi.x PRIVATE ncdiag::ncdiag)
-endif()
 if(OpenMP_Fortran_FOUND)
   target_link_libraries(gsi.x PRIVATE OpenMP::OpenMP_Fortran)
 endif()
 
+# Install Fortran modules
+install(DIRECTORY ${module_dir} DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
+
 # Install executable targets
 install(TARGETS gsi.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-# Install library archive targets
+# Install and export library targets
 install(
-  TARGETS gsi
+  TARGETS gsi_c_obj gsi_fortran_obj gsi
   EXPORT ${PROJECT_NAME}Exports
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
-### Package config
+# Package config
 include(CMakePackageConfigHelpers)
 set(CONFIG_INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 

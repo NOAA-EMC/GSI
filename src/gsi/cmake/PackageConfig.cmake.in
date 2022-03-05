@@ -10,8 +10,9 @@ include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@-targets.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@-config-version.cmake")
 include(CMakeFindDependencyMacro)
 
-# Set the GSI Application this library is built for
+# Set the GSI configuration attributes
 set(GSI_APP @GSI_APP@)
+set(GSI_USE_NCDIAG @USE_NCDIAG@)
 
 find_dependency(MPI)
 find_dependency(NetCDF COMPONENTS Fortran)
@@ -46,9 +47,9 @@ if(GSI_APP MATCHES "Regional")
 endif()
 
 # ON|OFF implies @PROJECT_NAME@ was compiled with/without -USE_NCDIAG=ON|OFF
-#if(@USE_NCDIAG@)
-#  find_dependency(ncdiag REQUIRED)
-#endif()
+if(GSI_USE_NCDIAG)
+  find_dependency(ncdiag)
+endif()
 
 # Get the build type from library target
 get_target_property(@PROJECT_NAME@_BUILD_TYPES @PROJECT_NAME@::@PROJECT_NAME@ IMPORTED_CONFIGURATIONS)
@@ -59,3 +60,4 @@ get_target_property(location @PROJECT_NAME@::@PROJECT_NAME@ LOCATION)
 message(STATUS "Found @PROJECT_NAME@: ${location} (found version \"${PACKAGE_VERSION}\")")
 message(STATUS "FindGSI defines targets:")
 message(STATUS "  - GSI_APP [${GSI_APP}]")
+message(STATUS "  - GSI_USE_NCDIAG [${GSI_USE_NCDIAG}]")

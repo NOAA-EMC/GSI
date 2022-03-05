@@ -7,7 +7,8 @@
 include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@-targets.cmake")
 include(CMakeFindDependencyMacro)
 
-find_dependency(NetCDF COMPONENTS Fortran)
+find_dependency(MPI REQUIRED)
+find_dependency(NetCDF REQUIRED COMPONENTS Fortran)
 
 # Get the build type from real32 library target with dyanmic allocation
 get_target_property(@PROJECT_NAME@_BUILD_TYPES @PROJECT_NAME@::@PROJECT_NAME@ IMPORTED_CONFIGURATIONS)

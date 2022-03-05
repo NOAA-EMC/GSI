@@ -10,35 +10,21 @@ list(APPEND SRCS
   update_netcdf_mass.f90)
 
 add_executable(initialens.x ${SRCS})
-
-if(TARGET ncdiag)
-  add_dependencies(initialens.x ncdiag)
-endif()
-
+target_compile_definitions(initialens.x PRIVATE "WRF")
 if(TARGET gsi)
   add_dependencies(initialens.x gsi)
 endif()
-
-target_compile_definitions(initialens.x PRIVATE "WRF")
-
 target_link_libraries(initialens.x PRIVATE gsi::gsi)
-
-# Link the application targets with dependencies
+if(TARGET ncdiag)
+  add_dependencies(initialens.x ncdiag)
+endif()
+target_link_libraries(initialens.x PRIVATE ncdiag::ncdiag)
 target_link_libraries(initialens.x PRIVATE NetCDF::NetCDF_Fortran)
 target_link_libraries(initialens.x PRIVATE MPI::MPI_Fortran)
 target_link_libraries(initialens.x PRIVATE ${LAPACK_LIBRARIES})
 target_link_libraries(initialens.x PRIVATE bacio::bacio_4)
-target_link_libraries(initialens.x PRIVATE sigio::sigio)
-target_link_libraries(initialens.x PRIVATE sfcio::sfcio)
-target_link_libraries(initialens.x PRIVATE nemsio::nemsio)
-target_link_libraries(initialens.x PRIVATE ncio::ncio)
 target_link_libraries(initialens.x PRIVATE w3emc::w3emc_d)
-target_link_libraries(initialens.x PRIVATE sp::sp_d)
-target_link_libraries(initialens.x PRIVATE bufr::bufr_d)
-target_link_libraries(initialens.x PRIVATE crtm::crtm)
 target_link_libraries(initialens.x PRIVATE wrf_io::wrf_io)
-target_link_libraries(initialens.x PRIVATE ncdiag::ncdiag)
-target_link_libraries(initialens.x PRIVATE gsi::gsi)
 if(OpenMP_Fortran_FOUND)
   target_link_libraries(initialens.x PRIVATE OpenMP::OpenMP_Fortran)
 endif()
