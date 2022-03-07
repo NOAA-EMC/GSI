@@ -69,7 +69,7 @@ subroutine initvars(mype,npe)
   endif
   if (mype==0) write(6,*) 'INITVARS: DB_PREC = ',db_prec
 
-  if (scaling == .true.) then
+  if (scaling .eqv. .true.) then
      allocate (varscale(nsig))
      open(12,file='scaling.txt',form='formatted')
      do k=1,nsig

@@ -38,6 +38,7 @@ option(BUILD_ENKF_ARW "Build EnKF ARW Utilities" OFF)
 option(BUILD_MON_UTIL "Build Monitoring Utilities" OFF)
 option(BUILD_NCIO_UTIL "Build NetCDF IO Utilities" OFF)
 option(BUILD_UTIL_COM "Build community utilities" OFF)
+option(BUILD_BKGERR_UTIL "Build Background Error Utilities" OFF)
 
 # Echo user options
 message(STATUS "Utils: OPENMP ................. ${OPENMP}")
@@ -50,6 +51,7 @@ message(STATUS "Utils: BUILD_ENKF_ARW ......... ${BUILD_ENKF_ARW}")
 message(STATUS "Utils: BUILD_MON_UTIL ......... ${BUILD_MON_UTIL}")
 message(STATUS "Utils: BUILD_NCIO_UTIL ........ ${BUILD_NCIO_UTIL}")
 message(STATUS "Utils: BUILD_UTIL_COM ......... ${BUILD_UTIL_COM}")
+message(STATUS "Utils: BUILD_BKGERR_UTIL ...... ${BUILD_BKGERR_UTIL}")
 
 # Dependencies
 if(ENABLE_MKL)
@@ -127,6 +129,12 @@ if(BUILD_UTIL_COM)
   add_subdirectory(radar_process)
 endif()
 
+if(BUILD_BKGERR_UTIL)
+  add_subdirectory(NMC_Bkerror)
+endif()
+
+add_subdirectory(FOV_utilities)
+add_subdirectory(Single_Observation)
 add_subdirectory(ndate)
 add_subdirectory(zero_biascoeff)
 
@@ -137,11 +145,8 @@ if(BUILD_MON_UTIL)
 #  add_subdirectory(Radiance_Monitor)
 endif()
 
-# These utilities do not have CMake builds
-# Some are used occasionally e.g. NMC_Bkerror
-# Some are really really old and likely unusable today e.g. Config
+# These utilities do not have CMake builds and are unlikely used or usable
 #add_subdirectory(Config)
-  #add_subdirectory(FOV_utilities)
 #add_subdirectory(GEN_BE_V2.0)
 #add_subdirectory(global_angupdate)
 #add_subdirectory(GMI_BUFR_gen)
@@ -149,7 +154,5 @@ endif()
 #add_subdirectory(MODIS_AOD)
 #add_subdirectory(NCEP_bkerror)
 #add_subdirectory(NCEPgsi_Coupler)
-  #add_subdirectory(NMC_Bkerror)
 #add_subdirectory(Radiance_bias_correction_Utilities)
 #add_subdirectory(Radiance_Utilities)
-  #add_subdirectory(Single_Observation)
