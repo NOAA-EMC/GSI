@@ -225,7 +225,7 @@ contains
   print_verbose=.false.
   if(verbose) print_verbose=.true.
   c_prvstg = '88888888'
-  c_sprvstg ='HDRAOB'
+  c_sprvstg = 'HDRAOB'
 
 ! Initialize variables
 
