@@ -307,3 +307,77 @@ subroutine unfill_mass_grid2t_ldmk(gout,nx,ny,gin,landmask, &
   
 end subroutine unfill_mass_grid2t_ldmk
 
+subroutine unfill_mass_grid2t_drycheck(gout,nx,ny,gin,qs)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    unfill_mass_grid2t_drycheck   opposite of fill_mass_grid2
+!   prgmmr: parrish          org: np22                date: 2004-06-22
+!
+! abstract: This is almost the reverse of subroutine fill_mass_grid2t. 
+!           The input field is an analyis increment on an unstaggered
+!           A grid.  The result is added to the preexisting contents of gout.
+!
+! program history log:
+!   2004-07-16  parrish
+!   2013-10-25  todling - reposition ltosi and others to commvars
+!   2019-10-30  Hu       Code for check moisture and remove negative
+!                        mositure if the background is not too dry (>4%)
+!
+!   input argument list:
+!     gout     - input A-grid (reorganized for distibution to local domains)
+!     gin      - preexisting input values to be added to on C-grid
+!     nx,ny    - input grid dimensions
+!
+!   output argument list:
+!     gin      - output result on C grid
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_single,i_kind
+  use gridmod, only: itotsub,iglobal
+  use general_commvars_mod, only: ltosi,ltosj
+  use mod_wrfmass_to_a, only: wrfmass_a_to_h4
+  use gridmod, only: nlon, nlat
+
+  implicit none
+
+  integer(i_kind), intent(in   ) :: nx,ny
+  real(r_single) , intent(in   ) :: gout(itotsub)
+  real(r_single) , intent(inout) :: gin(nx,ny)
+  real(r_single) , intent(in   ) :: qs(nx,ny)
+  
+  real(r_single) ba(nlon,nlat)
+  real(r_single) b(nx,ny)
+  integer(i_kind) i,j
+  real(r_single) :: rh
+
+  do i=1,iglobal
+     ba(ltosj(i),ltosi(i))=gout(i)
+  end do
+
+  if(nlon == nx .and. nlat == ny) then
+     b=ba
+  else
+     call wrfmass_a_to_h4(ba,b)
+  endif
+
+! Mass grids--just copy
+  do j=1,ny
+     do i=1,nx
+        rh=gin(i,j)/max(1.0e-4_r_single,qs(i,j))*100.0_r_single
+        if(rh < 4.0_r_single .and. b(i,j) < 0.0_r_single) then
+! dry air (4%) becomes dryer (b<0.0)
+        else
+           gin(i,j)=b(i,j)+gin(i,j)
+           if( gin(i,j) < 1.0e-12_r_single) then
+              gin(i,j) = qs(i,j)*0.01_r_single
+! reset negative analysis moisture to 1%'
+           endif
+        endif
+     end do
+  end do
+  
+end subroutine unfill_mass_grid2t_drycheck
