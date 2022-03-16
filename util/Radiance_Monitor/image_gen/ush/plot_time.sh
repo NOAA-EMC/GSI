@@ -45,17 +45,7 @@ edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
 edate0=`echo $edate|cut -c1-8`
 
-#--------------------------------------------------------------------
-# Set ctldir to point to correct control file source
-#
-imgdef=`echo ${#IMGNDIR}`
-if [[ $imgdef -gt 0 ]]; then
-  ctldir=$IMGNDIR/time
-else
-  ctldir=$TANKverf/time
-fi
-
-echo ctldir = $ctldir
+ctldir=$IMGNDIR/time
 
 
 #--------------------------------------------------------------------
@@ -68,15 +58,8 @@ echo ctldir = $ctldir
 #
 for type in ${SATYPE2}; do
    
-   $NCP $ctldir/${type}.ctl* ./
-   if [[ -s ./${type}.ctl.${Z} ]]; then
-      ${UNCOMPRESS} ./${type}.ctl.${Z}
-   fi
-
-   if [[ $USE_ANL = 1 ]]; then
-      $NCP $ctldir/${type}_anl.ctl* ./
-      ${UNCOMPRESS} ./${type}_anl.ctl.${Z}
-   fi
+   $NCP $ctldir/${type}*.ctl* ./
+   ${UNCOMPRESS} *.ctl.${Z}
 
    cdate=$bdate
    while [[ $cdate -le $edate ]]; do
@@ -102,27 +85,20 @@ for type in ${SATYPE2}; do
          ieee_src=${TANKverf}/${RUN}.${day}
       fi
 
-
-      if [[ -d ${ieee_src} ]]; then
-         test_file=${ieee_src}/time.${type}.${cdate}.ieee_d
-
-         if [[ $USE_ANL = 1 ]]; then
-            test_file2=${ieee_src}/time.${type}_anl.${cdate}.ieee_d
-         else
-            test_file2=
+      #-----------------------------------------------------------
+      #  Locate the data files, first checking for a tar file,
+      #  and copy them locally.
+      #
+      if [[ -s ${ieee_src}/radmon_time.tar ]]; then
+         files=`tar -tf ${ieee_src}/radmon_time.tar | grep ${type} | grep ieee_d`
+         if [[ ${files} != "" ]]; then
+            tar -xf ${ieee_src}/radmon_time.tar ${files}
          fi
-
-         if [[ -s $test_file ]]; then
-            $NCP ${test_file} ./${type}.${cdate}.ieee_d
-         elif [[ -s ${test_file}.${Z} ]]; then
-            $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
-         fi
-
-         if [[ -s $test_file2 ]]; then
-            $NCP ${test_file2} ./${type}_anl.${cdate}.ieee_d
-         elif [[ -s ${test_file2}.${Z} ]]; then
-            $NCP ${test_file2}.${Z} ./${type}_anl.${cdate}.ieee_d.${Z}
-         fi
+      else
+         files=`ls ${ieee_src}/time.*${type}*ieee_d*`
+         for f in ${files}; do
+            $NCP ${f} .
+         done
       fi
 
       adate=`$NDATE +${CYCLE_INTERVAL} $cdate`
@@ -130,6 +106,17 @@ for type in ${SATYPE2}; do
    done
 
    ${UNCOMPRESS} ./*.ieee_d.${Z}
+
+   #-----------------------------------------------
+   #  Remove 'time.' from the *ieee_d file names.
+   #
+   prefix="time."
+   dfiles=`ls *.ieee_d`
+   for file in $dfiles; do
+      newfile=`basename $file | sed -e "s/^$prefix//"`
+      mv ./${file} ./${newfile}
+   done
+
 
    if [[ $PLOT_STATIC_IMGS -eq 1 ]]; then
       for var in ${PTYPE}; do

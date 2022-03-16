@@ -192,8 +192,8 @@ if [[  -d ${DATA_LOCATION} ]]; then
         -o ${logfile} --ntasks=1 --mem=5g ${job}
 
    elif [[ $MY_MACHINE = "wcoss2" ]]; then
-      $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -V \
-           -l select=1:mem=5000M -l walltime=20:00 -N ${jobname} ${job}
+      $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e ${LOGdir}/CP.${PDY}.${CYC}.err \
+	   -V -l select=1:mem=5000M -l walltime=20:00 -N ${jobname} ${job}
    fi
 else
    echo "Unable to locate DATA_LOCATION: ${DATA_LOCATION}"

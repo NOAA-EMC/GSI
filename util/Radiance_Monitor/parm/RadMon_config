@@ -222,6 +222,8 @@ elif [[ $MY_MACHINE = "wcoss2" ]]; then
    #
    module use /apps/test/modules		
    module load GrADS/2.2.1-cce-11.0.4
+   export GRADS=`which grads`
+   export STNMAP=`which stnmap`
    #------------------------
    
    export SUB="qsub"

@@ -88,8 +88,8 @@
       $search_string = $run;
    }
 
-   my @mmdirs = grep { /$search_string/ } @alldirs;
-
+   my @mmdirs = grep {/$search_string/} @alldirs;
+   
    #-----------------------------------------------------------------------   
    #  If there are no $run.yyyymmdd subdirectories, then exit without 
    #    returning any date string.
@@ -157,13 +157,26 @@
          $hr_ctr = $hr_ctr - 1;
          
          $newdir = "${dirpath}/${sortmm[$ctr]}/${hrs[$hr_ctr]}/${lcm}";
-#         print " newdir = $newdir \n";
-
 
          if( -d $newdir ) {
             opendir DIR, $newdir or die "Cannot open the current directory: $!";
 
-            my @timefiles = grep { /ieee_d/ } readdir DIR;
+            my @dirfiles = readdir DIR;
+            my @timefiles = grep { /ieee_d/ } @dirfiles;
+             
+            #  If no *ieee_d* files were found then look for the compressed format of
+            #  radmon_*.tar files instead.  If found then use the parent directories
+            #  to establish the cycle time.
+            #
+            if( $#timefiles < 0 ) {       
+               my @tarfiles = grep { /radmon_time.tar/ } @dirfiles;
+
+               if( $#tarfiles >= 0 ) { 
+                  my $cycle = "${sortmm[$ctr]}${hrs[$hr_ctr]}";
+                  push( @timefiles, $cycle );
+               }
+            } 
+          
 
             if( $#timefiles >= 0 ) {
                my @sorttime = sort( @timefiles );
@@ -201,18 +214,13 @@
                   }
                }
             }
-
          } 
           
       } while $hr_ctr > 0 && $found_cycle == 0;
 
-#      print " found_cycle, ctr, end_ctr = $found_cycle, $ctr, $end_ctr \n";
-
       if( $cyc == 0 && $ctr >= $end_ctr ){  
-#         print " exiting from if\n";
          $exit_flag = 1;
       } elsif( $cyc == 1 && $ctr <= $end_ctr ){
-#         print " exiting from elsif\n";
          $exit_flag = 1;
       }
    

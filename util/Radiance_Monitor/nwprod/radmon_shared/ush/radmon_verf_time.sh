@@ -260,18 +260,19 @@ EOF
    done
 
 
-   cwd=`pwd`
-   tar_file=radmon_time.tar
+   ${USHradmon}/rstprod.sh
 
+   tar_file=radmon_time.tar
    tar -cf $tar_file time*.ieee_d* time*.ctl*
    mv $tar_file ${TANKverf_rad}
-   cd ${TANKverf_rad}
-   tar -xf ${tar_file}
-   rm ${tar_file}
 
-   cd $cwd
-  
-
+   if [[ $RAD_AREA = "rgn" ]]; then
+      cwd=`pwd`
+      cd ${TANKverf_rad}
+      tar -xf ${tar_file}
+      rm ${tar_file}
+      cd ${cwd}
+   fi
 
    if [[ $fail -eq $ctr || $fail -gt $ctr  ]]; then
       echo "fail, ctr = $fail, $ctr"

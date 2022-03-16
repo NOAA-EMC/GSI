@@ -52,18 +52,10 @@ edate0=`echo $edate|cut -c1-8`
 
 #--------------------------------------------------------------------
 # Copy control files to $wrkdir
-
-imgdef=`echo ${#IMGNDIR}`
-if [[ $imgdef -gt 0 ]]; then
-  ctldir=$IMGNDIR/angle
-else
-  ctldir=$TANKverf/angle
-fi
-
-echo ctldir = $ctldir
+ctldir=$IMGNDIR/angle
 
 for type in ${SATYPE2}; do
-  $NCP $ctldir/${type}.ctl* ./
+  $NCP $ctldir/${type}*.ctl* ./
 done
 ${UNCOMPRESS} *.ctl.${Z}
 
@@ -74,20 +66,30 @@ ${UNCOMPRESS} *.ctl.${Z}
 #
 for type in ${SATYPE2}; do
 
+   $NCP $ctldir/${type}*.ctl* ./
+   ${UNCOMPRESS} *.ctl.${Z}
+
    cdate=$bdate
-   while [[ $cdate -le $edate ]] ; do
+
+   #-------------------------------------
+   #  Locate and copy data files.
+   #
+   while [[ $cdate -le $edate ]]; do
+
       if [[ $REGIONAL_RR -eq 1 ]]; then
          tdate=`$NDATE +6 $cdate`
-         day=`echo $tdate | cut -c1-8 `
+         day=`echo $tdate | cut -c1-8`
          cyc=`echo $cdate | cut -c9-10`
          . ${IG_SCRIPTS}/rr_set_tz.sh $cyc
       else
-         day=`echo $cdate | cut -c1-8 `
+         day=`echo $cdate | cut -c1-8`
          cyc=`echo $cdate | cut -c9-10`
       fi
 
+      #----------------------------------------------------
+      #  Attempt to locate the extracted ieee data files.
+      #
       ieee_src=${TANKverf}/${RUN}.${day}/${cyc}/${MONITOR}
-
       if [[ ! -d ${ieee_src} ]]; then
          ieee_src=${TANKverf}/${RUN}.${day}/${MONITOR}
       fi
@@ -98,45 +100,38 @@ for type in ${SATYPE2}; do
          ieee_src=${TANKverf}/${RUN}.${day}
       fi
 
-
-      if [[ -d ${ieee_src} ]]; then
-         if [[ $REGIONAL_RR -eq 1 ]]; then
-#	    test_file=${ieee_src}/${rgnHH}.angle.${type}.${cdate}.ieee_d.${rgnTM}
-            test_file=${ieee_src}/angle.${type}.${cdate}.ieee_d
-         else
-            test_file=${ieee_src}/angle.${type}.${cdate}.ieee_d
+      #-----------------------------------------------------------
+      #  Locate the data files, first checking for a tar file,
+      #  and copy them locally.
+      #
+      if [[ -s ${ieee_src}/radmon_angle.tar ]]; then
+         files=`tar -tf ${ieee_src}/radmon_angle.tar | grep ${type} | grep ieee_d`
+         if [[ ${files} != "" ]]; then
+            tar -xf ${ieee_src}/radmon_angle.tar ${files}
          fi
-
-         if [[ $USE_ANL = 1 ]]; then
-            if [[ $REGIONAL_RR -eq 1 ]]; then
-#               test_file=${ieee_src}/${rgnHH}.angle.${type}_anl.${cdate}.ieee_d.${rgnTM}
-               test_file=${ieee_src}/angle.${type}_anl.${cdate}.ieee_d
-            else
-               test_file2=${ieee_src}/angle.${type}_anl.${cdate}.ieee_d
-            fi
-         else
-            test_file2=
-         fi
-
-         if [[ -s $test_file ]]; then
-            $NCP ${test_file} ./${type}.${cdate}.ieee_d
-         elif [[ -s ${test_file}.${Z} ]]; then
-            $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
-         fi
-
-         if [[ -s $test_file2 ]]; then
-            $NCP ${test_file2} ./${type}_anl.${cdate}.ieee_d
-         elif [[ -s ${test_file2}.${Z} ]]; then
-            $NCP ${test_file2}.${Z} ./${type}_anl.${cdate}.ieee_d.${Z}
-         fi
+      else				
+         files=`ls ${ieee_src}/angle.*${type}*ieee_d*`
+         for f in ${files}; do
+            $NCP ${f} .
+         done
       fi
 
-     
-      adate=`$NDATE +${CYCLE_INTERVAL} $cdate`
+      adate=`$NDATE +${CYCLE_INTERVAL} ${cdate}`
       cdate=$adate
 
    done
+
    ${UNCOMPRESS} $wrkdir/*.ieee_d.${Z}
+
+   #-----------------------------------------------
+   #  Remove 'angle.' from the *ieee_d file names.
+   #
+   prefix="angle."
+   dfiles=`ls *.ieee_d`
+   for file in $dfiles; do
+      newfile=`basename $file | sed -e "s/^$prefix//"`
+      mv ./${file} ./${newfile}
+   done
 
    #-----------------------------------------------------------------------
    #  mk_digital_ang.sh produces the text files used by the js/html files
