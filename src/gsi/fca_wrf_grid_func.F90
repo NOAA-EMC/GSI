@@ -25,7 +25,7 @@ module fca_wrf_grid_func_m
 !   machine:
 !
 !$$$ end documentation block
-  use fp_types_m, only: fp
+  use kinds, only: r_kind, i_kind
   use core_disp_types_m, only: ims, ime, jms, jme, kms, kme
   use fca_wrf_grid_types_m, only: fca_wrf_grid
   implicit none
@@ -63,10 +63,10 @@ subroutine diff_wrf_state(old,new,diff,ierror)
 
     type (fca_wrf_grid), intent(in) :: old, new
     type (fca_wrf_grid), intent(out) :: diff
-    integer, intent(out) :: ierror
+    integer(i_kind), intent(out) :: ierror
 
     call fca_copy_wrf_grid(old,diff,ierror)
-    if (ierror .ne. 0) return
+    if (ierror /= 0) return
     diff%MOIST = new%MOIST - old%MOIST
     diff%MU = new%MU - old%MU
     diff%P = new%P - old%P
@@ -102,7 +102,7 @@ subroutine fca_zero_wrf_grid(wrf_grid)
 !$$$ end documentation block
     implicit none
     type (fca_wrf_grid), intent(inout) :: wrf_grid
-    real(fp) :: zero=0.
+    real(r_kind) :: zero=0._r_kind
     wrf_grid%P=zero
     wrf_grid%PB=zero
     wrf_grid%PH=zero
@@ -151,9 +151,9 @@ subroutine fca_copy_wrf_grid(wrf_grid_from,wrf_grid_to,ierror)
 
   type (fca_wrf_grid), intent(in) :: wrf_grid_from
   type (fca_wrf_grid), intent(inout) :: wrf_grid_to
-  integer, intent(out) :: ierror
-  real(fp) :: zero=0.
-  integer :: status
+  integer(i_kind), intent(out) :: ierror
+  real(r_kind) :: zero=0._r_kind
+  integer(i_kind) :: status
 
 #ifdef TRACE_USE
   if (trace_use) call da_trace_entry("fca_copy_wrf_grid")
@@ -298,10 +298,10 @@ subroutine fca_allocate_wrf_grid(wrf_grid_to,nmoist,ierror)
   implicit none
 
   type (fca_wrf_grid), intent(inout) :: wrf_grid_to
-  integer, intent(in) :: nmoist
-  integer, intent(out) :: ierror
-  real(fp) :: zero=0.
-  integer :: status
+  integer(i_kind), intent(in) :: nmoist
+  integer(i_kind), intent(out) :: ierror
+  real(r_kind) :: zero=0._r_kind
+  integer(i_kind) :: status
 
 #ifdef TRACE_USE
   if (trace_use) call da_trace_entry("fca_allocate_wrf_grid")
@@ -390,9 +390,9 @@ subroutine fca_deallocate_wrf_grid(wrf_grid,ierror)
 !
 !$$$ end documentation block
     type (fca_wrf_grid), intent(inout) :: wrf_grid
-    integer, intent(out) :: ierror
+    integer(i_kind), intent(out) :: ierror
 
-    integer :: status = 0
+    integer(i_kind) :: status = 0
 
 #ifdef TRACE_USE
     if (trace_use) call da_trace_entry("fca_deallocate_wrf_grid")

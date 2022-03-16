@@ -124,7 +124,7 @@ else
 endif
 if (fca_switch) then
    call xtofca(stest1,.TRUE.)
-   if (idebug .ge. 3) then
+   if (idebug >= 3) then
       write (*,*) 'adtest: stest1 after xtofca'
       call prt_state_norms(stest1(1),'stest1')
    end if

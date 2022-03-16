@@ -318,7 +318,7 @@ subroutine pcgsoi()
 !    Re-orthonormalization if requested
      if(iorthomax>0) then 
         iortho=min(iorthomax,iter) 
-        if(iter .ne. 0) then 
+        if(iter /= 0) then 
            do ii=iortho,1,-1
               zdla = DOT_PRODUCT(gradx,cglworkhat(ii))
               do i=1,nclen

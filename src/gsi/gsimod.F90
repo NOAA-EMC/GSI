@@ -1578,7 +1578,7 @@
   use gsi_4dcouplermod, only: gsi_4dcoupler_setservices
   implicit none
   character(len=*),parameter :: myname_='gsimod.gsimain_initialize'
-  integer:: ier,ios
+  integer(i_kind):: ier,ios
   real(r_kind):: varqc_max,c_varqc_new
   type(regional_io_class) :: regional_io
 
@@ -2119,7 +2119,7 @@
      if (fv3_regional) then
         call convert_fv3_regional
      else
-        if(i_gsdcldanal_type.ne.6) call regional_io%convert_regional_guess(mype,ctph0,stph0,tlm0)
+        if(i_gsdcldanal_type /= 6) call regional_io%convert_regional_guess(mype,ctph0,stph0,tlm0)
      endif
   endif
             

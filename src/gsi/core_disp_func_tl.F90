@@ -26,7 +26,7 @@ module core_disp_func_tl_m
 !   machine:
 !
 !$$$ end documentation block
-  use fp_types_m, only: fp
+  use kinds, only: r_kind, i_kind
   use core_disp_types_m, only: fca_gridded_meta, fca_gridded_disp, &
        ids,ide,jds,jde,kds,kde, ims,ime,jms,jme,kms,kme, &
        its,ite,jts,jte,kts,kte, ips,ipe,jps,jpe,kps,kpe, &
@@ -40,7 +40,7 @@ module core_disp_func_tl_m
 #define TRACE_USE
 #endif
 
-real(fp) function bicub_interp_tl(fin,i,j,dx,dy,dx_tl,dy_tl)
+real(r_kind) function bicub_interp_tl(fin,i,j,dx,dy,dx_tl,dy_tl)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    bicub_interp_tl
@@ -63,11 +63,11 @@ real(fp) function bicub_interp_tl(fin,i,j,dx,dy,dx_tl,dy_tl)
 !
 !$$$ end documentation block
   implicit none
-  real(fp), intent(in) :: fin(ims:ime,jms:jme), dx, dy, dx_tl, dy_tl
-  integer, intent(in) :: i, j
+  real(r_kind), intent(in) :: fin(ims:ime,jms:jme), dx, dy, dx_tl, dy_tl
+  integer(i_kind), intent(in) :: i, j
 
-  real(fp) :: yy(-1:2), yy_tl(-1:2), f_tl(-1:2)
-  integer :: jj
+  real(r_kind) :: yy(-1:2), yy_tl(-1:2), f_tl(-1:2)
+  integer(i_kind) :: jj
 
   f_tl(:) = 0.
   do jj=-1,2
@@ -78,7 +78,7 @@ real(fp) function bicub_interp_tl(fin,i,j,dx,dy,dx_tl,dy_tl)
 
 end function bicub_interp_tl
 
-real(fp) function cubicInterpolate_tl(f,x,f_tl,x_tl)
+real(r_kind) function cubicInterpolate_tl(f,x,f_tl,x_tl)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    cubicInterpolate_tl
@@ -101,22 +101,22 @@ real(fp) function cubicInterpolate_tl(f,x,f_tl,x_tl)
 !
 !$$$ end documentation block
   implicit none
-  real(fp), intent(in) :: f(-1:2) !values at x=-1,0,1,2
-  real(fp), intent(in) :: x ! value in [0,1]
-  real(fp), intent(in) :: f_tl(-1:2), x_tl
+  real(r_kind), intent(in) :: f(-1:2) !values at x=-1,0,1,2
+  real(r_kind), intent(in) :: x ! value in [0,1]
+  real(r_kind), intent(in) :: f_tl(-1:2), x_tl
 
   cubicInterpolate_tl = &
-       x_tl     * 0.5 * (f(1) - f(-1)) + &
-       x_tl*x         * (2.0*f(-1) - 5.0*f(0) + 4.0*f(1) - f(2)) + &
-       x_tl*x*x * 1.5 * (3.0*(f(0) - f(1)) + f(2) - f(-1)) + &
+       x_tl     * 0.5_r_kind * (f(1) - f(-1)) + &
+       x_tl*x         * (2.0_r_kind*f(-1) - 5.0_r_kind*f(0) + 4.0_r_kind*f(1) - f(2)) + &
+       x_tl*x*x * 1.5_r_kind * (3.0_r_kind*(f(0) - f(1)) + f(2) - f(-1)) + &
        f_tl(0) + &
-       x     * 0.5 * (f_tl(1) - f_tl(-1)) + &
-       x*x   * 0.5 * (2.0*f_tl(-1) - 5.0*f_tl(0) + 4.0*f_tl(1) - f_tl(2)) + &
-       x*x*x * 0.5 * (3.0*(f_tl(0) - f_tl(1)) + f_tl(2) - f_tl(-1))
+       x     * 0.5_r_kind * (f_tl(1) - f_tl(-1)) + &
+       x*x   * 0.5_r_kind * (2.0_r_kind*f_tl(-1) - 5.0_r_kind*f_tl(0) + 4.0_r_kind*f_tl(1) - f_tl(2)) + &
+       x*x*x * 0.5_r_kind * (3.0_r_kind*(f_tl(0) - f_tl(1)) + f_tl(2) - f_tl(-1))
 
 end function cubicInterpolate_tl
 
-real(fp) function bilin_interp_tl(f00, f10, f01, f11, dx, dy, dx_tl, dy_tl)
+real(r_kind) function bilin_interp_tl(f00, f10, f01, f11, dx, dy, dx_tl, dy_tl)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    bilin_interp_tl
@@ -140,7 +140,7 @@ real(fp) function bilin_interp_tl(f00, f10, f01, f11, dx, dy, dx_tl, dy_tl)
     ! bilinear interpolation of 4 nearest neighbors to a point
     implicit none
     ! bilinear interpolate in the unit box.
-    real(fp), intent(in) :: f00, f10, f01, f11, dx, dy, dx_tl,dy_tl
+    real(r_kind), intent(in) :: f00, f10, f01, f11, dx, dy, dx_tl,dy_tl
     bilin_interp_tl = f00*(-dy_tl*(1.-dx)-dx_tl*(1.-dy)) &
          + f10*(dx_tl*(1.-dy)-dy_tl*dx) &
          + f01*(dy_tl*(1.-dx)-dx_tl*dy) &
@@ -178,12 +178,12 @@ subroutine compute_xy_orig_tl(x_disp, y_disp, ix_orig, iy_orig, dx_n, dy_n, meta
 !
 !$$$ end documentation block
   implicit none
-  real(fp), dimension(:,:), intent(inout) :: x_disp, y_disp, x_disp_tl, y_disp_tl, dx_n, dy_n, dx_n_tl, dy_n_tl
-  integer, dimension(:,:), intent(inout) :: ix_orig, iy_orig
+  real(r_kind), dimension(:,:), intent(inout) :: x_disp, y_disp, x_disp_tl, y_disp_tl, dx_n, dy_n, dx_n_tl, dy_n_tl
+  integer(i_kind), dimension(:,:), intent(inout) :: ix_orig, iy_orig
   type (fca_gridded_meta), intent(in) :: meta		! meta data
-  integer, intent(in) :: order
-  real(fp), dimension(size(x_disp,1),size(x_disp,2)) :: x, y, x_tl, y_tl
-  integer :: i, j, status, buf, Nx, Ny
+  integer(i_kind), intent(in) :: order
+  real(r_kind), dimension(size(x_disp,1),size(x_disp,2)) :: x, y, x_tl, y_tl
+  integer(i_kind) :: i, j, status, buf, Nx, Ny
 
 #ifdef TRACE_USE
   if (trace_use) call da_trace_entry("compute_xy_orig_tl")
@@ -209,12 +209,12 @@ subroutine compute_xy_orig_tl(x_disp, y_disp, ix_orig, iy_orig, dx_n, dy_n, meta
      buf=2
   end if
   where (ix_orig < ids+buf-1)
-     dx_n_tl = 0 
-     dx_n = 0 
+     dx_n_tl = 0_r_kind 
+     dx_n = 0_r_kind 
      ix_orig = ids+buf-1
   elsewhere (ix_orig > (ide-1-buf))
-     dx_n_tl = 0 
-     dx_n = 1
+     dx_n_tl = 0_r_kind 
+     dx_n = 1_r_kind
      ix_orig = ide-1-buf
   elsewhere
      ! x weight for interpolating values from box (i.e. 0.25 -> 25% from bottom, 75% from top points)
@@ -223,12 +223,12 @@ subroutine compute_xy_orig_tl(x_disp, y_disp, ix_orig, iy_orig, dx_n, dy_n, meta
   end where
 
   where (iy_orig < jds+buf-1)
-     dy_n_tl = 0 
-     dy_n = 0
+     dy_n_tl = 0_r_kind 
+     dy_n = 0_r_kind
      iy_orig = jds+buf-1
   elsewhere (iy_orig > (jde-1-buf))
-     dy_n_tl = 0 
-     dy_n = 1
+     dy_n_tl = 0_r_kind
+     dy_n = 1_r_kind
      iy_orig = jde-1-buf
   elsewhere
      dy_n_tl = y_tl/meta%dy
@@ -265,19 +265,19 @@ subroutine apply_disp_2d_tl(bg,adj,disp,adj_tl,disp_tl, order)
 !
 !$$$ end documentation block
     implicit none
-    real(fp), intent(in) :: bg(ims:ime,jms:jme) ! gridded 2d field: original
-    real(fp), intent(out) :: adj(ims:ime,jms:jme), adj_tl(ims:ime,jms:jme) ! gridded 2d field: displaced
+    real(r_kind), intent(in) :: bg(ims:ime,jms:jme) ! gridded 2d field: original
+    real(r_kind), intent(out) :: adj(ims:ime,jms:jme), adj_tl(ims:ime,jms:jme) ! gridded 2d field: displaced
     type (fca_gridded_disp), intent(in) :: disp, disp_tl	! displacements
-    integer, intent(in) :: order
-    integer :: i, j, id, jd
-    integer :: i1, i2, j1, j2
+    integer(i_kind), intent(in) :: order
+    integer(i_kind) :: i, j, id, jd
+    integer(i_kind) :: i1, i2, j1, j2
 
 #ifdef TRACE_USE
     if (trace_use) call da_trace_entry("apply_disp_2d_tl")
 #endif
     ! Initialize displaced arrays so the halos are also initialized:
     adj(:,:) = bg(:,:)
-    adj_tl(:,:) = 0.
+    adj_tl(:,:) = 0._r_kind
     if (order .eq. bilinear) then
        ! apply displacements up to and including domain boundary
        j1=1
@@ -290,10 +290,10 @@ subroutine apply_disp_2d_tl(bg,adj,disp,adj_tl,disp_tl, order)
        j2=min(jde-1,jte)-jts+1
        i1=max(ids+1,its)-its+1
        i2=min(ide-1,ite)-its+1
-       if (i1 .gt. 1)         adj_tl(its,jts:jte) = 0.
-       if (i2 .lt. ite-its+1) adj_tl(ite,jts:jte) = 0.
-       if (j1 .gt. 1)         adj_tl(its:ite,jts) = 0.
-       if (j2 .lt. jte-jts+1) adj_tl(its:ite,jte) = 0.
+       if (i1 .gt. 1)         adj_tl(its,jts:jte) = 0._r_kind
+       if (i2 .lt. ite-its+1) adj_tl(ite,jts:jte) = 0._r_kind
+       if (j1 .gt. 1)         adj_tl(its:ite,jts) = 0._r_kind
+       if (j2 .lt. jte-jts+1) adj_tl(its:ite,jte) = 0._r_kind
     end if
     
     do j = j1, j2
@@ -352,15 +352,15 @@ SUBROUTINE APPLY_VERT_TL(var, var_tl, stag, work2d, work2d_tl, fcadisp, fcadisp_
 !$$$ end documentation block
     IMPLICIT NONE
 ! variable to displace
-    INTEGER, INTENT(IN) :: stag
-    real(fp), dimension(ims:ime,jms:jme,kms:kme), intent(inout) :: var, var_tl
+    INTEGER(I_KIND), INTENT(IN) :: stag
+    real(r_kind), dimension(ims:ime,jms:jme,kms:kme), intent(inout) :: var, var_tl
     ! work space for 2d original/displaced fields
-    REAL(fp), DIMENSION(ims:ime,jms:jme,2), INTENT(INOUT) :: work2d
-    REAL(fp), DIMENSION(ims:ime,jms:jme,2), INTENT(INOUT) :: work2d_tl
+    real(r_kind), DIMENSION(ims:ime,jms:jme,2), INTENT(INOUT) :: work2d
+    real(r_kind), DIMENSION(ims:ime,jms:jme,2), INTENT(INOUT) :: work2d_tl
     type (fca_gridded_disp), intent(in) :: fcadisp			! displacement field generated by FCA routine
     type (fca_gridded_disp), intent(in) :: fcadisp_tl			! displacement field generated by FCA routine
-    integer, intent(in) :: interp_order
-    INTEGER :: i
+    integer(i_kind), intent(in) :: interp_order
+    INTEGER(I_KIND) :: i
 ! dimension along which var is staggered
     INTRINSIC SIZE
 #ifdef TRACE_USE

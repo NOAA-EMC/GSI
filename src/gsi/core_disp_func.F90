@@ -32,7 +32,7 @@ module core_disp_func_m
 !   machine:
 !
 !$$$ end documentation block
-  use fp_types_m, only: fp
+  use kinds, only: r_kind, i_kind
   use core_disp_types_m, only: fca_gridded_meta, fca_gridded_disp, &
        ids,ide,jds,jde,kds,kde, ims,ime,jms,jme,kms,kme, &
        its,ite,jts,jte,kts,kte, ips,ipe,jps,jpe,kps,kpe, &
@@ -49,7 +49,7 @@ module core_disp_func_m
 #define TRACE_USE
 #endif
 
-real(fp) function bicub_interp(fin,i,j,dx,dy)
+real(r_kind) function bicub_interp(fin,i,j,dx,dy)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    bicub_interp
@@ -71,11 +71,11 @@ real(fp) function bicub_interp(fin,i,j,dx,dy)
 !
 !$$$ end documentation block
   implicit none
-  real(fp), intent(in) :: fin(ims:ime,jms:jme), dx, dy
-  integer, intent(in) :: i, j
+  real(r_kind), intent(in) :: fin(ims:ime,jms:jme), dx, dy
+  integer(i_kind), intent(in) :: i, j
 
-  real(fp) :: yy(-1:2)
-  integer :: jj
+  real(r_kind) :: yy(-1:2)
+  integer(i_kind) :: jj
 
   do jj=-1,2
      yy(jj) = cubicInterpolate(fin((i-1):(i+2),j+jj),dx)
@@ -83,7 +83,7 @@ real(fp) function bicub_interp(fin,i,j,dx,dy)
   bicub_interp = cubicInterpolate(yy,dy)
 end function bicub_interp
 
-real(fp) function cubicInterpolate(f,x)
+real(r_kind) function cubicInterpolate(f,x)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    cubicInterpolate
@@ -105,22 +105,17 @@ real(fp) function cubicInterpolate(f,x)
 !
 !$$$ end documentation block
   implicit none
-  real(fp), intent(in) :: f(-1:2) !values at x=-1,0,1,2
-  real(fp), intent(in) :: x ! value in [0,1]
-
-!!$    cubicInterpolate = f(0) + 0.5 * &
-!!$         x*(f(1) - f(-1) + &
-!!$         x*(2.0*f(-1) - 5.0*f(0) + 4.0*f(1) - f(2) + &
-!!$         x*(3.0*(f(0) - f(1)) + f(2) - f(-1))))
+  real(r_kind), intent(in) :: f(-1:2) !values at x=-1,0,1,2
+  real(r_kind), intent(in) :: x ! value in [0,1]
 
   cubicInterpolate = f(0) + &
-       x     * 0.5 * (f(1) - f(-1)) + &
-       x*x   * 0.5 * (2.0*f(-1) - 5.0*f(0) + 4.0*f(1) - f(2)) + &
-       x*x*x * 0.5 * (3.0*(f(0) - f(1)) + f(2) - f(-1))
+       x     * 0.5_r_kind * (f(1) - f(-1)) + &
+       x*x   * 0.5_r_kind * (2.0_r_kind*f(-1) - 5.0_r_kind*f(0) + 4.0_r_kind*f(1) - f(2)) + &
+       x*x*x * 0.5_r_kind * (3.0_r_kind*(f(0) - f(1)) + f(2) - f(-1))
 
 end function cubicInterpolate
 
-real(fp) function bilin_interp(f00, f10, f01, f11, dx, dy)
+real(r_kind) function bilin_interp(f00, f10, f01, f11, dx, dy)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    bilin_interp
@@ -143,8 +138,8 @@ real(fp) function bilin_interp(f00, f10, f01, f11, dx, dy)
     ! bilinear interpolation of 4 nearest neighbors to a point
     implicit none
     ! bilinear interpolate in the unit box.
-    real(fp), intent(in) :: f00, f10, f01, f11, dx, dy
-    bilin_interp = f00*((1.-dx)*(1.-dy)) + f10*(dx*(1.-dy)) + f01*((1.-dx)*dy) + f11*(dx*dy)
+    real(r_kind), intent(in) :: f00, f10, f01, f11, dx, dy
+    bilin_interp = f00*((1._r_kind-dx)*(1._r_kind-dy)) + f10*(dx*(1._r_kind-dy)) + f01*((1._r_kind-dx)*dy) + f11*(dx*dy)
     return
 end function bilin_interp
 
@@ -175,13 +170,13 @@ subroutine compute_xy_orig(x_disp, y_disp, ix_orig, iy_orig, dx_n, dy_n, meta, o
 !
 !$$$ end documentation block
   implicit none
-  real(fp), dimension(:,:), intent(inout) :: x_disp, y_disp, dx_n, dy_n
-  integer, dimension(:,:), intent(inout) :: ix_orig, iy_orig
+  real(r_kind), dimension(:,:), intent(inout) :: x_disp, y_disp, dx_n, dy_n
+  integer(i_kind), dimension(:,:), intent(inout) :: ix_orig, iy_orig
   type (fca_gridded_meta), intent(in) :: meta		! meta data
-  integer, intent(in) :: order
+  integer(i_kind), intent(in) :: order
 
-  real(fp), dimension(size(x_disp,1),size(x_disp,2)) :: x, y
-  integer :: i, j, status, buf, Nx, Ny
+  real(r_kind), dimension(size(x_disp,1),size(x_disp,2)) :: x, y
+  integer(i_kind) :: i, j, status, buf, Nx, Ny
 
 #ifdef TRACE_USE
   if (trace_use) call da_trace_entry("compute_xy_orig")
@@ -202,16 +197,16 @@ subroutine compute_xy_orig(x_disp, y_disp, ix_orig, iy_orig, dx_n, dy_n, meta, o
   ! use constant extrapolation for points outside the grid: 
   ! (Note that since ide/jde is padded by one for staggered grids, we need to use ide-1 in the comparison below)
 
-  if (order .eq. bilinear) then
+  if (order == bilinear) then
      buf=1
-  elseif (order .eq. bicubic) then
+  elseif (order == bicubic) then
      buf=2
   end if
   where(ix_orig < ids+buf-1)
-     dx_n = 0 
+     dx_n = 0_r_kind
      ix_orig = ids+buf-1
   elsewhere (ix_orig > (ide-1-buf))
-     dx_n = 1
+     dx_n = 1_r_kind
      ix_orig = ide-1-buf
   elsewhere
      ! x weight for interpolating values from box (i.e. 0.25 -> 25% from bottom, 75% from top points)
@@ -219,10 +214,10 @@ subroutine compute_xy_orig(x_disp, y_disp, ix_orig, iy_orig, dx_n, dy_n, meta, o
   end where
 
   where(iy_orig < jds+buf-1)
-     dy_n = 0
+     dy_n = 0_r_kind
      iy_orig = jds+buf-1
   elsewhere (iy_orig > (jde-1-buf))
-     dy_n = 1
+     dy_n = 1_r_kind
      iy_orig = jde-1-buf
   elsewhere
      dy_n = mod(y,meta%dy)/meta%dy
@@ -264,21 +259,21 @@ subroutine compute_xy_orig_dm(x_disp, y_disp, ix_orig, iy_orig, dx_n, dy_n, meta
 !
 !$$$ end documentation block
   implicit none
-  real(fp), dimension(:,:), intent(inout) :: x_disp, y_disp, dx_n, dy_n
-  integer, dimension(:,:), intent(inout) :: ix_orig, iy_orig
+  real(r_kind), dimension(:,:), intent(inout) :: x_disp, y_disp, dx_n, dy_n
+  integer(i_kind), dimension(:,:), intent(inout) :: ix_orig, iy_orig
   type (fca_gridded_meta), intent(in) :: meta		! meta data
-  integer, allocatable, intent(out) :: needed_ij_in(:,:), needed_ij_out(:,:), index_in(:)
-  real(fp), allocatable, intent(out) :: needed_wgts_out(:,:)
-  integer, intent(out) :: num_glob_needed
-  integer, intent(in) :: order
-  real(fp), allocatable :: needed_wgts_in(:,:)
-  integer :: num_needed_out
+  integer(i_kind), allocatable, intent(out) :: needed_ij_in(:,:), needed_ij_out(:,:), index_in(:)
+  real(r_kind), allocatable, intent(out) :: needed_wgts_out(:,:)
+  integer(i_kind), intent(out) :: num_glob_needed
+  integer(i_kind), intent(in) :: order
+  real(r_kind), allocatable :: needed_wgts_in(:,:)
+  integer(i_kind) :: num_needed_out
 
-  real(fp), dimension(size(x_disp,1),size(x_disp,2)) :: x, y
-  integer :: needed_ij_local(size(x_disp,1),size(x_disp,2),2)
-  integer :: i, j, status, num_needed_in, ierr, offset, buf, Nx, Ny
-  integer, parameter :: BAD_INT=-999999
-  integer :: i1, i2, j1, j2
+  real(r_kind), dimension(size(x_disp,1),size(x_disp,2)) :: x, y
+  integer(i_kind) :: needed_ij_local(size(x_disp,1),size(x_disp,2),2)
+  integer(i_kind) :: i, j, status, num_needed_in, ierr, offset, buf, Nx, Ny
+  integer(i_kind), parameter :: BAD_INT=-999999
+  integer(i_kind) :: i1, i2, j1, j2
 
 #ifdef TRACE_USE
   if (trace_use) call da_trace_entry("compute_xy_orig_dm")
@@ -299,16 +294,16 @@ subroutine compute_xy_orig_dm(x_disp, y_disp, ix_orig, iy_orig, dx_n, dy_n, meta
   iy_orig(1:Nx,1:Ny) = int(floor(y(1:Nx,1:Ny)/meta%dy)+1) ! y ""
 
   !	use constant extrapolation for points outside the grid:
-  if (order .eq. bilinear) then
+  if (order == bilinear) then
      buf=1
-  elseif (order .eq. bicubic) then
+  elseif (order == bicubic) then
      buf=2
   end if
   where(ix_orig < ids+buf-1)
-     dx_n = 0 
+     dx_n = 0_r_kind 
      ix_orig = ids+buf-1
   elsewhere (ix_orig > (ide-1-buf))
-     dx_n = 1
+     dx_n = 1_r_kind
      ix_orig = ide-1-buf
   elsewhere
      ! x weight for interpolating values from box (i.e. 0.25 -> 25% from bottom, 75% from top points)
@@ -316,10 +311,10 @@ subroutine compute_xy_orig_dm(x_disp, y_disp, ix_orig, iy_orig, dx_n, dy_n, meta
   end where
 
   where(iy_orig < jds+buf-1)
-     dy_n = 0
+     dy_n = 0_r_kind
      iy_orig = jds+buf-1
   elsewhere (iy_orig > (jde-1-buf))
-     dy_n = 1
+     dy_n = 1_r_kind
      iy_orig = jde-1-buf
   elsewhere
      dy_n = mod(y,meta%dy)/meta%dy
@@ -334,13 +329,13 @@ subroutine compute_xy_orig_dm(x_disp, y_disp, ix_orig, iy_orig, dx_n, dy_n, meta
 
   ! Only apply displacements within same limits as in apply_disp_2d:
 
-  if (order .eq. bilinear) then
+  if (order == bilinear) then
      ! apply displacements up to and including domain boundary
      j1=1
      j2=Ny
      i1=1
      i2=Nx
-  elseif (order .eq. bicubic) then
+  elseif (order == bicubic) then
      ! apply displacements one gridpoint in from domain boundary
      j1=max(jds+1,jts)-jts+1
      j2=min(jde-1,jte)-jts+1
@@ -350,8 +345,8 @@ subroutine compute_xy_orig_dm(x_disp, y_disp, ix_orig, iy_orig, dx_n, dy_n, meta
     
   do j = j1, j2
      do i = i1, i2
-        if (ix_orig(i,j) .lt. ips .or. ix_orig(i,j) .gt. ipe .or. &
-             iy_orig(i,j) .lt. jps .or. iy_orig(i,j) .gt. jpe) then
+        if (ix_orig(i,j) < ips .or. ix_orig(i,j) > ipe .or. &
+             iy_orig(i,j) < jps .or. iy_orig(i,j) > jpe) then
            ! outside patch:
            needed_ij_local(i,j,1:2) = (/ix_orig(i,j), iy_orig(i,j)/)
            num_needed_in=num_needed_in+1
@@ -363,7 +358,7 @@ subroutine compute_xy_orig_dm(x_disp, y_disp, ix_orig, iy_orig, dx_n, dy_n, meta
   offset=0
   do j = j1, j2
      do i = i1, i2
-        if (needed_ij_local(i,j,1) .ne. BAD_INT) then
+        if (needed_ij_local(i,j,1) /= BAD_INT) then
            offset=offset+1
            needed_ij_in(1:4,offset) = (/i+its-1,j+jts-1,needed_ij_local(i,j,1),needed_ij_local(i,j,2)/)
            needed_wgts_in(1:2,offset) = (/dx_n(i,j),dy_n(i,j)/)
@@ -423,29 +418,29 @@ subroutine exchange_needed(needed_ij_in, needed_wgts_in, num_needed_in, &
 !   machine:
 !
 !$$$ end documentation block
-  use mpi
+  use mpi, only: MPI_COMM_WORLD, MPI_TYPECLASS_REAL, MPI_TYPECLASS_INTEGER, MPI_SIZEOF
 
   implicit none
 
-  integer, intent(in)			:: num_needed_in, dum_ips, dum_ipe, dum_jps, dum_jpe
-  integer, intent(inout)			:: needed_ij_in(4, num_needed_in)
-  real(fp), intent(in)			:: needed_wgts_in(2, num_needed_in)
-  integer, intent(out)                :: index_in(num_needed_in)
-  integer, allocatable, intent(out)	:: needed_ij_out(:, :)
-  real(fp), allocatable, intent(out)	:: needed_wgts_out(:, :)
-  integer, intent(out)					:: num_needed_out, num_glob_needed
+  integer(i_kind), intent(in)			:: num_needed_in, dum_ips, dum_ipe, dum_jps, dum_jpe
+  integer(i_kind), intent(inout)			:: needed_ij_in(4, num_needed_in)
+  real(r_kind), intent(in)			:: needed_wgts_in(2, num_needed_in)
+  integer(i_kind), intent(out)                :: index_in(num_needed_in)
+  integer(i_kind), allocatable, intent(out)	:: needed_ij_out(:, :)
+  real(r_kind), allocatable, intent(out)	:: needed_wgts_out(:, :)
+  integer(i_kind), intent(out)					:: num_needed_out, num_glob_needed
 
-  integer						:: num_proc, my_id, ierr, ip, offset_ip
-  integer						:: i, count, x, y, offset
-  integer, dimension(:), allocatable			:: packed_needed_ij
-  real(fp), dimension(:), allocatable			:: packed_needed_wgts
-  real(fp), dimension(:), allocatable			:: needed_all_wgts
-  integer, dimension(:), allocatable			:: needed_all_ij
-  integer, dimension(:), allocatable			:: proc_needed, proc_needed_ij, proc_needed_wgts, buf_disp
+  integer(i_kind)						:: num_proc, my_id, ierr, ip, offset_ip
+  integer(i_kind)						:: i, count, x, y, offset
+  integer(i_kind), dimension(:), allocatable			:: packed_needed_ij
+  real(r_kind), dimension(:), allocatable			:: packed_needed_wgts
+  real(r_kind), dimension(:), allocatable			:: needed_all_wgts
+  integer(i_kind), dimension(:), allocatable			:: needed_all_ij
+  integer(i_kind), dimension(:), allocatable			:: proc_needed, proc_needed_ij, proc_needed_wgts, buf_disp
 
   ! variables to hold info for MPI_FLOAT, MPI_INT
-  integer :: float_class, float_size, float_type
-  integer :: fixed_class, fixed_size, fixed_type
+  integer(i_kind) :: float_class, float_size, float_type
+  integer(i_kind) :: fixed_class, fixed_size, fixed_type
 
   ! pack up the input arrays
   allocate(packed_needed_ij(4*num_needed_in), &
@@ -497,7 +492,7 @@ subroutine exchange_needed(needed_ij_in, needed_wgts_in, num_needed_in, &
        needed_all_ij, proc_needed_ij, buf_disp, fixed_type, MPI_COMM_WORLD, ierr)
   ! send the wgts:
   ! create the buffer pointers to start the output from each processor
-  proc_needed_wgts(:)=2*proc_needed(:)
+  proc_needed_wgts(:)=2_r_kind*proc_needed(:)
   buf_disp(1) = 0
   do ip=2,num_proc
      buf_disp(ip) = buf_disp(ip-1) + proc_needed_wgts(ip-1)
@@ -660,21 +655,21 @@ subroutine exchange_interpolated(needed_adj_out, needed_adj_in, index_in)
 !
 !$$$ end documentation block
 
-  use mpi
+  use mpi, only: MPI_COMM_WORLD, MPI_TYPECLASS_REAL, MPI_TYPECLASS_INTEGER, MPI_SIZEOF
 
   implicit none
-  integer, dimension(:), intent(in)	:: index_in
-  real(fp), dimension(:), intent(in)	:: needed_adj_out
-  real(fp), dimension(:), intent(out)	:: needed_adj_in
+  integer(i_kind), dimension(:), intent(in)	:: index_in
+  real(r_kind), dimension(:), intent(in)	:: needed_adj_out
+  real(r_kind), dimension(:), intent(out)	:: needed_adj_in
 
-  integer, dimension(:), allocatable	:: proc_needed, buf_disp
-  real(fp), dimension(:), allocatable	:: needed_allval
-  integer				:: i, ip, num_proc, my_id, ierr
-  integer				:: num_needed_out, num_needed_in, num_glob_needed, count
+  integer(i_kind), dimension(:), allocatable	:: proc_needed, buf_disp
+  real(r_kind), dimension(:), allocatable	:: needed_allval
+  integer(i_kind)				:: i, ip, num_proc, my_id, ierr
+  integer(i_kind)				:: num_needed_out, num_needed_in, num_glob_needed, count
 
   ! variables to hold info for MPI_FLOAT, MPI_INT
-  integer :: float_class, float_size, float_type
-  integer :: fixed_class, fixed_size, fixed_type
+  integer(i_kind) :: float_class, float_size, float_type
+  integer(i_kind) :: fixed_class, fixed_size, fixed_type
 
   ! get the MPI info
   call MPI_COMM_RANK (MPI_COMM_WORLD, my_id, ierr)
@@ -755,17 +750,17 @@ subroutine apply_disp_2d(bg,adj,disp, &
 !
 !$$$ end documentation block
     implicit none
-    real(fp), intent(in) :: bg(ims:ime,jms:jme) ! gridded 2d field: original
-    real(fp), intent(out) :: adj(ims:ime,jms:jme) ! gridded 2d field: displaced
+    real(r_kind), intent(in) :: bg(ims:ime,jms:jme) ! gridded 2d field: original
+    real(r_kind), intent(out) :: adj(ims:ime,jms:jme) ! gridded 2d field: displaced
     type (fca_gridded_disp), intent(in) :: disp		! displacements
-    integer, intent(in) :: num_glob_needed, needed_ij_in(:,:), needed_ij_out(:,:), index_in(:)
-    real(fp), intent(in) :: needed_wgts_out(:,:)
-    integer, intent(in) :: order
+    integer(i_kind), intent(in) :: num_glob_needed, needed_ij_in(:,:), needed_ij_out(:,:), index_in(:)
+    real(r_kind), intent(in) :: needed_wgts_out(:,:)
+    integer(i_kind), intent(in) :: order
 
-    integer :: i, j, id, jd, inum_in, num_needed_in, iout, num_needed_out
-    integer :: i1, i2, j1, j2
-    real(fp) :: needed_adj_in (size(needed_ij_in,dim=2))
-    real(fp) :: needed_adj_out (size(needed_ij_out,dim=2))
+    integer(i_kind) :: i, j, id, jd, inum_in, num_needed_in, iout, num_needed_out
+    integer(i_kind) :: i1, i2, j1, j2
+    real(r_kind) :: needed_adj_in (size(needed_ij_in,dim=2))
+    real(r_kind) :: needed_adj_out (size(needed_ij_out,dim=2))
 
 #ifdef TRACE_USE
     if (trace_use) call da_trace_entry("apply_disp_2d")
@@ -774,17 +769,17 @@ subroutine apply_disp_2d(bg,adj,disp, &
 #ifdef DM_PARALLEL
     num_needed_in=size(needed_ij_in,dim=2)
     num_needed_out=size(needed_ij_out,dim=2)
-    if (num_glob_needed .gt. 0) then
+    if (num_glob_needed > 0) then
        ! First compute the output needed by other patches
        do iout=1,num_needed_out
-          if (order .eq. bilinear) then
+          if (order == bilinear) then
              needed_adj_out(iout)=bilin_interp( &
                   bg(needed_ij_out(3,iout),needed_ij_out(4,iout)), &
                   bg(needed_ij_out(3,iout)+1,needed_ij_out(4,iout)), &
                   bg(needed_ij_out(3,iout),needed_ij_out(4,iout)+1), &
                   bg(needed_ij_out(3,iout)+1,needed_ij_out(4,iout)+1), &
                   needed_wgts_out(1,iout), needed_wgts_out(2,iout))
-          elseif (order .eq. bicubic) then
+          elseif (order == bicubic) then
              needed_adj_out(iout) = bicub_interp(bg, needed_ij_out(3,iout),needed_ij_out(4,iout), &
                   needed_wgts_out(1,iout), needed_wgts_out(2,iout))
           end if
@@ -797,22 +792,22 @@ subroutine apply_disp_2d(bg,adj,disp, &
 
     ! Initialize displaced arrays so the halos are also initialized:
     adj(:,:) = bg(:,:)
-    if (order .eq. bilinear) then
+    if (order == bilinear) then
        ! apply displacements up to and including domain boundary
        j1=1
        j2=size(disp%ix_orig,2)
        i1=1
        i2=size(disp%ix_orig,1)
-    elseif (order .eq. bicubic) then
+    elseif (order == bicubic) then
        ! apply displacements one gridpoint in from domain boundary
        j1=max(jds+1,jts)-jts+1
        j2=min(jde-1,jte)-jts+1
        i1=max(ids+1,its)-its+1
        i2=min(ide-1,ite)-its+1
-       if (i1 .gt. 1)         adj(its,jts:jte) = bg(its,jts:jte)
-       if (i2 .lt. ite-its+1) adj(ite,jts:jte) = bg(ite,jts:jte)
-       if (j1 .gt. 1)         adj(its:ite,jts) = bg(its:ite,jts)
-       if (j2 .lt. jte-jts+1) adj(its:ite,jte) = bg(its:ite,jte)
+       if (i1 > 1)         adj(its,jts:jte) = bg(its,jts:jte)
+       if (i2 < ite-its+1) adj(ite,jts:jte) = bg(ite,jts:jte)
+       if (j1 > 1)         adj(its:ite,jts) = bg(its:ite,jts)
+       if (j2 < jte-jts+1) adj(its:ite,jte) = bg(its:ite,jte)
     end if
     
     do j = j1, j2
@@ -822,7 +817,7 @@ subroutine apply_disp_2d(bg,adj,disp, &
           ! save to adj after bilinear interpolation of displaced field
           if (disp%ix_orig(i,j) >= ips .and. disp%ix_orig(i,j) <= ipe .and. &
               disp%iy_orig(i,j) >= jps .and. disp%iy_orig(i,j) <= jpe) then
-             if (order .eq. bilinear) then
+             if (order == bilinear) then
                 adj(id,jd) = &
                      bilin_interp(&
                      bg(disp%ix_orig(i,j),disp%iy_orig(i,j)),&
@@ -830,14 +825,14 @@ subroutine apply_disp_2d(bg,adj,disp, &
                      bg(disp%ix_orig(i,j),disp%iy_orig(i,j)+1), &
                      bg(disp%ix_orig(i,j)+1,disp%iy_orig(i,j)+1),&
                      disp%dx_n(i,j),disp%dy_n(i,j))
-             elseif (order .eq. bicubic) then
+             elseif (order == bicubic) then
                 adj(id,jd) = bicub_interp(bg, disp%ix_orig(i,j), disp%iy_orig(i,j), &
                      disp%dx_n(i,j),disp%dy_n(i,j))
              end if
           end if
        end do !i
     end do !j
-    if (num_glob_needed .gt. 0) then
+    if (num_glob_needed > 0) then
      
        do inum_in=1,num_needed_in
           adj(needed_ij_in(1,inum_in), needed_ij_in(2,inum_in)) = needed_adj_in(inum_in)
@@ -874,14 +869,14 @@ subroutine apply_vert(var,stag,work2d,fcadisp,&
 !
 !$$$ end documentation block
 
-    integer, intent(in) :: stag				! dimension along which var is staggered
-    real(fp), dimension(ims:ime,jms:jme,kms:kme), intent(inout) :: var		! variable to displace
-    real(fp), dimension(ims:ime,jms:jme,2), intent(inout) :: work2d		! work space for 2d original/displaced fields
+    integer(i_kind), intent(in) :: stag				! dimension along which var is staggered
+    real(r_kind), dimension(ims:ime,jms:jme,kms:kme), intent(inout) :: var		! variable to displace
+    real(r_kind), dimension(ims:ime,jms:jme,2), intent(inout) :: work2d		! work space for 2d original/displaced fields
     type (fca_gridded_disp), intent(in) :: fcadisp			! displacement field generated by FCA routine
-    integer, intent(in) :: num_glob_needed, needed_ij_in(:,:), needed_ij_out(:,:), index_in(:)
-    real(fp), intent(in) :: needed_wgts_out(:,:)
-    integer, intent(in) :: interp_order
-    integer :: i
+    integer(i_kind), intent(in) :: num_glob_needed, needed_ij_in(:,:), needed_ij_out(:,:), index_in(:)
+    real(r_kind), intent(in) :: needed_wgts_out(:,:)
+    integer(i_kind), intent(in) :: interp_order
+    integer(i_kind) :: i
     
 #ifdef TRACE_USE
     if (trace_use) call da_trace_entry("apply_vert")
@@ -919,9 +914,9 @@ type (fca_gridded_meta) function init_meta(nx, ny, dx, dy, x0, y0)
 !
 !$$$ end documentation block
     implicit none
-    integer, intent(in) :: nx, ny
-    real(fp), intent(in) :: dx, dy, x0, y0
-    integer :: status
+    integer(i_kind), intent(in) :: nx, ny
+    real(r_kind), intent(in) :: dx, dy, x0, y0
+    integer(i_kind) :: status
     init_meta%nx = nx
     init_meta%ny = ny
     init_meta%dx = dx
@@ -956,12 +951,12 @@ subroutine allocate_disp(disp, nlm_flag, ierror)
   implicit none
   type(fca_gridded_disp), intent(inout) :: disp
   logical, intent(in) :: nlm_flag
-  integer, intent(out) :: ierror
+  integer(i_kind), intent(out) :: ierror
 
-  integer :: status
+  integer(i_kind) :: status
 
   ierror = 1 ! 1: uninitialized meta
-  if (disp%meta%nx .lt. 1 .or. disp%meta%ny .lt. 1) return
+  if (disp%meta%nx < 1 .or. disp%meta%ny < 1) return
 
   ierror=ierror+1 ! 2: error allocating x_disp
   allocate(disp%x_disp(disp%meta%nx,disp%meta%ny), stat=status)
@@ -1011,9 +1006,9 @@ subroutine deallocate_disp(disp, ierror)
 !$$$ end documentation block
   implicit none
   type(fca_gridded_disp), intent(inout) :: disp
-  integer, intent(out) :: ierror
+  integer(i_kind), intent(out) :: ierror
 
-  integer :: status
+  integer(i_kind) :: status
 
   ierror = 1 ! 1: not applicable
   ierror=ierror+1 ! 2: error deallocating x_disp

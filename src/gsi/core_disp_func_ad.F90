@@ -24,7 +24,7 @@ module core_disp_func_ad_m
 !   machine:
 !
 !$$$ end documentation block
-  use fp_types_m, only: fp
+  use kinds, only: r_kind, i_kind
   use core_disp_types_m, only: fca_gridded_meta, fca_gridded_disp, &
        ids,ide,jds,jde,kds,kde, ims,ime,jms,jme,kms,kme, &
        its,ite,jts,jte,kts,kte, ips,ipe,jps,jpe,kps,kpe, &
@@ -62,12 +62,12 @@ subroutine bicub_interp_ad(fin,i,j,dx,dy,adj_ad,dx_ad,dy_ad)
 !   machine:
 !
 !$$$ end documentation block
-  real(fp), intent(in) :: fin(ims:ime,jms:jme), dx, dy, adj_ad
-  real(fp), intent(inout) :: dx_ad, dy_ad
-  integer, intent(in) :: i, j
+  real(r_kind), intent(in) :: fin(ims:ime,jms:jme), dx, dy, adj_ad
+  real(r_kind), intent(inout) :: dx_ad, dy_ad
+  integer(i_kind), intent(in) :: i, j
 
-  real(fp) :: yy(-1:2),yy_ad(-1:2),f_ad(-1:2)
-  integer :: jj
+  real(r_kind) :: yy(-1:2),yy_ad(-1:2),f_ad(-1:2)
+  integer(i_kind) :: jj
 
   yy_ad(:)=0.
   f_ad(:)=0.
@@ -107,18 +107,18 @@ subroutine cubicInterpolate_ad(f,x,adj_ad,f_ad,x_ad)
 !
 !$$$ end documentation block
   implicit none
-  real(fp), intent(in) :: f(-1:2) !values at x=-1,0,1,2
-  real(fp), intent(in) :: x, adj_ad ! value in [0,1]
-  real(fp), intent(inout) :: f_ad(-1:2), x_ad
+  real(r_kind), intent(in) :: f(-1:2) !values at x=-1,0,1,2
+  real(r_kind), intent(in) :: x, adj_ad ! value in [0,1]
+  real(r_kind), intent(inout) :: f_ad(-1:2), x_ad
 
   ! Adjoint of:
 !!$         x_tl     * 0.5 * (f(1) - f(-1)) + &
 !!$         x_tl*x         * (2.0*f(-1) - 5.0*f(0) + 4.0*f(1) - f(2)) + &
 !!$         x_tl*x*x * 1.5 * (3.0*(f(0) - f(1)) + f(2) - f(-1)) + &
 
-  x_ad = x_ad + adj_ad * 0.5 * (f(1) - f(-1))
-  x_ad = x_ad + adj_ad * x   * (2.0*f(-1) - 5.0*f(0) + 4.0*f(1) - f(2))
-  x_ad = x_ad + adj_ad * x*x * 1.5 * (3.0*(f(0) - f(1)) + f(2) - f(-1))
+  x_ad = x_ad + adj_ad * 0.5_r_kind * (f(1) - f(-1))
+  x_ad = x_ad + adj_ad * x   * (2.0_r_kind*f(-1) - 5.0_r_kind*f(0) + 4.0_r_kind*f(1) - f(2))
+  x_ad = x_ad + adj_ad * x*x * 1.5_r_kind * (3.0_r_kind*(f(0) - f(1)) + f(2) - f(-1))
 
   ! Adjoint of:
 !!$         f_tl(0) + &
@@ -131,10 +131,10 @@ subroutine cubicInterpolate_ad(f,x,adj_ad,f_ad,x_ad)
 !!$         f_tl(1)  * (        0.5*x +   2*x*x - 1.5*x*x*x) + &
 !!$         f_tl(2)  * (              - 0.5*x*x + 0.5*x*x*x)
 
-  f_ad(-1) = f_ad(-1) + adj_ad * (       -0.5*x +     x*x - 0.5*x*x*x)
-  f_ad(0)  = f_ad(0)  + adj_ad * ( 1            - 2.5*x*x + 1.5*x*x*x)
-  f_ad(1)  = f_ad(1)  + adj_ad * (        0.5*x +   2*x*x - 1.5*x*x*x)
-  f_ad(2)  = f_ad(2)  + adj_ad * (              - 0.5*x*x + 0.5*x*x*x)
+  f_ad(-1) = f_ad(-1) + adj_ad * (       -0.5_r_kind*x +     x*x - 0.5_r_kind*x*x*x)
+  f_ad(0)  = f_ad(0)  + adj_ad * ( 1            - 2.5_r_kind*x*x + 1.5_r_kind*x*x*x)
+  f_ad(1)  = f_ad(1)  + adj_ad * (        0.5_r_kind*x +   2_r_kind*x*x - 1.5_r_kind*x*x*x)
+  f_ad(2)  = f_ad(2)  + adj_ad * (              - 0.5_r_kind*x*x + 0.5_r_kind*x*x*x)
 
 end subroutine cubicInterpolate_ad
 
@@ -163,14 +163,14 @@ subroutine bilin_interp_ad(f00, f10, f01, f11, dx, dy, adj_ad, dx_ad, dy_ad)
   ! bilinear interpolation of 4 nearest neighbors to a point
   implicit none
   ! bilinear interpolate in the unit box.
-  real(fp), intent(in) :: f00, f10, f01, f11, dx, dy, adj_ad
-  real(fp), intent(inout) :: dx_ad,dy_ad
+  real(r_kind), intent(in) :: f00, f10, f01, f11, dx, dy, adj_ad
+  real(r_kind), intent(inout) :: dx_ad,dy_ad
   !  Adjoint of:
 !!$    bilin_interp_tl = &
 !!$         dx_tl*(-f00*(1.-dy) + f10*(1.-dy) - f01*dy + f11*dy) + &
 !!$         dy_tl*(-f00*(1.-dx) - f10*dx + f01*(1.-dx) + f11*dx)
-  dx_ad = dx_ad + adj_ad*(-f00*(1.-dy) + f10*(1.-dy) - f01*dy + f11*dy)
-  dy_ad = dy_ad + adj_ad*(-f00*(1.-dx) - f10*dx + f01*(1.-dx) + f11*dx)
+  dx_ad = dx_ad + adj_ad*(-f00*(1._r_kind-dy) + f10*(1._r_kind-dy) - f01*dy + f11*dy)
+  dy_ad = dy_ad + adj_ad*(-f00*(1._r_kind-dx) - f10*dx + f01*(1._r_kind-dx) + f11*dx)
   return
 end subroutine bilin_interp_ad
 
@@ -205,13 +205,13 @@ subroutine compute_xy_orig_ad(x_disp, y_disp, ix_orig, iy_orig, dx_n, dy_n,&
 !$$$ end documentation block
   implicit none
 
-  real(fp), dimension(:,:), intent(inout) :: x_disp, y_disp, &
+  real(r_kind), dimension(:,:), intent(inout) :: x_disp, y_disp, &
   	    x_disp_ad, y_disp_ad,  dx_n_ad, dy_n_ad, dx_n, dy_n
-  integer, dimension(:,:), intent(inout) :: ix_orig, iy_orig
+  integer(i_kind), dimension(:,:), intent(inout) :: ix_orig, iy_orig
   type (fca_gridded_meta), intent(in) :: meta		! meta data
-  integer, intent(in) :: order
-  real(fp), dimension(size(x_disp,1),size(x_disp,2)) :: x, y, x_ad, y_ad
-  integer :: i, j, status, buf, Nx, Ny
+  integer(i_kind), intent(in) :: order
+  real(r_kind), dimension(size(x_disp,1),size(x_disp,2)) :: x, y, x_ad, y_ad
+  integer(i_kind) :: i, j, status, buf, Nx, Ny
 
   
 #ifdef TRACE_USE
@@ -222,8 +222,8 @@ subroutine compute_xy_orig_ad(x_disp, y_disp, ix_orig, iy_orig, dx_n, dy_n,&
   Ny = size(x_disp,2)
 
   !Initialize local adjoint:
-  x_ad(:,:)=0.
-  y_ad(:,:)=0.
+  x_ad(:,:)=0._r_kind
+  y_ad(:,:)=0._r_kind
 
   !recompute NLM:
 
@@ -245,12 +245,12 @@ subroutine compute_xy_orig_ad(x_disp, y_disp, ix_orig, iy_orig, dx_n, dy_n,&
      buf=2
   end if
   where (ix_orig < ids+buf-1)
-     dx_n_ad = 0 
-     dx_n = 0 
+     dx_n_ad = 0_r_kind 
+     dx_n = 0_r_kind 
      ix_orig = ids+buf-1
   elsewhere (ix_orig > (ide-1-buf))
-     dx_n_ad = 0 
-     dx_n = 1
+     dx_n_ad = 0_r_kind 
+     dx_n = 1_r_kind
      ix_orig = ide-1-buf
   elsewhere
      ! x weight for interpolating values from box (i.e. 0.25 -> 25% from bottom, 75% from top points)
@@ -259,12 +259,12 @@ subroutine compute_xy_orig_ad(x_disp, y_disp, ix_orig, iy_orig, dx_n, dy_n,&
   end where
 
   where (iy_orig < jds+buf-1)
-     dy_n_ad = 0 
-     dy_n = 0
+     dy_n_ad = 0_r_kind 
+     dy_n = 0_r_kind
      iy_orig = jds+buf-1
   elsewhere (iy_orig > (jde-1-buf))
-     dy_n_ad = 0 
-     dy_n = 1
+     dy_n_ad = 0_r_kind 
+     dy_n = 1_r_kind
      iy_orig = jde-1-buf
   elsewhere
      y_ad = y_ad + dy_n_ad/meta%dy
@@ -309,13 +309,13 @@ subroutine apply_disp_2d_ad(bg,disp,adj_ad,disp_ad, order)
 !
 !$$$ end documentation block
   implicit none
-  real(fp), intent(in) :: bg(ims:ime,jms:jme) ! gridded 2d field: original
-  real(fp), intent(inout) :: adj_ad(ims:ime,jms:jme) ! gridded 2d field: displaced
+  real(r_kind), intent(in) :: bg(ims:ime,jms:jme) ! gridded 2d field: original
+  real(r_kind), intent(inout) :: adj_ad(ims:ime,jms:jme) ! gridded 2d field: displaced
   type (fca_gridded_disp), intent(in) :: disp	! displacements
   type (fca_gridded_disp), intent(inout) ::  disp_ad	! displacements
-  integer, intent(in) :: order
-  integer :: i, j, id, jd
-  integer :: i1, i2, j1, j2
+  integer(i_kind), intent(in) :: order
+  integer(i_kind) :: i, j, id, jd
+  integer(i_kind) :: i1, i2, j1, j2
 
 #ifdef TRACE_USE
   if (trace_use) call da_trace_entry("apply_disp_2d_ad")
@@ -332,10 +332,10 @@ subroutine apply_disp_2d_ad(bg,disp,adj_ad,disp_ad, order)
      j2=min(jde-1,jte)-jts+1
      i1=max(ids+1,its)-its+1
      i2=min(ide-1,ite)-its+1
-     if (i1 .gt. 1)         adj_ad(its,jts:jte) = 0.
-     if (i2 .lt. ite-its+1) adj_ad(ite,jts:jte) = 0.
-     if (j1 .gt. 1)         adj_ad(its:ite,jts) = 0.
-     if (j2 .lt. jte-jts+1) adj_ad(its:ite,jte) = 0.
+     if (i1 .gt. 1)         adj_ad(its,jts:jte) = 0._r_kind
+     if (i2 .lt. ite-its+1) adj_ad(ite,jts:jte) = 0._r_kind
+     if (j1 .gt. 1)         adj_ad(its:ite,jts) = 0._r_kind
+     if (j2 .lt. jte-jts+1) adj_ad(its:ite,jte) = 0._r_kind
   end if
 
   do j = j1, j2
@@ -355,7 +355,7 @@ subroutine apply_disp_2d_ad(bg,disp,adj_ad,disp_ad, order)
                 disp%dx_n(i,j),disp%dy_n(i,j),&
                 adj_ad(id,jd),disp_ad%dx_n(i,j),disp_ad%dy_n(i,j))
         end if
-	adj_ad(id,jd) = 0.
+	adj_ad(id,jd) = 0._r_kind
      end do !i
   end do !j
 #ifdef TRACE_USE
@@ -387,15 +387,15 @@ SUBROUTINE APPLY_VERT_AD(var, var_ad, stag, work2d, work2d_ad, fcadisp, fcadisp_
 !$$$ end documentation block
   IMPLICIT NONE
   ! variable to displace
-  INTEGER, INTENT(IN) :: stag
-  real(fp), dimension(ims:ime,jms:jme,kms:kme), intent(inout) :: var, var_ad
+  INTEGER(I_KIND), INTENT(IN) :: stag
+  real(r_kind), dimension(ims:ime,jms:jme,kms:kme), intent(inout) :: var, var_ad
   ! work space for 2d original/displaced fields
-  REAL(fp), DIMENSION(ims:ime,jms:jme, 2), INTENT(INOUT) :: work2d
-  REAL(fp), DIMENSION(ims:ime,jms:jme, 2) :: work2d_ad
+  real(r_kind), DIMENSION(ims:ime,jms:jme, 2), INTENT(INOUT) :: work2d
+  real(r_kind), DIMENSION(ims:ime,jms:jme, 2) :: work2d_ad
   type (fca_gridded_disp), intent(in) :: fcadisp			! displacement field generated by FCA routine
   type (fca_gridded_disp), intent(inout) :: fcadisp_ad		! displacement field generated by FCA routine
-  integer, intent(in) :: interp_order
-  INTEGER :: i
+  integer(i_kind), intent(in) :: interp_order
+  INTEGER(I_KIND) :: i
   ! dimension along which var is staggered
 
 #ifdef TRACE_USE
@@ -409,10 +409,10 @@ SUBROUTINE APPLY_VERT_AD(var, var_ad, stag, work2d, work2d_ad, fcadisp, fcadisp_
      ! Only need undisplaced var, displaced vars not needed, so no recomputations are needed here
      ! Also: work2d_ad(:,:,1) not used anywhere:
      !       apply_displ_ad only input is work2d_ad(:,:,1), only output is fcadisp_ad
-     work2d_ad(:, :, 1:2) = 0.
+     work2d_ad(:, :, 1:2) = 0._r_kind
      ! vertical staggering is the same as no stagger since it adjust the number of vertical levels
      work2d_ad(:, :, 2) = work2d_ad(:, :, 2) + var_ad(:, :, i)
-     var_ad(:,:,i) = 0.
+     var_ad(:,:,i) = 0._r_kind
      work2d(:, :, 1) = var(:, :, i)
      CALL APPLY_DISP_2D_AD(work2d(:, :, 1), fcadisp, work2d_ad(:, :, 2), fcadisp_ad, interp_order)
   END DO

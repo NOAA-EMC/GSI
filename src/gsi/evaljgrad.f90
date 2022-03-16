@@ -147,7 +147,7 @@ call control2model(xhat,mval,sbias)
 
 if (fca_switch) then
    call xtofca(mval,.not. lupdfgs)     ! use linear (TLM) for initial call, NLM for final call
-   if (idebug .ge. 3) then
+   if (idebug >= 3) then
       write (*,*) 'mval after xtofca with flag_linear:',.not.lupdfgs
       call prt_state_norms(mval(1),'mval')
    end if
@@ -295,7 +295,7 @@ if (l_do_adjoint) then
 
    if (fca_switch) then
       call xtofca_adj(mval,.TRUE.)
-      if (idebug .ge. 3) then
+      if (idebug >=. 3) then
          write (*,*) 'mval after xtofca_adj:'
          call prt_state_norms(mval(1),'mval')
       end if

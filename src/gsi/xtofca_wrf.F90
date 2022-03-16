@@ -21,7 +21,7 @@ module xtofca_wrf_m
 !   machine:
 !
 !$$$ end documentation block
-  use fp_types_m, only: fp
+  use kinds, only: r_kind, i_kind
   use core_disp_types_m, only: fca_gridded_disp, &
        its,ite,jts,jte,kts,kte
   use core_disp_func_m, only: init_meta, compute_xy_orig
@@ -79,32 +79,32 @@ subroutine xtofca_wrf(bg_state,disp,disp_tl,inc_state,flag_linear,p_qv,fca_inter
 
   type (fca_gridded_disp), intent(inout) :: disp, disp_tl
   logical, intent(in) :: flag_linear !.TRUE. for TLM, .FALSE. for NLM
-  integer, intent(in) :: p_qv ! index for qv in moist array
-  integer, intent(in) :: fca_interp_order ! 1 for bilinear, 3 for bicubic
-  integer, intent(in) :: th_compute_par ! 0 = displace theta, 1 = displace N2
+  integer(i_kind), intent(in) :: p_qv ! index for qv in moist array
+  integer(i_kind), intent(in) :: fca_interp_order ! 1 for bilinear, 3 for bicubic
+  integer(i_kind), intent(in) :: th_compute_par ! 0 = displace theta, 1 = displace N2
 
   type (fca_wrf_grid), intent(inout) :: bg_state !really just in for TLM, displaced full_state for NLM
   type (fca_wrf_grid), intent(out) :: inc_state
 
   type (fca_wrf_grid) :: wrf_state_saved
-  integer :: istep = 10000  ! only used for step-wise testing of fca_disp_tl/ad
+  integer(i_kind) :: istep = 10000  ! only used for step-wise testing of fca_disp_tl/ad
 
   ! Arrays allocated in compute_xy_orig_dm (and routines called by it):
-  integer, allocatable :: needed_ij_in(:,:), needed_ij_out(:,:)
-  integer, allocatable :: index_in(:)
-  real(fp), allocatable :: needed_wgts_out(:,:)
-  integer :: num_needed_out, num_glob_needed
+  integer(i_kind), allocatable :: needed_ij_in(:,:), needed_ij_out(:,:)
+  integer(i_kind), allocatable :: index_in(:)
+  real(r_kind), allocatable :: needed_wgts_out(:,:)
+  integer(i_kind) :: num_needed_out, num_glob_needed
 
-  integer :: num_needed_in
+  integer(i_kind) :: num_needed_in
 
-  integer :: i, status
+  integer(i_kind) :: i, status
   
 #ifdef TRACE_USE
   if (trace_use) call da_trace_entry("xtofca_wrf")
 #endif
 
   call fca_copy_wrf_grid(bg_state, wrf_state_saved, status)
-  if (status .ne. 0) then
+  if (status /= 0) then
 #ifndef FCA_REF_MOD
      write(unit=message(1),fmt='(A)') '*** xtofca_wrf: failed to allocate wrf_state_saved ***'
      call da_error(__FILE__,__LINE__,message(1:1))
@@ -134,7 +134,7 @@ subroutine xtofca_wrf(bg_state,disp,disp_tl,inc_state,flag_linear,p_qv,fca_inter
 
        ! initialize inc_state: differences between displaced and saved wrf_state
        call diff_wrf_state(wrf_state_saved, bg_state, inc_state, status)
-       if (status .ne. 0) then
+       if (status /= 0) then
 #ifndef FCA_REF_MOD
           write(unit=message(1),fmt='(A)') '*** xtofca_wrf: error in diff_wrf_state ***'
           call da_error(__FILE__,__LINE__,message(1:1))
@@ -146,7 +146,7 @@ subroutine xtofca_wrf(bg_state,disp,disp_tl,inc_state,flag_linear,p_qv,fca_inter
     else
        ! first allocate inc_state:
        call fca_allocate_wrf_grid(inc_state, size(bg_state%moist,dim=4),status)
-       if (status .ne. 0) then
+       if (status /= 0) then
 #ifndef FCA_REF_MOD
           write(unit=message(1),fmt='(A)') '*** xtofca_wrf: failed to allocate inc_state ***'
           call da_error(__FILE__,__LINE__,message(1:1))
@@ -157,8 +157,8 @@ subroutine xtofca_wrf(bg_state,disp,disp_tl,inc_state,flag_linear,p_qv,fca_inter
 
        ! compute the origins (NLM, all zero disp)
        ! NOTE: because all disp are zero, we do not need to use compute_xy_orig_dm or its associated arrays
-       disp%x_disp(:,:) = 0
-       disp%y_disp(:,:) = 0
+       disp%x_disp(:,:) = 0_r_kind
+       disp%y_disp(:,:) = 0_r_kind
        call compute_xy_orig(disp%x_disp, disp%y_disp, disp%ix_orig, disp%iy_orig, disp%dx_n, disp%dy_n, disp%meta, fca_interp_order)
        
        ! compute the origins (TLM, from disp_tl)
@@ -176,7 +176,7 @@ subroutine xtofca_wrf(bg_state,disp,disp_tl,inc_state,flag_linear,p_qv,fca_inter
     end if
 
     call fca_deallocate_wrf_grid(wrf_state_saved, status)
-    if (status .ne. 0) then
+    if (status /= 0) then
 #ifndef FCA_REF_MOD
        write(unit=message(1),fmt='(A)') '*** xtofca_wrf: failed to deallocate wrf_state_saved ***'
        call da_error(__FILE__,__LINE__,message(1:1))
