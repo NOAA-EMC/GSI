@@ -160,7 +160,7 @@ done
 #  submit the plot jobs
 #
 
-if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss_c" ]]; then
+if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss_c" || $MY_MACHINE = "wcoss2" ]]; then
    cmdfile="./cmdfile_horiz_${RADMON_SUFFIX}_${PID}"
    logfile=${LOGdir}/horiz_${PID}.log
    rm -f $cmdfile
@@ -177,9 +177,11 @@ if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss_c" ]]; then
    if [[ $MY_MACHINE = "wcoss_d" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} \
            -W 0:45 -J ${jobname} -cwd ${PWD} $cmdfile
-   else
+
+   elif [[ $MY_MACHINE = "wcoss_c" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -o ${logfile} -W 0:45 \
            -J ${jobname} -cwd ${PWD} $cmdfile
+
    fi
 
 else							# hera|jet|s4
@@ -225,9 +227,14 @@ for sat in ${bigSATLIST}; do
    if [[ $MY_MACHINE = "wcoss_d" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} \
            -W 2:45 -J ${jobname} -cwd ${PWD} $cmdfile
+
    elif [[ $MY_MACHINE = "wcoss_c" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -o ${logfile} -W 2:45 \
            -J ${jobname} -cwd ${PWD} $cmdfile
+
+   elif [[ $MY_MACHINE = "wcoss2" ]]; then
+      $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e ${LOGdir}/horiz_${PID}.err \
+           -V -l select=1:mem=1g -l walltime=2:00:00 -N ${jobname} ${cmdfile}
    else
       $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} \
            -V -j oe -o $LOGdir/horiz_${PID}.log $cmdfile
@@ -248,9 +255,15 @@ for sat in ${bigSATLIST}; do
    if [[ $MY_MACHINE = "wcoss_d" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -R affinity[core] -M 500 -o ${logfile} \
            -W 2:45 -J ${jobname} -cwd ${PWD} $cmdfile
+
    elif [[ $MY_MACHINE = "wcoss_c" ]]; then
       $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -o ${logfile} -W 2:45 \
            -J ${jobname} -cwd ${PWD} $cmdfile
+
+   elif [[ $MY_MACHINE = "wcoss2" ]]; then
+      $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e ${LOGdir}/horiz_${PID}.err \
+           -V -l select=1:mem=1g -l walltime=2:00:00 -N ${jobname} ${cmdfile}
+
    else
       $SUB -A $ACCOUNT -l procs=${ntasks},walltime=2:00:00 -N ${jobname} \
            -V -j oe -o $LOGdir/horiz_${PID}.log $cmdfile

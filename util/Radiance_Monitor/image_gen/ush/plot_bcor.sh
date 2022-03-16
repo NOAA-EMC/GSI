@@ -17,7 +17,7 @@ echo "begin plot_bcor.sh"
 
 #------------------------------------------------------------------
 # Set environment variables.
-
+#
 word_count=`echo $PTYPE | wc -w`
 echo word_count = $word_count
 
@@ -43,47 +43,39 @@ edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
 edate0=`echo $edate|cut -c1-8`
 
-
-#--------------------------------------------------------------------
-# Set ctldir to point to control file directory
-
-imgdef=`echo ${#IMGNDIR}`
-if [[ $imgdef -gt 0 ]]; then
-  ctldir=$IMGNDIR/bcor
-else
-  ctldir=$TANKverf/bcor
-fi
-
-echo ctldir = $ctldir
-
+ctldir=$IMGNDIR/bcor
 
 #--------------------------------------------------------------------
 # Loop over satellite types.  Copy data files, create plots and
 # place on the web server.
 #
-# Data file location may either be in angle, bcoef, bcor, and time
-# subdirectories under $TANKverf, or in the Operational organization
-# of radmon.YYYYMMDD directories under $TANKverf
-
 for type in ${SATYPE2}; do
 
-   $NCP $ctldir/${type}.ctl* ./
+   $NCP $ctldir/${type}*.ctl* ./
    ${UNCOMPRESS} *.ctl.${Z}
 
    cdate=$bdate
+
+   #-------------------------------------
+   #  Locate and copy data files.
+   #
    while [[ $cdate -le $edate ]]; do
+
       if [[ $REGIONAL_RR -eq 1 ]]; then
          tdate=`$NDATE +6 $cdate`
-         day=`echo $tdate | cut -c1-8 `
+         day=`echo $tdate | cut -c1-8`
          cyc=`echo $cdate | cut -c9-10`
          . ${IG_SCRIPTS}/rr_set_tz.sh $cyc
       else
-         day=`echo $cdate | cut -c1-8 `
-         cyc=`echo $cdate | cut -c9-10 `
+         day=`echo $cdate | cut -c1-8`
+         cyc=`echo $cdate | cut -c9-10`
       fi
 
+      #----------------------------------------------------
+      #  Attempt to locate the parent directory for the
+      #  extracted ieee data files.
+      #
       ieee_src=${TANKverf}/${RUN}.${day}/${cyc}/${MONITOR}
-
       if [[ ! -d ${ieee_src} ]]; then
          ieee_src=${TANKverf}/${RUN}.${day}/${MONITOR}
       fi
@@ -94,38 +86,37 @@ for type in ${SATYPE2}; do
          ieee_src=${TANKverf}/${RUN}.${day}
       fi
 
-      nfile_src=`ls -l ${ieee_src}/*${cdate}*ieee_d* | egrep -c '^-'`
 
-      echo "nfile_src = $nfile_src"
+      #-----------------------------------------------------------
+      #  Now locate this cycle's data files, first checking for 
+      #  a tar file, and copy them locally.
+      #
+      if [[ -s ${ieee_src}/radmon_bcor.tar ]]; then
+         files=`tar -tf ${ieee_src}/radmon_bcor.tar | grep ${type} | grep ieee_d`
+         tar -xf ${ieee_src}/radmon_bcor.tar ${files}
 
-      if [[ -d ${ieee_src} ]]; then
-         if [[ $REGIONAL_RR -eq 1 ]]; then
-            test_file=${ieee_src}/${rgnHH}.bcor.${type}.${cdate}.ieee_d.${rgnTM}
-         else 
-            test_file=${ieee_src}/bcor.${type}.${cdate}.ieee_d
-         fi
-
-         if [[ $USE_ANL = 1 ]]; then
-            if [[ $REGIONAL_RR -eq 1 ]]; then
-               test_file=${ieee_src}/${rgnHH}.bcor.${type}_anl.${cdate}.ieee_d.${rgnTM}
-            else
-               test_file2=${ieee_src}/bcor.${type}_anl.${cdate}.ieee_d
-            fi
-         else
-            test_file2=
-         fi
-
-         if [[ -s $test_file ]]; then
-            $NCP ${test_file} ./${type}.${cdate}.ieee_d
-         elif [[ -s ${test_file}.${Z} ]]; then
-            $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
-         fi
+      else				
+         files=`ls ${ieee_src}/bcor.*${type}*ieee_d*`
+         for f in ${files}; do
+            $NCP ${f} .
+         done
       fi
 
-      adate=`$NDATE +${CYCLE_INTERVAL} $cdate`
+      adate=`$NDATE +${CYCLE_INTERVAL} ${cdate}`
       cdate=$adate
    done
+
    ${UNCOMPRESS} *.ieee_d.${Z}
+
+   #-----------------------------------------------
+   #  Remove 'bcor.' from the *ieee_d file names.
+   #
+   prefix="bcor."
+   dfiles=`ls *.ieee_d`
+   for file in $dfiles; do
+      newfile=`basename $file | sed -e "s/^$prefix//"`
+      mv ./${file} ./${newfile}
+   done
 
    for var in ${PTYPE}; do
       echo $var
@@ -147,47 +138,20 @@ EOF
       $GRADS -bpc "run ${tmpdir}/${type}_${var}.gs"
    done 
 
-#--------------------------------------------------------------------
-# Delete data files
-
-#   rm -f ${type}.ieee_d
-#   rm -f ${type}.ctl
-
 done
 
 #--------------------------------------------------------------------
 # Copy image files to $IMGNDIR to set up for mirror to web server.
-# Delete images and data files.
-
-if [[ ! -d ${IMGNDIR}/bcor ]]; then
-   mkdir -p ${IMGNDIR}/bcor
-fi
-cp -r *.png  ${IMGNDIR}/bcor
-
+#
+mv *.png  ${IMGNDIR}/bcor/.
 
 
 #--------------------------------------------------------------------
 # Clean $tmpdir  
-
+#
 cd $tmpdir
 cd ../
 rm -rf $tmpdir
-
-
-#--------------------------------------------------------------------
-# If this is the last bcor plot job to finish then rm PLOT_WORK_DIR.
-#
-
-#count=`ls ${LOADLQ}/*plot*_${RADMON_SUFFIX}* | wc -l`
-#complete=`grep "COMPLETED" ${LOADLQ}/*plot*_${RADMON_SUFFIX}* | wc -l`
-
-#running=`expr $count - $complete`
-
-#if [[ $running -eq 1 ]]; then
-#   cd ${PLOT_WORK_DIR}
-#   cd ../
-#   rm -rf ${PLOT_WORK_DIR}
-#fi
 
 echo "end plot_bcor.sh"
 exit

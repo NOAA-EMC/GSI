@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 2.8.12)
   file(GLOB RADMON_IG_ANGLE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
   set(RADMON_IG_ANGLE_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 -traceback -D_REAL8_ ")
   set(Util_MODULE_DIR ${PROJECT_BINARY_DIR}/include/radmon_ig_angle )
