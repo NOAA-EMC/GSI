@@ -9,7 +9,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module vars_calc_analysis
   use nemsio_module, only: nemsio_gfile
-  use module_fv3gfs_ncio, only: Dataset
+  use module_ncio, only: Dataset
   implicit none
   private
 

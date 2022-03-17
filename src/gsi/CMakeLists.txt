@@ -84,7 +84,7 @@ cmake_minimum_required(VERSION 2.8)
 
 # Add the include paths
   message("MPI include PATH  ${MPI_Fortran_INCLUDE_PATH}")
-  include_directories( ${CORE_INCS} ${NETCDF_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH} ${FV3GFS_NCIO_INCS} "./" )
+  include_directories( ${CORE_INCS} ${NETCDF_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH} ${NCIO_INC} "./" )
 
 #define the name used for GSI Shared lib and add it with properties and include dirs
   set(GSISHAREDLIB "gsilib_shrd${debug_suffix}" CACHE INTERNAL "")
@@ -149,7 +149,7 @@ cmake_minimum_required(VERSION 2.8)
          ${CORE_LIBRARIES} ${CORE_BUILT}  
          ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES}
          ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES} ${GSDCLOUD_LIBRARY} ${wrflib} 
-         ${EXTRA_LINKER_FLAGS} ${FV3GFS_NCIO_LIBRARIES})
+         ${EXTRA_LINKER_FLAGS} ${NCIO_LIB})
   install(TARGETS ${GSIEXEC}
         RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
         LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib

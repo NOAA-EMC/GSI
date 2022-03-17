@@ -57,7 +57,7 @@ if(BUILD_ENKF)
   
   add_definitions(${MPI_Fortran_FLAGS})
  
-  include_directories(${CMAKE_CURRENT_BINARY_DIR} "${PROJECT_BINARY_DIR}/include/wrf" "${PROJECT_BINARY_DIR}/include/global"  ${CMAKE_CURRENT_BINARY_DIR}/.. ${MPI_Fortran_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH} ${CORE_INCS} ${NETCDF_INCLUDE_DIRS} ${NCDIAG_INCS} ${FV3GFS_NCIO_INCS})
+  include_directories(${CMAKE_CURRENT_BINARY_DIR} "${PROJECT_BINARY_DIR}/include/wrf" "${PROJECT_BINARY_DIR}/include/global"  ${CMAKE_CURRENT_BINARY_DIR}/.. ${MPI_Fortran_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH} ${CORE_INCS} ${NETCDF_INCLUDE_DIRS} ${NCDIAG_INCS} ${NCIO_INC})
   link_directories(${MPI_Fortran_LIBRARIES})
 
   set_source_files_properties( ${ENKF_SRCS} PROPERTIES COMPILE_FLAGS ${ENKF_Fortran_FLAGS} )
@@ -74,7 +74,7 @@ if(BUILD_ENKF)
   add_executable(${ENKFEXEC} enkf_main.f90)
   target_link_libraries(${ENKFEXEC} enkflib enkfdeplib ${GSILIB} ${GSISHAREDLIB} ${CORE_LIBRARIES}
   ${MPI_Fortran_LIBRARIES} ${LAPACK_LIBRARIES} ${CORE_LIBRARIES} ${CORE_BUILT}
-  ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${FV3GFS_NCIO_LIBRARIES} 
+  ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${NCIO_LIB} 
   ${EXTRA_LINKER_FLAGS} ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES})
   install(TARGETS ${ENKFEXEC} enkfdeplib enkflib 
         RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin

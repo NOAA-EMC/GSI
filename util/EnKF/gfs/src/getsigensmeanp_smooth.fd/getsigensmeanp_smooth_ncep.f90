@@ -27,10 +27,10 @@ program getsigensmeanp_smooth
   use nemsio_module, only: nemsio_gfile,nemsio_getfilehead,nemsio_charkind8, &
                            nemsio_readrec,nemsio_writerec, &
                            nemsio_readrecv,nemsio_writerecv
-  use module_fv3gfs_ncio, only: open_dataset, create_dataset, read_attribute, &
-                           Dataset, Dimension, close_dataset, has_attr, &
-                           read_vardata, write_attribute, write_vardata, &
-                           get_dim, quantize_data, has_var
+  use module_ncio, only: open_dataset, create_dataset, read_attribute, &
+                         Dataset, Dimension, close_dataset, has_attr, &
+                         read_vardata, write_attribute, write_vardata, &
+                         get_dim, quantize_data, has_var
 
   implicit none
 

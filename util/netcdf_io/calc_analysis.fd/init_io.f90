@@ -26,9 +26,9 @@ contains
                                   idate6, nlon, nlat, nlev, &
                                   use_nemsio_anl, lats, lons, vcoord, &
                                   mype, npes, levpe
-    use module_fv3gfs_ncio, only: Dimension, open_dataset, get_dim,&
-                                  get_idate_from_time_units, &
-                                  read_vardata, read_attribute
+    use module_ncio, only: Dimension, open_dataset, get_dim,&
+                           get_idate_from_time_units, &
+                           read_vardata, read_attribute
     implicit none
     ! variables local to this subroutine
     integer ::k,kk,ilev
@@ -84,8 +84,8 @@ contains
                                   fhr, nfhour, nfminute, nfsecondn, nfsecondd,&
                                   use_nemsio_anl, anlncfile, fcstncfile,&
                                   nlon, nlat, nlev, lats, lons, vcoord, mype
-    use module_fv3gfs_ncio, only: create_dataset, get_time_units_from_idate,&
-                                  write_vardata, write_attribute
+    use module_ncio, only: create_dataset, get_time_units_from_idate,&
+                           write_vardata, write_attribute
     use netcdf, only: nf90_max_name
     use nemsio_module
     implicit none

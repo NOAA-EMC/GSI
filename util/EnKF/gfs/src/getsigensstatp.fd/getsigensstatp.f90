@@ -34,10 +34,10 @@ program getsigensstatp
     use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close, &
                              nemsio_gfile,nemsio_getfilehead,nemsio_charkind8, &
                              nemsio_readrec,nemsio_readrecv
-    use module_fv3gfs_ncio, only: open_dataset, create_dataset, read_attribute, &
-                             Dataset, Dimension, close_dataset, &
-                             read_vardata, write_attribute, write_vardata, &
-                             get_dim, quantize_data
+    use module_ncio, only: open_dataset, create_dataset, read_attribute, &
+                           Dataset, Dimension, close_dataset, &
+                           read_vardata, write_attribute, write_vardata, &
+                           get_dim, quantize_data
 
 
     implicit none

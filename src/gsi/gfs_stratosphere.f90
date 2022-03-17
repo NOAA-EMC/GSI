@@ -181,9 +181,9 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
    use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
    use ncepnems_io, only: error_msg
    use nemsio_module, only: nemsio_gfile,nemsio_getfilehead
-   use module_fv3gfs_ncio, only: Dataset, Dimension, get_dim, read_vardata,&
-                                 open_dataset, close_dataset, read_attribute,&
-                                 get_idate_from_time_units
+   use module_ncio, only: Dataset, Dimension, get_dim, read_vardata,&
+                          open_dataset, close_dataset, read_attribute,&
+                          get_idate_from_time_units
 
    implicit none
 
@@ -900,9 +900,9 @@ subroutine add_gfs_stratosphere
    use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
    use ncepnems_io, only: error_msg
    use nemsio_module, only: nemsio_gfile,nemsio_getfilehead
-   use module_fv3gfs_ncio, only: Dataset,Dimension,open_dataset,close_dataset,&
-                                 read_attribute,get_dim,read_vardata,&
-                                 get_idate_from_time_units
+   use module_ncio, only: Dataset,Dimension,open_dataset,close_dataset,&
+                          read_attribute,get_dim,read_vardata,&
+                          get_idate_from_time_units
 
    implicit none
   
