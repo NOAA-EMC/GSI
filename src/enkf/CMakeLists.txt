@@ -28,7 +28,6 @@ endif()
 # User options
 option(OPENMP "Enable OpenMP Threading" OFF)
 option(ENABLE_MKL "Use MKL for LAPACK implementation (if available)" ON)
-option(USE_NCDIAG "Use NetCDF diagnostics library" ON)
 
 set(ENKF_MODE "GFS" CACHE STRING "Choose the EnKF Application.")
 set_property(CACHE ENKF_MODE PROPERTY STRINGS "GFS" "WRF" "NMMB" "FV3REG")
@@ -36,7 +35,6 @@ set_property(CACHE ENKF_MODE PROPERTY STRINGS "GFS" "WRF" "NMMB" "FV3REG")
 # Echo user options
 message(STATUS "EnKF: OPENMP ................. ${OPENMP}")
 message(STATUS "EnKF: ENABLE_MKL ............. ${ENABLE_MKL}")
-message(STATUS "EnKF: USE_NCDIAG ............. ${USE_NCDIAG}")
 message(STATUS "EnKF: ENKF_MODE .............. ${ENKF_MODE}")
 
 # Dependencies
@@ -69,13 +67,6 @@ endif()
 
 # See https://github.com/NOAA-EMC/NCEPLIBS-nemsio/pull/22
 target_link_libraries(nemsio::nemsio INTERFACE w3emc::w3emc_d bacio::bacio_4)
-
-# NetCDF Diagnostic IO library dependency
-if(USE_NCDIAG)
-  if(NOT TARGET ncdiag)
-    find_package(ncdiag REQUIRED)
-  endif()
-endif()
 
 if(NOT TARGET gsi)
   find_package(gsi REQUIRED)
@@ -117,12 +108,6 @@ if(TARGET gsi)
   add_dependencies(enkf_fortran_obj gsi)
 endif()
 target_link_libraries(enkf_fortran_obj PUBLIC gsi::gsi)
-if(USE_NCDIAG)
-  if(TARGET ncdiag)
-    add_dependencies(enkf_fortran_obj ncdiag)
-  endif()
-  target_link_libraries(enkf_fortran_obj PUBLIC ncdiag::ncdiag)
-endif()
 target_link_libraries(enkf_fortran_obj PUBLIC NetCDF::NetCDF_Fortran)
 target_link_libraries(enkf_fortran_obj PUBLIC MPI::MPI_Fortran)
 target_link_libraries(enkf_fortran_obj PUBLIC ${LAPACK_LIBRARIES})

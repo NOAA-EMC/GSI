@@ -10,9 +10,8 @@ include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@-targets.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@-config-version.cmake")
 include(CMakeFindDependencyMacro)
 
-# Set the EnKF configuration attributes
-set(ENKF_MODE @ENKF_MODE@)
-set(ENKF_USE_NCDIAG @USE_NCDIAG@)
+# Get the ENKF_MODE attribute
+get_target_property(mode @PROJECT_NAME@::@PROJECT_NAME@ MODE)
 
 find_dependency(MPI)
 find_dependency(NetCDF COMPONENTS Fortran)
@@ -33,23 +32,6 @@ endif()
 
 find_dependency(gsi REQUIRED)
 
-find_dependency(bacio REQUIRED)
-find_dependency(sigio REQUIRED)
-find_dependency(sfcio REQUIRED)
-find_dependency(nemsio REQUIRED)
-find_dependency(ncio REQUIRED)
-find_dependency(sp REQUIRED)
-find_dependency(w3emc REQUIRED)
-
-if(ENKF_MODE MATCHES "^(WRF|NMMB|FV3REG)$")
-  find_dependency(wrf_io REQUIRED)
-endif()
-
-# ON|OFF implies @PROJECT_NAME@ was compiled with/without -USE_NCDIAG=ON|OFF
-if(ENKF_USE_NCDIAG)
-  find_dependency(ncdiag REQUIRED)
-endif()
-
 # Get the build type from library target
 get_target_property(@PROJECT_NAME@_BUILD_TYPES @PROJECT_NAME@::@PROJECT_NAME@ IMPORTED_CONFIGURATIONS)
 
@@ -58,5 +40,4 @@ check_required_components("@PROJECT_NAME@")
 get_target_property(location @PROJECT_NAME@::@PROJECT_NAME@ LOCATION)
 message(STATUS "Found @PROJECT_NAME@: ${location} (found version \"${PACKAGE_VERSION}\")")
 message(STATUS "FindEnKF defines targets:")
-message(STATUS "  - ENKF_MODE [${ENKF_MODE}]")
-message(STATUS "  - ENKF_USE_NCDIAG [${GSI_USE_NCDIAG}]")
+message(STATUS "  - ENKF_MODE [${mode}]")

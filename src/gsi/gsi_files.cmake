@@ -54,11 +54,6 @@ gsimain.f90
 gsimod.F90
 )
 
-list(APPEND GSI_SRC_ncdiag
-nc_diag_read_mod.f90
-nc_diag_write_mod.f90
-)
-
 list(APPEND GSI_SRC_fixture_gfs
 gsi_fixture_GFS.F90
 )
@@ -672,5 +667,8 @@ zrnmi_mod.f90
 )
 
 # Unused files
+#nc_diag_read_mod.f90
+#nc_diag_write_mod.f90
 #stub_nstmod.f90
 #Nst_Var_ESMFMod.f90
+

@@ -28,7 +28,6 @@ endif()
 # User options
 option(OPENMP "Enable OpenMP Threading" OFF)
 option(ENABLE_MKL "Use MKL for LAPACK implementation (if available)" ON)
-option(USE_NCDIAG "Use NetCDF diagnostics library" ON)
 option(USE_GSDCLOUD "Use GSD Cloud Analysis library" OFF)
 
 set(GSI_MODE "GFS" CACHE STRING "Choose the GSI Application.")
@@ -37,7 +36,6 @@ set_property(CACHE GSI_MODE PROPERTY STRINGS "GFS" "Regional")
 # Echo user options
 message(STATUS "GSI: OPENMP ................. ${OPENMP}")
 message(STATUS "GSI: ENABLE_MKL ............. ${ENABLE_MKL}")
-message(STATUS "GSI: USE_NCDIAG ............. ${USE_NCDIAG}")
 message(STATUS "GSI: USE_GSDCLOUD ........... ${USE_GSDCLOUD}")
 message(STATUS "GSI: GSI_MODE ............... ${GSI_MODE}")
 
@@ -76,10 +74,8 @@ endif()
 target_link_libraries(nemsio::nemsio INTERFACE w3emc::w3emc_d bacio::bacio_4)
 
 # NetCDF Diagnostic IO library dependency
-if(USE_NCDIAG)
-  if(NOT TARGET ncdiag)
-    find_package(ncdiag REQUIRED)
-  endif()
+if(NOT TARGET ncdiag)
+  find_package(ncdiag REQUIRED)
 endif()
 
 # GSD Cloud Analysis library dependency
@@ -102,19 +98,13 @@ list(APPEND GSI_SRC_Fortran
 
 # Collect files for specific GSI Application
 if(GSI_MODE MATCHES "GFS") # GFS GSI application
-list(APPEND GSI_SRC_Fortran
+  list(APPEND GSI_SRC_Fortran
     ${GSI_SRC_gfs_stub}
     ${GSI_SRC_fixture_gfs})
 elseif(GSI_MODE MATCHES "Regional") # Regional GSI application
   list(APPEND GSI_SRC_Fortran
     ${GSI_SRC_regional_cplr}
     ${GSI_SRC_fixture_regional})
-endif()
-
-# Include GSI ncdiag files if NetCDF Diagnostics is disabled
-if(NOT USE_NCDIAG)
-  list(APPEND GSI_SRC_Fortran
-    ${GSI_SRC_ncdiag})
 endif()
 
 # Compiler options and definitions
@@ -159,13 +149,11 @@ target_link_libraries(gsi_fortran_obj PUBLIC crtm::crtm)
 if(GSI_MODE MATCHES "Regional")
   target_link_libraries(gsi_fortran_obj PUBLIC wrf_io::wrf_io)
 endif()
-if(USE_NCDIAG)
-  if(TARGET ncdiag)
-    add_dependencies(gsi_fortran_obj ncdiag)
-    add_library(ncdiag::ncdiag ALIAS ncdiag)
-  endif()
-  target_link_libraries(gsi_fortran_obj PUBLIC ncdiag::ncdiag)
+if(TARGET ncdiag)
+  add_dependencies(gsi_fortran_obj ncdiag)
+  add_library(ncdiag::ncdiag ALIAS ncdiag)
 endif()
+target_link_libraries(gsi_fortran_obj PUBLIC ncdiag::ncdiag)
 if(USE_GSDCLOUD)
   if(TARGET gsdcloud)
     add_dependencies(gsi_fortran_obj gsdcloud)
