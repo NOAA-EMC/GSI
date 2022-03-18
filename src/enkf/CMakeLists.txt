@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.19)
 
 project(enkf
         VERSION 1.0.0
@@ -126,7 +126,6 @@ endif()
 add_library(enkf STATIC)
 add_library(${PROJECT_NAME}::enkf ALIAS enkf)
 set_target_properties(enkf PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
-set_target_properties(enkf PROPERTIES MODE "${ENKF_MODE}")
 target_include_directories(enkf PUBLIC $<BUILD_INTERFACE:${module_dir}>
                                        $<INSTALL_INTERFACE:include/enkf>)
 target_link_libraries(enkf PUBLIC enkf_fortran_obj)

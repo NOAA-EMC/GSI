@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.19)
 
 project(gsi
         VERSION 1.0.0
@@ -41,7 +41,7 @@ message(STATUS "GSI: GSI_MODE ............... ${GSI_MODE}")
 
 # Dependencies
 if(ENABLE_MKL)
-  find_package(MKL QUIET)
+  find_package(MKL)
 endif()
 if(MKL_FOUND)
   set(LAPACK_LIBRARIES ${MKL_LIBRARIES})
@@ -151,13 +151,11 @@ if(GSI_MODE MATCHES "Regional")
 endif()
 if(TARGET ncdiag)
   add_dependencies(gsi_fortran_obj ncdiag)
-  add_library(ncdiag::ncdiag ALIAS ncdiag)
 endif()
 target_link_libraries(gsi_fortran_obj PUBLIC ncdiag::ncdiag)
 if(USE_GSDCLOUD)
   if(TARGET gsdcloud)
     add_dependencies(gsi_fortran_obj gsdcloud)
-    add_library(gsdcloud::gsdcloud ALIAS gsdcloud)
   endif()
   target_link_libraries(gsi_fortran_obj PUBLIC gsdcloud::gsdcloud)
 endif()
@@ -169,7 +167,6 @@ endif()
 add_library(gsi STATIC)
 add_library(${PROJECT_NAME}::gsi ALIAS gsi)
 set_target_properties(gsi PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
-set_target_properties(gsi PROPERTIES MODE "${GSI_MODE}")
 target_include_directories(gsi PUBLIC $<BUILD_INTERFACE:${module_dir}>
                                       $<INSTALL_INTERFACE:include/gsi>)
 target_link_libraries(gsi PUBLIC gsi_c_obj)

@@ -12,7 +12,7 @@ setenv CRTM_FIX /scratch2/NCEPDEV/nwprod/NCEPLIBS/fix/crtm_v2.3.0
 
 # Load cmake
 module use -a /contrib/cmake/modulefiles
-module load cmake/3.16.1
+module load cmake/3.20.1
 
 # Load hpc-stack
 module use /scratch2/NCEPDEV/nwprod/hpc-stack/libs/hpc-stack/modulefiles/stack
