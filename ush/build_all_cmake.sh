@@ -104,6 +104,7 @@ else
     module purge
     source $dir_modules/modulefile.ProdGSI.$target
 fi
+module list
 set -x
 
 cmake_opts=""
@@ -117,6 +118,9 @@ cmake_opts+=" -DCMAKE_INSTALL_BINDIR=exec"
 
 # By default; build the global applications
 cmake_opts+=" -DGSI_MODE=GFS -DENKF_MODE=GFS"
+
+# Build utilities:
+cmake_opts+=" -DBUILD_COV_CALC=ON -DBUILD_ENKF_GFS=ON -DBUILD_EFSOI_UTIL=ON"
 
 # Valid combination of applications are:
 # Global  : -DGSI_MODE=GFS -DENKF_MODE=GFS

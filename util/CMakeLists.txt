@@ -73,15 +73,11 @@ if(NOT TARGET ncdiag)
   find_package(ncdiag QUIET)
 endif()
 
-if(TARGET gsi)
-  get_target_property(GSI_MODE gsi "MODE")
-else()
+if(NOT TARGET gsi)
   find_package(gsi QUIET)
 endif()
 
-if(TARGET enkf)
-  get_target_property(ENKF_MODE enkf "MODE")
-else()
+if(NOT TARGET enkf)
   find_package(enkf QUIET)
 endif()
 
