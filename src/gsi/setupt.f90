@@ -40,6 +40,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
 
   use obsmod, only: netcdf_diag, binary_diag, dirname
+  use obsmod, only: l_obsprvdiag
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
@@ -69,7 +70,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use converr, only: ptabl
   use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surftobs,l_sfcobserror_ramp_t
   use rapidrefresh_cldsurf_mod, only: l_pbl_pseudo_surfobst, pblh_ration,pps_press_incr
-  use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_sfct_gross,l_closeobs,i_coastline       
+  use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_sfct_gross,l_closeobs,i_coastline    
 
   use aircraftinfo, only: npredt,predt,aircraft_t_bc_pof,aircraft_t_bc, &
        aircraft_t_bc_ext,ostats_t,rstats_t,upd_pred_t
@@ -221,6 +222,10 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !                              observation error (DOE) calculation to
 !                              the namelist level; they are now
 !                              loaded by obsmod.
+!   2021-10-xx  pondeca/morris/zhao - added observation provider/subprovider
+!                         information in diagonostic file, which is used
+!                         in offline observation quality control program (AutoObsQC) 
+!                         for 3D-RTMA (if l_obsprvdiag is true).
 !
 ! !REMARKS:
 !   language: f90
@@ -296,6 +301,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf,cdiagbufp
   character(8),allocatable,dimension(:):: cprvstg,csprvstg
+  character(8),allocatable,dimension(:):: cprvstgp,csprvstgp ! <-- provider info array for pseudo obs
   character(8) c_prvstg,c_sprvstg
   real(r_double) r_prvstg,r_sprvstg
 
@@ -469,7 +475,11 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
           nreal=nreal+npredt+2
      idia0=nreal
      if (lobsdiagsave) nreal=nreal+4*miter+1
-     if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
+     if (twodvar_regional .or. l_obsprvdiag) then
+       nreal=nreal+2    ! account for idomsfc, izz used in diag for RTMA
+       allocate(cprvstg(nobs),csprvstg(nobs))      ! provider/subprovider info
+       if(l_pbl_pseudo_surfobst) allocate(cprvstgp(nobs*3),csprvstgp(nobs*3))  ! provider of pseudo obs 
+     endif
      if (save_jacobian) then
        nnz   = 2                   ! number of non-zero elements in dH(x)/dx profile
        nind   = 1
@@ -1233,12 +1243,12 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
                  if (err_adjst>tiny_r_kind) errinv_adjst=one/err_adjst
                  if (err_final>tiny_r_kind) errinv_final=one/err_final
 
-                 if(binary_diag) call contents_binary_diagp_
+                 if(binary_diag) call contents_binary_diagp_(my_diag_pbl)
 
               else
                  iip=nobs
               endif
-              if(netcdf_diag) call contents_netcdf_diagp_
+              if(netcdf_diag) call contents_netcdf_diagp_(my_diag_pbl)
            end if
 
            prest = prest - pps_press_incr
@@ -1260,20 +1270,25 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   if(conv_diagsave)then
     if(netcdf_diag) call nc_diag_write
     if(binary_diag .and. ii>0)then
-       write(7)'  t',nchar,nreal,ii+iip,mype,idia0
+       write(7)'  t',nchar,nreal,ii+iip,mype,idia0,iip
        if(l_pbl_pseudo_surfobst .and. iip>0) then
           write(7)cdiagbuf(1:ii),cdiagbufp(1:iip),rdiagbuf(:,1:ii),rdiagbufp(:,1:iip)
-          deallocate(cdiagbufp,rdiagbufp)
        else
           write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
        endif
-       deallocate(cdiagbuf,rdiagbuf)
 
-       if (twodvar_regional) then
-          write(7)cprvstg(1:ii),csprvstg(1:ii)
+       if (twodvar_regional .or. l_obsprvdiag) then
+          if(l_pbl_pseudo_surfobst .and. iip>0) then
+             write(7)cprvstg(1:ii),cprvstgp(1:iip),csprvstg(1:ii),csprvstgp(1:iip)
+          else
+             write(7)cprvstg(1:ii),csprvstg(1:ii)
+          endif
           deallocate(cprvstg,csprvstg)
+          if(l_pbl_pseudo_surfobst) deallocate(cprvstgp,csprvstgp)
        endif
     end if
+    deallocate(cdiagbuf,rdiagbuf)
+    if(l_pbl_pseudo_surfobst) deallocate(cdiagbufp,rdiagbufp)
   end if
 
 
@@ -1550,7 +1565,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        enddo
     endif
 
-    if (twodvar_regional) then
+    if (twodvar_regional .or. l_obsprvdiag) then
        idia = idia + 1
        rdiagbuf(idia,ii) = data(idomsfc,i) ! dominate surface type
        idia = idia + 1
@@ -1568,12 +1583,13 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   end subroutine contents_binary_diag_
 
-  subroutine contents_binary_diagp_
+  subroutine contents_binary_diagp_(odiag)
+    type(obs_diag),pointer,intent(in):: odiag
 
       cdiagbufp(iip)    = station_id         ! station id
 
       rdiagbufp(1,iip)  = ictype(ikx)        ! observation type
-      rdiagbufp(2,iip)  = icsubtype(ikx)     ! observation subtype
+      rdiagbufp(2,iip)  = -1                 ! observation subtype (-1 for pseudo obs sub-type)
             
       rdiagbufp(3,iip)  = data(ilate,i)      ! observation latitude (degrees)
       rdiagbufp(4,iip)  = data(ilone,i)      ! observation longitude (degrees)
@@ -1604,8 +1620,44 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      rdiagbufp(20,iip) = 1.e10_r_single     ! spread (filled in by EnKF)
 
      idia=idia0
+!----
+     if (lobsdiagsave) then
+        do jj=1,miter
+           idia=idia+1
+           if (odiag%muse(jj)) then
+              rdiagbufp(idia,iip) = one
+           else
+              rdiagbufp(idia,iip) = -one
+           endif
+        enddo
+        do jj=1,miter+1
+           idia=idia+1
+           rdiagbufp(idia,iip) = odiag%nldepart(jj)
+        enddo
+        do jj=1,miter
+           idia=idia+1
+           rdiagbufp(idia,iip) = odiag%tldepart(jj)
+        enddo
+        do jj=1,miter
+           idia=idia+1
+           rdiagbufp(idia,iip) = odiag%obssen(jj)
+        enddo
+     endif
+
+    if (twodvar_regional .or. l_obsprvdiag) then
+       idia = idia + 1
+       rdiagbufp(idia,iip) = -9999._r_single ! data(idomsfc,i) ! dominate surface type
+       idia = idia + 1
+       rdiagbufp(idia,iip) = -9999._r_single ! data(izz,i)     ! model terrain at observation location
+!      r_prvstg            = data(iprvd,i)
+       cprvstgp(iip)         = '88888888'    !c_prvstg        ! provider name
+!      r_sprvstg           = data(isprvd,i)
+       csprvstgp(iip)        = '88888888'    !c_sprvstg       ! subprovider name
+    endif
+!----
+
      if (save_jacobian) then
-        call writearray(dhx_dx, rdiagbuf(idia+1:nreal,ii))
+        call writearray(dhx_dx, rdiagbufp(idia+1:nreal,iip))
         idia = idia + size(dhx_dx)
      endif
 
@@ -1645,6 +1697,9 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("Observation",             sngl(data(itob,i))     )
     call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)      )
     call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(tob-tges)   )
+    call nc_diag_metadata("Forecast_unadjusted",     sngl(tges))
+    call nc_diag_metadata("Forecast_adjusted",       sngl(data(itob,i)-ddiff))
+
     if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) then
        call nc_diag_metadata("Data_Pof",             sngl(data(ipof,i))     )
        call nc_diag_metadata("Data_Vertical_Velocity", sngl(data(ivvlc,i))  )
@@ -1681,7 +1736,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )              
     endif
 
-    if (twodvar_regional) then
+    if (twodvar_regional .or. l_obsprvdiag) then
        call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i)              )
        call nc_diag_metadata("Model_Terrain",     data(izz,i)                  )
        r_prvstg            = data(iprvd,i)
@@ -1696,17 +1751,23 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
     endif
 
+    ! need additional arrays for GeoVaLs for T2
+    call nc_diag_data2d("atmosphere_pressure_coordinate", sngl(exp(prsltmp)*r1000))
+
   end subroutine contents_netcdf_diag_
 
-  subroutine contents_netcdf_diagp_
+  subroutine contents_netcdf_diagp_(odiag)
+    type(obs_diag),pointer,intent(in):: odiag
 ! Observation class
   character(7),parameter     :: obsclass = '      t'
   real(r_single),parameter::     missing = -9.99e9_r_single
 
+  real(r_kind),dimension(miter) :: obsdiag_iuse
+
     call nc_diag_metadata("Station_ID",              station_id             )
     call nc_diag_metadata("Observation_Class",       obsclass               )
     call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
-    call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
+    call nc_diag_metadata("Observation_Subtype",     -1                     ) ! (-1 for pseudo obs sub-type)
     call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
     call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
     call nc_diag_metadata("Station_Elevation",       sngl(data(istnelv,i))  )
@@ -1729,12 +1790,41 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("Observation",             sngl(data(itob,i))     )
     call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)      )
     call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(ddiff)      )
+    call nc_diag_metadata("Forecast_unadjusted",     sngl(data(itob,i)-ddiff))
+    call nc_diag_metadata("Forecast_adjusted",       sngl(data(itob,i)-ddiff))
 
+!----
+    if (lobsdiagsave) then
+       do jj=1,miter
+          if (odiag%muse(jj)) then
+             obsdiag_iuse(jj) =  one
+          else
+             obsdiag_iuse(jj) = -one
+          endif
+       enddo
+
+       call nc_diag_data2d("ObsDiagSave_iuse",     obsdiag_iuse                             )
+       call nc_diag_data2d("ObsDiagSave_nldepart", odiag%nldepart )
+       call nc_diag_data2d("ObsDiagSave_tldepart", odiag%tldepart )
+       call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )              
+    endif
+
+    if (twodvar_regional .or. l_obsprvdiag) then
+       call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i)              )
+       call nc_diag_metadata("Model_Terrain",     data(izz,i)                  )
+       call nc_diag_metadata("Provider_Name",     "88888888"                   )
+       call nc_diag_metadata("Subprovider_Name",  "88888888"                   )
+    endif
+
+!----
     if (save_jacobian) then
        call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)
        call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
        call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
     endif
+
+    ! need additional arrays for GeoVaLs for T2
+    call nc_diag_data2d("atmosphere_pressure_coordinate", sngl(exp(prsltmp)*r1000))
 
   end subroutine contents_netcdf_diagp_
 
