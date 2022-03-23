@@ -33,35 +33,8 @@ RAD_AREA="glb"
 this_file=`basename $0`
 this_dir=`dirname $0`
 
-#top_parm=${this_dir}/../../parm
-#
-#if [[ -s ${top_parm}/RadMon_config ]]; then
-#   . ${top_parm}/RadMon_config
-#else
-#   echo "ERROR:  Unable to source ${top_parm}/RadMon_config"
-#   exit
-#fi
-#
-#if [[ -s ${top_parm}/RadMon_user_settings ]]; then
-#   . ${top_parm}/RadMon_user_settings
-#else
-#   echo "ERROR:  Unable to source ${top_parm}/RadMon_user_settings"
-#   exit
-#fi
-
-
-#--------------------------------------------------------------
-#  source plot_rad_conf to get WEB_SVR, WEB_USER, WEBDIR
-#
-. ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
-
-
-#--------------------------------------------------------------
-#  Get the area for this SUFFIX from the data_map file
-#
 
 new_webdir=${WEBDIR}/${SUFFIX}
-. ${RADMON_IMAGE_GEN}/parm/glbl_conf
 
 echo RAD_AREA = $RAD_AREA
 echo TANKverf = $TANKverf
@@ -85,7 +58,7 @@ cd $workdir
 #  Find the first date with data.  Start at today and work
 #  backwards.  Stop after 90 days and exit.
 #
-PDATE=`${IG_SCRIPTS}/find_cycle.pl --dir ${TANKverf} --cyc 1`
+PDATE=`${IG_SCRIPTS}/nu_find_cycle.pl --dir ${TANKverf} --cyc 1`
 echo PDATE= $PDATE
 
 limit=`$NDATE -2160 $PDATE`		# 90 days
@@ -98,35 +71,30 @@ echo limit, PDATE = $limit, $PDATE
 data_found=0
 while [[ data_found -eq 0 && $PDATE -ge $limit ]]; do
    PDY=`echo $PDATE|cut -c1-8`
+   CYC=`echo $PDATE|cut -c9-10`
 
-   test_dir=${TANKverf}/${RUN}.${PDY}/${MONITOR}
+   test_dir=${TANKverf}/${RUN}.${PDY}/${CYC}/${MONITOR}
    if [[ ! -d ${test_dir} ]]; then
-      test_dir=${TANKverf}/${RUN}.${PDY}
+      test_dir=${TANKverf}/${RUN}.${PDY}/${MONITOR}
    fi
    if [[ ! -d ${test_dir} ]]; then
-      test_dir=${TANKverf}/${MONITOR}.${PDY}
+      test_dir=${TANKverf}/${RUN}.${PDY}
    fi
    
    echo "test_dir = ${test_dir}"
 
    if [[ -d ${test_dir} ]]; then
       echo " test_dir is GO "
-      test00=`ls ${test_dir}/angle.*${PDY}00*.ieee_d* | wc -l`
-      test06=`ls ${test_dir}/angle.*${PDY}06*.ieee_d* | wc -l`
-      test12=`ls ${test_dir}/angle.*${PDY}12*.ieee_d* | wc -l`
-      test18=`ls ${test_dir}/angle.*${PDY}18*.ieee_d* | wc -l`
-      if [[ $test00 -gt 0 ]]; then
-         test_list=`ls ${test_dir}/angle.*${PDY}00*.ieee_d*`
-         data_found=1
-      elif [[ $test06 -gt 0 ]]; then
-         test_list=`ls ${test_dir}/angle.*${PDY}06*.ieee_d*`
-         data_found=1
-      elif [[ $test12 -gt 0 ]]; then
-         test_list=`ls ${test_dir}/angle.*${PDY}12*.ieee_d*`
-         data_found=1
-      elif [[ $test18 -gt 0 ]]; then
-         test_list=`ls ${test_dir}/angle.*${PDY}18*.ieee_d*`
-         data_found=1
+
+      if [[ -e ${test_dir}/angle.tar ]]; then
+         test_list=`tar -tv ${test_dir}/angle.tar`
+	 data_found=1 
+      else
+         test=`ls ${test_dir}/angle.*${PDATE}*.ieee_d* | wc -l`
+         if [[ $test -gt 0 ]]; then
+            test_list=`ls ${test_dir}/angle.*${PDATE}*.ieee_d*`
+            data_found=1
+	 fi
       fi
    else
       echo "test_dir is NOGO"

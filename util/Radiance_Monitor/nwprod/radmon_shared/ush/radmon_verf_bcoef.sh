@@ -210,17 +210,19 @@ EOF
    done     # type in $SATYPE loop
 
 
-   cwd=`pwd`
-   tar_file=radmon_bcoef.tar
+   ${USHradmon}/rstprod.sh
 
+   tar_file=radmon_bcoef.tar
    tar -cf $tar_file bcoef*.ieee_d* bcoef*.ctl*
    mv $tar_file ${TANKverf_rad}
-   cd ${TANKverf_rad}
-   tar -xf ${tar_file}
-   rm ${tar_file}
 
-   cd $cwd
-
+   if [[ $RAD_AREA = "rgn" ]]; then
+      cwd=`pwd`
+      cd ${TANKverf_rad}
+      tar -xf ${tar_file}
+      rm ${tar_file}
+      cd ${cwd}
+   fi
 
    if [[ $fail -eq $ctr || $fail -gt $ctr ]]; then
       err=5

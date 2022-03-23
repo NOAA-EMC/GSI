@@ -51,17 +51,9 @@ fi
 
 
 #--------------------------------------------------------------
-#  source plot_rad_conf to get WEB_SVR, WEB_USER, WEBDIR
-#
-. ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
-
-
-#--------------------------------------------------------------
 #  Get the area for this SUFFIX from the data_map file
 #
-
 new_webdir=${WEBDIR}/${SUFFIX}
-. ${RADMON_IMAGE_GEN}/parm/rgnl_conf
 
 echo RAD_AREA = $RAD_AREA
 echo TANKverf = $TANKverf
