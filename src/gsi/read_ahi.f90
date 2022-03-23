@@ -221,7 +221,15 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
   close(lnbufr)
   open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
-  if(jsatid == 'himawari8') kidsat = 173
+  if(jsatid == 'himawari8') then
+     kidsat = 173
+  elseif (jsatid == 'himawari9') then
+     kidsat = 174
+  else
+     write(6,*) 'READ_AHI: Unrecognized value for jsatid '//jsatid//': RETURNING'
+     return
+  end if
+
 
   next=0
   nrec=999999

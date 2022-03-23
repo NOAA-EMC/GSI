@@ -192,9 +192,9 @@ subroutine read_sst_viirs(mype,val_viirs,ithin,rmesh,jsatid,&
 
   if (jsatid == 'npp') then
      bufsat = 224
-  elseif (jsatid == 'j1') then
+  elseif (jsatid == 'n20' .or. jsatid == 'j1') then
      bufsat = 225
-  elseif (jsatid == 'n21') then
+  elseif (jsatid == 'n21' .or. jsatid == 'j2') then
      bufsat = 226
   else
      write(*,*) 'READ_SST_VIIRS: Unrecognized value for jsatid '//jsatid//':RETURNING'
