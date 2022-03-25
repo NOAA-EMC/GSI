@@ -56,7 +56,7 @@ subroutine grads_sfc(fileo,ifileo,nobs,nreal,iscater,igrads,isubtype,subtype,lis
    obs_ctr = 0
    next => list
 
-   do while ( associated( next ) == .TRUE. )
+   do while ( associated( next ) .eqv. .TRUE. )
       ptr = transfer(list_get( next ), ptr)
       next => list_next( next )
 

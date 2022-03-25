@@ -12,8 +12,8 @@ subroutine convinfo_read( dtype, idtype, insubtype, ituse, ntumgrp, ntgroup, ntm
    !--------------
    !  interface
    !
-   character(idtype), intent(in)  :: dtype
    integer,           intent(in)  :: idtype, insubtype
+   character(idtype), intent(in)  :: dtype
    integer(4),        intent(out) :: ituse, ntumgrp, ntgroup, ntmiter, isubtype
    real(4),           intent(out) :: ttwind2, gtross2, etrmax2, etrmin2, vtar_b2, vtar_pg2
    

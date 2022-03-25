@@ -1,7 +1,7 @@
 !-----------------------------------------------------------
 !  grads_sig
 !
-!    Read uv data from the .tmp file and write it to the 
+!    Read uv data from the .tmp file and write it to the
 !    scatter and horiz GrADS data files.
 !-----------------------------------------------------------
 
@@ -14,9 +14,9 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
 
    type(list_node_t), pointer   :: list
    type(list_node_t), pointer   :: next => null()
-   type(data_ptr)               :: ptr 
+   type(data_ptr)               :: ptr
 
-   integer ifileo 
+   integer ifileo
    real(4),allocatable,dimension(:,:)  :: rdiag_m2
    character(8),allocatable,dimension(:) :: cdiag
    real(4),dimension(nlev) :: plev
@@ -31,7 +31,7 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
    real(4) :: rtim,xlat0,xlon0
    integer(4):: isubtype,ctr,nreal_m2
    integer i,j,k,ilat,ilon,ipres,itime,iweight,ndup,nflag
- 
+
 
    stdid='        '
    nflag0=0
@@ -39,20 +39,20 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
    xlat0=0.0
    xlon0=0.0
    nlev0=0
- 
+
    print *, '--> BEGIN grads_sig.x'
-   print *, ' ' 
+   print *, ' '
    print *, 'inputs to grads_sig.x ='
    print *, 'fileo    = ',fileo
    print *, 'ifileo   = ',ifileo
    print *, 'nobs     = ',nobs
    print *, 'nreal    = ',nreal
-   print *, 'nlev     = ',nlev  
-   print *, 'plev     = ',plev  
-   print *, 'iscater  = ',iscater  
-   print *, 'igrads   = ',igrads   
-   print *, 'isubtype = ',isubtype   
-   print *, 'subtype  = ',subtype   
+   print *, 'nlev     = ',nlev
+   print *, 'plev     = ',plev
+   print *, 'iscater  = ',iscater
+   print *, 'igrads   = ',igrads
+   print *, 'isubtype = ',isubtype
+   print *, 'subtype  = ',subtype
 
 
    if( nobs > 0 ) then
@@ -70,7 +70,7 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
       obs_ctr = 0
       next => list
 
-      do while ( associated( next ) == .TRUE. ) 
+      do while ( associated( next ) .eqv. .TRUE. )
          ptr = transfer(list_get( next ), ptr)
          next => list_next( next )
 
@@ -109,7 +109,7 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
       !  write horiz grads data file and avoid trying
       !  to write output if nobs == 0.  Seg faults are uncool.
       !
-      if (igrads ==1 .AND. nobs > 0)  then 
+      if (igrads ==1 .AND. nobs > 0)  then
          filegrads=trim(fileo)//'_'//trim(subtype)//'.grads.'//trim(run)
          open(21,file=filegrads,form='unformatted',status='new')    ! open output file
 
@@ -117,13 +117,13 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
          ilon      = idx_obs_lon -2        ! modified position of lon
          ipres     = idx_pres -2           ! modified position of pressure
          itime     = idx_time -2           ! modified position of relative time
-         iweight   = idx_rwgt -2           ! modofied position of weight 
+         iweight   = idx_rwgt -2           ! modofied position of weight
 
          !------------------------------------------
          !  rm duplicate data
          !
          call rm_dups( rdiag_m2,nobs,nreal_m2,ilat,ilon,ipres,itime,iweight,ndup )
-      
+
          ctr=0
          do  i=1,nobs
             if(rdiag_m2(iweight,i) >0.0 ) then
@@ -140,18 +140,18 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
                   ! note this writes the rdiag_m2 record starting at station
                   ! elevation; lat and lon are written in the line above with the
                   ! station id info
-                  write(21) plev(k),rdiag_m2(3:nreal_m2,i) 
+                  write(21) plev(k),rdiag_m2(3:nreal_m2,i)
 
                   ctr = ctr + 1
-               endif 
+               endif
             endif
          enddo
-   
+
          !--------------------------
          !  write EOF marker
          stidend='        '
-         write(21) stidend,xlat0,xlon0,rtim,nlev0,nflag0 
-        
+         write(21) stidend,xlat0,xlon0,rtim,nlev0,nflag0
+
          close(21)
          print *, 'num recs written to GrADS file = ', ctr
 
@@ -170,7 +170,7 @@ subroutine grads_sig(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,isubtype,s
       print *, 'exiting grads_sig, nobs = ', nobs
    end if
 
-   return 
+   return
 end
 
 
@@ -179,11 +179,11 @@ end
 !
 !    Determines appropriate match of p1 value to plev array.
 !
-!    Note that values within +/- 5 of a specific plev array 
-!    are determined to be a match. 
+!    Note that values within +/- 5 of a specific plev array
+!    are determined to be a match.
 !============================================================
 function getpro(p1,plev,nlevs)
-  
+
    implicit none
 
    real*4 p1
@@ -196,14 +196,14 @@ function getpro(p1,plev,nlevs)
    do ii=1,nlevs
       np=int(plev(ii))
       dp=abs(ip-np)
-   
+
       if(dp <=5) then
          getpro=ii
          return
       endif
    enddo
 
-   return 
+   return
 end
 
-  
+

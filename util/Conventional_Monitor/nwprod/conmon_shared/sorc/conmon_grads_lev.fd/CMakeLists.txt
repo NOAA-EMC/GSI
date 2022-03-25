@@ -1,19 +1,30 @@
-cmake_minimum_required(VERSION 2.6)
-  file(GLOB CONMON_GRADS_LEV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
-  set(CONMON_GRADS_LEV_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 -traceback -D_REAL8_ ")
-  set(Util_MODULE_DIR ${PROJECT_BINARY_DIR}/include/conmon_grads_lev )
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fp-model strict -assume byterecl -convert big_endian")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian -ffree-line-length-0 -ffast-math -fno-second-underscore -frecord-marker=4")
+endif()
 
-  set_source_files_properties( ${CONMON_GRADS_LEV_SRC} PROPERTIES COMPILE_FLAGS ${CONMON_GRADS_LEV_Fortran_FLAGS} )
-  add_executable(conmon_grads_lev.x  ${CONMON_GRADS_LEV_SRC} )
-  set_target_properties( conmon_grads_lev.x PROPERTIES COMPILE_FLAGS ${CONMON_GRADS_LEV_Fortran_FLAGS} )
-  set_target_properties( conmon_grads_lev.x PROPERTIES Fortran_MODULE_DIRECTORY ${Util_MODULE_DIR} )
+list(APPEND SRCS
+  conmon_read_diag.F90
+  data_mod.f90
+  generic_list.f90
+  grads_lev.f90
+  kinds.F90
+  maingrads_lev.f90
+  rm_dups.f90
+)
 
-  include_directories( ${CORE_INCS} ${NCDIAG_INCS} )
+add_executable(conmon_grads_lev.x ${SRCS})
+if(TARGET ncdiag)
+  add_dependencies(conmon_grads_lev.x ncdiag)
+endif()
 
-  target_link_libraries( conmon_grads_lev.x ${W3NCO_4_LIBRARY} ${NCDIAG_LIBRARIES} ${NETCDF_Fortran_LIBRARIES} 
-     ${NETCDF_C_LIBRARIES} ${MPI_Fortran_LIBRARIES} )
+target_compile_definitions(conmon_grads_lev.x PRIVATE "_REAL8_")
+target_link_libraries(conmon_grads_lev.x PRIVATE NetCDF::NetCDF_Fortran)
+target_link_libraries(conmon_grads_lev.x PRIVATE MPI::MPI_Fortran)
+target_link_libraries(conmon_grads_lev.x PRIVATE ncdiag::ncdiag)
+target_link_libraries(conmon_grads_lev.x PRIVATE w3emc::w3emc_4)
 
-  if(BUILD_W3NCO)
-    add_dependencies( conmon_grads_lev.x ${W3NCO_4_LIBRARY} )
-  endif()
+# Install executable targets
+install(TARGETS conmon_grads_lev.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 

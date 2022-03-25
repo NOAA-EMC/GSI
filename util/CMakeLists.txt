@@ -129,17 +129,16 @@ if(BUILD_BKGERR_UTIL)
   add_subdirectory(NMC_Bkerror)
 endif()
 
+if(BUILD_MON_UTIL)
+  add_subdirectory(Conventional_Monitor)
+#  add_subdirectory(Ozone_Monitor)
+#  add_subdirectory(Radiance_Monitor)
+endif()
+
 add_subdirectory(FOV_utilities)
 add_subdirectory(Single_Observation)
 add_subdirectory(ndate)
 add_subdirectory(zero_biascoeff)
-
-if(BUILD_MON_UTIL)
-  message(FATAL_ERROR "CMake in the Monitoring utilities have not been updated")
-#  add_subdirectory(Conventional_Monitor)
-#  add_subdirectory(Ozone_Monitor)
-#  add_subdirectory(Radiance_Monitor)
-endif()
 
 # These utilities do not have CMake builds and are unlikely used or usable
 #add_subdirectory(Config)
