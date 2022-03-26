@@ -15,7 +15,9 @@ program gatime
 !                  one entry for a given channel per line.
 !************************************************************************
 
-   use IFPORT
+!   use IFPORT
+! Intel® Fortran includes functions and subroutines that ease porting of code to or from a PC, or allow you to write code on a PC that is compatible with other platforms.  The portability library is called LIBIFPORT.LIB (Windows*) or libifport.a (Linux* and macOS*). Frequently used functions are included in a portability module called IFPORT.
+! What functionality from IFPORT library is being used here and why?
  
    implicit none
 
@@ -147,7 +149,7 @@ program gatime
 
          inquire(file=data_file, exist=exist) 
 
-         if ( exist == .TRUE. ) then
+         if ( exist .eqv. .TRUE. ) then
             open(ldname,file=data_file,form='unformatted')
             read(ldname) ((cnt(ftyp,cyc,j,k),j=1,nchanl),k=1,nregion)
             read(ldname) ((pen(ftyp,cyc,j,k),j=1,nchanl),k=1,nregion)

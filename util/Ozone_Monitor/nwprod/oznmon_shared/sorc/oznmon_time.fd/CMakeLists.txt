@@ -1,14 +1,29 @@
-cmake_minimum_required(VERSION 2.6)
-  file(GLOB OZNMON_TIME_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
-  set(OZNMON_TIME_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 ")
-  set(Util_MODULE_DIR ${PROJECT_BINARY_DIR}/include/oznmon_time )
-  set_source_files_properties( ${OZNMON_TIME_SRC} PROPERTIES COMPILE_FLAGS ${OZNMON_TIME_Fortran_FLAGS} )
-  add_executable(oznmon_time.x  ${OZNMON_TIME_SRC} )
-  set_target_properties( oznmon_time.x PROPERTIES COMPILE_FLAGS ${OZNMON_TIME_Fortran_FLAGS} )
-  set_target_properties( oznmon_time.x PROPERTIES Fortran_MODULE_DIRECTORY ${Util_MODULE_DIR} )
-  include_directories( ${CORE_INCS} ${NCDIAG_INCS} ) 
-  target_link_libraries( oznmon_time.x ${W3NCO_4_LIBRARY} ${NCDIAG_LIBRARIES} ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${MPI_Fortran_LIBRARIES})
-  if(BUILD_W3NCO)
-    add_dependencies( oznmon_time.x ${W3NCO_4_LIBRARY} )
-  endif()
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fp-model strict -assume byterecl -convert big_endian")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian -ffree-line-length-0 -ffast-math -fno-second-underscore -frecord-marker=4")
+endif()
+
+list(APPEND SRCS
+  avgsdv.f90
+  create_ctl_time.f90
+  kinds.f90
+  oznmon_read_diag.f90
+  time.f90
+  valid.f90
+)
+
+add_executable(oznmon_time.x ${SRCS})
+if(TARGET ncdiag)
+  add_dependencies(oznmon_time.x ncdiag)
+endif()
+
+target_compile_definitions(oznmon_time.x PRIVATE "_REAL8_")
+target_link_libraries(oznmon_time.x PRIVATE NetCDF::NetCDF_Fortran)
+target_link_libraries(oznmon_time.x PRIVATE MPI::MPI_Fortran)
+target_link_libraries(oznmon_time.x PRIVATE ncdiag::ncdiag)
+target_link_libraries(oznmon_time.x PRIVATE w3emc::w3emc_4)
+
+# Install executable targets
+install(TARGETS oznmon_time.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 

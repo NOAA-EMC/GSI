@@ -363,7 +363,7 @@ program angle
         inquire(file=data_file, exist=exist)
         write( 6,* ) 'data_file : ', data_file, 'exist = ', exist
 
-        if ( exist == .TRUE. ) then
+        if ( exist .eqv. .TRUE. ) then
 !          write( 6,* ) 'reading data file: ', data_file
 
            open(ldname,file=data_file,form='unformatted')

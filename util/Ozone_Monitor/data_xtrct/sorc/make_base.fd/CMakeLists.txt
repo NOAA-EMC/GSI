@@ -1,14 +1,16 @@
-cmake_minimum_required(VERSION 2.6)
-  file(GLOB OZNMON_MAKE_BASE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
-  set(OZNMON_MAKE_BASE_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 ")
-  set_source_files_properties( ${OZNMON_MAKE_BASE_SRC} PROPERTIES COMPILE_FLAGS ${OZNMON_MAKE_BASE_Fortran_FLAGS} )
-  set(Util_MODULE_DIR ${PROJECT_BINARY_DIR}/include/oznmon_make_base )
-  add_executable(oznmon_make_base.x  ${OZNMON_MAKE_BASE_SRC} )
-  set_target_properties( oznmon_make_base.x PROPERTIES COMPILE_FLAGS ${OZNMON_MAKE_BASE_Fortran_FLAGS} )
-  set_target_properties( oznmon_make_base.x PROPERTIES Fortran_MODULE_DIRECTORY ${Util_MODULE_DIR} )
-  include_directories( ${CORE_INCS} ) 
-  target_link_libraries( oznmon_make_base.x ${W3NCO_4_LIBRARY} )
-  if(BUILD_W3NCO)
-    add_dependencies( oznmon_make_base.x ${W3NCO_4_LIBRARY} )
-  endif()
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fp-model strict -assume byterecl -convert big_endian")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian -ffree-line-length-0 -ffast-math -fno-second-underscore -frecord-marker=4")
+endif()
+
+list(APPEND SRCS
+  make_base.f90
+)
+
+add_executable(oznmon_make_base.x ${SRCS})
+target_link_libraries(oznmon_make_base.x PRIVATE w3emc::w3emc_4)
+
+# Install executable targets
+install(TARGETS oznmon_make_base.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 

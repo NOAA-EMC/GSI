@@ -642,7 +642,7 @@ module oznmon_read_diag
   
     nlevs = header_fix%nlevs 
 
-    if( ncdiag_open_status(cur_idx)%nc_read == .true. ) then 
+    if( ncdiag_open_status(cur_idx)%nc_read .eqv. .true. ) then 
        iflag = -1  
     else  
        iflag = 0
@@ -965,7 +965,7 @@ module oznmon_read_diag
         end if 
      end do 
 
-     if( verify_var_name_nc == .false. ) then
+     if( verify_var_name_nc .eqv. .false. ) then
         do k=1,num_vars
            if( test_name == var_names(k) ) then
               verify_var_name_nc = .true.

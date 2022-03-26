@@ -131,8 +131,8 @@ endif()
 
 if(BUILD_MON_UTIL)
   add_subdirectory(Conventional_Monitor)
-#  add_subdirectory(Ozone_Monitor)
-#  add_subdirectory(Radiance_Monitor)
+  add_subdirectory(Ozone_Monitor)
+  add_subdirectory(Radiance_Monitor)
 endif()
 
 add_subdirectory(FOV_utilities)
