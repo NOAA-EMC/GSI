@@ -162,10 +162,7 @@ else
          fi
 
          if [[ $REGIONAL_RR -eq 1 ]]; then
-#            angl_file=${rgnHH}.angle.${data_file}.${rgnTM}
             angl_file=${rgnHH}.${data_file}.${rgnTM}
-#         else
-#            angl_file=angle.${data_file}
          fi
 
 
@@ -228,17 +225,19 @@ EOF
    done    # for type in ${SATYPE} loop
 
 
-   cwd=`pwd`
+   ${USHradmon}/rstprod.sh
+
    tar_file=radmon_angle.tar 
-
    tar -cf $tar_file angle*.ieee_d* angle*.ctl*
-     
    mv $tar_file ${TANKverf_rad}
-   cd ${TANKverf_rad}
-   tar -xf ${tar_file}
-   rm ${tar_file}
 
-   cd ${cwd}
+   if [[ $RAD_AREA = "rgn" ]]; then
+      cwd=`pwd`
+      cd ${TANKverf_rad}
+      tar -xf ${tar_file}
+      rm ${tar_file}
+      cd ${cwd}
+   fi   
 
    if [[ $fail -eq $ctr || $fail -gt $ctr ]]; then
       err=3

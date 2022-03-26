@@ -47,6 +47,7 @@
  mhs_metop-c            -49.444     1.111       90
  iasi_metop-a           -48.330     3.334       60
  iasi_metop-b           -48.330     3.334       60
+ iasi_metop-c           -48.330     3.334       60
  cris_npp               -48.330     3.333       30 
  cris-fsr_npp           -48.330     3.333       30 
  cris-fsr_n20           -48.330     3.333       30 

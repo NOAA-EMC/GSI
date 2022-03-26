@@ -33,46 +33,39 @@ edate0=`echo $edate|cut -c1-8`
 
 #--------------------------------------------------------------------
 # Copy executable and control files to $tmpdir
-
-imgdef=`echo ${#IMGNDIR}`
-if [[ $imgdef -gt 0 ]]; then
-  ctldir=$IMGNDIR/bcoef
-else
-  ctldir=$TANKverf/bcoef
-fi
-
-echo ctldir = $ctldir
-
+ctldir=$IMGNDIR/bcoef
+$NCP ${IG_SCRIPTS}/mk_digital_bcoef.sh .
 
 
 #--------------------------------------------------------------------
 # Loop over satellite types.  Copy data files, create plots and
 # place on the web server.
 #
-# Data file location may either be in angle, bcoef, bcor, and time
-# subdirectories under $TANKverf, or in the Operational organization
-# of radmon.YYYYMMDD directories under $TANKverf
-
-
-$NCP ${IG_SCRIPTS}/mk_digital_bcoef.sh .
-
 for type in ${SATYPE}; do
 
-   $NCP $ctldir/${type}.ctl* ./
-   ${UNCOMPRESS} ${type}.ctl.${Z}
+   $NCP $ctldir/${type}*.ctl* ./
+   ${UNCOMPRESS} *.ctl.${Z}
 
    cdate=$bdate
+
+   #-------------------------------------
+   #  Locate and copy data files.
+   #
    while [[ $cdate -le $edate ]]; do
+
       if [[ $REGIONAL_RR -eq 1 ]]; then
          tdate=`$NDATE +6 $cdate`
-         day=`echo $tdate | cut -c1-8 `
+         day=`echo $tdate | cut -c1-8`
          cyc=`echo $cdate | cut -c9-10`
          . ${IG_SCRIPTS}/rr_set_tz.sh $cyc
       else
-         day=`echo $cdate | cut -c1-8 `
+         day=`echo $cdate | cut -c1-8`
          cyc=`echo $cdate | cut -c9-10`
       fi
 
+      #----------------------------------------------------
+      #  Attempt to locate the extracted ieee data files.
+      #
       ieee_src=${TANKverf}/${RUN}.${day}/${cyc}/${MONITOR}
       if [[ ! -d ${ieee_src} ]]; then
          ieee_src=${TANKverf}/${RUN}.${day}/${MONITOR}
@@ -84,45 +77,38 @@ for type in ${SATYPE}; do
          ieee_src=${TANKverf}/${RUN}.${day}
       fi
 
-      if [[ -d ${ieee_src} ]]; then
-        
-         if [[ $REGIONAL_RR -eq 1 ]]; then
-#            test_file=${ieee_src}/${rgnHH}.bcoef.${type}.${cdate}.ieee_d.${rgnTM}
-            test_file=${ieee_src}/bcoef.${type}.${cdate}.ieee_d
-         else
-            test_file=${ieee_src}/bcoef.${type}.${cdate}.ieee_d
+      #-----------------------------------------------------------
+      #  Locate the ieee_d files, first checking for a tar file,
+      #  and copy them locally.
+      #
+      if [[ -s ${ieee_src}/radmon_bcoef.tar ]]; then
+         files=`tar -tf ${ieee_src}/radmon_bcoef.tar | grep ${type} | grep ieee_d`
+         if [[ ${files} != "" ]]; then
+            tar -xf ${ieee_src}/radmon_bcoef.tar ${files}
          fi
-
-         if [[ $USE_ANL = 1 ]]; then
-            if [[ $REGIONAL_RR -eq 1 ]]; then
-#               test_file=${ieee_src}/${rgnHH}.bcoef.${type}_anl.${cdate}.ieee_d.${rgnTM}
-               test_file=${ieee_src}/bcoef.${type}_anl.${cdate}.ieee_d
-            else
-               test_file2=${ieee_src}/bcoef.${type}_anl.${cdate}.ieee_d
-            fi
-         else
-            test_file2=
-         fi
-       
-         if [[ -s $test_file ]]; then
-            $NCP ${test_file} ./${type}.${cdate}.ieee_d
-         elif [[ -s ${test_file}.${Z} ]]; then
-            $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
-         fi
-
-         if [[ -s $test_file2 ]]; then
-            $NCP ${test_file2} ./${type}_anl.${cdate}.ieee_d
-         elif [[ -s ${test_file2}.${Z} ]]; then
-            $NCP ${test_file2}.${Z} ./${type}_anl.${cdate}.ieee_d.${Z}
-         fi
-
+      else				
+         files=`ls ${ieee_src}/bcoef.*${type}*ieee_d*`
+         for f in ${files}; do
+            $NCP ${f} .
+         done
       fi
 
-      adate=`$NDATE +${CYCLE_INTERVAL} $cdate`
+      adate=`$NDATE +${CYCLE_INTERVAL} ${cdate}`
       cdate=$adate
 
    done
+
    ${UNCOMPRESS} *.ieee_d.${Z}
+
+   #-----------------------------------------------
+   #  Remove 'bcoef.' from the *ieee_d file names.
+   #
+   prefix="bcoef."
+   dfiles=`ls *.ieee_d`
+   for file in $dfiles; do
+      newfile=`basename $file | sed -e "s/^$prefix//"`
+      mv ./${file} ./${newfile}
+   done
 
    if [[ $PLOT_STATIC_IMGS -eq 1 ]]; then
       list="mean atmpath clw lapse2 lapse cos_ssmis sin_ssmis emiss ordang4 ordang3 ordang2 ordang1"
@@ -140,23 +126,24 @@ EOF
       if [[ ! -d ${IMGNDIR}/bcoef ]]; then
          mkdir -p ${IMGNDIR}/bcoef
       fi
-      cp -f *.png  ${IMGNDIR}/bcoef
+      mv *.png  ${IMGNDIR}/bcoef
    fi
 
 
    #--------------------------------------------------------------------------
    #  mk_digital_bcoef.sh produces the data files needed by the js/html files 
    #  to generate the interactive charts.
+   #
    ./mk_digital_bcoef.sh ${type}
 
-
+   rm -f ${type}*ieee_d
 
 done
 
 
 #--------------------------------------------------------------------
 # Clean $tmpdir.  Submit done job.
-
+#
 cd $tmpdir
 cd ../
 rm -rf $tmpdir

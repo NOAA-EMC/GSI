@@ -38,50 +38,83 @@ test_day=$PDATE
 
 for type in ${SATYPE}; do
    found=0
-   finished=0
    test_day=$PDATE
    ctr=$ndays
 
-   while [[ $found -eq 0 && $finished -ne 1 ]]; do
+   while [[ ${found} -eq 0 && $ctr -gt 0 ]]; do
       if [[ $REGIONAL_RR -eq 1 ]]; then         # REGIONAL_RR stores hrs 18-23 in next
          tdate=`$NDATE +6 ${test_day}`          # day's radmon.yyymmdd directory
-         pdy=`echo $test_day|cut -c1-8`
+         pdy=`echo $tdate|cut -c1-8`
+         cyc=`echo $tdate|cut -c9-10`
       else
          pdy=`echo $test_day|cut -c1-8`
+         cyc=`echo $test_day|cut -c9-10`
       fi
 
-      ieee_src=${TANKverf}/${RUN}.${PDY}/${CYC}/${MONITOR}
-      if [[ ! -d ${ieee_src} ]]; then
-         ieee_src=${TANKverf}/${RUN}.${PDY}/${MONITOR}
-      fi
-      if [[ ! -d ${ieee_src} ]]; then
-         ieee_src=${TANKverf}/${RUN}.${PDY}
-      fi
-      if [[ ! -d ${ieee_src} ]]; then
-         ieee_src=${TANKverf}/${MONITOR}.${PDY}
-      fi
-
-
-      if [[ -s ${ieee_src}/bcoef.${type}.ctl.${Z} ]]; then
-         $NCP ${ieee_src}/bcoef.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
-         if [[ -s ${ieee_src}/bcoef.${type}_anl.ctl.${Z} ]]; then
-            $NCP ${ieee_src}/bcoef.${type}_anl.ctl.${Z} ${imgndir}/${type}_anl.ctl.${Z}
-         fi
+      #---------------------------------------------------
+      #  Check to see if the *ctl* files are in $imgndir
+      #
+      nctl=`ls ${imgndir}/${type}*ctl* -1 | wc -l`
+      if [[ ( $USE_ANL -eq 1 && $nctl -ge 2 ) ||
+            ( $USE_ANL -eq 0 && $nctl -ge 1 ) ]]; then
          found=1
-      elif [[ -s ${ieee_src}/bcoef.${type}.ctl ]]; then
-         $NCP ${ieee_src}/bcoef.${type}.ctl ${imgndir}/${type}.ctl
-         if [[ -s ${ieee_src}/bcoef.${type}_anl.ctl ]]; then
-            $NCP ${ieee_src}/bcoef.${type}_anl.ctl ${imgndir}/${type}_anl.ctl
+      else
+         #-------------------------
+         #  Locate $ieee_src
+         #
+         ieee_src=${TANKverf}/${RUN}.${pdy}/${cyc}/${MONITOR}
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${RUN}.${pdy}/${MONITOR}
          fi
-         found=1
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${RUN}.${pdy}
+         fi
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${MONITOR}.${pdy}
+         fi
+
+         using_tar=0
+         #----------------------------------------------------
+         #  Determine if the bcoef files are in an tar file.
+         #  if so extract the ctl files for this $type.
+         #
+         if [[ -s ${ieee_src}/radmon_bcoef.tar ]]; then
+            using_tar=1
+            ctl_list=`tar -tf ${ieee_src}/radmon_bcoef.tar | grep ${type} | grep ctl`
+	    if [[ ${ctl_list} != "" ]]; then
+               cwd=`pwd`
+               cd ${ieee_src}
+               tar -xf ./radmon_bcoef.tar ${ctl_list}
+               cd ${cwd}
+	    fi
+         fi
+
+         #--------------------------------------------------
+         #  Copy the *ctl* files to $imgndir, dropping
+         #  'bcoef.' from the file name.
+         #
+         ctl_files=`ls $ieee_src/bcoef.$type*.ctl*`
+         prefix='bcoef.'
+         for file in $ctl_files; do
+            newfile=`basename $file | sed -e "s/^$prefix//"`
+            $NCP ${file} ${imgndir}/${newfile}
+            found=1
+         done
+
+         #-------------------------------------------------------
+         #  If there's a radmon_bcoef.tar archive in ${ieee_src}
+         #  then delete the extracted *ctl* files.
+         if [[ $using_tar -eq 1 ]]; then
+            rm -f ${ieee_src}/bcoef.${type}.ctl*
+            rm -f ${ieee_src}/bcoef.${type}_anl.ctl*
+         fi
+
       fi
 
-     if [[ $found -eq 0 ]]; then
+      if [[ $found -eq 0 ]]; then
          if [[ $ctr -gt 0 ]]; then
             test_day=`$NDATE -24 ${pdy}00`
             ctr=$(($ctr-1))
-         else
-            finished=1
          fi
       fi
    done
@@ -135,7 +168,7 @@ elif [[ $MY_MACHINE = "jet" ]]; then
         -p ${RADMON_PARTITION} -o ${logfile} -D . $IG_SCRIPTS/plot_bcoef.sh
 
 elif [[ $MY_MACHINE = "wcoss2" ]]; then
-   $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -V \
+   $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e $LOGdir/plot_bcoef.err -V \
         -l select=1:mem=1g -l walltime=1:00:00 -N ${jobname} $IG_SCRIPTS/plot_bcoef.sh
 fi
 

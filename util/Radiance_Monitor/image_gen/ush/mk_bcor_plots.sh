@@ -29,7 +29,6 @@ fi
 #  are found or we run out of dates to check.  Report an error to
 #  the log file and exit if no ctl files are found.
 #
-allmissing=1
 pdy=`echo $PDATE|cut -c1-8`
 cyc=`echo $PDATE|cut -c9-10`
 
@@ -40,65 +39,96 @@ test_day=$PDATE
 
 for type in ${SATYPE}; do
    found=0
-   finished=0
    test_day=$PDATE
    ctr=$ndays
 
-   while [[ $found -eq 0 && $finished -ne 1 ]]; do
-      if [[ $REGIONAL_RR -eq 1 ]]; then         # REGIONAL_RR stores hrs 18-23 in next 
+   while [[ ${found} -eq 0 && $ctr -gt 0 ]]; do
+
+      if [[ $REGIONAL_RR -eq 1 ]]; then         # REGIONAL_RR stores hrs 18-23 in next
          tdate=`$NDATE +6 ${test_day}`          # day's radmon.yyymmdd directory
-         pdy=`echo $test_day|cut -c1-8`
+         pdy=`echo $tdate|cut -c1-8`
+         cyc=`echo $tdate|cut -c9-10`
       else
          pdy=`echo $test_day|cut -c1-8`
+         cyc=`echo $test_day|cut -c9-10`
       fi
 
-      ieee_src=${TANKverf}/${RUN}.${pdy}/${cyc}/${MONITOR}
-      if [[ ! -d ${ieee_src} ]]; then
-         ieee_src=${TANKverf}/${RUN}.${pdy}/${MONITOR}
-      fi
-      if [[ ! -d ${ieee_src} ]]; then
-         ieee_src=${TANKverf}/${MONITOR}.${pdy}
-      fi
-      if [[ ! -d ${ieee_src} ]]; then
-         ieee_src=${TANKverf}/${RUN}.${pdy}
-      fi
-      if [[ ! -d ${ieee_src} ]]; then
-         echo "Unable to locate ieee_src directory, exiting mk_time_plots.sh."
-         exit 12
-      fi
-
-
-      if [[ -s ${ieee_src}/bcor.${type}.ctl.${Z} ]]; then
-         $NCP ${ieee_src}/bcor.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
-         if [[ -s ${ieee_src}/bcor.${type}_anl.ctl.${Z} ]]; then
-            $NCP ${ieee_src}/bcor.${type}_anl.ctl.${Z} ${imgndir}/${type}_anl.ctl.${Z}
-         fi
+      #------------------------------------------------------------------
+      #  Check to see if the *ctl* files for this $type are in $imgndir
+      #
+      nctl=`ls ${imgndir}/${type}*ctl* -1 | wc -l`
+      if [[ ( $USE_ANL -eq 1 && $nctl -ge 2 ) || 
+            ( $USE_ANL -eq 0 && $nctl -ge 1 ) ]]; then
          found=1
-      elif [[ -s ${ieee_src}/bcor.${type}.ctl ]]; then
-         $NCP ${ieee_src}/bcor.${type}.ctl ${imgndir}/${type}.ctl
-         if [[ -s ${ieee_src}/bcor.${type}_anl.ctl ]]; then
-            $NCP ${ieee_src}/bcor.${type}_anl.ctl ${imgndir}/${type}_anl.ctl
+      else
+         #-------------------------
+         #  Locate $ieee_src 
+         #
+         ieee_src=${TANKverf}/${RUN}.${pdy}/${cyc}/${MONITOR}
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${RUN}.${pdy}/${MONITOR}
          fi
-         found=1
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${RUN}.${pdy}
+         fi
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${MONITOR}.${pdy}
+         fi
+   
+         using_tar=0
+         #---------------------------------------------------------
+         #  Determine if the bcor files are in a tar file.
+         #  if so extract the ctl files for this $type.  
+         #
+         #  Note that the ctl files are moved back to ${ieee_src}
+         #  so the code block that follows will work with both 
+         #  tarred and non-tarred storage schemes.
+         #
+         if [[ -s ${ieee_src}/radmon_bcor.tar ]]; then
+            using_tar=1
+            ctl_list=`tar -tf ${ieee_src}/radmon_bcor.tar | grep ${type} | grep ctl`
+            if [[ ${ctl_list} != "" ]]; then
+               cwd=`pwd`
+               cd ${ieee_src}
+               tar -xf ./radmon_bcor.tar ${ctl_list}            
+               cd ${cwd}
+            fi
+         fi
+
+         #--------------------------------------------------
+         #  Copy the *ctl* files to $imgndir, dropping
+         #  'bcor.' from the file name. 
+         #
+         ctl_files=`ls $ieee_src/bcor.$type*.ctl*`
+         prefix='bcor.'
+         for file in $ctl_files; do
+            newfile=`basename $file | sed -e "s/^$prefix//"` 
+            $NCP ${file} ${imgndir}/${newfile}
+            found=1
+         done
+
+         #------------------------------------------------------
+         #  If there's a radmon_bcor.tar archive in ${ieee_src}
+         #  then delete the extracted *ctl* files.
+         if [[ $using_tar -eq 1 ]]; then
+            rm -f ${ieee_src}/bcor.${type}*.ctl*
+         fi
+   
       fi
 
-      if [[ $found -eq 0 ]]; then
+      if [[ ${found} -eq 0 ]]; then		# if not found try previous day
          if [[ $ctr -gt 0 ]]; then
             test_day=`$NDATE -24 ${pdy}00`
             ctr=$(($ctr-1))
-         else
-            finished=1
          fi
       fi
-   done
 
-   if [[ -s ${imgndir}/${type}.ctl.${Z} || -s ${imgndir}/${type}.ctl ]]; then
-      allmissing=0
-      found=1
-   fi
+   done
+ 
 done
 
-if [[ $allmissing = 1 ]]; then
+nctl=`ls ${imgndir}/*ctl* -1 | wc -l`
+if [[ $nctl -le 0 ]]; then
    echo ERROR:  Unable to plot.  All bcor control files are missing.
    exit 14
 fi
@@ -112,8 +142,8 @@ for type in ${SATYPE}; do
    if [[ -s ${imgndir}/${type}.ctl.${Z} ]]; then
      ${UNCOMPRESS} ${imgndir}/${type}.ctl.${Z}
    fi
-   ${IG_SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
 
+   ${IG_SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
 done
 
 for sat in ${SATYPE}; do
@@ -142,9 +172,8 @@ cd ${PLOT_WORK_DIR}
 
 
 #-------------------------------------------------------------------------
-# Loop over satellite/instruments.  Submit poe job to make plots.  Each task handles
-# a single satellite/insrument.
-
+#  Loop over satellite/instruments and submit job.
+#
 suffix=a
 cmdfile=cmdfile_pbcor_${suffix}
 jobname=plot_${RADMON_SUFFIX}_bcor_${suffix}
@@ -188,6 +217,10 @@ elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "s4" ]]; then
 elif [[ $MY_MACHINE = "jet" ]]; then
    $SUB --account ${ACCOUNT} -n $ctr  -o ${logfile} -D . -J ${jobname} \
         -p ${RADMON_PARTITION} --time=2:00:00 --wrap "srun -l --multi-prog ${cmdfile}"
+
+elif [[ $MY_MACHINE = "wcoss2" ]]; then
+   $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e ${LOGdir}/plot_bcor_${suffix}.err \
+        -V -l select=1:mem=1g -l walltime=1:00:00 -N ${jobname} ${cmdfile}
 
 fi
 
@@ -246,8 +279,8 @@ for sat in ${bigSATLIST}; do
            -p ${RADMON_PARTITION} --time=1:00:00 --wrap "srun -l --multi-prog ${cmdfile}"
 
    elif [[ $MY_MACHINE = "wcoss2" ]]; then
-      $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -V \
-           -l select=1:mem=1g -l walltime=1:00:00 -N ${jobname} ${cmdfile}
+      $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e ${LOGdir}/plot_bcor_${suffix}.err \
+	   -V -l select=1:mem=1g -l walltime=1:00:00 -N ${jobname} ${cmdfile}
    fi
 
    echo "submitted $sat"
@@ -255,4 +288,4 @@ done
 
 
 echo "end mk_bcor_plots.sh"
-exit 0
+exit 
