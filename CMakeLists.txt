@@ -49,5 +49,6 @@ if(BUILD_UTIL)
   add_subdirectory(util)
 endif()
 
+add_subdirectory(regression)
+
 #add_subdirectory(unit-tests)
-#add_subdirectory(regression)
