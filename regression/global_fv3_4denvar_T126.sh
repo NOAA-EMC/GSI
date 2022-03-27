@@ -77,7 +77,7 @@ ENSEND=20
 # for guess and observation data files
 PDY=`echo $global_fv3_4denvar_T126_adate | cut -c1-8`
 cyc=`echo $global_fv3_4denvar_T126_adate | cut -c9-10`
-GDATE=`$ndate -06 $global_fv3_4denvar_T126_adate`
+GDATE=`date +%Y%m%d%H -d "${global_fv3_4denvar_T126_adate:0:8} ${global_fv3_4denvar_T126_adate:8:2} - 6 hours"`
 gPDY=`echo $GDATE | cut -c1-8`
 gcyc=`echo $GDATE | cut -c9-10`
 

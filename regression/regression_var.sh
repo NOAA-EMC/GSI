@@ -44,7 +44,7 @@ if [ -z ${machine+x} ]; then
    export machine="WCOSS_C"
   elif [ -d /gpfs/dell1/ptmp ]; then # venus or mars
    export machine="WCOSS_D"
-elif [ -d /discover/nobackup ]; then # NCCS Discover
+  elif [ -d /discover/nobackup ]; then # NCCS Discover
    export machine="Discover"
   fi
 else echo "machine is set to '$machine'"; 
@@ -60,7 +60,6 @@ case $machine in
 
    export fixcrtm="/gpfs/dell2/emc/modeling/noscrub/Michael.Lueken/fix_update"
    export casesdir="/gpfs/dell2/emc/modeling/noscrub/Michael.Lueken/CASES"
-   export ndate=${NDATE:-"$builddir/bin/ndate.x"}
 
    export check_resource="yes"
 
@@ -82,7 +81,6 @@ case $machine in
 
    export fixcrtm="/da/save/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
    export casesdir="/da/noscrub/Michael.Lueken/CASES"
-   export ndate="/nwprod/util/exec/ndate"
 
    export check_resource="yes"
 
@@ -99,7 +97,6 @@ case $machine in
 
    export fixcrtm="/glade/p/ral/jntp/tools/crtm/2.2.3/fix_update"
    export casesdir="/glade/p/ral/jntp/tools/CASES"
-   export ndate="$builddir/bin/ndate.x"
 
    export check_resource="no"
    export accnt="p48503002"
@@ -123,7 +120,6 @@ case $machine in
 
    export fixcrtm="/scratch1/NCEPDEV/da/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
    export casesdir="/scratch1/NCEPDEV/da/Michael.Lueken/noscrub/CASES"
-   export ndate=$NDATE
 
    export check_resource="no"
 
@@ -140,7 +136,6 @@ case $machine in
    export ptmp=/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/ptmp
    export fixcrtm="/lfs1/NESDIS/nesdis-rdo2/David.Huber/save/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
    export casesdir="/lfs1/NESDIS/nesdis-rdo2/David.Huber/save/CASES"
-   export ndate=$NDATE
    export check_resource="no"
    export accnt="nesdis-rdo2"
  
@@ -175,7 +170,6 @@ case $machine in
 
    export fixcrtm="/gpfs/hps3/emc/da/noscrub/Michael.Lueken/CRTM_REL-2.2.3/fix_update"
    export casesdir="/gpfs/hps3/emc/da/noscrub/Michael.Lueken/CASES"
-   export ndate=$NDATE
 
    export check_resource="no"
 
@@ -191,7 +185,6 @@ case $machine in
    export noscrub=$basedir
    export fixcrtm="/discover/nobackup/projects/gmao/share/gmao_ops/fvInput_4dvar/gsi/etc/fix_ncep20170329/REL-2.2.3-r60152_local-rev_1/CRTM_Coeffs/$endianness"
    export casesdir="/discover/nobackup/projects/gmao/obsdev/wrmccart/NCEP_regression/CASES"
-   export ndate="/home/pchakrab/.local/bin/ndate"
    export check_resource="no"
    export accnt="g0613"
    export queue="compute"
