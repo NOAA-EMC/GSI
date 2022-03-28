@@ -8,10 +8,10 @@ export regtest=$1
 # source the necessary files to setup
 if [ "$#" -eq 2 ]; then
   export regdir=$2
-  . $(awk '{ print $1, $2, $3, $4, $5, $6, $7, $8, $9 }' $regdir/regression_var.out)
+  . $(awk '{ print $1, $2, $3, $4, $5, $6, $7, $8 }' $regdir/regression_var.out)
 else
   export regdir=$(pwd)
-  . $(awk '{ print $1, $2, $3, $4, $5, $6, $7, $8, $9 }' regression_var.out)
+  . $(awk '{ print $1, $2, $3, $4, $5, $6, $7, $8 }' regression_var.out)
 fi
 
 export scripts=${scripts_updat:-$scripts}
@@ -20,10 +20,10 @@ export scripts=${scripts_updat:-$scripts}
 # allow regression tests to be set by environment variable
 if [ -z "$RSTART" ]; then
     export RSTART=1
-fi  
+fi
 if [ -z "$REND" ]; then
     export REND=4
-fi  
+fi
 # Launch the individual control and update runs, one-after-another
 for jn in `seq ${RSTART} ${REND}`; do
 
