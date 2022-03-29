@@ -32,25 +32,25 @@ list(APPEND EnKF_SRC_srcs
   statevec.f90
   write_logfile.f90)
 
-list(APPEND EnKF_SRC_gfs
+list(APPEND EnKF_SRC_GFS
   gridinfo_gfs.f90
   gridio_gfs.f90
   observer_gfs.f90
   smooth_gfs.f90)
 
-list(APPEND EnKF_SRC_wrf
+list(APPEND EnKF_SRC_WRF
   gridinfo_wrf.f90
   gridio_wrf.f90
   observer_reg.f90
   smooth_wrf.f90)
 
-list(APPEND EnKF_SRC_nmmb
+list(APPEND EnKF_SRC_NMMB
   gridinfo_nmmb.f90
   gridio_nmmb.f90
   observer_reg.f90
   smooth_nmmb.f90)
 
-list(APPEND EnKF_SRC_fv3reg
+list(APPEND EnKF_SRC_FV3REG
   gridinfo_fv3reg.f90
   gridio_fv3reg.f90
   observer_fv3reg.f90

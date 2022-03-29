@@ -83,19 +83,8 @@ list(APPEND EnKF_SRC_Fortran
   ${EnKF_SRC_srcs})
 
 # Collect files for specific EnKF Application
-if(ENKF_MODE MATCHES "GFS") # GFS application
-  list(APPEND EnKF_SRC_Fortran
-    ${EnKF_SRC_gfs})
-elseif(ENKF_MODE MATCHES "WRF") # WRF application
-  list(APPEND EnKF_SRC_Fortran
-    ${EnKF_SRC_wrf})
-elseif(ENKF_MODE MATCHES "NMMB") # NMMB application
-  list(APPEND EnKF_SRC_Fortran
-    ${EnKF_SRC_nmmb})
-elseif(ENKF_MODE MATCHES "FV3REG") # WRF application
-  list(APPEND EnKF_SRC_Fortran
-    ${EnKF_SRC_fv3reg})
-endif()
+list(APPEND EnKF_SRC_Fortran
+  ${EnKF_SRC_${ENKF_MODE}})
 
 # Create a library of EnKF Fortran sources
 set(module_dir "${CMAKE_CURRENT_BINARY_DIR}/include/enkf")
