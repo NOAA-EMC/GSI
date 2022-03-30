@@ -2,9 +2,9 @@ help([[
 Load environment to compile GSI on Orion
 ]])
 
-prepend_path("MODULEPATH", "/apps/contrib/NCEP/libs/hpc-stack/modulefiles/stack")
+prepend_path("MODULEPATH", "/apps/contrib/NCEP/libs/hpc-stack-gfsv16/modulefiles/stack")
 
-hpc_ver=os.getenv("hpc_ver") or "1.1.0"
+hpc_ver=os.getenv("hpc_ver") or "1.2.0"
 load(pathJoin("hpc", hpc_ver))
 
 hpc_intel_ver=os.getenv("hpc_intel_ver") or "2018.4"
