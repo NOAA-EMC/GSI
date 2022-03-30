@@ -27,28 +27,29 @@ else
   export ptmpName=""
 fi
 
-echo "beginning regression_var.sh, machine is $machine"
-# If we don't know already determine what machine are we on:
-if [ -z ${machine+x} ]; then
-  echo "machine is unset";
-  if [ -d /da ]; then # WCOSS
-     export machine="WCOSS"
-  elif [ -d /glade/scratch ]; then # Cheyenne
-   export machine="Cheyenne"
-  elif [ -d /scratch1/NCEPDEV/da ]; then # Hera
-   export machine="Hera"
-  elif [ -d /lfs1/NCEPDEV ]; then # Jet
-   export machine="Jet"
-  elif [ -d /gpfs/hps/ptmp ]; then # LUNA or SURGE
-   export machine="WCOSS_C"
-  elif [ -d /gpfs/dell1/ptmp ]; then # venus or mars
-   export machine="WCOSS_D"
-  elif [ -d /discover/nobackup ]; then # NCCS Discover
-   export machine="Discover"
-  fi
-else
-  echo "machine is set to '$machine'";
+# Determine the machine
+if [[ -d /dcom && -d /hwrf ]]; then # WCOSS
+  export machine="WCOSS"
+elif [[ -d /glade ]]; then # Cheyenne
+  export machine="Cheyenne"
+elif [[ -d /scratch1 ]]; then # Hera
+  export machine="Hera"
+elif [[ -d /jetmon ]]; then # Jet
+  export machine="Jet"
+elif [[ -d /cm ]]; then # LUNA or SURGE
+  export machine="WCOSS_C"
+elif [[ -d /ioddev_dell ]]; then # venus or mars
+  export machine="WCOSS_D"
+elif [[ -d /discover ]]; then # NCCS Discover
+  export machine="Discover"
+elif [[ -d /sw/gaea ]]; then # Gaea
+  export machine="Gaea"
+elif [[ -d /data/prod ]]; then # S4
+  export machine="S4"
+elif [[ -d /work ]]; then # Orion
+  export machine="Orion"
 fi
+echo "Running Regression Tests on '$machine'";
 
 case $machine in
   WCOSS_D)
@@ -187,6 +188,10 @@ case $machine in
     export accnt="g0613"
     export queue="compute"
     export clean=".false."
+  ;;
+  *)
+    echo "Regression tests are not setup on '$machine', ABORT!"
+    exit 1
   ;;
 esac
 

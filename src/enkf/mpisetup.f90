@@ -27,9 +27,9 @@ module mpisetup
 !$$$
 
 use kinds, only: r_kind, r_single, r_double
-use mpi
 implicit none
 ! mpi definitions.
+include 'mpif.h'
 integer numproc, nproc, numproc_shm, nproc_shm
 integer mpi_comm_shmem, mpi_comm_shmemroot
 integer mpi_status(mpi_status_size)

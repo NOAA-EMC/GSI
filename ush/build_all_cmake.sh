@@ -22,15 +22,18 @@ if [[ -d /dcom && -d /hwrf ]] ; then
     . /usrx/local/Modules/3.2.10/init/sh
     target=wcoss
     . $MODULESHOME/init/sh
+    CONTROLPATH="/da/save/Michael.Lueken/svn1/build"
 elif [[ -d /cm ]] ; then
     . $MODULESHOME/init/sh
     target=wcoss_c
 elif [[ -d /ioddev_dell ]]; then
     . $MODULESHOME/init/sh
     target=wcoss_d
+    CONTROLPATH="/gpfs/dell2/emc/modeling/noscrub/Michael.Lueken/svn1/build"
 elif [[ -d /scratch1 ]] ; then
     . /apps/lmod/lmod/init/sh
     target=hera
+    CONTROLPATH="/scratch1/NCEPDEV/da/Michael.Lueken/svn1/build"
 elif [[ -d /data/prod ]] ; then
     . /usr/share/lmod/lmod/init/sh
     target=s4
@@ -116,11 +119,14 @@ cmake_opts+=" -DCMAKE_INSTALL_PREFIX=$dir_root/install"
 # NCO wants executables in `exec`, not the standard `bin`
 cmake_opts+=" -DCMAKE_INSTALL_BINDIR=exec"
 
-# By default; build the global applications
-cmake_opts+=" -DGSI_MODE=GFS -DENKF_MODE=GFS"
+# By default; build the Regional GSI and Global EnKF applications
+cmake_opts+=" -DGSI_MODE=Regional -DENKF_MODE=GFS"
 
 # Build utilities:
-cmake_opts+=" -DBUILD_COV_CALC=ON -DBUILD_ENKF_GFS=ON -DBUILD_EFSOI_UTIL=ON"
+cmake_opts+=" -DBUILD_COV_CALC=ON -DBUILD_ENKF_GFS=ON -DBUILD_EFSOI_UTIL=ON -DBUILD_MON_UTIL=ON"
+
+# Build regression test
+cmake_opts+=" -DBUILD_REG_TESTING=ON -DCONTROLPATH=${CONTROLPATH:-}"
 
 # Valid combination of applications are:
 # Global  : -DGSI_MODE=GFS -DENKF_MODE=GFS
