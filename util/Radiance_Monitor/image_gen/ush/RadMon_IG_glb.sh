@@ -351,8 +351,9 @@ if [[ $RUN_TRANSFER -eq 1 ]]; then
          echo "${IG_SCRIPTS}/Transfer.sh --nosrc ${RADMON_SUFFIX}" >$cmdfile
          chmod 755 $cmdfile
 
+         run_time="$rhr$cmin"	# HHMM format for qsub
          $SUB -q $transfer_queue -A $ACCOUNT -o ${transfer_log} -e ${LOGdir}/Transfer_${RADMON_SUFFIX}.err \
-	      -V -l select=1:mem=500M -l walltime=45:00 -N ${jobname} ${cmdfile}
+	      -V -l select=1:mem=500M -l walltime=45:00 -N ${jobname} -a ${run_time} ${cmdfile}
       else
          $SUB -P $PROJECT -q $transfer_queue -o ${transfer_log} -M 80 -W 0:45 \
               -R affinity[core] -J ${jobname} -cwd ${PWD} -b $run_time ${job}

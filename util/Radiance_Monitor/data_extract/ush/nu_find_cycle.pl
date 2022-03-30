@@ -88,7 +88,7 @@
       $search_string = $run;
    }
 
-   my @mmdirs = grep { /$search_string/ } @alldirs;
+   my @mmdirs = grep {/$search_string/} @alldirs;
    
    #-----------------------------------------------------------------------   
    #  If there are no $run.yyyymmdd subdirectories, then exit without 
