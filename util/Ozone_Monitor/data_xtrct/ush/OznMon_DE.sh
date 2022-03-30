@@ -229,6 +229,11 @@ elif [[ $MY_MACHINE = "wcoss_c" ]]; then
         -R "select[mem>100] rusage[mem=100]" \
         -M 100 -W 0:05 -J ${job} -cwd ${PWD} $jobfile
 
+elif [[ $MY_MACHINE = "wcoss2" ]]; then
+
+  $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${OZN_LOGdir}/DE.${PDY}.${cyc}.log \
+       -e ${OZN_LOGdir}/DE.${PDY}.${cyc}.err \
+       -V -l select=1:mem=5000M -l walltime=20:00 -N ${job} ${jobfile}
 fi
 
 

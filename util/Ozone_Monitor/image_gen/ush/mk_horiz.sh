@@ -101,7 +101,10 @@ for dsrc in ${data_source}; do
            -o ${logf} -e ${errf} -W 0:05 -J ${job} -cwd ${WORKDIR} \
 	   ${WORKDIR}/${cmdfile}
 
-
+   elif [[ $MY_MACHINE = "wcoss2" ]]; then
+      $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logf} -e ${errf} \
+           -V -l select=1:mem=5000M -l walltime=20:00 \
+	   -N ${job} ${WORKDIR}/${cmdfile}
    fi
  
 done

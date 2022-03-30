@@ -13,7 +13,7 @@ echo "RSYNCH        = $RSYNC"
 
 if [[ ${OZN_IMGN_TANKDIR} != "/" ]]; then			# sanity check 
 
-   if [[ $MY_MACHINE = "wcoss_c" || $MY_MACHINE = "wcoss_d" ]]; then
+   if [[ $MY_MACHINE = "wcoss_c" || $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss2" ]]; then
 
       WEB_DIR=${WEB_DIR}/${OZNMON_SUFFIX}/${RUN}
       ssh ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov "mkdir -p ${WEB_DIR}"

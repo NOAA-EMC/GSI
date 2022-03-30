@@ -79,14 +79,6 @@ export GLB_AREA=${GLB_AREA:-1}
 #-------------------------------------------------------------------
 top_parm=${this_dir}/../../parm
 
-oznmon_version=${oznmon_version:-${top_parm}/OznMon.ver}
-if [[ -s ${oznmon_version} ]]; then
-   . ${oznmon_version}
-else
-   echo "Unable to source ${oznmon_version} file"
-   exit 2
-fi
-
 oznmon_user_settings=${oznmon_user_settings:-${top_parm}/OznMon_user_settings}
 if [[ -s ${oznmon_user_settings} ]]; then
    . ${oznmon_user_settings}
@@ -205,7 +197,7 @@ for type in ${SATYPE}; do
       test_dir=${OZN_STATS_TANKDIR}/${RUN}.${pdy}/${cyc}/oznmon/time
 
       if [[ -d ${test_dir} ]]; then
-         test_file=${test_dir}/${type}.${cdate}.ieee_d
+         test_file=${test_dir}/${type}.ges.${cdate}.ieee_d
 
          if [[ -s $test_file ]]; then
             $NCP ${test_file} ./${type}.${cdate}.ieee_d
@@ -220,7 +212,7 @@ for type in ${SATYPE}; do
 
 
       if [[ $have_ctl -eq 0 ]]; then
-         test_file=${test_dir}/${type}.ctl
+         test_file=${test_dir}/${type}.ges.ctl
          if [[ -s ${test_file} ]]; then
             $NCP ${test_file} ./${type}.ctl
             have_ctl=1

@@ -39,7 +39,7 @@ echo start OznMon_CP.sh
 exit_value=0
 
 nargs=$#
-if [[ $nargs -le 0 || $nargs -gt 7 ]]; then
+if [[ $nargs -le 0 || $nargs -gt 9 ]]; then
    usage
    exit 1
 fi
@@ -193,6 +193,10 @@ if [[  ${nfile_src} -gt 0 ]]; then
    elif [[ $MY_MACHINE = "hera" ]]; then
       $SUB --account=${ACCOUNT} --time=10 -J ${jobname} -D . \
         -o ${logfile} --ntasks=1 --mem=5g ${job}
+
+   elif [[ $MY_MACHINE = "wcoss2" ]]; then
+      $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e ${OZN_LOGdir}/CP.${PDY}.${CYC}.err \
+        -V -l select=1:mem=5000M -l walltime=20:00 -N ${jobname} ${job}
    fi
 else
    echo "Unable to locate DATA_LOCATION: ${DATA_LOCATION}"

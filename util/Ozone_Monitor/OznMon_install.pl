@@ -5,18 +5,19 @@
 #
 #  This script makes sets all necessary configuration definitions
 #  and calls the makeall.sh script to build all the necessary
-#  executables.  This script works for hera, wcoss_c, and
-#  wcoss_d machines.
+#  executables.  This script works for hera, wcoss_c, wcoss_d,
+#  and wcoss2 machines.
 #
 #-------------------------------------------------------------------
 
    use IO::File;
    use File::Copy qw(move);
 
-   my $machine = `/usr/bin/perl get_hostname.pl`;
+   my $machine = `./get_machine.sh`;
+   $machine =~ s/^\s+|\s+$//g;    # strip any whitespace in $machine
    my $my_machine="export MY_MACHINE=$machine";
 
-   if( $machine ne "wcoss_c" && $machine ne "hera" && $machine ne "wcoss_d" ) {
+   if( $machine ne "wcoss_c" && $machine ne "hera" && $machine ne "wcoss_d" && $machine ne "wcoss2" ) {
       die( "ERROR --- Unrecognized machine hostname, $machine.  Exiting now...\n" );
    }
    else {
@@ -61,6 +62,9 @@
    }
    elsif( $machine eq "wcoss_c" ){
       $tankdir = "/gpfs/hps/emc/da/noscrub/$user_name/nbns";
+   }
+   elsif( $machine eq "wcoss2" ){
+      $tankdir = "/lfs/h2/emc/da/noscrub/$user_name/nbns";
    }
    else {
       $tankdir = "/global/save/$user_name/nbns";
@@ -209,6 +213,10 @@
       $my_ptmp="export OZN_PTMP=\${OZN_PTMP:-/gpfs/hps2/ptmp}";
       $my_stmp="export OZN_STMP=\${OZN_STMP:-/gpfs/hps2/stmp}";
    }
+   elsif( $machine eq "wcoss2" ) {
+      $my_ptmp="export OZN_PTMP=\${OZN_PTMP:-/lfs/h2/emc/ptmp}";
+      $my_stmp="export OZN_STMP=\${OZN_STMP:-/lfs/h2/emc/stmp}";
+   }
    elsif( $machine eq "hera" ){
       $ptmp = "/scratch2/NCEPDEV/stmp3";
 
@@ -325,18 +333,21 @@
    print "\n";
    print "Updating parm/OznMon_user_settings\n";
 
-   my $account = "export ACCOUNT=\${ACCOUNT:-fv3-cpu}";
-   if( $machine ne "theia" && $machine ne "hera" ) {
-      $account = "export ACCOUNT=\${ACCOUNT:-}";
+   my $account = "export ACCOUNT=\${ACCOUNT:-}";
+   if( $machine eq "hera" ) {
+      $account = "export ACCOUNT=\${ACCOUNT:-fv3-cpu}";
+   }
+   elsif( $machine eq "wcoss2" ){
+      $account = "export ACCOUNT=\${ACCOUNT:-GFS-DEV}";
    }
 
    my $project = "export PROJECT=\${PROJECT:-GFS-DEV}";
-   if( $machine ne "wcoss_c" && $machine ne "wcoss_d" ) {
+   if( $machine ne "wcoss_c" && $machine ne "wcoss_d" && $machine ne "wcoss2" ) {
       $project="export PROJECT=";
    } 
 
    my $job_queue="export JOB_QUEUE=";
-   if( $machine eq "wcoss_c" ) {
+   if( $machine eq "wcoss_c" || $machine eq "wcoss2" ) {
       $job_queue="export JOB_QUEUE=\${JOB_QUEUE:-dev}";
    } elsif( $machine eq "wcoss" || $machine eq "wcoss_d" ){
       $job_queue = "export JOB_QUEUE=\${JOB_QUEUE:-dev_shared}";

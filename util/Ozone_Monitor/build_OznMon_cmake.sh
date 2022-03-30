@@ -22,35 +22,22 @@ echo "top_level = ${top_level}"
 export MY_OZNMON=${MY_OZNMON:-$top_level}
 echo "MY_OZNMON = ${MY_OZNMON}"
 
-#module purge
+target=`./get_machine.sh`
+echo "target = $target"
 
-if [[ -d /dcom && -d /hwrf ]] ; then
-    . /usrx/local/Modules/3.2.10/init/sh
-    target=wcoss
-    . $MODULESHOME/init/sh
-elif [[ -d /cm ]] ; then
-#    MODULESHOME=/opt/modules/3.2.10.3
-    . $MODULESHOME/init/sh
-    target=wcoss_c
-elif [[ -d /ioddev_dell ]]; then
-    . $MODULESHOME/init/sh
-    target=wcoss_d
-elif [[ -d /scratch1 ]] ; then
-    . /apps/lmod/lmod/init/sh
-    target=hera
-elif [[ -d /work ]]; then
-    . $MODULESHOME/init/sh
-    target=orion
-elif [[ -d /data/prod ]]; then
-    . $MODULESHOME/init/sh
-    target=s4
-elif [[ -d /jetmon ]]; then
-    . /apps/lmod/lmod/init/sh
-    target=jet
+if [[ $target = "wcoss_c" || $target = "wcoss_d" ||
+      $target = "orion"   || $target = "wcoss2"  ||
+      $target = "s4" ]] ; then
+   . $MODULESHOME/init/sh
+elif [[ $target = "hera" ]] ; then
+   . /apps/lmod/lmod/init/sh
+elif [[ $target = "jet" ]] ; then
+   . /apps/lmod/lmod/init/sh
 else
-    echo "unknown target = $target"
-    exit 9
+   echo "unknown target = $target"
+   exit 9
 fi
+
 
 GSI_Pkg=${top_level}/../..
 echo "GSI_Pkg = ${GSI_Pkg}"
@@ -71,7 +58,8 @@ fi
 
 if [[ ${target} = "hera"    || ${target} = "wcoss_c"  \
    || ${target} = "wcoss_d" || ${target} = "orion" \
-   || ${target} = "jet" || ${target} = "s4" ]]; then
+   || ${target} = "jet"     || ${target} = "s4" \
+   || ${target} = "wcoss2" ]]; then
    echo Building nwprod executables on ${target}
    echo
 
@@ -97,6 +85,10 @@ if [[ ${target} = "hera"    || ${target} = "wcoss_c"  \
       module purge
       module use -a $dir_modules
       module load $dir_modules/modulefile.ProdGSI.$target
+   elif [ $target = wcoss2 ]; then
+      module purge
+      module use -a $dir_modules
+      module load modulefile.ProdGSI.$target.lua
    fi
 
 
@@ -117,7 +109,6 @@ if [[ ${target} = "hera"    || ${target} = "wcoss_c"  \
    #------------------------------
    #  source OznMon_config
    #------------------------------
-   . ${top_level}/parm/OznMon.ver
    . ${top_level}/parm/OznMon_config
 
    #-------------------------------------------------------
