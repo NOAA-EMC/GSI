@@ -14,7 +14,7 @@ set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -fp-model strict")
 # DEBUG FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -check bounds -warn -heap-arrays -fpe-all=0 -fpe:0 -check all")
+set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -fp-model source -debug -ftrapuv -warn all,nointerfaces -check all,noarg_temp_created -fp-stack-check -fstack-protector")
 
 ####################################################################
 # LINK FLAGS
