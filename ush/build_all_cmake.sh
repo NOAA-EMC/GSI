@@ -110,7 +110,7 @@ fi
 module list
 set -x
 
-cmake_opts=""
+cmake_opts="${CMAKE_OPTS:-}"
 cmake_opts+=" -DCMAKE_BUILD_TYPE=$build_type"
 
 # Install destination for built executables, libraries, CMake Package config
