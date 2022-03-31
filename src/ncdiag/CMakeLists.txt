@@ -33,21 +33,12 @@ message(STATUS "ENABLE_NCDIAG_SERIAL ... ${ENABLE_NCDIAG_SERIAL}")
 # Get list of files
 include(ncdiag_files.cmake)
 
-if(CMAKE_BUILD_TYPE MATCHES "^(Debug)$")
-  list(APPEND debug_defs
-    DEBUG
-    _DEBUG_MEM_
-    ERROR_TRACEBACK
-  )
-endif()
-
 set(module_dir "${CMAKE_CURRENT_BINARY_DIR}/include/ncdiag")
 add_library(ncdiag STATIC ${NCDIAG_SRC_lib})
 add_library(${PROJECT_NAME}::ncdiag ALIAS ncdiag)
 set_target_properties(ncdiag PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
 target_compile_definitions(ncdiag PRIVATE "_REAL4_")
 target_compile_definitions(ncdiag PRIVATE "USE_MPI")
-target_compile_definitions(ncdiag PRIVATE "${debug_defs}")
 target_link_libraries(ncdiag PUBLIC NetCDF::NetCDF_Fortran)
 target_link_libraries(ncdiag PUBLIC MPI::MPI_Fortran)
 target_include_directories(ncdiag PUBLIC $<BUILD_INTERFACE:${module_dir}>
@@ -74,7 +65,6 @@ if(ENABLE_NCDIAG_SERIAL)
   add_library(${PROJECT_NAME}::ncdiag_serial ALIAS ncdiag_serial)
   set_target_properties(ncdiag_serial PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
   target_compile_definitions(ncdiag_serial PRIVATE "_REAL4_")
-  target_compile_definitions(ncdiag_serial PRIVATE "${debug_defs}")
   target_link_libraries(ncdiag_serial PUBLIC NetCDF::NetCDF_Fortran)
   target_include_directories(ncdiag_serial PUBLIC $<BUILD_INTERFACE:${module_dir}>
                                                   $<INSTALL_INTERFACE:include/ncdiag_serial>)
