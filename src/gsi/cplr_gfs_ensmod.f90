@@ -641,7 +641,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    ! Declare local variables
    integer(i_kind) i,ii,j,jj,k,lonb,latb,levs,latb2,lonb2
    integer(i_kind) k2,k3,k3u,k3v,k3t,k3q,k3cw,k3oz,kf
-   integer(i_kind) k3ql,k3qi,k3qr,k3qs,k3qg       
+   integer(i_kind) k3ql,k3qi,k3qr,k3qs,k3qg
    integer(i_kind) iret
    integer(i_kind) :: istop = 101
    integer(i_kind),dimension(7):: idate
@@ -916,6 +916,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
    ! Declare local variables
    integer(i_kind) i,ii,j,jj,k,lonb,latb,levs,kr,ierror
    integer(i_kind) k2,k3,k3u,k3v,k3t,k3q,k3cw,k3oz,kf
+   integer(i_kind) k3ql,k3qi,k3qr,k3qs,k3qg
    character(len=120) :: myname_ = 'parallel_read_gfsnc_state_'
    real(r_single),allocatable,dimension(:,:,:) :: rwork3d1, rwork3d2
    real(r_single),allocatable,dimension(:,:) ::  temp2,rwork2d
@@ -959,6 +960,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
    allocate(rwork3d1(nlon,(nlat-2),nsig))
    allocate(temp3(nlat,nlon,nsig,nc3d))
    k3u=0 ; k3v=0 ; k3t=0 ; k3q=0 ; k3cw=0 ; k3oz=0
+   k3ql=0; k3qi=0; k3qr=0; k3qs=0; k3qg=0
    do k3=1,nc3d
       if (trim(cvars3d(k3))=='cw') then
          k3cw=k3
@@ -968,6 +970,46 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
          call read_vardata(atmges, 'icmr', rwork3d2) 
          rwork3d1 = rwork3d1 + rwork3d2
          deallocate(rwork3d2)
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
+         end do
+      else if(trim(cvars3d(k3))=='ql') then
+         k3ql=k3
+         call read_vardata(atmges, 'clwmr', rwork3d1)
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
+         end do
+      else if(trim(cvars3d(k3))=='qi') then
+         k3qi=k3
+         call read_vardata(atmges, 'icmr', rwork3d1)
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
+         end do
+      else if(trim(cvars3d(k3))=='qr') then
+         k3qr=k3
+         call read_vardata(atmges, 'rwmr', rwork3d1)
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
+         end do
+      else if(trim(cvars3d(k3))=='qs') then
+         k3qs=k3
+         call read_vardata(atmges, 'snmr', rwork3d1)
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
+         end do
+      else if(trim(cvars3d(k3))=='qg') then
+         k3qg=k3
+         call read_vardata(atmges, 'grle', rwork3d1)
          do k=1,nsig
             kr = levs+1-k
             call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
@@ -1015,7 +1057,8 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
    enddo
    deallocate(rwork3d1)
 
-   if (k3u==0.or.k3v==0.or.k3t==0.or.k3q==0.or.k3cw==0.or.k3oz==0) &
+!  if (k3u==0.or.k3v==0.or.k3t==0.or.k3q==0.or.k3cw==0.or.k3oz==0) &
+   if (k3u==0.or.k3v==0.or.k3t==0.or.k3q==0.or.k3oz==0) &
       write(6,'(" WARNING, problem with one of k3-")')
 
    do k=1,nsig
@@ -1316,8 +1359,13 @@ end subroutine move1_
 
        endif
     else if ( use_gfs_ncio ) then
-       call general_read_gfsatm_nc(grd,sp_ens,filename,uv_hyb_ens,.false., &
-            zflag,atm_bundle,.true.,iret)
+       if (fv3_full_hydro) then
+          call general_read_gfsatm_allhydro_nc(grd,sp_ens,filename,uv_hyb_ens,.false., &
+               zflag,atm_bundle,iret)
+       else
+          call general_read_gfsatm_nc(grd,sp_ens,filename,uv_hyb_ens,.false., &
+               zflag,atm_bundle,.true.,iret)
+       endif
     else
        call general_read_gfsatm(grd,sp_ens,sp_ens,filename,uv_hyb_ens,.false., &
             zflag,atm_bundle,inithead,iret)

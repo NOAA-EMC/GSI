@@ -374,7 +374,7 @@ subroutine prt_guess2(sgrep)
      ier=ier+istatus
      nvarsc=nvarsc+1
   endif
-  if (ier/=0) return ! this is a fundamental routine, when some not found just
+! if (ier/=0) return ! this is a fundamental routine, when some not found just ! emily
 
   nvars  = nvars1+nvarsc+nvars3
   nvars2 = nvars1+nvarsc
