@@ -18,7 +18,7 @@ set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -funroll-all-loops -finline-functions")
 # DEBUG FLAGS
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -ggdb -static -Wall -fcheck=bounds -ffpe-trap=invalid,zero,overflow")
+set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -ggdb -Wall -fcheck=bounds -ffpe-trap=invalid,zero,overflow")
 
 ####################################################################
 # LINK FLAGS

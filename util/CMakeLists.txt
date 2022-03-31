@@ -137,7 +137,6 @@ endif()
 
 add_subdirectory(FOV_utilities)
 add_subdirectory(Single_Observation)
-add_subdirectory(ndate)
 add_subdirectory(zero_biascoeff)
 
 # These utilities do not have CMake builds and are unlikely used or usable
