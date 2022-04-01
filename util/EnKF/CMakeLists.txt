@@ -1,8 +1,8 @@
-if(BUILD_ENKF_GFS)
+if(BUILD_UTIL_ENKF_GFS)
   add_subdirectory(gfs)
 endif()
 
-if(BUILD_ENKF_ARW)
+if(BUILD_UTIL_ENKF_ARW)
   if(NOT TARGET gsi)
     if(NOT gsi_FOUND)
       message(FATAL_ERROR "Utils: GSI library was not found for EnKF ARW utilities")

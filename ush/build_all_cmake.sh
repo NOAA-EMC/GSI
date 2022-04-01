@@ -123,14 +123,10 @@ cmake_opts+=" -DCMAKE_INSTALL_BINDIR=exec"
 cmake_opts+=" -DGSI_MODE=Regional -DENKF_MODE=GFS"
 
 # Build utilities:
-cmake_opts+=" -DBUILD_COV_CALC=ON -DBUILD_ENKF_GFS=ON -DBUILD_EFSOI_UTIL=ON -DBUILD_MON_UTIL=ON"
+cmake_opts+=" -DBUILD_UTIL_COV_CALC=ON -DBUILD_UTIL_ENKF_GFS=ON -DBUILD_UTIL_EFSOIL=ON -DBUILD_UTIL_MON=ON"
 
 # Build regression test
 cmake_opts+=" -DBUILD_REG_TESTING=ON -DCONTROLPATH=${CONTROLPATH:-}"
-
-# Valid combination of applications are:
-# Global  : -DGSI_MODE=GFS -DENKF_MODE=GFS
-# Regional: -DGSI_MODE=Regional -DENKF_MODE=WRF|NMMB|FV3REG
 
 cmake $cmake_opts $dir_root
 
