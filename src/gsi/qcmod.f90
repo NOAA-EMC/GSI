@@ -184,7 +184,7 @@ module qcmod
   public :: qc_saphir
 ! set passed variables to public
   public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc,njqc,vqc,nvqc,hub_norm
-  public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate
+  public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate,gps_jacqc
   public :: pboto3,ptopo3,pbotq,ptopq,newvad,tdrerr_inflate
   public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,&
             ifail_gross_qc,ifail_cloud_qc,ifail_outside_range,&
@@ -205,6 +205,7 @@ module qcmod
   logical use_poq7
   logical qc_noirjaco3
   logical qc_noirjaco3_pole
+  logical gps_jacqc
   logical newvad
   logical tdrerr_inflate
   logical qc_satwnds
@@ -428,6 +429,8 @@ contains
 
     use_poq7 = .false.
     cao_check = .false.
+
+    gps_jacqc = .false.     ! Jacobian QC for GNSS RO is off by default
 
     qc_noirjaco3 = .false.  ! when .f., use O3 Jac from IR instruments
     qc_noirjaco3_pole = .false. ! true=do not use O3 Jac from IR instruments near poles
