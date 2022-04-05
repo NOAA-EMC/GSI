@@ -227,7 +227,7 @@ contains
 
     endif
 
-    if (tv_ind > 0.or.tsen_ind) then
+    if (tv_ind > 0.or.tsen_ind > 0) then
        allocate(tsenworkvar3d(nx_res,ny_res,nlevs))
        varstrname = 'T'
        call read_fv3_restart_data3d(varstrname,fv3filename,file_id,tsenworkvar3d)
