@@ -141,8 +141,8 @@ export DOGAUSFCANL=${DOGAUSFCANL:-"YES"}
 
 # Copy fix file for obsproc
 if [ $RUN = "gfs" ]; then
-    mkdir -p $COMOUT/fix
-    cp $FIXgsi/prepobs_errtable.global $COMOUT/fix/
+    mkdir -p $ROTDIR/fix
+    cp $FIXgsi/prepobs_errtable.global $ROTDIR/fix/
 fi
 
 
