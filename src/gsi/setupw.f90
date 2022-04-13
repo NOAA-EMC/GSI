@@ -41,6 +41,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   use obsmod, only: luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag, dirname
+  use obsmod, only: l_obsprvdiag
   use obsmod, only: neutral_stability_windfact_2dvar,use_similarity_2dvar
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
@@ -218,6 +219,11 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !                              level; they are now loaded by
 !                              aircraftinfo.
 !   2020-05-04  wu   - no rotate_wind for fv3_regional
+!   2021-07-25 Genkova  - write AMVQ in diagnostic files 
+!   2021-10-xx  pondeca/morris/zhao - added observation provider/subprovider
+!                         information in diagonostic file, which is used
+!                         in offline observation quality control program (AutoObsQC) 
+!                         for 3D-RTMA (if l_obsprvdiag is true).
 !
 ! REMARKS:
 !   language: f90
@@ -287,7 +293,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   integer(i_kind) ihgt,ier2,iuse,ilate,ilone
   integer(i_kind) izz,iprvd,isprvd
   integer(i_kind) idomsfc,isfcr,iskint,iff10
-  integer(i_kind) ibb,ikk,ihil,idddd
+  integer(i_kind) ibb,ikk,ihil,idddd,iamvq
 
   integer(i_kind) num_bad_ikx,iprev_station
 
@@ -378,8 +384,9 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   icat=24     ! index of data level category
   ijb=25      ! index of non linear qc parameter
   ihil=26     ! index of  hilbert curve weight
-  iptrbu=27   ! index of u perturbation
-  iptrbv=28   ! index of v perturbation
+  iamvq=27    ! index of AMVQ
+  iptrbu=28   ! index of u perturbation
+  iptrbv=29   ! index of v perturbation
 
   mm1=mype+1
   scale=one
@@ -395,10 +402,13 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   if(conv_diagsave)then
      ii=0
      nchar=1
-     ioff0=25
+     ioff0=26
      nreal=ioff0
      if (lobsdiagsave) nreal=nreal+7*miter+2
-     if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
+     if (twodvar_regional .or. l_obsprvdiag) then
+       nreal=nreal+2                           ! account for idomsfc,izz
+       allocate(cprvstg(nobs),csprvstg(nobs))  ! obs provider info
+     endif
      if (save_jacobian) then
        nnz   = 2                   ! number of non-zero elements in dH(x)/dx profile
        nind   = 1
@@ -1485,13 +1495,13 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     if(binary_diag .and. ii>0)then
        write(7)' uv',nchar,nreal,ii,mype,ioff0
        write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
-       deallocate(cdiagbuf,rdiagbuf)
   
-       if (twodvar_regional) then
+       if (twodvar_regional .or. l_obsprvdiag) then
           write(7)cprvstg(1:ii),csprvstg(1:ii)
           deallocate(cprvstg,csprvstg)
        endif
     end if
+    deallocate(cdiagbuf,rdiagbuf)
   end if
 
 
@@ -1716,6 +1726,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         rdiagbuf(23,ii) = factw            ! 10m wind reduction factor
         rdiagbuf(24,ii) = 1.e+10_r_single  ! u spread (filled in by EnKF)
         rdiagbuf(25,ii) = 1.e+10_r_single  ! v spread (filled in by EnKF)
+        rdiagbuf(26,ii) = data(iamvq,i)    ! AMVQ mitigation flag for AMVs;only for GOES17,LHP issue 
 
         ioff=ioff0
         if (lobsdiagsave) then
@@ -1752,7 +1763,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            enddo
         endif
 
-        if (twodvar_regional) then
+        if (twodvar_regional .or. l_obsprvdiag) then
            ioff = ioff + 1
            rdiagbuf(ioff,ii) = data(idomsfc,i) ! dominate surface type
            ioff = ioff + 1
@@ -1802,7 +1813,8 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)     )
            call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
            call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
-
+           ! AMVQ Mitigated winds                                                  
+           call nc_diag_metadata("Mitigation_flag_AMVQ",    sngl(data(iamvq,i))    ) 
            call nc_diag_metadata("Wind_Reduction_Factor_at_10m", sngl(factw)       )
 
            if (.not. regional .or. fv3_regional) then
@@ -1826,10 +1838,14 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               call nc_diag_metadata("u_Observation",                              sngl(uob_e)           )
               call nc_diag_metadata("u_Obs_Minus_Forecast_adjusted",              sngl(dudiff_e)        )
               call nc_diag_metadata("u_Obs_Minus_Forecast_unadjusted",            sngl(uob_e-uges_e)    )
+              call nc_diag_metadata("u_Forecast_adjusted",                        sngl(uob_e-dudiff_e))
+              call nc_diag_metadata("u_Forecast_unadjusted",                      sngl(uges_e))
 
               call nc_diag_metadata("v_Observation",                              sngl(vob_e)           )
               call nc_diag_metadata("v_Obs_Minus_Forecast_adjusted",              sngl(dvdiff_e)        )
               call nc_diag_metadata("v_Obs_Minus_Forecast_unadjusted",            sngl(vob_e-vges_e)    )
+              call nc_diag_metadata("v_Forecast_adjusted",                        sngl(vob_e-dvdiff_e))
+              call nc_diag_metadata("v_Forecast_unadjusted",                      sngl(vges_e))
            endif
 
            if (lobsdiagsave) then
@@ -1852,7 +1868,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               !++ call nc_diag_data2d("ObsDiagSave_obssen",   vdiag%obssen   )
            endif
 
-           if (twodvar_regional) then
+           if (twodvar_regional .or. l_obsprvdiag) then
               call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i)              )
               call nc_diag_metadata("Model_Terrain",     data(izz,i)                  )
               r_prvstg            = data(iprvd,i)
@@ -1869,6 +1885,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               call nc_diag_data2d("v_Observation_Operator_Jacobian_val", real(dhx_dx_v%val,r_single))
            endif
 
+           call nc_diag_data2d("atmosphere_pressure_coordinate", exp(prsltmp)*r1000)
 
   end subroutine contents_netcdf_diag_
 

@@ -248,8 +248,8 @@ if [[ -e ${radstat} && -e ${biascr} ]]; then
         -o ${logfile} --ntasks=1 --mem=5g ${job} 
 
    elif [[ $MY_MACHINE = "wcoss2" ]]; then
-      $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -V \
-        -l select=1:mem=5000M -l walltime=20:00 -N ${jobname} ${job}
+      $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e ${LOGdir}/DE.${pdy}.${cyc}.err \
+        -V -l select=1:mem=5000M -l walltime=20:00 -N ${jobname} ${job}
    fi
 
 else  # radstat and/or biascr not found

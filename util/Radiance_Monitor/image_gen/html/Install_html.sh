@@ -52,12 +52,6 @@ fi
 
 
 #--------------------------------------------------------------
-#  source plot_rad_conf to get WEB_SVR, WEB_USER, WEBDIR
-#
-. ${RADMON_IMAGE_GEN}/parm/plot_rad_conf
-
-
-#--------------------------------------------------------------
 #  call the appropriate child script for glb or rgn
 #
 if [[ $RAD_AREA == "glb" ]]; then 

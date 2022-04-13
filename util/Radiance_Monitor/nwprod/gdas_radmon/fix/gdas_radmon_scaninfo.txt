@@ -47,6 +47,7 @@
  mhs_metop-c            -49.444     1.111       90
  iasi_metop-a           -48.330     3.334       60
  iasi_metop-b           -48.330     3.334       60
+ iasi_metop-c           -48.330     3.334       60
  cris_npp               -48.330     3.333       30 
  cris-fsr_npp           -48.330     3.333       30 
  cris-fsr_n20           -48.330     3.333       30 
@@ -54,10 +55,15 @@
  ssu                    -35.000    10.000       90
  hsb                    -48.950     1.100       90
  seviri_m08               0.00      1.00        90
+ seviri_m09               0.00      1.00        90
  seviri_m10               0.00      1.00        90
  seviri_m11               0.00      1.00        90
  saphir_meghat          -42.960     0.666      130
  abi_g16                  0.00      1.00        90
- ahi_himawari8            0.00      1.00        90
  abi_g17                  0.00      1.00        90
+ abi_g18                  0.00      1.00        90
+ ahi_himawari8            0.00      1.00        90
+ ahi_himawari9            0.00      1.00        90
+ atms_n21               -52.393     1.10        96
+ cris-fsr_n21           -48.130     3.333       30 
 !sat_sis                  start      step       nstep

@@ -187,8 +187,6 @@ project(GSI)
 # build the WRF I/O libraries
   if(DEFINED ENV{WRF_IO_LIB})
     set(wrflib "$ENV{WRF_IO_LIB}" CACHE INTERNAL "WRFIO library" )
-  elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/libsrc/wrflib)
-    add_subdirectory(libsrc/wrflib)
   else()
     message("libsrc/wrflib not pulled from git, looking for WRF dependencies locally")
     find_package( WRF )

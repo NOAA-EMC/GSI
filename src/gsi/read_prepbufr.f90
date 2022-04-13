@@ -475,7 +475,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   if(tob)then
      nreal=25
   else if(uvob) then 
-     nreal=26
+     nreal=27
   else if(spdob) then
      nreal=24
   else if(psob) then
@@ -2239,8 +2239,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(25,iout)=var_jb(5,k)            ! non linear qc parameter
                  cdata_all(26,iout)=one                    ! hilbert curve weight, modified later 
                  if(perturb_obs)then
-                    cdata_all(27,iout)=ran01dom()*perturb_fact ! u perturbation
-                    cdata_all(28,iout)=ran01dom()*perturb_fact ! v perturbation
+                    cdata_all(28,iout)=ran01dom()*perturb_fact ! u perturbation
+                    cdata_all(29,iout)=ran01dom()*perturb_fact ! v perturbation
                  endif
  
               else if(spdob) then 

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.12)
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     # I am top-level project.
     if( NOT DEFINED ENV{CC} )
@@ -66,6 +66,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     endif()
 
     cmake_policy(SET CMP0009 NEW)
+    cmake_policy(SET CMP0074 NEW)
     find_package(OpenMP)
     message("found openmp with flag ${OPENMP_Fortran_FLAGS}")
 
@@ -84,8 +85,8 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     find_package( W3NCO )
 
     set(BUILD_NCDIAG ON)
-    set(NCDIAG_INCS "${PROJECT_BINARY_DIR}/libsrc/ncdiag")
-    add_subdirectory(${PROJECT_SOURCE_DIR}/../../src/ncdiag ${PROJECT_BINARY_DIR}/libsrc/ncdiag)
+    set(NCDIAG_INCS "${PROJECT_BINARY_DIR}/src/ncdiag")
+    add_subdirectory(${PROJECT_SOURCE_DIR}/../../src/ncdiag ${PROJECT_BINARY_DIR}/src/ncdiag)
     set(NCDIAG_LIBRARIES ncdiag )
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 endif()

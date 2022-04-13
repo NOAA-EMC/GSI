@@ -39,54 +39,92 @@ allmissing=1
 cycdy=$((24/$CYCLE_INTERVAL))           # number cycles per day
 ndays=$(($NUM_CYCLES/$cycdy))		# number of days in plot period
 
-echo SATYPE=$SATYPE
-
 for type in ${SATYPE}; do
    found=0
-   finished=0
-   ctr=$ndays
    test_day=$PDATE
-
-   while [[ $found -eq 0 && $finished -ne 1 ]]; do
-
-      if [[ $REGIONAL_RR -eq 1 ]]; then         # REGIONAL_RR stores hrs 18-23 in next 
+   ctr=$ndays
+ 
+   while [[ ${found} -eq 0 && $ctr -gt 0 ]]; do
+ 
+      if [[ $REGIONAL_RR -eq 1 ]]; then         # REGIONAL_RR stores hrs 18-23 in next
          tdate=`$NDATE +6 ${test_day}`          # day's radmon.yyymmdd directory
-         pdy=`echo $test_day|cut -c1-8`
-         ieee_src=${TANKverf}/radmon.${pdy}
+         pdy=`echo $tdate|cut -c1-8`
+         cyc=`echo $tdate|cut -c9-10`
       else
-         pdy=`echo $test_day|cut -c1-8`    
-         ieee_src=${TANKverf}/${RUN}.${pdy}/${CYC}/${MONITOR}
+         pdy=`echo $test_day|cut -c1-8`
+         cyc=`echo $test_day|cut -c9-10`
+      fi
+ 
+
+      #---------------------------------------------------
+      #  Check to see if the *ctl* files are in $imgndir
+      #
+      nctl=`ls ${imgndir}/${type}*ctl* -1 | wc -l`
+      if [[ ( $USE_ANL -eq 1 && $nctl -ge 2 ) ||
+            ( $USE_ANL -eq 0 && $nctl -ge 1 ) ]]; then
+         found=1
+ 
+      else
+         #-------------------------
+         #  Locate $ieee_src
+         #
+         ieee_src=${TANKverf}/${RUN}.${pdy}/${cyc}/${MONITOR}
          if [[ ! -d ${ieee_src} ]]; then
             ieee_src=${TANKverf}/${RUN}.${pdy}/${MONITOR}
          fi
          if [[ ! -d ${ieee_src} ]]; then
             ieee_src=${TANKverf}/${RUN}.${pdy}
          fi
-      fi
-
-      echo "ieee_src =  with pdy = $pdy"
-
-      if [[ -s ${ieee_src}/angle.${type}.ctl.${Z} ]]; then
-         $NCP ${ieee_src}/angle.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
-         if [[ -s ${ieee_src}/angle.${type}_anl.ctl.${Z} ]]; then
-            $NCP ${ieee_src}/angle.${type}_anl.ctl.${Z} ${imgndir}/${type}_anl.ctl.${Z}
-         fi 
-         found=1
-
-      elif [[ -s ${ieee_src}/angle.${type}.ctl ]]; then
-         $NCP ${ieee_src}/angle.${type}.ctl ${imgndir}/${type}.ctl
-         if [[ -s ${ieee_src}/angle.${type}_anl.ctl ]]; then
-            $NCP ${ieee_src}/angle.${type}_anl.ctl ${imgndir}/${type}_anl.ctl
-         fi 
-         found=1
-      fi
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${MONITOR}.${pdy}
+         fi
  
-      if [[ $found -eq 0 ]]; then
+         using_tar=0
+         #----------------------------------------------------
+         #  Determine if the angle files are in a tar file
+         #  and, if so, extract the ctl files for this $type.
+         #
+         if [[ -s ${ieee_src}/radmon_angle.tar ]]; then
+            using_tar=1
+            ctl_list=`tar -tf ${ieee_src}/radmon_angle.tar | grep ${type} | grep ctl`
+            if [[ ${ctl_list} != "" ]]; then
+               cwd=`pwd`
+               cd ${ieee_src}
+               tar -xf ./radmon_angle.tar ${ctl_list}
+               cd ${cwd} 
+            fi
+         fi
+ 
+         #-------------------------------------------------
+         #  Copy the *ctl* files to $imgndir, dropping
+         #  'angle' from the file name.
+         #
+         ctl_files=`ls $ieee_src/angle.$type*.ctl*`
+         prefix='angle.'
+         for file in $ctl_files; do
+            newfile=`basename $file | sed -e "s/^$prefix//"`
+            $NCP ${file} ${imgndir}/${newfile}
+            found=1
+         done
+
+         #----------------------------------------------------------------
+         #  If there's a radmon_angle.tar archive in ${ieee_src} then
+         #  delete the extracted *ctl* files to leave just the tar files.
+         #
+         if [[ $using_tar -eq 1 ]]; then
+            rm -f ${ieee_src}/angle.${type}.ctl*
+            rm -f ${ieee_src}/angle.${type}_anl.ctl*
+         fi
+
+      fi
+
+      if [[ ${found} -eq 0 ]]; then
+	 #------------------------------------------
+	 #  Step to the previous day and try again.
+	 #
          if [[ $ctr -gt 0 ]]; then
             test_day=`$NDATE -24 ${pdy}00`
-            ctr=$(($ctr-1)) 
-         else
-            finished=1
+            ctr=$(($ctr-1))
          fi
       fi
    done
@@ -95,7 +133,9 @@ for type in ${SATYPE}; do
       allmissing=0
       found=1
    fi
+
 done
+
 
 if [[ $allmissing = 1 ]]; then
    echo ERROR:  Unable to plot.  All angle control files are missing from ${TANKverf} for requested date range.
@@ -107,26 +147,26 @@ fi
 #   Update the time definition (tdef) line in the angle control 
 #   files. 
 # 
-for type in ${SATYPE}; do
-   if [[ -s ${imgndir}/${type}.ctl.${Z} ]]; then
-     ${UNCOMPRESS} ${imgndir}/${type}.ctl.${Z}
-   fi
-   ${IG_SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${type}.ctl ${START_DATE} ${NUM_CYCLES}
-done
-
-
-#-------------------------------------------------------------------
-#  Separate the sources with a large number of channels.  These will
-#  be submitted in dedicated jobs, while the sources with a smaller
-#  number of channels will be submitted together.
-#
 for sat in ${SATYPE}; do
+   if [[ -s ${imgndir}/${sat}.ctl.${Z} ]]; then
+     ${UNCOMPRESS} ${imgndir}/${sat}.ctl.${Z}
+   fi
+   ${IG_SCRIPTS}/update_ctl_tdef.sh ${imgndir}/${sat}.ctl ${START_DATE} ${NUM_CYCLES}
+
+   #-------------------------------------------------------------------
+   #  Separate the sources with a large number of channels.  These will
+   #  be submitted in dedicated jobs, while the sources with a smaller
+   #  number of channels will be submitted together.
+   #
    nchanl=`cat ${imgndir}/${sat}.ctl | gawk '/title/{print $NF}'` 
+
    if [[ $nchanl -lt 100 ]]; then
       satlist=" $sat $satlist "
    else
       big_satlist=" $sat $big_satlist "
    fi
+
+   ${COMPRESS} ${imgndir}/${sat}.ctl
 done
 
 echo ""
@@ -180,9 +220,7 @@ done
 chmod 755 ${cmdfile}
 echo "CMDFILE:  ${cmdfile}"
 
-ntasks=`cat $cmdfile|wc -l `
 wall_tm="0:20"
-
 if [[ ${MY_MACHINE} = "wcoss_d" ]]; then
    $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 500 -W ${wall_tm} \
         -R "affinity[core]" -J ${jobname} -cwd ${PWD} $cmdfile
@@ -200,8 +238,8 @@ elif [[ ${MY_MACHINE} = "wcoss_c" ]]; then
         -J ${jobname} -cwd ${PWD} $cmdfile
 
 elif [[ $MY_MACHINE = "wcoss2" ]]; then
-   $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -V \
-        -l select=1:mem=1g -l walltime=30:00 -N ${jobname} ${cmdfile}
+   $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e ${LOGdir}/plot_angle_${suffix}.err \
+	-V -l select=1:mem=1g -l walltime=30:00 -N ${jobname} ${cmdfile}
 fi
 
 
@@ -218,7 +256,7 @@ echo "starting big_satlist"
 for sat in ${big_satlist}; do
    echo processing $sat in $big_satlist
 
-   if [[ ${MY_MACHINE} = "wcoss_d" || $MY_MACHINE = "wcoss_c" ]]; then 	
+   if [[ ${MY_MACHINE} = "wcoss_d" || $MY_MACHINE = "wcoss_c" || $MY_MACHINE = "wcoss2" ]]; then 	
 
       cmdfile=${PLOT_WORK_DIR}/cmdfile_pangle_${sat}
       if [[ -e ${cmdfile} ]]; then
@@ -229,23 +267,32 @@ for sat in ${big_satlist}; do
 
       jobname=plot_${RADMON_SUFFIX}_ang_${sat}
       logfile=${LOGdir}/plot_angle_${sat}.log
-      ntasks=`cat $cmdfile|wc -l `
-      echo "ntasks = $ntasks"
+      if [[ -e ${logfile} ]]; then 
+         rm ${logfile}
+      fi
 
       wall_tm="0:30"
 
       if [[ $MY_MACHINE = "wcoss_d" ]]; then
-         mem="12000"
-         $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M ${mem} -W ${wall_tm} \
-              -R "affinity[core]" -J ${jobname} -cwd ${PWD} $cmdfile
+         $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -W ${wall_tm} \
+              -R "affinity[core]" -R "rusage[mem=10000]" -J ${jobname} -cwd ${PWD} $cmdfile
 
       elif [[ $MY_MACHINE = "wcoss_c" ]]; then
          $SUB -q $JOB_QUEUE -P $PROJECT -o ${logfile} -M 600 -W ${wall_tm} \
               -J ${jobname} -cwd ${PWD} $cmdfile
+
+      elif [[ $MY_MACHINE = "wcoss2" ]]; then
+         errfile=${LOGdir}/plot_angle_${sat}.err
+         if [[ -e ${errfile} ]]; then
+            rm ${errfile}
+         fi
+         $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e ${LOGdir}/plot_angle_${sat}.err \
+              -V -l select=1:mem=1g -l walltime=30:00 -N ${jobname} ${cmdfile}
       fi
 
-
-   elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "jet" || $MY_MACHINE = "s4" ]]; then		# hera|jet|s4, submit 1 job for each sat/list item
+   #---------------------------------------------------
+   #  hera|jet|s4, submit 1 job for each sat/list item
+   elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "jet" || $MY_MACHINE = "s4" ]]; then		
 
       ii=0
       logfile=${LOGdir}/plot_angle_${sat}.log
@@ -260,7 +307,10 @@ for sat in ${big_satlist}; do
          (( ii=ii+1 ))
       done
 
-      if [[ ! $MY_MACHINE = "jet" ]]; then
+      if [[ $MY_MACHINE = "hera" ]]; then
+         $SUB --account ${ACCOUNT} -n $ii  -o ${logfile} -D . -J ${jobname} --time=4:00:00 \
+              --mem=0 --wrap "srun -l --multi-prog ${cmdfile}"
+      elif [[ $MY_MACHINE = "s4" ]]; then
          $SUB --account ${ACCOUNT} -n $ii  -o ${logfile} -D . -J ${jobname} --time=4:00:00 \
               --wrap "srun -l --multi-prog ${cmdfile}"
       else

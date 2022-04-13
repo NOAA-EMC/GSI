@@ -27,63 +27,103 @@ fi
 #  then $TANKverf/radmon.$pdy.
 #
 allmissing=1
-pdy=`echo $PDATE|cut -c1-8`
-cyc=`echo $PDATE|cut -c9-10`
 
 cycdy=$((24/$CYCLE_INTERVAL))		# number cycles per day
 ndays=$(($NUM_CYCLES/$cycdy))		# number days in plot period
 
 test_day=$PDATE
 
+#--------------------------------------------------------
+#  Verify there are control files available in $imgndir 
+#  for everything in $SATYPE.
+#
 for type in ${SATYPE}; do
    found=0
-   finished=0
    test_day=$PDATE
    ctr=$ndays
 
-   while [[ ${found} -eq 0 && $finished -ne 1 ]]; do
+   while [[ ${found} -eq 0 && $ctr -gt 0 ]]; do
 
       if [[ $REGIONAL_RR -eq 1 ]]; then		# REGIONAL_RR stores hrs 18-23 in next 
          tdate=`$NDATE +6 ${test_day}`		# day's radmon.yyymmdd directory
-         pdy=`echo $test_day|cut -c1-8`
+         pdy=`echo $tdate|cut -c1-8`
+         cyc=`echo $tdate|cut -c9-10`
       else
          pdy=`echo $test_day|cut -c1-8`
+         cyc=`echo $test_day|cut -c9-10`
       fi
 
-      ieee_src=${TANKverf}/${RUN}.${pdy}/${cyc}/${MONITOR}
-      if [[ ! -d ${ieee_src} ]]; then
-         ieee_src=${TANKverf}/${RUN}.${pdy}/${MONITOR}
-      fi
-      if [[ ! -d ${ieee_src} ]]; then
-         ieee_src=${TANKverf}/${RUN}.${pdy}
-      fi
-      if [[ ! -d ${ieee_src} ]]; then
-         ieee_src=${TANKverf}/${MONITOR}.${pdy}
-      fi
 
-      if [[ -s ${ieee_src}/time.${type}.ctl.${Z} ]]; then
-         $NCP ${ieee_src}/time.${type}.ctl.${Z} ${imgndir}/${type}.ctl.${Z}
-         if [[ -s ${ieee_src}/time.${type}_anl.ctl.${Z} ]]; then
-            $NCP ${ieee_src}/time.${type}_anl.ctl.${Z} ${imgndir}/${type}_anl.ctl.${Z}
-         fi
+      #---------------------------------------------------
+      #  Check to see if the *ctl* files are in $imgndir
+      #
+      nctl=`ls ${imgndir}/${type}*ctl* -1 | wc -l`
+      if [[ ( $USE_ANL -eq 1 && $nctl -ge 2 ) || ( $USE_ANL -eq 0 && $nctl -ge 1 ) ]]; then
          found=1
-      elif [[ -s ${ieee_src}/time.${type}.ctl ]]; then
-         $NCP ${ieee_src}/time.${type}.ctl ${imgndir}/${type}.ctl
-         if [[ -s ${ieee_src}/time.${type}_anl.ctl ]]; then
-            $NCP ${ieee_src}/time.${type}_anl.ctl ${imgndir}/${type}_anl.ctl
+
+      else
+
+         #-------------------------
+         #  Locate $ieee_src 
+         #
+         ieee_src=${TANKverf}/${RUN}.${pdy}/${cyc}/${MONITOR}
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${RUN}.${pdy}/${MONITOR}
          fi
-         found=1
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${RUN}.${pdy}
+         fi
+         if [[ ! -d ${ieee_src} ]]; then
+            ieee_src=${TANKverf}/${MONITOR}.${pdy}
+         fi
+
+         using_tar=0
+         #--------------------------------------------------
+         #  Determine if the time files are in an tar file.
+         #  if so extract the ctl files for this $type.
+         #
+         if [[ -s ${ieee_src}/radmon_time.tar ]]; then
+            using_tar=1
+            ctl_list=`tar -tf ${ieee_src}/radmon_time.tar | grep $type | grep ctl`
+            if [[ ${ctl_list} != "" ]]; then
+               cwd=`pwd`
+               cd ${ieee_src}
+               ctl_list=`tar -tf ./radmon_time.tar | grep $type | grep ctl`
+               tar -xf ${ieee_src}/radmon_time.tar ${ctl_list}            
+               cd ${cwd}
+            fi
+         fi
+
+         #--------------------------------------------------
+         #  Copy the *ctl* files to $imgndir, dropping
+         #  'time.' from the file name.
+         #
+         ctl_files=`ls $ieee_src/time.$type*.ctl*`
+         prefix='time.'
+         for file in $ctl_files; do
+            newfile=`basename $file | sed -e "s/^$prefix//"`
+            $NCP ${file} ${imgndir}/${newfile}
+            found=1
+         done
+
+         #------------------------------------------------------
+         #  If there's a radmon_time.tar archive in ${ieee_src} 
+         #  then delete the extracted *ctl* files.
+         if [[ $using_tar -eq 1 ]]; then
+            rm -f ${ieee_src}/time.${type}.ctl*
+            rm -f ${ieee_src}/time.${type}_anl.ctl*
+         fi 
+          
       fi
 
       if [[ ${found} -eq 0 ]]; then
          if [[ $ctr -gt 0 ]]; then
             test_day=`$NDATE -24 ${pdy}00`
             ctr=$(($ctr-1))
-         else
-            finished=1
          fi
       fi
    done
+
 
    if [[ -s ${imgndir}/${type}.ctl.${Z} || -s ${imgndir}/${type}.ctl ]]; then
       allmissing=0
@@ -152,7 +192,7 @@ elif [[ ${MY_MACHINE} = "jet" ]]; then
           --partition ${RADMON_PARTITION} -o ${logfile} ${IG_SCRIPTS}/plot_summary.sh
 
 elif [[ $MY_MACHINE = "wcoss2" ]]; then
-   $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -V \
+   $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e ${LOGdir}/plot_summary.err -V \
           -l select=1:mem=1g -l walltime=10:00 -N ${jobname} ${IG_SCRIPTS}/plot_summary.sh
 fi
 
@@ -182,58 +222,58 @@ list="count penalty omgnbc total omgbc"
 #  Build command file and submit plot job for intruments not on 
 #    the bigSAT list.
 #
+suffix=a
+jobname=plot_${RADMON_SUFFIX}_tm_${suffix}
 
-   suffix=a
-   cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${suffix}
-   jobname=plot_${RADMON_SUFFIX}_tm_${suffix}
-   logfile=${LOGdir}/plot_time_${suffix}.log
-
+cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${suffix}
+if [[ -e ${cmdfile} ]]; then
    rm -f $cmdfile
+fi
+
+logfile=${LOGdir}/plot_time_${suffix}.log
+if [[ -e ${logfile} ]]; then
    rm ${logfile}
+fi
 
 >$cmdfile
 
-   ctr=0
+ctr=0
 
-   for sat in ${SATLIST}; do
-      if [[ ${MY_MACHINE} = "hera" || ${MY_MACHINE} = "jet" || ${MY_MACHINE} = "s4" ]]; then
-         echo "${ctr} $IG_SCRIPTS/plot_time.sh $sat $suffix '$list'" >> $cmdfile
-      else
-         echo "$IG_SCRIPTS/plot_time.sh $sat $suffix '$list'" >> $cmdfile
-      fi
-      ((ctr=ctr+1))
-   done
-
-   chmod 755 $cmdfile
-
-   if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
-      wall_tm="2:30"
+for sat in ${SATLIST}; do
+   if [[ ${MY_MACHINE} = "hera" || ${MY_MACHINE} = "jet" || ${MY_MACHINE} = "s4" ]]; then
+      echo "${ctr} $IG_SCRIPTS/plot_time.sh $sat $suffix '$list'" >> $cmdfile
    else
-      wall_tm="0:45"
+      echo "$IG_SCRIPTS/plot_time.sh $sat $suffix '$list'" >> $cmdfile
    fi
+   ((ctr=ctr+1))
+done
+chmod 755 $cmdfile
 
-   if [[ $MY_MACHINE = "wcoss_d" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -R affinity[core] -o ${logfile} \
-           -W ${wall_tm} -J ${jobname} -cwd ${PWD} ${cmdfile}
+wall_tm="0:45"
+if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+   wall_tm="2:30"
+fi
 
-   elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "s4" ]]; then
-      echo "using ctr = ${ctr}"
-      $SUB --account ${ACCOUNT} -n ${ctr}  -o ${logfile} -D . -J ${jobname} --time=1:00:00 \
-           --wrap "srun -l --multi-prog ${cmdfile}"
+if [[ $MY_MACHINE = "wcoss_d" ]]; then
+   $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -R affinity[core] -o ${logfile} \
+        -W ${wall_tm} -J ${jobname} -cwd ${PWD} ${cmdfile}
 
-   elif [[ $MY_MACHINE = "jet" ]]; then
-      echo "using ctr = ${ctr}"
-      $SUB --account ${ACCOUNT} -n ${ctr}  -o ${logfile} -D . -J ${jobname} --time=1:00:00 \
-           -p ${RADMON_PARTITION} --wrap "srun -l --multi-prog ${cmdfile}"
+elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "s4" ]]; then
+   $SUB --account ${ACCOUNT} -n ${ctr}  -o ${logfile} -D . -J ${jobname} --time=1:00:00 \
+        --wrap "srun -l --multi-prog ${cmdfile}"
 
-   elif [[ ${MY_MACHINE} = "wcoss_c" ]]; then
-      $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -o ${logfile} -W ${wall_tm} \
-           -J ${jobname} -cwd ${PWD} ${cmdfile}
+elif [[ $MY_MACHINE = "jet" ]]; then
+   $SUB --account ${ACCOUNT} -n ${ctr}  -o ${logfile} -D . -J ${jobname} --time=1:00:00 \
+        -p ${RADMON_PARTITION} --wrap "srun -l --multi-prog ${cmdfile}"
 
-   elif [[ $MY_MACHINE = "wcoss2" ]]; then
-      $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -V \
-           -l select=1:mem=1g -l walltime=1:00:00 -N ${jobname} ${cmdfile}
-   fi
+elif [[ ${MY_MACHINE} = "wcoss_c" ]]; then
+   $SUB -q $JOB_QUEUE -P $PROJECT -M 500 -o ${logfile} -W ${wall_tm} \
+        -J ${jobname} -cwd ${PWD} ${cmdfile}
+
+elif [[ $MY_MACHINE = "wcoss2" ]]; then
+   $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e ${LOGdir}/plot_time_${suffix}.err -V \
+        -l select=1:mem=1g -l walltime=1:00:00 -N ${jobname} ${cmdfile}
+fi
       
 
 
@@ -244,54 +284,62 @@ list="count penalty omgnbc total omgbc"
 #    data that a separate job for each provides a faster solution.
 #   
 #---------------------------------------------------------------------------
-   for sat in ${bigSATLIST}; do 
+for sat in ${bigSATLIST}; do 
+   jobname=plot_${RADMON_SUFFIX}_tm_${sat}
 
-      cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
-      jobname=plot_${RADMON_SUFFIX}_tm_${sat}
-      logfile=${LOGdir}/plot_time_${sat}.log
-
-      rm -f ${logfile}
+   cmdfile=${PLOT_WORK_DIR}/cmdfile_ptime_${sat}
+   if [[ -e ${cmdfile} ]]; then
       rm -f ${cmdfile}
+   fi
 
-      ctr=0 
-      for var in $list; do
-         if [[ ${MY_MACHINE} = "hera" || ${MY_MACHINE} = "jet" || ${MY_MACHINE} = "s4" ]]; then
-            echo "${ctr} $IG_SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
-         else
-            echo "$IG_SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
-         fi
-         ((ctr=ctr+1))
-      done
-      chmod 755 $cmdfile
+   logfile=${LOGdir}/plot_time_${sat}.log
+   if [[ -e ${logfile} ]]; then
+      rm -f ${logfile}
+   fi
 
-      if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
-         wall_tm="2:30"
+   ctr=0 
+   for var in $list; do
+      if [[ ${MY_MACHINE} = "hera" || ${MY_MACHINE} = "jet" || ${MY_MACHINE} = "s4" ]]; then
+         echo "${ctr} $IG_SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
       else
-         wall_tm="1:00"
+         echo "$IG_SCRIPTS/plot_time.sh $sat $var $var" >> $cmdfile
       fi
-
-      if [[ $MY_MACHINE = "wcoss_d" ]]; then
-         $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -R affinity[core] -o ${logfile} \
-              -W ${wall_tm} -J ${jobname} -cwd ${PWD} ${cmdfile}
-
-      elif [[ ${MY_MACHINE} = "wcoss_c" ]]; then
-         $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -o ${logfile} -W ${wall_tm} \
-              -J ${jobname} -cwd ${PWD} ${cmdfile}
-
-      elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "s4" ]]; then
-         $SUB --account ${ACCOUNT} -n ${ctr}  -o ${logfile} -D . -J ${jobname} --time=4:00:00 \
-              --wrap "srun -l --multi-prog ${cmdfile}"
-
-      elif [[ $MY_MACHINE = "jet" ]]; then
-         $SUB --account ${ACCOUNT} -n ${ctr}  -o ${logfile} -D . -J ${jobname} --time=4:00:00 \
-              -p ${RADMON_PARTITION} --wrap "srun -l --multi-prog ${cmdfile}"
-
-      elif [[ $MY_MACHINE = "wcoss2" ]]; then
-         $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -V \
-              -l select=1:mem=1g -l walltime=1:30:00 -N ${jobname} ${cmdfile}
-      fi
-
+      ((ctr=ctr+1))
    done
+   chmod 755 $cmdfile
+
+   wall_tm="1:00"
+   if [[ $PLOT_ALL_REGIONS -eq 1 || $ndays -gt 30 ]]; then
+      wall_tm="2:30"
+   fi
+
+   if [[ $MY_MACHINE = "wcoss_d" ]]; then
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -R affinity[core] -o ${logfile} \
+           -W ${wall_tm} -J ${jobname} -cwd ${PWD} ${cmdfile}
+
+   elif [[ ${MY_MACHINE} = "wcoss_c" ]]; then
+      $SUB -q $JOB_QUEUE -P $PROJECT -M 500  -o ${logfile} -W ${wall_tm} \
+           -J ${jobname} -cwd ${PWD} ${cmdfile}
+
+   elif [[ $MY_MACHINE = "hera" || $MY_MACHINE = "s4" ]]; then
+      $SUB --account ${ACCOUNT} -n ${ctr}  -o ${logfile} -D . -J ${jobname} --time=4:00:00 \
+           --wrap "srun -l --multi-prog ${cmdfile}"
+
+   elif [[ $MY_MACHINE = "jet" ]]; then
+      $SUB --account ${ACCOUNT} -n ${ctr}  -o ${logfile} -D . -J ${jobname} --time=4:00:00 \
+           -p ${RADMON_PARTITION} --wrap "srun -l --multi-prog ${cmdfile}"
+
+   elif [[ $MY_MACHINE = "wcoss2" ]]; then
+      logfile=${LOGdir}/plot_time_${sat}.log
+      if [[ -e ${logfile} ]]; then
+         rm ${logfile}
+      fi
+
+      $SUB -q $JOB_QUEUE -A $ACCOUNT -o ${logfile} -e ${LOGdir}/plot_time_${sat}.err -V \
+           -l select=1:mem=1g -l walltime=1:30:00 -N ${jobname} ${cmdfile}
+   fi
+
+done
 
 
 echo End mk_time_plots.sh

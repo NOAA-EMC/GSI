@@ -286,8 +286,8 @@ if [[ $RUN_TRANSFER -eq 1 ]]; then
 	    cmdfile=transfer_cmd
 	    echo "${IG_SCRIPTS}/Transfer.sh --nosrc ${RADMON_SUFFIX}" >$cmdfile
 
-	    $SUB -q $transfer_queue -A $ACCOUNT -o ${transfer_log} -V \
-	         -l select=1:mem=500M -l walltime=45:00 -N ${jobname} ${cmdfile}
+	    $SUB -q $transfer_queue -A $ACCOUNT -o ${transfer_log} -e ${LOGdir}/Transfer_${RADMON_SUFFIX}.err 
+	         -V -l select=1:mem=500M -l walltime=45:00 -N ${jobname} ${cmdfile}
 
 	 else
             $SUB -P $PROJECT -q $transfer_queue -o ${transfer_log} -M 80 -W 0:45 \

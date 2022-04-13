@@ -143,6 +143,7 @@ contains
   character(10) date
   character(8) subset
   character(8) c_station_id,id_station
+  character(8) c_prvstg,c_sprvstg
 ! character(8) stnid
   character(8) stntype
 
@@ -198,11 +199,14 @@ contains
   real(r_double),dimension(2,maxlevs):: levdat
   real(r_double),dimension(8,maxlevs):: var_jb,obserr
   real(r_double),dimension(8,maxlevs):: obsdat
+  real(r_double) :: r_prvstg,r_sprvstg
 
   logical newstation,toocold
 
 
 !  equivalence to handle character names
+  equivalence(r_prvstg,c_prvstg)
+  equivalence(r_sprvstg,c_sprvstg)
   equivalence(rstation_id,c_station_id)
   equivalence(r_station,id_station)
 
@@ -220,6 +224,8 @@ contains
   
   print_verbose=.false.
   if(verbose) print_verbose=.true.
+  c_prvstg = '88888888'
+  c_sprvstg = 'HDRAOB'
 
 ! Initialize variables
 
@@ -976,8 +982,8 @@ contains
                  cdata_all(19,iout)=stnelev                ! station elevation (m)
                  cdata_all(20,iout)=levdat(2,k)            ! observation height (m)
                  cdata_all(21,iout)=zz                     ! terrain height at ob location
-                 cdata_all(22,iout)='88888888'             ! provider name
-                 cdata_all(23,iout)='HDRAOB'               ! subprovider name
+                 cdata_all(22,iout)=r_prvstg               ! provider name
+                 cdata_all(23,iout)=r_sprvstg              ! subprovider name
                  cdata_all(24,iout)=2                      ! cat
                  cdata_all(25,iout)=var_jb(3,k)            ! non linear qc for T
                  if(perturb_obs)cdata_all(nreal,iout)=ran01dom()*perturb_fact ! t perturbation
@@ -1075,8 +1081,8 @@ contains
                  cdata_all(19,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
                  cdata_all(20,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
                  cdata_all(21,iout)=zz                     ! terrain height at ob location
-                 cdata_all(22,iout)='88888888'             ! provider name
-                 cdata_all(23,iout)='HDRAOB'               ! subprovider name
+                 cdata_all(22,iout)=r_prvstg               ! provider name
+                 cdata_all(23,iout)=r_sprvstg              ! subprovider name
                  cdata_all(24,iout)=2                      ! cat
                  cdata_all(25,iout)=var_jb(5,k)            ! non linear qc parameter
                  cdata_all(26,iout)=one                    ! hilbert curve weight, modified later 
@@ -1157,8 +1163,8 @@ contains
                  cdata_all(17,iout)=stnelev                ! station elevation (m)
                  cdata_all(18,iout)=levdat(2,k)            ! observation height (m)
                  cdata_all(19,iout)=zz                     ! terrain height at ob location
-                 cdata_all(20,iout)='88888888'             ! provider name
-                 cdata_all(21,iout)='HDRAOB'               ! subprovider name
+                 cdata_all(20,iout)=r_prvstg               ! provider name
+                 cdata_all(21,iout)=r_sprvstg              ! subprovider name
                  cdata_all(22,iout)=2                      ! cat
                  cdata_all(23,iout)=var_jb(2,k)            ! non linear qc b parameter
                  if(perturb_obs)cdata_all(24,iout)=ran01dom()*perturb_fact ! q perturbation
@@ -1222,8 +1228,8 @@ contains
                  cdata_all(15,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
                  cdata_all(16,iout)=stnelev                ! station elevation (m)
                  cdata_all(17,iout)=zz                     ! terrain height at ob location
-                 cdata_all(18,iout)='88888888'             ! provider name
-                 cdata_all(19,iout)='HDRAOB'               ! subprovider name
+                 cdata_all(18,iout)=r_prvstg               ! provider name
+                 cdata_all(19,iout)=r_sprvstg              ! subprovider name
                  cdata_all(20,iout)=var_jb(1,k)            ! non linear qc b parameter
                  if(perturb_obs)cdata_all(21,iout)=ran01dom()*perturb_fact ! ps perturbation
                  if (twodvar_regional) &
