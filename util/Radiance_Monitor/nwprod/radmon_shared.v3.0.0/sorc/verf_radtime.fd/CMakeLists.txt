@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16.2)
   file(GLOB RADMON_TIME_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
-  set(RADMON_TIME_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 -traceback -D_REAL8_ ")
+  set(RADMON_TIME_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 -g -traceback -D_REAL8_ ")
   set(Util_MODULE_DIR ${PROJECT_BINARY_DIR}/include/radmon_time )
   set_source_files_properties( ${RADMON_TIME_SRC} PROPERTIES COMPILE_FLAGS ${RADMON_TIME_Fortran_FLAGS} )
   add_executable(radmon_time.x  ${RADMON_TIME_SRC} )
