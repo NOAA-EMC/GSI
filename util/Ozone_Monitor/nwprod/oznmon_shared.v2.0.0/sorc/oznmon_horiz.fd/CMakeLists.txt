@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16.1)
   file(GLOB OZNMON_HORIZ_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
-  set(OZNMON_HORIZ_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 ")
+  set(OZNMON_HORIZ_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 -g -traceback ")
   set_source_files_properties( ${OZNMON_HORIZ_SRC} PROPERTIES COMPILE_FLAGS ${OZNMON_HORIZ_Fortran_FLAGS} )
   set(Util_MODULE_DIR ${PROJECT_BINARY_DIR}/include/oznmon_horiz )
   add_executable(oznmon_horiz.x  ${OZNMON_HORIZ_SRC} )

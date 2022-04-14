@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16.1)
   file(GLOB OZNMON_TIME_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
-  set(OZNMON_TIME_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 ")
+  set(OZNMON_TIME_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 -g -traceback ")
   set(Util_MODULE_DIR ${PROJECT_BINARY_DIR}/include/oznmon_time )
   set_source_files_properties( ${OZNMON_TIME_SRC} PROPERTIES COMPILE_FLAGS ${OZNMON_TIME_Fortran_FLAGS} )
   add_executable(oznmon_time.x  ${OZNMON_TIME_SRC} )
