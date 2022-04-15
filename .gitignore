@@ -4,3 +4,7 @@ install*/
 *.[aox]
 *.mod
 .DS_Store
+
+log*
+build.log*
+install.log*

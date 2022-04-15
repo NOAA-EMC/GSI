@@ -105,7 +105,11 @@ case $(hostname -f) in
   login01.expanse.sdsc.edu) MACHINE_ID=expanse ;; ### expanse1
   login02.expanse.sdsc.edu) MACHINE_ID=expanse ;; ### expanse2
 
-  discover.nccs.nasa.gov) MACHINE_ID=discover ;; ### discover
+  discover31.prv.cube) MACHINE_ID=discover ;; ### discover
+  discover32.prv.cube) MACHINE_ID=discover ;; ### discover
+  discover33.prv.cube) MACHINE_ID=discover ;; ### discover
+  discover34.prv.cube) MACHINE_ID=discover ;; ### discover
+  discover35.prv.cube) MACHINE_ID=discover ;; ### discover
 esac
 
 # Overwrite auto-detect with RT_MACHINE if set

@@ -22,10 +22,8 @@ module load hpc/1.1.0
 module load hpc-gnu/9.2.0
 module load hpc-mpich/3.3.2
 
-# Load python
-#  Note:  anaconda/2.3.0 requires intel be loaded prior to anaconda
-module use -a /contrib/anaconda/modulefiles
-module load anaconda/2.3.0
+# Use Intel MKL
+setenv MKLROOT "/apps/oneapi/mkl/2022.0.2"
 
 # Load production utilities
 module load prod_util/1.2.2
@@ -33,7 +31,7 @@ module load prod_util/1.2.2
 module load netcdf/4.7.4
 
 # Load nceplibs
-module load bufr/11.4.0
+module load bufr/11.5.0
 module load ip/3.3.3
 module load nemsio/2.5.2
 module load sfcio/1.4.1
@@ -44,8 +42,3 @@ module load bacio/2.4.1
 module load crtm/2.3.0
 module load wrf_io/1.2.0
 module load ncio/1.0.0
-
-# Compiler flags specific to this platform
-setenv CFLAGS "-xHOST"
-setenv FFLAGS "-xHOST"
-
