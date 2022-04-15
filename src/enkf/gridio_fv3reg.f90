@@ -55,10 +55,12 @@ module gridio
   !-------------------------------------------------------------------------
   
   integer(i_kind) ,parameter:: ndynvarslist=6, ntracerslist=8
-  character(len=max_varname_length), parameter :: vardynvars(ndynvarslist) =(/"u","v", &
-                                "T","W","DZ","delp"/) 
-  character(len=max_varname_length), parameter :: vartracers(ntracerslist) =(/'sphum','o3mr', &
-                                'liq_wat','ice_wat','rainwat','snowwat','graupel','rain_nc'/)
+  character(len=max_varname_length), parameter, dimension(ndynvarslist) :: &
+    vardynvars = [character(len=max_varname_length) :: &
+      'u', 'v', 'T', 'W', 'DZ', 'delp']
+  character(len=max_varname_length), parameter, dimension(ntracerslist) :: &
+    vartracers = [character(len=max_varname_length) :: &
+      'sphum','o3mr', 'liq_wat','ice_wat','rainwat','snowwat','graupel','rain_nc']
   type type_fv3lamfile 
        logical l_filecombined
        character(len=max_varname_length), dimension(2):: fv3lamfilename

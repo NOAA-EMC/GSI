@@ -29,8 +29,14 @@ endif()
 option(OPENMP "Enable OpenMP Threading" OFF)
 option(ENABLE_MKL "Use MKL for LAPACK implementation (if available)" ON)
 
+set(ENKF_VALID_MODES "GFS" "WRF" "NMMB" "FV3REG")
 set(ENKF_MODE "GFS" CACHE STRING "Choose the EnKF Application.")
-set_property(CACHE ENKF_MODE PROPERTY STRINGS "GFS" "WRF" "NMMB" "FV3REG")
+set_property(CACHE ENKF_MODE PROPERTY STRINGS ${ENKF_VALID_MODES})
+
+# Ensure valid ENKF_MODE is selected
+if(NOT ENKF_MODE IN_LIST ENKF_VALID_MODES)
+  message(FATAL_ERROR "ENKF_MODE must be one of ${ENKF_VALID_MODES}")
+endif()
 
 # Echo user options
 message(STATUS "EnKF: OPENMP ................. ${OPENMP}")

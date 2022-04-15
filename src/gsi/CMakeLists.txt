@@ -30,8 +30,14 @@ option(OPENMP "Enable OpenMP Threading" OFF)
 option(ENABLE_MKL "Use MKL for LAPACK implementation (if available)" ON)
 option(USE_GSDCLOUD "Use GSD Cloud Analysis library" OFF)
 
+set(GSI_VALID_MODES "GFS" "Regional")
 set(GSI_MODE "GFS" CACHE STRING "Choose the GSI Application.")
-set_property(CACHE GSI_MODE PROPERTY STRINGS "GFS" "Regional")
+set_property(CACHE GSI_MODE PROPERTY STRINGS ${GSI_VALID_MODES})
+
+# Ensure valid GSI_MODE is selected
+if(NOT GSI_MODE IN_LIST GSI_VALID_MODES)
+  message(FATAL_ERROR "GSI_MODE must be one of ${GSI_VALID_MODES}")
+endif()
 
 # Echo user options
 message(STATUS "GSI: OPENMP ................. ${OPENMP}")
