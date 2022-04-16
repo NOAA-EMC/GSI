@@ -1,7 +1,10 @@
+# No utility code here depends on the GSI library
 if(BUILD_UTIL_ENKF_GFS)
   add_subdirectory(gfs)
 endif()
 
+# Utility code here depends on the GSI library
+# Specifically GSI_MODE=Regional
 if(BUILD_UTIL_ENKF_ARW)
   if(NOT TARGET gsi)
     if(NOT gsi_FOUND)

@@ -30,6 +30,7 @@ option(OPENMP "Enable OpenMP Threading" OFF)
 option(ENABLE_MKL "Use MKL for LAPACK implementation (if available)" ON)
 
 # Build options
+option(BUILD_UTIL_ALL "Build all utilities" OFF)
 option(BUILD_UTIL_AERODA "Build Aerosol DA utilities" OFF)
 option(BUILD_UTIL_COV_CALC "Build Correlated Observation Error Utility" OFF)
 option(BUILD_UTIL_EFSOI "Build EFSOI Utilities" OFF)
@@ -39,6 +40,22 @@ option(BUILD_UTIL_MON "Build Monitoring Utilities" OFF)
 option(BUILD_UTIL_NCIO "Build NetCDF IO Utilities" OFF)
 option(BUILD_UTIL_COM "Build community utilities" OFF)
 option(BUILD_UTIL_BKGERR "Build Background Error Utilities" OFF)
+option(BUILD_UTIL_ETC "Build Miscellaneous Utilities" OFF)
+
+# If building all utils, then force all options to ON
+# Exception is BUILD_UTIL_ENKF_ARW, since it is incompatible with GSI_MODE=GFS
+if (BUILD_UTIL_ALL)
+  set(BUILD_UTIL_AERODA ON CACHE BOOL "Build Aerosol DA utilities" FORCE)
+  set(BUILD_UTIL_COV_CALC ON CACHE BOOL "Build Correlated Observation Error Utility" FORCE)
+  set(BUILD_UTIL_EFSOI ON CACHE BOOL "Build EFSOI Utilities" FORCE)
+  set(BUILD_UTIL_ENKF_GFS ON CACHE BOOL "Build EnKF GFS Utilities" FORCE)
+  set(BUILD_UTIL_ENKF_ARW OFF CACHE BOOL "Build EnKF ARW Utilities" FORCE)
+  set(BUILD_UTIL_MON ON CACHE BOOL "Build Monitoring Utilities" FORCE)
+  set(BUILD_UTIL_NCIO ON CACHE BOOL "Build NetCDF IO Utilities" FORCE)
+  set(BUILD_UTIL_COM ON CACHE BOOL "Build community utilities" FORCE)
+  set(BUILD_UTIL_BKGERR ON CACHE BOOL "Build Background Error Utilities" FORCE)
+  set(BUILD_UTIL_ETC ON CACHE BOOL "Build Miscellaneous Utilities" FORCE)
+endif()
 
 # Echo user options
 message(STATUS "Utils: OPENMP ................. ${OPENMP}")
@@ -52,6 +69,7 @@ message(STATUS "Utils: BUILD_UTIL_MON ......... ${BUILD_UTIL_MON}")
 message(STATUS "Utils: BUILD_UTIL_NCIO ........ ${BUILD_UTIL_NCIO}")
 message(STATUS "Utils: BUILD_UTIL_COM ......... ${BUILD_UTIL_COM}")
 message(STATUS "Utils: BUILD_UTIL_BKGERR ...... ${BUILD_UTIL_BKGERR}")
+message(STATUS "Utils: BUILD_UTIL_ETC ......... ${BUILD_UTIL_ETC}")
 
 # Dependencies
 if(ENABLE_MKL)
@@ -135,10 +153,11 @@ if(BUILD_UTIL_MON)
   add_subdirectory(Radiance_Monitor)
 endif()
 
-# These don't fall into any category
-add_subdirectory(FOV_utilities)
-add_subdirectory(Single_Observation)
-add_subdirectory(zero_biascoeff)
+if(BUILD_UTIL_ETC)
+  add_subdirectory(FOV_utilities)
+  add_subdirectory(Single_Observation)
+  add_subdirectory(zero_biascoeff)
+endif()
 
 # These utilities do not have CMake builds and are unlikely used or usable
 #add_subdirectory(Config)

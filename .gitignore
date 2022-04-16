@@ -5,6 +5,7 @@ install*/
 *.mod
 .DS_Store
 
+nohup.out
 log*
 build.log*
 install.log*
