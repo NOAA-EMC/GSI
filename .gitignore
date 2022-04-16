@@ -4,6 +4,7 @@ install*/
 *.[aox]
 *.mod
 .DS_Store
+exec/
 
 nohup.out
 log*
