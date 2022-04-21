@@ -377,7 +377,7 @@ subroutine pcgsoi()
      if (.not. restart .or. iter > 0) then
         if (iter > 1 .or. .not. read_success)then
            if (gsave>1.e-16_r_kind) b=gnorm(2)/gsave
-           if (b<zero .or. b>10.0_r_kind) then
+           if (b<zero .or. b>30.0_r_kind) then
               if (mype==0) then
                  if (iout_6) write(6,105) gnorm(2),gsave,b
                  write(iout_iter,105) gnorm(2),gsave,b
