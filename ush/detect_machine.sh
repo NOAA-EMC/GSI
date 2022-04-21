@@ -2,27 +2,27 @@
 
 case $(hostname -f) in
 
-  llogin1)                 MACHINE_ID=wcoss_c ;; ### luna
-  llogin2)                 MACHINE_ID=wcoss_c ;; ### luna
-  llogin3)                 MACHINE_ID=wcoss_c ;; ### luna
+  llogin1)                 MACHINE_ID=wcoss_cray ;; ### luna
+  llogin2)                 MACHINE_ID=wcoss_cray ;; ### luna
+  llogin3)                 MACHINE_ID=wcoss_cray ;; ### luna
 
-  slogin1)                 MACHINE_ID=wcoss_c ;; ### surge
-  slogin2)                 MACHINE_ID=wcoss_c ;; ### surge
-  slogin3)                 MACHINE_ID=wcoss_c ;; ### surge
+  slogin1)                 MACHINE_ID=wcoss_cray ;; ### surge
+  slogin2)                 MACHINE_ID=wcoss_cray ;; ### surge
+  slogin3)                 MACHINE_ID=wcoss_cray ;; ### surge
 
-  v71a1.ncep.noaa.gov)     MACHINE_ID=wcoss_d ;; ### venus
-  v71a2.ncep.noaa.gov)     MACHINE_ID=wcoss_d ;; ### venus
-  v71a3.ncep.noaa.gov)     MACHINE_ID=wcoss_d ;; ### venus
-  v72a1.ncep.noaa.gov)     MACHINE_ID=wcoss_d ;; ### venus
-  v72a2.ncep.noaa.gov)     MACHINE_ID=wcoss_d ;; ### venus
-  v72a3.ncep.noaa.gov)     MACHINE_ID=wcoss_d ;; ### venus
+  v71a1.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### venus
+  v71a2.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### venus
+  v71a3.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### venus
+  v72a1.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### venus
+  v72a2.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### venus
+  v72a3.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### venus
 
-  m71a1.ncep.noaa.gov)     MACHINE_ID=wcoss_d ;; ### mars
-  m71a2.ncep.noaa.gov)     MACHINE_ID=wcoss_d ;; ### mars
-  m71a3.ncep.noaa.gov)     MACHINE_ID=wcoss_d ;; ### mars
-  m72a1.ncep.noaa.gov)     MACHINE_ID=wcoss_d ;; ### mars
-  m72a2.ncep.noaa.gov)     MACHINE_ID=wcoss_d ;; ### mars
-  m72a3.ncep.noaa.gov)     MACHINE_ID=wcoss_d ;; ### mars
+  m71a1.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### mars
+  m71a2.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### mars
+  m71a3.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### mars
+  m72a1.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### mars
+  m72a2.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### mars
+  m72a3.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### mars
 
   alogin01.acorn.wcoss2.ncep.noaa.gov)   MACHINE_ID=wcoss2 ;; ### acorn
   alogin02.acorn.wcoss2.ncep.noaa.gov)   MACHINE_ID=wcoss2 ;; ### acorn
