@@ -11,7 +11,7 @@
 setenv CRTM_FIX /apps/contrib/NCEPLIBS/orion/fix/crtm_v2.3.0
 
 # Load cmake
-module load cmake/3.17.3
+module load cmake/3.22.1
 
 # Load python
 module load python/3.7.5
