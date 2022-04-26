@@ -116,6 +116,6 @@ esac
 MACHINE_ID=${MACHINE:-${MACHINE_ID}}
 
 # Append compiler (only on machines that have multiple compilers)
-if [ $MACHINE_ID = hera ]; then
+if [ $MACHINE_ID = hera ] || [ $MACHINE_ID = cheyenne ]; then
     MACHINE_ID=${MACHINE_ID}.${COMPILER}
 fi
