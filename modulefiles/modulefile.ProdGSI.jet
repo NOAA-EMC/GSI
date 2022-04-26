@@ -43,7 +43,7 @@ module load w3emc/2.9.1
 module load bacio/2.4.1
 module load crtm/2.3.0
 module load wrf_io/1.2.0
-module load ncio/1.0.0
+module load ncio/1.1.0
 
 # Compiler flags specific to this platform
 setenv CFLAGS "-axSSE4.2,AVX,CORE-AVX2"
