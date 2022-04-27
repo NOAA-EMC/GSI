@@ -13,7 +13,7 @@
 setenv CRTM_FIX /lfs4/HFIP/hfv3gfs/glopara/crtm_v2.3.0
 
 # Load cmake
-module load cmake/3.16.1
+module load cmake/3.20.1
 
 # Load python
 module use /contrib/anaconda/modulefiles

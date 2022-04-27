@@ -25,3 +25,6 @@ setenv MKLROOT /glade/u/apps/opt/intel/2021.2/mkl/latest
 
 module load modulefile.ProdGSI.common
 
+setenv CC mpicc
+setenv FC mpif90
+setenv CXX mpicxx

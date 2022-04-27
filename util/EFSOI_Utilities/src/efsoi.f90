@@ -33,9 +33,10 @@ module efsoi
 !
 !$$$
 
-use mpisetup
+use mpi
+use mpisetup, only: nproc, numproc, mpi_realkind
 use covlocal, only:  taper
-use kinds, only: r_double, i_kind, r_kind
+use kinds, only: r_single, r_double, i_kind, r_kind
 use kdtree2_module, only: kdtree2_r_nearest, kdtree2_result
 use loadbal_efsoi, only: numptsperproc, indxproc, lnp_chunk, kdtree_grid, &
                    iprocob, indxob_chunk, anal_obchunk_prior, numobsperproc, &
@@ -76,7 +77,7 @@ integer(i_kind) :: np, nob, nob1, nob2, nobm, npob, nf2, i, ii, npt, nanal, nn
 integer(i_kind) :: nnpt, nsame, nskip, ngrd1
 integer(i_kind) :: ierr
 logical :: kdgrid
-
+integer status(MPI_STATUS_SIZE)
 
 if (.not. constants_initialized) then
     print *,'constants not initialized (with init_constants, init_constants_derived)'
@@ -304,7 +305,7 @@ else
    allocate(buffertmp(nanals,nobs_max))
    do np=1,numproc-1
       call mpi_recv(buffertmp,numobsperproc(np+1)*nanals,mpi_real4,np, &
-           1,mpi_comm_world,mpi_status,ierr)
+           1,mpi_comm_world,status,ierr)
       do nob1=1,numobsperproc(np+1)
          nob2 = indxproc_obs(np+1,nob1)
          anal_ob_post(:,nob2) = buffertmp(:,nob1)
