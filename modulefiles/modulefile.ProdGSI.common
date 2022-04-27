@@ -1,3 +1,5 @@
+#%Module
+
 # Load production utilities
 module load prod_util/1.2.2
 
