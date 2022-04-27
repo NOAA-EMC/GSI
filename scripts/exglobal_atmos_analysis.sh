@@ -457,8 +457,8 @@ fi
 # CRTM Spectral and Transmittance coefficients
 mkdir -p crtm_coeffs
 for file in $(awk '{if($1!~"!"){print $1}}' satinfo | sort | uniq); do
-   $NLN $RTMFIX/${file}.SpcCoeff.bin ./crtm_coeffs/
-   $NLN $RTMFIX/${file}.TauCoeff.bin ./crtm_coeffs/
+   $NLN $RTMFIX/${file}.SpcCoeff.bin ./crtm_coeffs/${file}.SpcCoeff.bin
+   $NLN $RTMFIX/${file}.TauCoeff.bin ./crtm_coeffs/${file}.TauCoeff.bin
 done
 
 $NLN $RTMFIX/Nalli.IRwater.EmisCoeff.bin   ./crtm_coeffs/Nalli.IRwater.EmisCoeff.bin
