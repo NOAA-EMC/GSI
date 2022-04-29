@@ -47,6 +47,9 @@ elif [[ -d /data/prod ]]; then
 elif [[ -d /jetmon ]]; then
     . /apps/lmod/lmod/init/sh
     target=jet
+elif [[ -d /lfs && -d /dfs ]]; then
+    . $MODULESHOME/init/bash
+    target=wcoss2
 else
     echo "unknown target = $target"
     exit 9
@@ -69,9 +72,10 @@ fi
 #  Verify this is a supported machine
 #---------------------------------------------------           
 
-if [[ ${target} = "hera"    || ${target} = "wcoss_c"  \
-   || ${target} = "wcoss_d" || ${target} = "orion" \
-   || ${target} = "jet" || ${target} = "s4" ]]; then
+if [[ ${target} = "hera"     || ${target} = "wcoss_c" \
+   || ${target} = "wcoss_d"  || ${target} = "orion" \
+   || ${target} = "jet" || ${target} = "s4" \
+   || ${target} = "wcoss2" ]]; then
    echo Building nwprod executables on ${target}
    echo
 
@@ -79,7 +83,7 @@ if [[ ${target} = "hera"    || ${target} = "wcoss_c"  \
    #-------------------------------------
    #  load modules 
    #-------------------------------------
-   if [ $target = wcoss_d ]; then
+   if [ $target = wcoss_d -o $target = wcoss2 ]; then
       module purge
       module use -a $dir_modules
       module load modulefile.ProdGSI.$target

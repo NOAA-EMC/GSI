@@ -1,6 +1,6 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.16.1)
   file(GLOB RADMON_BCOR_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
-  set(RADMON_BCOR_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 -traceback -D_REAL8_ ")
+  set(RADMON_BCOR_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 -g -traceback -D_REAL8_ ")
   set(Util_MODULE_DIR ${PROJECT_BINARY_DIR}/include/radmon_bcor )
   set_source_files_properties( ${RADMON_BCOR_SRC} PROPERTIES COMPILE_FLAGS ${RADMON_BCOR_Fortran_FLAGS} )
   add_executable(radmon_bcor.x  ${RADMON_BCOR_SRC} )

@@ -68,10 +68,10 @@ export p_cyc=`echo ${cdate} | cut -c9-10`
 #---------------------------------------------
 # OZN_TANKDIR - WHERE OUTPUT DATA WILL RESIDE
 #
-export OZN_TANKDIR=${OZN_TANKDIR:-${COMROOTp3}/$NET/$envir}
+export OZN_TANKDIR=${OZN_TANKDIR:-$(compath.py ${envir}/${NET}/${gfs_ver})}
 export TANKverf_ozn=${TANKverf_ozn:-${OZN_TANKDIR}/${RUN}.${PDY}/${cyc}/${COMPONENT}/oznmon}
 export TANKverf_oznM1=${TANKverf_oznM1:-${OZN_TANKDIR}/${RUN}.${P_PDY}/${p_cyc}/${COMPONENT}/oznmon}
-export COM_IN=${COM_IN:-${COMROOTp3}/${NET}/${envir}}
+export COM_IN=${COM_IN:-$(compath.py ${envir}/${NET}/${gfs_ver})}
 export COMIN=${COMIN:-${COM_IN}/${RUN}.${PDY}/${cyc}/${COMPONENT}}
 
 if [[ ! -d ${TANKverf_ozn} ]]; then

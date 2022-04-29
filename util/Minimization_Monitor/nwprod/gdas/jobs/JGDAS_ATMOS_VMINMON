@@ -58,7 +58,7 @@ export p_cyc=`echo ${cdate} | cut -c9-10`
 #############################################
 # TANKverf - WHERE OUTPUT DATA WILL RESIDE
 #############################################
-export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
+export COM_IN=${COM_IN:-$(compath.py ${envir}/${NET}/${gfs_ver})}
 
 export M_TANKverf=${M_TANKverf:-${COM_IN}/${RUN}.${PDY}/${cyc}/${COMPONENT}/minmon}
 export M_TANKverfM1=${M_TANKverfM1:-${COM_IN}/${RUN}.${P_PDY}/${p_cyc}/${COMPONENT}/minmon}
