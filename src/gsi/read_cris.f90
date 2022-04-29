@@ -163,7 +163,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind)     :: dlon, dlat
   real(r_kind)     :: dlon_earth,dlat_earth,dlon_earth_deg,dlat_earth_deg
   real(r_kind)     :: rsat
-  real(r_kind)     :: pred, crit1, dist1
+  real(r_kind)     :: pred, pred1, pred2, crit1, dist1
   real(r_kind)     :: sat_zenang, sat_look_angle, look_angle_est
   real(crtm_kind)  :: radiance
   real(r_kind)     :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr
@@ -696,12 +696,16 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !             Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
               if ( cloud_properties(1) < one ) then     !Assume clear
                  clear = .true.
-              else                                ! Assume a lapse rate to convert hgt to delta TB.
-                 pred = cloud_properties(2) *7.0_r_kind / r1000
+              else
+                 pred1 = cloud_properties(2) *7.0_r_kind / r1000    ! Assume a lapse rate to convert hgt to delta TB.
+                 radiance = allchan(2,sfc_channel_index) * r1000    ! Conversion from W to mW
+                 call crtm_planck_temperature(sensorindex,sfc_channel,radiance,temperature(sfc_channel_index))  ! radiance to BT calculation
+                 pred2 = tsavg *0.98_r_kind - temperature(sfc_channel_index)
+                 pred = max(pred1,pred2)    ! use the largest of lapse rate (pred1) or sfc channel-surface difference (pred2)
               endif
            else
 
-!          If cloud_properties is missing from BUFR, use proxy of warmest fov. 
+!          If cloud_properties are missing from BUFR, use proxy of warmest fov. 
 !          the surface channel is fixed and set earlier in the code (501).
 
              radiance = allchan(2,sfc_channel_index) * r1000    ! Conversion from W to mW
@@ -710,7 +714,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
                 if ( tsavg*0.98_r_kind <= temperature(sfc_channel_index)) then   ! 0.98 is a crude estimate of the surface emissivity
                    clear = .true.
                 else
-                   pred = (tsavg * 0.98_r_kind - temperature(sfc_channel_index)) 
+                   pred = tsavg * 0.98_r_kind - temperature(sfc_channel_index) 
                 endif
              else
                 cycle read_loop
