@@ -111,7 +111,6 @@ while read line; do
       echo '  </tr>' >> $table				# end table row
 
       if [[ $ctr != $num_sats ]]; then			
-#         row_end=`expr $row_end + $num_rows`
          row_end=`expr $row_end + $cols`
          if [[ $extra < $remainder ]]; then
             row_end=`expr $row_end + 1`
@@ -125,54 +124,20 @@ while read line; do
 
 done < "$SORTED_LIST"
 
-#echo '  </table>' >> $table
-
-#----------------------------------------------------------------
-#  process stock intro.html file and add in the customized table
-#
-table_start=0
-table_end=0
-table_dump=0
 
 #--------------------------------------------------------------
-#  Edit the html files to add the platform table to each.
+#  Edit infile to add the platform table.
 #
-echo "processing ${infile}"
 
-   #  copy the $file from start to <table> tag
-   sed -e '/<table>/,$d' ${infile} > ${outfile}
+#  copy the $file from start to <table> tag
+sed -e '/<table>/,$d' ${infile} > ${outfile}
 
-   #  add the $PLATFORM_TBL (built above)
-   `cat $table >> ${outfile}`
+#  add the $PLATFORM_TBL (built above)
+`cat $table >> ${outfile}`
 
-   #  copy the $file from 'END_TABLE_INSERT' comment to end
-   sed -n '/<\/table>/,$p' ${infile} >> ${outfile}
+#  copy the $file from 'END_TABLE_INSERT' comment to end
+sed -n '/<\/table>/,$p' ${infile} >> ${outfile}
 
-
-#while read line; do
-#  echo $line
-#  test_start=`echo $line | grep "<table>"`
-#  test_end=`echo $line | grep "</table>"`
-##  echo "test_start len = ${#test_start}
-##  echo "test_end len = ${#test_end}
-#
-#  if [[ $table_start -eq 0 && ${#test_start} -gt 0 ]]; then
-#     table_start=1
-#  fi
-#
-#  if [[ ${table_start} -eq 0 || ${table_end} -eq 1 ]]; then
-#     echo $line >> $outfile 
-#  elif [[ ${table_start} -eq 1 && ${table_dump} -eq 0 ]]; then
-#     cat $table >> $outfile
-#     table_dump=1
-#  fi 
-# 
-#  if [[ $table_end -eq 0 && ${#test_end} -gt 0 ]]; then
-#     table_end=1
-#  fi
-#
-#done < $infile
-
-
+rm ${infile}
 echo END mk_intro.sh
 echo
