@@ -57,8 +57,8 @@ program efsoi_main
  ! applying enkf namelist apparatus
  use params, only : read_namelist,nanals
  ! mpi functions and variables.
- use mpisetup, only:  mpi_initialize, mpi_initialize_io, mpi_cleanup, nproc, &
-                      mpi_wtime, mpi_comm_world
+ use mpi
+ use mpisetup, only:  mpi_initialize, mpi_initialize_io, mpi_cleanup, nproc
  ! model state vector 
  use statevec_efsoi, only: read_state_efsoi, statevec_cleanup_efsoi, init_statevec_efsoi
  ! load balancing

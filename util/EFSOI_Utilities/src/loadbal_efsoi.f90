@@ -91,7 +91,8 @@ module loadbal_efsoi
 !
 !$$$
 
-use mpisetup
+use mpi
+use mpisetup, only: nproc, numproc
 use params, only: datapath, nanals, simple_partition, &
                   corrlengthnh, corrlengthsh, corrlengthtr, lupd_obspace_serial,&
                   efsoi_flag
@@ -136,6 +137,7 @@ integer(i_kind), allocatable, dimension(:) :: rtmp,numobs
 integer(i_kind) np,i,n,nn,nob1,nob2,ierr
 real(r_double) t1
 logical test_loadbal
+integer status(MPI_STATUS_SIZE)
 
 ! partition state vector for using Grahams rule..
 ! ("When a new job arrives, allocate it to the server 
@@ -292,7 +294,7 @@ if(nproc == 0) then
 else
    ! recv one large message on each task.
    call mpi_recv(anal_obchunk_prior,nobs_max*nanals,mpi_real4,0, &
-        1,mpi_comm_world,mpi_status,ierr)
+        1,mpi_comm_world,status,ierr)
 end if
 call mpi_barrier(mpi_comm_world, ierr)
 if(nproc == 0) print *,'... took ',mpi_wtime()-t1,' secs'
