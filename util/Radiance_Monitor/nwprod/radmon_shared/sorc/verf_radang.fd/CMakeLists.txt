@@ -1,6 +1,6 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.16.1)
   file(GLOB RADMON_ANGLE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
-  set(RADMON_ANGLE_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 -traceback -D_REAL8_ ")
+  set(RADMON_ANGLE_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 -g -traceback -D_REAL8_ ")
   set(Util_MODULE_DIR ${PROJECT_BINARY_DIR}/include/radmon_angle )
   set_source_files_properties( ${RADMON_ANGLE_SRC} PROPERTIES COMPILE_FLAGS ${RADMON_ANGLE_Fortran_FLAGS} )
   add_executable(radmon_angle.x  ${RADMON_ANGLE_SRC} )

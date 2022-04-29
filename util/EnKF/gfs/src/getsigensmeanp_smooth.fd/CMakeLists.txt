@@ -1,7 +1,7 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.16.1)
 if(BUILD_UTIL)
   
-  set(LOCAL_Fortran_FLAGS "-O3 -fp-model source -convert big_endian -assume byterecl -implicitnone  ${OpenMP_Fortran_FLAGS}" )
+  set(LOCAL_Fortran_FLAGS "-O3 -fp-model source -convert big_endian -assume byterecl -implicitnone -g -traceback  ${OpenMP_Fortran_FLAGS}" )
   file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.f90)
   set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${LOCAL_Fortran_FLAGS} )
   add_executable(getsigensmeanp_smooth.x  ${LOCAL_SRC} )

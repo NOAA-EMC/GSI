@@ -77,10 +77,10 @@ export p_cyc=`echo ${cdate} | cut -c9-10`
 # COMOUT - WHERE GSI OUTPUT RESIDES
 # TANKverf - WHERE OUTPUT DATA WILL RESIDE
 #############################################
-export TANKverf=${TANKverf:-${COMROOT}/${NET}/${envir}}
+export TANKverf=${TANKverf:-$(compath.py ${envir}/${NET}/${gfs_ver})}
 export TANKverf_rad=${TANKverf_rad:-${TANKverf}/${RUN}.${PDY}/${cyc}/$COMPONENT/radmon}
 export TANKverf_radM1=${TANKverf_radM1:-${TANKverf}/${RUN}.${P_PDY}/${p_cyc}/$COMPONENT/radmon}
-export COM_IN=${COM_IN:-${COMROOT}/${NET}/${envir}}
+export COM_IN=${COM_IN:-$(compath.py ${envir}/${NET}/${gfs_ver})}
 export COMIN=${COMIN:-${COM_IN}/${RUN}.${PDY}/${cyc}/$COMPONENT}
 
 ################################

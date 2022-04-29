@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.16.1)
   file(GLOB CONMON_GRADS_MANDLEV_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
   set(CONMON_GRADS_MANDLEV_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 -traceback -D_REAL8_ ")
   set(Util_MODULE_DIR ${PROJECT_BINARY_DIR}/include/conmon_grads_mandlev )

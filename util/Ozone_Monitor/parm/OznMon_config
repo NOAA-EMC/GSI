@@ -18,7 +18,7 @@ if [[ $OZNMON_CONFIG -ne 1 ]]; then
 
    export OZNMON_CONFIG=1   
 
-   export MY_MACHINE=wcoss_d
+   export MY_MACHINE=wcoss2
 
    #-------------------------------------------------------------------
    #  Note:  The file header in the oznstat file has slightly changed.
@@ -38,7 +38,7 @@ if [[ $OZNMON_CONFIG -ne 1 ]]; then
    # you checked out only the Ozone_Monitor portion of the branch then
    # MY_RADMON should point to that.
    #
-   export MY_OZNMON=${MY_OZNMON:-/gpfs/dell2/emc/modeling/noscrub/Edward.Safford/GSI/util/Ozone_Monitor}
+   export MY_OZNMON=${MY_OZNMON:-/lfs/h2/emc/da/noscrub/Edward.Safford/git/gsi/gfsda.v16.1.5_wcoss2_port/util/Ozone_Monitor}
 
    export OZN_SCRIPTS=${OZN_SCRIPTS:-${MY_OZNMON}/scripts}
    export OZN_DE_SCRIPTS=${OZN_DE_SCRIPTS:-${MY_OZNMON}/data_xtrct/ush}
@@ -66,7 +66,7 @@ if [[ $OZNMON_CONFIG -ne 1 ]]; then
    #  and the succedding scripts will construct and use subdirectories under
    #  this location.
    #
-   export OZN_TANKDIR=${OZN_TANKDIR:-/u/Edward.Safford/nbns}
+   export OZN_TANKDIR=${OZN_TANKDIR:-/lfs/h2/emc/da/noscrub/Edward.Safford/nbns}
 
    if [[ $GLB_AREA -eq 1 ]]; then
       OZN_IMGN_TANKDIR=${OZN_TANKDIR}/imgn/${OZNMON_SUFFIX}
@@ -93,9 +93,9 @@ if [[ $OZNMON_CONFIG -ne 1 ]]; then
    #
    #  Log and work space definitions
    #
-   export OZN_PTMP=${OZN_PTMP:-/gpfs/dell2/ptmp}
+   export MY_PTMP=${MY_PTMP:-/lfs/h2/emc/ptmp}
    export PTMP_USER=${PTMP_USER:-${OZN_PTMP}/${LOGNAME}}
-   export OZN_STMP=${OZN_STMP:-/gpfs/dell2/stmp}
+   export MY_STMP=${MY_STMP:-/lfs/h2/emc/stmp}
    export STMP_USER=${STMP_USER:-${OZN_STMP}/${LOGNAME}}
 
 
@@ -213,6 +213,9 @@ if [[ $OZNMON_CONFIG -ne 1 ]]; then
 
       export PARTITION_OZNMON=${PARTITION_OZNMON:-vjet}
 
+   elif [[ $MY_MACHINE = "wcoss2" ]]; then
+      export COMPRESS=${COMPRESS:-gzip}
+      export UNCOMPRESS=${UNCOMPRESS:-"gunzip -f"}
    fi
   
 else
