@@ -107,7 +107,7 @@ done
 
 # Process ush directories and files
 cd $topdir/ush
-rlist="build.comgsi Get_Initial_Files gfs_truncate_enkf llsub para refactor_4nco_global run_arw rungsi sub"
+rlist="Get_Initial_Files gfs_truncate_enkf llsub para refactor_4nco_global run_arw rungsi sub"
 for type in $rlist; do
     git $string ${type}*
     rc=$?
