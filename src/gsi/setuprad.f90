@@ -1165,9 +1165,12 @@ contains
               end if
            end if
 
-           do j=1, npred-angord                              
+!          Zero out air mass terms if required
+           do j=2, npred-angord                              
               pred(j,i)=pred(j,i)*air_rad(mm)
            end do
+
+!          Zero out angle terms if required
            if (adp_anglebc) then
               do j=npred-angord+1, npred                                         
                  pred(j,i)=pred(j,i)*ang_rad(mm)
