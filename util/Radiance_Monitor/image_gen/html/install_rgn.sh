@@ -1,5 +1,4 @@
 #!/bin/sh
-set -ax
 
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
@@ -10,60 +9,23 @@ set -ax
 #  the server (rgn only, regional is handled by Install_html.sh).
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
-
-function usage {
-  echo "Usage:  install_rgn.sh suffix"
-  echo "            Suffix is data source identifier that matches data in "
-  echo "              the $TANKDIR/stats directory."
-}
-
 echo "BEGIN install_rgn.sh"
 echo ""
 
-nargs=$#
-if [[ $nargs -lt 0 ]]; then
-   usage
-   exit 2
-fi
-
-SUFFIX=$1
-echo SUFFIX = $SUFFIX
+SUFFIX=$RADMON_SUFFIX
 RAD_AREA="rgn"
 
 this_file=`basename $0`
 this_dir=`dirname $0`
-
-top_parm=${this_dir}/../../parm
-
-if [[ -s ${top_parm}/RadMon_config ]]; then
-   . ${top_parm}/RadMon_config
-else
-   echo "ERROR:  Unable to source ${top_parm}/RadMon_config"
-   exit
-fi
-
-if [[ -s ${top_parm}/RadMon_user_settings ]]; then
-   . ${top_parm}/RadMon_user_settings
-else
-   echo "ERROR:  Unable to source ${top_parm}/RadMon_user_settings"
-   exit
-fi
-
-
-#--------------------------------------------------------------
-#  Get the area for this SUFFIX from the data_map file
-#
-new_webdir=${WEBDIR}/${SUFFIX}
-
-echo RAD_AREA = $RAD_AREA
-echo TANKverf = $TANKverf
 
 
 #--------------------------------------------------------------
 #  Create a temporary working directory.
 #
 workdir=$STMP_USER/${SUFFIX}_html
-rmdir $workdir
+if [[ -d ${workdir} ]]; then
+   rm -rf $workdir
+fi
 mkdir $workdir
 cd $workdir
 
@@ -75,13 +37,10 @@ cd $workdir
 
 #-----------------------------------------------------------
 #  Find the first date with data.  Start at today and work
-#  backwards.  Stop after 90 days and exit.
+#  backwards.  If not found, stop after 90 days and exit.
 #
-PDATE=`${IG_SCRIPTS}/find_cycle.pl 1 ${TANKverf}`
-echo PDATE= $PDATE
-
+PDATE=`${IG_SCRIPTS}/find_cycle.pl --cyc 1 --dir ${TANKverf}`
 limit=`$NDATE -2160 $PDATE`		# 90 days
-echo limit, PDATE = $limit, $PDATE
 
 #-----------------------------------------------------------
 #  Build test_list which will contain all data files for
@@ -105,8 +64,6 @@ while [[ data_found -eq 0 && $PDATE -ge $limit ]]; do
    else
       test_dir=${TANKverf}/${MONITOR}.${PDY}
    fi
-
-   echo "test_dir = ${test_dir}"
 
    if [[ -d ${test_dir} ]]; then
       echo " test_dir is GO "
@@ -134,7 +91,6 @@ while [[ data_found -eq 0 && $PDATE -ge $limit ]]; do
 
    if [[ data_found -eq 0 ]]; then
      PDATE=`$NDATE -24 $PDATE`
-     echo PDATE = $PDATE
    fi
 done
 
@@ -182,8 +138,6 @@ if [[ ${#SATYPE} -le 0 ]]; then
   echo "SATYPE list is zero length, unable to complete html installation"
   exit 
 fi
-
-echo "SATYPE = $SATYPE"
 
 #--------------------------------------------------------------
 #  Use the SATYPE list to construct the platform table.
@@ -245,9 +199,6 @@ done
 #
 `sort -d $UNSORTED_LIST > $SORTED_LIST`
 
-echo
-echo
-cat $SORTED_LIST
 
 #--------------------------------------------------------------
 #  Read the sorted list and create the platform table
@@ -285,7 +236,6 @@ imgndir=`dirname ${IMGNDIR}`
 mod_html_files="plot_summary.html.rgn plot_time.html.rgn plot_angle.html.rgn plot_bcoef.html.rgn"
 
 for html_file in $mod_html_files; do
-   echo "processing ${html_file}"
    $NCP ${RADMON_IMAGE_GEN}/html/${html_file} .
    
    tmp_html=./tmp_${html_file}
@@ -304,7 +254,6 @@ for html_file in $mod_html_files; do
 
    #  rm the .rgn extension on the html file names
    new_html_file=`echo $html_file | cut -d'.' -f-2`
-   echo "new_html_file = $new_html_file"
 
    #  switch all 'INSERT_SUFFIX' tags to the actual suffix
    #  and route output to $new_html_file and we're done.
@@ -363,14 +312,6 @@ sed s/INSERT_SUFFIX/${SUFFIX}/g ${new_index} > ${tmp_index}
 if [[ $SUFFIX == "wopr" || $SUFFIX == "nrx" ]]; then
    sed s/Experimental/Operational/1 ${tmp_index} > ${new_index}
 fi
-
-#if [[ ! -s ${new_index} ]]; then
-#   if [[ -s ${tmp_index} ]]; then
-#      $NCP ${tmp_index} ${new_index}
-#   else
-#      $NCP ${index_file} ${new_index}
-#   fi
-#fi
 
 if [[ -s ${tmp_index} ]]; then
    rm ${tmp_index}
@@ -440,7 +381,6 @@ done
 img_list=`ls *.png`			# rm any images for sources not in $SATYPE
 for img in ${img_list}; do
    tmp=`echo "$img" | cut -d. -f1`
-   echo $tmp
    img_match=`echo $SATYPE | grep $tmp`
    if [[ ${#img_match} -le 0 ]]; then
       rm -f ${img}
@@ -448,22 +388,24 @@ for img in ${img_list}; do
 done
 
 
-#---------------------------------------------------
-# if on wcoss then cd $imgndir and do the rsync here
+#------------------------------------------------------
+# if on wcoss_d then cd $imgndir and do the rsync here
 #
-if [[ $MY_MACHINE = "wcoss" ]]; then
+new_webdir=${WEBDIR}/regional/${SUFFIX}
+
+if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss2" ]]; then
    if [[ ${imgndir} != "/" ]]; then	      # sanity check to avoid serious embarrassment
       /usr/bin/rsync -ave ssh  --exclude *.ctl.${Z} ${imgndir}/ \
-         ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
+         ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${new_webdir}/
    fi
 fi
 
 #------------------------
 # clean up $workdir
 #
-#cd $workdir
-#cd ../
-#rm -rf $workdir
+cd $workdir
+cd ../
+rm -rf $workdir
 
 echo ""
 echo "END install_rgn.sh"

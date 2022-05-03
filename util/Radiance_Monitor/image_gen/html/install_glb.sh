@@ -1,5 +1,4 @@
-#!/bin/sh
-set -ax
+#!/bin/bash
 
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
@@ -11,40 +10,57 @@ set -ax
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
 
-function usage {
-  echo "Usage:  install_glb.sh suffix"
-  echo "            Suffix is data source identifier that matches data in "
-  echo "              the $TANKDIR/stats directory."
-}
-
 echo "BEGIN install_glb.sh"
 echo ""
+echo ""
 
-nargs=$#
-if [[ $nargs -lt 0 ]]; then
-   usage
-   exit 2
+do_cmp=0
+cmp_src=""
+
+#--------------------------------------------------------------
+#  Allow user to enable comparison plots 
+#
+echo "Do you wish to enable data plots to include comparison to"
+echo " operational GDAS data, or another data source?"
+echo ""
+echo -n "  Enter YES to enable comparison plots, any other input to disable.  > "
+read text
+short=`echo $text | cut -c1`
+
+if [[ $short = "Y" || $short = "y" ]]; then
+   do_cmp=1
+   cmp_src="GDAS"
+
+   echo "Please specify the suffix of your comparison data source,"
+   echo "  or just hit the return key to use the operational GDAS as "
+   echo "  the comparison source"
+   echo ""
+   echo -n " > "
+   read text
+
+   if [[ ${#text} -gt 0 ]]; then
+     cmp_src=${text}
+   fi
+
+   echo "${cmp_src} will be used as the comparison source."
 fi
 
-SUFFIX=$1
-echo SUFFIX = $SUFFIX
+
+SUFFIX=$RADMON_SUFFIX
 RAD_AREA="glb"
 
 this_file=`basename $0`
 this_dir=`dirname $0`
-
-
 new_webdir=${WEBDIR}/${SUFFIX}
-
-echo RAD_AREA = $RAD_AREA
-echo TANKverf = $TANKverf
 
 
 #--------------------------------------------------------------
 #  Create a temporary working directory.
 #
 workdir=$STMP_USER/${SUFFIX}_html
-rmdir $workdir
+if [[ -e $workdir ]]; then
+   rm -rf $workdir
+fi
 mkdir $workdir
 cd $workdir
 
@@ -56,13 +72,10 @@ cd $workdir
 
 #-----------------------------------------------------------
 #  Find the first date with data.  Start at today and work
-#  backwards.  Stop after 90 days and exit.
+#  backwards.  If not found stop after 90 days and exit.
 #
 PDATE=`${IG_SCRIPTS}/nu_find_cycle.pl --dir ${TANKverf} --cyc 1`
-echo PDATE= $PDATE
-
 limit=`$NDATE -2160 $PDATE`		# 90 days
-echo limit, PDATE = $limit, $PDATE
 
 #-----------------------------------------------------------
 #  Build test_list which will contain all data files for
@@ -81,14 +94,22 @@ while [[ data_found -eq 0 && $PDATE -ge $limit ]]; do
       test_dir=${TANKverf}/${RUN}.${PDY}
    fi
    
-   echo "test_dir = ${test_dir}"
-
    if [[ -d ${test_dir} ]]; then
       echo " test_dir is GO "
 
-      if [[ -e ${test_dir}/angle.tar ]]; then
-         test_list=`tar -tv ${test_dir}/angle.tar`
+      if [[ -e ${test_dir}/radmon_angle.tar || -e ${test_dir}/radmon_angle.tar.gz ]]; then
+         gzipped=0
+         if [[ -e ${test_dir}/radmon_angle.tar.gz ]]; then
+            gunzip ${test_dir}/radmon_angle.tar.gz
+            gzipped=1
+         fi 
+
+         test_list=`tar -tf ${test_dir}/radmon_angle.tar`
 	 data_found=1 
+
+         if [[ $gzipped -eq 1 ]]; then
+            gzip ${test_dir}/radmon_angle.tar
+         fi
       else
          test=`ls ${test_dir}/angle.*${PDATE}*.ieee_d* | wc -l`
          if [[ $test -gt 0 ]]; then
@@ -102,9 +123,9 @@ while [[ data_found -eq 0 && $PDATE -ge $limit ]]; do
 
    if [[ data_found -eq 0 ]]; then
      PDATE=`$NDATE -24 $PDATE`
-     echo PDATE = $PDATE
    fi
 done
+
 
 if [[ $data_found -eq 0 ]]; then
    echo Unable to locate any data files in the past 90 days for $SUFFIX 
@@ -115,25 +136,24 @@ fi
 #-----------------------------------------------------------
 #  Go through test_list  and identify all unique 
 #  sat_instrument combinations.  The results are the 
-#  SATYPE list for this source.
+#  SATYPE list for this source.  Avoid _anl and ctl files
+#  since they will give us duplicate satypes.
 # 
-
 for test in ${test_list}; do
    this_file=`basename $test`
+
+   test_anl=`echo $this_file | grep "_anl"`
+   test_ctl=`echo $this_file | grep "ctl"`
+   if [[ $test_anl != "" || $test_ctl != "" ]]; then
+      continue
+   fi
+
    tmp=`echo "$this_file" | cut -d. -f1`
    if [[ $tmp == "angle" ]]; then
       tmp=`echo "$this_file" | cut -d. -f2`
    fi 
-   
-   #----------------------------------------------------------   
-   #  remove sat/instrument_anl names so we don't end up
-   #  with both "airs_aqua" and "airs_aqua_anl" if analysis
-   #  files are being generated for this source.
-   #----------------------------------------------------------   
-   test_anl=`echo $tmp | grep "_anl"`
-   if [[ $test_anl = "" ]]; then
-      SATYPE_LIST="$SATYPE_LIST $tmp"
-   fi
+
+   SATYPE_LIST="$SATYPE_LIST $tmp"
 done
 
 export SATYPE=$SATYPE_LIST
@@ -143,7 +163,6 @@ if [[ ${#SATYPE} -le 0 ]]; then
   exit 
 fi
 
-echo $SATYPE
 
 #--------------------------------------------------------------
 #  Use the SATYPE list to construct the platform table.
@@ -171,6 +190,7 @@ for satype in $SATYPE; do
          sat="GOES-${sat_num}"
       elif [[ $char == "n" ]]; then
          sat="NOAA-${sat_num}"
+
       else
          sat=`echo $sat | tr 'a-z' 'A-Z'`
       fi
@@ -178,9 +198,8 @@ for satype in $SATYPE; do
       sat=`echo $sat | tr 'a-z' 'A-Z'`
    fi
 
-
    #-----------------------------------------------------------------
-   #  
+   #  Certain instruments require specific formatting.
    #
    amsu_test=`expr match ${ins} "amsu"`
    hirs_test=`expr match ${ins} "hirs"`
@@ -203,7 +222,7 @@ done
 #--------------------------------------------------------------
 #  Sort the list by Satellite 
 #
-`sort -d $UNSORTED_LIST > $SORTED_LIST`
+`sort -d -u $UNSORTED_LIST > $SORTED_LIST`
 
 #--------------------------------------------------------------
 #  Read the sorted list and create the platform table
@@ -234,7 +253,6 @@ done < "$SORTED_LIST"
 
 
 imgndir=`dirname ${IMGNDIR}`
-
 #--------------------------------------------------------------
 #  Edit the html files to add the platform table to each.
 #
@@ -261,39 +279,16 @@ for html_file in $mod_html_files; do
    #  switch all 'INSERT_SUFFIX' tags to the actual suffix
    #  and route output to $html_file and we're done.
    sed s/INSERT_SUFFIX/${SUFFIX}/g ${tmp_html} > ${html_file}
+   rm ${tmp_html}
 
 done
 
 #--------------------------------------------------------------
-#  Optionally enable comparison plots to the operational
-#    GDAS data
+#  Enable comparison plots
 #
-set +ax
-comp_html_files="plot_summary.html plot_time.html"
+if [[ $do_cmp == 1 ]]; then
 
-echo "Do you wish to enable data plots to include comparison to"
-echo " operational GDAS data, or another data source?"
-echo ""
-echo -n "  Enter YES to enable comparison plots, any other input to disable.  > "
-read text
-short=`echo $text | cut -c1`
-
-if [[ $short = "Y" || $short = "y" ]]; then
-
-   cmp_src="GDAS"
-
-   echo "Please specify the suffix of your comparison data source,"
-   echo "  or just hit the return key to use the operational GDAS as "
-   echo "  the comparison source"
-   echo ""
-   echo -n " > "
-   read text
-
-   if [[ ${#text} -gt 0 ]]; then
-     cmp_src=${text}
-   fi
-
-   echo "Enabling ${cmp_src} as the comparison source."
+   comp_html_files="plot_summary.html plot_time.html"
 
    #-------------------------------------------------------------------------
    #  If cmp_src == GDAS we only have to uncomment the comparison check box
@@ -327,8 +322,6 @@ if [[ $short = "Y" || $short = "y" ]]; then
    done
 fi
 
-set -ax
-
 #--------------------------------------------------------------
 # Generate the intro.html file.
 #
@@ -336,21 +329,7 @@ $NCP ${RADMON_IMAGE_GEN}/html/mk_intro.sh .
 $NCP ${RADMON_IMAGE_GEN}/html/intro.html  intro.html.stock 
 
 ./mk_intro.sh 
-
-
-#--------------------------------------------------------------
-#  Copy the menu.html file and change "Experimental" to
-#  "Operational" if the suffix is wopr or nrx (operational GDAS
-#  or NDAS.
-#
-$NCP ${RADMON_IMAGE_GEN}/html/menu.html.$RAD_AREA .
-
-if [[ $SUFFIX == "wopr" || $SUFFIX == "nrx" ]]; then
-   tmp_menu=./tmp_menu.html.${RAD_AREA}
-   sed s/Experimental/Operational/1 menu.html.${RAD_AREA} > ${tmp_menu}
-   mv -f ${tmp_menu} menu.html.${RAD_AREA}
-fi
-
+rm mk_intro.sh
 
 #--------------------------------------------------------------
 #  Copy the index.html file and change INSERT_SUFFIX to actual suffix.
@@ -360,7 +339,7 @@ new_index="index.html"
 
 $NCP ${RADMON_IMAGE_GEN}/html/${index_file} .
 sed s/INSERT_SUFFIX/${SUFFIX}/g $index_file > ${tmp_index}
-if [[ $SUFFIX == "wopr" || $SUFFIX == "nrx" ]]; then
+if [[ $SUFFIX == "GFS" || $SUFFIX == "nrx" ]]; then
    sed s/Experimental/Operational/1 ${tmp_index} > ${new_index}
 fi
 
@@ -372,16 +351,13 @@ if [[ ! -s ${new_index} ]]; then
    fi
 fi
 
-support_files="jsuri-1.1.1.js stats.js latest_cycle.php"
+rm ./${index_file}
 
 
 #--------------------------------------------------------------
 #  Make starting directory in $imgndir and copy over html, 
 #  misc, and thumb images.
 #
-subdirs="angle bcoef bcor comp horiz summary time"
-subdirs="summary"
-
 if [[ ! -d ${IMGNDIR} ]]; then
    mkdir -p ${IMGNDIR}
 fi
@@ -390,7 +366,7 @@ imgndir=`dirname ${IMGNDIR}`
 #-----------------------
 #  move html files to imgndir
 #
-all_html_files="${mod_html_files} index.html menu.html intro.html"
+all_html_files="${mod_html_files} index.html intro.html"
 for file in $all_html_files; do
    $NCP ${file} ${imgndir}/${file}
 done
@@ -398,6 +374,7 @@ done
 #-----------------------
 #  mk image dirs 
 #
+subdirs="angle bcoef summary time"
 for dir in $subdirs; do
    mkdir -p ${imgndir}/pngs/${dir}
 done
@@ -405,6 +382,7 @@ done
 #-----------------------
 #  js files
 #
+support_files="jsuri-1.1.1.js stats.js latest_cycle.php"
 for file in $support_files; do
    $NCP ${RADMON_IMAGE_GEN}/html/${file} ${imgndir}/.
 done
@@ -419,7 +397,7 @@ done
 
 #-----------------------
 #  summary thumb images
-#    If any are missing dummy one in using a copy of sndrdr1_g15.
+#    If any are missing dummy one in using ssmis_f18.
 #
 thumbs="sum_thumbs.tar"
 $NCP ${RADMON_IMAGE_GEN}/html/${thumbs} ${imgndir}/pngs/summary/. 
@@ -429,7 +407,7 @@ rm -f ${thumbs}
 
 for satype in $SATYPE; do
    if [[ ! -e ${satype}.summary.png ]]; then
-      $NCP sndrd1_g15.summary.png ${satype}.summary.png
+      $NCP ssmis_f18.summary.png ${satype}.summary.png
    fi
 done
 
@@ -447,19 +425,24 @@ done
 #---------------------------------------------------
 # if on wcoss then cd $imgndir and do the rsync here
 #
-if [[ $MY_MACHINE = "wcoss" ]]; then
+if [[ $MY_MACHINE = "wcoss_d" || $MY_MACHINE = "wcoss2" ]]; then
+
    if [[ ${imgndir} != "/" ]]; then	      # sanity check to avoid serious embarrassment
       /usr/bin/rsync -ave ssh  --exclude *.ctl.${Z} ${imgndir}/ \
-         ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/
+         ${WEB_USER}@${WEB_SVR}.ncep.noaa.gov:${WEBDIR}/${SUFFIX}/
    fi
+
+   ssh ${WEB_USER}@${WEB_SVR} mkdir ${WEBDIR}/${SUFFIX}/gdas
+   ssh ${WEB_USER}@${WEB_SVR} ln -s ${WEBDIR}/${SUFFIX}/pngs ${WEBDIR}/${SUFFIX}/gdas/pngs
+   
 fi
 
 #------------------------
 # clean up $workdir
 #
-#cd $workdir
-#cd ../
-#rm -rf $workdir
+cd $workdir
+cd ../
+rm -rf $workdir
 
 echo ""
 echo "END install_glb.sh"

@@ -48,12 +48,9 @@ program angle
   character(60) ordang3_out_file, ordang2_out_file , ordang1_out_file
 
   character(40) data_file
-!  character(50) scan_sat
   character(len=:),allocatable :: fmt_str(:)
 
   character(len=10),allocatable,dimension(:)::times
-!  character(len=2), allocatable,dimension(:)::useflg
-!  character(len=5), allocatable,dimension(:)::chan_nums,wave,freq
 
   integer luname,ldname,lpname,lsatout,lpenout
   integer ii, jj, i, j, k
@@ -138,28 +135,6 @@ program angle
       read(lpname, *) times(ii)
    end do
    close(lpname)
-
-
-!*******************************************************************************
-! Read chan.txt input file, which is the actual channel number for each 
-! channel.
-!
-! This is no longer necessary; we're copying the {sat}.chan.txt from pngs/time
-! and swapping the ncycles with number of scan positions (done in scripting).
-!*******************************************************************************
-!   allocate( chan_nums (nchanl) )
-!   allocate( useflg(nchanl), wave(nchanl), freq(nchanl) )
-!   allocate( chi(2, nchanl, nregion) )
-
-!   open( lpname, file='chan.txt' )
-
-!   do ii=1,nchanl
-!      read(lpname, *) chan_nums(ii), useflg(ii), wave(ii), freq(ii)
-!      do jj=1,nregion
-!         chi(1,ii,jj) = 0.00
-!      end do
-!   end do
-!   close(lpname)
 
 
    start  = scan_start
@@ -364,7 +339,6 @@ program angle
         write( 6,* ) 'data_file : ', data_file, 'exist = ', exist
 
         if ( exist == .TRUE. ) then
-!          write( 6,* ) 'reading data file: ', data_file
 
            open(ldname,file=data_file,form='unformatted')
 
@@ -850,8 +824,6 @@ program angle
   end do                   ! ftyp
 
 
-!  deallocate( fcnt, fpen, fomg_nbc, ftot_cor, fomg_bc, ffixang, flapse, flapse2, fmean )
-!  deallocate( fscangl, fclw, fcos, fsin, femiss, fordang4, fordang3, fordang2, fordang1 )
 
   deallocate( ttl_cnt, ttl_pen, ttl_omgnbc, ttl_totcor, ttl_omgbc, ttl_fixang )
   deallocate( ttl_lapse, ttl_lapse2, ttl_mean, ttl_scangl, ttl_clw, ttl_cos )
@@ -1480,10 +1452,10 @@ program angle
 !**********************************
 !  write results to time.txt files
 !**********************************
-  82 FORMAT(A10,',',A10,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',' &
-                           ,F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',' &
-                           ,F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',' &
-                           ,F9.3,',',F9.3,',',F9.3,',',F9.3,',',F9.3,',')
+  82 FORMAT(A10,',',A10,',',F12.6,',',F12.6,',',F12.6,',',F12.6,',',F12.6,',' &
+                           ,F12.6,',',F12.6,',',F12.6,',',F12.6,',',F12.6,',' &
+                           ,F12.6,',',F12.6,',',F12.6,',',F12.6,',',F12.6,',' &
+                           ,F12.6,',',F12.6,',',F12.6,',',F12.6,',',F12.6,',')
 
   do chan=1,nchanl
 
