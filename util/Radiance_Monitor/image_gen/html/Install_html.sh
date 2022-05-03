@@ -1,5 +1,4 @@
 #!/bin/sh
-set -ax
 
 #--------------------------------------------------------------------
 #--------------------------------------------------------------------
@@ -27,7 +26,7 @@ if [[ $nargs -ne 2 ]]; then
    exit 2
 fi
 
-RADMON_SUFFIX=$1
+export RADMON_SUFFIX=$1
 echo RADMON_SUFFIX = $RADMON_SUFFIX
 export RAD_AREA=$2
 
@@ -36,28 +35,38 @@ this_dir=`dirname $0`
 
 top_parm=${this_dir}/../../parm
 
-if [[ -s ${top_parm}/RadMon_config ]]; then
-   . ${top_parm}/RadMon_config
-else
-   echo "ERROR:  Unable to source ${top_parm}/RadMon_config"
-   exit
+radmon_config=${radmon_config:-${top_parm}/RadMon_config}
+if [[ ! -e ${radmon_config} ]]; then
+   echo "Unable to source ${radmon_config}"
+   exit 2
 fi
 
-if [[ -s ${top_parm}/RadMon_user_settings ]]; then
-   . ${top_parm}/RadMon_user_settings
-else
-   echo "ERROR:  Unable to source ${top_parm}/RadMon_user_settings"
-   exit
+. ${radmon_config}
+if [[ $? -ne 0 ]]; then
+   echo "Error detected while sourcing ${radmon_config} file"
+   exit $?
 fi
 
+
+radmon_user_settings=${radmon_user_settings:-${top_parm}/RadMon_user_settings}
+if [[ ! -e ${radmon_user_settings} ]]; then
+   echo "Unable to locate ${radmon_user_settings} file"
+   exit 4
+fi
+
+. ${radmon_user_settings}
+if [[ $? -ne 0 ]]; then
+   echo "Error detected while sourcing ${radmon_user_settings} file"
+   exit $?
+fi
 
 #--------------------------------------------------------------
 #  call the appropriate child script for glb or rgn
 #
 if [[ $RAD_AREA == "glb" ]]; then 
-   ${RADMON_IMAGE_GEN}/html/install_glb.sh $RADMON_SUFFIX 
+   ${RADMON_IMAGE_GEN}/html/install_glb.sh 
 else 
-   ${RADMON_IMAGE_GEN}/html/install_rgn.sh $RADMON_SUFFIX 
+   ${RADMON_IMAGE_GEN}/html/install_rgn.sh
 fi
 
 
