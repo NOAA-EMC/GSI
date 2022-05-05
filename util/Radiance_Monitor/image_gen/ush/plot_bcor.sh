@@ -91,9 +91,13 @@ for type in ${SATYPE2}; do
       #  Now locate this cycle's data files, first checking for 
       #  a tar file, and copy them locally.
       #
-      if [[ -s ${ieee_src}/radmon_bcor.tar ]]; then
-         files=`tar -tf ${ieee_src}/radmon_bcor.tar | grep ${type} | grep ieee_d`
-         tar -xf ${ieee_src}/radmon_bcor.tar ${files}
+      if [[ -e ${ieee_src}/radmon_bcor.tar && -e ${ieee_src}/radmon_bcor.tar.${Z} ]]; then
+         echo "Located both radmon_bcor.tar and radmon_bcor.tar.${Z} in ${ieee_src}.  Unable to plot."
+         exit 22
+
+      elif [[ -e ${ieee_src}/radmon_bcor.tar || -e ${ieee_src}/radmon_bcor.tar.${Z} ]]; then
+         files=`tar -tf ${ieee_src}/radmon_bcor.tar* | grep ${type} | grep ieee_d`
+         tar -xf ${ieee_src}/radmon_bcor.tar* ${files}
 
       else				
          files=`ls ${ieee_src}/bcor.*${type}*ieee_d*`

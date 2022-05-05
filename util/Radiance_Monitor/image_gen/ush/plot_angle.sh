@@ -9,10 +9,6 @@
 set -ax
 export list=$listvar
 
-echo
-echo PATH=$PATH
-echo
-
 SATYPE2=$1
 PVAR=$2
 PTYPE=$3
@@ -104,11 +100,16 @@ for type in ${SATYPE2}; do
       #  Locate the data files, first checking for a tar file,
       #  and copy them locally.
       #
-      if [[ -s ${ieee_src}/radmon_angle.tar ]]; then
-         files=`tar -tf ${ieee_src}/radmon_angle.tar | grep ${type} | grep ieee_d`
+      if [[ -e ${ieee_src}/radmon_angle.tar && -e ${ieee_src}/radmon_angle.tar.${Z} ]]; then
+         echo "Located both radmon_angle.tar and radmon_angle.tar.${Z} in ${ieee_src}.  Unable to plot."
+         exit 20
+
+      elif [[ -e ${ieee_src}/radmon_angle.tar || -e ${ieee_src}/radmon_angle.tar.${Z} ]]; then
+         files=`tar -tf ${ieee_src}/radmon_angle.tar* | grep ${type} | grep ieee_d`
          if [[ ${files} != "" ]]; then
-            tar -xf ${ieee_src}/radmon_angle.tar ${files}
+            tar -xf ${ieee_src}/radmon_angle.tar* ${files}
          fi
+
       else				
          files=`ls ${ieee_src}/angle.*${type}*ieee_d*`
          for f in ${files}; do
