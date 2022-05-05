@@ -81,11 +81,16 @@ for type in ${SATYPE}; do
       #  Locate the ieee_d files, first checking for a tar file,
       #  and copy them locally.
       #
-      if [[ -s ${ieee_src}/radmon_bcoef.tar ]]; then
-         files=`tar -tf ${ieee_src}/radmon_bcoef.tar | grep ${type} | grep ieee_d`
+      if [[ -e ${ieee_src}/radmon_bcoef.tar && -e ${ieee_src}/radmon_bcoef.tar.${Z} ]]; then
+         echo "Located both radmon_bcoef.tar and radmon_bcoef.tar.${Z} in ${ieee_src}.  Unable to plot."
+         exit 21
+
+      elif [[ -e ${ieee_src}/radmon_bcoef.tar || -e ${ieee_src}/radmon_bcoef.tar.${Z} ]]; then
+         files=`tar -tf ${ieee_src}/radmon_bcoef.tar* | grep ${type} | grep ieee_d`
          if [[ ${files} != "" ]]; then
-            tar -xf ${ieee_src}/radmon_bcoef.tar ${files}
+            tar -xf ${ieee_src}/radmon_bcoef.tar* ${files}
          fi
+
       else				
          files=`ls ${ieee_src}/bcoef.*${type}*ieee_d*`
          for f in ${files}; do

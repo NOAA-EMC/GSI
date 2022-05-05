@@ -89,11 +89,16 @@ for type in ${SATYPE2}; do
       #  Locate the data files, first checking for a tar file,
       #  and copy them locally.
       #
-      if [[ -s ${ieee_src}/radmon_time.tar ]]; then
-         files=`tar -tf ${ieee_src}/radmon_time.tar | grep ${type} | grep ieee_d`
+      if [[ -e ${ieee_src}/radmon_time.tar && -e ${ieee_src}/radmon_time.tar.${Z} ]]; then
+         echo "Located both radmon_time.tar and radmon_time.tar.${Z} in ${ieee_src}.  Unable to plot."
+         exit 24
+
+      elif [[ -e ${ieee_src}/radmon_time.tar || -e ${ieee_src}/radmon_time.tar.${Z} ]]; then
+         files=`tar -tf ${ieee_src}/radmon_time.tar* | grep ${type} | grep ieee_d`
          if [[ ${files} != "" ]]; then
-            tar -xf ${ieee_src}/radmon_time.tar ${files}
+            tar -xf ${ieee_src}/radmon_time.tar* ${files}
          fi
+
       else
          files=`ls ${ieee_src}/time.*${type}*ieee_d*`
          for f in ${files}; do

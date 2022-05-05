@@ -264,13 +264,14 @@ EOF
 
    tar_file=radmon_time.tar
    tar -cf $tar_file time*.ieee_d* time*.ctl*
-   mv $tar_file ${TANKverf_rad}
+   ${COMPRESS} ${tar_file}
+   mv $tar_file.${Z} ${TANKverf_rad}/.
 
    if [[ $RAD_AREA = "rgn" ]]; then
       cwd=`pwd`
       cd ${TANKverf_rad}
-      tar -xf ${tar_file}
-      rm ${tar_file}
+      tar -xf ${tar_file}.${Z}
+      rm ${tar_file}.${Z}
       cd ${cwd}
    fi
 

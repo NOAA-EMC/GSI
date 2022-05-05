@@ -82,7 +82,7 @@ if [[ ${exit_value} -eq 0 ]]; then
 
    for type in ${type_list}; do 
 
-      file_list=`ls ${DATA_LOCATION}/${type}.*${PDATE}*ieee_d* `
+      file_list=`ls ${DATA_LOCATION}/${type}.*${PDATE}*ieee_d* ${DATA_LOCATION}/${type}*tar* `
 
       for file in ${file_list}; do
          bfile=`basename ${file}`

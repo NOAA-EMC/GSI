@@ -80,17 +80,23 @@ for type in ${SATYPE}; do
          fi
  
          using_tar=0
-         #----------------------------------------------------
-         #  Determine if the angle files are in a tar file
-         #  and, if so, extract the ctl files for this $type.
+         #--------------------------------------------------------------
+         #  Determine if the angle files are in a tar file.  If so
+         #  extract the ctl files for this $type.  If both a compressed
+         #  and uncompressed version of the radmon_bcoef.tar file exist,
+         #  report that as an error condition.
          #
-         if [[ -s ${ieee_src}/radmon_angle.tar ]]; then
+         if [[ -e ${ieee_src}/radmon_angle.tar && -e ${ieee_src}/radmon_angle.tar.${Z} ]]; then
+            echo "Located both radmon_angle.tar and radmon_angle.tar.${Z} in ${ieee_src}.  Unable to plot."
+            exit 2
+
+         elif [[ -e ${ieee_src}/radmon_angle.tar || -e ${ieee_src}/radmon_angle.tar.${Z} ]]; then
             using_tar=1
-            ctl_list=`tar -tf ${ieee_src}/radmon_angle.tar | grep ${type} | grep ctl`
+            ctl_list=`tar -tf ${ieee_src}/radmon_angle.tar* | grep ${type} | grep ctl`
             if [[ ${ctl_list} != "" ]]; then
                cwd=`pwd`
                cd ${ieee_src}
-               tar -xf ./radmon_angle.tar ${ctl_list}
+               tar -xf ./radmon_angle.tar* ${ctl_list}
                cd ${cwd} 
             fi
          fi
@@ -139,7 +145,7 @@ done
 
 if [[ $allmissing = 1 ]]; then
    echo ERROR:  Unable to plot.  All angle control files are missing from ${TANKverf} for requested date range.
-   exit 2
+   exit 3
 fi
 
 
