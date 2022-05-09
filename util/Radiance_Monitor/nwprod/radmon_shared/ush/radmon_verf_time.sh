@@ -264,13 +264,14 @@ EOF
 
    tar_file=radmon_time.tar
    tar -cf $tar_file time*.ieee_d* time*.ctl*
-   mv $tar_file ${TANKverf_rad}
+   ${COMPRESS} ${tar_file}
+   mv $tar_file.${Z} ${TANKverf_rad}/.
 
    if [[ $RAD_AREA = "rgn" ]]; then
       cwd=`pwd`
       cd ${TANKverf_rad}
-      tar -xf ${tar_file}
-      rm ${tar_file}
+      tar -xf ${tar_file}.${Z}
+      rm ${tar_file}.${Z}
       cd ${cwd}
    fi
 
@@ -541,15 +542,15 @@ EOF
    #  copy new bad_pen, bad_chan, and low_count files to $TANKverf_rad
    #   
    if [[ -s ${bad_chan} ]]; then
-      $NCP ${bad_chan} ${TANKverf_rad}/.
+      mv ${bad_chan} ${TANKverf_rad}/.
    fi
 
    if [[ -s ${bad_pen} ]]; then
-      $NCP ${bad_pen} ${TANKverf_rad}/.
+      mv ${bad_pen} ${TANKverf_rad}/.
    fi
 
    if [[ -s ${low_count} ]]; then
-      $NCP ${low_count} ${TANKverf_rad}/.
+      mv ${low_count} ${TANKverf_rad}/.
    fi
 
 

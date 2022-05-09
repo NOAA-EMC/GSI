@@ -79,17 +79,23 @@ for type in ${SATYPE}; do
 
          using_tar=0
          #--------------------------------------------------
-         #  Determine if the time files are in an tar file.
-         #  if so extract the ctl files for this $type.
+         #  Determine if the time files are in a tar file.  If so
+         #  extract the ctl files for this $type.  If both a compressed
+         #  and uncompressed version of the radmon_time.tar file exist,
+         #  flag that as an error condition.
          #
-         if [[ -s ${ieee_src}/radmon_time.tar ]]; then
+         if [[ -e ${ieee_src}/radmon_time.tar && -e ${ieee_src}/radmon_time.tar.${Z} ]]; then
+            echo "Located both radmon_time.tar and radmon_time.tar.${Z} in ${ieee_src}.  Unable to plot."
+            exit 1
+
+         elif [[ -e ${ieee_src}/radmon_time.tar || -e ${ieee_src}/radmon_time.tar.${Z} ]]; then
             using_tar=1
-            ctl_list=`tar -tf ${ieee_src}/radmon_time.tar | grep $type | grep ctl`
+            ctl_list=`tar -tf ${ieee_src}/radmon_time.tar* | grep $type | grep ctl`
             if [[ ${ctl_list} != "" ]]; then
                cwd=`pwd`
                cd ${ieee_src}
-               ctl_list=`tar -tf ./radmon_time.tar | grep $type | grep ctl`
-               tar -xf ${ieee_src}/radmon_time.tar ${ctl_list}            
+               ctl_list=`tar -tf ./radmon_time.tar* | grep $type | grep ctl`
+               tar -xf ${ieee_src}/radmon_time.tar* ${ctl_list}            
                cd ${cwd}
             fi
          fi
