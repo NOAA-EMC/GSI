@@ -10,19 +10,19 @@
 #  ACCOUNT is used on zeus only for use with the qsub -a flag.  It is
 #  empty on other platforms.
 #
-export ACCOUNT=${ACCOUNT:-}
+export ACCOUNT=${ACCOUNT:-GFS-DEV}
 
 #
 #  PROJECT is used on wcoss only with the bjob -P flag.  It is 
 #  empty on other platforms.
 #
-export PROJECT=${PROJECT:-GFS-DEV}
+export PROJECT=${PROJECT:-GDAS-DEV}
 
 #
 #  JOB_QUEUE is used on wcoss only with the bjob -q flag.  It is 
 #  empty on other platforms.
 #
-export JOB_QUEUE=${JOB_QUEUE:-dev_shared}
+export JOB_QUEUE=${JOB_QUEUE:-dev}
 
 #
 #  GLB_AREA is either 1 (global) or 0 (regional)

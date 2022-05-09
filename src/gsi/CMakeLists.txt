@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.16.1)
 # need to set CMP0046 when using add_dependencies with cmake version 3.6.2
   if(crayComp)
     cmake_policy(SET CMP0046 NEW)

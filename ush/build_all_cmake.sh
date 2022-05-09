@@ -53,8 +53,8 @@ elif [[ -d /discover ]] ; then
 elif [[ -d /work ]]; then
     . $MODULESHOME/init/sh
     target=orion
-elif [[ -d /lfs/h1 ]] ; then
-    target=acorn
+elif [[ -d /lfs/h2 ]] ; then
+    target=wcoss2
 else
     echo "unknown target = $target"
     exit 9
@@ -94,10 +94,11 @@ elif [ $target = wcoss_c ]; then
     module load $dir_modules/modulefile.ProdGSI.$target
 elif [ $target = discover ]; then
     module load $dir_modules/modulefile.ProdGSI.$target
-elif [ $target = acorn ]; then
-    source /apps/prod/lmodules/startLmod
+elif [ $target = wcoss2 ]; then
+    module reset
     module use $dir_modules
     module load modulefile.ProdGSI.$target
+    module list
 else 
     module purge
     source $dir_modules/modulefile.ProdGSI.$target

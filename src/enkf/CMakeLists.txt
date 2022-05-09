@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.16.1)
 if(BUILD_ENKF)
   enable_language (Fortran)
   set(Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include")
