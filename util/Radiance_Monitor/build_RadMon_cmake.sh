@@ -34,6 +34,9 @@ elif [[ $target = "hera" ]] ; then
     . /apps/lmod/lmod/init/sh
 elif [[ $target = "jet" ]] ; then
     . /apps/lmod/lmod/init/sh
+elif [[ -d /lfs && -d /dfs ]]; then
+    . $MODULESHOME/init/bash
+    target=wcoss2
 else
     echo "unknown target = $target"
     exit 9
@@ -72,7 +75,7 @@ if [[ ${target} = "hera"     || ${target} = "wcoss" \
    #-------------------------------------
    #  load modules 
    #-------------------------------------
-   if [ $target = wcoss_d ]; then
+   if [ $target = wcoss_d -o $target = "wcoss2" ]; then
       module purge
       module use -a $dir_modules
       module load modulefile.ProdGSI.$target

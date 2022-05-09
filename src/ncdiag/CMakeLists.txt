@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.16.1)
 if(BUILD_NCDIAG)
   if(BUILD_NCDIAG_SERIAL)
     add_subdirectory(serial)

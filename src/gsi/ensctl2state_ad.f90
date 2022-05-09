@@ -66,7 +66,9 @@ character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed he
                                'q  ', 'cw ', 'w  ', 'dw '/)
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw
 logical :: lc_w,lc_dw
-real(r_kind),pointer,dimension(:,:,:) :: cv_sf,cv_vp,cv_rh
+real(r_kind),pointer,dimension(:,:,:) :: cv_sf=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: cv_vp=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: cv_rh=>NULL()
 ! Declare required local state variables
 integer(i_kind), parameter :: nsvars = 13
 integer(i_kind) :: isps(nsvars)
@@ -76,9 +78,18 @@ character(len=4), parameter :: mysvars(nsvars) = (/  &  ! vars from ST needed he
 logical :: ls_u,ls_v,ls_prse,ls_q,ls_tsen,ls_ql,ls_qi
 logical :: ls_qr,ls_qs,ls_qg,ls_qh
 logical :: ls_w,ls_dw
-real(r_kind),pointer,dimension(:,:)   :: rv_ps,rv_sst
-real(r_kind),pointer,dimension(:,:,:) :: rv_u,rv_v,rv_prse,rv_q,rv_tsen,rv_tv,rv_oz
-real(r_kind),pointer,dimension(:,:,:) :: rv_rank3,rv_w,rv_dw
+real(r_kind),pointer,dimension(:,:)   :: rv_ps=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: rv_sst=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_u=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_v=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_prse=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_q=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_tsen=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_tv=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_oz=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_rank3=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_w=>NULL()
+real(r_kind),pointer,dimension(:,:,:) :: rv_dw=>NULL()
 
 logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,lstrong_bk_vars
 logical :: do_tlnmc,do_q_copy

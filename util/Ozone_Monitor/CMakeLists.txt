@@ -66,6 +66,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     endif()
 
     cmake_policy(SET CMP0009 NEW)
+    cmake_policy(SET CMP0074 NEW)
     find_package(OpenMP)
     message("found openmp with flag ${OPENMP_Fortran_FLAGS}")
 
