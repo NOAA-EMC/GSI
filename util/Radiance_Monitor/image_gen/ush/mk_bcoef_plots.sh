@@ -12,10 +12,6 @@ set -ax
 date
 echo "begin mk_bcoef_plots.sh"
 
-#export NUM_CYCLES=${NUM_CYCLES:-121}
-#export CYCLE_INTERVAL=${CYCLE_INTERVAL:-6}
-echo "NUM_CYCLES, CYCLE_INTERVAL = ${NUM_CYCLES}, ${CYCLE_INTERVAL}"
-
 imgndir="${IMGNDIR}/bcoef"
 tankdir="${TANKverf}/bcoef"
 
@@ -74,19 +70,25 @@ for type in ${SATYPE}; do
          fi
 
          using_tar=0
-         #----------------------------------------------------
-         #  Determine if the bcoef files are in an tar file.
-         #  if so extract the ctl files for this $type.
+         #--------------------------------------------------------------
+         #  Determine if the bcoef files are in a tar file.  If so
+         #  extract the ctl files for this $type.  If both a compressed
+         #  and uncompressed version of the radmon_bcoef.tar file exist, 
+         #  flag that as an error condition.
          #
-         if [[ -s ${ieee_src}/radmon_bcoef.tar ]]; then
+         if [[ -e ${ieee_src}/radmon_bcoef.tar && -e ${ieee_src}/radmon_bcoef.tar.${Z} ]]; then
+            echo "Located both radmon_bcoef.tar and radmon_bcoef.tar.${Z} in ${ieee_src}.  Unable to plot."
+            exit 1
+
+         elif [[ -e ${ieee_src}/radmon_bcoef.tar || -e ${ieee_src}/radmon_bcoef.tar.${Z} ]]; then
             using_tar=1
-            ctl_list=`tar -tf ${ieee_src}/radmon_bcoef.tar | grep ${type} | grep ctl`
-	    if [[ ${ctl_list} != "" ]]; then
+            ctl_list=`tar -tf ${ieee_src}/radmon_bcoef.tar* | grep ${type} | grep ctl`
+            if [[ ${ctl_list} != "" ]]; then
                cwd=`pwd`
                cd ${ieee_src}
-               tar -xf ./radmon_bcoef.tar ${ctl_list}
+               tar -xf ./radmon_bcoef.tar* ${ctl_list}
                cd ${cwd}
-	    fi
+            fi
          fi
 
          #--------------------------------------------------

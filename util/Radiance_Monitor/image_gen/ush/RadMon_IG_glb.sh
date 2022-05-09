@@ -154,7 +154,7 @@ fi
 
 if [[ ${pdate} -gt ${latest_data} ]]; then
   echo " Unable to plot, pdate is > latest_data, ${pdate}, ${latest_data}"
-  exit 4 
+  exit 5 
 else
   echo " OK to plot"
 fi
@@ -199,23 +199,29 @@ fi
 
 if [[ ! -d ${ieee_src} ]]; then
    echo "Unable to set ieee_src, aborting plot"
-   exit 5
+   exit 6
 fi
 
-#-----------------------------------------------------
+#-------------------------------------------------------------
 # check $ieee_src for data files.  If none are found
-# check contents of the radmon_angle.tar file.
+# check contents of the radmon_angle.tar file.  If both
+# a compressed and an uncompressed version of radmon_angle.tar
+# exist, flag that condition as an error.
 #
 nfile_src=`ls -l ${ieee_src}/*${PDATE}*ieee_d* | egrep -c '^-'`
 if [[ $nfile_src -le 0 ]]; then
-   if [[ -e ${ieee_src}/radmon_angle.tar ]]; then
-      nfile_src=`tar -tf ${ieee_src}/radmon_angle.tar | grep ieee_d | wc -l`
+   if [[ -e ${ieee_src}/radmon_angle.tar && -e ${ieee_src}/radmon_angle.tar.${Z} ]]; then
+      echo "Located both radmon_angle.tar and radmon_angle.tar.${Z} in ${ieee_src}.  Unable to plot."
+      exit 7
+
+   elif [[ -e ${ieee_src}/radmon_angle.tar || -e ${ieee_src}/radmon_angle.tar.${Z} ]]; then
+      nfile_src=`tar -tf ${ieee_src}/radmon_angle.tar* | grep ieee_d | wc -l`
    fi
 fi
 
 if [[ $nfile_src -le 0 ]]; then
    echo " Missing ieee_src files, nfile_src = ${nfile_src}, aborting plot"
-   exit 6
+   exit 8
 fi
 
 export PLOT_WORK_DIR=${PLOT_WORK_DIR}.${PDATE}
@@ -251,7 +257,7 @@ fi
 #
 test_list=`ls ${ieee_src}/angle.*${PDATE}.ieee_d*`
 if [[ $test_list = "" ]]; then
-   test_list=`tar -tf ${ieee_src}/radmon_angle.tar | grep ieee_d` 
+   test_list=`tar -tf ${ieee_src}/radmon_angle.tar* | grep ieee_d` 
 fi
 
 for test in ${test_list}; do
