@@ -76,21 +76,27 @@ for type in ${SATYPE}; do
          fi
    
          using_tar=0
-         #---------------------------------------------------------
-         #  Determine if the bcor files are in a tar file.
-         #  if so extract the ctl files for this $type.  
+         #---------------------------------------------------------------
+         #  Determine if the bcor files are in a tar file.  If so
+         #  extract the ctl files for this $type.  If both a compressed
+         #  and uncompressed version of the radmon_bcor.tar file exist,
+         #  flag that as an error condition.
          #
          #  Note that the ctl files are moved back to ${ieee_src}
          #  so the code block that follows will work with both 
          #  tarred and non-tarred storage schemes.
          #
-         if [[ -s ${ieee_src}/radmon_bcor.tar ]]; then
+         if [[ -e ${ieee_src}/radmon_bcor.tar && -e ${ieee_src}/radmon_bcor.tar.${Z} ]]; then
+            echo "Located both radmon_bcor.tar and radmon_bcor.tar.${Z} in ${ieee_src}.  Unable to plot."
+            exit 1
+													
+         elif [[ -e ${ieee_src}/radmon_bcor.tar || -e ${ieee_src}/radmon_bcor.tar.${Z} ]]; then
             using_tar=1
-            ctl_list=`tar -tf ${ieee_src}/radmon_bcor.tar | grep ${type} | grep ctl`
+            ctl_list=`tar -tf ${ieee_src}/radmon_bcor.tar* | grep ${type} | grep ctl`
             if [[ ${ctl_list} != "" ]]; then
                cwd=`pwd`
                cd ${ieee_src}
-               tar -xf ./radmon_bcor.tar ${ctl_list}            
+               tar -xf ./radmon_bcor.tar* ${ctl_list}            
                cd ${cwd}
             fi
          fi
