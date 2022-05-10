@@ -1,5 +1,4 @@
 help([[
-Load environment to run GSI on WCOSS2
 ]])
 
 local PrgEnv_intel_ver=os.getenv("PrgEnv_intel_ver") or "8.1.0"
@@ -18,4 +17,4 @@ load(pathJoin("python", python_ver))
 
 load("modulefile.ProdGSI.common")
 
-whatis("Description: GSI run environment")
+whatis("Description: GSI environment on WCOSS2")

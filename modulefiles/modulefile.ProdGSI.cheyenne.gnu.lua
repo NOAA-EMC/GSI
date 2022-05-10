@@ -1,0 +1,26 @@
+help([[
+]])
+
+load("cmake/3.22.0")
+load("python/3.7.9")
+load("ncarenv/1.3")
+load("gnu/10.1.0")
+load("mpt/2.22")
+load("ncarcompilers/0.5.0")
+unload("netcdf")
+
+prepend_path("MODULEPATH", "/glade/p/ral/jntp/GMTB/tools/hpc-stack-v1.2.0/modulefiles/stack")
+
+load("hpc/1.2.0")
+load("hpc-gnu/10.1.0")
+load("hpc-mpt/2.22")
+
+load("modulefile.ProdGSI.common")
+
+pushenv("MKLROOT", "/glade/u/apps/opt/intel/2021.2/mkl/latest")
+
+pushenv("CC",  "mpicc")
+pushenv("FC",  "mpif90")
+pushenv("CXX", "mpicxx")
+
+whatis("Description: GSI environment on Cheyenne with GNU Compilers")
