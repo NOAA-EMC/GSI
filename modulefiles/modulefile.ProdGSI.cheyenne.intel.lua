@@ -17,6 +17,9 @@ load("mkl/2021.2")
 
 load("modulefile.ProdGSI.common")
 
+local prod_util_ver=os.getenv("prod_util_ver") or "1.2.2"
+load(pathJoin("prod_util", prod_util_ver))
+
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
 

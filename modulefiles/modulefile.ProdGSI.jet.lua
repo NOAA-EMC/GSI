@@ -15,6 +15,9 @@ load("hpc-impi/2018.4.274")
 
 load("modulefile.ProdGSI.common")
 
+local prod_util_ver=os.getenv("prod_util_ver") or "1.2.2"
+load(pathJoin("prod_util", prod_util_ver))
+
 pushenv("CFLAGS", "-axSSE4.2,AVX,CORE-AVX2")
 pushenv("FFLAGS", "-axSSE4.2,AVX,CORE-AVX2")
 

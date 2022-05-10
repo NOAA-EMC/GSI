@@ -2,8 +2,6 @@ help([[
 Load common modules to build GSI on all machines
 ]])
 
-local prod_util_ver=os.getenv("prod_util_ver") or "1.2.2"
-
 local netcdf_ver=os.getenv("netcdf_ver") or "4.7.4"
 
 local bufr_ver=os.getenv("bufr_ver") or "11.5.0"
@@ -17,8 +15,6 @@ local nemsio_ver=os.getenv("nemsio_ver") or "2.5.2"
 local wrf_io_ver=os.getenv("wrf_io_ver") or "1.2.0"
 local ncio_ver=os.getenv("ncio_ver") or "1.0.0"
 local crtm_ver=os.getenv("crtm_ver") or "2.3.0"
-
-load(pathJoin("prod_util", prod_util_ver))
 
 load(pathJoin("netcdf", netcdf_ver))
 

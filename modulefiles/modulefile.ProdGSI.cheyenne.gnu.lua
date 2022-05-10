@@ -17,6 +17,9 @@ load("hpc-mpt/2.22")
 
 load("modulefile.ProdGSI.common")
 
+local prod_util_ver=os.getenv("prod_util_ver") or "1.2.2"
+load(pathJoin("prod_util", prod_util_ver))
+
 pushenv("MKLROOT", "/glade/u/apps/opt/intel/2021.2/mkl/latest")
 
 pushenv("CC",  "mpicc")

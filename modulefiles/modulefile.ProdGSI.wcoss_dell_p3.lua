@@ -10,6 +10,7 @@ local jasper_ver=os.getenv("jasper_ver") or "2.0.22"
 local zlib_ver=os.getenv("zlib_ver") or "1.2.11"
 local png_ver=os.getenv("png_ver") or "1.6.35"
 local python_ver=os.getenv("python_ver") or "3.6.3"
+local prod_util_ver=os.getenv("prod_util_ver") or "1.2.2"
 
 load(pathJoin("python", python_ver))
 load(pathJoin("lsf", lsf_ver))
@@ -26,6 +27,8 @@ load(pathJoin("zlib", zlib_ver))
 load(pathJoin("png", png_ver))
 
 load("modulefile.ProdGSI.common")
+
+load(pathJoin("prod_util", prod_util_ver))
 
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
