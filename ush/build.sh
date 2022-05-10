@@ -24,7 +24,7 @@ source $DIR_ROOT/ush/detect_machine.sh
 # Load modules
 source $DIR_ROOT/ush/module-setup.sh
 module use $DIR_ROOT/modulefiles
-module load modulefile.ProdGSI.$MACHINE_ID
+module load gsi_$MACHINE_ID
 module list
 
 # Set CONTROLPATH variables for Regression testing on supported MACHINE_ID

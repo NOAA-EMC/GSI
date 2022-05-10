@@ -16,7 +16,7 @@ load(pathJoin("hpc-impi", hpc_impi_ver))
 load(pathJoin("cmake", cmake_ver))
 load(pathJoin("python", python_ver))
 
-load("modulefile.ProdGSI.common")
+load("gsi_common")
 
 load(pathJoin("prod_util", prod_util_ver))
 

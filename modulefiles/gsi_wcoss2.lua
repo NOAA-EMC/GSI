@@ -18,6 +18,6 @@ load(pathJoin("python", python_ver))
 
 load(pathJoin("prod_util", prod_util_ver))
 
-load("modulefile.ProdGSI.common")
+load("gsi_common")
 
 whatis("Description: GSI environment on WCOSS2")

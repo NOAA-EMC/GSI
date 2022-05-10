@@ -26,7 +26,7 @@ load(pathJoin("jasper", jasper_ver))
 load(pathJoin("zlib", zlib_ver))
 load(pathJoin("png", png_ver))
 
-load("modulefile.ProdGSI.common")
+load("gsi_common")
 
 load(pathJoin("prod_util", prod_util_ver))
 

@@ -13,7 +13,7 @@ load("hpc/1.1.0")
 load("hpc-intel/18.0.5.274")
 load("hpc-impi/2018.4.274")
 
-load("modulefile.ProdGSI.common")
+load("gsi_common")
 
 local prod_util_ver=os.getenv("prod_util_ver") or "1.2.2"
 load(pathJoin("prod_util", prod_util_ver))

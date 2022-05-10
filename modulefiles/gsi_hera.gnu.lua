@@ -14,7 +14,7 @@ load(pathJoin("hpc-gnu", hpc_gnu_ver))
 load(pathJoin("hpc-mpich", hpc_mpich_ver))
 load(pathJoin("cmake", cmake_ver))
 
-load("modulefile.ProdGSI.common")
+load("gsi_common")
 
 load(pathJoin("prod_util", prod_util_ver))
 

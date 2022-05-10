@@ -19,7 +19,7 @@ prepend_path("MODULEPATH", "/contrib/anaconda/modulefiles")
 
 load(pathJoin("anaconda", anaconda_ver))
 
-load("modulefile.ProdGSI.common")
+load("gsi_common")
 
 load(pathJoin("prod_util", prod_util_ver))
 
