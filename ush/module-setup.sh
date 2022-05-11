@@ -53,6 +53,10 @@ elif [[ $MACHINE_ID = wcoss_dell_p3 ]] ; then
     fi
     module purge
 
+elif [[ $MACHINE_ID = wcoss2 ]]; then
+    # We are on WCOSS2
+    module reset
+
 elif [[ $MACHINE_ID = cheyenne* ]] ; then
     # We are on NCAR Cheyenne
     if ( ! eval module help > /dev/null 2>&1 ) ; then

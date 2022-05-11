@@ -2,117 +2,51 @@
 
 case $(hostname -f) in
 
-  llogin1)                 MACHINE_ID=wcoss_cray ;; ### luna
-  llogin2)                 MACHINE_ID=wcoss_cray ;; ### luna
-  llogin3)                 MACHINE_ID=wcoss_cray ;; ### luna
+  llogin[1-3]) MACHINE_ID=wcoss_cray ;; ### luna
+  slogin[1-3]) MACHINE_ID=wcoss_cray ;; ### surge
 
-  slogin1)                 MACHINE_ID=wcoss_cray ;; ### surge
-  slogin2)                 MACHINE_ID=wcoss_cray ;; ### surge
-  slogin3)                 MACHINE_ID=wcoss_cray ;; ### surge
+  m7[12]a[1-3].ncep.noaa.gov) MACHINE_ID=wcoss_dell_p3 ;; ### mars
+  v7[12]a[1-3].ncep.noaa.gov) MACHINE_ID=wcoss_dell_p3 ;; ### venus
+  m109a[1-4].ncep.noaa.gov)   MACHINE_ID=wcoss_dell_p3 ;; ### mars3.5
+  m110a[1-4].ncep.noaa.gov)   MACHINE_ID=wcoss_dell_p3 ;; ### mars3.5
+  v109a[1-4].ncep.noaa.gov)   MACHINE_ID=wcoss_dell_p3 ;; ### venus3.5
+  v110a[1-4].ncep.noaa.gov)   MACHINE_ID=wcoss_dell_p3 ;; ### venus3.5
 
-  v71a1.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### venus
-  v71a2.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### venus
-  v71a3.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### venus
-  v72a1.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### venus
-  v72a2.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### venus
-  v72a3.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### venus
+  adecflow0[12].acorn.wcoss2.ncep.noaa.gov)  MACHINE_ID=wcoss2 ;; ### acorn
+  alogin0[12].acorn.wcoss2.ncep.noaa.gov)    MACHINE_ID=wcoss2 ;; ### acorn
+  clogin0[1-9].cactus.wcoss2.ncep.noaa.gov)  MACHINE_ID=wcoss2 ;; ### cactus01-9
+  clogin10.cactus.wcoss2.ncep.noaa.gov)      MACHINE_ID=wcoss2 ;; ### cactus10
+  dlogin0[1-9].dogwood.wcoss2.ncep.noaa.gov) MACHINE_ID=wcoss2 ;; ### dogwood01-9
+  dlogin10.dogwood.wcoss2.ncep.noaa.gov)     MACHINE_ID=wcoss2 ;; ### dogwood10
 
-  m71a1.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### mars
-  m71a2.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### mars
-  m71a3.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### mars
-  m72a1.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### mars
-  m72a2.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### mars
-  m72a3.ncep.noaa.gov)     MACHINE_ID=wcoss_dell_p3 ;; ### mars
+  gaea9)               MACHINE_ID=gaea ;; ### gaea9
+  gaea1[0-6])          MACHINE_ID=gaea ;; ### gaea10-16
+  gaea9.ncrc.gov)      MACHINE_ID=gaea ;; ### gaea9
+  gaea1[0-6].ncrc.gov) MACHINE_ID=gaea ;; ### gaea10-16
 
-  alogin01.acorn.wcoss2.ncep.noaa.gov)   MACHINE_ID=wcoss2 ;; ### acorn
-  alogin02.acorn.wcoss2.ncep.noaa.gov)   MACHINE_ID=wcoss2 ;; ### acorn
-  adecflow01.acorn.wcoss2.ncep.noaa.gov) MACHINE_ID=wcoss2 ;; ### acorn
-  adecflow02.acorn.wcoss2.ncep.noaa.gov) MACHINE_ID=wcoss2 ;; ### acorn
-
-  gaea9)                   MACHINE_ID=gaea ;; ### gaea9
-  gaea10)                  MACHINE_ID=gaea ;; ### gaea10
-  gaea11)                  MACHINE_ID=gaea ;; ### gaea11
-  gaea12)                  MACHINE_ID=gaea ;; ### gaea12
-  gaea13)                  MACHINE_ID=gaea ;; ### gaea13
-  gaea14)                  MACHINE_ID=gaea ;; ### gaea14
-  gaea15)                  MACHINE_ID=gaea ;; ### gaea15
-  gaea16)                  MACHINE_ID=gaea ;; ### gaea16
-  gaea9.ncrc.gov)          MACHINE_ID=gaea ;; ### gaea9
-  gaea10.ncrc.gov)         MACHINE_ID=gaea ;; ### gaea10
-  gaea11.ncrc.gov)         MACHINE_ID=gaea ;; ### gaea11
-  gaea12.ncrc.gov)         MACHINE_ID=gaea ;; ### gaea12
-  gaea13.ncrc.gov)         MACHINE_ID=gaea ;; ### gaea13
-  gaea14.ncrc.gov)         MACHINE_ID=gaea ;; ### gaea14
-  gaea15.ncrc.gov)         MACHINE_ID=gaea ;; ### gaea15
-  gaea16.ncrc.gov)         MACHINE_ID=gaea ;; ### gaea16
-
-  hfe01)                   MACHINE_ID=hera ;; ### hera01
-  hfe02)                   MACHINE_ID=hera ;; ### hera02
-  hfe03)                   MACHINE_ID=hera ;; ### hera03
-  hfe04)                   MACHINE_ID=hera ;; ### hera04
-  hfe05)                   MACHINE_ID=hera ;; ### hera05
-  hfe06)                   MACHINE_ID=hera ;; ### hera06
-  hfe07)                   MACHINE_ID=hera ;; ### hera07
-  hfe08)                   MACHINE_ID=hera ;; ### hera08
-  hfe09)                   MACHINE_ID=hera ;; ### hera09
-  hfe10)                   MACHINE_ID=hera ;; ### hera10
-  hfe11)                   MACHINE_ID=hera ;; ### hera11
-  hfe12)                   MACHINE_ID=hera ;; ### hera12
-  hecflow01)               MACHINE_ID=hera ;; ### heraecflow01
+  hfe0[1-9]) MACHINE_ID=hera ;; ### hera01-9
+  hfe1[0-2]) MACHINE_ID=hera ;; ### hera10-12
+  hecflow01) MACHINE_ID=hera ;; ### heraecflow01
 
   s4-submit.ssec.wisc.edu) MACHINE_ID=s4 ;; ### s4
 
-  fe1)                     MACHINE_ID=jet ;; ### jet01
-  fe2)                     MACHINE_ID=jet ;; ### jet02
-  fe3)                     MACHINE_ID=jet ;; ### jet03
-  fe4)                     MACHINE_ID=jet ;; ### jet04
-  fe5)                     MACHINE_ID=jet ;; ### jet05
-  fe6)                     MACHINE_ID=jet ;; ### jet06
-  fe7)                     MACHINE_ID=jet ;; ### jet07
-  fe8)                     MACHINE_ID=jet ;; ### jet08
-  tfe1)                    MACHINE_ID=jet ;; ### jet09
-  tfe2)                    MACHINE_ID=jet ;; ### jet10
+  fe[1-8]) MACHINE_ID=jet ;; ### jet01-8
+  tfe[12]) MACHINE_ID=jet ;; ### tjet1-2
 
-  Orion-login-1.HPC.MsState.Edu) MACHINE_ID=orion ;; ### orion1
-  Orion-login-2.HPC.MsState.Edu) MACHINE_ID=orion ;; ### orion2
-  Orion-login-3.HPC.MsState.Edu) MACHINE_ID=orion ;; ### orion3
-  Orion-login-4.HPC.MsState.Edu) MACHINE_ID=orion ;; ### orion4
+  Orion-login-[1-4].HPC.MsState.Edu) MACHINE_ID=orion ;; ### orion1-4
 
-  cheyenne1.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne1
-  cheyenne2.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne2
-  cheyenne3.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne3
-  cheyenne4.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne4
-  cheyenne5.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne5
-  cheyenne6.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne6
-  cheyenne1.ib0.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne1
-  cheyenne2.ib0.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne2
-  cheyenne3.ib0.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne3
-  cheyenne4.ib0.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne4
-  cheyenne5.ib0.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne5
-  cheyenne6.ib0.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne6
-  chadmin1.ib0.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne1
-  chadmin2.ib0.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne1
-  chadmin3.ib0.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne1
-  chadmin4.ib0.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne1
-  chadmin5.ib0.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne1
-  chadmin6.ib0.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne1
+  cheyenne[1-6].cheyenne.ucar.edu)     MACHINE_ID=cheyenne ;; ### cheyenne1-6
+  cheyenne[1-6].ib0.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne1-6
+  chadmin[1-6].ib0.cheyenne.ucar.edu)  MACHINE_ID=cheyenne ;; ### cheyenne1-6
 
-  login1.stampede2.tacc.utexas.edu) MACHINE_ID=stampede ;; ### stampede1
-  login2.stampede2.tacc.utexas.edu) MACHINE_ID=stampede ;; ### stampede2
-  login3.stampede2.tacc.utexas.edu) MACHINE_ID=stampede ;; ### stampede3
-  login4.stampede2.tacc.utexas.edu) MACHINE_ID=stampede ;; ### stampede4
+  login[1-4].stampede2.tacc.utexas.edu) MACHINE_ID=stampede ;; ### stampede1-4
 
-  login01.expanse.sdsc.edu) MACHINE_ID=expanse ;; ### expanse1
-  login02.expanse.sdsc.edu) MACHINE_ID=expanse ;; ### expanse2
+  login0[1-2].expanse.sdsc.edu) MACHINE_ID=expanse ;; ### expanse1-2
 
-  discover31.prv.cube) MACHINE_ID=discover ;; ### discover
-  discover32.prv.cube) MACHINE_ID=discover ;; ### discover
-  discover33.prv.cube) MACHINE_ID=discover ;; ### discover
-  discover34.prv.cube) MACHINE_ID=discover ;; ### discover
-  discover35.prv.cube) MACHINE_ID=discover ;; ### discover
+  discover3[1-5].prv.cube) MACHINE_ID=discover ;; ### discover31-35
 esac
 
-# Overwrite auto-detect with RT_MACHINE if set
+# Overwrite auto-detect with MACHINE if set
 MACHINE_ID=${MACHINE:-${MACHINE_ID}}
 
 # Append compiler (only on machines that have multiple compilers)

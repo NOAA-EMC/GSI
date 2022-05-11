@@ -14,13 +14,14 @@ local prod_util_ver=os.getenv("prod_util_ver") or "1.2.2"
 
 load(pathJoin("python", python_ver))
 load(pathJoin("lsf", lsf_ver))
-load(pathJoin("cmake", cmake_ver))
 
 prepend_path("MODULEPATH", "/usrx/local/nceplibs/dev/hpc-stack/libs/hpc-stack/modulefiles/stack")
 
 load(pathJoin("hpc", hpc_ver))
 load(pathJoin("hpc-ips", hpc_ips_ver))
 load(pathJoin("hpc-impi", hpc_impi_ver))
+
+load(pathJoin("cmake", cmake_ver))
 
 load(pathJoin("jasper", jasper_ver))
 load(pathJoin("zlib", zlib_ver))
