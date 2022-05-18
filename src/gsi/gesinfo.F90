@@ -84,7 +84,7 @@ subroutine gesinfo
       sigio_sropen
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar
-  use module_fv3gfs_ncio, only: Dimension, Dataset, open_dataset, get_dim, &
+  use module_ncio, only: Dimension, Dataset, open_dataset, get_dim, &
                                 read_vardata, get_idate_from_time_units,&
                                 read_attribute, close_dataset 
 

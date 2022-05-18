@@ -1,12 +1,29 @@
-cmake_minimum_required(VERSION 2.6)
-  file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.f90)
-  set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
-  include_directories( "${PROJECT_BINARY_DIR}/include" ${NETCDF_INCLUDE_DIRS}  ${MPI_Fortran_INCLUDE_PATH} )
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fp-model strict -convert big_endian")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian -ffree-line-length-0 -ffast-math -fno-second-underscore -frecord-marker=4")
+endif()
 
-  add_executable(initialens.x ${LOCAL_SRC} )
-  set_target_properties( initialens.x PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS} )
-  target_link_libraries( initialens.x ${GSISHAREDLIB} ${GSILIB} ${GSISHAREDLIB} ${WRF_LIBRARIES} 
-         ${NETCDF_Fortran_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
-         -L./ ${EXTRA_LINKER_FLAGS} ${CORE_LIBRARIES} ${CORE_BUILT}
-         ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES} ${wrflib} )
-  add_dependencies(initialens.x ${GSILIB})
+list(APPEND SRCS
+  initial_arw_ens.f90
+  read_netcdf_mass.f90
+  update_netcdf_mass.f90)
+
+add_executable(initialens.x ${SRCS})
+target_compile_definitions(initialens.x PRIVATE "WRF")
+if(TARGET gsi)
+  add_dependencies(initialens.x gsi)
+endif()
+target_link_libraries(initialens.x PRIVATE gsi::gsi)
+target_link_libraries(initialens.x PRIVATE NetCDF::NetCDF_Fortran)
+target_link_libraries(initialens.x PRIVATE MPI::MPI_Fortran)
+target_link_libraries(initialens.x PRIVATE bacio::bacio_4)
+target_link_libraries(initialens.x PRIVATE w3emc::w3emc_d)
+target_link_libraries(initialens.x PRIVATE wrf_io::wrf_io)
+if(OpenMP_Fortran_FOUND)
+  target_link_libraries(initialens.x PRIVATE OpenMP::OpenMP_Fortran)
+endif()
+
+# Install executable targets
+install(TARGETS initialens.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+

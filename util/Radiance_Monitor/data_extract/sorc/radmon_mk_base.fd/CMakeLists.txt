@@ -1,14 +1,16 @@
-cmake_minimum_required(VERSION 2.8.12)
-  file(GLOB RADMON_MK_BASE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
-  set(RADMON_MK_BASE_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 -traceback -D_REAL8_ ")
-  set(Util_MODULE_DIR ${PROJECT_BINARY_DIR}/include/radmon_mk_base )
-  set_source_files_properties( ${RADMON_MK_BASE_SRC} PROPERTIES COMPILE_FLAGS ${RADMON_MK_BASE_Fortran_FLAGS} )
-  add_executable(radmon_mk_base.x  ${RADMON_MK_BASE_SRC} )
-  set_target_properties( radmon_mk_base.x PROPERTIES COMPILE_FLAGS ${RADMON_MK_BASE_Fortran_FLAGS} )
-  set_target_properties( radmon_mk_base.x PROPERTIES Fortran_MODULE_DIRECTORY ${Util_MODULE_DIR} )
-  include_directories( ${CORE_INCS} ) 
-  target_link_libraries( radmon_mk_base.x ${W3NCO_4_LIBRARY} )
-  if(BUILD_W3NCO)
-    add_dependencies( radmon_mk_base.x ${W3NCO_4_LIBRARY} )
-  endif()
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fp-model strict -assume byterecl -convert big_endian")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian -ffree-line-length-0 -ffast-math -fno-second-underscore -frecord-marker=4")
+endif()
+
+list(APPEND SRCS
+  make_base.f90
+)
+
+add_executable(radmon_make_base.x ${SRCS})
+target_link_libraries(radmon_make_base.x PRIVATE w3emc::w3emc_4)
+
+# Install executable targets
+install(TARGETS radmon_make_base.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 

@@ -424,12 +424,12 @@ module conmon_read_diag
          !
          if( adjustl( trim( Observation_Class(ii) )) == adjustl( trim( ctype ))) then         
 
-            if( return_all == .true. ) then
+            if( return_all .eqv. .true. ) then
                add_obs = .true.
 
             else if( Observation_Type(ii) == intype ) then
 
-               if( have_subtype == .false. ) then
+               if( have_subtype .eqv. .false. ) then
                   add_obs = .true.
                else if( Observation_Subtype(ii) == in_subtype ) then
                   add_obs = .true.
@@ -438,7 +438,7 @@ module conmon_read_diag
             end if
          end if
 
-         if( add_obs == .true. )  then 
+         if( add_obs .eqv. .true. )  then 
 
             nobs=nobs+1
 
@@ -628,12 +628,12 @@ module conmon_read_diag
          !
          if( adjustl( trim( Observation_Class(ii) )) == adjustl( trim( ctype ))) then         
 
-            if( return_all == .true. ) then
+            if( return_all .eqv. .true. ) then
                add_obs = .true.
 
             else if( Observation_Type(ii) == intype ) then
 
-               if( have_subtype == .false. ) then
+               if( have_subtype .eqv. .false. ) then
                   add_obs = .true.
                else if( Observation_Subtype(ii) == in_subtype ) then
                   add_obs = .true.
@@ -643,7 +643,7 @@ module conmon_read_diag
          end if
 
 
-         if( add_obs == .true. )  then 
+         if( add_obs .eqv. .true. )  then 
 
             nobs=nobs+1
 
@@ -850,12 +850,12 @@ module conmon_read_diag
          !
          if( adjustl( trim( Observation_Class(ii) )) == adjustl( trim( ctype ))) then
 
-            if( return_all == .true. ) then
+            if( return_all .eqv. .true. ) then
                add_obs = .true.
 
             else if( Observation_Type(ii) == intype ) then
 
-               if( have_subtype == .false. ) then
+               if( have_subtype .eqv. .false. ) then
                   add_obs = .true.
                else if( Observation_Subtype(ii) == in_subtype ) then
                   add_obs = .true.
@@ -865,7 +865,7 @@ module conmon_read_diag
          end if
 
 
-         if( add_obs == .true. )  then
+         if( add_obs .eqv. .true. )  then
 
             nobs=nobs+1
 
@@ -1100,12 +1100,12 @@ module conmon_read_diag
 
          if( adjustl( trim( Observation_Class(ii) )) == adjustl( trim( ctype ))) then         
 
-            if( return_all == .true. ) then
+            if( return_all .eqv. .true. ) then
                add_obs = .true.
 
             else if( Observation_Type(ii) == intype ) then
 
-               if( have_subtype == .false. ) then
+               if( have_subtype .eqv. .false. ) then
                   add_obs = .true.
                else if( Observation_Subtype(ii) == in_subtype ) then
                   add_obs = .true.
@@ -1114,7 +1114,7 @@ module conmon_read_diag
             end if
          end if
 
-         if( add_obs == .true. )  then 
+         if( add_obs .eqv. .true. )  then 
 
             nobs=nobs+1
 
@@ -1319,12 +1319,12 @@ module conmon_read_diag
 
          if( adjustl( trim( Observation_Class(ii) )) == adjustl( trim( ctype ))) then         
 
-            if( return_all == .true. ) then
+            if( return_all .eqv. .true. ) then
                add_obs = .true.
 
             else if( Observation_Type(ii) == intype ) then
 
-               if( have_subtype == .false. ) then
+               if( have_subtype .eqv. .false. ) then
                   add_obs = .true.
                else if( Observation_Subtype(ii) == in_subtype ) then
                   add_obs = .true.
@@ -1333,7 +1333,7 @@ module conmon_read_diag
             end if
          end if
 
-         if( add_obs == .true. )  then 
+         if( add_obs .eqv. .true. )  then 
 
             nobs=nobs+1
 
@@ -1554,12 +1554,12 @@ module conmon_read_diag
 
          if( adjustl( trim( Observation_Class(ii) )) == adjustl( trim( ctype ))) then
 
-            if( return_all == .true. ) then
+            if( return_all .eqv. .true. ) then
                add_obs = .true.
 
             else if( Observation_Type(ii) == intype ) then
 
-               if( have_subtype == .false. ) then
+               if( have_subtype .eqv. .false. ) then
                   add_obs = .true.
                else if( Observation_Subtype(ii) == in_subtype ) then
                   add_obs = .true.
@@ -1568,7 +1568,7 @@ module conmon_read_diag
             end if
          end if
 
-         if( add_obs == .true. )  then
+         if( add_obs .eqv. .true. )  then
 
             nobs=nobs+1
 
@@ -1733,7 +1733,7 @@ module conmon_read_diag
          !  exit loop if the number of reals (nreal) from file 
          !  doesn't match the target number
          !
-         if(( return_all == .true. ) .OR. ( trim(dtype) == trim(ctype) .and. file_nreal /= expected_nreal )) then
+         if(( return_all .eqv. .true. ) .OR. ( trim(dtype) == trim(ctype) .and. file_nreal /= expected_nreal )) then
             print *, 'matched observation type:',dtype,' file_nreal=', file_nreal
             exit 
          endif
@@ -1741,7 +1741,7 @@ module conmon_read_diag
          !--------------------------------------------- 
          ! skip to next iteration if types don't match
          !
-         if(( return_all == .false. ) .AND. ( trim( dtype ) /= trim( ctype )))  then
+         if(( return_all .eqv. .false. ) .AND. ( trim( dtype ) /= trim( ctype )))  then
             cycle
          endif
 
@@ -1764,7 +1764,7 @@ module conmon_read_diag
             !  if both types and subtypes match 
             !  then add a new data element 
             !
-            if(( return_all == .true. ) .OR. ( file_itype == intype .AND. file_subtype == in_subtype ))  then 
+            if(( return_all .eqv. .true. ) .OR. ( file_itype == intype .AND. file_subtype == in_subtype ))  then 
 
                nobs=nobs+1
 

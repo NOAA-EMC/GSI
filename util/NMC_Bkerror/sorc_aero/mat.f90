@@ -820,7 +820,7 @@
       END
 
       SUBROUTINE PRGV(D,M)
-      PARAMETER(CRIT=1.E-60)
+      PARAMETER(CRIT=1.E-37)
       DIMENSION D(*)
       DO I=1,M
        IF(ABS(D(I)).LE.CRIT)D(I)=0.
@@ -2960,7 +2960,7 @@
       END
 
       SUBROUTINE DPRGV(D,M)
-      PARAMETER(CRIT=1.D-60)
+      PARAMETER(CRIT=1.D-37)
       DIMENSION D(*)
       DO I=1,M
        IF(ABS(D(I)).LE.CRIT)D(I)=0.
@@ -3195,7 +3195,7 @@
       TS(0,1)=T
       KSIG=-1
       DO I=1,NI
-       IF(ABS(T).LE.1.E-60)THEN
+       IF(ABS(T).LE.1.E-37)THEN
 	TS(I,1)=0
        ELSE
 	I2=I*2
@@ -3664,7 +3664,7 @@
        J2=MIN(MJ,J1+JCOLS-1)
        PRINT'(8X,10(I3,9X))',(J,J=J1,J2)
        DO  I=1,MI
-	PRINT'(1X,I3,10(1X,E11.5))',I,(A(I,J),J=J1,J2)
+	PRINT'(1X,I3,10(1X,E12.5))',I,(A(I,J),J=J1,J2)
        ENDDO
        PRINT'()'
       ENDDO

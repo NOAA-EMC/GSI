@@ -315,7 +315,7 @@ module conmon_process_time_data
             print *, ' select, case ps' 
 
             obs_ctr = 0
-            do while ( associated( next ) == .TRUE. )
+            do while ( associated( next ) .eqv. .TRUE. )
                obs_ctr = obs_ctr + 1
                ptr = transfer(list_get( next ), ptr)
                next => list_next( next )
@@ -340,7 +340,7 @@ module conmon_process_time_data
             print *, ' select, case q'
 
             obs_ctr = 0
-            do while ( associated( next ) == .TRUE. )
+            do while ( associated( next ) .eqv. .TRUE. )
                obs_ctr = obs_ctr + 1
                ptr = transfer(list_get( next ), ptr)
                next => list_next( next )
@@ -365,7 +365,7 @@ module conmon_process_time_data
             print *, ' select, case t'
 
             obs_ctr = 0
-            do while ( associated( next ) == .TRUE. )
+            do while ( associated( next ) .eqv. .TRUE. )
                obs_ctr = obs_ctr + 1
                ptr = transfer(list_get( next ), ptr)
                next => list_next( next )
@@ -389,7 +389,7 @@ module conmon_process_time_data
             print *, ' select, case uv'
 
             obs_ctr = 0
-            do while ( associated( next ) == .TRUE. )
+            do while ( associated( next ) .eqv. .TRUE. )
                obs_ctr = obs_ctr + 1
                ptr = transfer(list_get( next ), ptr)
                next => list_next( next )
@@ -412,7 +412,7 @@ module conmon_process_time_data
          case ( 'gps' )
             print *, ' select, case gps'
             obs_ctr = 0
-            do while ( associated( next ) == .TRUE. )
+            do while ( associated( next ) .eqv. .TRUE. )
                obs_ctr = obs_ctr + 1
                ptr = transfer(list_get( next ), ptr)
                next => list_next( next )

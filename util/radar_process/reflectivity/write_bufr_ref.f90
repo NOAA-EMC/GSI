@@ -18,10 +18,11 @@
 !   machine:  linux 
 !
 !$$$
-    use constants, only: zero, one
     use kinds, only: r_kind,i_kind
     implicit none
 
+    real(r_kind), parameter :: zero = 0.0_r_kind
+    real(r_kind), parameter :: one = 1.0_r_kind
     REAL(r_kind) :: ref3d_column(maxlvl+2,nlon*nlat)   ! 3D reflectivity in column
     real(r_kind) :: hdr(5),obs(1,35)
     character(80):: hdrstr='SID XOB YOB DHR TYP'

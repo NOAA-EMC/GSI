@@ -1,14 +1,31 @@
-cmake_minimum_required(VERSION 2.6)
-if(BUILD_UTIL_COM)
-  file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.f90)
-  list( REMOVE_ITEM LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.f90 )
-
-  set(Util_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include/calc_increment_ens_aero")
-  set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
-  add_executable(calc_increment_ens_aero.x  ${LOCAL_SRC} )
-  set_target_properties( calc_increment_ens_aero.x PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
-  set_target_properties( calc_increment_ens_aero.x PROPERTIES Fortran_MODULE_DIRECTORY ${Util_MODULE_DIRECTORY} )
-  SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_Fortran_FLAGS}" )
-  include_directories( ${UTIL_INC} ${NEMSIOINC} ${NETCDF_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH} ) 
-  target_link_libraries( calc_increment_ens_aero.x ${NEMSIO_LIBRARY} ${BACIO_LIBRARY} ${W3NCO_4_LIBRARY} ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${MPI_Fortran_LIBRARIES})
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fp-model strict -convert big_endian")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian -ffree-line-length-0 -ffast-math -fno-second-underscore -frecord-marker=4")
 endif()
+
+list(APPEND SRCS
+  calc_increment_interface.f90
+  configure
+  constants.f90
+  fv3_interface.f90
+  gfs_nems_interface.f90
+  kinds.f90
+  namelist_def.f90
+  pmain.f90
+  variable_interface.f90)
+
+add_executable(calc_increment_ens_aero.x ${SRCS})
+target_compile_definitions(calc_increment_ens_aero.x PRIVATE "_REAL8_")
+target_link_libraries(calc_increment_ens_aero.x PRIVATE NetCDF::NetCDF_Fortran)
+target_link_libraries(calc_increment_ens_aero.x PRIVATE MPI::MPI_Fortran)
+target_link_libraries(calc_increment_ens_aero.x PRIVATE bacio::bacio_4)
+target_link_libraries(calc_increment_ens_aero.x PRIVATE w3emc::w3emc_d)
+target_link_libraries(calc_increment_ens_aero.x PRIVATE nemsio::nemsio)
+if(OpenMP_Fortran_FOUND)
+  target_link_libraries(calc_increment_ens_aero.x PRIVATE OpenMP::OpenMP_Fortran)
+endif()
+
+# Install executable targets
+install(TARGETS calc_increment_ens_aero.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+

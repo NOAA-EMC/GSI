@@ -28,7 +28,7 @@ module ncdf_string_m
     private
 
     public :: ncdf_string, ncdf_string_create, ncdf_string_destroy, ncdf_ncdf_string_length, ncdf_string_append,&
-              ncdf_ncdf_string_clear 
+              ncdf_string_clear
     public :: ncdf_string_equals, ncdf_string_copy
 
     integer, parameter :: BLOCK_SIZE = 32
@@ -172,7 +172,7 @@ contains
     subroutine ncdf_copy_chars(this, to)
         type(ncdf_string), pointer :: this
         character(len = *), intent(inout) :: to
-        integer :: length
+        integer :: i, length
 
         length = min(ncdf_string_length(this), len(to))
 

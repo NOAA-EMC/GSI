@@ -28,6 +28,7 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
    real(4) rlat,rlon,rp
    character(3) subtype,run
    character(8) stid
+   integer ifileo
    character(ifileo) :: fileo 
    character(30)  :: files,filegrads 
    character(8)  :: stidend
@@ -35,7 +36,7 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
    real*4               :: rtim,xlat0,xlon0
    character(30)        :: filein, file_nobs
 
-   integer              :: ifileo,i,j,ii,k,nreal_m2,ctr,obs_ctr
+   integer              :: i,j,ii,k,nreal_m2,ctr,obs_ctr
    integer              :: ilat,ilon,ipres,itime,iweight,ndup
    integer(4)           :: isubtype
  
@@ -66,7 +67,7 @@ subroutine grads_mandlev(fileo,ifileo,nobs,nreal,nlev,plev,iscater,igrads,&
       obs_ctr = 0
       next => list
 
-      do while ( associated( next ) == .TRUE. )
+      do while ( associated( next ) .eqv. .TRUE. )
          ptr = transfer(list_get( next ), ptr)
          next => list_next( next )
 

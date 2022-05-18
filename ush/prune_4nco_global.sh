@@ -34,8 +34,8 @@ fi
 
 
 # Set root directory
-cd ..
-topdir=$(pwd)
+readonly topdir=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}" )" )/.." && pwd -P)
+cd $topdir
 
 echo " "
 echo "Execute git $string in $topdir"
@@ -107,7 +107,7 @@ done
 
 # Process ush directories and files
 cd $topdir/ush
-rlist="build.comgsi EnKF com Get_Initial_Files gfs_truncate_enkf llsub para refactor_4nco_global run_arw rungsi sub"
+rlist="Get_Initial_Files gfs_truncate_enkf llsub para refactor_4nco_global run_arw rungsi sub"
 for type in $rlist; do
     git $string ${type}*
     rc=$?
@@ -128,7 +128,7 @@ done
 
 # Process util directories and files
 cd $topdir/util
-rlist="Aero Analysis_Utilities Baseline Config Correlated_Obs DTC EFSOI FOV GEN_BE_V2.0 GMI_BUFR MODIS_AOD Misc NCEP NMC_Bkerror README Radar_Monitor Radiance_bias_correction_Utilities Radiance_Utilities Single_Observation bufr_tools global_angupdate gsienvreport.sh ndate python_utilities radar_process zero_biascoeff"
+rlist="Aero Analysis_Utilities Baseline Config Correlated_Obs DTC EFSOI FOV GEN_BE_V2.0 GMI_BUFR MODIS_AOD Misc NCEP NMC_Bkerror README Radar_Monitor Radiance_bias_correction_Utilities Radiance_Utilities Single_Observation bufr_tools global_angupdate gsienvreport.sh python_utilities radar_process zero_biascoeff"
 for type in $rlist; do
     git $string ${type}*
     rc=$?

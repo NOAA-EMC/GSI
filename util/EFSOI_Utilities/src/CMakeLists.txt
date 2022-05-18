@@ -1,21 +1,37 @@
-cmake_minimum_required(VERSION 2.6)
-if(BUILD_EFSOI)
-
-  file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90)
-
-  set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${ENKF_Fortran_FLAGS} )
-  
-  add_executable(global_efsoi.x  ${LOCAL_SRC} )
-  
-  SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${OMPFLAG}" )
-  
-  include_directories(${CMAKE_CURRENT_BINARY_DIR} "${PROJECT_BINARY_DIR}/include/global"  ${CMAKE_CURRENT_BINARY_DIR}/.. ${MPI_Fortran_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH} ${CORE_INCS} ${NETCDF_INCLUDE_DIRS} ${NCDIAG_INCS} ${FV3GFS_NCIO_INCS}) 
-
-  target_link_libraries( global_efsoi.x enkflib enkfdeplib ${GSILIB} ${GSISHAREDLIB} ${CORE_LIBRARIES}
-  ${MPI_Fortran_LIBRARIES} ${LAPACK_LIBRARIES} ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES}
-  ${FV3GFS_NCIO_LIBRARIES} 
-  ${EXTRA_LINKER_FLAGS} ${GSI_LDFLAGS} ${CORE_BUILT} ${CORE_LIBRARIES} ${CORE_BUILT} ${NCDIAG_LIBRARIES})  
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fp-model strict -convert big_endian")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian -ffree-line-length-0 -ffast-math -fno-second-underscore -frecord-marker=4")
 endif()
 
+list(APPEND SRCS
+  efsoi.f90
+  efsoi_main.f90
+  gridio_efsoi.f90
+  loadbal_efsoi.f90
+  loc_advection.f90
+  scatter_chunks_efsoi.f90
+  statevec_efsoi.f90)
 
+add_executable(efsoi.x ${SRCS})
+target_compile_definitions(efsoi.x PRIVATE "_REAL8_")
+if(TARGET enkf)
+  add_dependencies(efsoi.x enkf)
+endif()
+target_link_libraries(efsoi.x PRIVATE enkf::enkf)
+target_link_libraries(efsoi.x PRIVATE NetCDF::NetCDF_Fortran)
+target_link_libraries(efsoi.x PRIVATE MPI::MPI_Fortran)
+target_link_libraries(efsoi.x PRIVATE ${LAPACK_LIBRARIES})
+target_link_libraries(efsoi.x PRIVATE bacio::bacio_4)
+target_link_libraries(efsoi.x PRIVATE sigio::sigio)
+target_link_libraries(efsoi.x PRIVATE sfcio::sfcio)
+target_link_libraries(efsoi.x PRIVATE nemsio::nemsio)
+target_link_libraries(efsoi.x PRIVATE ncio::ncio)
+target_link_libraries(efsoi.x PRIVATE w3emc::w3emc_d)
+target_link_libraries(efsoi.x PRIVATE sp::sp_d)
+if(OpenMP_Fortran_FOUND)
+  target_link_libraries(efsoi.x PRIVATE OpenMP::OpenMP_Fortran)
+endif()
 
+# Install executable targets
+install(TARGETS efsoi.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

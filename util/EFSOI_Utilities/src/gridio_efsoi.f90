@@ -95,8 +95,8 @@
                            nemsio_getfilehead,nemsio_getheadvar,nemsio_realkind,nemsio_charkind,&
                            nemsio_readrecv,nemsio_init,nemsio_setheadvar,nemsio_writerecv
 						   
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                                quantize_data, read_attribute, close_dataset, get_dim, read_vardata
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         quantize_data, read_attribute, close_dataset, get_dim, read_vardata
 								
   implicit none 
  
@@ -414,8 +414,8 @@
                            nemsio_getfilehead,nemsio_getheadvar,nemsio_realkind,nemsio_charkind,&
                            nemsio_readrecv,nemsio_init,nemsio_setheadvar,nemsio_writerecv
 						   
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                                read_attribute, close_dataset, get_dim, read_vardata
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         read_attribute, close_dataset, get_dim, read_vardata
 					
   implicit none
 
