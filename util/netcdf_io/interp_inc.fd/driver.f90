@@ -31,7 +31,7 @@
 
 ! Declare externals
  external :: w3tagb, netcdf_err, splat, ipolatev, &
-    mpi_send, ipolates, mpi_recv, w3tage
+    ipolates, w3tage
 
  character(len=128) :: outfile, infile
  character(len=11)  :: records(num_recs) 

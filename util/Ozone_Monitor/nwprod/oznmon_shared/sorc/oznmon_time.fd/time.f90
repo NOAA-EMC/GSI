@@ -329,7 +329,7 @@ program main
    end do
 
 !  Do validation
-   if( validate == .TRUE. ) then
+   if( validate .eqv. .TRUE. ) then
       call load_base( satname, ier )
 
       write(6,*) 'ier from load_base = ', ier
@@ -344,7 +344,7 @@ program main
    do j=1,n_levs
       if ( use(j,k) > 0.0 ) then
 
-         if( validate == .TRUE. .AND. ier >= 0 ) then
+         if( validate .eqv. .TRUE. .AND. ier >= 0 ) then
 
             pbound = 0.00
             call validate_penalty( j, k, penalty(j,k), valid_penalty, pbound, iret )
@@ -369,7 +369,7 @@ program main
       endif
    end do
 
-   if( validate == .TRUE. ) then
+   if( validate .eqv. .TRUE. ) then
       close( lupen )
       close( lucnt )
    endif

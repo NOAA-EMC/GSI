@@ -4,22 +4,20 @@
 #  To run with hybrid ensemble option on, change HYBENS_GLOBAL and/or HYBENS_REGIONAL from "false" to "true".
 #  These are located at the end of this script.
 
-if [ "$#" = 8 ] ; then
-  export machine=$1
-  export basedir=$2
-  export builddir=$3
-  export gsisrc=$4
-  export gsiexec_updat=$5
-  export enkfexec_updat=$6
-  export gsiexec_contrl=$7
-  export enkfexec_contrl=$8
+if [ "$#" = 7 ] ; then
+  export basedir=$1
+  export builddir=$2
+  export gsisrc=$3
+  export gsiexec_updat=$4
+  export enkfexec_updat=$5
+  export gsiexec_contrl=$6
+  export enkfexec_contrl=$7
   export fixgsi="$gsisrc/fix"
   export scripts="$gsisrc/regression"
   export ush="$gsisrc/ush"
   export cmaketest="true"
   export clean="false"
   export ptmpName=`echo $builddir | sed -e "s/\//_/g"`
-  echo $ptmpName
 else
   # Name of the branch being tested
   updat="XXXXXXXX"
@@ -28,175 +26,173 @@ else
   export clean="false"
   export ptmpName=""
 fi
-echo "beginning regression_var.sh, machine is $machine"
-# If we don't know already determine what machine are we on:
-if [ -z ${machine+x} ]; then 
-  echo "machine is unset"; 
-  if [ -d /da ]; then # WCOSS
-     export machine="WCOSS"
-  elif [ -d /glade/scratch ]; then # Cheyenne
-   export machine="Cheyenne"
-  elif [ -d /scratch1/NCEPDEV/da ]; then # Hera
-   export machine="Hera"
-  elif [ -d /lfs1/NCEPDEV ]; then # Jet
-   export machine="Jet"
-  elif [ -d /gpfs/hps/ptmp ]; then # LUNA or SURGE
-   export machine="WCOSS_C"
-  elif [ -d /gpfs/dell1/ptmp ]; then # venus or mars
-   export machine="WCOSS_D"
-elif [ -d /discover/nobackup ]; then # NCCS Discover
-   export machine="Discover"
-  fi
-else echo "machine is set to '$machine'"; 
+
+# Determine the machine
+if [[ -d /dcom && -d /hwrf ]]; then # WCOSS
+  export machine="WCOSS"
+elif [[ -d /glade ]]; then # Cheyenne
+  export machine="Cheyenne"
+elif [[ -d /scratch1 ]]; then # Hera
+  export machine="Hera"
+elif [[ -d /jetmon ]]; then # Jet
+  export machine="Jet"
+elif [[ -d /cm ]]; then # LUNA or SURGE
+  export machine="WCOSS_C"
+elif [[ -d /ioddev_dell ]]; then # venus or mars
+  export machine="WCOSS_D"
+elif [[ -d /discover ]]; then # NCCS Discover
+  export machine="Discover"
+elif [[ -d /sw/gaea ]]; then # Gaea
+  export machine="Gaea"
+elif [[ -d /data/prod ]]; then # S4
+  export machine="S4"
+elif [[ -d /work ]]; then # Orion
+  export machine="Orion"
 fi
+echo "Running Regression Tests on '$machine'";
 
 case $machine in
-   WCOSS_D)
-   export noscrub=/gpfs/dell2/emc/modeling/noscrub/$LOGNAME
-   export group="dev"
-   export queue="dev"
+  WCOSS_D)
+    export noscrub=/gpfs/dell2/emc/modeling/noscrub/$LOGNAME
+    export group="dev"
+    export queue="dev"
 
-   export ptmp="/gpfs/dell2/ptmp/$LOGNAME/$ptmpName"
+    export ptmp="/gpfs/dell2/ptmp/$LOGNAME/$ptmpName"
 
-   export fixcrtm="/gpfs/dell2/emc/modeling/noscrub/Michael.Lueken/fix_update"
-   export casesdir="/gpfs/dell2/emc/modeling/noscrub/Michael.Lueken/CASES"
-   export ndate=${NDATE:-"$builddir/bin/ndate.x"}
+    export fixcrtm="/gpfs/dell2/emc/modeling/noscrub/Michael.Lueken/fix_update"
+    export casesdir="/gpfs/dell2/emc/modeling/noscrub/Michael.Lueken/CASES"
 
-   export check_resource="yes"
+    export check_resource="yes"
 
-   export accnt=""
-   ;;
-   WCOSS)
-   if [ -d /da/noscrub/$LOGNAME ]; then 
-     export noscrub=/da/noscrub/$LOGNAME
-   elif [ -d /global/noscrub/$LOGNAME ]; then
-     export noscrub=/global/noscrub/$LOGNAME
-   fi
-   if [[ "$cmaketest" = "false" ]]; then
-     export basedir="/global/save/$LOGNAME/gsi"
-   fi
-   export group="dev"
-   export queue="dev"
+    export accnt=""
+  ;;
+  WCOSS)
+    if [ -d /da/noscrub/$LOGNAME ]; then
+      export noscrub=/da/noscrub/$LOGNAME
+    elif [ -d /global/noscrub/$LOGNAME ]; then
+      export noscrub=/global/noscrub/$LOGNAME
+    fi
+    if [[ "$cmaketest" = "false" ]]; then
+      export basedir="/global/save/$LOGNAME/gsi"
+    fi
+    export group="dev"
+    export queue="dev"
 
-   export ptmp="/ptmpp1/$LOGNAME/$ptmpName"
+    export ptmp="/ptmpp1/$LOGNAME/$ptmpName"
 
-   export fixcrtm="/da/save/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
-   export casesdir="/da/noscrub/Michael.Lueken/CASES"
-   export ndate="/nwprod/util/exec/ndate"
+    export fixcrtm="/da/save/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
+    export casesdir="/da/noscrub/Michael.Lueken/CASES"
 
-   export check_resource="yes"
+    export check_resource="yes"
 
-   export accnt=""
-   ;;
-   Cheyenne)
-   export queue="economy"
-   export noscrub="/glade/scratch/$LOGNAME"
-   export group="global"
-   if [[ "$cmaketest" = "false" ]]; then
-     export basedir="/glade/scratch/$LOGNAME/gsi"
-   fi 
-   export ptmp="/glade/scratch/$LOGNAME/$ptmpName"
+    export accnt=""
+  ;;
+  Cheyenne)
+    export queue="economy"
+    export noscrub="/glade/scratch/$LOGNAME"
+    export group="global"
+    if [[ "$cmaketest" = "false" ]]; then
+      export basedir="/glade/scratch/$LOGNAME/gsi"
+    fi
+    export ptmp="/glade/scratch/$LOGNAME/$ptmpName"
 
-   export fixcrtm="/glade/p/ral/jntp/tools/crtm/2.2.3/fix_update"
-   export casesdir="/glade/p/ral/jntp/tools/CASES"
-   export ndate="$builddir/bin/ndate.x"
+    export fixcrtm="/glade/p/ral/jntp/tools/crtm/2.2.3/fix_update"
+    export casesdir="/glade/p/ral/jntp/tools/CASES"
 
-   export check_resource="no"
-   export accnt="p48503002"
-   ;;
-   Hera)
-   if [ -d /scratch1/NCEPDEV/da/$LOGNAME ]; then 
-     export noscrub="/scratch1/NCEPDEV/da/$LOGNAME/noscrub"
-   elif [ -d /scratch1/NCEPDEV/global/$LOGNAME ]; then 
-     export noscrub="/scratch1/NCEPDEV/global/$LOGNAME/noscrub"
-    elif [ -d /scratch2/BMC/gsienkf/$LOGNAME ]; then
-     export noscrub="/scratch2/BMC/gsienkf/$LOGNAME"
-   fi
- 
-   export group="global"
-   export queue="batch"
-   if [[ "$cmaketest" = "false" ]]; then
-     export basedir="/scratch1/NCEPDEV/da/$LOGNAME/git/gsi"
-   fi 
+    export check_resource="no"
+    export accnt="p48503002"
+  ;;
+  Hera)
+    if [ -d /scratch1/NCEPDEV/da/$LOGNAME ]; then
+      export noscrub="/scratch1/NCEPDEV/da/$LOGNAME/noscrub"
+    elif [ -d /scratch1/NCEPDEV/global/$LOGNAME ]; then
+      export noscrub="/scratch1/NCEPDEV/global/$LOGNAME/noscrub"
+     elif [ -d /scratch2/BMC/gsienkf/$LOGNAME ]; then
+      export noscrub="/scratch2/BMC/gsienkf/$LOGNAME"
+    fi
 
-   export ptmp="/scratch1/NCEPDEV/stmp2/$LOGNAME/$ptmpName"
+    export group="global"
+    export queue="batch"
+    if [[ "$cmaketest" = "false" ]]; then
+      export basedir="/scratch1/NCEPDEV/da/$LOGNAME/git/gsi"
+    fi
 
-   export fixcrtm="/scratch1/NCEPDEV/da/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
-   export casesdir="/scratch1/NCEPDEV/da/Michael.Lueken/noscrub/CASES"
-   export ndate=$NDATE
+    export ptmp="/scratch1/NCEPDEV/stmp2/$LOGNAME/$ptmpName"
 
-   export check_resource="no"
+    export fixcrtm="/scratch1/NCEPDEV/da/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
+    export casesdir="/scratch1/NCEPDEV/da/Michael.Lueken/noscrub/CASES"
 
-   export accnt="da-cpu"
+    export check_resource="no"
 
-   #  On Hera, there are no scrubbers to remove old contents from stmp* directories.
-   #  After completion of regression tests, will remove the regression test subdirecories
-   export clean=".true."
-   ;;
-   Jet)
+    export accnt="da-cpu"
 
-   set -x
-   export noscrub=/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/noscrub
-   export ptmp=/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/ptmp
-   export fixcrtm="/lfs1/NESDIS/nesdis-rdo2/David.Huber/save/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
-   export casesdir="/lfs1/NESDIS/nesdis-rdo2/David.Huber/save/CASES"
-   export ndate=$NDATE
-   export check_resource="no"
-   export accnt="nesdis-rdo2"
- 
-   export group="global"
-   export queue="batch"
-   if [[ "$cmaketest" = "false" ]]; then
-     export basedir="/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/gsi"
-   fi 
+    #  On Hera, there are no scrubbers to remove old contents from stmp* directories.
+    #  After completion of regression tests, will remove the regression test subdirecories
+    export clean=".true."
+  ;;
+  Jet)
 
-   export ptmp="/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/ptmp/$ptmpName"
+    export noscrub=/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/noscrub
+    export ptmp=/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/ptmp
+    export fixcrtm="/lfs1/NESDIS/nesdis-rdo2/David.Huber/save/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
+    export casesdir="/lfs1/NESDIS/nesdis-rdo2/David.Huber/save/CASES"
+    export check_resource="no"
+    export accnt="nesdis-rdo2"
 
-   #  On Jet, there are no scrubbers to remove old contents from stmp* directories.
-   #  After completion of regression tests, will remove the regression test subdirecories
-   export clean=".true."
-   set +x
-   ;;
-   WCOSS_C)
-   if [ -d /gpfs/hps3/emc/global/noscrub/$LOGNAME ]; then
-      export noscrub="/gpfs/hps3/emc/global/noscrub/$LOGNAME"
-   elif [ -d /gpfs/hps3/emc/da/noscrub/$LOGNAME ]; then
-      export noscrub="/gpfs/hps3/emc/da/noscrub/$LOGNAME"
-   elif [ -d /gpfs/hps3/emc/hwrf/noscrub/$LOGNAME ]; then
-       export noscrub="/gpfs/hps3/emc/hwrf/noscrub/$LOGNAME"
-   fi
-   if [[ "$cmaketest" = "false" ]]; then
-     export basedir="/gpfs/hps3/emc/global/noscrub/$LOGNAME/svn/gsi"
-   fi
-   export group="dev"
-   export queue="dev"
+    export group="global"
+    export queue="batch"
+    if [[ "$cmaketest" = "false" ]]; then
+      export basedir="/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/gsi"
+    fi
 
-   export ptmp="/gpfs/hps/ptmp/$LOGNAME/$ptmpName"
+    export ptmp="/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/ptmp/$ptmpName"
 
-   export fixcrtm="/gpfs/hps3/emc/da/noscrub/Michael.Lueken/CRTM_REL-2.2.3/fix_update"
-   export casesdir="/gpfs/hps3/emc/da/noscrub/Michael.Lueken/CASES"
-   export ndate=$NDATE
+    #  On Jet, there are no scrubbers to remove old contents from stmp* directories.
+    #  After completion of regression tests, will remove the regression test subdirecories
+    export clean=".true."
+  ;;
+  WCOSS_C)
+    if [ -d /gpfs/hps3/emc/global/noscrub/$LOGNAME ]; then
+       export noscrub="/gpfs/hps3/emc/global/noscrub/$LOGNAME"
+    elif [ -d /gpfs/hps3/emc/da/noscrub/$LOGNAME ]; then
+       export noscrub="/gpfs/hps3/emc/da/noscrub/$LOGNAME"
+    elif [ -d /gpfs/hps3/emc/hwrf/noscrub/$LOGNAME ]; then
+        export noscrub="/gpfs/hps3/emc/hwrf/noscrub/$LOGNAME"
+    fi
+    if [[ "$cmaketest" = "false" ]]; then
+      export basedir="/gpfs/hps3/emc/global/noscrub/$LOGNAME/svn/gsi"
+    fi
+    export group="dev"
+    export queue="dev"
 
-   export check_resource="no"
+    export ptmp="/gpfs/hps/ptmp/$LOGNAME/$ptmpName"
 
-   export accnt=""
-   ;;
-   Discover)
-   if [[ "$cmaketest" = "false" ]]; then
-       echo "Regression tests on Discover need to be run via ctest"
-       exit 1
-   fi
-   export ptmp=$basedir
-   export ptmp=$basedir
-   export noscrub=$basedir
-   export fixcrtm="/discover/nobackup/projects/gmao/share/gmao_ops/fvInput_4dvar/gsi/etc/fix_ncep20170329/REL-2.2.3-r60152_local-rev_1/CRTM_Coeffs/$endianness"
-   export casesdir="/discover/nobackup/projects/gmao/obsdev/wrmccart/NCEP_regression/CASES"
-   export ndate="/home/pchakrab/.local/bin/ndate"
-   export check_resource="no"
-   export accnt="g0613"
-   export queue="compute"
-   export clean=".false."
-   ;;
+    export fixcrtm="/gpfs/hps3/emc/da/noscrub/Michael.Lueken/CRTM_REL-2.2.3/fix_update"
+    export casesdir="/gpfs/hps3/emc/da/noscrub/Michael.Lueken/CASES"
+
+    export check_resource="no"
+
+    export accnt=""
+  ;;
+  Discover)
+    if [[ "$cmaketest" = "false" ]]; then
+        echo "Regression tests on Discover need to be run via ctest"
+        exit 1
+    fi
+    export ptmp=$basedir
+    export ptmp=$basedir
+    export noscrub=$basedir
+    export fixcrtm="/discover/nobackup/projects/gmao/share/gmao_ops/fvInput_4dvar/gsi/etc/fix_ncep20170329/REL-2.2.3-r60152_local-rev_1/CRTM_Coeffs/$endianness"
+    export casesdir="/discover/nobackup/projects/gmao/obsdev/wrmccart/NCEP_regression/CASES"
+    export check_resource="no"
+    export accnt="g0613"
+    export queue="compute"
+    export clean=".false."
+  ;;
+  *)
+    echo "Regression tests are not setup on '$machine', ABORT!"
+    exit 1
+  ;;
 esac
 
 if [[ "$cmaketest" = "false" ]]; then

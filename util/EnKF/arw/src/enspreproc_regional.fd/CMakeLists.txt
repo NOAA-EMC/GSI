@@ -1,13 +1,31 @@
-cmake_minimum_required(VERSION 2.6)
-  set(GSI_Fortran_FLAGS_LOCAL "${GSI_Fortran_FLAGS} -DWRF")
-  file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.f90 ${CMAKE_CURRENT_SOURCE_DIR}/*.F90)
-  set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS_LOCAL} )
-  include_directories( ${PROJECT_BINARY_DIR}/include ${CORE_INCS} ${NETCDF_INCLUDE_DIRS}  ${MPI_Fortran_INCLUDE_PATH} ${FV3GFS_NCIO_INCS}  )
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fp-model strict -convert big_endian")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian -ffree-line-length-0 -ffast-math -fno-second-underscore -frecord-marker=4")
+endif()
 
-  add_executable(enspreproc.x ${LOCAL_SRC} )
-  set_target_properties( enspreproc.x PROPERTIES COMPILE_FLAGS ${GSI_Fortran_FLAGS_LOCAL} )
-  target_link_libraries(enspreproc.x ${GSISHAREDLIB} ${GSILIB} ${GSISHAREDLIB} ${WRF_LIBRARIES} 
-         ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${MPI_Fortran_LIBRARIES} 
-         ${LAPACK_LIBRARIES} -L./ ${EXTRA_LINKER_FLAGS} ${CORE_LIBRARIES} ${CORE_BUILT}
-         ${GSI_LDFLAGS} ${NCDIAG_LIBRARIES} ${wrflib} ${FV3GFS_NCIO_LIBRARIES} )
-  add_dependencies(enspreproc.x ${GSILIB})
+list(APPEND SRCS
+  get_gefs_for_regional_enspro.f90
+  gfsp2wrfg.f90
+  guess_grids_enspro.f90
+  read_wrf_mass_guess4ens.F90
+  wrf_netcdf_interface4ens.F90)
+
+add_executable(enspreproc.x ${SRCS})
+target_compile_definitions(enspreproc.x PRIVATE "WRF")
+if(TARGET gsi)
+  add_dependencies(enspreproc.x gsi)
+endif()
+target_link_libraries(enspreproc.x PRIVATE gsi::gsi)
+target_link_libraries(enspreproc.x PRIVATE NetCDF::NetCDF_Fortran)
+target_link_libraries(enspreproc.x PRIVATE MPI::MPI_Fortran)
+target_link_libraries(enspreproc.x PRIVATE bacio::bacio_4)
+target_link_libraries(enspreproc.x PRIVATE w3emc::w3emc_d)
+target_link_libraries(enspreproc.x PRIVATE wrf_io::wrf_io)
+if(OpenMP_Fortran_FOUND)
+  target_link_libraries(enspreproc.x PRIVATE OpenMP::OpenMP_Fortran)
+endif()
+
+# Install executable targets
+install(TARGETS enspreproc.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+

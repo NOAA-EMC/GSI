@@ -1,0 +1,1 @@
+add_subdirectory(oznmon_shared)

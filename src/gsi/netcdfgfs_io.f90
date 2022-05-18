@@ -31,7 +31,7 @@ module netcdfgfs_io
 !   machine:
 !
 ! NOTE: This module adds capability to read netCDF FV3 first guess files
-!       and to write netCDF FV3 analysis files using the fv3gfs_ncio interface 
+!       and to write netCDF FV3 analysis files using the ncio interface 
 !       Using this is controled by a namelist argument "use_gfs_ncio"
 !
 !
@@ -461,7 +461,7 @@ contains
     use general_specmod, only: spec_vars
     use general_sub2grid_mod, only: sub2grid_info
     use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype,mype
-    use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+    use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
                 quantize_data,close_dataset, get_dim, read_vardata, get_idate_from_time_units 
     use egrid2agrid_mod,only: g_egrid2agrid,g_create_egrid2agrid,egrid2agrid_parm,destroy_egrid2agrid
     use constants, only: two,pi,half,deg2rad
@@ -934,7 +934,7 @@ contains
     use gridmod, only: nlat_sfc,nlon_sfc
     use guess_grids, only: nfldsfc,ifilesfc
     use constants, only: zero,two
-    use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+    use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
                            close_dataset, get_dim, read_vardata, get_idate_from_time_units 
     implicit none
 
@@ -1272,7 +1272,7 @@ contains
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat,nlon
     use constants, only: zero
-    use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+    use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
                            close_dataset, get_dim, read_vardata, get_idate_from_time_units 
     implicit none
 
@@ -1436,7 +1436,7 @@ contains
     use gridmod, only: nlat_sfc,nlon_sfc
     use constants, only: zero,two
     use guess_grids, only: nfldnst,ifilenst
-    use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+    use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
                            close_dataset, get_dim, read_vardata, get_idate_from_time_units 
     implicit none
 
@@ -1677,7 +1677,7 @@ contains
     use cloud_efr_mod, only: cloud_calc_gfs
 
     use netcdf, only: nf90_max_name
-    use module_fv3gfs_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
+    use module_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
          read_attribute, write_attribute,get_dim, create_dataset, write_vardata, read_vardata,&
          get_idate_from_time_units,quantize_data,get_time_units_from_idate,has_attr,has_var
     use ncepnems_io, only: error_msg
@@ -2383,7 +2383,7 @@ contains
 
     use constants, only: zero
     use netcdf, only: nf90_max_name
-    use module_fv3gfs_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
+    use module_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
                            get_dim, create_dataset, write_vardata, read_vardata,&
                            get_time_units_from_idate, write_attribute  
 
@@ -2592,7 +2592,7 @@ contains
     use gsi_nstcouplermod, only: nst_gsi,zsea1,zsea2
     use gridmod, only: rlats,rlons,rlats_sfc,rlons_sfc
 
-    use module_fv3gfs_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
+    use module_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
                            get_dim, create_dataset, write_vardata, read_vardata,&
                            get_time_units_from_idate, write_attribute  
     use netcdf, only: nf90_max_name

@@ -898,7 +898,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
    use constants, only: r60,r3600,zero,one,half,deg2rad
    use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
    use general_sub2grid_mod, only: sub2grid_info
-   use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+   use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
                            close_dataset, get_dim, read_vardata 
 
    implicit none

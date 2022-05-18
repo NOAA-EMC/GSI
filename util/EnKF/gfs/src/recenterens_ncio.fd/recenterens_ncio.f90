@@ -25,10 +25,10 @@ program recenterens_ncio
 !
 !$$$
 
-  use module_fv3gfs_ncio, only: open_dataset, create_dataset, read_attribute, &
-                           Dataset, Dimension, close_dataset, has_attr, has_var, &
-                           read_vardata, write_attribute, write_vardata, &
-                           get_dim, quantize_data
+  use module_ncio, only: open_dataset, create_dataset, read_attribute, &
+                         Dataset, Dimension, close_dataset, has_attr, has_var, &
+                         read_vardata, write_attribute, write_vardata, &
+                         get_dim, quantize_data
 
   implicit none
 

@@ -1,14 +1,19 @@
-cmake_minimum_required(VERSION 2.8.12)
-  file(GLOB RADMON_IG_SUMMARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
-  set(RADMON_IG_SUMMARY_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 -traceback -D_REAL8_ ")
-  set(Util_MODULE_DIR ${PROJECT_BINARY_DIR}/include/radmon_ig_summary )
-  set_source_files_properties( ${RADMON_IG_SUMMARY_SRC} PROPERTIES COMPILE_FLAGS ${RADMON_IG_SUMMARY_Fortran_FLAGS} )
-  add_executable(radmon_ig_summary.x  ${RADMON_IG_SUMMARY_SRC} )
-  set_target_properties( radmon_ig_summary.x PROPERTIES COMPILE_FLAGS ${RADMON_IG_SUMMARY_Fortran_FLAGS} )
-  set_target_properties( radmon_ig_summary.x PROPERTIES Fortran_MODULE_DIRECTORY ${Util_MODULE_DIR} )
-  include_directories( ${CORE_INCS} ) 
-  target_link_libraries( radmon_ig_summary.x ${W3NCO_4_LIBRARY} )
-  if(BUILD_W3NCO)
-    add_dependencies( radmon_ig_summary.x ${W3NCO_4_LIBRARY} )
-  endif()
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fp-model strict -assume byterecl -convert big_endian")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian -ffree-line-length-0 -ffast-math -fno-second-underscore -frecord-marker=4")
+endif()
+
+list(APPEND SRCS
+  avgsdv.f90
+  summary.f90
+)
+
+add_executable(radmon_ig_summary.x ${SRCS})
+
+target_compile_definitions(radmon_ig_summary.x PRIVATE "_REAL8_")
+target_link_libraries(radmon_ig_summary.x PRIVATE w3emc::w3emc_4)
+
+# Install executable targets
+install(TARGETS radmon_ig_summary.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 

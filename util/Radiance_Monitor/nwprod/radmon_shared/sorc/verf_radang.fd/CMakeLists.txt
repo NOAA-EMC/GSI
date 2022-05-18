@@ -1,14 +1,28 @@
-cmake_minimum_required(VERSION 3.16.1)
-  file(GLOB RADMON_ANGLE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*90 )
-  set(RADMON_ANGLE_Fortran_FLAGS "-fp-model strict -assume byterecl -convert big_endian -O3 -g -traceback -D_REAL8_ ")
-  set(Util_MODULE_DIR ${PROJECT_BINARY_DIR}/include/radmon_angle )
-  set_source_files_properties( ${RADMON_ANGLE_SRC} PROPERTIES COMPILE_FLAGS ${RADMON_ANGLE_Fortran_FLAGS} )
-  add_executable(radmon_angle.x  ${RADMON_ANGLE_SRC} )
-  set_target_properties( radmon_angle.x PROPERTIES COMPILE_FLAGS ${RADMON_ANGLE_Fortran_FLAGS} )
-  set_target_properties( radmon_angle.x PROPERTIES Fortran_MODULE_DIRECTORY ${Util_MODULE_DIR} )
-  include_directories( ${CORE_INCS} ${NCDIAG_INCS} ) 
-  target_link_libraries( radmon_angle.x ${W3NCO_4_LIBRARY} ${NCDIAG_LIBRARIES} ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${MPI_Fortran_LIBRARIES} )
-  if(BUILD_W3NCO)
-    add_dependencies( radmon_angle.x ${W3NCO_4_LIBRARY} )
-  endif()
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fp-model strict -assume byterecl -convert big_endian")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian -ffree-line-length-0 -ffast-math -fno-second-underscore -frecord-marker=4")
+endif()
+
+list(APPEND SRCS
+  angle_bias.f90
+  create_ctl_angle.f90
+  kinds.F90
+  read_diag.f90
+  sparsearr.f90
+)
+
+add_executable(radmon_angle.x ${SRCS})
+if(TARGET ncdiag)
+  add_dependencies(radmon_angle.x ncdiag)
+endif()
+
+target_compile_definitions(radmon_angle.x PRIVATE "_REAL8_")
+target_link_libraries(radmon_angle.x PRIVATE NetCDF::NetCDF_Fortran)
+target_link_libraries(radmon_angle.x PRIVATE MPI::MPI_Fortran)
+target_link_libraries(radmon_angle.x PRIVATE ncdiag::ncdiag)
+target_link_libraries(radmon_angle.x PRIVATE w3emc::w3emc_4)
+
+# Install executable targets
+install(TARGETS radmon_angle.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 

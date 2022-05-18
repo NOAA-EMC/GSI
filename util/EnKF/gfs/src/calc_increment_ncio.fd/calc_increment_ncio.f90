@@ -38,10 +38,10 @@ PROGRAM calc_increment_ncio
 !
 !$$$
 
-  use module_fv3gfs_ncio, only: open_dataset, create_dataset, read_attribute, &
-                           Dataset, Dimension, close_dataset, &
-                           read_vardata, write_attribute, write_vardata, &
-                           has_var, has_attr, get_dim
+  use module_ncio, only: open_dataset, create_dataset, read_attribute, &
+                         Dataset, Dimension, close_dataset, &
+                         read_vardata, write_attribute, write_vardata, &
+                         has_var, has_attr, get_dim
   use netcdf
 
   implicit none

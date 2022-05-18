@@ -79,14 +79,17 @@ module gsi_rfv3io_mod
   type(sub2grid_info) :: grd_fv3lam_tracer_ionouv 
   type(sub2grid_info) :: grd_fv3lam_uv 
   integer(i_kind) ,parameter:: ndynvarslist=13, ntracerslist=8
-  character(len=max_varname_length), parameter :: vardynvars(ndynvarslist) =(/"u","v","u_w","u_s", &
-                                "v_w","v_s","t","tv","tsen","w","delp","ps","delzinc"/) 
-  character(len=max_varname_length), parameter :: vartracers(ntracerslist) =(/'q','oz', &
-                                'ql','qi','qr','qs','qg','qnr'/)
-  character(len=max_varname_length), parameter :: varfv3name(15) =(/'u','v','W','T','delp','sphum','o3mr', &
-                                'liq_wat','ice_wat','rainwat','snowwat','graupel','rain_nc','ps','DZ'/)
-  character(len=max_varname_length), parameter :: vgsiname(15) =(/'u','v','w','tsen','delp','q','oz', &
-                                'ql','qi','qr','qs','qg','qnr','ps','delzinc'/)
+  character(len=max_varname_length), dimension(ndynvarslist), parameter :: &
+    vardynvars = [character(len=max_varname_length) :: &
+      "u","v","u_w","u_s","v_w","v_s","t","tv","tsen","w","delp","ps","delzinc"]
+  character(len=max_varname_length), dimension(ntracerslist), parameter :: &
+    vartracers = [character(len=max_varname_length) :: &
+      'q','oz','ql','qi','qr','qs','qg','qnr']
+  character(len=max_varname_length), dimension(15), parameter :: &
+    varfv3name = [character(len=max_varname_length) :: &
+      'u','v','W','T','delp','sphum','o3mr','liq_wat','ice_wat','rainwat','snowwat','graupel','rain_nc','ps','DZ'], &
+    vgsiname = [character(len=max_varname_length) :: &
+      'u','v','w','tsen','delp','q','oz','ql','qi','qr','qs','qg','qnr','ps','delzinc']
   character(len=max_varname_length),dimension(:),allocatable:: name_metvars2d
   character(len=max_varname_length),dimension(:),allocatable:: name_metvars3d
 

@@ -263,7 +263,7 @@ else
 fi
 echo "module purge"                           >> $cfile
 echo "module use -a $gsisrc/modulefiles"      >> $cfile
-echo "module load modulefile.ProdGSI.wcoss_c" >> $cfile
+echo "module load modulefile.ProdGSI.wcoss_cray" >> $cfile
 echo "module list"                            >> $cfile
 echo "" >>$cfile
 
