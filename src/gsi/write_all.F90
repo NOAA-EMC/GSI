@@ -122,8 +122,7 @@ subroutine write_all(increment)
 ! Regional output
   if (regional) then
      if (fv3_regional) then
-        call bg_fv3regfilenameg%init(ifilesig(ntguessig))
-        call wrfv3_netcdf(bg_fv3regfilenameg)
+        call wrfv3_netcdf(bg_fv3regfilenameg(ntguessig))
      else
         call io%write_regional_analysis(mype)
      endif

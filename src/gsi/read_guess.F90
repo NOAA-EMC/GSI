@@ -92,7 +92,7 @@ subroutine read_guess(iyear,month,idd,mype)
   use kinds, only: r_kind,i_kind
   use jfunc, only: bcoption,clip_supersaturation,superfact
   use guess_grids, only: nfldsig,ges_tsen,load_prsges,load_geop_hgt,ges_prsl,&
-                         ges_tsen1,geop_hgti,ges_geopi,ges_q1,ifilesig,nfldsfc,ntguessig
+                         ges_tsen1,geop_hgti,ges_geopi,ges_q1
   use m_gsiBiases,only : bkg_bias_correction,nbc
   use m_gsiBiases, only: gsi_bkgbias_bundle
   use gsi_bias, only: read_bias
@@ -171,26 +171,11 @@ subroutine read_guess(iyear,month,idd,mype)
         else if (nems_nmmb_regional) then
            call nmm_binary_guess%read_nems_nmmb_guess(mype)
         else if (fv3_regional      ) then
-           do it=1,nfldsig
-              if (it.eq.ntguessig) then
-                 write(filename,"(A11)") 'fv3_sfcdata'
-                 INQUIRE(FILE=filename, EXIST=file_exists)
-                 if(.not.file_exists) then
-                    if(mype.eq.0) write(6,*)' file ',trim(filename),' not exists!'
-                    cycle
-                 endif
-              else
-                 write(filename,"(A12,I2.2)") 'fv3_sfcdata_',ifilesig(it)
-                 INQUIRE(FILE=filename, EXIST=file_exists)
-                 if(.not.file_exists) then
-                    if (mype.eq.0) write(6,*)' file ',trim(filename),' not exists for FGAT!'
-                    cycle
-                 endif
-              endif
-              if (mype.eq.0) print *,filename,"file read in for first guess",nfldsig
-              call bg_fv3regfilenameg%init(ifilesig(it))
-              call read_fv3_netcdf_guess(bg_fv3regfilenameg,it)
+           allocate(bg_fv3regfilenameg(nfldsig))
+           do it=1,nfldsig   
+              call bg_fv3regfilenameg(it)%init(it)
            end do
+           call read_fv3_netcdf_guess(bg_fv3regfilenameg)
         else if (cmaq_regional) then
            call read_cmaq_guess(mype)
         end if
