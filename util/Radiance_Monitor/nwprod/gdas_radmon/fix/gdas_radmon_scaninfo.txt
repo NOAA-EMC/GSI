@@ -65,5 +65,6 @@
  ahi_himawari8            0.00      1.00        90
  ahi_himawari9            0.00      1.00        90
  atms_n21               -52.393     1.10        96
- cris-fsr_n21           -48.130     3.333       30 
+ cris-fsr_n21           -48.130     3.333       30
+ gmi_gpm                  0.00      1.00       221
 !sat_sis                  start      step       nstep
