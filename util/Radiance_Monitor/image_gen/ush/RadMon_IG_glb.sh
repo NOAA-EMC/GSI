@@ -109,6 +109,10 @@ if [[ $? -ne 0 ]]; then
 fi
 
 
+if [[ ! -d ${IMGNDIR} ]]; then
+   mkdir -p ${IMGNDIR}
+fi
+
 #--------------------------------------------------------------------
 # Determine cycle to plot.  Exit if cycle is > last available
 # data.
@@ -150,7 +154,7 @@ fi
 
 if [[ ${pdate} -gt ${latest_data} ]]; then
   echo " Unable to plot, pdate is > latest_data, ${pdate}, ${latest_data}"
-  exit 4 
+  exit 5 
 else
   echo " OK to plot"
 fi
@@ -183,7 +187,6 @@ export PDY=`echo $PDATE|cut -c1-8`
 #--------------------------------------------------------------------
 #  Locate ieee_src in $TANKverf and verify data files are present
 #
-
 ieee_src=${TANKverf}/${RUN}.${PDY}/${CYC}/${MONITOR}
 
 if [[ ! -d ${ieee_src} ]]; then
@@ -196,14 +199,29 @@ fi
 
 if [[ ! -d ${ieee_src} ]]; then
    echo "Unable to set ieee_src, aborting plot"
-   exit 5
+   exit 6
 fi
 
+#-------------------------------------------------------------
+# check $ieee_src for data files.  If none are found
+# check contents of the radmon_angle.tar file.  If both
+# a compressed and an uncompressed version of radmon_angle.tar
+# exist, flag that condition as an error.
+#
 nfile_src=`ls -l ${ieee_src}/*${PDATE}*ieee_d* | egrep -c '^-'`
+if [[ $nfile_src -le 0 ]]; then
+   if [[ -e ${ieee_src}/radmon_angle.tar && -e ${ieee_src}/radmon_angle.tar.${Z} ]]; then
+      echo "Located both radmon_angle.tar and radmon_angle.tar.${Z} in ${ieee_src}.  Unable to plot."
+      exit 7
+
+   elif [[ -e ${ieee_src}/radmon_angle.tar || -e ${ieee_src}/radmon_angle.tar.${Z} ]]; then
+      nfile_src=`tar -tf ${ieee_src}/radmon_angle.tar* | grep ieee_d | wc -l`
+   fi
+fi
 
 if [[ $nfile_src -le 0 ]]; then
    echo " Missing ieee_src files, nfile_src = ${nfile_src}, aborting plot"
-   exit 6
+   exit 8
 fi
 
 export PLOT_WORK_DIR=${PLOT_WORK_DIR}.${PDATE}
@@ -238,6 +256,9 @@ fi
 #  the $satype_file can't be found.
 #
 test_list=`ls ${ieee_src}/angle.*${PDATE}.ieee_d*`
+if [[ $test_list = "" ]]; then
+   test_list=`tar -tf ${ieee_src}/radmon_angle.tar* | grep ieee_d` 
+fi
 
 for test in ${test_list}; do
    this_file=`basename $test`
@@ -332,11 +353,13 @@ if [[ $RUN_TRANSFER -eq 1 ]]; then
       export WEBDIR=${WEBDIR}/${RADMON_SUFFIX}/${RUN}/pngs
 
       if [[ $MY_MACHINE = "wcoss2" ]]; then 
-         cmdfile=transfer_cmd
+         cmdfile="${PLOT_WORK_DIR}/transfer_cmd"
          echo "${IG_SCRIPTS}/Transfer.sh --nosrc ${RADMON_SUFFIX}" >$cmdfile
+         chmod 755 $cmdfile
 
-         $SUB -q $transfer_queue -A $ACCOUNT -o ${transfer_log} -V \
-              -l select=1:mem=500M -l walltime=45:00 -N ${jobname} ${cmdfile}
+         run_time="$rhr$cmin"	# HHMM format for qsub
+         $SUB -q $transfer_queue -A $ACCOUNT -o ${transfer_log} -e ${LOGdir}/Transfer_${RADMON_SUFFIX}.err \
+	      -V -l select=1:mem=500M -l walltime=45:00 -N ${jobname} -a ${run_time} ${cmdfile}
       else
          $SUB -P $PROJECT -q $transfer_queue -o ${transfer_log} -M 80 -W 0:45 \
               -R affinity[core] -J ${jobname} -cwd ${PWD} -b $run_time ${job}

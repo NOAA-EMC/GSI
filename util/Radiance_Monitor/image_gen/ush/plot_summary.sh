@@ -12,7 +12,6 @@ SATYPE2=$SATYPE
 
 echo "Start plot_summary.sh"
 
-
 #------------------------------------------------------------------
 # Set environment variables.
 tmpdir=${PLOT_WORK_DIR}/plot_summary_${RADMON_SUFFIX}
@@ -29,17 +28,7 @@ edate=$PDATE
 bdate0=`echo $bdate|cut -c1-8`
 edate0=`echo $edate|cut -c1-8`
 
-#--------------------------------------------------------------------
-# Set ctldir to point to correct control file source
-#
-imgdef=`echo ${#IMGNDIR}`
-if [[ $imgdef -gt 0 ]]; then
-  ctldir=$IMGNDIR/time
-else
-  ctldir=$TANKverf/time
-fi
-
-
+ctldir=$IMGNDIR/time
 usef="use.txt"
 timesf="times.txt"
 chanf="chan.txt"
@@ -52,7 +41,7 @@ chanf="chan.txt"
 #
 for type in ${SATYPE2}; do
 
-   $NCP $ctldir/${type}.ctl* ./
+   $NCP $ctldir/${type}*.ctl* ./
    ${UNCOMPRESS} *.ctl.${Z}
 
    cdate=$bdate
@@ -86,26 +75,25 @@ for type in ${SATYPE2}; do
          ieee_src=${TANKverf}/${RUN}.${day}
       fi
 
-      echo "rgnHH, rgnTM = $rgnHH, $rgnTM"
+      #-----------------------------------------------------------
+      #  Locate the data files, first checking for a tar file,
+      #  and copy them locally.
+      #
+      if [[ -e ${ieee_src}/radmon_time.tar && -e ${ieee_src}/radmon_time.tar.${Z} ]]; then
+         echo "Located both radmon_time.tar and radmon_time.tar.${Z} in ${ieee_src}.  Unable to plot."
+         exit 23
+				      
+      elif [[ -e ${ieee_src}/radmon_time.tar || -e ${ieee_src}/radmon_time.tar.${Z} ]]; then
+         files=`tar -tf ${ieee_src}/radmon_time.tar* | grep ${type} | grep ieee_d`
+	 if [[ ${files} != "" ]]; then 
+            tar -xf ${ieee_src}/radmon_time.tar* ${files}
+         fi
 
-      test_file=${ieee_src}/time.${type}.${cdate}.ieee_d
-
-      if [[ $USE_ANL = 1 ]]; then
-         test_file2=${ieee_src}/time.${type}_anl.${cdate}.ieee_d
-      else
-         test_file2=
-      fi
-
-      if [[ -s $test_file ]]; then
-         $NCP ${test_file} ./${type}.${cdate}.ieee_d
-      elif [[ -s ${test_file}.${Z} ]]; then
-         $NCP ${test_file}.${Z} ./${type}.${cdate}.ieee_d.${Z}
-      fi
-
-      if [[ -s $test_file2 ]]; then
-         $NCP ${test_file2} ./${type}_anl.${cdate}.ieee_d
-      elif [[ -s ${test_file2}.${Z} ]]; then
-         $NCP ${test_file2}.${Z} ./${type}_anl.${cdate}.ieee_d.${Z}
+      else				
+         files=`ls ${ieee_src}/time.*${type}*ieee_d*`
+         for f in ${files}; do
+            $NCP ${f} .
+         done
       fi
 
       adate=`$NDATE +${CYCLE_INTERVAL} ${cdate}`
@@ -114,17 +102,26 @@ for type in ${SATYPE2}; do
 
    ${UNCOMPRESS} *.ieee_d.${Z}
 
+   #-----------------------------------------------
+   #  Remove 'time.' from the *ieee_d file names.
+   #
+   prefix="time."
+   dfiles=`ls *.ieee_d`
+   for file in $dfiles; do
+      newfile=`basename $file | sed -e "s/^$prefix//"`
+      mv ./${file} ./${newfile}
+   done
    
-#--------------------------------------------------------------------
-#  Plotting is moving towards dynamic, interactive images drawn
-#  on-the-fly in the client browser.  These images require small text
-#  files instead of static images produced by GrADS.  The flag
-#  PLOT_STATIC_IMGS controls the conditional plotting of the older
-#  static images.  
-#
-#  At present this only affects the summary plots, but will eventually
-#  include most radiance images.
-#
+   #--------------------------------------------------------------------
+   #  Plotting is moving towards dynamic, interactive images drawn
+   #  on-the-fly in the client browser.  These images require small text
+   #  files instead of static images produced by GrADS.  The flag
+   #  PLOT_STATIC_IMGS controls the conditional plotting of the older
+   #  static images.  
+   #
+   #  At present this only affects the summary plots, but will eventually
+   #  include most radiance images.
+   #
    if [[ $PLOT_STATIC_IMGS -eq 1 ]]; then
 
       outfile=${tmpdir}/${type}.gs
@@ -204,7 +201,7 @@ EOF
    echo "END data file generation:"
 
    rm -f ${input}
-
+   rm -f ${type}*ieee_d
 done
 
 
@@ -215,13 +212,14 @@ done
 if [[ ! -d ${IMGNDIR}/summary ]]; then
    mkdir -p ${IMGNDIR}/summary
 fi
-$NCP *summary.png ${IMGNDIR}/summary/.
+
+if [[ $PLOT_STATIC_IMGS -eq 1 ]]; then
+   $NCP *summary.png ${IMGNDIR}/summary/.
+fi
 
 for type in ${SATYPE2}; do
-   $NCP ${type}.sum.txt ${IMGNDIR}/summary/${type}.${PDATE}.sum.txt
+   mv ${type}.sum.txt ${IMGNDIR}/summary/${type}.${PDATE}.sum.txt
 done
-$NCP *.sum.txt ${IMGNDIR}/summary/.
-
 
 
 #--------------------------------------------------------------------

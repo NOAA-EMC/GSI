@@ -91,8 +91,7 @@ EOF
    #------------------------------
    #  mv output files to IMGNDIR
    #
-   cp -f ${type}.*.bcoef.txt  ${IMGNDIR}/bcoef/.
-#   cp -f ${type}.chan.txt     ${IMGNDIR}/time/.
+   mv ${type}.*.bcoef.txt  ${IMGNDIR}/bcoef/.
 
 done
 
