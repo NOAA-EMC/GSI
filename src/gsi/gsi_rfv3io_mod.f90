@@ -844,7 +844,7 @@ subroutine read_fv3_files(mype)
     return
 end subroutine read_fv3_files
 
-subroutine read_fv3_netcdf_guess(fv3filenamegin,it)
+subroutine read_fv3_netcdf_guess(fv3filenamegin)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_fv3_netcdf_guess            read fv3 interface file
@@ -1180,20 +1180,20 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin,it)
    
          if (ier/=0) call die(trim(myname),'cannot get pointers for fv3 met-fields, ier =',ier)
          if( fv3sar_bg_opt == 0) then 
-            call gsi_fv3ncdf_readuv(grd_fv3lam_uv,ges_u,ges_v,fv3filenamegin(it))
+            call gsi_fv3ncdf_readuv(grd_fv3lam_uv,ges_u,ges_v,fv3filenamegin(it),.false.)
          else
-            call gsi_fv3ncdf_readuv_v1(grd_fv3lam_uv,ges_u,ges_v,fv3filenamegin(it))
+            call gsi_fv3ncdf_readuv_v1(grd_fv3lam_uv,ges_u,ges_v,fv3filenamegin(it),.false.)
          endif
          if( fv3sar_bg_opt == 0) then 
             call gsi_fv3ncdf_read(grd_fv3lam_dynvar_ionouv,gsibundle_fv3lam_dynvar_nouv &
-            & ,fv3filenamegin(it)%dynvars,fv3filenamegin(it))
+            & ,fv3filenamegin(it)%dynvars,fv3filenamegin(it),.false.)
             call gsi_fv3ncdf_read(grd_fv3lam_tracer_ionouv,gsibundle_fv3lam_tracer_nouv &
-            & ,fv3filenamegin(it)%tracers,fv3filenamegin(it))
+            & ,fv3filenamegin(it)%tracers,fv3filenamegin(it),.false.)
          else
             call gsi_fv3ncdf_read_v1(grd_fv3lam_dynvar_ionouv,gsibundle_fv3lam_dynvar_nouv &
-            & ,fv3filenamegin(it)%dynvars,fv3filenamegin(it))
+            & ,fv3filenamegin(it)%dynvars,fv3filenamegin(it),.false.)
             call gsi_fv3ncdf_read_v1(grd_fv3lam_tracer_ionouv,gsibundle_fv3lam_tracer_nouv &
-            & ,fv3filenamegin(it)%tracers,fv3filenamegin(it))
+            & ,fv3filenamegin(it)%tracers,fv3filenamegin(it),.false.)
          endif
    
          if( fv3sar_bg_opt == 0) then 
