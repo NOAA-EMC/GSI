@@ -42,7 +42,8 @@ module gridinfo
 !
 !$$$
 
-use mpisetup, only: nproc, mpi_integer, mpi_real4, mpi_comm_world
+use mpimod, only: mpi_comm_world
+use mpisetup, only: nproc, mpi_integer, mpi_real4
 use params, only: datapath,nlevs,nlons,nlats,use_gfs_nemsio, fgfileprefixes, &
                   fv3fixpath, nx_res,ny_res, ntiles,l_fv3reg_filecombined
 use kinds, only: r_kind, i_kind, r_double, r_single
