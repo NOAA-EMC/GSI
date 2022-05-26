@@ -22,9 +22,9 @@ if(NOT CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU|Intel)$")
 endif()
 
 if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
-  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -convert big_endian")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -g -traceback -convert big_endian")
 elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
-  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -g -fbacktrace -fconvert=big-endian")
 endif()
 
 if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
