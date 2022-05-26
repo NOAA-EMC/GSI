@@ -2,7 +2,7 @@
 # FLAGS COMMON TO ALL BUILD TYPES
 ####################################################################
 
-set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS} -g -traceback -implicitnone")
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -g -traceback -implicitnone")
 
 ####################################################################
 # RELEASE FLAGS
