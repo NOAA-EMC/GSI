@@ -742,8 +742,12 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
               if (llll == 1) then
                  call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBR')
-                 if ( amsua .or. amsub .or. mhs )then
-                    ! convert antenna temperature to brightness temperature
+                 if ( (amsua .or. amsub .or. mhs) .and. &
+                      .not.(jsatid == 'n15' .or. jsatid == 'n16') )then
+                    ! convert antenna temperature to brightness temperature,
+                    ! unless the satellite is n15 or n16, because tranamsua
+                    ! does this conversion because the coefficient files exist
+                    ! for it to use
                     data1b8x=data1b8
                     data1b4=data1b8
                     !call apply_antcorr(accoeff_sets(spc_coeff_versions),ifov,data1b4)
