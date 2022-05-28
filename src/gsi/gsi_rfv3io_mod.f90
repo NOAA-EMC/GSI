@@ -512,6 +512,7 @@ subroutine gsi_rfv3io_get_ens_grid_specs(grid_spec,ierr)
   integer(i_kind) :: nio,nylen
   integer(i_kind),allocatable :: gfile_loc_layout(:)
   character(len=180)  :: filename_layout
+  integer(i_kind) imiddle,jmiddle
 
 
     iret=nf90_open(trim(grid_spec),nf90_nowrite,gfile_grid_spec)
@@ -586,6 +587,44 @@ subroutine gsi_rfv3io_get_ens_grid_specs(grid_spec,ierr)
     if(mype==0)write(6,*),'ny_layout_lenens=',ny_layout_lenens
     if(mype==0)write(6,*),'ny_layout_bens=',ny_layout_bens
     if(mype==0)write(6,*),'ny_layout_eens=',ny_layout_eens
+
+!
+!  need to decide the grid orientation of the FV regional model   
+!
+!   grid_type_fv3_regional = 0 : decide grid orientation based on
+!                                grid_lat/grid_lon
+!                            1 : input is E-W N-S grid
+!                            2 : input is W-E S-N grid
+!
+    if(grid_type_fv3_regional == 0) then
+        imiddle=nxens/2
+        jmiddle=nyens/2
+        if( (grid_latt(imiddle,1) < grid_latt(imiddle,nyens)) .and. &
+            (grid_lont(1,jmiddle) < grid_lont(nxens,jmiddle)) ) then
+            grid_type_fv3_regional = 2
+        else
+            grid_type_fv3_regional = 1
+        endif
+    endif
+! check the grid type
+    if( grid_type_fv3_regional == 1 ) then
+       if(mype==0) write(6,*) 'FV3 regional input grid is  E-W N-S grid'
+       grid_reverse_flag=.true.    ! grid is revered comparing to usual map view
+    else if(grid_type_fv3_regional == 2) then
+       if(mype==0) write(6,*) 'FV3 regional input grid is  W-E S-N grid'
+       grid_reverse_flag=.false.   ! grid orientated just like we see on map view
+    else
+       write(6,*) 'Error: FV3 regional input grid is unknown grid'
+       call stop2(678)
+    endif
+!
+    if(grid_type_fv3_regional == 2) then
+       call reverse_grid_r(grid_lont,nxens,nyens,1)
+       call reverse_grid_r(grid_latt,nxens,nyens,1)
+       call reverse_grid_r(grid_lon,nxens+1,nyens+1,1)
+       call reverse_grid_r(grid_lat,nxens+1,nyens+1,1)
+    endif
+
     call definecoef_regular_grids(nxens,nyens,grid_lon,grid_lont,grid_lat,grid_latt)
     deallocate (grid_lon,grid_lat,grid_lont,grid_latt)
     return

@@ -72,7 +72,7 @@ module mod_fv3_lola
   public :: nxa,nya,cangu,sangu,cangv,sangv,nx,ny,bilinear
   public :: definecoef_regular_grids,fv3_h_to_ll_ens,fv3uv2earthens
   public :: fv3dxens,fv3dx1ens,fv3dyens,fv3dy1ens,fv3ixens,fv3ixpens,fv3jyens,fv3jypens,a3dxens,a3dx1ens,a3dyens,a3dy1ens,a3ixens,a3ixpens,a3jyens,a3jypens
-  public :: nxe,nye,canguens,sanguens,cangvens,sangvens,nxens,nyens
+  public :: nxe,nye,canguens,sanguens,cangvens,sangvens
 
   logical bilinear
   integer(i_kind) nxa,nya,nx,ny
@@ -81,7 +81,7 @@ module mod_fv3_lola
   real(r_kind) ,allocatable,dimension(:,:):: a3dx,a3dx1,a3dy,a3dy1
   real(r_kind) ,allocatable,dimension(:,:):: cangu,sangu,cangv,sangv
   integer(i_kind),allocatable,dimension(:,:)::  a3ix,a3ixp,a3jy,a3jyp
-  integer(i_kind) nxe,nye,nxens,nyens
+  integer(i_kind) nxe,nye
   real(r_kind) ,allocatable,dimension(:,:):: fv3dxens,fv3dx1ens,fv3dyens,fv3dy1ens
   integer(i_kind),allocatable,dimension(:,:)::  fv3ixens,fv3ixpens,fv3jyens,fv3jypens
   real(r_kind) ,allocatable,dimension(:,:):: a3dxens,a3dx1ens,a3dyens,a3dy1ens
@@ -591,7 +591,7 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
   deallocate(rlat_in,rlon_in)
 end subroutine generate_anl_grid
 
-subroutine definecoef_regular_grids(nxens,nyens,grid_lon,grid_lont,grid_lat,grid_latt)
+subroutine definecoef_regular_grids(nxen,nyen,grid_lon,grid_lont,grid_lat,grid_latt)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    generate_??ens_grid
@@ -611,7 +611,7 @@ subroutine definecoef_regular_grids(nxens,nyens,grid_lon,grid_lont,grid_lat,grid
 !   xuguang.wang@ou.edu
 !
 !   input argument list:
-!    nxens, nyens               - number of cells = nxens*nyens 
+!    nxen, nyen               - number of cells = nxen*nyen 
 !    grid_lon ,grid_lat   - longitudes and latitudes of fv3 grid cell corners
 !    grid_lont,grid_latt  - longitudes and latitudes of fv3 grid cell centers
 !
@@ -634,11 +634,12 @@ subroutine definecoef_regular_grids(nxens,nyens,grid_lon,grid_lont,grid_lat,grid
   real(r_kind) dlat,dlon,dyy,dxx,dyyi,dxxi
   real(r_kind) dyyh,dxxh
 
-  integer(i_kind), intent(in   ) :: nxens,nyens                 ! fv3 tile x- and y-dimensions
-  real(r_kind)   , intent(inout) :: grid_lon(nxens+1,nyens+1)   ! fv3 cell corner longitudes
-  real(r_kind)   , intent(inout) :: grid_lont(nxens,nyens)      ! fv3 cell center longitudes
-  real(r_kind)   , intent(inout) :: grid_lat(nxens+1,nyens+1)   ! fv3 cell corner latitudes
-  real(r_kind)   , intent(inout) :: grid_latt(nxens,nyens)      ! fv3 cell center latitudes
+  real(r_kind),allocatable:: region_lat_tmp(:,:),region_lon_tmp(:,:)
+  integer(i_kind), intent(in   ) :: nxen,nyen                 ! fv3 tile x- and y-dimensions
+  real(r_kind)   , intent(inout) :: grid_lon(nxen+1,nyen+1)   ! fv3 cell corner longitudes
+  real(r_kind)   , intent(inout) :: grid_lont(nxen,nyen)      ! fv3 cell center longitudes
+  real(r_kind)   , intent(inout) :: grid_lat(nxen+1,nyen+1)   ! fv3 cell corner latitudes
+  real(r_kind)   , intent(inout) :: grid_latt(nxen,nyen)      ! fv3 cell center latitudes
   integer(i_kind) i,j,ir,jr,n
   real(r_kind),allocatable,dimension(:,:) :: xc,yc,zc,gclat,gclon,gcrlat,gcrlon,rlon_in,rlat_in
   real(r_kind),allocatable,dimension(:,:) :: glon_an,glat_an
@@ -650,7 +651,7 @@ subroutine definecoef_regular_grids(nxens,nyens,grid_lon,grid_lont,grid_lat,grid
   integer(i_kind) nord_e2a
   real(r_kind)gxa,gya
 
-  real(r_kind) x(nxens+1,nyens+1),y(nxens+1,nyens+1),z(nxens+1,nyens+1),xr,yr,zr,xu,yu,zu,rlat,rlon
+  real(r_kind) x(nxen+1,nyen+1),y(nxen+1,nyen+1),z(nxen+1,nyen+1),xr,yr,zr,xu,yu,zu,rlat,rlon
   real(r_kind) xv,yv,zv,vval
   real(r_kind) cx,cy
   real(r_kind) uval,ewval,nsval
@@ -662,15 +663,15 @@ subroutine definecoef_regular_grids(nxens,nyens,grid_lon,grid_lont,grid_lat,grid
   bilinear=.false.
 
 !   create xc,yc,zc for the cell centers.
-  allocate(xc(nxens,nyens))
-  allocate(yc(nxens,nyens))
-  allocate(zc(nxens,nyens))
-  allocate(gclat(nxens,nyens))
-  allocate(gclon(nxens,nyens))
-  allocate(gcrlat(nxens,nyens))
-  allocate(gcrlon(nxens,nyens))
-  do j=1,nyens
-     do i=1,nxens
+  allocate(xc(nxen,nyen))
+  allocate(yc(nxen,nyen))
+  allocate(zc(nxen,nyen))
+  allocate(gclat(nxen,nyen))
+  allocate(gclon(nxen,nyen))
+  allocate(gcrlat(nxen,nyen))
+  allocate(gcrlon(nxen,nyen))
+  do j=1,nyen
+     do i=1,nxen
         xc(i,j)=cos(grid_latt(i,j)*deg2rad)*cos(grid_lont(i,j)*deg2rad)
         yc(i,j)=cos(grid_latt(i,j)*deg2rad)*sin(grid_lont(i,j)*deg2rad)
         zc(i,j)=sin(grid_latt(i,j)*deg2rad)
@@ -679,9 +680,9 @@ subroutine definecoef_regular_grids(nxens,nyens,grid_lon,grid_lont,grid_lat,grid
 
 !  compute center as average x,y,z coordinates of corners of domain --
 
-  xcent=quarter*(xc(1,1)+xc(1,nyens)+xc(nxens,1)+xc(nxens,nyens))
-  ycent=quarter*(yc(1,1)+yc(1,nyens)+yc(nxens,1)+yc(nxens,nyens))
-  zcent=quarter*(zc(1,1)+zc(1,nyens)+zc(nxens,1)+zc(nxens,nyens))
+  xcent=quarter*(xc(1,1)+xc(1,nyen)+xc(nxen,1)+xc(nxen,nyen))
+  ycent=quarter*(yc(1,1)+yc(1,nyen)+yc(nxen,1)+yc(nxen,nyen))
+  zcent=quarter*(zc(1,1)+zc(1,nyen)+zc(nxen,1)+zc(nxen,nyen))
 
   rnorm=one/sqrt(xcent**2+ycent**2+zcent**2)
   xcent=rnorm*xcent
@@ -692,7 +693,7 @@ subroutine definecoef_regular_grids(nxens,nyens,grid_lon,grid_lont,grid_lat,grid
 
 !!  compute new lats, lons
   call rotate2deg(grid_lont,grid_latt,gcrlon,gcrlat, &
-                  centlon,centlat,nxens,nyens)
+                  centlon,centlat,nxen,nyen)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!  compute analysis A-grid  lats, lons
@@ -704,38 +705,39 @@ subroutine definecoef_regular_grids(nxens,nyens,grid_lon,grid_lont,grid_lat,grid
   if(mype==0) print *,'nlat,nlon=nye,nxe= ',nlat_ens,nlon_ens
 
   allocate(rlat_in(nlat_ens,nlon_ens),rlon_in(nlat_ens,nlon_ens))
-  region_lon_ens=region_lon_ens*rad2deg
-  region_lat_ens=region_lat_ens*rad2deg
-  call rotate2deg(region_lon_ens,region_lat_ens,rlon_in,rlat_in, &
+  allocate(region_lon_tmp(nlat_ens,nlon_ens),region_lat_tmp(nlat_ens,nlon_ens))
+  region_lon_tmp=region_lon_ens*rad2deg
+  region_lat_tmp=region_lat_ens*rad2deg
+  call rotate2deg(region_lon_tmp,region_lat_tmp,rlon_in,rlat_in, &
                     centlon,centlat,nlat_ens,nlon_ens)
 
 !--------------------------obtain analysis grid spacing
-  dlat=(maxval(gcrlat)-minval(gcrlat))/(nyens-1)
-  dlon=(maxval(gcrlon)-minval(gcrlon))/(nxens-1)
+  dlat=(maxval(gcrlat)-minval(gcrlat))/(nyen-1)
+  dlon=(maxval(gcrlon)-minval(gcrlon))/(nxen-1)
 
 
 !-----setup analysis A-grid from center of the domain
 !--------------------compute all combinations of relative coordinates
 
-  allocate(xbh_a(nxens),xbh_b(nxens,nyens),xa_a(nxe),xa_b(nxe))
-  allocate(ybh_a(nyens),ybh_b(nxens,nyens),ya_a(nye),ya_b(nye))
+  allocate(xbh_a(nxen),xbh_b(nxen,nyen),xa_a(nxe),xa_b(nxe))
+  allocate(ybh_a(nyen),ybh_b(nxen,nyen),ya_a(nye),ya_b(nye))
 
-  nxh=nxens/2
-  nyh=nyens/2
+  nxh=nxen/2
+  nyh=nyen/2
 
 
 !!!!!! fv3 rotated grid; not equal spacing, non_orthogonal !!!!!!
-  do j=1,nyens
-     jr=nyens+1-j
-     do i=1,nxens
-        ir=nxens+1-i
+  do j=1,nyen
+     jr=nyen+1-j
+     do i=1,nxen
+        ir=nxen+1-i
         xbh_b(ir,jr)=gcrlon(i,j)/dlon
      end do
   end do
-  do j=1,nyens
-     jr=nyens+1-j
-     do i=1,nxens
-       ir=nxens+1-i
+  do j=1,nyen
+     jr=nyen+1-j
+     do i=1,nxen
+       ir=nxen+1-i
        ybh_b(ir,jr)=gcrlat(i,j)/dlat
      end do
   end do
@@ -753,7 +755,7 @@ subroutine definecoef_regular_grids(nxens,nyens,grid_lon,grid_lont,grid_lat,grid
 !!!!!compute fv3 to A grid interpolation parameters !!!!!!!!!
   allocate (fv3dxens(nxe,nye),fv3dx1ens(nxe,nye),fv3dyens(nxe,nye),fv3dy1ens(nxe,nye))
   allocate (fv3ixens(nxe,nye),fv3ixpens(nxe,nye),fv3jyens(nxe,nye),fv3jypens(nxe,nye))
-  allocate(yy(nyens))
+  allocate(yy(nyen))
 
 ! iteration to find the fv3 grid cell
   jb1=1
@@ -764,26 +766,32 @@ subroutine definecoef_regular_grids(nxens,nyens,grid_lon,grid_lont,grid_lat,grid
          gxa=xa_a(i)
          if(gxa < xbh_b(1,jb1))then
             gxa= 1
-         else if(gxa > xbh_b(nxens,jb1))then
-            gxa= nxens
+         else if(gxa > xbh_b(nxen,jb1))then
+            gxa= nxen
          else
-            call grdcrd1(gxa,xbh_b(1,jb1),nxens,1)
+            call grdcrd1(gxa,xbh_b(1,jb1),nxen,1)
          endif
          ib2=ib1
          ib1=gxa
-         do jj=1,nyens
+         do jj=1,nyen
             yy(jj)=ybh_b(ib1,jj)
          enddo
          gya=ya_a(j)
          if(gya < yy(1))then
             gya= 1
-         else if(gya > yy(nyens))then
-            gya= nyens
+         else if(gya > yy(nyen))then
+            gya= nyen
          else
-            call grdcrd1(gya,yy,nyens,1)
+            call grdcrd1(gya,yy,nyen,1)
          endif
          jb2=jb1
          jb1=gya
+         if(ib1+1 > nxen)then  !this block( 6 lines)  is copied from GSL gsi repository
+            ib1=ib1-1
+         endif
+         if(jb1+1 > nyen)then
+            jb1=jb1-1
+         endif
 
          if((ib1 == ib2) .and. (jb1 == jb2)) exit
          if(n==3 ) then
@@ -800,40 +808,40 @@ subroutine definecoef_regular_grids(nxens,nyens,grid_lon,grid_lont,grid_lat,grid
             gxa=xa_a(i)
             gya=ya_a(j)
             if(kk==1)then
-               call grdcrd1(gxa,xbh_b(1,jb1),nxens,1)
-               do jj=1,nyens
+               call grdcrd1(gxa,xbh_b(1,jb1),nxen,1)
+               do jj=1,nyen
                   yy(jj)=ybh_b(ib1,jj)
                enddo
-               call grdcrd1(gya,yy,nyens,1)
+               call grdcrd1(gya,yy,nyen,1)
             else if(kk==2)then
-               call grdcrd1(gxa,xbh_b(1,jb1),nxens,1)
-               do jj=1,nyens
+               call grdcrd1(gxa,xbh_b(1,jb1),nxen,1)
+               do jj=1,nyen
                   yy(jj)=ybh_b(ib1+1,jj)
                enddo
-               call grdcrd1(gya,yy,nyens,1)
+               call grdcrd1(gya,yy,nyen,1)
             else if(kk==3)then
-               call grdcrd1(gxa,xbh_b(1,jb1+1),nxens,1)
-               do jj=1,nyens
+               call grdcrd1(gxa,xbh_b(1,jb1+1),nxen,1)
+               do jj=1,nyen
                   yy(jj)=ybh_b(ib1,jj)
                enddo
-               call grdcrd1(gya,yy,nyens,1)
+               call grdcrd1(gya,yy,nyen,1)
             else if(kk==4)then
-               call grdcrd1(gxa,xbh_b(1,jb1+1),nxens,1)
-               do jj=1,nyens
+               call grdcrd1(gxa,xbh_b(1,jb1+1),nxen,1)
+               do jj=1,nyen
                   yy(jj)=ybh_b(ib1+1,jj)
                enddo
-               call grdcrd1(gya,yy,nyens,1)
+               call grdcrd1(gya,yy,nyen,1)
             endif
             exit
          endif  !n=3   
       enddo  ! n
 
       fv3ixens(i,j)=int(gxa)
-      fv3ixens(i,j)=min(max(1,fv3ixens(i,j)),nxens)
-      fv3ixpens(i,j)=min(nxens,fv3ixens(i,j)+1)
+      fv3ixens(i,j)=min(max(1,fv3ixens(i,j)),nxen)
+      fv3ixpens(i,j)=min(nxen,fv3ixens(i,j)+1)
       fv3jyens(i,j)=int(gya)
-      fv3jyens(i,j)=min(max(1,fv3jyens(i,j)),nyens)
-      fv3jypens(i,j)=min(nyens,fv3jyens(i,j)+1)
+      fv3jyens(i,j)=min(max(1,fv3jyens(i,j)),nyen)
+      fv3jypens(i,j)=min(nyen,fv3jyens(i,j)+1)
 
       if(bilinear)then
          fv3dyens(i,j)=max(zero,min(one,gya-fv3jyens(i,j)))
@@ -884,11 +892,11 @@ subroutine definecoef_regular_grids(nxens,nyens,grid_lon,grid_lont,grid_lat,grid
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1111
 !!!!!compute A to fv3 grid interpolation parameters
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1111
-  allocate (a3dxens(nyens,nxens),a3dx1ens(nyens,nxens),a3dyens(nyens,nxens),a3dy1ens(nyens,nxens))
-  allocate (a3ixens(nyens,nxens),a3ixpens(nyens,nxens),a3jyens(nyens,nxens),a3jypens(nyens,nxens))
+  allocate (a3dxens(nyen,nxen),a3dx1ens(nyen,nxen),a3dyens(nyen,nxen),a3dy1ens(nyen,nxen))
+  allocate (a3ixens(nyen,nxen),a3ixpens(nyen,nxen),a3jyens(nyen,nxen),a3jypens(nyen,nxen))
 
-  do i=1,nxens
-     do j=1,nyens
+  do i=1,nxen
+     do j=1,nyen
         gxa=xbh_b(i,j)
         if(gxa < xa_a(1))then
            gxa= 1
@@ -905,8 +913,8 @@ subroutine definecoef_regular_grids(nxens,nyens,grid_lon,grid_lont,grid_lat,grid
      end do
   end do
 
-  do i=1,nxens
-    do j=1,nyens
+  do i=1,nxen
+    do j=1,nyen
         gya=ybh_b(i,j)
         if(gya < ya_a(1))then
            gya= 1
@@ -927,12 +935,12 @@ subroutine definecoef_regular_grids(nxens,nyens,grid_lon,grid_lont,grid_lat,grid
 !!! find coefficients for wind conversion btw FV3 & earth
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  allocate (canguens(nxens,nyens+1),sanguens(nxens,nyens+1),cangvens(nxens+1,nyens),sangvens(nxens+1,nyens))
+  allocate (canguens(nxen,nyen+1),sanguens(nxen,nyen+1),cangvens(nxen+1,nyen),sangvens(nxen+1,nyen))
 
 !   1.  compute x,y,z at cell cornor from grid_lon, grid_lat
 
-  do j=1,nyens+1
-     do i=1,nxens+1
+  do j=1,nyen+1
+     do i=1,nxen+1
         x(i,j)=cos(grid_lat(i,j)*deg2rad)*cos(grid_lon(i,j)*deg2rad)
         y(i,j)=cos(grid_lat(i,j)*deg2rad)*sin(grid_lon(i,j)*deg2rad)
         z(i,j)=sin(grid_lat(i,j)*deg2rad)
@@ -941,8 +949,8 @@ subroutine definecoef_regular_grids(nxens,nyens,grid_lon,grid_lont,grid_lat,grid
 
 !  2   find angles to E-W and N-S for U edges
 
-  do j=1,nyens+1
-     do i=1,nxens
+  do j=1,nyen+1
+     do i=1,nxen
 !      center lat/lon of the edge 
         rlat=half*(grid_lat(i,j)+grid_lat(i+1,j))
         rlon=half*(grid_lon(i,j)+grid_lon(i+1,j))
@@ -964,8 +972,8 @@ subroutine definecoef_regular_grids(nxens,nyens,grid_lon,grid_lont,grid_lat,grid
   enddo
 
 !  3   find angles to E-W and N-S for V edges
-  do j=1,nyens
-     do i=1,nxens+1
+  do j=1,nyen
+     do i=1,nxen+1
         rlat=half*(grid_lat(i,j)+grid_lat(i,j+1))
         rlon=half*(grid_lon(i,j)+grid_lon(i,j+1))
         xr=cos(rlat*deg2rad)*cos(rlon*deg2rad)
@@ -1088,7 +1096,7 @@ subroutine fv3uv2earth(u,v,nx,ny,u_out,v_out)
   return
 end subroutine fv3uv2earth
 
-subroutine fv3uv2earthens(u,v,nxens,nyens,u_out,v_out)
+subroutine fv3uv2earthens(u,v,nxen,nyen,u_out,v_out)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    fv3uv2earthens
@@ -1117,13 +1125,13 @@ subroutine fv3uv2earthens(u,v,nxens,nyens,u_out,v_out)
   use constants, only: half
   implicit none
 
-  integer(i_kind), intent(in   ) :: nxens,nyens                 ! fv3 tile x- and y-dimensions
-  real(r_kind),intent(in   ) :: u(nxens,nyens+1),v(nxens+1,nyens)
-  real(r_kind),intent(  out) :: u_out(nxens,nyens),v_out(nxens,nyens)
+  integer(i_kind), intent(in   ) :: nxen,nyen                 ! fv3 tile x- and y-dimensions
+  real(r_kind),intent(in   ) :: u(nxen,nyen+1),v(nxen+1,nyen)
+  real(r_kind),intent(  out) :: u_out(nxen,nyen),v_out(nxen,nyen)
   integer(i_kind) i,j
 
-  do j=1,nyens
-     do i=1,nxens
+  do j=1,nyen
+     do i=1,nxen
         u_out(i,j)=half *((u(i,j)*sangvens(i,j)-v(i,j)*sanguens(i,j))/(canguens(i,j)*sangvens(i,j)-sanguens(i,j)*cangvens(i,j)) &
                        +(u(i,j+1)*sangvens(i+1,j)-v(i+1,j)*sanguens(i,j+1))/(canguens(i,j+1)*sangvens(i+1,j)-sanguens(i,j+1)*cangvens(i+1,j)))
         v_out(i,j)=half *((u(i,j)*cangvens(i,j)-v(i,j)*canguens(i,j))/(sanguens(i,j)*cangvens(i,j)-canguens(i,j)*sangvens(i,j)) &

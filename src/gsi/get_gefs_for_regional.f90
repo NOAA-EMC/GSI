@@ -42,6 +42,7 @@ subroutine get_gefs_for_regional
   use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
   use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
   use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
+  use hybrid_ensemble_parameters, only: n_ens_gfs
   use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens,l_ens_in_diff_time,write_ens_sprd
   use hybrid_ensemble_parameters, only: ntlevs_ens,ensemble_path,jcap_ens
  !use hybrid_ensemble_parameters, only: add_bias_perturbation
@@ -229,14 +230,17 @@ subroutine get_gefs_for_regional
   do n=1,200
      read(10,'(a)',err=20,end=40)filename 
   enddo
-40 n_ens=n-1
+40 n_ens_temp=n-1
+write(6,*)'the number of ensemble members in the filelist is ',n_ens_temp
+write(6,*)'The actual number to be used of the first ensembles is ',n_ens_gfs
+!cltorg 40 n_ens=n-1
 
 !    set n_ens_temp depending on if we want to add bias perturbation to the ensemble
 
   if(add_bias_perturbation) then
-     n_ens_temp=n_ens+1
+     n_ens_temp=n_ens_gfs+1
   else
-     n_ens_temp=n_ens
+     n_ens_temp=n_ens_gfs
   end if
 
   rewind (10) 
@@ -374,7 +378,6 @@ subroutine get_gefs_for_regional
         gfshead%jcap = -9999
         gfshead%idsl= 1
         gfshead%idvc = 2
-
 
         nlat_gfs=gfshead%latb+2
         nlon_gfs=gfshead%lonb
@@ -585,17 +588,16 @@ subroutine get_gefs_for_regional
                     grd_gfs%nlat,sp_gfs%rlats,grd_gfs%nlon,sp_gfs%rlons,nord_g2r,p_g2r)
 
 !  allocate mix ensemble space--horizontal on regional domain, vertical still gefs 
-  allocate(st_eg(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig,n_ens))
-  allocate(vp_eg(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig,n_ens))
-  allocate( t_eg(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig,n_ens))
-  allocate(rh_eg(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig,n_ens))
-  allocate(oz_eg(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig,n_ens))
-  allocate(cw_eg(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig,n_ens))
-  allocate( p_eg_nmmb(grd_mix%lat2,grd_mix%lon2,n_ens))
+  allocate(st_eg(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig,n_ens_gfs))
+  allocate(vp_eg(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig,n_ens_gfs))
+  allocate( t_eg(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig,n_ens_gfs))
+  allocate(rh_eg(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig,n_ens_gfs))
+  allocate(oz_eg(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig,n_ens_gfs))
+  allocate(cw_eg(grd_mix%lat2,grd_mix%lon2,grd_mix%nsig,n_ens_gfs))
+  allocate( p_eg_nmmb(grd_mix%lat2,grd_mix%lon2,n_ens_gfs))
   st_eg=zero ; vp_eg=zero ; t_eg=zero ; rh_eg=zero ; oz_eg=zero ; cw_eg=zero 
   p_eg_nmmb=zero
 
-!
 ! prepare terrain height
 !
   allocate(ges_z_ens(grd_mix%lat2,grd_mix%lon2))
@@ -616,7 +618,7 @@ subroutine get_gefs_for_regional
 
   rewind(10)
   inithead=.true.
-  do n=1,n_ens
+  do n=1,n_ens_gfs
      read(10,'(a)',err=20,end=20)filename 
      filename=trim(ensemble_path) // trim(filename)
 !     write(filename,100) n
@@ -950,7 +952,6 @@ subroutine get_gefs_for_regional
 !                   if(mype==0) write(6,*)' with halo, n,min,max ges_ps - matt ps =',n,pdiffmin0,pdiffmax0
 
   end do   !  end loop over ensemble members.
-
   deallocate(ges_z_ens)
 
 !   next, compute mean of ensembles.
@@ -966,7 +967,7 @@ subroutine get_gefs_for_regional
 !   compute mean state
   stbar=zero ; vpbar=zero ; tbar=zero ; rhbar=zero ; ozbar=zero ; cwbar=zero 
   pbar_nmmb=zero
-  do n=1,n_ens
+  do n=1,n_ens_gfs
      do k=1,grd_mix%nsig
         do j=1,grd_mix%lon2
            do i=1,grd_mix%lat2
@@ -987,7 +988,7 @@ subroutine get_gefs_for_regional
   end do
 
 ! Convert to mean
-  bar_norm = one/float(n_ens)
+  bar_norm = one/float(n_ens_gfs)
   do k=1,grd_mix%nsig
      do j=1,grd_mix%lon2
         do i=1,grd_mix%lat2
@@ -1020,7 +1021,7 @@ subroutine get_gefs_for_regional
 !www  ensemble perturbation for all but the first member if full_ensemble
   if(full_ensemble)n1=2
 
-  do n=n1,n_ens
+  do n=n1,n_ens_gfs
      do k=1,grd_mix%nsig
         do j=1,grd_mix%lon2
            do i=1,grd_mix%lat2
@@ -1116,7 +1117,7 @@ subroutine get_gefs_for_regional
   allocate(rht(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
   allocate(ozt(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
   allocate(cwt(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig))
-  do n=1,n_ens
+  do n=1,n_ens_gfs
      do j=1,grd_ens%lon2
         do i=1,grd_ens%lat2
            do k=1,grd_mix%nsig
