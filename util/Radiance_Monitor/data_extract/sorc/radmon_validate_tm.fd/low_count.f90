@@ -51,7 +51,6 @@ module low_count
       character(60)                     :: fname
 
 
-      write(*,*) '--> open_low_count_file, date, cycle = ', date, cycle
       !--- build the file name
       fname = 'low_count.' // trim(date) // trim(cycle)
 
@@ -89,7 +88,6 @@ module low_count
 
 
     subroutine close_low_count_file( )
-      write(*,*) '--> close_low_count_file'
       close( funit ) 
     end subroutine close_low_count_file
 

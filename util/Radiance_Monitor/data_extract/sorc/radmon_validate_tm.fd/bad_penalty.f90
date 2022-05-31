@@ -49,7 +49,6 @@ module bad_penalty
       logical                           :: lexist = .FALSE.
       character(60)                     :: fname
       
-!      write(*,*) '--> open_bad_penalty_file, date, cycle = ', date, cycle
 
       !--- build the file name
       fname= 'bad_pen.' // trim(date) // trim(cycle)  
@@ -93,7 +92,6 @@ module bad_penalty
     !  close the bad_penalty.txt file
     !-------------------------------------------------------------
     subroutine close_bad_penalty_file( )
-!      write(*,*) '--> close_bad_penalty_file'
       close( funit ) 
     end subroutine close_bad_penalty_file
 

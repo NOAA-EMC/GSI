@@ -51,7 +51,6 @@ module bad_chan
       character(60)                     :: fname
 
 
-!      write(*,*) '--> open_bad_chan_file, date, cycle = ', date, cycle
       !--- build the file name
       fname = 'bad_chan.' // trim(date) // trim(cycle)
 
@@ -87,7 +86,6 @@ module bad_chan
 
 
     subroutine close_bad_chan_file( )
-!      write(6,*) '--> close_bad_chan_file'
       close( funit ) 
     end subroutine close_bad_chan_file
 

@@ -320,7 +320,6 @@ program angle
         end do
      end do
   end do
-  write( 6,* ) 'initialized array variables'
 
 
 !************************************************************************
@@ -417,8 +416,6 @@ program angle
 
   deallocate ( timang )
 
-  write(6,*)
-  write(6,*) 'finished reading data'
 
 !   Q: should I average the data here or do that in javascript?  If js can do it 
 !      quickly enough that would be the most flexible solution, allowing for 

@@ -141,12 +141,6 @@ program angle
      ctl_file = 'angle.' // trim(satname) // '_anl.ctl'
   endif
 
-  write(6,*)'diag_rad =',diag_rad
-  write(6,*)'data_file=',data_file
-  write(6,*)'suffix   =',suffix
-  write(6,*)'ctl_file =',ctl_file
-  write(6,*)'little_endian =', little_endian
-
  
   !-----------------------------------------------------
   !  Note:  Ideally the open_radiag routine would 
@@ -484,7 +478,6 @@ program angle
 
 
   ! Create Control file
-  write(6,*)'call create_ctl_angle'
   if ( trim(gesanl) == 'ges' ) then
      dfile = trim(satname)
   else 
@@ -498,7 +491,7 @@ program angle
 
 
 ! Write output to data file
-  write(6,*)' '
+  
   open(lungrd,file=data_file,form='unformatted')
   write(lungrd) ((timang(i,j),i=1,nstep),j=1,n_chan)
   do k=1,surf_nregion
@@ -562,9 +555,7 @@ program angle
 
 
 ! Deallocate arrays
-  write(6,*)' '
-  write(6,*)'deallocate arrays'
-
+ 
   if(allocated(penalty))         deallocate (penalty)
   if(allocated(io_chan))         deallocate (io_chan)
   if(allocated(nu_chan))         deallocate (nu_chan)

@@ -86,8 +86,6 @@ module valid
       fname  = trim(satname) // '.base'
       fexist = .FALSE.
 
-      write(*,*) '--> valid, satname, fname = ', satname, fname
-
       !--- verify file exists and open the file
       inquire( file = fname, exist = fexist )
       if( fexist .eqv. .FALSE. ) then
@@ -127,27 +125,6 @@ module valid
                              avg_penalty(j,k), sdv_penalty(j,k), min_penalty(j,k), max_penalty(j,k)
             end do
          end do
-
-         !---------------------------------------------------
-         !  adjust max_penalty values for iasi and cris
-         !  sources -- see explanation above
-         !  
-        
-!         multiply_by = 1
- 
-!         if ( satname(1:4) == 'iasi' ) then
-!            multiply_by = 5
-!         else if ( satname(1:4) == 'cris' ) then
-!            multiply_by = 6
-!         end if
-
-!         if ( multiply_by > 1 ) then
-!            do k=1,nregion
-!               do j=1,nchan
-!                  max_penalty(j,k) = max_penalty(j,k) * multiply_by
-!               end do
-!            end do
-!         end if 
 
          iret = 0 
          base_loaded = .TRUE.
@@ -238,7 +215,6 @@ module valid
          iret = 1 
       end if 
 
-      write (*,*) '<-- valid, iret=', valid, iret
     end subroutine validate_count
 
 

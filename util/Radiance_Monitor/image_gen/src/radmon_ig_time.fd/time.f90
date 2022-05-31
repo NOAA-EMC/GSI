@@ -15,10 +15,6 @@ program gatime
 !                  one entry for a given channel per line.
 !************************************************************************
 
-!   use IFPORT
-! Intel® Fortran includes functions and subroutines that ease porting of code to or from a PC, or allow you to write code on a PC that is compatible with other platforms.  The portability library is called LIBIFPORT.LIB (Windows*) or libifport.a (Linux* and macOS*). Frequently used functions are included in a portability module called IFPORT.
-! What functionality from IFPORT library is being used here and why?
- 
    implicit none
 
    character(5)  str_chan
@@ -95,7 +91,6 @@ program gatime
 !************************************************************************
    allocate( chan_nums (nchanl) )
    allocate( useflg(nchanl), wave(nchanl), freq(nchanl) )
-!   allocate( chi(2, nchanl, nregion) )
    allocate( chi(2, nchanl, max_region) )
 
    open( lpname, file='chan.txt' )
@@ -381,17 +376,12 @@ program gatime
 !     write channel information to sat_chan_file
 !
    do j=1,nchanl
-!      if( nregion == 1 ) then
-!         write(lsatchan,72) trim(adjustl(chan_nums(j))), trim(useflg(j)), &
-!                       chi(1,j,1), chi(2,j,1), wave(j), freq(j)
-!      else
-         write(lsatchan,73) trim(adjustl(chan_nums(j))), trim(useflg(j)), &
-                       chi(1,j,1), chi(1,j,2), chi(1,j,3), chi(1,j,4), chi(1,j,5), &
-                       chi(2,j,1), chi(2,j,2), chi(2,j,3), chi(2,j,4), chi(2,j,5), &
-                       wave(j), freq(j)
-!      end if
-
+      write(lsatchan,73) trim(adjustl(chan_nums(j))), trim(useflg(j)), &
+                    chi(1,j,1), chi(1,j,2), chi(1,j,3), chi(1,j,4), chi(1,j,5), &
+                    chi(2,j,1), chi(2,j,2), chi(2,j,3), chi(2,j,4), chi(2,j,5), &
+                    wave(j), freq(j)
    end do
+
    write(6,*) 'wrote all channel lines to lsatchan'
    close(lsatchan)
 

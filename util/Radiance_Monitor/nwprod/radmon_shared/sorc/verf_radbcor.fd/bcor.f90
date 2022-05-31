@@ -103,8 +103,6 @@ program bcor
      surf_nregion = 1
   endif
 
-  write(6,*)'surf_nregion = ', surf_nregion
-
 
 ! Ensure number of requested regions does not exceed specified upper limit
   if (surf_nregion>mregion) then
@@ -129,13 +127,7 @@ program bcor
      ctl_file = 'bcor.' // trim(satname) // '_anl.ctl'
   endif
 
-  write(6,*)'diag_rad =',diag_rad
-  write(6,*)'data_file=',data_file
-  write(6,*)'ctl_file =',ctl_file
-  write(6,*)'suffix   =',suffix
-
-
- !-----------------------------------------------------
+  !-----------------------------------------------------
   !  Note:  Ideally the open_radiag routine would
   !         return an iret code indicating success or
   !         failure of the attempt to open the diag file.

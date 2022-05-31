@@ -47,7 +47,6 @@ program make_base
 !
 !  Ensure number of requested regions does not exceed specified upper limit
 !
-   write(6,*)' check nregion size'
    if (nregion>mregion) then
       write(6,*)'***ERROR*** too many regions specified'
       write(6,*)'   maximum allowed:  mregion=',mregion
@@ -58,7 +57,6 @@ program make_base
 !
 !  Ensure number of input files does not exceed specified upper limit
 !
-   write(6,*)' check nfile too high'
    if (nfile>mfile) then
       write(6,*)'***ERROR*** too many input files specified'
       write(6,*)'   maximum allowed:  mfile=',mfile
@@ -69,7 +67,6 @@ program make_base
 !
 ! Ensure number of input files is one or greater
 !
-   write(6,*)' check nfile too low'
    if (nfile<=0) then
       write(6,*)'***ERROR*** too few input files specified'
       write(6,*)'   minimum allowed:       = 1'
@@ -80,8 +77,6 @@ program make_base
 !
 !  allocate n_chan dependent arrays
 !
-   write(6,*)' begin allocate total_count, total_penalty'
-
    allocate( total_count( n_chan,nregion ), total_penalty( n_chan,nregion ) )
    allocate( avg_count( n_chan,nregion ), avg_penalty( n_chan,nregion ) )
    allocate( sdv_count( n_chan,nregion ), sdv_penalty( n_chan,nregion ) )
@@ -90,7 +85,6 @@ program make_base
    allocate( file_ctr(n_chan, nregion) )
    allocate( iuse(n_chan) )
  
-   write(6,*)' after allocate iuse'
 !
 !  initialize vars 
 ! 
@@ -125,18 +119,14 @@ program make_base
    num_sdv     = 0
    total_sdv   = 0.0
 
-!   write(6,*)' before allocate count, penalty'
-
 !
 !  allocate and initialize reading vars
 ! 
    allocate( count(n_chan, nregion,nfile), penalty(n_chan, nregion,nfile) )
-!  write(6,*)' after allocate total_count, total_penalty'
 
    count   = 0.0
    penalty = 0.0
 
-!  write(6,*)' after initialize total_count, total_penalty'
 !
 !  verify the channel.txt file exists and load iuse from it
 ! 
@@ -291,7 +281,6 @@ program make_base
 !
 !  loop over channel/region and write out the obs and penalty avg & sdv
 !
-   write(6,*) 'writing output to ', out_file
    open(lunout,file=out_file,form='formatted')
    write(lunout,*) satname, date, n_chan, nregion
 

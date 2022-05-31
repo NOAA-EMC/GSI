@@ -18,10 +18,6 @@ program bcoef
 !    but not bcoef.  
 !************************************************************************
 
-!  use IFPORT
-! Intel® Fortran includes functions and subroutines that ease porting of code to or from a PC, or allow you to write code on a PC that is compatible with other platforms.  The portability library is called LIBIFPORT.LIB (Windows*) or libifport.a (Linux* and macOS*). Frequently used functions are included in a portability module called IFPORT.
-! What functionality from IFPORT library is being used here and why?
-
   implicit none
 
   integer ftyp,cyc,chan,open_status
@@ -37,27 +33,12 @@ program bcoef
   character(len=2), allocatable,dimension(:)::useflg
   character(len=5), allocatable,dimension(:)::chan_nums,wave,freq
 
-!        mean       pred(1) = global offset (mean)
-!        atmpath    pred(2) = not used when adp_anglebc=.true. and
-!        newpc4pred=.true.
-!        clw        pred(3) = cloud liquid water term
-!        lapse2     pred(4) = (temperature lapse rate)**2
-!        lapse      pred(5) = temperature lapse rate
-!        cos_ssmis  pred(6) = cosine term for SSMIS
-!        sin_ssmis  pred(7) = sine term for SSMIS
-!        emiss      pred(8) = emissivity sensitivity term
-!        ordang4    pred(9) = 4th order angle term
-!        ordang3    pred(10) = 3rd order angle term
-!        ordang2    pred(11) = 2nd order angle term
-!        ordang1    pred(12) = 1st order angle term
-
   integer luname,ldname,lpname,lsatchan,lsatout
   integer ii, jj
   
   real,allocatable,dimension(:,:,:):: mean,atmpath,clw,lapse2,lapse,cos_ssmis
   real,allocatable,dimension(:,:,:):: sin_ssmis,emiss,ordang4,ordang3,ordang2,ordang1
   real,allocatable,dimension(:)    :: penalty
-!  real,allocatable,dimension(:,:,:)  :: chi
 
 ! Namelist with defaults
   integer               :: nchanl               = 19
@@ -100,15 +81,11 @@ program bcoef
 !************************************************************************
    allocate( chan_nums (nchanl) )
    allocate( useflg(nchanl), wave(nchanl), freq(nchanl) )
-!   allocate( chi(2, nchanl, nregion) )
 
    open( lpname, file='chan.txt' )
 
    do ii=1,nchanl
       read(lpname, *) chan_nums(ii), useflg(ii), wave(ii), freq(ii)
-!      do jj=1,nregion
-!         chi(1,ii,jj) = 0.00
-!      end do
    end do
    close(lpname)
 
@@ -154,8 +131,6 @@ program bcoef
    allocate ( ordang2   (2,ncycle,nchanl) )
    allocate ( ordang1   (2,ncycle,nchanl) )
 
-   write(6,*) 'allocated space for the 12 terms'
-
 
 !**************************************************
 !  Loop over ftyp (ges|anl), cyc, chan, region and
@@ -174,12 +149,10 @@ program bcoef
          end if
 
          inquire(file=data_file, exist=exist)
-!         write(6,*) 'data_file,exist = ', data_file, ' ', exist
 
          if ( exist .eqv. .TRUE. ) then
             open(ldname,file=data_file,form='unformatted')
             read(ldname) (penalty(jj),jj=1,nchanl)
-!            write(6,*) 'penalty(1) = ', penalty(1)
 
             read(ldname) (mean      (ftyp,cyc,jj),jj=1,nchanl)
             read(ldname) (atmpath   (ftyp,cyc,jj),jj=1,nchanl)

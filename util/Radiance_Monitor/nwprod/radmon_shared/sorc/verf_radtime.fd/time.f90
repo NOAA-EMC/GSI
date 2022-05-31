@@ -100,7 +100,6 @@ program time
   write(6,input)
   write(6,*)' '
   write(6,*)'gesanl  = ', gesanl
-!  write(6,*)'imkdata = ', imkdata
 
   if ( trim(gesanl) == 'anl' ) then
      ftype(3) = 'omanbc'
@@ -142,12 +141,6 @@ program time
      data_file= 'time.' // trim(satname) // '_anl' // trim(stringd) // '.ieee_d'
      ctl_file = 'time.' // trim(satname) // '_anl.ctl'
   endif
-
-  write(6,*)'diag_rad =',diag_rad
-  write(6,*)'data_file=',data_file
-  write(6,*)'ctl_file =',ctl_file 
-  write(6,*)'suffix   =',suffix
-
 
   call set_netcdf_read( netcdf )
   call open_radiag( diag_rad, lndiag, istatus )

@@ -8,9 +8,9 @@ list(APPEND SRCS
   make_base.f90
 )
 
-add_executable(radmon_make_base.x ${SRCS})
-target_link_libraries(radmon_make_base.x PRIVATE w3emc::w3emc_4)
+add_executable(radmon_mk_base.x ${SRCS})
+target_link_libraries(radmon_mk_base.x PRIVATE w3emc::w3emc_4)
 
 # Install executable targets
-install(TARGETS radmon_make_base.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS radmon_mk_base.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 

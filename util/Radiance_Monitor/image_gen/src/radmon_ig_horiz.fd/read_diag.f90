@@ -64,11 +64,6 @@ module read_diag
   public :: iversion_radiag_5
   public :: ireal_old_radiag
   public :: set_netcdf_read
-! public :: iversion_radiag
-! public :: iversion_radiag_1
-! public :: iversion_radiag_2
-! public :: iversion_radiag_3
-! public :: iversion_radiag_4
   public :: ireal_radiag
   public :: ipchan_radiag
   public :: set_radiag
@@ -267,7 +262,6 @@ subroutine open_radiag(filename, ftin, istatus)
       if (nopen_ncdiag >= MAX_OPEN_NCDIAG) then
          write(6,*) 'OPEN_RADIAG:  ***ERROR*** Cannot open more than ', &
                     MAX_OPEN_NCDIAG, ' netcdf diag files.'
-!         call stop2(456)
       endif
       call nc_diag_read_init(filename,ftin)
       istatus=0
@@ -308,7 +302,6 @@ subroutine close_radiag(filename, ftin)
       if (id < 0) then
          write(6,*) 'CLOSE_RADIAG:  ***ERROR*** ncdiag file ', filename,   &
                     ' was not opened'
-!         call stop2(456)
       endif
       call nc_diag_read_close(filename)
       ncdiag_open_id(id) = -1
@@ -415,14 +408,12 @@ subroutine read_radiag_header_nc(ftin,header_fix,header_chan,iflag)
   integer(i_kind),allocatable,dimension(:)            :: i_var_stor
   character(20)                          :: isis
   character(10)                          :: id, obstype
-!  integer(i_kind),dimension(:),allocatable           :: jiter, nchan_diag, npred, idate, &
   integer(i_kind)                        :: jiter, nchan_diag, npred, idate, &
                                             ireal, ipchan, iextra, jextra,   &
                                             idiag, angord, iversion, inewpc, &
                                             isens, ijacob
 
   iflag = 0
-!  allocate(nchan_diag(1) )
   nchan_dim = nc_diag_read_get_dim(ftin,'nchans')
   header_fix%nchan = nchan_dim
   
@@ -430,7 +421,6 @@ subroutine read_radiag_header_nc(ftin,header_fix,header_chan,iflag)
 
   if (nchan_dim /= nchan_diag) then
      write(*,*)'ERROR: Number of channels from dimension do not match those from header, aborting.'
-!     call stop2(321)
   endif  
 
   call nc_diag_read_get_global_attr(ftin, "Satellite_Sensor", isis)      ; header_fix%isis = isis
@@ -458,7 +448,6 @@ subroutine read_radiag_header_nc(ftin,header_fix,header_chan,iflag)
   if (allocated(i_var_stor))  deallocate(i_var_stor)
   allocate(r_var_stor(nchan_dim), &
            i_var_stor(nchan_dim)  )
-!  call nc_diag_read_get_var('Var', var_stor)
   call nc_diag_read_get_var(ftin, 'frequency',r_var_stor)      ; header_chan%freq     = r_var_stor
   call nc_diag_read_get_var(ftin, 'polarization',i_var_stor)   ; header_chan%polar    = i_var_stor
   call nc_diag_read_get_var(ftin, 'wavenumber',r_var_stor)     ; header_chan%wave     = r_var_stor
@@ -997,9 +986,6 @@ subroutine read_radiag_data_nc_init(ftin, diag_status, header_fix, retrieval, if
      call nc_diag_read_get_var(ftin, 'Observation_Operator_Jacobian', Observation_Operator_Jacobian)
   endif
   cdatum = 1
-
-!  allocate(  all_data_fix(nrecord)        )
-!  allocate(  all_data_chan(nrecord, nchan))
 
   
   do ir=1,nrecord

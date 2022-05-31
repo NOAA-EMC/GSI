@@ -217,7 +217,6 @@ program bcoef
 
 !       If observation was assimilated, accumulate sum
         if (data_chan(j)%errinv > 1.e-6) then
-!           pen        =  data_chan(j)%errinv*(data_chan(j)%omgbc)**2
            pen        =  (data_chan(j)%errinv*(data_chan(j)%omgbc))**2
            count(j)   = count(j) + 1.0 
            penalty(j) = penalty(j) + pen

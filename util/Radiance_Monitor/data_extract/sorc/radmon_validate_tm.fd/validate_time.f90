@@ -49,8 +49,7 @@ program time
 
 !*************************
 ! Read namelist input
-  write(6,*) '--> validate_time'
-
+!
   read(luname,input)
   write(6,input)
   write(6,*)' '
@@ -141,6 +140,5 @@ program time
   call close_bad_penalty_file()
   call close_bad_chan_file()
 
-  write(6,*) '<-- validate_time'
   stop
 end program time

@@ -15,10 +15,6 @@ program summary
 !
 !************************************************************************
 
-!   use IFPORT
-! Intel® Fortran includes functions and subroutines that ease porting of code to or from a PC, or allow you to write code on a PC that is compatible with other platforms.  The portability library is called LIBIFPORT.LIB (Windows*) or libifport.a (Linux* and macOS*). Frequently used functions are included in a portability module called IFPORT.
-! What functionality from IFPORT library is being used here and why?
- 
    implicit none
 
    character(10) pdate,ndate
@@ -328,7 +324,6 @@ program summary
 !    format: channel, use flage, ges values cycles 1-4, anl values cycles 1-4
 
    do j=1,nchanl
-!      write(loname,71) j, trim(use(j)), int(cnt(1,1,j,1)), int(cnt(1,2,j,1)), &
       write(loname,71) chan_nums(j), trim(use(j)), int(cnt(1,1,j,1)), int(cnt(1,2,j,1)), &
                                         int(cnt(1,3,j,1)), int(cnt(1,4,j,1)), &
                                         int(cnt(2,1,j,1)), int(cnt(2,2,j,1)), &
@@ -340,7 +335,6 @@ program summary
 !  write tot_cor/count values to output file 
 !    format: channel, use flage, tot_cor/cnt for 1 cycle, 4 cycles, 120 cycles
    do j=1,nchanl
-!      write(loname,72) j, trim(use(j)), &
       write(loname,72) chan_nums(j), trim(use(j)), &
             avg_tot_cor(1,j,1), avg_tot_cor(1,j,2), avg_tot_cor(1,j,3), &
             avg_tot_cor(2,j,1), avg_tot_cor(2,j,2), avg_tot_cor(2,j,3) 
@@ -364,7 +358,6 @@ program summary
          end if
       end do
 
-!      write(loname,73) j, trim(use(j)), &
       write(loname,73) chan_nums(j), trim(use(j)), &
          avg_omgbc(1,j,1), sdv_omgbc(1,j,1), avg_omgbc(1,j,2), sdv_omgbc(1,j,2), &
          avg_omgbc(2,j,1), sdv_omgbc(2,j,1), avg_omgbc(2,j,2), sdv_omgbc(2,j,2)
@@ -376,7 +369,6 @@ program summary
 !    format: channel, use flage, avg_pen for 1 cycle, 4 cycles, 120 cycles
 !            ges values), avg_pen for 1 cycle, 4 cycles, 120 cycles (ges values) 
    do j=1,nchanl
-!      write(loname,72) j, trim(use(j)), &
       write(loname,72) chan_nums(j), trim(use(j)), &
             avg_pen(1,j,1), avg_pen(1,j,2), avg_pen(1,j,3), &
             avg_pen(2,j,1), avg_pen(2,j,2), avg_pen(2,j,3) 
