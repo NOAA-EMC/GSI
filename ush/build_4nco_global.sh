@@ -17,12 +17,14 @@ export INSTALL_PREFIX="$DIR_ROOT/install_4nco"
 export GSI_MODE="GFS"
 export ENKF_MODE="GFS"
 export REGRESSION_TESTS="NO"
-export UTIL_OPTS="-DBUILD_UTIL_ENKF_GFS=ON"
+export UTIL_OPTS="-DBUILD_UTIL_ENKF_GFS=ON -DBUILD_UTIL_NCIO=ON"
 
 # Prune the directory structure per NCO liking
-$DIR_ROOT/ush/prune_4nco_global.sh prune
-rc=$?
-[[ $rc -ne 0 ]] && (echo "Error in prune_4nco_global.sh; ABORT!"; exit $rc)
+if [[ "${PRUNE_4NCO:-}" =~ [yYtT] ]]; then
+  $DIR_ROOT/ush/prune_4nco_global.sh prune
+  rc=$?
+  [[ $rc -ne 0 ]] && (echo "Error in prune_4nco_global.sh; ABORT!"; exit $rc)
+fi
 
 # Call the general build script from ush/build.sh
 $DIR_ROOT/ush/build.sh

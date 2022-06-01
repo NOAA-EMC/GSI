@@ -89,7 +89,6 @@ CMake allows for various options that can be specified on the command line via `
 | `BUILD_UTIL_EFSOI`    | Build Ensemble FSOI application (`OFF`)              |
 | `BUILD_UTIL_ENKF_GFS` | Build GFS ensemble utilities (`OFF`)                 |
 | `BUILD_UTIL_ENKF_ARW` | Build ARW ensemble utilities (`OFF`)                 |
-| `BUILD_UTIL_MON`      | Build Observation Monitoring utilities (`OFF`)       |
 | `BUILD_UTIL_NCIO`     | Build NetCDF IO utilities (`OFF`)                    |
 | `BUILD_UTIL_COM`      | Build Miscellaneous community utilities (`OFF`)       |
 | `BUILD_UTIL_BKGERR`   | Build Background Error utility (`OFF`)               |

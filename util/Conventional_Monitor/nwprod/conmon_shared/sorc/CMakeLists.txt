@@ -1,6 +1,0 @@
-add_subdirectory(conmon_grads_lev.fd)
-add_subdirectory(conmon_grads_mandlev.fd)
-add_subdirectory(conmon_grads_sfc.fd)
-add_subdirectory(conmon_grads_sfctime.fd)
-add_subdirectory(conmon_grads_sig.fd)
-add_subdirectory(conmon_time.fd)
