@@ -4175,7 +4175,7 @@ subroutine convert_km_to_grid_units(s_ens_h_gu_x,s_ens_h_gu_y,nz)
   implicit none
 
   integer(i_kind) ,intent(in   ) ::nz
-  real(r_kind),intent(  out) ::s_ens_h_gu_x(nz),s_ens_h_gu_y(nz)
+  real(r_kind),intent(  out) ::s_ens_h_gu_x(nz*n_ens),s_ens_h_gu_y(nz*n_ens)
   logical :: print_verbose
   real(r_kind) dxmax,dymax
   integer(i_kind) k,n,nk
