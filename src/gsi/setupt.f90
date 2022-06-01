@@ -1,5 +1,4 @@
 module t_setup
-    
   implicit none
   private
   public:: setup
@@ -30,7 +29,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use m_obsdiagNode, only: obsdiagNode_assert
 
   use obsmod, only: sfcmodel,perturb_obs,oberror_tune,lobsdiag_forenkf,ianldate,&
-       lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,aircraft_recon 
+       lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,aircraft_recon
   use m_obsNode, only: obsNode
   use m_tNode, only: tNode
   use m_tNode, only: tNode_appendto
@@ -70,7 +69,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use converr, only: ptabl
   use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surftobs,l_sfcobserror_ramp_t
   use rapidrefresh_cldsurf_mod, only: l_pbl_pseudo_surfobst, pblh_ration,pps_press_incr
-  use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_sfct_gross,l_closeobs,i_coastline       
+  use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_sfct_gross,l_closeobs,i_coastline    
 
   use aircraftinfo, only: npredt,predt,aircraft_t_bc_pof,aircraft_t_bc, &
        aircraft_t_bc_ext,ostats_t,rstats_t,upd_pred_t
@@ -316,7 +315,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   type(obs_diags),pointer:: my_diagLL
 
   real(r_kind) :: thisPBL_height,ratio_PBL_height,prestsfc,diffsfc,dthetav
-  real(r_kind) :: tges2m,qges2m,tges2m_water,qges2m_water, zges
+  real(r_kind) :: tges2m,qges2m,tges2m_water,qges2m_water
   real(r_kind) :: hr_offset
 
   equivalence(rstation_id,station_id)
@@ -329,8 +328,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_q2
-  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_t2
-  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_th2
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_t2m
 
   logical:: l_pbl_pseudo_itype
   integer(i_kind):: ich0
@@ -365,7 +363,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 !  call GSD terrain match for surface temperature observation
   if(l_gsd_terrain_match_surftobs) then
-     call gsd_terrain_match_surfTobs(mype,nele,nobs,data) 
+     call gsd_terrain_match_surfTobs(mype,nele,nobs,data)
   endif
 
 !    index information for data array (see reading routine)
@@ -674,27 +672,18 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      end if
 
 ! Interpolate log(ps) & log(pres) at mid-layers to obs locations/times
-     ! for global_2mDA case,  skipping reading the pressure levels into the met guess (to speed up the observer) 
-     ! these are not currently used here, so skip for now.
+     call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
+          mype,nfldsig)
+     call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
 
-     if (.not. do_global_2mDA) then  
-         call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
-              mype,nfldsig)
-         call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
-              nsig,mype,nfldsig)
+     drpx=zero
+     if(sfctype .and. .not.twodvar_regional) then
+        drpx=abs(one-((one/exp(dpres-log(psges))))**rd_over_cp)*t0c
+     end if
 
-         drpx=zero
-         !if(sfctype .and. .not.twodvar_regional .and. .not. do_global_2mDA) then
-         if(sfctype .and. .not.twodvar_regional ) then
-            drpx=abs(one-((one/exp(dpres-log(psges))))**rd_over_cp)*t0c
-         end if
-
-    !    Put obs pressure in correct units to get grid coord. number
-         call grdcrd1(dpres,prsltmp(1),nsig,-1)
-     else 
-        drpx = zero 
-        dpres = one  ! put obs at surface
-     endif 
+!    Put obs pressure in correct units to get grid coord. number
+     call grdcrd1(dpres,prsltmp(1),nsig,-1)
 
 ! Implementation of forward model ----------
 
@@ -732,14 +721,14 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      elseif (sfctype .and. do_global_2mDA) then 
 ! SCENARIO 2: obs is sfctype, and do_global_2mDA scheme is on. 
 ! 2m forecast has been read from the sfc guess files
-! note: any changes to ges_t2 and tob in this block should also be made in buddy_check_t 
+! note: any changes to ges_t2m and tob in this block should also be made in buddy_check_t 
 
     ! mask: 0 - sea, 1 - land, 2-ice (val + 3 = interpolated from at least one different land cover
     ! for now, use only pure land (interpolation from mixed grid cells is pretty sketchy, but 
     ! may result in lack of obs near coasts) 
           if (int(data(idomsfc,i)) .NE. 1  ) muse(i) = .false. 
 
-          call tintrp2a11(ges_t2,tges2m,dlat,dlon,dtime,hrdifsig,&
+          call tintrp2a11(ges_t2m,tges2m,dlat,dlon,dtime,hrdifsig,&
             mype,nfldsig)
 
 ! correct obs to model terrain height - equivalent to gsd_terrain_match, which  uses lapse rate 
@@ -805,13 +794,12 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 ! SCENARIO 4: obs is sfctype, and i_use_2mt4b flag is on (turns on LAM sfc DA)
         if(i_use_2mt4b>0 .and. sfctype) then
+
            if(i_coastline==1 .or. i_coastline==3) then
 
 !          Interpolate guess th 2m to observation location and time
-              call tintrp2a11_csln(ges_th2,tges2m,tges2m_water,dlat,dlon,dtime,hrdifsig,&
+              call tintrp2a11_csln(ges_t2m,tges2m,tges2m_water,dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
-              tges2m=tges2m*(r10*psges/r1000)**rd_over_cp_mass  ! convert to sensible T         
-              tges2m_water=tges2m_water*(r10*psges/r1000)**rd_over_cp_mass  ! convert to sensible T         
               if(iqtflg)then
                  call tintrp2a11_csln(ges_q2,qges2m,qges2m_water,dlat,dlon,dtime,hrdifsig,&
                      mype,nfldsig)
@@ -821,9 +809,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               if( abs(tob-tges2m) > abs(tob-tges2m_water)) tges2m=tges2m_water
            else
 !          Interpolate guess th 2m to observation location and time
-              call tintrp2a11(ges_th2,tges2m,dlat,dlon,dtime,hrdifsig,&
+              call tintrp2a11(ges_t2m,tges2m,dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
-              tges2m=tges2m*(r10*psges/r1000)**rd_over_cp_mass  ! convert to sensible T         
               if(iqtflg)then
                  call tintrp2a11(ges_q2,qges2m,dlat,dlon,dtime,hrdifsig,&
                      mype,nfldsig)
@@ -856,6 +843,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
          endif
      else
         rlow  = zero
+        ramp  = zero
+        drpx  = zero
      endif
 
      rhgh=max(zero,dpres-rsigp-r0_001)
@@ -888,10 +877,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 
 ! Compute innovation
-     !if(i_use_2mt4b>0 .and. sfctype) then
      if(sfctype .and. (( i_use_2mt4b>0) .or. do_global_2mDA) ) then
         ddiff = tob-tges2m
-        tges = tges2m ! not necessary? 
      else
         ddiff = tob-tges
      endif
@@ -1498,47 +1485,25 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
      endif
-     if(i_use_2mt4b>0) then
-!    get th2m ...
-        varname='th2m'
-        call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
-        if (istatus==0) then
-            if(allocated(ges_th2))then
-               write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
-               call stop2(999)
-            endif
-            allocate(ges_th2(size(rank2,1),size(rank2,2),nfldsig))
-            ges_th2(:,:,1)=rank2
-            do ifld=2,nfldsig
-               call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
-               ges_th2(:,:,ifld)=rank2
-            enddo
-        else
-            write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
-            call stop2(999)
-        endif
-     endif
-     if( do_global_2mDA) then
+     if(i_use_2mt4b>0 .or. do_global_2mDA) then
 !    get t2m ...
         varname='t2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
         if (istatus==0) then
-            if(allocated(ges_t2))then
+            if(allocated(ges_t2m))then
                write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
                call stop2(999)
             endif
-            allocate(ges_t2(size(rank2,1),size(rank2,2),nfldsig))
-            ges_t2(:,:,1)=rank2
+            allocate(ges_t2m(size(rank2,1),size(rank2,2),nfldsig))
+            ges_t2m(:,:,1)=rank2
             do ifld=2,nfldsig
                call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
-               ges_t2(:,:,ifld)=rank2
+               ges_t2m(:,:,ifld)=rank2
             enddo
         else
             write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
             call stop2(999)
         endif
-     endif
-     if(i_use_2mt4b>0 .or. do_global_2mDA) then
 !    get q2m ...
         varname='q2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
@@ -1888,8 +1853,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     if(allocated(ges_u )) deallocate(ges_u )
     if(allocated(ges_ps)) deallocate(ges_ps)
     if(allocated(ges_q2)) deallocate(ges_q2)
-    if(allocated(ges_th2)) deallocate(ges_th2)
-    if(allocated(ges_t2)) deallocate(ges_t2)
+    if(allocated(ges_t2m)) deallocate(ges_t2m)
   end subroutine final_vars_
 
 end subroutine setupt
