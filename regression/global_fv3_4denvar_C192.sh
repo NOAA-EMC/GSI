@@ -5,11 +5,6 @@ set -x
 
 exp=$jobname
 
-# Set path/file for gsi executable
-#basedir=/scratch1/portfolios/NCEPDEV/da/save/Daryl.Kleist
-#gsipath=$basedir/gsi/
-#gsiexec=$gsipath/trunk/src/global_gsi.x
-
 # Set the JCAP resolution which you want.
 export JCAP=190
 export LEVS=127
