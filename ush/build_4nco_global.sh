@@ -20,7 +20,7 @@ export REGRESSION_TESTS="NO"
 export UTIL_OPTS="-DBUILD_UTIL_ENKF_GFS=ON -DBUILD_UTIL_MON=ON -DBUILD_UTIL_NCIO=ON"
 
 # Prune the directory structure per NCO liking
-if [[ "${PRUNE_4NCO:-}" =~ "[yYtT]" ]]; then
+if [[ "${PRUNE_4NCO:-}" =~ [yYtT] ]]; then
   $DIR_ROOT/ush/prune_4nco_global.sh prune
   rc=$?
   [[ $rc -ne 0 ]] && (echo "Error in prune_4nco_global.sh; ABORT!"; exit $rc)
