@@ -326,6 +326,8 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
   use radinfo, only: radjacindxs,radjacnames,jpch_rad,nusis,nuchan
   use aeroinfo, only: aerojacindxs
   use gridmod, only: fv3_full_hydro
+  use gridmod, only: fv3_cmaq_regional
+  use chemmod, only: crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file 
   use mpeu_util, only: getindex
   use constants, only: zero,max_varname_length
   use obsmod, only: dval_use
@@ -348,6 +350,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
   integer(i_kind) :: ier,ii,error_status
   integer(i_kind) :: k, subset_start, subset_end
   logical :: Load_AerosolCoeff,Load_CloudCoeff
+  character(50) Aerosol_Model, AerosolCoeff_File,AerosolCoeff_Format
   character(len=20),dimension(1) :: sensorlist
   integer(i_kind) :: indx,iii,icloud4crtm
 ! ...all "additional absorber" variables
@@ -559,6 +562,11 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
     n_aerosols_fwd_wk=n_aerosols_fwd
     n_aerosols_jac_wk=n_aerosols_jac
     Load_AerosolCoeff=.true.
+     if (fv3_cmaq_regional) then
+       Aerosol_Model = trim(crtm_aerosol_model)
+       AerosolCoeff_File = trim(crtm_aerosolcoeff_file)
+       AerosolCoeff_Format = trim(crtm_aerosolcoeff_format)
+     end if
  else
     n_actual_aerosols_wk=0
     n_aerosols_fwd_wk=0
@@ -570,16 +578,29 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
 
  sensorlist(1)=isis
  quiet=.not. print_verbose
+
  if( crtm_coeffs_path /= "" ) then
     if(init_pass .and. mype==mype_diaghdr .and. print_verbose) &
         write(6,*)myname_,': crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
     error_status = crtm_init(sensorlist,channelinfo,&
        Process_ID=mype,Output_Process_ID=mype_diaghdr, &
+! for crtm2.4.1 
+!<Aero need to comment out if CRTM doesn't support 
+!       Aerosol_Model=Aerosol_Model,AerosolCoeff_File=AerosolCoeff_File, &
+!       AerosolCoeff_Format=AerosolCoeff_Format, &
+!Aero>
        Load_CloudCoeff=Load_CloudCoeff,Load_AerosolCoeff=Load_AerosolCoeff, &
        File_Path = crtm_coeffs_path,quiet=quiet )
  else
+
     error_status = crtm_init(sensorlist,channelinfo,&
        Process_ID=mype,Output_Process_ID=mype_diaghdr, &
+
+! for crtm2.4.1
+!Aero need to comment out if CRTM doesn't support 
+!       Aerosol_Model=Aerosol_Model,AerosolCoeff_File=AerosolCoeff_File, &
+!       AerosolCoeff_Format=AerosolCoeff_Format, &
+!Aero>
        Load_CloudCoeff=Load_CloudCoeff,Load_AerosolCoeff=Load_AerosolCoeff,&
        quiet=quiet)
  endif
@@ -991,6 +1012,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !   2015-09-10  zhu  - generalize enabling all-sky and aerosol usage in radiance assimilation,
 !                      use n_clouds_fwd_wk,n_aerosols_fwd_wk,cld_sea_only_wk, cld_sea_only_wk,cw_cv,etc
 !   2019-03-22  Wei/Martin - added VIIRS AOD obs in addition to MODIS AOD obs
+!   2020-05-24  H.Wang  - add interface (subroutine set_crtm_aerosol_fv3_cmaq_regional) for regional FV3-CMAQ. 
 !
 !   input argument list:
 !     obstype      - type of observations for which to get profile
@@ -1049,7 +1071,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use constants, only: zero,half,one,one_tenth,fv,r0_05,r10,r100,r1000,constoz,grav,rad2deg, &
       sqrt_tiny_r_kind,constoz,two,three,four,five,t0c,rd,eps,rd_over_cp,rearth
   use constants, only: max_varname_length,pi  
-  use set_crtm_aerosolmod, only: set_crtm_aerosol
+  use set_crtm_aerosolmod, only: set_crtm_aerosol,set_crtm_aerosol_fv3_cmaq_regional
   use set_crtm_cloudmod, only: set_crtm_cloud
   use crtm_module, only: limit_exp,o3_id,toa_pressure
   use obsmod, only: iadate
@@ -1060,6 +1082,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                                     cloudcover_maxran_overlap,  &
                                     cloudcover_average_overlap, &  !default
                                     cloudcover_overcast_overlap
+  !use chemmod, only: raod_radius_mean_scale,raod_radius_std_scale
+  use gridmod, only: fv3_cmaq_regional
 
   implicit none
 
@@ -1994,6 +2018,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         auxrh(k)      =rh(kk2)
      endif
 
+
 ! Include cloud guess profiles in mw radiance computation
 
      if (n_clouds_fwd_wk>0) then
@@ -2123,9 +2148,19 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   endif
 
 ! Set aerosols for CRTM
-  if(n_actual_aerosols_wk>0) then
-     call Set_CRTM_Aerosol ( msig, n_actual_aerosols_wk, n_aerosols_fwd_wk, aerosol_names, aero_conc, auxrh, &
+  if (n_actual_aerosols_wk>0) then
+     if (fv3_cmaq_regional) then
+! for crtm2.4.1 
+!<need to comment out if CRTM doesn't support 
+!     atmosphere(1)%Relative_Humidity = auxrh
+!>
+        call set_crtm_aerosol_fv3_cmaq_regional ( msig, n_actual_aerosols_wk, n_aerosols_fwd_wk, aerosol_names, aero_conc, auxrh, &
                              atmosphere(1)%aerosol )
+     else
+
+        call Set_CRTM_Aerosol ( msig, n_actual_aerosols_wk, n_aerosols_fwd_wk, aerosol_names, aero_conc, auxrh, &
+                             atmosphere(1)%aerosol )
+     end if
   endif
 
 ! Call CRTM K Matrix model
