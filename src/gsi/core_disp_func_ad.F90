@@ -69,8 +69,8 @@ subroutine bicub_interp_ad(fin,i,j,dx,dy,adj_ad,dx_ad,dy_ad)
   real(r_kind) :: yy(-1:2),yy_ad(-1:2),f_ad(-1:2)
   integer(i_kind) :: jj
 
-  yy_ad(:)=0.
-  f_ad(:)=0.
+  yy_ad(:)=0._r_kind
+  f_ad(:)=0._r_kind
 
   do jj=-1,2
      yy(jj) = cubicInterpolate(fin((i-1):(i+2),j+jj),dx)
@@ -239,9 +239,9 @@ subroutine compute_xy_orig_ad(x_disp, y_disp, ix_orig, iy_orig, dx_n, dy_n,&
   ! Beginning of adjoint:
 
   !	use constant extrapolation for points outside the grid:
-  if (order .eq. bilinear) then
+  if (order == bilinear) then
      buf=1
-  elseif (order .eq. bicubic) then
+  elseif (order == bicubic) then
      buf=2
   end if
   where (ix_orig < ids+buf-1)
@@ -320,29 +320,29 @@ subroutine apply_disp_2d_ad(bg,disp,adj_ad,disp_ad, order)
 #ifdef TRACE_USE
   if (trace_use) call da_trace_entry("apply_disp_2d_ad")
 #endif
-  if (order .eq. bilinear) then
+  if (order == bilinear) then
      ! apply displacements up to and including domain boundary
      j1=1
      j2=size(disp%ix_orig,2)
      i1=1
      i2=size(disp%ix_orig,1)
-  elseif (order .eq. bicubic) then
+  elseif (order == bicubic) then
      ! apply displacements one gridpoint in from domain boundary
      j1=max(jds+1,jts)-jts+1
      j2=min(jde-1,jte)-jts+1
      i1=max(ids+1,its)-its+1
      i2=min(ide-1,ite)-its+1
-     if (i1 .gt. 1)         adj_ad(its,jts:jte) = 0._r_kind
-     if (i2 .lt. ite-its+1) adj_ad(ite,jts:jte) = 0._r_kind
-     if (j1 .gt. 1)         adj_ad(its:ite,jts) = 0._r_kind
-     if (j2 .lt. jte-jts+1) adj_ad(its:ite,jte) = 0._r_kind
+     if (i1 > 1)         adj_ad(its,jts:jte) = 0._r_kind
+     if (i2 < ite-its+1) adj_ad(ite,jts:jte) = 0._r_kind
+     if (j1 > 1)         adj_ad(its:ite,jts) = 0._r_kind
+     if (j2 <. jte-jts+1) adj_ad(its:ite,jte) = 0._r_kind
   end if
 
   do j = j1, j2
      jd = j+jts-1
      do i = i1, i2
         id = i+its-1
-        if (order .eq. bilinear) then
+        if (order == bilinear) then
 	! save to adj after bilinear interpolation of displaced field
            call bilin_interp_ad(bg(disp%ix_orig(i,j),disp%iy_orig(i,j)),&
                 bg(disp%ix_orig(i,j)+1,disp%iy_orig(i,j)),&
@@ -350,7 +350,7 @@ subroutine apply_disp_2d_ad(bg,disp,adj_ad,disp_ad, order)
                 bg(disp%ix_orig(i,j)+1,disp%iy_orig(i,j)+1),&
                 disp%dx_n(i,j),disp%dy_n(i,j),&
                 adj_ad(id,jd),disp_ad%dx_n(i,j),disp_ad%dy_n(i,j))
-        elseif (order .eq. bicubic) then
+        elseif (order == bicubic) then
            call bicub_interp_ad(bg, disp%ix_orig(i,j), disp%iy_orig(i,j), &
                 disp%dx_n(i,j),disp%dy_n(i,j),&
                 adj_ad(id,jd),disp_ad%dx_n(i,j),disp_ad%dy_n(i,j))

@@ -69,7 +69,7 @@ real(r_kind) function bicub_interp_tl(fin,i,j,dx,dy,dx_tl,dy_tl)
   real(r_kind) :: yy(-1:2), yy_tl(-1:2), f_tl(-1:2)
   integer(i_kind) :: jj
 
-  f_tl(:) = 0.
+  f_tl(:) = 0._r_kind
   do jj=-1,2
      yy_tl(jj) = cubicInterpolate_tl(fin((i-1):(i+2),j+jj),dx,f_tl,dx_tl)
      yy(jj) = cubicInterpolate(fin((i-1):(i+2),j+jj),dx)
@@ -141,9 +141,9 @@ real(r_kind) function bilin_interp_tl(f00, f10, f01, f11, dx, dy, dx_tl, dy_tl)
     implicit none
     ! bilinear interpolate in the unit box.
     real(r_kind), intent(in) :: f00, f10, f01, f11, dx, dy, dx_tl,dy_tl
-    bilin_interp_tl = f00*(-dy_tl*(1.-dx)-dx_tl*(1.-dy)) &
-         + f10*(dx_tl*(1.-dy)-dy_tl*dx) &
-         + f01*(dy_tl*(1.-dx)-dx_tl*dy) &
+    bilin_interp_tl = f00*(-dy_tl*(1._r_kind-dx)-dx_tl*(1._r_kind-dy)) &
+         + f10*(dx_tl*(1._r_kind-dy)-dy_tl*dx) &
+         + f01*(dy_tl*(1._r_kind-dx)-dx_tl*dy) &
          + f11*(dx_tl*dy+dx*dy_tl)
     return
 end function bilin_interp_tl
@@ -203,9 +203,9 @@ subroutine compute_xy_orig_tl(x_disp, y_disp, ix_orig, iy_orig, dx_n, dy_n, meta
   ix_orig = floor(x/meta%dx)+1 ! x index of lower-left corner of containing value to bring back here
   iy_orig = floor(y/meta%dy)+1 ! y ""
   !	use constant extrapolation for points outside the grid:
-  if (order .eq. bilinear) then
+  if (order == bilinear) then
      buf=1
-  elseif (order .eq. bicubic) then
+  elseif (order == bicubic) then
      buf=2
   end if
   where (ix_orig < ids+buf-1)
@@ -278,29 +278,29 @@ subroutine apply_disp_2d_tl(bg,adj,disp,adj_tl,disp_tl, order)
     ! Initialize displaced arrays so the halos are also initialized:
     adj(:,:) = bg(:,:)
     adj_tl(:,:) = 0._r_kind
-    if (order .eq. bilinear) then
+    if (order == bilinear) then
        ! apply displacements up to and including domain boundary
        j1=1
        j2=size(disp%ix_orig,2)
        i1=1
        i2=size(disp%ix_orig,1)
-    elseif (order .eq. bicubic) then
+    elseif (order == bicubic) then
        ! apply displacements one gridpoint in from domain boundary
        j1=max(jds+1,jts)-jts+1
        j2=min(jde-1,jte)-jts+1
        i1=max(ids+1,its)-its+1
        i2=min(ide-1,ite)-its+1
-       if (i1 .gt. 1)         adj_tl(its,jts:jte) = 0._r_kind
-       if (i2 .lt. ite-its+1) adj_tl(ite,jts:jte) = 0._r_kind
-       if (j1 .gt. 1)         adj_tl(its:ite,jts) = 0._r_kind
-       if (j2 .lt. jte-jts+1) adj_tl(its:ite,jte) = 0._r_kind
+       if (i1 > 1)         adj_tl(its,jts:jte) = 0._r_kind
+       if (i2 < ite-its+1) adj_tl(ite,jts:jte) = 0._r_kind
+       if (j1 > 1)         adj_tl(its:ite,jts) = 0._r_kind
+       if (j2 < jte-jts+1) adj_tl(its:ite,jte) = 0._r_kind
     end if
     
     do j = j1, j2
        jd = j+jts-1
        do i = i1, i2
        	  id = i+its-1
-          if (order .eq. bilinear) then
+          if (order == bilinear) then
              adj_tl(id,jd) = &
                   bilin_interp_tl(&
                   bg(disp%ix_orig(i,j),disp%iy_orig(i,j)),&
@@ -315,7 +315,7 @@ subroutine apply_disp_2d_tl(bg,adj,disp,adj_tl,disp_tl, order)
                   bg(disp%ix_orig(i,j),disp%iy_orig(i,j)+1), &
                   bg(disp%ix_orig(i,j)+1,disp%iy_orig(i,j)+1),&
                   disp%dx_n(i,j),disp%dy_n(i,j))
-          elseif (order .eq. bicubic) then
+          elseif (order == bicubic) then
              adj_tl(id,jd) = bicub_interp_tl(bg, disp%ix_orig(i,j), disp%iy_orig(i,j), &
                   disp%dx_n(i,j),disp%dy_n(i,j),disp_tl%dx_n(i,j),disp_tl%dy_n(i,j))
              adj(id,jd) = bicub_interp(bg, disp%ix_orig(i,j), disp%iy_orig(i,j), &

@@ -295,7 +295,7 @@ if (l_do_adjoint) then
 
    if (fca_switch) then
       call xtofca_adj(mval,.TRUE.)
-      if (idebug >=. 3) then
+      if (idebug >= 3) then
          write (*,*) 'mval after xtofca_adj:'
          call prt_state_norms(mval(1),'mval')
       end if

@@ -130,17 +130,17 @@ subroutine displace_wrf_fields(th_compute, istep, &
     ! Adjust fields which are to be directly displaced (momentum and hydrometeor mixing ratios)
     call apply_vert(u, 0, work2d, fcadisp,&
          needed_ij_in, needed_ij_out, index_in, needed_wgts_out, num_glob_needed, interp_order)
-    if (istep .le. 1) return
+    if (istep <= 1) return
     call apply_vert(v, 0, work2d, fcadisp,&
          needed_ij_in, needed_ij_out, index_in, needed_wgts_out, num_glob_needed, interp_order)
-    if (istep .le. 2) return
+    if (istep <= 2) return
     ! NOT: Only apply displacements to first kte levels, even for staggered variables w, ph_nl
     call apply_vert(w, 1, work2d, fcadisp,&
          needed_ij_in, needed_ij_out, index_in, needed_wgts_out, num_glob_needed, interp_order)
-    if (istep .le. 3) return
+    if (istep <= 3) return
     call apply_vert(ph_nl, 1, work2d, fcadisp,&
          needed_ij_in, needed_ij_out, index_in, needed_wgts_out, num_glob_needed, interp_order)
-    if (istep .le. 4) return
+    if (istep <= 4) return
     do i = 1, size(moist,4)
        if(i /= qv_ind) call apply_vert(moist(:,:,:,i), 0, work2d, fcadisp,&
             needed_ij_in, needed_ij_out, index_in, needed_wgts_out, num_glob_needed, interp_order)
@@ -287,7 +287,7 @@ subroutine adj_wrf_derived(qvapor, p, pb, t, ph, phb, ph_nl, hgt, mub, mu, psfc,
        call apply_vert(t,0,work2d,fcadisp,&
             needed_ij_in, needed_ij_out, index_in, needed_wgts_out, num_glob_needed, interp_order)
     end if
-    if (istep .le. 6) return
+    if (istep <= 6) return
     ! Find the temperature 100 mb AGL
     do i = ims, ime
        do j = jms, jme
@@ -315,7 +315,7 @@ subroutine adj_wrf_derived(qvapor, p, pb, t, ph, phb, ph_nl, hgt, mub, mu, psfc,
     work2d(:,:,2) = work2d(:,:,1)/exp(grav*HGT/(Rd*(Ts+Tslv)/fp_two))	! compute the new Psfc
     ps_inc = work2d(:,:,2) - Psfc			! get the surface pressure increment
     Psfc = work2d(:,:,2)                            ! Store the new Psfc
-    if (istep .le. 7) return
+    if (istep <= 7) return
     
     do k = kts, kte
        work2d(:,:,1) = sh2rh(qvapor(:,:,k),TK(:,:,k),Ptot(:,:,k))
@@ -329,7 +329,7 @@ subroutine adj_wrf_derived(qvapor, p, pb, t, ph, phb, ph_nl, hgt, mub, mu, psfc,
        q_inc(:,:,k) = q_inc(:,:,k) - qvapor(:,:,k)
     end do
     qvapor(:,:,:) = qvapor(:,:,:) + q_inc ! apply qvapor increments
-    if (istep .le. 8) return
+    if (istep <= 8) return
     
     ! Below we use the updated qvapor field
     ! Find dry mass increments
@@ -344,7 +344,7 @@ subroutine adj_wrf_derived(qvapor, p, pb, t, ph, phb, ph_nl, hgt, mub, mu, psfc,
     end do
     mu_inc = sum3*(ps_inc-sum1)/sum2
     mu = mu + mu_inc	! Update the dry air mass
-    if (istep .le. 9) return
+    if (istep <= 9) return
 
     ! Update the pressure field: downward integration of delta(dp/deta)
     do i = kte, kts, -1
@@ -355,7 +355,7 @@ subroutine adj_wrf_derived(qvapor, p, pb, t, ph, phb, ph_nl, hgt, mub, mu, psfc,
        end if
     end do
     p = p + p_inc
-    if (istep .le. 10) return
+    if (istep <= 10) return
     
     ! update the geopotential
     call calc_ph_hyd_wrf(qvapor,p,pb,t,hgt,mu,mub,c3h,c4h,c3f,c4f,ptop,ph_temp) 	! get the hydrostatic geopotential
@@ -464,7 +464,7 @@ subroutine apply_disp_theta(fcadisp,TK,zlvl,znew,TKnew, &
 #ifdef TRACE_USE
     if (trace_use) call da_trace_entry("apply_disp_theta")
 #endif
-    TKnew = -999 ! initialize TKnew as missing
+    TKnew = -999_r_kind ! initialize TKnew as missing
     ibot=1
     ! Compute new theta at bottom level
     call apply_disp_2d(TK(:,:,1),T_bot_top(:,:,ibot),fcadisp, &
@@ -581,14 +581,14 @@ function sh2rh(hum,t,parr)
              ew = es0 * exp(const_17 * t1 / ( t1 + const_243))
           else
              tk = t(i,j)
-             rhs = -c1 * (tf / tk - 1.) - c2 * log10(tf / tk) +  &
-                  c3 * (1. - tk / tf) +      log10(eis)
+             rhs = -c1 * (tf / tk - 1._r_kind) - c2 * log10(tf / tk) +  &
+                  c3 * (1._r_kind - tk / tf) +      log10(eis)
              ew = const_10 ** rhs
           end if
           ! factor of 100. to convert from mb (hPa) to Pa:
           esat = const_100*ew
           sh2rh(i,j) = const_100*e/esat
-          if (sh2rh(i,j) .gt. const_100) then
+          if (sh2rh(i,j) > const_100) then
              sh2rh(i,j) = const_100
           end if
        end do

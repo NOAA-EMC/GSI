@@ -137,7 +137,7 @@ SUBROUTINE DISPLACE_WRF_FIELDS_TL(th_compute, istep, qv_ind, moist, nmoist, mois
     if (istep .le. 4) return
     result1 = SIZE(moist, 4)
     DO i=1,SIZE(moist, 4)
-      IF (i .NE. qv_ind) CALL APPLY_VERT_TL(moist(:, :, :, i), moist_tl(:, :, :, i), &
+      IF (i /= qv_ind) CALL APPLY_VERT_TL(moist(:, :, :, i), moist_tl(:, :, :, i), &
            0, work2d, work2d_tl, fcadisp, fcadisp_tl, interp_order)
     END DO
     if (istep .le. 5) return
@@ -330,7 +330,7 @@ SUBROUTINE ADJ_WRF_DERIVED_TL(qvapor, qvapor_tl, p, p_tl, pb, t, t_tl&
     real(r_kind), DIMENSION(ims:ime, jms:jme) :: result1
     real(r_kind), DIMENSION(ims:ime, jms:jme) :: result1_tl
 
-    real(r_kind), parameter :: fp_zero=0., fp_one=1., fp_two=2., p100mbPa=10000._r_kind
+    real(r_kind), parameter :: fp_zero=0._r_kind, fp_one=1._r_kind, fp_two=2._r_kind, p100mbPa=10000._r_kind
 #ifdef TRACE_USE
     if (trace_use) call da_trace_entry("adj_wrf_derived_tl")
 #endif
@@ -344,7 +344,7 @@ SUBROUTINE ADJ_WRF_DERIVED_TL(qvapor, qvapor_tl, p, p_tl, pb, t, t_tl&
     pwr1(:,:,kts:kte) = pwx1(:,:,kts:kte)**pwy1
     tk_tl(:,:,kts:kte) = t_tl(:,:,kts:kte)*pwr1(:,:,kts:kte) + (t(:,:,kts:kte)+t0)*pwr1_tl(:,:,kts:kte)
     tk(:,:,kts:kte) = (t(:,:,kts:kte)+t0)*pwr1(:,:,kts:kte)
-    IF (th_compute .EQ. 1) THEN
+    IF (th_compute == 1) THEN
       CALL DISPLACE_THETA_WRF_TL(t, t_tl, ph, ph_tl, phb, fcadisp, fcadisp_tl, interp_order)
 ! displace and overwite theta
 !!$       call displace_theta_wrf(t,ph,phb,fcadisp)			! displace and overwite theta
@@ -361,16 +361,16 @@ SUBROUTINE ADJ_WRF_DERIVED_TL(qvapor, qvapor_tl, p, p_tl, pb, t, t_tl&
     DO i= ims, ime
       DO j= jms, jme
 ! first check is top model level is top of PBL -- very unlikely but included for robustness
-        IF (ptot(i, j, kte) .EQ. psfc(i, j) - p100mbPa) THEN
+        IF (ptot(i, j, kte) == psfc(i, j) - p100mbPa) THEN
           tbl_tl(i, j) = tk_tl(i, j, kte)
           tbl(i, j) = tk(i, j, kte)
         END IF
         DO k= kts, kte-1
-          IF (ptot(i, j, k+1) .EQ. psfc(i, j) - p100mbPa) THEN
+          IF (ptot(i, j, k+1) == psfc(i, j) - p100mbPa) THEN
             tbl_tl(i, j) = tk_tl(i, j, k+1)
             tbl(i, j) = tk(i, j, k+1)
-          ELSE IF (ptot(i, j, k) .GT. psfc(i, j) - p100mbPa .AND. ptot(i, j&
-               , k+1) .LT. psfc(i, j) - p100mbPa) THEN
+          ELSE IF (ptot(i, j, k) > psfc(i, j) - p100mbPa .AND. ptot(i, j&
+               , k+1) < psfc(i, j) - p100mbPa) THEN
             arg1_tl = (ptot_tl(i, j, k)*(psfc(i, j)-p100mbPa)-ptot(i, j, k)&
                *psfc_tl(i, j))/(psfc(i, j)-p100mbPa)**2
             arg1 = ptot(i, j, k)/(psfc(i, j)-p100mbPa)
@@ -498,7 +498,7 @@ SUBROUTINE ADJ_WRF_DERIVED_TL(qvapor, qvapor_tl, p, p_tl, pb, t, t_tl&
              + (c1h(i)*(mu+mub)+c2h(i))*q_inc_tl(:,:,i))
        p_inc(:,:,i) = (mu_inc*c1h(i)*(fp_one+qvapor(:,:,i)) + &
             (c1h(i)*(mu+mub)+c2h(i))*q_inc(:,:,i))*(znw(i)-znw(i+1))
-      IF (i .LT. kte) THEN
+      IF (i < kte) THEN
         p_inc_tl(:, :, i) = p_inc_tl(:, :, i) + p_inc_tl(:, :, i+1)
         p_inc(:, :, i) = p_inc(:, :, i) + p_inc(:, :, i+1)
       END IF
@@ -642,7 +642,7 @@ SUBROUTINE APPLY_DISP_THETA_TL(fcadisp, fcadisp_tl, &
     DO l=kts,kte-1
 ! switch top and bottom index
       ibot = itop
-      IF (ibot .EQ. 1) THEN
+      IF (ibot == 1) THEN
         itop = 2
       ELSE
         itop = 1
@@ -651,7 +651,7 @@ SUBROUTINE APPLY_DISP_THETA_TL(fcadisp, fcadisp_tl, &
       CALL APPLY_DISP_2D_TL(tk(:, :, l+1), t_bot_top(:, :, itop), fcadisp, &
            t_bot_top_tl(:, :, itop), fcadisp_tl, interp_order)
       DO k=kts,kte
-        WHERE (zlvl(:, :, k) .GT. znew(:, :, l) .AND. zlvl(:, :, k) .LE.&
+        WHERE (zlvl(:, :, k) > znew(:, :, l) .AND. zlvl(:, :, k) .LE.&
              znew(:, :, l+1)) 
           tknew_tl(:, :, k) = &
                t_bot_top_tl(:, :, itop)*(zlvl(:, :, k)-znew(:, :, l))/&
@@ -672,13 +672,13 @@ SUBROUTINE APPLY_DISP_THETA_TL(fcadisp, fcadisp_tl, &
              ibot)*(1-(zlvl(:, :, k)-znew(:, :, l))/(znew(:, :, l+1)-znew&
              (:, :, l)))
         END WHERE
-        IF (l .EQ. 1) THEN
+        IF (l == 1) THEN
           WHERE (zlvl(:, :, k) .LE. znew(:, :, l)) 
             tknew_tl(:, :, k) = t_bot_top_tl(:, :, ibot)
             tknew(:, :, k) = t_bot_top(:, :, ibot)
           END WHERE
-        ELSE IF (l .EQ. kte - 1) THEN
-          WHERE (zlvl(:, :, k) .GE. znew(:, :, l+1)) 
+        ELSE IF (l == kte - 1) THEN
+          WHERE (zlvl(:, :, k) >= znew(:, :, l+1)) 
             tknew_tl(:, :, k) = t_bot_top_tl(:, :, itop)
             tknew(:, :, k) = t_bot_top(:, :, itop)
           END WHERE
@@ -769,14 +769,14 @@ END SUBROUTINE APPLY_DISP_THETA_TL
 ! real formulas wrt liquid/ice:
         t1_tl = t_tl(i, j)
         t1 = t(i, j) - tf
-        IF (t1 .GE. t_ref .AND. t1 .GE. const_47) THEN
+        IF (t1 >= t_ref .AND. t1 >= const_47) THEN
 ! liq phase eslo
           ew_tl = t1_tl*(a1+t1*(a2+t1*(a3+t1*(a4+t1*(a5+t1*a6))))) + t1*&
              (t1_tl*(a2+t1*(a3+t1*(a4+t1*(a5+t1*a6))))+t1*(t1_tl*(a3+t1*(&
              a4+t1*(a5+t1*a6)))+t1*(t1_tl*(a4+t1*(a5+t1*a6))+t1*(t1_tl*(&
              a5+t1*a6)+t1*a6*t1_tl))))
           ew = a0 + t1*(a1+t1*(a2+t1*(a3+t1*(a4+t1*(a5+t1*a6)))))
-        ELSE IF (t1 .GE. t_ref .AND. t1 .LT. const_47) THEN
+        ELSE IF (t1 >= t_ref .AND. t1 < const_47) THEN
 !liq phas poor es
           arg1_tl = (const_17*t1_tl*(t1+243.5_r_kind)-const_17*t1*t1_tl)/(t1+243.5_r_kind)**&
              2
@@ -788,7 +788,7 @@ END SUBROUTINE APPLY_DISP_THETA_TL
           tk = t(i, j)
           rhs_tl = c1*tf*tk_tl/tk**2 + c2*tk_tl/(tk*LOG(const_10)) - c3*&
              tk_tl/tf
-          rhs = -(c1*(tf/tk-1.)) - c2*LOG10(tf/tk) + c3*(1.-tk/tf) + &
+          rhs = -(c1*(tf/tk-1._r_kind)) - c2*LOG10(tf/tk) + c3*(1.-tk/tf) + &
              LOG10(eis)
           ew_tl = const_10**rhs*LOG(const_10)*rhs_tl
           ew = const_10**rhs
@@ -798,7 +798,7 @@ END SUBROUTINE APPLY_DISP_THETA_TL
         esat = const_100*ew
         sh2rh_tl(i, j) = (100*e_tl*esat-100*e*esat_tl)/esat**2
         sh2rh(i, j) = const_100*e/esat
-        IF (sh2rh(i, j) .GT. const_100) THEN
+        IF (sh2rh(i, j) > const_100) THEN
           sh2rh_tl(i, j) = 0.0_r_kind
           sh2rh(i, j) = const_100
         END IF
@@ -879,14 +879,14 @@ FUNCTION RH2SH_TL(rh, rh_tl, t, t_tl, parr, parr_tl, rh2sh)
 ! real formulas wrt liquid/ice:
         t1_tl = t_tl(i, j)
         t1 = t(i, j) - tf
-        IF (t1 .GE. t_ref .AND. t1 .GE. const_47) THEN
+        IF (t1 >= t_ref .AND. t1 >= const_47) THEN
 ! liq phase eslo
           ew_tl = t1_tl*(a1+t1*(a2+t1*(a3+t1*(a4+t1*(a5+t1*a6))))) + t1*&
              (t1_tl*(a2+t1*(a3+t1*(a4+t1*(a5+t1*a6))))+t1*(t1_tl*(a3+t1*(&
              a4+t1*(a5+t1*a6)))+t1*(t1_tl*(a4+t1*(a5+t1*a6))+t1*(t1_tl*(&
              a5+t1*a6)+t1*a6*t1_tl))))
           ew = a0 + t1*(a1+t1*(a2+t1*(a3+t1*(a4+t1*(a5+t1*a6)))))
-        ELSE IF (t1 .GE. t_ref .AND. t1 .LT. const_47) THEN
+        ELSE IF (t1 >= t_ref .AND. t1 < const_47) THEN
 !liq phas poor es
           arg1_tl = (const_17*t1_tl*(t1+243.5_r_kind)-const_17*t1*t1_tl)/(t1+243.5_r_kind)**&
              2
@@ -898,7 +898,7 @@ FUNCTION RH2SH_TL(rh, rh_tl, t, t_tl, parr, parr_tl, rh2sh)
           tk = t(i, j)
           rhs_tl = c1*tf*tk_tl/tk**2 + c2*tk_tl/(tk*LOG(const_10)) - c3*&
              tk_tl/tf
-          rhs = -(c1*(tf/tk-1.)) - c2*LOG10(tf/tk) + c3*(1.-tk/tf) + &
+          rhs = -(c1*(tf/tk-1._r_kind)) - c2*LOG10(tf/tk) + c3*(1.-tk/tf) + &
              LOG10(eis)
           ew_tl = const_10**rhs*LOG(const_10)*rhs_tl
           ew = const_10**rhs

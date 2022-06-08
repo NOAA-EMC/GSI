@@ -110,7 +110,7 @@ subroutine initi_fca_from_gsi
   character (len=max_varname_length), allocatable :: cloudnames(:), gasnames(:)
 
   if (.not. wrf_mass_regional .and. .not. fv3_regional) then
-     if (mype .eq. 0) write (*,*) 'initi_fca_from_gsi: fca_switch=.TRUE. is only supported for ',&
+     if (mype == 0) write (*,*) 'initi_fca_from_gsi: fca_switch=.TRUE. is only supported for ',&
           'wrf_mass_regional=.TRUE. or fv3_regional=.TRUE.'
      stop 'initi_fca_from_gsi: unsupported configuration for fca_switch=.TRUE.'
   end if
@@ -168,13 +168,13 @@ subroutine initi_fca_from_gsi
   ! Inquire about cloud guess fields (follows similar code in control2state)
   ! (simplified/more general version of what's in wrwrfmassa_netcdf_wrf in cplr_wrwrfmassa.f90)
   call gsi_metguess_get('clouds::3d',n_actual_clouds,istatus)
-  if (mype .eq. 0) write (*,*) 'initi_fca_from_gsi: n_actual_clouds=',n_actual_clouds
-  if (n_actual_clouds > 0 .and. istatus .eq. 0) then
+  if (mype == 0) write (*,*) 'initi_fca_from_gsi: n_actual_clouds=',n_actual_clouds
+  if (n_actual_clouds > 0 .and. istatus == 0) then
      if (dbz_exist .and. if_model_dbz) n_actual_clouds=n_actual_clouds+1
      allocate(cloudnames(n_actual_clouds))
      call gsi_metguess_get('clouds::3d',cloudnames,istatus)
      if (istatus /= 0) then
-        if (mype .eq. 0) write (*,*) 'initi_fca_from_gsi: Failure to get cloudnames with istatus=',istatus
+        if (mype == 0) write (*,*) 'initi_fca_from_gsi: Failure to get cloudnames with istatus=',istatus
         n_actual_clouds=0
      else
         if (dbz_exist .and. if_model_dbz) then
@@ -191,7 +191,7 @@ subroutine initi_fca_from_gsi
   end if !n_actual_clouds > 0
   if (n_actual_clouds > 0) then
      ! Look for cloudnames in control vector (this assumes cloudnames map one-to-one control to state vector)
-     if (mype .eq. 0) write (*,'(a,i4,a,/,(20a10))') &
+     if (mype == 0) write (*,'(a,i4,a,/,(20a10))') &
           'initi_fca_from_gsi: Found ',n_actual_clouds,' cloudnames:',cloudnames(1:n_actual_clouds)
      icloudout=0 !
      do icloudin=1,n_actual_clouds
@@ -203,7 +203,7 @@ subroutine initi_fca_from_gsi
      end do
      if (icloudout < n_actual_clouds) then
         n_actual_clouds=icloudout
-        if (mype .eq. 0) write (*,'(a,i4,a,/,(20a10))') &
+        if (mype == 0) write (*,'(a,i4,a,/,(20a10))') &
              'initi_fca_from_gsi: Only found ',n_actual_clouds,' cloudnames in control_vector (cvars3d):',&
              cloudnames(1:n_actual_clouds)
      end if
@@ -212,18 +212,18 @@ subroutine initi_fca_from_gsi
   
   ! handling of chemical tracers
   call gsi_chemguess_get('dim',ngases,istatus)
-  if (mype .eq. 0) write (*,*) 'initi_fca_from_gsi: ngases=',ngases
-  if (ngases > 0 .and. istatus .eq. 0) then
+  if (mype == 0) write (*,*) 'initi_fca_from_gsi: ngases=',ngases
+  if (ngases > 0 .and. istatus == 0) then
      allocate(gasnames(ngases))
      call gsi_chemguess_get('gsinames',gasnames,istatus)
      if (istatus /= 0) then
-        if (mype .eq. 0) write (*,*) 'initi_fca_from_gsi: Failure to get gasnames with istatus=',istatus
+        if (mype == 0) write (*,*) 'initi_fca_from_gsi: Failure to get gasnames with istatus=',istatus
         ngases=0
      endif
   end if
   if (ngases > 0) then
      ! Look for gasnames in control vector (this assumes gasnames map one-to-one control to state vector)
-     if (mype .eq. 0) write (*,'(a,i4,a,/,(20a10))') &
+     if (mype == 0) write (*,'(a,i4,a,/,(20a10))') &
           'initi_fca_from_gsi: Found ',ngases,' gasnames:',gasnames(1:ngases)
      icloudout=0 !
      do icloudin=1,ngases
@@ -235,7 +235,7 @@ subroutine initi_fca_from_gsi
      end do
      if (icloudout < ngases) then
         ngases=icloudout
-        if (mype .eq. 0) write (*,'(a,i4,a,/,(20a10))') &
+        if (mype == 0) write (*,'(a,i4,a,/,(20a10))') &
              'initi_fca_from_gsi: Only found ',ngases,' gasnames in control_vector (cvars3d):',&
              gasnames(1:ngases)
      end if
@@ -486,37 +486,37 @@ subroutine ges_to_fca_wrf(bg_state, ierror)
      write(*,'(a,1x,3e15.6)') 'w/  halo min/max/meansq mub+mu:',minval(bg_state%MUB+bg_state%MU),maxval(bg_state%MUB+bg_state%MU),&
           sum((bg_state%MUB+bg_state%MU)**2)/((ime-ims+1)*(jme-jms+1))
      do k=kts,kte
-      write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq pb:',k,minval(bg_state%PB(its:ite,jts:jte,k)),maxval(bg_state%PB(its:ite,jts:jte,k)),&
-           sum(bg_state%PB(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts+1))
-      write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq p:',k,minval(bg_state%P(its:ite,jts:jte,k)),maxval(bg_state%P(its:ite,jts:jte,k)),&
-           sum(bg_state%P(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts+1))
-      write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq pb+p:',k,minval(bg_state%PB(its:ite,jts:jte,k)+bg_state%P(its:ite,jts:jte,k)), &
-          maxval(bg_state%PB(its:ite,jts:jte,k)+bg_state%P(its:ite,jts:jte,k)),&
-          sum((bg_state%PB(its:ite,jts:jte,k)+bg_state%P(its:ite,jts:jte,k))**2)/((ite-its+1)*(jte-jts+1))
-      write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq u:',k,minval(bg_state%U(its:ite,jts:jte,k)),maxval(bg_state%U(its:ite,jts:jte,k)),&
-           sum(bg_state%U(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts+1))
-      write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq v:',k,minval(bg_state%V(its:ite,jts:jte,k)),maxval(bg_state%V(its:ite,jts:jte,k)),&
-           sum(bg_state%V(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts+1))
-      write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq qv:',k,minval(bg_state%MOIST(its:ite,jts:jte,k,p_qv)),maxval(bg_state%MOIST(its:ite,jts:jte,k,p_qv)),&
-           sum(bg_state%MOIST(its:ite,jts:jte,k,p_qv)**2)/((ite-its+1)*(jte-jts+1))
-      write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq t:',k,minval(bg_state%T(its:ite,jts:jte,k)),maxval(bg_state%T(its:ite,jts:jte,k)),&
-           sum(bg_state%T(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts+1))
-      write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq phb:',k,minval(bg_state%PHB(its:ite,jts:jte,k)),maxval(bg_state%PHB(its:ite,jts:jte,k)),&
-           sum(bg_state%PHB(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts+1))
-      write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq ph:',k,minval(bg_state%PH(its:ite,jts:jte,k)),maxval(bg_state%PH(its:ite,jts:jte,k)),&
-           sum(bg_state%PH(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts+1))
-      write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq phb+ph:',k,minval(bg_state%PHB(its:ite,jts:jte,k)+bg_state%PH(its:ite,jts:jte,k)), &
-          maxval(bg_state%PHB(its:ite,jts:jte,k)+bg_state%PH(its:ite,jts:jte,k)),&
-          sum((bg_state%PHB(its:ite,jts:jte,k)+bg_state%PH(its:ite,jts:jte,k))**2)/((ite-its+1)*(jte-jts+1))
-   end do
+       write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq pb:',k,minval(bg_state%PB(its:ite,jts:jte,k)),maxval(bg_state%PB(its:ite,jts:jte,k)),&
+            sum(bg_state%PB(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts+1))
+       write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq p:',k,minval(bg_state%P(its:ite,jts:jte,k)),maxval(bg_state%P(its:ite,jts:jte,k)),&
+            sum(bg_state%P(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts+1))
+       write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq pb+p:',k,minval(bg_state%PB(its:ite,jts:jte,k)+bg_state%P(its:ite,jts:jte,k)), &
+            maxval(bg_state%PB(its:ite,jts:jte,k)+bg_state%P(its:ite,jts:jte,k)),&
+            sum((bg_state%PB(its:ite,jts:jte,k)+bg_state%P(its:ite,jts:jte,k))**2)/((ite-its+1)*(jte-jts+1))
+       write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq u:',k,minval(bg_state%U(its:ite,jts:jte,k)),maxval(bg_state%U(its:ite,jts:jte,k)),&
+            sum(bg_state%U(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts+1))
+       write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq v:',k,minval(bg_state%V(its:ite,jts:jte,k)),maxval(bg_state%V(its:ite,jts:jte,k)),&
+            sum(bg_state%V(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts+1))
+       write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq qv:',k,minval(bg_state%MOIST(its:ite,jts:jte,k,p_qv)),maxval(bg_state%MOIST(its:ite,jts:jte,k,p_qv)),&
+            sum(bg_state%MOIST(its:ite,jts:jte,k,p_qv)**2)/((ite-its+1)*(jte-jts+1))
+       write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq t:',k,minval(bg_state%T(its:ite,jts:jte,k)),maxval(bg_state%T(its:ite,jts:jte,k)),&
+            sum(bg_state%T(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts+1))
+       write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq phb:',k,minval(bg_state%PHB(its:ite,jts:jte,k)),maxval(bg_state%PHB(its:ite,jts:jte,k)),&
+            sum(bg_state%PHB(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts+1))
+       write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq ph:',k,minval(bg_state%PH(its:ite,jts:jte,k)),maxval(bg_state%PH(its:ite,jts:jte,k)),&
+            sum(bg_state%PH(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts+1))
+       write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq phb+ph:',k,minval(bg_state%PHB(its:ite,jts:jte,k)+bg_state%PH(its:ite,jts:jte,k)), &
+            maxval(bg_state%PHB(its:ite,jts:jte,k)+bg_state%PH(its:ite,jts:jte,k)),&
+            sum((bg_state%PHB(its:ite,jts:jte,k)+bg_state%PH(its:ite,jts:jte,k))**2)/((ite-its+1)*(jte-jts+1))
+     end do
   end if
 
   if (nmoist > 1) then
      do imoist=2,nmoist
         ierror=ierror+1 ! 5-4+nmoist-1: elements of moist array
-        if (moistguess(imoist) .eq. 1) then
+        if (moistguess(imoist) == 1) then
            call gsi_bundlegetpointer (gsi_metguess_bundle(1),trim(moistnames(imoist)), ges_rank3, istatus)
-        elseif (moistguess(imoist) .eq. 2) then
+        elseif (moistguess(imoist) == 2) then
            call gsi_bundlegetpointer (gsi_chemguess_bundle(1),trim(moistnames(imoist)), ges_rank3, istatus)
         else
            write (*,*) 'ges_to_fca_wrf: invalid value of moistguess=',moistguess(imoist),' for imoist=',imoist
@@ -662,7 +662,7 @@ subroutine sval_to_disp_grid_adj(sval,disp,uv_zlevel,ierror)
          sum(disp%x_disp(1:lat1,1:lon1)**2)/(lat1*lon1)
     write(*,'(a,1x,3e15.6)') 'w/o halo min/max/meansq y_disp:',minval(disp%y_disp(1:lat1,1:lon1)),maxval(disp%y_disp(1:lat1,1:lon1)),&
          sum(disp%y_disp(1:lat1,1:lon1)**2)/(lat1*lon1)
-    if (idebug >= 3 .and. mype .eq. 0) then
+    if (idebug >= 3 .and. mype == 0) then
        k = get_lun()
        i = 0
        j = 1
@@ -699,7 +699,7 @@ subroutine sval_to_disp_grid_adj(sval,disp,uv_zlevel,ierror)
      do imoist=2,nmoist
         call gsi_bundlegetpointer (sval(1),trim(moistnames(imoist)),sv_rank3 ,  istatus)
         if (istatus /= 0) then
-           if (mype .eq. 0) write (*,*) 'sval_to_disp_adj: ',trim(moistnames(imoist)),' missing from sval, skipped'
+           if (mype == 0) write (*,*) 'sval_to_disp_adj: ',trim(moistnames(imoist)),' missing from sval, skipped'
         else
            sv_rank3(1:lat2,1:lon2,1:nsig) = zero
         end if
@@ -770,30 +770,30 @@ subroutine fca_state_to_sval(full_state,inc_state,flag_linear,sval,ierror)
     write(*,'(a,1x,3e15.6)') 'w/ halo min/max/meansq psfc:',minval(inc_state%PSFC(ims:ime,jms:jme)),maxval(inc_state%PSFC(ims:ime,jms:jme)),&
          sum(inc_state%PSFC(ims:ime,jms:jme)**2)/((ime-ims+1)*(jme-jms-1))
     do k=kts,kte
-       write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq p:',k,minval(inc_state%p(its:ite,jts:jte,k)),maxval(inc_state%p(its:ite,jts:jte,k)),&
-            sum(inc_state%p(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts-1))
-       write(*,'(a,1x,i3,3e15.6)') 'w/ halo min/max/meansq p:',k,minval(inc_state%p(ims:ime,jms:jme,k)),maxval(inc_state%p(ims:ime,jms:jme,k)),&
-            sum(inc_state%p(ims:ime,jms:jme,k)**2)/((ime-ims+1)*(jme-jms-1))
-       write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq u:',k,minval(inc_state%u(its:ite,jts:jte,k)),maxval(inc_state%u(its:ite,jts:jte,k)),&
-            sum(inc_state%u(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts-1))
-       write(*,'(a,1x,i3,3e15.6)') 'w/ halo min/max/meansq u:',k,minval(inc_state%u(ims:ime,jms:jme,k)),maxval(inc_state%u(ims:ime,jms:jme,k)),&
-            sum(inc_state%u(ims:ime,jms:jme,k)**2)/((ime-ims+1)*(jme-jms-1))
-       write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq v:',k,minval(inc_state%v(its:ite,jts:jte,k)),maxval(inc_state%v(its:ite,jts:jte,k)),&
-            sum(inc_state%v(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts-1))
-       write(*,'(a,1x,i3,3e15.6)') 'w/ halo min/max/meansq v:',k,minval(inc_state%v(ims:ime,jms:jme,k)),maxval(inc_state%v(ims:ime,jms:jme,k)),&
-            sum(inc_state%v(ims:ime,jms:jme,k)**2)/((ime-ims+1)*(jme-jms-1))
-       write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq w:',k,minval(inc_state%w(its:ite,jts:jte,k)),maxval(inc_state%w(its:ite,jts:jte,k)),&
-            sum(inc_state%w(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts-1))
-       write(*,'(a,1x,i3,3e15.6)') 'w/ halo min/max/meansq w:',k,minval(inc_state%w(ims:ime,jms:jme,k)),maxval(inc_state%w(ims:ime,jms:jme,k)),&
-            sum(inc_state%w(ims:ime,jms:jme,k)**2)/((ime-ims+1)*(jme-jms-1))
-       write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq th:',k,minval(inc_state%t(its:ite,jts:jte,k)),maxval(inc_state%t(its:ite,jts:jte,k)),&
-            sum(inc_state%t(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts-1))
-       write(*,'(a,1x,i3,3e15.6)') 'w/ halo min/max/meansq th:',k,minval(inc_state%t(ims:ime,jms:jme,k)),maxval(inc_state%t(ims:ime,jms:jme,k)),&
-            sum(inc_state%t(ims:ime,jms:jme,k)**2)/((ime-ims+1)*(jme-jms-1))
-       write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq q:',k,minval(inc_state%moist(its:ite,jts:jte,k,p_qv)),maxval(inc_state%moist(its:ite,jts:jte,k,p_qv)),&
-            sum(inc_state%moist(its:ite,jts:jte,k,p_qv)**2)/((ite-its+1)*(jte-jts-1))
-       write(*,'(a,1x,i3,3e15.6)') 'w/ halo min/max/meansq q:',k,minval(inc_state%moist(ims:ime,jms:jme,k,p_qv)),maxval(inc_state%moist(ims:ime,jms:jme,k,p_qv)),&
-            sum(inc_state%moist(ims:ime,jms:jme,k,p_qv)**2)/((ime-ims+1)*(jme-jms-1))
+      write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq p:',k,minval(inc_state%p(its:ite,jts:jte,k)),maxval(inc_state%p(its:ite,jts:jte,k)),&
+           sum(inc_state%p(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts-1))
+      write(*,'(a,1x,i3,3e15.6)') 'w/ halo min/max/meansq p:',k,minval(inc_state%p(ims:ime,jms:jme,k)),maxval(inc_state%p(ims:ime,jms:jme,k)),&
+           sum(inc_state%p(ims:ime,jms:jme,k)**2)/((ime-ims+1)*(jme-jms-1))
+      write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq u:',k,minval(inc_state%u(its:ite,jts:jte,k)),maxval(inc_state%u(its:ite,jts:jte,k)),&
+           sum(inc_state%u(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts-1))
+      write(*,'(a,1x,i3,3e15.6)') 'w/ halo min/max/meansq u:',k,minval(inc_state%u(ims:ime,jms:jme,k)),maxval(inc_state%u(ims:ime,jms:jme,k)),&
+           sum(inc_state%u(ims:ime,jms:jme,k)**2)/((ime-ims+1)*(jme-jms-1))
+      write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq v:',k,minval(inc_state%v(its:ite,jts:jte,k)),maxval(inc_state%v(its:ite,jts:jte,k)),&
+           sum(inc_state%v(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts-1))
+      write(*,'(a,1x,i3,3e15.6)') 'w/ halo min/max/meansq v:',k,minval(inc_state%v(ims:ime,jms:jme,k)),maxval(inc_state%v(ims:ime,jms:jme,k)),&
+           sum(inc_state%v(ims:ime,jms:jme,k)**2)/((ime-ims+1)*(jme-jms-1))
+      write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq w:',k,minval(inc_state%w(its:ite,jts:jte,k)),maxval(inc_state%w(its:ite,jts:jte,k)),&
+           sum(inc_state%w(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts-1))
+      write(*,'(a,1x,i3,3e15.6)') 'w/ halo min/max/meansq w:',k,minval(inc_state%w(ims:ime,jms:jme,k)),maxval(inc_state%w(ims:ime,jms:jme,k)),&
+           sum(inc_state%w(ims:ime,jms:jme,k)**2)/((ime-ims+1)*(jme-jms-1))
+      write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq th:',k,minval(inc_state%t(its:ite,jts:jte,k)),maxval(inc_state%t(its:ite,jts:jte,k)),&
+           sum(inc_state%t(its:ite,jts:jte,k)**2)/((ite-its+1)*(jte-jts-1))
+      write(*,'(a,1x,i3,3e15.6)') 'w/ halo min/max/meansq th:',k,minval(inc_state%t(ims:ime,jms:jme,k)),maxval(inc_state%t(ims:ime,jms:jme,k)),&
+           sum(inc_state%t(ims:ime,jms:jme,k)**2)/((ime-ims+1)*(jme-jms-1))
+      write(*,'(a,1x,i3,3e15.6)') 'w/o halo min/max/meansq q:',k,minval(inc_state%moist(its:ite,jts:jte,k,p_qv)),maxval(inc_state%moist(its:ite,jts:jte,k,p_qv)),&
+           sum(inc_state%moist(its:ite,jts:jte,k,p_qv)**2)/((ite-its+1)*(jte-jts-1))
+      write(*,'(a,1x,i3,3e15.6)') 'w/ halo min/max/meansq q:',k,minval(inc_state%moist(ims:ime,jms:jme,k,p_qv)),maxval(inc_state%moist(ims:ime,jms:jme,k,p_qv)),&
+           sum(inc_state%moist(ims:ime,jms:jme,k,p_qv)**2)/((ime-ims+1)*(jme-jms-1))
     end do
  end if
  
@@ -821,106 +821,106 @@ subroutine fca_state_to_sval(full_state,inc_state,flag_linear,sval,ierror)
     
  end if
 
-  ! 2d fields:
-  ierror = 1 ! 1: sfc pressure (convert from Pa to kPa)
-  call gsi_bundlegetpointer (sval(1),'ps'  ,sv_ps,  istatus)
-  if (istatus /= 0) return
-  sv_ps(1:lat2,1:lon2) = inc_state%PSFC(ims:ime,jms:jme)/r1000
+ ! 2d fields:
+ ierror = 1 ! 1: sfc pressure (convert from Pa to kPa)
+ call gsi_bundlegetpointer (sval(1),'ps'  ,sv_ps,  istatus)
+ if (istatus /= 0) return
+ sv_ps(1:lat2,1:lon2) = inc_state%PSFC(ims:ime,jms:jme)/r1000
 
-  ! 3d fields that are straight copies
-  ierror=3 ! 3: u,v,prse (convert from Pa to kPa)
-  call gsi_bundlegetpointer (sval(1),'u'   ,sv_u,   istatus)
-  if (istatus /= 0) return
-  sv_u(1:lat2,1:lon2,1:nsig) = inc_state%U(ims:ime,jms:jme,kts:kte)
-  call gsi_bundlegetpointer (sval(1),'v'   ,sv_v,   istatus)
-  if (istatus /= 0) return
-  sv_v(1:lat2,1:lon2,1:nsig) = inc_state%V(ims:ime,jms:jme,kts:kte)
-  call gsi_bundlegetpointer (sval(1),'prse'   ,sv_prse,   istatus)
-  if (istatus /= 0) return
-  sv_prse(1:lat2,1:lon2,1:nsig) = inc_state%P(ims:ime,jms:jme,kts:kte)/r1000
+ ! 3d fields that are straight copies
+ ierror=3 ! 3: u,v,prse (convert from Pa to kPa)
+ call gsi_bundlegetpointer (sval(1),'u'   ,sv_u,   istatus)
+ if (istatus /= 0) return
+ sv_u(1:lat2,1:lon2,1:nsig) = inc_state%U(ims:ime,jms:jme,kts:kte)
+ call gsi_bundlegetpointer (sval(1),'v'   ,sv_v,   istatus)
+ if (istatus /= 0) return
+ sv_v(1:lat2,1:lon2,1:nsig) = inc_state%V(ims:ime,jms:jme,kts:kte)
+ call gsi_bundlegetpointer (sval(1),'prse'   ,sv_prse,   istatus)
+ if (istatus /= 0) return
+ sv_prse(1:lat2,1:lon2,1:nsig) = inc_state%P(ims:ime,jms:jme,kts:kte)/r1000
 
-  ! 3D fields that require non-linear conversions
-  ierror=ierror+1 ! 4: qv
-  call gsi_bundlegetpointer (sval(1),'q'   ,sv_q ,  istatus)
-  if (istatus /= 0) return
-  work3d_1(ims:ime,jms:jme,kts:kte)=full_state%MOIST(ims:ime,jms:jme,kts:kte,p_qv)
-  ! restore original bg_state qv (mixing ratio, r) by subtracting increment from full_state:
-  if (.not. flag_linear) work3d_1(ims:ime,jms:jme,kts:kte) = work3d_1(ims:ime,jms:jme,kts:kte) - &
-       inc_state%MOIST(ims:ime,jms:jme,kts:kte,p_qv)
-  sv_q(1:lat2,1:lon2,1:nsig) = inc_state%MOIST(ims:ime,jms:jme,kts:kte,p_qv) / &
-       ((one+work3d_1(ims:ime,jms:jme,kts:kte))**2)
-  
-  ierror=ierror+1 ! 5: tsen
-  call gsi_bundlegetpointer (sval(1),'tsen'   ,sv_tsen ,  istatus)
-  if (istatus /= 0) return
-  ! convert increment of potential temperature perturbation
-  ! back to increment of tsen (ignore effect of pressure perturbation)
-  work3d_2(ims:ime,jms:jme,kts:kte)=full_state%PB(ims:ime,jms:jme,kts:kte)+full_state%P(ims:ime,jms:jme,kts:kte)
-  ! restore original pressure by subtracting perturbation pressure increment (PB is unchanged):
-  if (.not. flag_linear) work3d_2(ims:ime,jms:jme,kts:kte) = work3d_2(ims:ime,jms:jme,kts:kte) - &
-       inc_state%P(ims:ime,jms:jme,kts:kte)
-  sv_tsen(1:lat2,1:lon2,1:nsig)=((work3d_2(ims:ime,jms:jme,kts:kte)/base_pres)**kappa) * &
-       inc_state%T(ims:ime,jms:jme,kts:kte)
-  ! Also need to compute and store sv_tv:
-  call gsi_bundlegetpointer (sval(1),'tv'   ,sv_tv ,  istatus)
-  if (istatus /= 0) return
-  work3d_3(ims:ime,jms:jme,kts:kte)=t300+full_state%T(ims:ime,jms:jme,kts:kte)
-  ! restore original pot temperature by subtracting pot temp increment:
-  if (.not. flag_linear) work3d_3(ims:ime,jms:jme,kts:kte) = work3d_3(ims:ime,jms:jme,kts:kte) - &
-       inc_state%T(ims:ime,jms:jme,kts:kte)
-  ! Apply formula from WRFv402, physics/module_diag_functions.F: 
-  !  Tv = tK [Temp,K]* A, A=( 1.0 + (w[Mixing Ratio,kg/kg]/r622) ) / ( 1.0 + w )
-  !  ==> dTv = dtK*A+tk*dw*dA/dw, dA/dw=((1/r622)-1)/((1+w)**2)
-  sv_tv(1:lat2,1:lon2,1:nsig)=sv_tsen(1:lat2,1:lon2,1:nsig) * ( one + (work3d_1(ims:ime,jms:jme,kts:kte)/r622) ) &
-       / ( one + work3d_1(ims:ime,jms:jme,kts:kte) ) + &
-       ((work3d_2(ims:ime,jms:jme,kts:kte)/base_pres)**kappa) * work3d_3(ims:ime,jms:jme,kts:kte) * &
-       inc_state%MOIST(ims:ime,jms:jme,kts:kte,p_qv)*((one/r622)-one)/((1+work3d_1(ims:ime,jms:jme,kts:kte))**2)
+ ! 3D fields that require non-linear conversions
+ ierror=ierror+1 ! 4: qv
+ call gsi_bundlegetpointer (sval(1),'q'   ,sv_q ,  istatus)
+ if (istatus /= 0) return
+ work3d_1(ims:ime,jms:jme,kts:kte)=full_state%MOIST(ims:ime,jms:jme,kts:kte,p_qv)
+ ! restore original bg_state qv (mixing ratio, r) by subtracting increment from full_state:
+ if (.not. flag_linear) work3d_1(ims:ime,jms:jme,kts:kte) = work3d_1(ims:ime,jms:jme,kts:kte) - &
+      inc_state%MOIST(ims:ime,jms:jme,kts:kte,p_qv)
+ sv_q(1:lat2,1:lon2,1:nsig) = inc_state%MOIST(ims:ime,jms:jme,kts:kte,p_qv) / &
+      ((one+work3d_1(ims:ime,jms:jme,kts:kte))**2)
+ 
+ ierror=ierror+1 ! 5: tsen
+ call gsi_bundlegetpointer (sval(1),'tsen'   ,sv_tsen ,  istatus)
+ if (istatus /= 0) return
+ ! convert increment of potential temperature perturbation
+ ! back to increment of tsen (ignore effect of pressure perturbation)
+ work3d_2(ims:ime,jms:jme,kts:kte)=full_state%PB(ims:ime,jms:jme,kts:kte)+full_state%P(ims:ime,jms:jme,kts:kte)
+ ! restore original pressure by subtracting perturbation pressure increment (PB is unchanged):
+ if (.not. flag_linear) work3d_2(ims:ime,jms:jme,kts:kte) = work3d_2(ims:ime,jms:jme,kts:kte) - &
+      inc_state%P(ims:ime,jms:jme,kts:kte)
+ sv_tsen(1:lat2,1:lon2,1:nsig)=((work3d_2(ims:ime,jms:jme,kts:kte)/base_pres)**kappa) * &
+      inc_state%T(ims:ime,jms:jme,kts:kte)
+ ! Also need to compute and store sv_tv:
+ call gsi_bundlegetpointer (sval(1),'tv'   ,sv_tv ,  istatus)
+ if (istatus /= 0) return
+ work3d_3(ims:ime,jms:jme,kts:kte)=t300+full_state%T(ims:ime,jms:jme,kts:kte)
+ ! restore original pot temperature by subtracting pot temp increment:
+ if (.not. flag_linear) work3d_3(ims:ime,jms:jme,kts:kte) = work3d_3(ims:ime,jms:jme,kts:kte) - &
+      inc_state%T(ims:ime,jms:jme,kts:kte)
+ ! Apply formula from WRFv402, physics/module_diag_functions.F: 
+ !  Tv = tK [Temp,K]* A, A=( 1.0 + (w[Mixing Ratio,kg/kg]/r622) ) / ( 1.0 + w )
+ !  ==> dTv = dtK*A+tk*dw*dA/dw, dA/dw=((1/r622)-1)/((1+w)**2)
+ sv_tv(1:lat2,1:lon2,1:nsig)=sv_tsen(1:lat2,1:lon2,1:nsig) * ( one + (work3d_1(ims:ime,jms:jme,kts:kte)/r622) ) &
+      / ( one + work3d_1(ims:ime,jms:jme,kts:kte) ) + &
+      ((work3d_2(ims:ime,jms:jme,kts:kte)/base_pres)**kappa) * work3d_3(ims:ime,jms:jme,kts:kte) * &
+      inc_state%MOIST(ims:ime,jms:jme,kts:kte,p_qv)*((one/r622)-one)/((1+work3d_1(ims:ime,jms:jme,kts:kte))**2)
 
-  if (idebug >= 3) then
-     write (*,'(a,i4,6(i4,i4,e15.6))') 'before sv_u(k=15) mype=',mype,1,1,sv_u(1,1,15),2,2,sv_u(2,2,15),haloi+lat1,haloj+lon1,sv_u(haloi+lat1,haloj+lon1,15),lat2,lon2,sv_u(lat2,lon2,15)
-     write (*,'(a,i4,6(i4,i4,e15.6))') 'before sv_v(k=15) mype=',mype,1,1,sv_v(1,1,15),2,2,sv_v(2,2,15),haloi+lat1,haloj+lon1,sv_v(haloi+lat1,haloj+lon1,15),lat2,lon2,sv_v(lat2,lon2,15)
-     write (*,'(a,i4,6(i4,i4,e15.6))') 'before qv(k=15) mype=',mype,1,1,sv_q(1,1,15),2,2,sv_q(2,2,15),haloi+lat1,haloj+lon1,sv_q(haloi+lat1,haloj+lon1,15),lat2,lon2,sv_q(lat2,lon2,15)
-     write (*,'(a,i4,6(i4,i4,e15.6))') 'before sv_tsen(k=15) mype=',mype,1,1,sv_tsen(1,1,15),2,2,sv_tsen(2,2,15),haloi+lat1,haloj+lon1,sv_tsen(haloi+lat1,haloj+lon1,15),lat2,lon2,sv_tsen(lat2,lon2,15)
-  end if
-  
-  ! MOIST array
-  if (nmoist > 1) then
-     do imoist=2,nmoist
-        call gsi_bundlegetpointer (sval(1),trim(moistnames(imoist)),sv_rank3 ,  istatus)
-        if (istatus /= 0) then
-           if (mype .eq. 0) write (*,*) 'fca_state_to_sval: ',trim(moistnames(imoist)),' missing from sval, skipped'
-        else
-           sv_rank3(1:lat2,1:lon2,1:nsig) = inc_state%MOIST(ims:ime,jms:jme,kts:kte,imoist)
-        end if
-     end do
-  end if
-  
-  ierror = 0
+ if (idebug >= 3) then
+    write (*,'(a,i4,6(i4,i4,e15.6))') 'before sv_u(k=15) mype=',mype,1,1,sv_u(1,1,15),2,2,sv_u(2,2,15),haloi+lat1,haloj+lon1,sv_u(haloi+lat1,haloj+lon1,15),lat2,lon2,sv_u(lat2,lon2,15)
+    write (*,'(a,i4,6(i4,i4,e15.6))') 'before sv_v(k=15) mype=',mype,1,1,sv_v(1,1,15),2,2,sv_v(2,2,15),haloi+lat1,haloj+lon1,sv_v(haloi+lat1,haloj+lon1,15),lat2,lon2,sv_v(lat2,lon2,15)
+    write (*,'(a,i4,6(i4,i4,e15.6))') 'before qv(k=15) mype=',mype,1,1,sv_q(1,1,15),2,2,sv_q(2,2,15),haloi+lat1,haloj+lon1,sv_q(haloi+lat1,haloj+lon1,15),lat2,lon2,sv_q(lat2,lon2,15)
+    write (*,'(a,i4,6(i4,i4,e15.6))') 'before sv_tsen(k=15) mype=',mype,1,1,sv_tsen(1,1,15),2,2,sv_tsen(2,2,15),haloi+lat1,haloj+lon1,sv_tsen(haloi+lat1,haloj+lon1,15),lat2,lon2,sv_tsen(lat2,lon2,15)
+ end if
+ 
+ ! MOIST array
+ if (nmoist > 1) then
+    do imoist=2,nmoist
+       call gsi_bundlegetpointer (sval(1),trim(moistnames(imoist)),sv_rank3 ,  istatus)
+       if (istatus /= 0) then
+          if (mype == 0) write (*,*) 'fca_state_to_sval: ',trim(moistnames(imoist)),' missing from sval, skipped'
+       else
+          sv_rank3(1:lat2,1:lon2,1:nsig) = inc_state%MOIST(ims:ime,jms:jme,kts:kte,imoist)
+       end if
+    end do
+ end if
+ 
+ ierror = 0
 
-  ! Halo exchange of GSI increments after transfer from FCA:
-  ! Convert from subdomain to full horizontal field distributed among processors
-  call general_sub2grid(s2g_raf,sval(1)%values,hwork)
-  ! Put back onto subdomains
-  call general_grid2sub(s2g_raf,hwork,sval(1)%values)
-  if (.not. flag_linear) then
-     ! The above does not take care of sv_ps and sv_prse, do this separately:
-     ! (see initi_fca_from_gsi for creation of s2g_press)
-     allocate(work_field(s2g_press%inner_vars,lat2,lon2,s2g_press%num_fields), &
-          hwork_press(s2g_press%inner_vars,s2g_press%nlat,s2g_press%nlon,s2g_press%kbegin_loc:s2g_press%kend_alloc))
-     work_field(1,:,:,1:nsig) = sv_prse(:,:,:)
-     work_field(1,:,:,nsig+1) = sv_ps(:,:)
-     call general_sub2grid(s2g_press,work_field,hwork_press)
-     call general_grid2sub(s2g_press,hwork_press,work_field)
-     sv_prse(:,:,:) = work_field(1,:,:,1:nsig)
-     sv_ps(:,:) = work_field(1,:,:,nsig+1)
-     deallocate(work_field,hwork_press)
-  end if
-  if (idebug >= 3) then
-     write (*,'(a,i4,6(i4,i4,e15.6))') 'after sv_u(k=15) mype=',mype,1,1,sv_u(1,1,15),2,2,sv_u(2,2,15),haloi+lat1,haloj+lon1,sv_u(haloi+lat1,haloj+lon1,15),lat2,lon2,sv_u(lat2,lon2,15)
-     write (*,'(a,i4,6(i4,i4,e15.6))') 'after sv_v(k=15) mype=',mype,1,1,sv_v(1,1,15),2,2,sv_v(2,2,15),haloi+lat1,haloj+lon1,sv_v(haloi+lat1,haloj+lon1,15),lat2,lon2,sv_v(lat2,lon2,15)
-     write (*,'(a,i4,6(i4,i4,e15.6))') 'after qv(k=15) mype=',mype,1,1,sv_q(1,1,15),2,2,sv_q(2,2,15),haloi+lat1,haloj+lon1,sv_q(haloi+lat1,haloj+lon1,15),lat2,lon2,sv_q(lat2,lon2,15)
-     write (*,'(a,i4,6(i4,i4,e15.6))') 'after sv_tsen(k=15) mype=',mype,1,1,sv_tsen(1,1,15),2,2,sv_tsen(2,2,15),haloi+lat1,haloj+lon1,sv_tsen(haloi+lat1,haloj+lon1,15),lat2,lon2,sv_tsen(lat2,lon2,15)
-  end if
+ ! Halo exchange of GSI increments after transfer from FCA:
+ ! Convert from subdomain to full horizontal field distributed among processors
+ call general_sub2grid(s2g_raf,sval(1)%values,hwork)
+ ! Put back onto subdomains
+ call general_grid2sub(s2g_raf,hwork,sval(1)%values)
+ if (.not. flag_linear) then
+    ! The above does not take care of sv_ps and sv_prse, do this separately:
+    ! (see initi_fca_from_gsi for creation of s2g_press)
+    allocate(work_field(s2g_press%inner_vars,lat2,lon2,s2g_press%num_fields), &
+         hwork_press(s2g_press%inner_vars,s2g_press%nlat,s2g_press%nlon,s2g_press%kbegin_loc:s2g_press%kend_alloc))
+    work_field(1,:,:,1:nsig) = sv_prse(:,:,:)
+    work_field(1,:,:,nsig+1) = sv_ps(:,:)
+    call general_sub2grid(s2g_press,work_field,hwork_press)
+    call general_grid2sub(s2g_press,hwork_press,work_field)
+    sv_prse(:,:,:) = work_field(1,:,:,1:nsig)
+    sv_ps(:,:) = work_field(1,:,:,nsig+1)
+    deallocate(work_field,hwork_press)
+ end if
+ if (idebug >= 3) then
+    write (*,'(a,i4,6(i4,i4,e15.6))') 'after sv_u(k=15) mype=',mype,1,1,sv_u(1,1,15),2,2,sv_u(2,2,15),haloi+lat1,haloj+lon1,sv_u(haloi+lat1,haloj+lon1,15),lat2,lon2,sv_u(lat2,lon2,15)
+    write (*,'(a,i4,6(i4,i4,e15.6))') 'after sv_v(k=15) mype=',mype,1,1,sv_v(1,1,15),2,2,sv_v(2,2,15),haloi+lat1,haloj+lon1,sv_v(haloi+lat1,haloj+lon1,15),lat2,lon2,sv_v(lat2,lon2,15)
+    write (*,'(a,i4,6(i4,i4,e15.6))') 'after qv(k=15) mype=',mype,1,1,sv_q(1,1,15),2,2,sv_q(2,2,15),haloi+lat1,haloj+lon1,sv_q(haloi+lat1,haloj+lon1,15),lat2,lon2,sv_q(lat2,lon2,15)
+    write (*,'(a,i4,6(i4,i4,e15.6))') 'after sv_tsen(k=15) mype=',mype,1,1,sv_tsen(1,1,15),2,2,sv_tsen(2,2,15),haloi+lat1,haloj+lon1,sv_tsen(haloi+lat1,haloj+lon1,15),lat2,lon2,sv_tsen(lat2,lon2,15)
+ end if
   
  if (idebug >= 2) then
 ! Copy sval back to increments and check halos (!omit nonlinear conversions):
@@ -938,7 +938,7 @@ subroutine fca_state_to_sval(full_state,inc_state,flag_linear,sval,ierror)
     call print_halos('inc2_tv',inc_state%t(ims,jms,kms),kte)
     do imoist=1,nmoist
        call gsi_bundlegetpointer (sval(1),trim(moistnames(imoist)),sv_rank3 ,  istatus)
-       if (istatus .eq. 0) then
+       if (istatus == 0) then
           inc_state%MOIST(ims:ime,jms:jme,kts:kte,imoist) = sv_rank3(1:lat2,1:lon2,1:nsig)
           haloname='inc2_' // trim(moistnames(imoist))
           call print_halos(haloname,inc_state%moist(ims,jms,kms,imoist),kte)
@@ -994,7 +994,7 @@ subroutine fca_state_to_sval_adj(full_state,inc_state,flag_linear,sval,ierror)
      do imoist=2,nmoist
         call gsi_bundlegetpointer (sval(1),trim(moistnames(imoist)),sv_rank3 ,  istatus)
         if (istatus /= 0) then
-           if (mype .eq. 0) write (*,*) 'fca_state_to_sval_adj: ',trim(moistnames(imoist)),' missing from sval, skipped'
+           if (mype == 0) write (*,*) 'fca_state_to_sval_adj: ',trim(moistnames(imoist)),' missing from sval, skipped'
         else
            inc_state%MOIST(ims:ime,jms:jme,kts:kte,imoist) = sv_rank3(1:lat2,1:lon2,1:nsig)
         end if

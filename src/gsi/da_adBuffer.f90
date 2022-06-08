@@ -37,12 +37,6 @@
 !   sub PUSHCOMPLEX16
 !   sub LOOKCOMPLEX16
 !   sub POPCOMPLEX16
-!   sub addftraffic
-!   sub PRINTTRAFFIC
-!   sub PRINTBUFFERTOP
-!
-! functions included:
-!   SMALLSTACKSIZE
 !
 ! variable definition:
 !
@@ -54,7 +48,7 @@
 
       BLOCK DATA CHARACTERS
       CHARACTER ads1buf(512), ads1lbuf(512)
-      INTEGER ads1ibuf,ads1ilbuf
+      INTEGER(i_short) ads1ibuf,ads1ilbuf
       LOGICAL ads1inlbuf
       COMMON /ads1fbuf/ads1buf,ads1lbuf,                                &
      &       ads1ibuf,ads1ilbuf,ads1inlbuf
@@ -65,11 +59,10 @@
 
       SUBROUTINE PUSHCHARACTER(x)
       CHARACTER x, ads1buf(512), ads1lbuf(512)
-      INTEGER ads1ibuf,ads1ilbuf
+      INTEGER(i_short) ads1ibuf,ads1ilbuf
       LOGICAL ads1inlbuf
       COMMON /ads1fbuf/ads1buf,ads1lbuf,                                &
      &       ads1ibuf,ads1ilbuf,ads1inlbuf
-      call addftraffic(1)
       IF (ads1ilbuf /= -1) THEN
          ads1ilbuf = -1
          ads1inlbuf = .FALSE.
@@ -77,7 +70,6 @@
       IF (ads1ibuf >= 512) THEN
          ads1buf(512) = x
          CALL PUSHCHARACTERARRAY(ads1buf, 512)
-      call addftraffic(-512)
          ads1ibuf = 1
       ELSE
          ads1buf(ads1ibuf) = x
@@ -87,11 +79,11 @@
 
       SUBROUTINE LOOKCHARACTER(x)
       CHARACTER x, ads1buf(512), ads1lbuf(512)
-      INTEGER ads1ibuf,ads1ilbuf
+      INTEGER(i_short) ads1ibuf,ads1ilbuf
       LOGICAL ads1inlbuf
       COMMON /ads1fbuf/ads1buf,ads1lbuf,                                &
      &       ads1ibuf,ads1ilbuf,ads1inlbuf
-      IF (ads1ilbuf.eq.-1) THEN
+      IF (ads1ilbuf == -1) THEN
          ads1ilbuf=ads1ibuf
          call RESETADLOOKSTACK()
       ENDIF
@@ -112,7 +104,7 @@
 
       SUBROUTINE POPCHARACTER(x)
       CHARACTER x, ads1buf(512), ads1lbuf(512)
-      INTEGER ads1ibuf,ads1ilbuf
+      INTEGER(i_short) ads1ibuf,ads1ilbuf
       LOGICAL ads1inlbuf
       COMMON /ads1fbuf/ads1buf,ads1lbuf,                                &
      &       ads1ibuf,ads1ilbuf,ads1inlbuf
@@ -132,7 +124,7 @@
 
       BLOCK DATA BOOLEANS
       LOGICAL adl4buf(512), adl4lbuf(512)
-      INTEGER adl4ibuf,adl4ilbuf
+      INTEGER(i_short) adl4ibuf,adl4ilbuf
       LOGICAL adl4inlbuf
       COMMON /adl4fbuf/adl4buf,adl4lbuf,                                &
      &       adl4ibuf,adl4ilbuf,adl4inlbuf
@@ -143,11 +135,10 @@
 
       SUBROUTINE PUSHBOOLEAN(x)
       LOGICAL x, adl4buf(512), adl4lbuf(512)
-      INTEGER adl4ibuf,adl4ilbuf
+      INTEGER(i_short) adl4ibuf,adl4ilbuf
       LOGICAL adl4inlbuf
       COMMON /adl4fbuf/adl4buf,adl4lbuf,                                &
      &       adl4ibuf,adl4ilbuf,adl4inlbuf
-      call addftraffic(4)
       IF (adl4ilbuf /= -1) THEN
          adl4ilbuf = -1
          adl4inlbuf = .FALSE.
@@ -155,7 +146,6 @@
       IF (adl4ibuf >= 512) THEN
          adl4buf(512) = x
          CALL PUSHBOOLEANARRAY(adl4buf, 512)
-      call addftraffic(-2048)
          adl4ibuf = 1
       ELSE
          adl4buf(adl4ibuf) = x
@@ -165,11 +155,11 @@
 
       SUBROUTINE LOOKBOOLEAN(x)
       LOGICAL x, adl4buf(512), adl4lbuf(512)
-      INTEGER adl4ibuf,adl4ilbuf
+      INTEGER(i_short) adl4ibuf,adl4ilbuf
       LOGICAL adl4inlbuf
       COMMON /adl4fbuf/adl4buf,adl4lbuf,                                &
      &       adl4ibuf,adl4ilbuf,adl4inlbuf
-      IF (adl4ilbuf.eq.-1) THEN
+      IF (adl4ilbuf == -1) THEN
          adl4ilbuf=adl4ibuf
          call RESETADLOOKSTACK()
       ENDIF
@@ -190,7 +180,7 @@
 
       SUBROUTINE POPBOOLEAN(x)
       LOGICAL x, adl4buf(512), adl4lbuf(512)
-      INTEGER adl4ibuf,adl4ilbuf
+      INTEGER(i_short) adl4ibuf,adl4ilbuf
       LOGICAL adl4inlbuf
       COMMON /adl4fbuf/adl4buf,adl4lbuf,                                &
      &       adl4ibuf,adl4ilbuf,adl4inlbuf
@@ -209,8 +199,8 @@
       END
 
       BLOCK DATA INTEGERS4
-      INTEGER*4 adi4buf(512), adi4lbuf(512)
-      INTEGER adi4ibuf,adi4ilbuf
+      INTEGER(I_SHORT) adi4buf(512), adi4lbuf(512)
+      INTEGER(i_short) adi4ibuf,adi4ilbuf
       LOGICAL adi4inlbuf
       COMMON /adi4fbuf/adi4buf,adi4lbuf,                                &
      &       adi4ibuf,adi4ilbuf,adi4inlbuf
@@ -220,12 +210,11 @@
       END
 
       SUBROUTINE PUSHINTEGER4(x)
-      INTEGER*4 x, adi4buf(512), adi4lbuf(512)
-      INTEGER adi4ibuf,adi4ilbuf
+      INTEGER(I_SHORT) x, adi4buf(512), adi4lbuf(512)
+      INTEGER(i_short) adi4ibuf,adi4ilbuf
       LOGICAL adi4inlbuf
       COMMON /adi4fbuf/adi4buf,adi4lbuf,                                &
      &       adi4ibuf,adi4ilbuf,adi4inlbuf
-      call addftraffic(4)
       IF (adi4ilbuf /= -1) THEN
          adi4ilbuf = -1
          adi4inlbuf = .FALSE.
@@ -233,7 +222,6 @@
       IF (adi4ibuf >= 512) THEN
          adi4buf(512) = x
          CALL PUSHINTEGER4ARRAY(adi4buf, 512)
-      call addftraffic(-2048)
          adi4ibuf = 1
       ELSE
          adi4buf(adi4ibuf) = x
@@ -242,12 +230,12 @@
       END
 
       SUBROUTINE LOOKINTEGER4(x)
-      INTEGER*4 x, adi4buf(512), adi4lbuf(512)
-      INTEGER adi4ibuf,adi4ilbuf
+      INTEGER(I_SHORT) x, adi4buf(512), adi4lbuf(512)
+      INTEGER(i_short) adi4ibuf,adi4ilbuf
       LOGICAL adi4inlbuf
       COMMON /adi4fbuf/adi4buf,adi4lbuf,                                &
      &       adi4ibuf,adi4ilbuf,adi4inlbuf
-      IF (adi4ilbuf.eq.-1) THEN
+      IF (adi4ilbuf == -1) THEN
          adi4ilbuf=adi4ibuf
          call RESETADLOOKSTACK()
       ENDIF
@@ -267,8 +255,8 @@
       END
 
       SUBROUTINE POPINTEGER4(x)
-      INTEGER*4 x, adi4buf(512), adi4lbuf(512)
-      INTEGER adi4ibuf,adi4ilbuf
+      INTEGER(I_SHORT) x, adi4buf(512), adi4lbuf(512)
+      INTEGER(i_short) adi4ibuf,adi4ilbuf
       LOGICAL adi4inlbuf
       COMMON /adi4fbuf/adi4buf,adi4lbuf,                                &
      &       adi4ibuf,adi4ilbuf,adi4inlbuf
@@ -287,8 +275,8 @@
       END
 
       BLOCK DATA INTEGERS8
-      INTEGER*8 adi8buf(512), adi8lbuf(512)
-      INTEGER adi8ibuf,adi8ilbuf
+      INTEGER(I_LONG) adi8buf(512), adi8lbuf(512)
+      INTEGER(i_short) adi8ibuf,adi8ilbuf
       LOGICAL adi8inlbuf
       COMMON /adi8fbuf/adi8buf,adi8lbuf,                                &
      &       adi8ibuf,adi8ilbuf,adi8inlbuf
@@ -298,12 +286,11 @@
       END
 
       SUBROUTINE PUSHINTEGER8(x)
-      INTEGER*8 x, adi8buf(512), adi8lbuf(512)
-      INTEGER adi8ibuf,adi8ilbuf
+      INTEGER(I_LONG) x, adi8buf(512), adi8lbuf(512)
+      INTEGER(i_short) adi8ibuf,adi8ilbuf
       LOGICAL adi8inlbuf
       COMMON /adi8fbuf/adi8buf,adi8lbuf,                                &
      &       adi8ibuf,adi8ilbuf,adi8inlbuf
-      call addftraffic(8)
       IF (adi8ilbuf /= -1) THEN
          adi8ilbuf = -1
          adi8inlbuf = .FALSE.
@@ -311,7 +298,6 @@
       IF (adi8ibuf >= 512) THEN
          adi8buf(512) = x
          CALL PUSHINTEGER8ARRAY(adi8buf, 512)
-      call addftraffic(-4096)
          adi8ibuf = 1
       ELSE
          adi8buf(adi8ibuf) = x
@@ -320,12 +306,12 @@
       END
 
       SUBROUTINE LOOKINTEGER8(x)
-      INTEGER*8 x, adi8buf(512), adi8lbuf(512)
-      INTEGER adi8ibuf,adi8ilbuf
+      INTEGER(I_LONG) x, adi8buf(512), adi8lbuf(512)
+      INTEGER(i_short) adi8ibuf,adi8ilbuf
       LOGICAL adi8inlbuf
       COMMON /adi8fbuf/adi8buf,adi8lbuf,                                &
      &       adi8ibuf,adi8ilbuf,adi8inlbuf
-      IF (adi8ilbuf.eq.-1) THEN
+      IF (adi8ilbuf == -1) THEN
          adi8ilbuf=adi8ibuf
          call RESETADLOOKSTACK()
       ENDIF
@@ -345,8 +331,8 @@
       END
 
       SUBROUTINE POPINTEGER8(x)
-      INTEGER*8 x, adi8buf(512), adi8lbuf(512)
-      INTEGER adi8ibuf,adi8ilbuf
+      INTEGER(I_LONG) x, adi8buf(512), adi8lbuf(512)
+      INTEGER(i_short) adi8ibuf,adi8ilbuf
       LOGICAL adi8inlbuf
       COMMON /adi8fbuf/adi8buf,adi8lbuf,                                &
      &       adi8ibuf,adi8ilbuf,adi8inlbuf
@@ -365,8 +351,8 @@
       END
 
       BLOCK DATA REALS4
-      REAL*4 adr4buf(512), adr4lbuf(512)
-      INTEGER adr4ibuf,adr4ilbuf
+      REAL(R_SINGLE) adr4buf(512), adr4lbuf(512)
+      INTEGER(i_short) adr4ibuf,adr4ilbuf
       LOGICAL adr4inlbuf
       COMMON /adr4fbuf/adr4buf,adr4lbuf,                                &
      &       adr4ibuf,adr4ilbuf,adr4inlbuf
@@ -376,12 +362,11 @@
       END
 
       SUBROUTINE PUSHREAL4(x)
-      REAL*4 x, adr4buf(512), adr4lbuf(512)
-      INTEGER adr4ibuf,adr4ilbuf
+      REAL(R_SINGLE) x, adr4buf(512), adr4lbuf(512)
+      INTEGER(i_short) adr4ibuf,adr4ilbuf
       LOGICAL adr4inlbuf
       COMMON /adr4fbuf/adr4buf,adr4lbuf,                                &
      &       adr4ibuf,adr4ilbuf,adr4inlbuf
-      call addftraffic(4)
       IF (adr4ilbuf /= -1) THEN
          adr4ilbuf = -1
          adr4inlbuf = .FALSE.
@@ -389,7 +374,6 @@
       IF (adr4ibuf >= 512) THEN
          adr4buf(512) = x
          CALL PUSHREAL4ARRAY(adr4buf, 512)
-      call addftraffic(-2048)
          adr4ibuf = 1
       ELSE
          adr4buf(adr4ibuf) = x
@@ -398,12 +382,12 @@
       END
 
       SUBROUTINE LOOKREAL4(x)
-      REAL*4 x, adr4buf(512), adr4lbuf(512)
-      INTEGER adr4ibuf,adr4ilbuf
+      REAL(R_SINGLE) x, adr4buf(512), adr4lbuf(512)
+      INTEGER(i_short) adr4ibuf,adr4ilbuf
       LOGICAL adr4inlbuf
       COMMON /adr4fbuf/adr4buf,adr4lbuf,                                &
      &       adr4ibuf,adr4ilbuf,adr4inlbuf
-      IF (adr4ilbuf.eq.-1) THEN
+      IF (adr4ilbuf == -1) THEN
          adr4ilbuf=adr4ibuf
          call RESETADLOOKSTACK()
       ENDIF
@@ -423,8 +407,8 @@
       END
 
       SUBROUTINE POPREAL4(x)
-      REAL*4 x, adr4buf(512), adr4lbuf(512)
-      INTEGER adr4ibuf,adr4ilbuf
+      REAL(R_SINGLE) x, adr4buf(512), adr4lbuf(512)
+      INTEGER(i_short) adr4ibuf,adr4ilbuf
       LOGICAL adr4inlbuf
       COMMON /adr4fbuf/adr4buf,adr4lbuf,                                &
      &       adr4ibuf,adr4ilbuf,adr4inlbuf
@@ -443,8 +427,8 @@
       END
 
       BLOCK DATA REALS8
-      REAL*8 adr8buf(512), adr8lbuf(512)
-      INTEGER adr8ibuf,adr8ilbuf
+      REAL(r_kind) adr8buf(512), adr8lbuf(512)
+      INTEGER(i_short) adr8ibuf,adr8ilbuf
       LOGICAL adr8inlbuf
       COMMON /adr8fbuf/adr8buf,adr8lbuf,                                &
      &       adr8ibuf,adr8ilbuf,adr8inlbuf
@@ -454,12 +438,11 @@
       END
 
       SUBROUTINE PUSHREAL8(x)
-      REAL*8 x, adr8buf(512), adr8lbuf(512)
-      INTEGER adr8ibuf,adr8ilbuf
+      REAL(r_kind) x, adr8buf(512), adr8lbuf(512)
+      INTEGER(i_short) adr8ibuf,adr8ilbuf
       LOGICAL adr8inlbuf
       COMMON /adr8fbuf/adr8buf,adr8lbuf,                                &
      &       adr8ibuf,adr8ilbuf,adr8inlbuf
-      call addftraffic(8)
       IF (adr8ilbuf /= -1) THEN
          adr8ilbuf = -1
          adr8inlbuf = .FALSE.
@@ -467,7 +450,6 @@
       IF (adr8ibuf >= 512) THEN
          adr8buf(512) = x
          CALL PUSHREAL8ARRAY(adr8buf, 512)
-      call addftraffic(-4096)
          adr8ibuf = 1
       ELSE
          adr8buf(adr8ibuf) = x
@@ -476,12 +458,12 @@
       END
 
       SUBROUTINE LOOKREAL8(x)
-      REAL*8 x, adr8buf(512), adr8lbuf(512)
-      INTEGER adr8ibuf,adr8ilbuf
+      REAL(r_kind) x, adr8buf(512), adr8lbuf(512)
+      INTEGER(i_short) adr8ibuf,adr8ilbuf
       LOGICAL adr8inlbuf
       COMMON /adr8fbuf/adr8buf,adr8lbuf,                                &
      &       adr8ibuf,adr8ilbuf,adr8inlbuf
-      IF (adr8ilbuf.eq.-1) THEN
+      IF (adr8ilbuf == -1) THEN
          adr8ilbuf=adr8ibuf
          call RESETADLOOKSTACK()
       ENDIF
@@ -501,8 +483,8 @@
       END
 
       SUBROUTINE POPREAL8(x)
-      REAL*8 x, adr8buf(512), adr8lbuf(512)
-      INTEGER adr8ibuf,adr8ilbuf
+      REAL(r_kind) x, adr8buf(512), adr8lbuf(512)
+      INTEGER(i_short) adr8ibuf,adr8ilbuf
       LOGICAL adr8inlbuf
       COMMON /adr8fbuf/adr8buf,adr8lbuf,                                &
      &       adr8ibuf,adr8ilbuf,adr8inlbuf
@@ -522,7 +504,7 @@
 
       BLOCK DATA REALS16
       DOUBLE PRECISION adr16buf(512), adr16lbuf(512)
-      INTEGER adr16ibuf,adr16ilbuf
+      INTEGER(i_short) adr16ibuf,adr16ilbuf
       LOGICAL adr16inlbuf
       COMMON /adr16fbuf/adr16buf,adr16lbuf,                             &
      &       adr16ibuf,adr16ilbuf,adr16inlbuf
@@ -533,11 +515,10 @@
 
       SUBROUTINE PUSHREAL16(x)
       DOUBLE PRECISION x, adr16buf(512), adr16lbuf(512)
-      INTEGER adr16ibuf,adr16ilbuf
+      INTEGER(i_short) adr16ibuf,adr16ilbuf
       LOGICAL adr16inlbuf
       COMMON /adr16fbuf/adr16buf,adr16lbuf,                             &
      &       adr16ibuf,adr16ilbuf,adr16inlbuf
-      call addftraffic(16)
       IF (adr16ilbuf /= -1) THEN
          adr16ilbuf = -1
          adr16inlbuf = .FALSE.
@@ -545,7 +526,6 @@
       IF (adr16ibuf >= 512) THEN
          adr16buf(512) = x
          CALL PUSHREAL16ARRAY(adr16buf, 512)
-      call addftraffic(-8192)
          adr16ibuf = 1
       ELSE
          adr16buf(adr16ibuf) = x
@@ -555,11 +535,11 @@
 
       SUBROUTINE LOOKREAL16(x)
       DOUBLE PRECISION x, adr16buf(512), adr16lbuf(512)
-      INTEGER adr16ibuf,adr16ilbuf
+      INTEGER(i_short) adr16ibuf,adr16ilbuf
       LOGICAL adr16inlbuf
       COMMON /adr16fbuf/adr16buf,adr16lbuf,                             &
      &       adr16ibuf,adr16ilbuf,adr16inlbuf
-      IF (adr16ilbuf.eq.-1) THEN
+      IF (adr16ilbuf == -1) THEN
          adr16ilbuf=adr16ibuf
          call RESETADLOOKSTACK()
       ENDIF
@@ -580,7 +560,7 @@
 
       SUBROUTINE POPREAL16(x)
       DOUBLE PRECISION x, adr16buf(512), adr16lbuf(512)
-      INTEGER adr16ibuf,adr16ilbuf
+      INTEGER(i_short) adr16ibuf,adr16ilbuf
       LOGICAL adr16inlbuf
       COMMON /adr16fbuf/adr16buf,adr16lbuf,                             &
      &       adr16ibuf,adr16ilbuf,adr16inlbuf
@@ -600,7 +580,7 @@
 
       BLOCK DATA COMPLEXS8
       COMPLEX*8 adc8buf(512), adc8lbuf(512)
-      INTEGER adc8ibuf,adc8ilbuf
+      INTEGER(i_short) adc8ibuf,adc8ilbuf
       LOGICAL adc8inlbuf
       COMMON /adc8fbuf/adc8buf,adc8lbuf,                                &
      &       adc8ibuf,adc8ilbuf,adc8inlbuf
@@ -611,11 +591,10 @@
 
       SUBROUTINE PUSHCOMPLEX8(x)
       COMPLEX*8 x, adc8buf(512), adc8lbuf(512)
-      INTEGER adc8ibuf,adc8ilbuf
+      INTEGER(i_short) adc8ibuf,adc8ilbuf
       LOGICAL adc8inlbuf
       COMMON /adc8fbuf/adc8buf,adc8lbuf,                                &
      &       adc8ibuf,adc8ilbuf,adc8inlbuf
-      call addftraffic(8)
       IF (adc8ilbuf /= -1) THEN
          adc8ilbuf = -1
          adc8inlbuf = .FALSE.
@@ -623,7 +602,6 @@
       IF (adc8ibuf >= 512) THEN
          adc8buf(512) = x
          CALL PUSHCOMPLEX8ARRAY(adc8buf, 512)
-      call addftraffic(-4096)
          adc8ibuf = 1
       ELSE
          adc8buf(adc8ibuf) = x
@@ -633,11 +611,11 @@
 
       SUBROUTINE LOOKCOMPLEX8(x)
       COMPLEX*8 x, adc8buf(512), adc8lbuf(512)
-      INTEGER adc8ibuf,adc8ilbuf
+      INTEGER(i_short) adc8ibuf,adc8ilbuf
       LOGICAL adc8inlbuf
       COMMON /adc8fbuf/adc8buf,adc8lbuf,                                &
      &       adc8ibuf,adc8ilbuf,adc8inlbuf
-      IF (adc8ilbuf.eq.-1) THEN
+      IF (adc8ilbuf == -1) THEN
          adc8ilbuf=adc8ibuf
          call RESETADLOOKSTACK()
       ENDIF
@@ -658,7 +636,7 @@
 
       SUBROUTINE POPCOMPLEX8(x)
       COMPLEX*8 x, adc8buf(512), adc8lbuf(512)
-      INTEGER adc8ibuf,adc8ilbuf
+      INTEGER(i_short) adc8ibuf,adc8ilbuf
       LOGICAL adc8inlbuf
       COMMON /adc8fbuf/adc8buf,adc8lbuf,                                &
      &       adc8ibuf,adc8ilbuf,adc8inlbuf
@@ -678,7 +656,7 @@
 
       BLOCK DATA COMPLEXS16
       COMPLEX*16 adc16buf(512), adc16lbuf(512)
-      INTEGER adc16ibuf,adc16ilbuf
+      INTEGER(i_short) adc16ibuf,adc16ilbuf
       LOGICAL adc16inlbuf
       COMMON /adc16fbuf/adc16buf,adc16lbuf,                             &
      &       adc16ibuf,adc16ilbuf,adc16inlbuf
@@ -689,11 +667,10 @@
 
       SUBROUTINE PUSHCOMPLEX16(x)
       COMPLEX*16 x, adc16buf(512), adc16lbuf(512)
-      INTEGER adc16ibuf,adc16ilbuf
+      INTEGER(i_short) adc16ibuf,adc16ilbuf
       LOGICAL adc16inlbuf
       COMMON /adc16fbuf/adc16buf,adc16lbuf,                             &
      &       adc16ibuf,adc16ilbuf,adc16inlbuf
-      call addftraffic(16)
       IF (adc16ilbuf /= -1) THEN
          adc16ilbuf = -1
          adc16inlbuf = .FALSE.
@@ -701,7 +678,6 @@
       IF (adc16ibuf >= 512) THEN
          adc16buf(512) = x
          CALL PUSHCOMPLEX16ARRAY(adc16buf, 512)
-      call addftraffic(-8192)
          adc16ibuf = 1
       ELSE
          adc16buf(adc16ibuf) = x
@@ -711,11 +687,11 @@
 
       SUBROUTINE LOOKCOMPLEX16(x)
       COMPLEX*16 x, adc16buf(512), adc16lbuf(512)
-      INTEGER adc16ibuf,adc16ilbuf
+      INTEGER(i_short) adc16ibuf,adc16ilbuf
       LOGICAL adc16inlbuf
       COMMON /adc16fbuf/adc16buf,adc16lbuf,                             &
      &       adc16ibuf,adc16ilbuf,adc16inlbuf
-      IF (adc16ilbuf.eq.-1) THEN
+      IF (adc16ilbuf == -1) THEN
          adc16ilbuf=adc16ibuf
          call RESETADLOOKSTACK()
       ENDIF
@@ -736,7 +712,7 @@
 
       SUBROUTINE POPCOMPLEX16(x)
       COMPLEX*16 x, adc16buf(512), adc16lbuf(512)
-      INTEGER adc16ibuf,adc16ilbuf
+      INTEGER(i_short) adc16ibuf,adc16ilbuf
       LOGICAL adc16inlbuf
       COMMON /adc16fbuf/adc16buf,adc16lbuf,                             &
      &       adc16ibuf,adc16ilbuf,adc16inlbuf
@@ -754,163 +730,3 @@
       ENDIF
       END
 
-!=========== MEASUREMENT OF PUSH/POP TRAFFIC ==========
-
-      BLOCK DATA MEMTRAFFIC
-      INTEGER*8 mmftraffic,mmftrafficM
-      COMMON /mmcomtraffic/mmftraffic,mmftrafficM
-      DATA mmftraffic/0/
-      DATA mmftrafficM/0/
-      END
-
-      subroutine addftraffic(n)
-      INTEGER n
-      INTEGER*8 mmftraffic,mmftrafficM
-      COMMON /mmcomtraffic/mmftraffic,mmftrafficM
-      mmftraffic = mmftraffic+n
-      if (mmftraffic >= 1000000) then
-  100    mmftraffic = mmftraffic-1000000
-         mmftrafficM = mmftrafficM+1
-         if (mmftraffic >= 1000000) then
-            goto 100
-         else
-            goto 300
-         endif
-      else if (mmftraffic < 0) then
-  200    mmftraffic = mmftraffic+1000000
-         mmftrafficM = mmftrafficM-1
-         if (mmftraffic < 0) then
-            goto 200
-         else
-            goto 300
-         endif
-      endif
-  300 continue
-      END
-
-      SUBROUTINE PRINTTRAFFIC()
-      INTEGER*8 mmftraffic,mmftrafficM
-      COMMON /mmcomtraffic/mmftraffic,mmftrafficM
-      call printctraffic()
-      call printftrafficinc(mmftrafficM, 1000000, mmftraffic)
-      END
-
-! ============ PRINTING THE SIZE OF STACKS AND BUFFERS ==========
-
-      SUBROUTINE PRINTBUFFERTOP()
-      CHARACTER ads1buf(512), ads1lbuf(512)
-      INTEGER ads1ibuf,ads1ilbuf
-      LOGICAL ads1inlbuf
-      COMMON /ads1fbuf/ads1buf,ads1lbuf,                                &
-     &       ads1ibuf,ads1ilbuf,ads1inlbuf
-      LOGICAL adl4buf(512), adl4lbuf(512)
-      INTEGER adl4ibuf,adl4ilbuf
-      LOGICAL adl4inlbuf
-      COMMON /adl4fbuf/adl4buf,adl4lbuf,                                &
-     &       adl4ibuf,adl4ilbuf,adl4inlbuf
-      INTEGER*4 adi4buf(512), adi4lbuf(512)
-      INTEGER adi4ibuf,adi4ilbuf
-      LOGICAL adi4inlbuf
-      COMMON /adi4fbuf/adi4buf,adi4lbuf,                                &
-     &       adi4ibuf,adi4ilbuf,adi4inlbuf
-      INTEGER*8 adi8buf(512), adi8lbuf(512)
-      INTEGER adi8ibuf,adi8ilbuf
-      LOGICAL adi8inlbuf
-      COMMON /adi8fbuf/adi8buf,adi8lbuf,                                &
-     &       adi8ibuf,adi8ilbuf,adi8inlbuf
-      REAL*4 adr4buf(512), adr4lbuf(512)
-      INTEGER adr4ibuf,adr4ilbuf
-      LOGICAL adr4inlbuf
-      COMMON /adr4fbuf/adr4buf,adr4lbuf,                                &
-     &       adr4ibuf,adr4ilbuf,adr4inlbuf
-      REAL*8 adr8buf(512), adr8lbuf(512)
-      INTEGER adr8ibuf,adr8ilbuf
-      LOGICAL adr8inlbuf
-      COMMON /adr8fbuf/adr8buf,adr8lbuf,                                &
-     &       adr8ibuf,adr8ilbuf,adr8inlbuf
-      DOUBLE PRECISION adr16buf(512), adr16lbuf(512)
-      INTEGER adr16ibuf,adr16ilbuf
-      LOGICAL adr16inlbuf
-      COMMON /adr16fbuf/adr16buf,adr16lbuf,                             &
-     &       adr16ibuf,adr16ilbuf,adr16inlbuf
-      COMPLEX*8 adc8buf(512), adc8lbuf(512)
-      INTEGER adc8ibuf,adc8ilbuf
-      LOGICAL adc8inlbuf
-      COMMON /adc8fbuf/adc8buf,adc8lbuf,                                &
-     &       adc8ibuf,adc8ilbuf,adc8inlbuf
-      COMPLEX*16 adc16buf(512), adc16lbuf(512)
-      INTEGER adc16ibuf,adc16ilbuf
-      LOGICAL adc16inlbuf
-      COMMON /adc16fbuf/adc16buf,adc16lbuf,                             &
-     &       adc16ibuf,adc16ilbuf,adc16inlbuf
-      integer size
-      size = 0
-      size = size + (ads1ibuf-1)*1
-      size = size + (adl4ibuf-1)*4
-      size = size + (adi4ibuf-1)*4
-      size = size + (adi8ibuf-1)*8
-      size = size + (adr4ibuf-1)*4
-      size = size + (adr8ibuf-1)*8
-      size = size + (adr16ibuf-1)*16
-      size = size + (adc8ibuf-1)*8
-      size = size + (adc16ibuf-1)*16
-      print *,'Buffer size:',size,' bytes i.e. ',size/1024.0,' Kbytes'
-      END
-      FUNCTION SMALLSTACKSIZE()
-      CHARACTER ads1buf(512), ads1lbuf(512)
-      INTEGER ads1ibuf,ads1ilbuf
-      LOGICAL ads1inlbuf
-      COMMON /ads1fbuf/ads1buf,ads1lbuf,                                &
-     &       ads1ibuf,ads1ilbuf,ads1inlbuf
-      LOGICAL adl4buf(512), adl4lbuf(512)
-      INTEGER adl4ibuf,adl4ilbuf
-      LOGICAL adl4inlbuf
-      COMMON /adl4fbuf/adl4buf,adl4lbuf,                                &
-     &       adl4ibuf,adl4ilbuf,adl4inlbuf
-      INTEGER*4 adi4buf(512), adi4lbuf(512)
-      INTEGER adi4ibuf,adi4ilbuf
-      LOGICAL adi4inlbuf
-      COMMON /adi4fbuf/adi4buf,adi4lbuf,                                &
-     &       adi4ibuf,adi4ilbuf,adi4inlbuf
-      INTEGER*8 adi8buf(512), adi8lbuf(512)
-      INTEGER adi8ibuf,adi8ilbuf
-      LOGICAL adi8inlbuf
-      COMMON /adi8fbuf/adi8buf,adi8lbuf,                                &
-     &       adi8ibuf,adi8ilbuf,adi8inlbuf
-      REAL*4 adr4buf(512), adr4lbuf(512)
-      INTEGER adr4ibuf,adr4ilbuf
-      LOGICAL adr4inlbuf
-      COMMON /adr4fbuf/adr4buf,adr4lbuf,                                &
-     &       adr4ibuf,adr4ilbuf,adr4inlbuf
-      REAL*8 adr8buf(512), adr8lbuf(512)
-      INTEGER adr8ibuf,adr8ilbuf
-      LOGICAL adr8inlbuf
-      COMMON /adr8fbuf/adr8buf,adr8lbuf,                                &
-     &       adr8ibuf,adr8ilbuf,adr8inlbuf
-      DOUBLE PRECISION adr16buf(512), adr16lbuf(512)
-      INTEGER adr16ibuf,adr16ilbuf
-      LOGICAL adr16inlbuf
-      COMMON /adr16fbuf/adr16buf,adr16lbuf,                             &
-     &       adr16ibuf,adr16ilbuf,adr16inlbuf
-      COMPLEX*8 adc8buf(512), adc8lbuf(512)
-      INTEGER adc8ibuf,adc8ilbuf
-      LOGICAL adc8inlbuf
-      COMMON /adc8fbuf/adc8buf,adc8lbuf,                                &
-     &       adc8ibuf,adc8ilbuf,adc8inlbuf
-      COMPLEX*16 adc16buf(512), adc16lbuf(512)
-      INTEGER adc16ibuf,adc16ilbuf
-      LOGICAL adc16inlbuf
-      COMMON /adc16fbuf/adc16buf,adc16lbuf,                             &
-     &       adc16ibuf,adc16ilbuf,adc16inlbuf
-      integer*4 smallstacksize
-      smallstacksize = 0
-      smallstacksize = smallstacksize + (ads1ibuf-1)*1
-      smallstacksize = smallstacksize + (adl4ibuf-1)*4
-      smallstacksize = smallstacksize + (adi4ibuf-1)*4
-      smallstacksize = smallstacksize + (adi8ibuf-1)*8
-      smallstacksize = smallstacksize + (adr4ibuf-1)*4
-      smallstacksize = smallstacksize + (adr8ibuf-1)*8
-      smallstacksize = smallstacksize + (adr16ibuf-1)*16
-      smallstacksize = smallstacksize + (adc8ibuf-1)*8
-      smallstacksize = smallstacksize + (adc16ibuf-1)*16
-      END

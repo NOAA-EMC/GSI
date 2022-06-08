@@ -156,24 +156,24 @@ SUBROUTINE DISPLACE_WRF_FIELDS_AD(th_compute, istep, qv_ind, moist, nmoist, mois
   ! Adjust fields which are to be directly displaced (momentum and hydrometeor mixing ratios)
   CALL APPLY_VERT(u, 0, work2d, fcadisp,&
        needed_ij_in, needed_ij_out, index_in, needed_wgts_out, num_glob_needed, interp_order)
-  if (istep .gt. 1) then
+  if (istep > 1) then
      CALL PUSHREAL4ARRAY(v(ims,jms,kms), r_kind*ISIZE3OFv*ISIZE1OFv*ISIZE2OFv/4)
      CALL APPLY_VERT(v, 0, work2d, fcadisp,&
           needed_ij_in, needed_ij_out, index_in, needed_wgts_out, num_glob_needed, interp_order)
-     if (istep .gt. 2) then
+     if (istep > 2) then
         CALL PUSHREAL4ARRAY(w(ims,jms,kms), r_kind*ISIZE3OFw*ISIZE1OFw*ISIZE2OFw/4)
     ! NOT: Only apply displacements to first kte levels, even for staggered variables w, ph_nl
 	CALL APPLY_VERT(w, 1, work2d, fcadisp,&
              needed_ij_in, needed_ij_out, index_in, needed_wgts_out, num_glob_needed, interp_order)
-        if (istep .gt. 3) then
+        if (istep > 3) then
 	   CALL PUSHREAL4ARRAY(ph_nl(ims,jms,kms), r_kind*SIZE(ph, 1)*SIZE(ph, 2)*SIZE(ph, &
                 3)/4)
            CALL APPLY_VERT(ph_nl, 1, work2d, fcadisp,&
                 needed_ij_in, needed_ij_out, index_in, needed_wgts_out, num_glob_needed, interp_order)
-           if (istep .gt. 4) then
+           if (istep > 4) then
               result1 = SIZE(moist, 4)
               DO i=1,result1
-                 IF (i .NE. qv_ind) THEN
+                 IF (i /= qv_ind) THEN
 		    CALL PUSHREAL4ARRAY(moist(ims, jms, kms, i), r_kind*ISIZE1OFmoist*&
                          ISIZE2OFmoist*ISIZE3OFmoist/4)
                     CALL APPLY_VERT(moist(:, :, :, i), 0, work2d, fcadisp,&
@@ -181,17 +181,17 @@ SUBROUTINE DISPLACE_WRF_FIELDS_AD(th_compute, istep, qv_ind, moist, nmoist, mois
                  END IF
               END DO
 	      
-              if (istep .gt. 5) then
+              if (istep > 5) then
 	         CALL ADJ_WRF_DERIVED_AD(moist(:, :, :, qv_ind), moist_ad(:, :, :, &
                       qv_ind), p, p_ad, pb, t, t_ad, ph, ph_ad, phb, &
                       ph_nl, ph_nl_ad, hgt, mub, mu, mu_ad, psfc, &
                       psfc_ad, znu, znw, c1h, c2h, c3h, c4h, c3f, c4f, ptop, &
                       th_compute, fcadisp, fcadisp_ad, istep,&
                       needed_ij_in, needed_ij_out, index_in, needed_wgts_out, num_glob_needed, interp_order)
-	      endif ! .gt. 5
+	      endif ! > 5
 	     
               DO i=result1,1,-1
-                 IF (i .NE. qv_ind) THEN
+                 IF (i /= qv_ind) THEN
 		    CALL POPREAL4ARRAY(moist(ims, jms, kms, i), r_kind*ISIZE1OFmoist*&
                          ISIZE2OFmoist*ISIZE3OFmoist/4)
 		    CALL APPLY_VERT_AD(moist(:, :, :, i), moist_ad(:, :, :, i), 0, &
@@ -199,19 +199,19 @@ SUBROUTINE DISPLACE_WRF_FIELDS_AD(th_compute, istep, qv_ind, moist, nmoist, mois
                  END IF
               END DO
 	      
-           endif ! .gt. 4
+           endif ! > 4
 	   CALL POPREAL4ARRAY(ph_nl(ims,jms,kms), r_kind*SIZE(ph, 1)*SIZE(ph, 2)*SIZE(ph, 3&
                 )/4)
 	   CALL APPLY_VERT_AD(ph_nl, ph_nl_ad, 1, work2d, work2d_ad, fcadisp, fcadisp_ad, interp_order)
 	   
-        endif ! .gt. 3
+        endif ! > 3
         CALL POPREAL4ARRAY(w(ims,jms,kms), r_kind*ISIZE3OFw*ISIZE1OFw*ISIZE2OFw/4)
 	CALL APPLY_VERT_AD(w, w_ad, 1, work2d, work2d_ad, fcadisp, fcadisp_ad, interp_order)
 	
-     endif ! .gt. 2
+     endif ! > 2
      CALL POPREAL4ARRAY(v(ims,jms,kms), r_kind*ISIZE3OFv*ISIZE1OFv*ISIZE2OFv/4)
      CALL APPLY_VERT_AD(v, v_ad, 0, work2d, work2d_ad, fcadisp, fcadisp_ad, interp_order)
-  endif ! .gt. 1
+  endif ! > 1
   CALL POPREAL4ARRAY(u(ims,jms,kms), r_kind*ISIZE3OFu*ISIZE1OFu*ISIZE2OFu/4)
   CALL APPLY_VERT_AD(u, u_ad, 0, work2d, work2d_ad, fcadisp, fcadisp_ad, interp_order)
   ph_hyd_ad = 0._r_kind
@@ -319,7 +319,7 @@ SUBROUTINE CALC_PH_HYD_WRF_AD(qvapor, qvapor_ad, p, p_ad, pb, t, t_ad&
   temp0(:,:,kts:kte) = -(rv*qvapor(:,:,kts:kte)/rd) + 1
   temp_ad(:,:,kts:kte) = -((pb(:,:,kts:kte)+p(:,:,kts:kte))*temp0(:,:,kts:kte)*temp1_ad(:,:,kts:kte)/temp(:,:,kts:kte))
   
-  WHERE (temp2(:,:,kts:kte) .LE. 0.0_r_kind .AND. (temp3 .EQ. 0.0_r_kind .OR. temp3 .NE. INT(&
+  WHERE (temp2(:,:,kts:kte) <= 0.0_r_kind .AND. (temp3 == 0.0_r_kind .OR. temp3 /= INT(&
        temp3))) 
      p_ad(:,:,kts:kte) = p_ad(:,:,kts:kte) + temp0(:,:,kts:kte)*temp1_ad(:,:,kts:kte)
   ELSEWHERE
@@ -497,7 +497,7 @@ SUBROUTINE ADJ_WRF_DERIVED_AD(qvapor, qvapor_ad, p, p_ad, pb, t, t_ad&
 
   Ptot(:,:,kts:kte) = (p(:,:,kts:kte)+pb(:,:,kts:kte))
   TK(:,:,kts:kte) = (T(:,:,kts:kte)+t0)*(Ptot(:,:,kts:kte)/p0)**(Rd/Cp)	! Use un-displaced temperature (K) for all conversions below
-  IF (th_compute .EQ. 1) THEN
+  IF (th_compute == 1) THEN
      CALL PUSHREAL4ARRAY(t(ims,jms,kms), r_kind*ISIZE3OFt*ISIZE1OFt*ISIZE2OFt/4)
      CALL DISPLACE_THETA_WRF(t, ph, phb, fcadisp,&
           needed_ij_in, needed_ij_out, index_in, needed_wgts_out, num_glob_needed, interp_order)
@@ -508,23 +508,23 @@ SUBROUTINE ADJ_WRF_DERIVED_AD(qvapor, qvapor_ad, p, p_ad, pb, t, t_ad&
           needed_ij_in, needed_ij_out, index_in, needed_wgts_out, num_glob_needed, interp_order)
   END IF
 
-  if (istep .gt. 6) then
+  if (istep > 6) then
      ! Find the temperature 100 mb AGL
      DO i= ims, ime
         DO j= jms, jme
            ! first check is top model level is top of PBL -- very unlikely but included for robustness
-           IF (ptot(i, j, kte) .EQ. psfc(i, j) - p100mbPa) THEN
+           IF (ptot(i, j, kte) == psfc(i, j) - p100mbPa) THEN
               tbl(i, j) = tk(i, j, kte)
               CALL PUSHINTEGER4(1)
            ELSE
               CALL PUSHINTEGER4(0)
            END IF
            DO k= kts,kte-1
-              IF (ptot(i, j, k+1) .EQ. psfc(i, j) - p100mbPa) THEN
+              IF (ptot(i, j, k+1) == psfc(i, j) - p100mbPa) THEN
                  tbl(i, j) = tk(i, j, k+1)
                  CALL PUSHINTEGER4(2)
-              ELSE IF (ptot(i, j, k) .GT. psfc(i, j) - p100mbPa .AND. ptot(i, j&
-                   , k+1) .LT. psfc(i, j) - p100mbPa) THEN
+              ELSE IF (ptot(i, j, k) > psfc(i, j) - p100mbPa .AND. ptot(i, j&
+                   , k+1) < psfc(i, j) - p100mbPa) THEN
                  tbl(i, j) = (tk(i, j, k+1)*LOG(ptot(i, j, k)/(psfc(i, j)-&
                       p100mbPa))+tk(i, j, k)*LOG((psfc(i, j)-p100mbPa)/ptot(i, j, k+1)&
                       ))/LOG(ptot(i, j, k)/ptot(i, j, k+1))
@@ -551,7 +551,7 @@ SUBROUTINE ADJ_WRF_DERIVED_AD(qvapor, qvapor_ad, p, p_ad, pb, t, t_ad&
      work2d(:, :, 2) = work2d(:, :, 1)/EXP(grav*hgt/(rd*(ts+tslv)/fp_two))
      ! get the surface pressure increment
      ps_inc = work2d(:, :, 2) - psfc
-     if (istep .gt. 7) then
+     if (istep > 7) then
         ! Store the new Psfc
         DO k= kts, kte
            CALL PUSHREAL4ARRAY(work2d(ims, jms, 1), r_kind*SIZE(p, 1)*SIZE(p, 2)&
@@ -569,7 +569,7 @@ SUBROUTINE ADJ_WRF_DERIVED_AD(qvapor, qvapor_ad, p, p_ad, pb, t, t_ad&
 	CALL PUSHREAL4ARRAY(qvapor(ims,jms,kms), r_kind*ISIZE1OFqvapor*ISIZE3OFqvapor*&
              ISIZE2OFqvapor/4)
         qvapor(:, :, :) = qvapor(:, :, :) + q_inc
-        if (istep .gt. 8) then
+        if (istep > 8) then
 
            sum1 = fp_zero
            sum2 = fp_zero
@@ -586,11 +586,11 @@ SUBROUTINE ADJ_WRF_DERIVED_AD(qvapor, qvapor_ad, p, p_ad, pb, t, t_ad&
            CALL PUSHREAL4ARRAY(mu(ims,jms), r_kind*ISIZE2OFmu*ISIZE1OFmu/4)
            ! Update the dry air mass
            mu = mu + mu_inc
-           if (istep .gt. 9) then
+           if (istep > 9) then
               DO i= kte, kts, -1
                  p_inc(:,:,i) = (mu_inc*c1h(i)*(fp_one+qvapor(:,:,i)) + &
                       (c1h(i)*(mu+mub)+c2h(i))*q_inc(:,:,i))*(znw(i)-znw(i+1))
-                 IF (i .LT. kte) THEN
+                 IF (i < kte) THEN
                     p_inc(:, :, i) = p_inc(:, :, i) + p_inc(:, :, i+1)
                     CALL PUSHINTEGER4(2)
                  ELSE
@@ -599,7 +599,7 @@ SUBROUTINE ADJ_WRF_DERIVED_AD(qvapor, qvapor_ad, p, p_ad, pb, t, t_ad&
               END DO
 	      CALL PUSHREAL4ARRAY(p(ims,jms,kms), r_kind*ISIZE3OFp*ISIZE1OFp*ISIZE2OFp/4)
               p = p + p_inc
-              if (istep .gt. 10) then
+              if (istep > 10) then
                  ! get the hydrostatic geopotential
                  ! add the saved nonhydrostatic component
                  ! remove the base component
@@ -610,7 +610,7 @@ SUBROUTINE ADJ_WRF_DERIVED_AD(qvapor, qvapor_ad, p, p_ad, pb, t, t_ad&
 		 ! no pushing or popping in CALC_PH_HYD_WRF_AD
                  CALL CALC_PH_HYD_WRF_AD(qvapor, qvapor_ad, p, p_ad, pb, t, t_ad, hgt&
                       , mu, mu_ad, mub, c3h,c4h,c3f,c4f, ptop, ph_temp, ph_temp_ad)
-              endif !istep .gt. 10
+              endif !istep > 10
               p_inc_ad = 0.0_r_kind
               CALL POPREAL4ARRAY(p(ims,jms,kms), r_kind*ISIZE3OFp*ISIZE1OFp*ISIZE2OFp/4)
               p_inc_ad = p_ad
@@ -618,7 +618,7 @@ SUBROUTINE ADJ_WRF_DERIVED_AD(qvapor, qvapor_ad, p, p_ad, pb, t, t_ad&
               mu_inc_ad = 0.0_r_kind
               DO i= kts, kte, 1
                  CALL POPINTEGER4(branch)
-                 IF (.NOT.branch .LT. 2) p_inc_ad(:, :, i+1) = p_inc_ad(:, :, i+1) &
+                 IF (.NOT.branch < 2) p_inc_ad(:, :, i+1) = p_inc_ad(:, :, i+1) &
                       + p_inc_ad(:, :, i)
                  temp19_ad0 = (znw(i)-znw(i+1))*p_inc_ad(:, :, i)
                  mu_inc_ad = mu_inc_ad + (qvapor(:, :, i)+1)*c1h(i)*temp19_ad0
@@ -627,7 +627,7 @@ SUBROUTINE ADJ_WRF_DERIVED_AD(qvapor, qvapor_ad, p, p_ad, pb, t, t_ad&
                  q_inc_ad(:, :, i) = q_inc_ad(:, :, i) + (c1h(i)*(mub+mu)+c2h(i))*temp19_ad0
                  p_inc_ad(:, :, i) = 0.0_r_kind
               END DO
-           endif !istep .gt. 9
+           endif !istep > 9
            CALL POPREAL4ARRAY(mu(ims,jms), r_kind*ISIZE2OFmu*ISIZE1OFmu/4)
            mu_inc_ad = mu_inc_ad + mu_ad
            sum1_ad = 0.0_r_kind
@@ -639,7 +639,7 @@ SUBROUTINE ADJ_WRF_DERIVED_AD(qvapor, qvapor_ad, p, p_ad, pb, t, t_ad&
            sum1_ad = -sum3*temp19_ad
            sum2_ad = -sum3*(ps_inc-sum1)*temp19_ad/sum2
            sum3_ad = (ps_inc-sum1)*temp19_ad
-        endif !istep .gt. 8
+        endif !istep > 8
 	
         pfu_ad(:,:) = 0.0_r_kind
         pfd_ad(:,:) = 0.0_r_kind
@@ -697,7 +697,7 @@ SUBROUTINE ADJ_WRF_DERIVED_AD(qvapor, qvapor_ad, p, p_ad, pb, t, t_ad&
            work2d_ad(:, :, 1) = 0.0_r_kind
         END DO
 	
-     endif !(istep .gt. 7)
+     endif !(istep > 7)
      work2d_ad(:, :, 2) = work2d_ad(:, :, 2) + ps_inc_ad + psfc_ad
      psfc_ad = 0.0_r_kind
      ts_ad = 0.0_r_kind
@@ -727,7 +727,7 @@ SUBROUTINE ADJ_WRF_DERIVED_AD(qvapor, qvapor_ad, p, p_ad, pb, t, t_ad&
      temp11_ad = -(tm*rd*zl_ad/(psfc*temp11*grav))
      temp10 = rd*gamma/grav
      temp9 = psfc/(psfc-p100mbPa)
-     WHERE (temp9 .LE. 0.0_r_kind .AND. (temp10 .EQ. 0.0_r_kind .OR. temp10 .NE. INT(&
+     WHERE (temp9 <= 0.0_r_kind .AND. (temp10 == 0.0_r_kind .OR. temp10 /= INT(&
           temp10))) 
         temp9_ad = 0.0_r_kind
      ELSEWHERE
@@ -742,8 +742,8 @@ SUBROUTINE ADJ_WRF_DERIVED_AD(qvapor, qvapor_ad, p, p_ad, pb, t, t_ad&
         DO j= jme, jms, -1
            DO k= kte-1, kts, -1
               CALL POPINTEGER4(branch)
-              IF (branch .LT. 4) THEN
-                 IF (branch .LT. 3) THEN
+              IF (branch < 4) THEN
+                 IF (branch < 3) THEN
                     tk_ad(i, j, k+1) = tk_ad(i, j, k+1) + tbl_ad(i, j)
                     tbl_ad(i, j) = 0.0_r_kind
                  END IF
@@ -772,15 +772,15 @@ SUBROUTINE ADJ_WRF_DERIVED_AD(qvapor, qvapor_ad, p, p_ad, pb, t, t_ad&
               END IF
            END DO
            CALL POPINTEGER4(branch)
-           IF (.NOT.branch .LT. 1) THEN
+           IF (.NOT.branch < 1) THEN
               tk_ad(i, j, kte) = tk_ad(i, j, kte) + tbl_ad(i, j)
               tbl_ad(i, j) = 0.0_r_kind
            END IF
         END DO
      END DO
-  endif !(istep .gt. 6) 
+  endif !(istep > 6) 
   
-  IF (th_compute .EQ. 1) THEN
+  IF (th_compute == 1) THEN
      CALL POPREAL4ARRAY(t(ims,jms,kms), r_kind*ISIZE3OFt*ISIZE1OFt*ISIZE2OFt/4)
      CALL DISPLACE_THETA_WRF_AD(t, t_ad, ph, ph_ad, phb, fcadisp, fcadisp_ad,&
           needed_ij_in, needed_ij_out, index_in, needed_wgts_out, num_glob_needed, interp_order)
@@ -864,7 +864,7 @@ SUBROUTINE DISPLACE_THETA_WRF_AD(t, t_ad, ph, ph_ad, phb, fcadisp, fcadisp_ad,&
           needed_ij_in, needed_ij_out, index_in, needed_wgts_out, num_glob_needed, interp_order)
   END DO
   tknew_ad = t_ad
-  t_ad = 0.
+  t_ad = 0._r_kind
   CALL APPLY_DISP_THETA_AD(fcadisp, fcadisp_ad, t, zlvl, zlvl_ad, znew, znew_ad, &
        tknew_ad,&
        needed_ij_in, needed_ij_out, index_in, needed_wgts_out, num_glob_needed, interp_order)
@@ -943,7 +943,7 @@ SUBROUTINE APPLY_DISP_THETA_AD(fcadisp, fcadisp_ad, tk, zlvl, zlvl_ad, znew, zne
   DO l=kte-1,kts,-1
      ! switch top and bottom index
      ibot = itop
-     IF (ibot .EQ. 1) THEN
+     IF (ibot == 1) THEN
         itop = 2
      ELSE
         itop = 1
@@ -956,7 +956,7 @@ SUBROUTINE APPLY_DISP_THETA_AD(fcadisp, fcadisp_ad, tk, zlvl, zlvl_ad, znew, zne
 
      DO k=kts, kte
         ! Adjoint of vertical interpolation: distributes tknew_ad to t_bot_top_ad
-        WHERE (zlvl(:, :, k) .GT. znew(:, :, l) .AND. zlvl(:, :, k) .LE.&
+        WHERE (zlvl(:, :, k) > znew(:, :, l) .AND. zlvl(:, :, k) <=&
              znew(:, :, l+1)) 
            ! Linearly interpolate vertically between bottom and top levels
            t_bot_top_ad(:, :, itop) = t_bot_top_ad(:, :, itop) + &
@@ -979,15 +979,15 @@ SUBROUTINE APPLY_DISP_THETA_AD(fcadisp, fcadisp_ad, tk, zlvl, zlvl_ad, znew, zne
            tknew_ad(:, :, k) = 0.0_r_kind
         end WHERE
 
-        IF (l .EQ. 1) THEN
-           WHERE (zlvl(:, :, k) .LE. znew(:, :, l)) 
+        IF (l == 1) THEN
+           WHERE (zlvl(:, :, k) <= znew(:, :, l)) 
               ! For grid points with height at or below bottom-most znew (origin) level:
               t_bot_top_ad(:, :, ibot) = t_bot_top_ad(:, :, ibot) + &
                    tknew_ad(:, :, k)
               tknew_ad(:, :, k) = 0.0_r_kind
            end WHERE
-        ELSE IF (l .EQ. kte - 1) THEN
-           WHERE (zlvl(:, :, k) .GE. znew(:, :, l+1)) 
+        ELSE IF (l == kte - 1) THEN
+           WHERE (zlvl(:, :, k) >= znew(:, :, l+1)) 
               ! For grid points with new height at or above top-most level:
               t_bot_top_ad(:, :, itop) = t_bot_top_ad(:, :, itop) + &
                    tknew_ad(:, :, k)
@@ -1094,11 +1094,11 @@ SUBROUTINE SH2RH_AD0(hum, hum_ad, t, t_ad, parr, parr_ad, sh2rh_ad)
         e = p*r/(rdorv+r)
         ! real formulas wrt liquid/ice:
         t1 = t(i, j) - tf
-        IF (t1 .GE. t_ref .AND. t1 .GE. const_47) THEN
+        IF (t1 >= t_ref .AND. t1 >= const_47) THEN
            ! liq phase eslo
            ew = a0 + t1*(a1+t1*(a2+t1*(a3+t1*(a4+t1*(a5+t1*a6)))))
            CALL PUSHINTEGER4(0)
-        ELSE IF (t1 .GE. t_ref .AND. t1 .LT. const_47) THEN
+        ELSE IF (t1 >= t_ref .AND. t1 < const_47) THEN
            !liq phas poor es
            ew = es0*EXP(const_17*t1/(t1+243.5_r_kind))
            CALL PUSHINTEGER4(1)
@@ -1114,7 +1114,7 @@ SUBROUTINE SH2RH_AD0(hum, hum_ad, t, t_ad, parr, parr_ad, sh2rh_ad)
         ! factor of 100. to convert from mb (hPa) to Pa:
         esat = const_100*ew
         sh2rh(i, j) = const_100*e/esat
-        IF (sh2rh(i, j) .GT. const_100) THEN
+        IF (sh2rh(i, j) > const_100) THEN
            CALL PUSHINTEGER4(2)
         ELSE
            CALL PUSHINTEGER4(1)
@@ -1124,7 +1124,7 @@ SUBROUTINE SH2RH_AD0(hum, hum_ad, t, t_ad, parr, parr_ad, sh2rh_ad)
   DO j= jme, jms, -1
      DO i= ime, ims, -1
         CALL POPINTEGER4(branch)
-        IF (.NOT.branch .LT. 2) sh2rh_ad(i, j) = 0.0_r_kind
+        IF (.NOT.branch < 2) sh2rh_ad(i, j) = 0.0_r_kind
         p = parr(i, j)
         r = hum(i, j)
         e = p*r/(rdorv+r)
@@ -1135,8 +1135,8 @@ SUBROUTINE SH2RH_AD0(hum, hum_ad, t, t_ad, parr, parr_ad, sh2rh_ad)
         CALL POPREAL4ARRAY(esat, r_kind/4)
         ew_ad = const_100*esat_ad
         CALL POPINTEGER4(branch)
-        IF (branch .LT. 2) THEN
-           IF (branch .LT. 1) THEN
+        IF (branch < 2) THEN
+           IF (branch < 1) THEN
               t1 = t(i, j) - tf
               temp0 = a4 + t1*(a5+a6*t1)
               temp = a3 + t1*temp0
@@ -1249,11 +1249,11 @@ SUBROUTINE RH2SH_AD0(rh, rh_ad, t, t_ad, parr, parr_ad, rh2sh_ad)
      DO i= ims, ime
         ! real formulas wrt liquid/ice:
         t1 = t(i, j) - tf
-        IF (t1 .GE. t_ref .AND. t1 .GE. const_47) THEN
+        IF (t1 >= t_ref .AND. t1 >= const_47) THEN
            ! liq phase eslo
            ew = a0 + t1*(a1+t1*(a2+t1*(a3+t1*(a4+t1*(a5+t1*a6)))))
            CALL PUSHINTEGER4(0)
-        ELSE IF (t1 .GE. t_ref .AND. t1 .LT. const_47) THEN
+        ELSE IF (t1 >= t_ref .AND. t1 < const_47) THEN
            !liq phas poor es
            ew = es0*EXP(const_17*t1/(t1+243.5_r_kind))
            CALL PUSHINTEGER4(1)
@@ -1288,8 +1288,8 @@ SUBROUTINE RH2SH_AD0(rh, rh_ad, t, t_ad, parr, parr_ad, rh2sh_ad)
         CALL POPREAL4ARRAY(esat, r_kind/4)
         ew_ad = const_100*esat_ad
         CALL POPINTEGER4(branch)
-        IF (branch .LT. 2) THEN
-           IF (branch .LT. 1) THEN
+        IF (branch < 2) THEN
+           IF (branch < 1) THEN
               t1 = t(i, j) - tf
               temp0 = a4 + t1*(a5+a6*t1)
               temp = a3 + t1*temp0
