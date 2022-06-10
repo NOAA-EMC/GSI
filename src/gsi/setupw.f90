@@ -1707,7 +1707,6 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         if(regional .and. .not. fv3_regional) then
 
 !           replace positions 17-22 with earth relative wind component information
-
            uob_reg=data(iuob,i)
            vob_reg=data(ivob,i)
            dlon_e=data(ilone,i)*deg2rad
