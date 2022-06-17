@@ -42,9 +42,10 @@ module gridinfo
 !
 !$$$
 
-use mpisetup, only: nproc, mpi_integer, mpi_real4, mpi_comm_world
+use mpi, only: mpi_real4,mpi_comm_world
+use mpisetup, only: nproc
 use params, only: datapath,nlevs,nlons,nlats,use_gfs_nemsio, fgfileprefixes, &
-                  fv3fixpath, nx_res,ny_res, ntiles
+                  fv3fixpath, nx_res,ny_res, ntiles,l_fv3reg_filecombined
 use kinds, only: r_kind, i_kind, r_double, r_single
 use constants, only: one,zero,pi,cp,rd,grav,rearth,max_varname_length
 use constants, only: half
@@ -68,9 +69,13 @@ integer(i_kind),                                  public     :: nlevs_pres
 integer,public :: npts
 integer,public :: ntrunc
 ! supported variable names in anavinfo
-character(len=max_varname_length),public, dimension(15) :: vars3d_supported = (/'u   ', 'v   ', 'w ', 't ', 'q   ', 'oz  ', 'cw  ', 'tsen', 'prse', &
-                                                                                'ql  ', 'qi  ', 'qr', 'qs', 'qg', 'qnr'/)
-character(len=max_varname_length),public, dimension(3)  :: vars2d_supported = (/'ps ', 'pst', 'sst' /)
+character(len=max_varname_length),public, dimension(15) :: &
+  vars3d_supported = [character(len=max_varname_length) :: &
+    'u', 'v', 'w', 't', 'q', 'oz', 'cw', 'tsen', 'prse', &
+    'ql', 'qi', 'qr', 'qs', 'qg', 'qnr']
+character(len=max_varname_length),public, dimension(3) :: &
+  vars2d_supported = [character(len=max_varname_length) :: &
+    'ps', 'pst', 'sst']
 ! supported variable names in anavinfo
 real(r_single), allocatable, dimension(:) :: ak,bk,eta1_ll,eta2_ll
 contains
@@ -91,7 +96,7 @@ real(r_kind), allocatable, dimension(:) :: spressmn
 real(r_kind), allocatable, dimension(:,:) :: pressimn,presslmn
 real(r_kind) kap,kapr,kap1
 
-integer(i_kind) file_id,var_id,dim_id,nlevsp1,nx_tile,ny_tile,ntile
+integer(i_kind) :: file_id,var_id,dim_id,nlevsp1,nx_tile,ny_tile,ntile
 integer (i_kind):: nn_tile0
 integer(i_kind) :: nlevsp1n
 real(r_single), allocatable, dimension(:,:) :: lat_tile,lon_tile,ps
@@ -212,7 +217,11 @@ if (nproc .eq. 0) then
       nn_tile0=(ntile-1)*nx_res*ny_res
       nn=nn_tile0
       write(char_tile, '(i1)') ntile
-      filename = 'fv3sar_tile'//char_tile//"_ensmean_dynvartracer"
+      if(l_fv3reg_filecombined) then
+        filename = 'fv3sar_tile'//char_tile//"_ensmean_dynvartracer"
+      else
+        filename = 'fv3sar_tile'//char_tile//"_ensmean_dynvars"
+      endif 
       !print *,trim(adjustl(filename))
       call nc_check( nf90_open(trim(adjustl(filename)),nf90_nowrite,file_id),&
       myname_,'open: '//trim(adjustl(filename)) )

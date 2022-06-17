@@ -81,7 +81,7 @@ contains
   !            close netCDF files before ending program
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     use vars_calc_analysis, only: fcstncfile, anlncfile
-    use module_fv3gfs_ncio, only: close_dataset
+    use module_ncio, only: close_dataset
     implicit none
 
     call close_dataset(fcstncfile)
@@ -99,7 +99,7 @@ contains
     use vars_calc_analysis, only: fcstncfile, anlncfile, &
                                   nlat, nlon, nlev, anlfile, use_nemsio_anl, &
                                   mype, levpe
-    use module_fv3gfs_ncio, only: Dataset, read_vardata, write_vardata, &
+    use module_ncio, only: Dataset, read_vardata, write_vardata, &
                                   open_dataset, close_dataset, has_var
     use nemsio_module
     implicit none
@@ -176,7 +176,7 @@ contains
     use vars_calc_analysis, only: fcstncfile, anlncfile, incr_file,&
                                   nlat, nlon, nlev, anlfile, use_nemsio_anl, &
                                   levpe, mype
-    use module_fv3gfs_ncio, only: Dataset, read_vardata, write_vardata, &
+    use module_ncio, only: Dataset, read_vardata, write_vardata, &
                                   open_dataset, close_dataset, has_var
     use nemsio_module
     implicit none
@@ -232,7 +232,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     use vars_calc_analysis, only: fcstncfile, anlncfile, nlat, nlon, incr_file,&
                                   use_nemsio_anl, anlfile, nlev
-    use module_fv3gfs_ncio, only: Dataset, open_dataset, close_dataset,&
+    use module_ncio, only: Dataset, open_dataset, close_dataset,&
                                   read_vardata, write_vardata, read_attribute
     use nemsio_module
     implicit none

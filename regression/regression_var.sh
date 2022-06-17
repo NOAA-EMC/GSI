@@ -4,22 +4,20 @@
 #  To run with hybrid ensemble option on, change HYBENS_GLOBAL and/or HYBENS_REGIONAL from "false" to "true".
 #  These are located at the end of this script.
 
-if [ "$#" = 8 ] ; then
-  export machine=$1
-  export basedir=$2
-  export builddir=$3
-  export gsisrc=$4
-  export gsiexec_updat=$5
-  export enkfexec_updat=$6
-  export gsiexec_contrl=$7
-  export enkfexec_contrl=$8
+if [ "$#" = 7 ] ; then
+  export basedir=$1
+  export builddir=$2
+  export gsisrc=$3
+  export gsiexec_updat=$4
+  export enkfexec_updat=$5
+  export gsiexec_contrl=$6
+  export enkfexec_contrl=$7
   export fixgsi="$gsisrc/fix"
   export scripts="$gsisrc/regression"
   export ush="$gsisrc/ush"
   export cmaketest="true"
   export clean="false"
   export ptmpName=`echo $builddir | sed -e "s/\//_/g"`
-  echo $ptmpName
 else
   # Name of the branch being tested
   updat="XXXXXXXX"
@@ -28,27 +26,30 @@ else
   export clean="false"
   export ptmpName=""
 fi
-echo "beginning regression_var.sh, machine is $machine"
-# If we don't know already determine what machine are we on:
-if [ -z ${machine+x} ]; then 
-  echo "machine is unset"; 
-  if [ -d /da ]; then # WCOSS
-     export machine="WCOSS"
-  elif [ -d /glade/scratch ]; then # Cheyenne
-   export machine="Cheyenne"
-  elif [ -d /scratch1/NCEPDEV/da ]; then # Hera
-   export machine="Hera"
-  elif [ -d /lfs1/NCEPDEV ]; then # Jet
-   export machine="Jet"
-  elif [ -d /gpfs/hps/ptmp ]; then # LUNA or SURGE
-   export machine="WCOSS_C"
-  elif [ -d /gpfs/dell1/ptmp ]; then # venus or mars
-   export machine="WCOSS_D"
-elif [ -d /discover/nobackup ]; then # NCCS Discover
-   export machine="Discover"
-  fi
-else echo "machine is set to '$machine'"; 
+
+# Determine the machine
+if [[ -d /dcom && -d /hwrf ]]; then # WCOSS
+  export machine="WCOSS"
+elif [[ -d /glade ]]; then # Cheyenne
+  export machine="Cheyenne"
+elif [[ -d /scratch1 ]]; then # Hera
+  export machine="Hera"
+elif [[ -d /jetmon ]]; then # Jet
+  export machine="Jet"
+elif [[ -d /cm ]]; then # LUNA or SURGE
+  export machine="WCOSS_C"
+elif [[ -d /ioddev_dell ]]; then # venus or mars
+  export machine="WCOSS_D"
+elif [[ -d /discover ]]; then # NCCS Discover
+  export machine="Discover"
+elif [[ -d /sw/gaea ]]; then # Gaea
+  export machine="Gaea"
+elif [[ -d /data/prod ]]; then # S4
+  export machine="S4"
+elif [[ -d /work ]]; then # Orion
+  export machine="Orion"
 fi
+echo "Running Regression Tests on '$machine'";
 
 case $machine in
    WCOSS_D)

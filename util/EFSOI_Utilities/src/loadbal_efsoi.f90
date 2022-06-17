@@ -91,11 +91,12 @@ module loadbal_efsoi
 !
 !$$$
 
-use mpisetup
+use mpi
+use mpisetup, only: nproc, numproc
 use params, only: datapath, nanals, simple_partition, &
                   corrlengthnh, corrlengthsh, corrlengthtr, lupd_obspace_serial,&
                   efsoi_flag
-use enkf_obsmod, only: nobstot, obloc, oblnp, ensmean_ob, obtime, anal_ob, corrlengthsq
+use enkf_obsmod, only: nobstot, obloc, oblnp, ensmean_ob, obtime, anal_ob_post, corrlengthsq
 use kinds, only: r_kind, i_kind, r_double, r_single
 use kdtree2_module, only: kdtree2, kdtree2_create, kdtree2_destroy, &
                           kdtree2_result, kdtree2_r_nearest
@@ -136,6 +137,7 @@ integer(i_kind), allocatable, dimension(:) :: rtmp,numobs
 integer(i_kind) np,i,n,nn,nob1,nob2,ierr
 real(r_double) t1
 logical test_loadbal
+integer status(MPI_STATUS_SIZE)
 
 ! partition state vector for using Grahams rule..
 ! ("When a new job arrives, allocate it to the server 
@@ -277,7 +279,7 @@ if(nproc == 0) then
    do np=1,numproc-1
       do nob1=1,numobsperproc(np+1)
          nob2 = indxproc_obs(np+1,nob1)
-         anal_obchunk_prior(1:nanals,nob1) = anal_ob(1:nanals,nob2)
+         anal_obchunk_prior(1:nanals,nob1) = anal_ob_post(1:nanals,nob2)
       end do
       call mpi_send(anal_obchunk_prior,nobs_max*nanals,mpi_real4,np, &
            1,mpi_comm_world,ierr)
@@ -285,14 +287,14 @@ if(nproc == 0) then
    ! anal_obchunk_prior on root (no send necessary)
    do nob1=1,numobsperproc(1)
       nob2 = indxproc_obs(1,nob1)
-      anal_obchunk_prior(1:nanals,nob1) = anal_ob(1:nanals,nob2)
+      anal_obchunk_prior(1:nanals,nob1) = anal_ob_post(1:nanals,nob2)
    end do
-      ! now we don't need anal_ob anymore for serial EnKF.
-      if (.not. lupd_obspace_serial) deallocate(anal_ob)
+      ! now we don't need anal_ob_post anymore for serial EnKF.
+      if (.not. lupd_obspace_serial) deallocate(anal_ob_post)
 else
    ! recv one large message on each task.
    call mpi_recv(anal_obchunk_prior,nobs_max*nanals,mpi_real4,0, &
-        1,mpi_comm_world,mpi_status,ierr)
+        1,mpi_comm_world,status,ierr)
 end if
 call mpi_barrier(mpi_comm_world, ierr)
 if(nproc == 0) print *,'... took ',mpi_wtime()-t1,' secs'

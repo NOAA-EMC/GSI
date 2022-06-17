@@ -1,11 +1,20 @@
-cmake_minimum_required(VERSION 2.6)
-if(BUILD_UTIL)
-  file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.f90)
-  set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
-  add_executable(getsigensstatp.x  ${LOCAL_SRC} )
-  set_target_properties( getsigensstatp.x PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
-  SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_Fortran_FLAGS}" )
-  message(" hey, incl dirs are ${MPI_Fortran_INCLUDE_PATH} ")
-  include_directories( ${NETCDF_INCLUDE_DIRS} ${SIGIOINC} ${NEMSIOINC} ${MPI_Fortran_INCLUDE_PATH} ${FV3GFS_NCIO_INCS}) 
-  target_link_libraries( getsigensstatp.x ${SIGIO_LIBRARY} ${NEMSIO_LIBRARY} ${BACIO_LIBRARY} ${SP_4_LIBRARY} ${W3NCO_4_LIBRARY} ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${MPI_Fortran_LIBRARIES} ${FV3GFS_NCIO_LIBRARIES})
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fp-model strict -convert big_endian -assume byterecl")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian -ffree-line-length-0")
 endif()
+
+add_executable(getsigensstatp.x getsigensstatp.f90)
+target_link_libraries(getsigensstatp.x PRIVATE NetCDF::NetCDF_Fortran)
+target_link_libraries(getsigensstatp.x PRIVATE MPI::MPI_Fortran)
+target_link_libraries(getsigensstatp.x PRIVATE bacio::bacio_4)
+target_link_libraries(getsigensstatp.x PRIVATE w3emc::w3emc_d)
+target_link_libraries(getsigensstatp.x PRIVATE nemsio::nemsio)
+target_link_libraries(getsigensstatp.x PRIVATE sp::sp_4)
+target_link_libraries(getsigensstatp.x PRIVATE sigio::sigio)
+target_link_libraries(getsigensstatp.x PRIVATE ncio::ncio)
+
+# Install executable targets
+install(TARGETS getsigensstatp.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+

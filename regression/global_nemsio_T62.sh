@@ -45,7 +45,7 @@ export NLAT=$((${LATA}+2))
 # Given the analysis date, compute the date from which the
 # first guess comes.  Extract cycle and set prefix and suffix
 # for guess and observation data files
-gdate=`$ndate -06 $global_nemsio_T62_adate`
+gdate=`date +%Y%m%d%H -d "${global_nemsio_T62_adate:0:8} ${global_nemsio_T62_adate:8:2} - 6 hours"`
 hha=`echo $global_nemsio_T62_adate | cut -c9-10`
 hhg=`echo $gdate | cut -c9-10`
 prefix_obs=gdas1.t${hha}z

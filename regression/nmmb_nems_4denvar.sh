@@ -213,7 +213,7 @@ cp $nmmb_nems_4denvar_ges/rtma2p5.t00z.p_rejectlist ./p_rejectlist
 cp $nmmb_nems_4denvar_ges/rtma2p5.t00z.q_rejectlist ./q_rejectlist
 
 #####  connect with gefs ensemble #################
-#gdate=`/nwprod/util/exec/ndate -6 $adate`
+#gdate=`date +%Y%m%d%H -d "${adate:0:8} ${adate:8:2} - 6 hours"`
 #cycg=`echo $gdate | cut -c9-10`
 ls $nmmb_nems_4denvar_ges/sfg_2015060918_fhr06_ensmean > filelist06
 #typeset -Z2 nsum

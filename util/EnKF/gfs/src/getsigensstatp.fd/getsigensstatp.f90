@@ -34,10 +34,10 @@ program getsigensstatp
     use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close, &
                              nemsio_gfile,nemsio_getfilehead,nemsio_charkind8, &
                              nemsio_readrec,nemsio_readrecv
-    use module_fv3gfs_ncio, only: open_dataset, create_dataset, read_attribute, &
-                             Dataset, Dimension, close_dataset, &
-                             read_vardata, write_attribute, write_vardata, &
-                             get_dim, quantize_data
+    use module_ncio, only: open_dataset, create_dataset, read_attribute, &
+                           Dataset, Dimension, close_dataset, &
+                           read_vardata, write_attribute, write_vardata, &
+                           get_dim, quantize_data
 
 
     implicit none
@@ -46,7 +46,7 @@ program getsigensstatp
     integer,parameter :: iunit=21
     integer,parameter :: idrt=4
 ! Declare externals
-    external :: w3tagb, splat, sptez, sptezv, mpi_allreduce, w3tage
+    external :: w3tagb, splat, sptez, sptezv, w3tage
     character(nemsio_charkind8) :: dtype
     character(len=3)   :: charnanal
     character(len=500) :: filenamein,datapath,filepref

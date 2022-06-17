@@ -312,7 +312,7 @@ echo "" >>$cfile
 echo ". $MODULESHOME/init/bash"               >> $cfile
 echo "module purge"                           >> $cfile
 echo "module use -a $gsisrc/modulefiles"      >> $cfile
-echo "module load modulefile.ProdGSI.wcoss_d" >> $cfile
+echo "module load gsi_wcoss_dell_p3" >> $cfile
 echo "module list"                            >> $cfile
 echo "" >>$cfile
 

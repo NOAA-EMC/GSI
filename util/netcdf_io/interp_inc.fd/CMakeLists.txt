@@ -1,13 +1,16 @@
-cmake_minimum_required(VERSION 2.6)
-if(BUILD_NCIO_UTIL)
-  file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.f90)
-
-  set(Util_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include/interp_inc")
-  set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
-  add_executable(interp_inc.x  ${LOCAL_SRC} )
-  set_target_properties( interp_inc.x PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
-  set_target_properties( interp_inc.x PROPERTIES Fortran_MODULE_DIRECTORY ${Util_MODULE_DIRECTORY} )
-  SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_Fortran_FLAGS}" )
-  include_directories( ${UTIL_INC} ${NETCDF_INCLUDE_DIRS} ${MPI_Fortran_INCLUDE_PATH}) 
-  target_link_libraries( interp_inc.x ${W3NCO_4_LIBRARY} ${NETCDF_Fortran_LIBRARIES} ${NETCDF_C_LIBRARIES} ${MPI_Fortran_LIBRARIES} ${IP_LIBRARY} ${SP_LIBRARY})
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fp-model strict -convert big_endian")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian -ffree-line-length-0 -ffast-math -fno-second-underscore -frecord-marker=4")
 endif()
+
+add_executable(interp_inc.x driver.f90)
+target_link_libraries(interp_inc.x PRIVATE NetCDF::NetCDF_Fortran)
+target_link_libraries(interp_inc.x PRIVATE MPI::MPI_Fortran)
+target_link_libraries(interp_inc.x PRIVATE w3emc::w3emc_d)
+target_link_libraries(interp_inc.x PRIVATE ip::ip_d)
+target_link_libraries(interp_inc.x PRIVATE sp::sp_d)
+
+# Install executable targets
+install(TARGETS interp_inc.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+

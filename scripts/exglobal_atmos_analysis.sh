@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/bash
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
@@ -81,6 +81,10 @@ export imp_physics=${imp_physics:-99}
 lupp=${lupp:-".true."}
 cnvw_option=${cnvw_option:-".false."}
 
+# Observation usage options
+cao_check=${cao_check:-".false."}
+ta2tb=${ta2tb:-".false."}
+
 # Diagnostic files options
 lobsdiag_forenkf=${lobsdiag_forenkf:-".false."}
 netcdf_diag=${netcdf_diag:-".true."}
@@ -91,7 +95,7 @@ DOIAU=${DOIAU:-"NO"}
 export IAUFHRS=${IAUFHRS:-"6"}
 
 # Dependent Scripts and Executables
-GSIEXEC=${GSIEXEC:-$HOMEgfs/exec/global_gsi.x}
+GSIEXEC=${GSIEXEC:-$HOMEgfs/exec/gsi.x}
 export NTHREADS_CALCINC=${NTHREADS_CALCINC:-1}
 export APRUN_CALCINC=${APRUN_CALCINC:-${APRUN:-""}}
 export APRUN_CALCANL=${APRUN_CALCANL:-${APRUN:-""}}
@@ -458,9 +462,10 @@ fi
 # CRTM Spectral and Transmittance coefficients
 mkdir -p crtm_coeffs
 for file in $(awk '{if($1!~"!"){print $1}}' satinfo | sort | uniq); do
-   $NLN $RTMFIX/${file}.SpcCoeff.bin ./crtm_coeffs/
-   $NLN $RTMFIX/${file}.TauCoeff.bin ./crtm_coeffs/
+   $NLN $RTMFIX/${file}.SpcCoeff.bin ./crtm_coeffs/${file}.SpcCoeff.bin
+   $NLN $RTMFIX/${file}.TauCoeff.bin ./crtm_coeffs/${file}.TauCoeff.bin
 done
+$NLN $RTMFIX/amsua_metop-a_v2.SpcCoeff.bin ./crtm_coeffs/amsua_metop-a_v2.SpcCoeff.bin
 
 $NLN $RTMFIX/Nalli.IRwater.EmisCoeff.bin   ./crtm_coeffs/Nalli.IRwater.EmisCoeff.bin
 $NLN $RTMFIX/NPOESS.IRice.EmisCoeff.bin    ./crtm_coeffs/NPOESS.IRice.EmisCoeff.bin
@@ -473,6 +478,8 @@ $NLN $RTMFIX/NPOESS.VISwater.EmisCoeff.bin ./crtm_coeffs/NPOESS.VISwater.EmisCoe
 $NLN $RTMFIX/FASTEM6.MWwater.EmisCoeff.bin ./crtm_coeffs/FASTEM6.MWwater.EmisCoeff.bin
 $NLN $RTMFIX/AerosolCoeff.bin              ./crtm_coeffs/AerosolCoeff.bin
 $NLN $RTMFIX/CloudCoeff.bin                ./crtm_coeffs/CloudCoeff.bin
+#$NLN $RTMFIX/CloudCoeff.GFDLFV3.-109z-1.bin ./crtm_coeffs/CloudCoeff.bin
+
 
 ##############################################################
 # Observational data
@@ -620,7 +627,7 @@ if [ $GENDIAG = "YES" ] ; then
 	  rm -rf $DIAG_DIR
       fi
       npe_m1="$(($npe_gsi-1))"
-      for pe in {0..$npe_m1}; do
+      for pe in $(seq 0 $npe_m1); do
         pedir="dir."$(printf %04i $pe)
         mkdir -p $DIAG_DIR/$pedir
         $NLN $DIAG_DIR/$pedir $pedir
@@ -759,11 +766,12 @@ cat > gsiparm.anl << EOF
   crtm_coeffs_path='./crtm_coeffs/',
   newpc4pred=.true.,adp_anglebc=.true.,angord=4,passive_bc=.true.,use_edges=.false.,
   diag_precon=.true.,step_start=1.e-3,emiss_bc=.true.,nhr_obsbin=${nhr_obsbin:-3},
-  cwoption=3,imp_physics=$imp_physics,lupp=$lupp,cnvw_option=$cnvw_option,
+  cwoption=3,imp_physics=$imp_physics,lupp=$lupp,cnvw_option=$cnvw_option,cao_check=${cao_check},
   netcdf_diag=$netcdf_diag,binary_diag=$binary_diag,
   lobsdiag_forenkf=$lobsdiag_forenkf,
   write_fv3_incr=$write_fv3_increment,
   nhr_anal=${IAUFHRS},
+  ta2tb=${ta2tb},
   $WRITE_INCR_ZERO
   $WRITE_ZERO_STRAT
   $WRITE_STRAT_EFOLD
@@ -804,7 +812,7 @@ cat > gsiparm.anl << EOF
   $OBSQC
 /
 &OBS_INPUT
-  dmesh(1)=145.0,dmesh(2)=150.0,dmesh(3)=100.0,dmesh(4)=70.0,time_window_max=3.0,
+  dmesh(1)=145.0,dmesh(2)=150.0,dmesh(3)=100.0,dmesh(4)=25.0,time_window_max=3.0,
   $OBSINPUT
 /
 OBS_INPUT::
@@ -898,9 +906,10 @@ OBS_INPUT::
    avhambufr      avhrr       metop-a     avhrr3_metop-a      0.0     4     0
    avhpmbufr      avhrr       n18         avhrr3_n18          0.0     4     0
    avhambufr      avhrr       metop-b     avhrr3_metop-b      0.0     4     0
+   avhambufr      avhrr       metop-c     avhrr3_metop-c      0.0     4     0
    avhpmbufr      avhrr       n19         avhrr3_n19          0.0     4     0
    amsr2bufr      amsr2       gcom-w1     amsr2_gcom-w1       0.0     3     0
-   gmibufr        gmi         gpm         gmi_gpm             0.0     3     0
+   gmibufr        gmi         gpm         gmi_gpm             0.0     1     0
    saphirbufr     saphir      meghat      saphir_meghat       0.0     3     0
    ahibufr        ahi         himawari8   ahi_himawari8       0.0     1     0
    abibufr        abi         g16         abi_g16             0.0     1     0
@@ -916,6 +925,14 @@ OBS_INPUT::
    iasibufr       iasi        metop-c     iasi_metop-c        0.0     1     1
    sstviirs       viirs-m     npp         viirs-m_npp         0.0     4     0
    sstviirs       viirs-m     j1          viirs-m_j1          0.0     4     0
+   abibufr        abi         g18         abi_g18             0.0     1     0
+   ahibufr        ahi         himawari9   ahi_himawari9       0.0     1     0
+   atmsbufr       atms        n21         atms_n21            0.0     1     1
+   crisfsbufr     cris-fsr    n21         cris-fsr_n21        0.0     1     0
+   sstviirs       viirs-m     j2          viirs-m_j2          0.0     4     0
+   ompsnpbufr     ompsnp      n21         ompsnp_n21          0.0     0     0
+   ompstcbufr     ompstc8     n21         ompstc8_n21         0.0     2     0
+   gomebufr       gome        metop-c     gome_metop-c        0.0     2     0
 ::
 &SUPEROB_RADAR
   $SUPERRAD
@@ -981,11 +998,11 @@ if [ $DOGCYCLE = "YES" ]; then
 
     # Global cycle requires these files
     export FNTSFA=${FNTSFA:-$COMIN_OBS/${OPREFIX}rtgssthr.grb}
-    export FNACNA=${FNACNA:-$COMIN_OBS/${OPREFIX}seaice.5min.blend.grb}
-    export FNSNOA=${FNSNOA:-$COMIN_OBS/${OPREFIX}snogrb_t${JCAP_CASE}.${LONB_CASE}.${LATB_CASE}}
-    [[ ! -f $FNSNOA ]] && export FNSNOA="$COMIN_OBS/${OPREFIX}snogrb_t1534.3072.1536"
-    FNSNOG=${FNSNOG:-$COMIN_GES_OBS/${GPREFIX}snogrb_t${JCAP_CASE}.${LONB_CASE}.${LATB_CASE}}
-    [[ ! -f $FNSNOG ]] && FNSNOG="$COMIN_GES_OBS/${GPREFIX}snogrb_t1534.3072.1536"
+    export FNACNA=${FNACNA:-$COMIN/${OPREFIX}seaice.5min.blend.grb}
+    export FNSNOA=${FNSNOA:-$COMIN/${OPREFIX}snogrb_t${JCAP_CASE}.${LONB_CASE}.${LATB_CASE}}
+    [[ ! -f $FNSNOA ]] && export FNSNOA="$COMIN/${OPREFIX}snogrb_t1534.3072.1536"
+    FNSNOG=${FNSNOG:-$COMIN_GES/${GPREFIX}snogrb_t${JCAP_CASE}.${LONB_CASE}.${LATB_CASE}}
+    [[ ! -f $FNSNOG ]] && FNSNOG="$COMIN_GES/${GPREFIX}snogrb_t1534.3072.1536"
 
     # Set CYCLVARS by checking grib date of current snogrb vs that of prev cycle
     if [ $RUN_GETGES = "YES" ]; then

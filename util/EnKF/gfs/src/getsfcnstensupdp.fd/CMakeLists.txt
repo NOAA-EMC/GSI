@@ -1,13 +1,27 @@
-cmake_minimum_required(VERSION 2.6)
-if(BUILD_UTIL)
-  
-  file(GLOB LOCAL_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.F90 ${CMAKE_CURRENT_SOURCE_DIR}/*.f90)
-  set(Util_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/include/getsfcnstensupdp")
-  set_source_files_properties( ${LOCAL_SRC} PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
-  add_executable(getsfcnstensupdp.x  ${LOCAL_SRC} )
-  set_target_properties( getsfcnstensupdp.x PROPERTIES COMPILE_FLAGS ${UTIL_Fortran_FLAGS} )
-  set_target_properties( getsfcnstensupdp.x PROPERTIES Fortran_MODULE_DIRECTORY ${Util_MODULE_DIRECTORY} )
-  SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_Fortran_FLAGS}" )
-  include_directories( ${UTIL_INC}/getsfcnstensupdp ${SFCIOINC} ${NEMSIOINC} ${MPI_Fortran_INCLUDE_PATH} ) 
-  target_link_libraries( getsfcnstensupdp.x ${SFCIO_LIBRARY} ${NEMSIO_LIBRARY} ${BACIO_LIBRARY} ${W3NCO_4_LIBRARY} ${SP_4_LIBRARY} ${MPI_Fortran_LIBRARIES} )
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fp-model strict -convert big_endian")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian -ffree-line-length-0 -ffast-math -fno-second-underscore -frecord-marker=4")
 endif()
+
+list(APPEND SRCS
+  constants.f90
+  getsfcnstensupdp.f90
+  grdcrd.f90
+  intrp_msk.f90
+  kinds.F90
+  nstio_module.f90)
+
+add_executable(getsfcnstensupdp.x ${SRCS})
+target_compile_definitions(getsfcnstensupdp.x PRIVATE "_REAL8_")
+target_link_libraries(getsfcnstensupdp.x PRIVATE NetCDF::NetCDF_Fortran)
+target_link_libraries(getsfcnstensupdp.x PRIVATE MPI::MPI_Fortran)
+target_link_libraries(getsfcnstensupdp.x PRIVATE bacio::bacio_4)
+target_link_libraries(getsfcnstensupdp.x PRIVATE w3emc::w3emc_d)
+target_link_libraries(getsfcnstensupdp.x PRIVATE nemsio::nemsio)
+target_link_libraries(getsfcnstensupdp.x PRIVATE sfcio::sfcio)
+target_link_libraries(getsfcnstensupdp.x PRIVATE sp::sp_4)
+
+# Install executable targets
+install(TARGETS getsfcnstensupdp.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+

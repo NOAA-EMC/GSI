@@ -567,6 +567,7 @@ contains
     use gsi_rfv3io_mod, only: gsi_fv3ncdf_readuv_v1
     use gsi_rfv3io_mod, only: gsi_fv3ncdf2d_read_v1
     use directDA_radaruse_mod, only: l_use_dbz_directDA
+    use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_gridcreate
     use gsi_bundlemod, only: gsi_grid
     use gsi_bundlemod, only: gsi_bundlecreate,gsi_bundledestroy
