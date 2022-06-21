@@ -2065,10 +2065,10 @@ subroutine qc_saphir(nchanl,sfchgt,luse,sea, &
   return
 end subroutine qc_saphir
 
-subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
-     cris, hirs, zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise,     &
-     wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                    &
-     id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole)
+subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs,                      &
+     cris,iasi,hirs,zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise,     &
+     wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity,emissivity_k,ts,tsim,                           &
+     id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole,sensorindex)
 !    id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole,radmod) ! all-sky
 
 !$$$ subprogram documentation block
@@ -2146,9 +2146,9 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 
 ! Declare passed variables
 
-  logical,                            intent(in   ) :: sea,land,ice,snow,luse,goessndr, cris, hirs
+  logical,                            intent(in   ) :: sea,land,ice,snow,luse,goessndr,airs,cris,hirs,iasi
   logical,                            intent(inout) :: zero_irjaco3_pole
-  integer(i_kind),                    intent(in   ) :: nsig,nchanl,ndat,is
+  integer(i_kind),                    intent(in   ) :: nsig,nchanl,ndat,is,sensorindex
   integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
   integer(i_kind),dimension(nchanl),  intent(in   ) :: kmax
@@ -2156,8 +2156,8 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
   real(r_kind),                       intent(in   ) :: tzbgr,tsavg5,zasat
   real(r_kind),                       intent(  out) :: cld,cldp
   real(r_kind),dimension(40,ndat),    intent(inout) :: aivals
-  real(r_kind),dimension(nchanl),     intent(in   ) :: tbc,emissivity_k,ts,wavenumber,tb_obs,tbcnob
-  real(r_kind),dimension(nchanl),     intent(in   ) :: tnoise
+  real(r_kind),dimension(nchanl),     intent(in   ) :: tbc,emissivity_k,emissivity,ts,wavenumber,tb_obs,tbcnob
+  real(r_kind),dimension(nchanl),     intent(in   ) :: tnoise,tsim
   real(r_kind),dimension(nsig,nchanl),intent(in   ) :: ptau5,temp,wmix
   real(r_kind),dimension(nsig),       intent(in   ) :: prsltmp,tvp
   real(r_kind),dimension(nchanl),     intent(inout) :: errf,varinv,varinv_use
@@ -2168,9 +2168,10 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 
 
   real(r_kind) :: demisf,dtempf,efact,dtbf,term,cenlatx,sfchgtfact
-  real(r_kind) :: sum,sum2,sum3,cloudp,tmp,dts,delta
+  real(r_kind) :: sum,sum2,sum3,cloudp,tmp,dts,delta,cloud_threshold
   real(r_kind),dimension(nchanl) :: dtb
-  integer(i_kind) :: i,j,k,kk,lcloud,m
+  integer(i_kind) :: i,j,k,kk,lcloud,m,isurface_chan
+  integer(i_kind), dimension(2,4) :: ichan_pairs
   integer(i_kind), dimension(nchanl) :: irday
   real(r_kind) :: dtz,ts_ave,xindx,tzchks
   real(r_kind),parameter:: tbmax = 550._r_kind
@@ -2265,42 +2266,35 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
   cld=zero
   cldp=r10*prsltmp(1)
 
-  do k=1,nsig
-     if(prsltmp(k) > trop5)then
-        do i=1,nchanl
-           dtb(i)=(tvp(k)-tsavg5)*ts(i)
-        end do
-        do kk=1,k-1
-           do i=1,nchanl
-              dtb(i)=dtb(i)+(tvp(k)-tvp(kk))*temp(kk,i)
-           end do
-        end do
-        sum=zero
-        sum2=zero
-        do i=1,nchanl
-           if(varinv_use(i) > tiny_r_kind)then
-              sum=sum+tbc(i)*dtb(i)*varinv_use(i)
-              sum2=sum2+dtb(i)*dtb(i)*varinv_use(i)
-           end if
-        end do
-        if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
-        cloudp=min(max(sum/sum2,zero),one)
-        sum=zero
-        do i=1,nchanl
-           if(varinv_use(i) > tiny_r_kind)then
-              tmp=tbc(i)-cloudp*dtb(i)
-              sum=sum+tmp*tmp*varinv_use(i)
-           end if
-        end do
-        if(sum < sum3)then
-           sum3=sum
-           lcloud=k
-           cld=cloudp
-           cldp=r10*prsltmp(k)
-        end if
-     end if
+  if (iasi .or. cris .or. airs .or. hirs .or. goessndr)then
+     if ( cris ) then
+        ichan_pairs(1,1:4) = (/68, 89, 105, 134/)
+        ichan_pairs(2,1:4) = (/89, 105, 134, 158/)
+        isurface_chan = 501
+        cloud_threshold = 0.005_r_kind
+     elseif ( iasi ) then
+        ichan_pairs(1,1:4) = (/187, 243, 282, 354/)
+        ichan_pairs(2,1:4) = (/243, 282, 354, 414/)
+        isurface_chan = 1271
+        cloud_threshold = 0.005_r_kind
+     elseif ( airs ) then
+        ichan_pairs(1,1:4) = (/144, 192, 232, 295/)
+        ichan_pairs(2,1:4) = (/192, 232, 295, 338/)
+        isurface_chan = 914
+        cloud_threshold = 0.005_r_kind
+     elseif ( hirs .or. goessndr ) then
+        ichan_pairs(1,1:4) = (/3, 4, 5, 6/)
+        ichan_pairs(2,1:4) = (/4, 5, 6, 7/)
+        isurface_chan = 8
+        cloud_threshold = 0.02_r_kind
+     endif
+     call CO2_cloud_detect(sensorindex,ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,tvp,tsavg5,  &
+                           prsltmp,trop5,emissivity,ptau5,cloud_threshold,lcloud )
+!     if ( hirs .and. lcloud > 0) write(*,*) 'JAJ hirs',lcloud,  prsltmp(lcloud) * 10.0_r_kind
+  else
+     call statistical_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,ptau5,lcloud,cloudp,cldp)
+  endif
 
-  end do
   if ( lcloud > 0 ) then  ! If cloud detected, reject channels affected by it.
 
      do i=1,nchanl
@@ -2365,7 +2359,8 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 !
 ! Temporary additional check for CrIS to reduce influence of land points on window channels (particularly important for bias correction)
 !
-  if (cris .and. .not. sea) then
+!  if (cris .and. .not. sea) then
+  if (.not. sea .and. .not. snow) then
      do i=1,nchanl
         if (ts(i) > 0.2_r_kind) then
            !             QC3 in statsrad
@@ -2515,6 +2510,184 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
   return
 
 end subroutine qc_irsnd
+
+subroutine CO2_cloud_detect(sensorindex,ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,tvp,tsavg5,  &
+                            prsltmp,trop5,emissivity,ptau5,cloud_threshold,icloud_layer )
+
+use crtm_planck_functions, only: crtm_planck_radiance
+use constants, only: zero, one
+implicit none
+
+integer(i_kind),                      intent(in   ) :: nchanl, nsig, sensorindex, isurface_chan
+integer(i_kind),                      intent(  out) :: icloud_layer
+integer(i_kind), dimension(nchanl),   intent(in   ) :: ich
+integer(i_kind), dimension(2,4),      intent(in   ) :: ichan_pairs
+
+real(r_kind),                         intent(in   ) :: tsavg5, trop5, cloud_threshold
+real(r_kind), dimension(nchanl),      intent(in   ) :: tbc, tsim, emissivity
+real(r_kind), dimension(nsig,nchanl), intent(in   ) :: ptau5
+real(r_kind), dimension(nsig),        intent(in   ) :: tvp, prsltmp
+
+integer(i_kind) :: i, j, k, m
+
+real(r_kind) :: radiance_chan, radiance_model, co2_val, eff_cloud
+real(r_kind),dimension(2) :: radiance_diff
+real(r_kind),dimension(4) :: layer_thresholds
+real(r_kind),dimension(nsig) :: radiance_layer
+real(r_kind),dimension(nsig,2) :: radiance_layer_sum
+
+     layer_thresholds = (/40.0_r_kind, 55.0_r_kind, 70.0_r_kind, 80.0_r_kind/)
+     icloud_layer = 0
+
+     chan_pairs: do j = 1, 4
+       channel_loop: do i=1, nchanl
+         m = ich(i)
+         if ( m == ichan_pairs(1,j)) then
+          call crtm_planck_radiance(sensorindex,m,(tbc(i)+tsim(i)),radiance_chan)    ! channel radiance
+                                                                                                              call crtm_planck_radiance(sensorindex,m,tsim(i),radiance_model)     ! model derived channel radiance (clear)
+          radiance_diff(1) = radiance_chan - radiance_model
+          profile_loop_1: do k=1, nsig
+            if ( k == 1) then
+              call crtm_planck_radiance(sensorindex,m,tsavg5,radiance_layer(k))
+              radiance_layer_sum(k,1) = ptau5(k,i) * radiance_layer(k) * emissivity(i)
+            else
+              call crtm_planck_radiance(sensorindex,m,tvp(k),radiance_layer(k)) ! model layer radiancea
+              radiance_layer(k) = ptau5(k,i) * radiance_layer(k)
+              radiance_layer_sum(k,1) = radiance_layer_sum(k-1,1) + (radiance_layer(k) - radiance_layer(k-1))
+            endif
+          end do  profile_loop_1
+
+        elseif ( m == ichan_pairs(2,j)) then
+          call crtm_planck_radiance(sensorindex,m,(tbc(i)+tsim(i)),radiance_chan)    ! channel radiance
+          call crtm_planck_radiance(sensorindex,m,tsim(i),radiance_model)     ! model derived channel radiance (clear)
+          radiance_diff(2) = radiance_chan - radiance_model
+          profile_loop_2: do k=1, nsig
+            if ( k == 1) then
+              call crtm_planck_radiance(sensorindex,m,tsavg5,radiance_layer(k))
+              radiance_layer_sum(k,2) = ptau5(k,i) * radiance_layer(k) * emissivity(i)
+            else
+              call crtm_planck_radiance(sensorindex,m,tvp(k),radiance_layer(k)) ! model layer radiance
+              radiance_layer(k) = ptau5(k,i) * radiance_layer(k)
+              radiance_layer_sum(k,2) = radiance_layer_sum(k-1,2) + (radiance_layer(k) - radiance_layer(k-1))
+            endif
+          end do  profile_loop_2
+        endif ! ichan_pairs
+      end do  channel_loop
+
+! test for cloud of this pair
+       if ( radiance_diff(1) < zero .and. radiance_diff(2) < zero ) then
+         cloud_test: do k=nsig, 1, -1
+           if (prsltmp(k) > trop5 .and. prsltmp(k) < layer_thresholds(j)) then !range to look for clouds
+             co2_val = radiance_diff(1) / radiance_diff(2) * radiance_layer_sum(k,2) / radiance_layer_sum(k,1)
+             if (co2_val < one .and. co2_val > zero ) then   ! FOUND A CLOUD !
+               nchanl_loop: do i=1, nchanl
+                 m = ich(i)
+                 if ( m == isurface_chan ) then
+                   call crtm_planck_radiance(sensorindex,m,(tbc(i)+tsim(i)),radiance_chan)
+                   call crtm_planck_radiance(sensorindex,m,tsim(i),radiance_model)
+                   call crtm_planck_radiance(sensorindex,m,tvp(k),radiance_layer(k))
+                   eff_cloud = (radiance_chan - radiance_model)/(radiance_layer(k) - radiance_model)
+                   if ( eff_cloud < cloud_threshold ) cycle chan_pairs
+                   icloud_layer = k
+                   exit chan_pairs
+                 endif   !m-501
+               end do  nchanl_loop
+             endif !co2_val
+           endif  !prsltmp
+         end do  cloud_test
+       endif !radiance_diff
+     end do chan_pairs
+
+!  window test
+         if ( icloud_layer == 0 ) then
+           window_test: do i=1, nchanl
+             m = ich(i)
+             if ( m == isurface_chan ) then
+               call crtm_planck_radiance(sensorindex,m,(tbc(i)+tsim(i)),radiance_chan)
+               radiance_chan = radiance_chan / emissivity(i) / ptau5(1,i)
+               call crtm_planck_radiance(sensorindex,m,(tsavg5-1.5_r_kind),radiance_model)
+               if ( radiance_chan < radiance_model ) then
+                 profile_test: do j=2, nsig
+                   call crtm_planck_radiance(sensorindex,m,tvp(j),radiance_model)
+                   if (prsltmp(j) < trop5 .or. radiance_chan > radiance_model ) exit profile_test  ! stay below tropopause
+                   if ( j > icloud_layer ) icloud_layer = j
+                 end do profile_test
+               endif  ! radiance difference
+             endif ! isurface channel
+           end do window_test
+         endif
+! end of window test
+
+end subroutine CO2_cloud_detect
+
+
+subroutine statistical_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,ptau5,lcloud,cloudp,cldp)
+
+use kinds, only: i_kind, r_kind
+use constants, only: tiny_r_kind, zero, r10
+implicit none
+
+
+integer(i_kind),                 intent(in   ) :: nchanl, nsig
+integer(i_kind),                 intent(  out) :: lcloud
+real(r_kind),                    intent(in   ) :: tsavg5, trop5
+real(r_kind),                    intent(  out) :: cloudp, cldp
+real(r_kind), dimension(nchanl), intent(in   ) :: tbc, ts, varinv_use
+real(r_kind), dimension(nsig,nchanl), intent(in   ) :: ptau5,temp
+real(r_kind), dimension(nsig),   intent(in   ) :: tvp, prsltmp
+
+integer(i_kind) :: i, k, kk
+
+real(r_kind) :: sum, sum2, sum3, tmp
+real(r_kind),dimension(nchanl) :: dtb
+
+  sum3=zero
+  do i=1,nchanl
+    sum3=sum3+tbc(i)*tbc(i)*varinv_use(i)
+  end do
+  sum3=0.75_r_kind*sum3
+  lcloud=0
+  cldp=r10*prsltmp(1)
+
+  do k=1,nsig
+     if(prsltmp(k) > trop5)then
+        do i=1,nchanl
+           dtb(i)=(tvp(k)-tsavg5)*ts(i)
+        end do
+        do kk=1,k-1
+           do i=1,nchanl
+              dtb(i)=dtb(i)+(tvp(k)-tvp(kk))*temp(kk,i)
+           end do
+        end do
+        sum=zero
+        sum2=zero
+        do i=1,nchanl
+           if(varinv_use(i) > tiny_r_kind)then
+              sum=sum+tbc(i)*dtb(i)*varinv_use(i)
+              sum2=sum2+dtb(i)*dtb(i)*varinv_use(i)
+           end if
+        end do
+        if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
+        cloudp=min(max(sum/sum2,zero),one)
+        sum=zero
+        do i=1,nchanl
+           if(varinv_use(i) > tiny_r_kind)then
+              tmp=tbc(i)-cloudp*dtb(i)
+              sum=sum+tmp*tmp*varinv_use(i)
+           end if
+        end do
+        if(sum < sum3)then
+           sum3=sum
+           lcloud=k
+           cldp=r10*prsltmp(k)
+        end if
+     end if
+
+  end do
+
+end subroutine statistical_cloud_detect
+
+
 
 subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
      zsges,cenlat,frac_sea,pangs,trop5,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
