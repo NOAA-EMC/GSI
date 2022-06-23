@@ -2268,29 +2268,28 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 
   if (iasi .or. cris .or. airs .or. hirs .or. goessndr)then
      if ( cris ) then
-        ichan_pairs(1,1:4) = (/68, 89, 105, 134/)
+        ichan_pairs(1,1:4) = (/68, 89, 105, 134/)   ! channels used for CO2 cloud detection
         ichan_pairs(2,1:4) = (/89, 105, 134, 158/)
-        isurface_chan = 501
-        cloud_threshold = 0.005_r_kind
+        isurface_chan = 501                         ! surface channel
+        cloud_threshold = 0.005_r_kind              ! cloud detection minimum (0.5%)
      elseif ( iasi ) then
-        ichan_pairs(1,1:4) = (/187, 243, 282, 354/)
+        ichan_pairs(1,1:4) = (/187, 243, 282, 354/) ! channels used for CO2 cloud detection
         ichan_pairs(2,1:4) = (/243, 282, 354, 414/)
-        isurface_chan = 1271
-        cloud_threshold = 0.005_r_kind
+        isurface_chan = 1271                        ! surface channel
+        cloud_threshold = 0.005_r_kind              ! cloud detection minimum (0.5%)
      elseif ( airs ) then
-        ichan_pairs(1,1:4) = (/144, 192, 232, 295/)
+        ichan_pairs(1,1:4) = (/144, 192, 232, 295/) ! channels used cor CO2 cloud detection
         ichan_pairs(2,1:4) = (/192, 232, 295, 338/)
-        isurface_chan = 914
-        cloud_threshold = 0.005_r_kind
+        isurface_chan = 914                         ! surface channel
+        cloud_threshold = 0.005_r_kind              ! cloud detection minimum (0.5%) !! estimated !!
      elseif ( hirs .or. goessndr ) then
-        ichan_pairs(1,1:4) = (/3, 4, 5, 6/)
+        ichan_pairs(1,1:4) = (/3, 4, 5, 6/)         ! channels used for CO2 cloud detection
         ichan_pairs(2,1:4) = (/4, 5, 6, 7/)
-        isurface_chan = 8
-        cloud_threshold = 0.02_r_kind
+        isurface_chan = 8                           ! surface channel
+        cloud_threshold = 0.02_r_kind               ! cloud detection minimum (2.0%)   !! estimated !!
      endif
      call CO2_cloud_detect(sensorindex,ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,tvp,tsavg5,  &
                            prsltmp,trop5,emissivity,ptau5,cloud_threshold,lcloud )
-!     if ( hirs .and. lcloud > 0) write(*,*) 'JAJ hirs',lcloud,  prsltmp(lcloud) * 10.0_r_kind
   else
      call statistical_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,ptau5,lcloud,cloudp,cldp)
   endif
@@ -2504,15 +2503,50 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
   endif !! if (hirs)
 !---mkim
 
-
-
-
   return
 
 end subroutine qc_irsnd
 
 subroutine CO2_cloud_detect(sensorindex,ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,tvp,tsavg5,  &
                             prsltmp,trop5,emissivity,ptau5,cloud_threshold,icloud_layer )
+
+!$$$ subprogram documentation block
+!               .      .    .
+! subprogram:  co2_cloud_detect    determine clear/cloudy profiles from hirs,goessndr,airs,iasi,cris instruments
+!
+!   prgmmr: jung           org: cimss            date: 2022-06-20
+!
+! abstract: determine if a profile is clear/cloudy.  If cloudy, determine model layer of the lcoud.
+!           This subroutine is designed for infrared sounders HIRS, GOES, AIRS, IASI and CrIS.
+!
+! program history log:
+!     2022-06-20  jung   Initial coding 
+!
+! input argument list:
+!     sensorindex  - sensor index used by CRTM
+!     ichan_pairs  - array of channel pairs to determine layer with cloud
+!     isurface_chan- surface channel used to determine cloud amount
+!     nchanl       - number of channels per obs
+!     nsig         - number of model layers
+!     ich          - channel number
+!     tbc          - simulated - observed BT with bias correction
+!     tsim         - simulated brightness temperature
+!     tvp          - array of temperatures in vertical (surface to toa)
+!     tsavg5       - surface skin temperature
+!     prsltmp      - array of layer pressures in vertical (surface to toa)
+!     trop5        - tropopause pressure
+!     emissivity   - array of surface emissivities
+!     ptau5        - transmittances as a function of level and channel
+!     cloud_threshold - minimum detectable cloud amount for each sensor type
+!     
+! output argument list:
+!     icloud_layer  - model layer where cloud is detected
+!
+! attributes:
+!     language: f90
+!     machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
 
 use crtm_planck_functions, only: crtm_planck_radiance
 use constants, only: zero, one
@@ -2536,16 +2570,19 @@ real(r_kind),dimension(4) :: layer_thresholds
 real(r_kind),dimension(nsig) :: radiance_layer
 real(r_kind),dimension(nsig,2) :: radiance_layer_sum
 
+!    top and bottom pressure levels used by ichan_pairs 
      layer_thresholds = (/40.0_r_kind, 55.0_r_kind, 70.0_r_kind, 80.0_r_kind/)
      icloud_layer = 0
 
+!  The CO2_slicing code
      chan_pairs: do j = 1, 4
        channel_loop: do i=1, nchanl
          m = ich(i)
          if ( m == ichan_pairs(1,j)) then
           call crtm_planck_radiance(sensorindex,m,(tbc(i)+tsim(i)),radiance_chan)    ! channel radiance
-                                                                                                              call crtm_planck_radiance(sensorindex,m,tsim(i),radiance_model)     ! model derived channel radiance (clear)
+          call crtm_planck_radiance(sensorindex,m,tsim(i),radiance_model)     ! model derived channel radiance (clear)
           radiance_diff(1) = radiance_chan - radiance_model
+! integrate model radiance from surface upward for first channel
           profile_loop_1: do k=1, nsig
             if ( k == 1) then
               call crtm_planck_radiance(sensorindex,m,tsavg5,radiance_layer(k))
@@ -2561,6 +2598,7 @@ real(r_kind),dimension(nsig,2) :: radiance_layer_sum
           call crtm_planck_radiance(sensorindex,m,(tbc(i)+tsim(i)),radiance_chan)    ! channel radiance
           call crtm_planck_radiance(sensorindex,m,tsim(i),radiance_model)     ! model derived channel radiance (clear)
           radiance_diff(2) = radiance_chan - radiance_model
+! integrate model radiance from surface upward for second channel
           profile_loop_2: do k=1, nsig
             if ( k == 1) then
               call crtm_planck_radiance(sensorindex,m,tsavg5,radiance_layer(k))
@@ -2574,8 +2612,9 @@ real(r_kind),dimension(nsig,2) :: radiance_layer_sum
         endif ! ichan_pairs
       end do  channel_loop
 
-! test for cloud of this pair
+! test for cloud in this pair
        if ( radiance_diff(1) < zero .and. radiance_diff(2) < zero ) then
+! if cloud is detected, find layer cloud is in
          cloud_test: do k=nsig, 1, -1
            if (prsltmp(k) > trop5 .and. prsltmp(k) < layer_thresholds(j)) then !range to look for clouds
              co2_val = radiance_diff(1) / radiance_diff(2) * radiance_layer_sum(k,2) / radiance_layer_sum(k,1)
@@ -2583,14 +2622,14 @@ real(r_kind),dimension(nsig,2) :: radiance_layer_sum
                nchanl_loop: do i=1, nchanl
                  m = ich(i)
                  if ( m == isurface_chan ) then
-                   call crtm_planck_radiance(sensorindex,m,(tbc(i)+tsim(i)),radiance_chan)
+                   call crtm_planck_radiance(sensorindex,m,(tbc(i)+tsim(i)),radiance_chan) ! same as tb_obs + bias correction
                    call crtm_planck_radiance(sensorindex,m,tsim(i),radiance_model)
-                   call crtm_planck_radiance(sensorindex,m,tvp(k),radiance_layer(k))
-                   eff_cloud = (radiance_chan - radiance_model)/(radiance_layer(k) - radiance_model)
-                   if ( eff_cloud < cloud_threshold ) cycle chan_pairs
+                   call crtm_planck_radiance(sensorindex,m,tvp(k),radiance_layer(k)) 
+                   eff_cloud = (radiance_chan - radiance_model)/(radiance_layer(k) - radiance_model)  ! effective cloud amount
+                   if ( eff_cloud < cloud_threshold ) cycle chan_pairs  ! Do not use if cloud amount is too small
                    icloud_layer = k
                    exit chan_pairs
-                 endif   !m-501
+                 endif   ! isurface_chan
                end do  nchanl_loop
              endif !co2_val
            endif  !prsltmp
@@ -2599,6 +2638,7 @@ real(r_kind),dimension(nsig,2) :: radiance_layer_sum
      end do chan_pairs
 
 !  window test
+!  if co2_slicing technique is inconclusive, use the window channel test
          if ( icloud_layer == 0 ) then
            window_test: do i=1, nchanl
              m = ich(i)
@@ -2623,10 +2663,45 @@ end subroutine CO2_cloud_detect
 
 subroutine statistical_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,ptau5,lcloud,cloudp,cldp)
 
+!$$$ subprogram documentation block
+!               .      .    .
+! subprogram:  statistical_cloud_detect    determine clear/cloudy profiles from hirs,goessndr,airs,iasi,cris instruments
+!
+!   prgmmr: derber ???        org: np23            date: ???
+!
+! abstract: determine if a profile is clear/cloudy.  If cloudy, determine model layer of the lcoud.
+!           This subroutine is designed for infrared sounders.
+!
+! program history log:
+!     2022-06-20  jung   moved into a subroutine 
+!
+! input argument list:
+!     nchanl       - number of channels per obs
+!     nsig         - number of model layers
+!     tsavg5       - surface skin temperature
+!     trop5        - tropopause pressure
+!     prsltmp      - array of layer pressure in vertical (surface to toa)
+!     tvp          - array of temperatures in vertical (surface to toa)
+!     ts           - skin temperature sensitivity
+!     tbc          - simulated - observed BT with bias correction
+!     temp         - temperature sensitivity array
+!     varinv_use   - observation weight used (modified obs var error inverse)
+!     ptau5        - transmittances as a function of level and channel
+!     
+! output argument list:
+!     lcloud       - model layer of cloud
+!     cloudp       - derived cloud amount
+!     cldp         - model layer pressure (hPa) of cloud 
+!
+! attributes:
+!     language: f90
+!     machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
 use kinds, only: i_kind, r_kind
 use constants, only: tiny_r_kind, zero, r10
 implicit none
-
 
 integer(i_kind),                 intent(in   ) :: nchanl, nsig
 integer(i_kind),                 intent(  out) :: lcloud
