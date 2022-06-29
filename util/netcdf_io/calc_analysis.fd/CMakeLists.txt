@@ -17,7 +17,7 @@ target_link_libraries(calc_analysis.x PRIVATE MPI::MPI_Fortran)
 target_link_libraries(calc_analysis.x PRIVATE bacio::bacio_4)
 target_link_libraries(calc_analysis.x PRIVATE nemsio::nemsio)
 target_link_libraries(calc_analysis.x PRIVATE ncio::ncio)
-target_link_libraries(calc_analysis.x PRIVATE w3emc::w3emc_d)
+target_link_libraries(calc_analysis.x PRIVATE w3emc::w3emc_4)
 
 # Install executable targets
 install(TARGETS calc_analysis.x RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
