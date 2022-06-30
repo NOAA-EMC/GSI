@@ -159,6 +159,9 @@ ensctl2state_ad.f90
 evaljgrad.f90
 evaljo.f90
 evalqlim.f90
+fca_gsi_inter.f90
+fca_xtofca.f90
+fca_xtofca_adj.f90
 fgrid2agrid_mod.f90
 fill_mass_grid2.f90
 fill_nmm_grid2.f90

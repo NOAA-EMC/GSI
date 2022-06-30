@@ -46,6 +46,8 @@
 !
 !$$$ end documentation block
 
+      module use kinds, only:
+  
       BLOCK DATA CHARACTERS
       CHARACTER ads1buf(512), ads1lbuf(512)
       INTEGER(i_short) ads1ibuf,ads1ilbuf

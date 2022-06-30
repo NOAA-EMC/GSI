@@ -231,4 +231,6 @@ install(EXPORT ${PROJECT_NAME}Exports
         DESTINATION ${CONFIG_INSTALL_DESTINATION})
 
 # set up the preprocessor flag for FCA codes
-add_compile_definitions(-DFCA_REF_MOD -DDM_PARALLEL)
+if(USE_FAT)
+  list(APPEND GSI_Fortran_defs FCA_REF_MOD DM_PARALLEL)
+endif()
