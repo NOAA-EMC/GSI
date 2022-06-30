@@ -99,7 +99,7 @@ program getsigensmeanp_smooth
   filenameout = trim(adjustl(datapath)) // trim(adjustl(filenameout))
   ! if a 5th arg present, it's a filename to write out ensemble spread
   ! (only used for ncio)
-  if (iargc() > 5) then
+  if (iargc() > 4) then
      call getarg(5,filenameoutsprd)
      write_spread_ncio = .true.
      if (mype == 0) print *,'computing ensemble spread'

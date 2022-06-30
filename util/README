@@ -20,21 +20,6 @@ Radiance_Utilities/Fortran/RadDiag_Stats:
              may be produced as a function of time, scan angle, and 
              latitude/longitude (2D) as well as the aggregated stats. 
 
-Radiance_Monitor/data_extract:
-             Scripts and source code used to extract radiance monitoring
-             data from diagnostic files and save into small binary files.
-             These binary files can be processed by the scripts in the
-             image_gen directory to produce radiance monitoring graphics.
-             See the src directory for a script to build all the necessary
-             executables for the Radiance Monitor package.  Can process both
-             GDAS (global) and NDAS (regional) data sources.
-
-                /image_gen:
-             Shell and GrADS scripts, and source code needed to generate images
-             using the binary data files produced by the data_extract scripts
-             and programs (see above).  Can only process GDAS (global) data at
-             present.
-
 Radiance_Utilities/IDL/RadDiag_Stats: 
              Contains routine to plot the netCDF files produced above
 

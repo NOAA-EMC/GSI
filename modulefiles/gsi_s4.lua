@@ -3,7 +3,7 @@ help([[
 
 local hpc_ver=os.getenv("hpc_ver") or "1.1.0"
 local hpc_intel_ver=os.getenv("hpc_intel_ver") or "18.0.4"
-local impi_ver=os.getenv("hpc_impi_ver") or "18.0.4"
+local hpc_impi_ver=os.getenv("hpc_impi_ver") or "18.0.4"
 local miniconda_ver=os.getenv("miniconda_ver") or "3.8-s4"
 local prod_util_ver=os.getenv("prod_util_ver") or "1.2.2"
 

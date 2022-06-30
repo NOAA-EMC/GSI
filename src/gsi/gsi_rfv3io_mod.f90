@@ -14,9 +14,12 @@ module gsi_rfv3io_mod
 !   2019        ting    - modifications for use for ensemble IO and cold start files 
 !   2019-03-13  CAPS(C. Tong) - Port direct radar DA capabilities.
 !   2021-11-01  lei     - modify for fv3-lam parallel IO
-!   2022-01-07  Hu      - add code to readi/write subdomain restart files.
+!   2022-01-07  Hu      - add code to read/write subdomain restart files.
 !                         This function is needed when fv3 model sets
 !                         io_layout(2)>1
+!   2022-02-15 Lu @ Wang - add time label it for FGAT. POC: xuguang.wang@ou.edu
+!   2022-03-15  Hu      - add code to read/write 2m T and Q for they will be
+!                         used as background for surface observation operator
 ! subroutines included:
 !   sub gsi_rfv3io_get_grid_specs
 !   sub read_fv3_files 
@@ -29,6 +32,7 @@ module gsi_rfv3io_mod
 !   sub gsi_fv3ncdf_writeps
 !   sub gsi_fv3ncdf_write
 !   sub gsi_fv3ncdf_write_v1
+!   sub gsi_fv3ncdf2d_write
 !   sub check
 !
 ! variable definitions:
@@ -45,6 +49,8 @@ module gsi_rfv3io_mod
   use gsi_bundlemod, only : gsi_bundle
   use general_sub2grid_mod, only: sub2grid_info
   use gridmod,  only: fv3_io_layout_y
+  use guess_grids, only: nfldsig,ntguessig,ifilesig
+  use rapidrefresh_cldsurf_mod, only: i_use_2mq4b,i_use_2mt4b
   implicit none
   public type_fv3regfilenameg
   public bg_fv3regfilenameg
@@ -64,7 +70,7 @@ module gsi_rfv3io_mod
 
   integer(i_kind):: fv3sar_bg_opt=0
   
-  type(type_fv3regfilenameg):: bg_fv3regfilenameg
+  type(type_fv3regfilenameg),allocatable:: bg_fv3regfilenameg(:)
   integer(i_kind) nx,ny,nz
   integer(i_kind),dimension(:),allocatable :: ny_layout_len,ny_layout_b,ny_layout_e
   real(r_kind),allocatable:: grid_lon(:,:),grid_lont(:,:),grid_lat(:,:),grid_latt(:,:)
@@ -109,7 +115,7 @@ module gsi_rfv3io_mod
   public :: mype_u,mype_v,mype_t,mype_q,mype_p,mype_oz,mype_ql
   public :: mype_qi,mype_qr,mype_qs,mype_qg,mype_qnr,mype_w
   public :: k_slmsk,k_tsea,k_vfrac,k_vtype,k_stype,k_zorl,k_smc,k_stc
-  public :: k_snwdph,k_f10m,mype_2d,n2d,k_orog,k_psfc
+  public :: k_snwdph,k_f10m,mype_2d,n2d,k_orog,k_psfc,k_t2m,k_q2m
   public :: ijns,ijns2d,displss,displss2d,ijnz,displsz_g
   public :: fv3lam_io_dynmetvars3d_nouv,fv3lam_io_tracermetvars3d_nouv
   public :: fv3lam_io_dynmetvars2d_nouv,fv3lam_io_tracermetvars2d_nouv
@@ -118,7 +124,7 @@ module gsi_rfv3io_mod
   integer(i_kind) mype_qi,mype_qr,mype_qs,mype_qg,mype_qnr,mype_w
 
   integer(i_kind) k_slmsk,k_tsea,k_vfrac,k_vtype,k_stype,k_zorl,k_smc,k_stc
-  integer(i_kind) k_snwdph,k_f10m,mype_2d,n2d,k_orog,k_psfc
+  integer(i_kind) k_snwdph,k_f10m,mype_2d,n2d,k_orog,k_psfc,k_t2m,k_q2m
   parameter(                   &  
     k_f10m =1,                  &   !fact10
     k_stype=2,                  &   !soil_type
@@ -130,8 +136,10 @@ module gsi_rfv3io_mod
     k_stc  =8,                  &   !soil_temp
     k_smc  =9,                  &   !soil_moi
     k_slmsk=10,                 &   !isli
-    k_orog =11,                 & !terrain
-    n2d=11                   )
+    k_t2m =11,                 & ! 2 m T
+    k_q2m  =12,                 & ! 2 m Q
+    k_orog =13,                 & !terrain
+    n2d=13                   )
   logical :: grid_reverse_flag
   character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_io_dynmetvars3d_nouv 
                                     ! copy of cvars3d excluding uv 3-d fields   
@@ -149,52 +157,51 @@ module gsi_rfv3io_mod
   type(gsi_bundle):: gsibundle_fv3lam_tracer_nouv 
 
 contains
-  subroutine fv3regfilename_init(this,grid_spec_input,ak_bk_input,dynvars_input, &
-                      tracers_input,sfcdata_input,couplerres_input)
+  subroutine fv3regfilename_init(this,it)
   implicit None
   class(type_fv3regfilenameg),intent(inout):: this
-  character(*),optional :: grid_spec_input,ak_bk_input,dynvars_input, &
-                      tracers_input,sfcdata_input,couplerres_input
-  if(present(grid_spec_input))then
-
-    this%grid_spec=grid_spec_input
-  else
+  character(255):: filename
+  integer(i_kind),intent(in) :: it
+  if (it == ntguessig) then
     this%grid_spec='fv3_grid_spec'
-  endif
-  if(present(ak_bk_input))then
-    this%ak_bk=ak_bk_input
   else
+    write(filename,"(A14,I2.2)") 'fv3_grid_spec_',ifilesig(it)
+    this%grid_spec=trim(filename)
+  endif
+  if (it == ntguessig) then
     this%ak_bk='fv3_ak_bk'
-  endif
-  if(present(dynvars_input))then
-
-    this%dynvars=dynvars_input
   else
+    write(filename,"(A10,I2.2)") 'fv3_ak_bk_',ifilesig(it)
+    this%ak_bk=trim(filename)
+  endif
+  if (it == ntguessig) then
     this%dynvars='fv3_dynvars'
-  endif
-  if(present(tracers_input))then
-
-    this%tracers=tracers_input
   else
+    write(filename,"(A12,I2.2)") 'fv3_dynvars_',ifilesig(it)
+    this%dynvars=trim(filename)
+  endif
+  if (it == ntguessig) then
     this%tracers='fv3_tracer'
-  endif
-  if(present(sfcdata_input))then
-
-    this%sfcdata=sfcdata_input
   else
+    write(filename,"(A11,I2.2)") 'fv3_tracer_',ifilesig(it)
+    this%tracers=trim(filename)
+  endif
+  if (it == ntguessig) then
     this%sfcdata='fv3_sfcdata'
-  endif
-
-  if(present(couplerres_input))then
-
-    this%couplerres=couplerres_input
   else
+    write(filename,"(A12,I2.2)") 'fv3_sfcdata_',ifilesig(it)
+    this%sfcdata=trim(filename)
+  endif
+  if (it == ntguessig) then
     this%couplerres='coupler.res'
+  else
+    write(filename,"(A12,I2.2)") 'coupler.res_',ifilesig(it)
+    this%couplerres=trim(filename)
   endif
 end subroutine fv3regfilename_init
 
 
-subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
+subroutine gsi_rfv3io_get_grid_specs(ierr)
 !$$$  subprogram documentation block
 !                .      .    .                                        .
 ! subprogram:    gsi_rfv3io_get_grid_specs
@@ -239,7 +246,6 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
 
   implicit none
   integer(i_kind) gfile_grid_spec
-  type (type_fv3regfilenameg) :: fv3filenamegin
   character(:),allocatable    :: grid_spec
   character(:),allocatable    :: ak_bk
   character(len=:),allocatable :: coupler_res_filenam 
@@ -255,9 +261,9 @@ subroutine gsi_rfv3io_get_grid_specs(fv3filenamegin,ierr)
   integer(i_kind),allocatable :: gfile_loc_layout(:)
   character(len=180)  :: filename_layout
 
-    coupler_res_filenam=fv3filenamegin%couplerres
-    grid_spec=fv3filenamegin%grid_spec
-    ak_bk=fv3filenamegin%ak_bk
+    coupler_res_filenam='coupler.res'
+    grid_spec='fv3_grid_spec'
+    ak_bk='fv3_akbk'
 
 !!!!! set regional_time
     open(24,file=trim(coupler_res_filenam),form='formatted')
@@ -498,6 +504,7 @@ subroutine read_fv3_files(mype)
 ! Declare local variables
     logical(4) fexist
     character(6) filename
+    character(14) filenames
     integer(i_kind) in_unit
     integer(i_kind) i,j,iwan,npem1
     integer(i_kind) nhr_half
@@ -506,6 +513,8 @@ subroutine read_fv3_files(mype)
     integer(i_kind),dimension(5):: idate5
     real(r_kind) hourg,temp,t4dv
     real(r_kind),dimension(202,2):: time_ges
+    character*1 :: datein(4),dateout(4)
+    integer(i_kind) datecc
 
 !-----------------------------------------------------------------------------
 ! Start read_nems_nmmb_files here.
@@ -530,14 +539,26 @@ subroutine read_fv3_files(mype)
        in_unit=15
        iwan=0
 !WWWWWW setup for one first guess file for now
-!      do i=0,9 !place holder for FGAT
-       i=3
+      do i=0,9 !place holder for FGAT
+          if ( i == 6 ) then
+            write(filenames,"(A11)") 'fv3_dynvars'
+          else
+            write(filenames,"(A12,I2.2)") 'fv3_dynvars_',i
+          endif
+          INQUIRE(FILE=filenames, EXIST=fexist)
+          if(.not.fexist) cycle
 
 !wwww read in from the external file directly, no internal files sigfxx for FV3
-          idate5(1)=  regional_time(1)
-          idate5(2)=  regional_time(2)
-          idate5(3)=  regional_time(3)
-          idate5(4)=  regional_time(4)
+          datecc=regional_time(1)/100
+          datein(1)=char(regional_time(1)-datecc*100)
+          datein(2)=char(regional_time(2))
+          datein(3)=char(regional_time(3))
+          datein(4)=char(regional_time(4))
+          call w3fs15(datein,(i-6),dateout)
+          idate5(1)=ichar(dateout(1))+datecc*100
+          idate5(2)=ichar(dateout(2))
+          idate5(3)=ichar(dateout(3))
+          idate5(4)=ichar(dateout(4))
           idate5(5)=  regional_time(5)
           isecond  =  regional_time(6)
           hourg    =  zero ! forcast hour
@@ -549,20 +570,20 @@ subroutine read_fv3_files(mype)
           if (l4dvar.or.l4densvar) then
              if (t4dv<zero .OR. t4dv>winlen) then
                 write(6,*)'ges file not in time range, t4dv=',t4dv
-!               cycle ! place holder for FGAT
+                cycle ! place holder for FGAT
              endif
           else
              ndiff=nming2-nminanl
 !for test with the 3 hr files with FGAT
              if(abs(ndiff) > 60*nhr_half ) then
                 write(6,*)'ges file not in time range, ndiff=',ndiff
-!               cycle ! place holder for FGAT
+                cycle ! place holder for FGAT
              endif
           endif
           iwan=iwan+1
           time_ges(iwan,1) =real((nming2-iwinbgn),r_kind)*r60inv
           time_ges(iwan+100,1)=i+r0_001
-!       end do ! i !place holder for FGAT
+       end do ! i !place holder for FGAT
        time_ges(201,1)=one
        time_ges(202,1)=one
        if(iwan > 1)then
@@ -717,7 +738,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     use gsi_bundlemod, only: gsi_bundlecreate,gsi_bundledestroy
     use general_sub2grid_mod, only: general_sub2grid_create_info
     use mpeu_util, only: die
-    use guess_grids, only: ntguessig
+    use guess_grids, only: nfldsig,ntguessig
     use directDA_radaruse_mod, only: l_use_cvpqx, cvpqx_pval
     use directDA_radaruse_mod, only: l_use_dbz_directDA
     use directDA_radaruse_mod, only: l_cvpnr, cvpnr_pval
@@ -729,10 +750,11 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 
     implicit none
 
-    type (type_fv3regfilenameg),intent (in) :: fv3filenamegin
+    type (type_fv3regfilenameg),intent (in) :: fv3filenamegin(:)
+    integer(i_kind) :: it
     character(len=24),parameter :: myname = 'read_fv3_netcdf_guess'
     integer(i_kind) k,i,j
-    integer(i_kind) it,ier,istatus
+    integer(i_kind) ier,istatus
     real(r_kind),dimension(:,:),pointer::ges_ps=>NULL()
     real(r_kind),dimension(:,:),pointer::ges_ps_readin=>NULL()
     real(r_kind),dimension(:,:),pointer::ges_z=>NULL()
@@ -743,6 +765,8 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     real(r_kind),dimension(:,:,:),pointer::ges_tv=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_tsen_readin=>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_delp  =>NULL()
+    real(r_kind),dimension(:,:),pointer::ges_t2m=>NULL()
+    real(r_kind),dimension(:,:),pointer::ges_q2m=>NULL()
 
     real(r_kind),dimension(:,:,:),pointer::ges_ql=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_qi=>NULL()
@@ -762,9 +786,14 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     integer(r_kind):: iuv,ndynvario3d,ntracerio3d
 
 !clt this block is still maintained for they would be needed for a certain 2d fields IO 
+    it=ntguessig
     mype_2d=mod(1,npe)
-    allocate(ijns(npe),ijns2d(npe),ijnz(npe) )
-    allocate(displss(npe),displss2d(npe),displsz_g(npe) )
+    if (.not.allocated(ijns))      allocate(ijns(npe))
+    if (.not.allocated(ijns2d))    allocate(ijns2d(npe))
+    if (.not.allocated(ijnz))      allocate(ijnz(npe))
+    if (.not.allocated(displss))   allocate(displss(npe))
+    if (.not.allocated(displss2d)) allocate(displss2d(npe))
+    if (.not.allocated(displsz_g)) allocate(displsz_g(npe))
 
     do i=1,npe
        ijns(i)=ijn_s(i)*nsig
@@ -780,14 +809,12 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
        displss2d(i)=displss2d(i-1)+ ijns2d(i-1)
     enddo
 
-
-
-
-    it=ntguessig
-
-    
-    allocate( name_metvars2d(GSI_MetGuess_Bundle(it)%n2d))
-    allocate( name_metvars3d(GSI_MetGuess_Bundle(it)%n3d))
+    if (.not.allocated(name_metvars2d)) then
+      allocate( name_metvars2d(GSI_MetGuess_Bundle(it)%n2d))
+    end if
+    if (.not.allocated(name_metvars3d)) then
+      allocate( name_metvars3d(GSI_MetGuess_Bundle(it)%n3d))
+    end if
     call gsi_bundleinquire (GSI_MetGuess_Bundle(it),'shortnames::2d', name_metvars2d,istatus)
     call gsi_bundleinquire (GSI_MetGuess_Bundle(it),'shortnames::3d', name_metvars3d,istatus)
     if(mype == 0) then
@@ -887,6 +914,8 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
             ntracerio2d=ntracerio2d+1
           else if(trim(vartem)=='z') then
              write(6,*)'the metvarname ',trim(vartem),' will be dealt separately'
+          else if(trim(vartem)=='t2m') then
+          else if(trim(vartem)=='q2m') then
           else 
             write(6,*)'the metvarname2 ',trim(vartem),' has not been considered yet, stop'
             call stop2(333)
@@ -896,12 +925,15 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
       if (ndynvario2d > 0) then
         allocate(fv3lam_io_dynmetvars2d_nouv(ndynvario2d))
       endif
-      if (ntracerio2d > 0) allocate(fv3lam_io_tracermetvars2d_nouv(ntracerio2d))
+      if (ntracerio2d > 0) then
+        allocate(fv3lam_io_tracermetvars2d_nouv(ntracerio2d))
+      end if
       jdynvar=0
       jtracer=0
       do i=1,size(name_metvars2d)
         vartem=trim(name_metvars2d(i))
-        if(.not.( (trim(vartem)=='ps'.and.fv3sar_bg_opt==0).or.(trim(vartem)=="z")))  then !z is treated separately
+        if(.not.( (trim(vartem)=='ps'.and.fv3sar_bg_opt==0).or.(trim(vartem)=="z") &
+                  .or.(trim(vartem)=="t2m").or.(trim(vartem)=="q2m")))  then !z is treated separately
           if (ifindstrloc(vardynvars,trim(vartem)) > 0) then
             jdynvar=jdynvar+1
             fv3lam_io_dynmetvars2d_nouv(jdynvar)=trim(vartem)
@@ -994,105 +1026,115 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 
       deallocate(lnames,names,uvlnames,uvnames)
 
-    
+      do it=1,nfldsig
+         ier=0
+         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ps' ,ges_ps ,istatus );ier=ier+istatus
+         
+         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'z' , ges_z ,istatus );ier=ier+istatus
+         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'u' , ges_u ,istatus );ier=ier+istatus
+         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v' , ges_v ,istatus );ier=ier+istatus
+         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tv' ,ges_tv ,istatus );ier=ier+istatus
+         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q'  ,ges_q ,istatus );ier=ier+istatus
+         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'oz'  ,ges_oz ,istatus );ier=ier+istatus
+         if (l_use_dbz_directDA) then
+            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql' ,ges_ql ,istatus );ier=ier+istatus
+            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi' ,ges_qi ,istatus );ier=ier+istatus
+            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr' ,ges_qr ,istatus );ier=ier+istatus
+            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'iqr' ,ges_iqr ,istatus );ier=ier+istatus
+            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs' ,ges_qs ,istatus );ier=ier+istatus
+            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg' ,ges_qg ,istatus );ier=ier+istatus
+            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr ,istatus );ier=ier+istatus
+            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'w' , ges_w ,istatus );ier=ier+istatus
+         end if
+         if (ier/=0) call die(trim(myname),'cannot get pointers for fv3 met-fields, ier =',ier)
+   
+         if(i_use_2mq4b > 0 .and. i_use_2mt4b > 0 ) then
+            call GSI_BundleGetPointer(GSI_MetGuess_Bundle(it),'q2m',ges_q2m,istatus ); ier=ier+istatus
+            if (ier/=0) call die(trim(myname),'cannot get pointers for q2m, ier=',ier)
+            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it),'t2m',ges_t2m,istatus );ier=ier+istatus
+            if (ier/=0) call die(trim(myname),'cannot get pointers for t2m,ier=',ier)
+         endif
 
-
-
-      
-
-
-      ier=0
-      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ps' ,ges_ps ,istatus );ier=ier+istatus
-      
-      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'z' , ges_z ,istatus );ier=ier+istatus
-      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'u' , ges_u ,istatus );ier=ier+istatus
-      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v' , ges_v ,istatus );ier=ier+istatus
-      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tv' ,ges_tv ,istatus );ier=ier+istatus
-      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q'  ,ges_q ,istatus );ier=ier+istatus
-      call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'oz'  ,ges_oz ,istatus );ier=ier+istatus
-      if (l_use_dbz_directDA) then
-         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql' ,ges_ql ,istatus );ier=ier+istatus
-         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi' ,ges_qi ,istatus );ier=ier+istatus
-         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr' ,ges_qr ,istatus );ier=ier+istatus
-         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'iqr' ,ges_iqr ,istatus );ier=ier+istatus
-         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs' ,ges_qs ,istatus );ier=ier+istatus
-         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg' ,ges_qg ,istatus );ier=ier+istatus
-         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr ,istatus );ier=ier+istatus
-         call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'w' , ges_w ,istatus );ier=ier+istatus
-      end if
-
-      if (ier/=0) call die(trim(myname),'cannot get pointers for fv3 met-fields, ier =',ier)
-      if( fv3sar_bg_opt == 0) then 
-         call gsi_fv3ncdf_readuv(grd_fv3lam_uv,ges_u,ges_v,fv3filenamegin)
-      else
-         call gsi_fv3ncdf_readuv_v1(grd_fv3lam_uv,ges_u,ges_v,fv3filenamegin)
-      endif
-      if( fv3sar_bg_opt == 0) then 
-         call gsi_fv3ncdf_read(grd_fv3lam_dynvar_ionouv,gsibundle_fv3lam_dynvar_nouv,fv3filenamegin%dynvars,fv3filenamegin)
-         call gsi_fv3ncdf_read(grd_fv3lam_tracer_ionouv,gsibundle_fv3lam_tracer_nouv,fv3filenamegin%tracers,fv3filenamegin)
-      else
-         call gsi_fv3ncdf_read_v1(grd_fv3lam_dynvar_ionouv,gsibundle_fv3lam_dynvar_nouv,fv3filenamegin%dynvars,fv3filenamegin)
-         call gsi_fv3ncdf_read_v1(grd_fv3lam_tracer_ionouv,gsibundle_fv3lam_tracer_nouv,fv3filenamegin%tracers,fv3filenamegin)
-      endif
-
-      if( fv3sar_bg_opt == 0) then 
-        call GSI_BundleGetPointer ( gsibundle_fv3lam_dynvar_nouv, 'delp'  ,ges_delp ,istatus );ier=ier+istatus
-        if(istatus==0) ges_delp=ges_delp*0.001_r_kind
-      endif
-      call gsi_copy_bundle(gsibundle_fv3lam_dynvar_nouv,GSI_MetGuess_Bundle(it)) 
-      call gsi_copy_bundle(gsibundle_fv3lam_tracer_nouv,GSI_MetGuess_Bundle(it)) 
-      call GSI_BundleGetPointer ( gsibundle_fv3lam_dynvar_nouv, 'tsen' ,ges_tsen_readin ,istatus );ier=ier+istatus
-  !!  tsen2tv  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      do k=1,nsig
-         do j=1,lon2
-            do i=1,lat2
-               ges_tv(i,j,k)=ges_tsen_readin(i,j,k)*(one+fv*ges_q(i,j,k))
+         if( fv3sar_bg_opt == 0) then 
+            call gsi_fv3ncdf_readuv(grd_fv3lam_uv,ges_u,ges_v,fv3filenamegin(it))
+         else
+            call gsi_fv3ncdf_readuv_v1(grd_fv3lam_uv,ges_u,ges_v,fv3filenamegin(it))
+         endif
+         if( fv3sar_bg_opt == 0) then 
+            call gsi_fv3ncdf_read(grd_fv3lam_dynvar_ionouv,gsibundle_fv3lam_dynvar_nouv &
+            & ,fv3filenamegin(it)%dynvars,fv3filenamegin(it))
+            call gsi_fv3ncdf_read(grd_fv3lam_tracer_ionouv,gsibundle_fv3lam_tracer_nouv &
+            & ,fv3filenamegin(it)%tracers,fv3filenamegin(it))
+         else
+            call gsi_fv3ncdf_read_v1(grd_fv3lam_dynvar_ionouv,gsibundle_fv3lam_dynvar_nouv &
+            & ,fv3filenamegin(it)%dynvars,fv3filenamegin(it))
+            call gsi_fv3ncdf_read_v1(grd_fv3lam_tracer_ionouv,gsibundle_fv3lam_tracer_nouv &
+            & ,fv3filenamegin(it)%tracers,fv3filenamegin(it))
+         endif
+   
+         if( fv3sar_bg_opt == 0) then 
+           call GSI_BundleGetPointer ( gsibundle_fv3lam_dynvar_nouv, 'delp'  ,ges_delp ,istatus );ier=ier+istatus
+           if(istatus==0) ges_delp=ges_delp*0.001_r_kind
+         endif
+         call gsi_copy_bundle(gsibundle_fv3lam_dynvar_nouv,GSI_MetGuess_Bundle(it)) 
+         call gsi_copy_bundle(gsibundle_fv3lam_tracer_nouv,GSI_MetGuess_Bundle(it)) 
+         call GSI_BundleGetPointer ( gsibundle_fv3lam_dynvar_nouv, 'tsen' ,ges_tsen_readin ,istatus );ier=ier+istatus
+     !!  tsen2tv  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+         do k=1,nsig
+            do j=1,lon2
+               do i=1,lat2
+                  ges_tv(i,j,k)=ges_tsen_readin(i,j,k)*(one+fv*ges_q(i,j,k))
+               enddo
             enddo
          enddo
-      enddo
-      if( fv3sar_bg_opt == 0) then 
-        allocate(ges_delp_bg(lat2,lon2,nsig))
-        allocate(ges_ps_bg(lat2,lon2))
-        ges_delp_bg=ges_delp
-        ges_prsi(:,:,nsig+1,it)=eta1_ll(nsig+1) 
-        do i=nsig,1,-1
-           ges_prsi(:,:,i,it)=ges_delp(:,:,i)+ges_prsi(:,:,i+1,it)
-        enddo
-        ges_ps(:,:)=ges_prsi(:,:,1,it)
-        ges_ps_bg=ges_ps
-      else
-        call GSI_BundleGetPointer ( gsibundle_fv3lam_dynvar_nouv, 'ps'  ,ges_ps_readin ,istatus );ier=ier+istatus
-        ges_ps_readin=ges_ps_readin*0.001_r_kind  !which is from 
-        ges_ps=ges_ps_readin
-        ges_ps_bg=ges_ps
-        ges_prsi(:,:,nsig+1,it)=eta1_ll(nsig+1)
-        do k=1,nsig
-           ges_prsi(:,:,k,it)=eta1_ll(k)+eta2_ll(k)*ges_ps
-        enddo
+         if( fv3sar_bg_opt == 0) then 
+           if (.not.allocated(ges_delp_bg))allocate(ges_delp_bg(lat2,lon2,nsig))
+           if (.not.allocated(ges_ps_bg))allocate(ges_ps_bg(lat2,lon2))
+           ges_delp_bg=ges_delp
+           ges_prsi(:,:,nsig+1,it)=eta1_ll(nsig+1) 
+           do i=nsig,1,-1
+              ges_prsi(:,:,i,it)=ges_delp(:,:,i)+ges_prsi(:,:,i+1,it)
+           enddo
+           ges_ps(:,:)=ges_prsi(:,:,1,it)
+           ges_ps_bg=ges_ps
+         else
+           call GSI_BundleGetPointer ( gsibundle_fv3lam_dynvar_nouv, 'ps'  ,ges_ps_readin ,istatus );ier=ier+istatus
+           ges_ps_readin=ges_ps_readin*0.001_r_kind  !which is from 
+           ges_ps=ges_ps_readin
+           ges_ps_bg=ges_ps
+           ges_prsi(:,:,nsig+1,it)=eta1_ll(nsig+1)
+           do k=1,nsig
+              ges_prsi(:,:,k,it)=eta1_ll(k)+eta2_ll(k)*ges_ps
+           enddo
+   
+   
+          
+         endif
+   
+         call gsi_fv3ncdf2d_read(fv3filenamegin(it),it,ges_z,ges_t2m,ges_q2m)
+   
+         if(i_use_2mq4b > 0 .and. i_use_2mt4b > 0 ) then
+! Convert 2m guess mixing ratio to specific humidity
+            ges_q2m = ges_q2m/(one+ges_q2m)
+         endif
 
-
-       
-      endif
-
-      call gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
-
-      if (l_use_dbz_directDA ) then
-        if( fv3sar_bg_opt == 0) then
-          ges_iqr=ges_qr
-        else
-           write(6,*) "FV3 IO READ for 'fv3sar_bg_opt == 0' is only available for now in direct reflectivity DA"
-           stop
-        end if
-
-        call convert_qx_to_cvpqx(ges_qr, ges_qs, ges_qg, l_use_cvpqx, cvpqx_pval) ! convert Qx
-        call convert_nx_to_cvpnx(ges_qnr, l_cvpnr, cvpnr_pval)                          ! convert Qnx
-
-      end if
-
+         if (l_use_dbz_directDA ) then
+           if( fv3sar_bg_opt == 0) then
+             ges_iqr=ges_qr
+           else
+              write(6,*) "FV3 IO READ for 'fv3sar_bg_opt == 0' is only available for now in direct reflectivity DA"
+              stop
+           end if
+   
+           call convert_qx_to_cvpqx(ges_qr, ges_qs, ges_qg, l_use_cvpqx, cvpqx_pval) ! convert Qx
+           call convert_nx_to_cvpnx(ges_qnr, l_cvpnr, cvpnr_pval)                          ! convert Qnx
+   
+         end if
+      end do
 
 end subroutine read_fv3_netcdf_guess
 
-subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
+subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    gsi_fv3ncdf2d_read       
@@ -1128,6 +1170,8 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
 
     integer(i_kind),intent(in) :: it   
     real(r_kind),intent(in),dimension(:,:),pointer::ges_z
+    real(r_kind),intent(in),dimension(:,:),pointer::ges_t2m
+    real(r_kind),intent(in),dimension(:,:),pointer::ges_q2m
     type (type_fv3regfilenameg),intent(in) :: fv3filenamegin
     character(len=max_varname_length) :: name
     integer(i_kind),allocatable,dimension(:):: dim_id,dim
@@ -1206,6 +1250,10 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
              k=k_smc
           else if( trim(name)=='SLMSK'.or.trim(name)=='slmsk' ) then
              k=k_slmsk
+          else if( trim(name)=='T2M'.or.trim(name)=='t2m' ) then
+             k=k_t2m
+          else if( trim(name)=='Q2M'.or.trim(name)=='q2m' ) then
+             k=k_q2m
           else
              cycle 
           endif
@@ -1373,6 +1421,10 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z)
     soil_moi(:,:,it)=sfcn2d(:,:,k_smc)
     ges_z(:,:)=sfcn2d(:,:,k_orog)/grav
     isli(:,:,it)=nint(sfcn2d(:,:,k_slmsk))
+    if(i_use_2mq4b > 0 .and. i_use_2mt4b > 0 ) then
+       ges_t2m(:,:)=sfcn2d(:,:,k_t2m)
+       ges_q2m(:,:)=sfcn2d(:,:,k_q2m)
+    endif
     deallocate (sfcn2d,a)
     return
 end subroutine gsi_fv3ncdf2d_read
@@ -2046,6 +2098,7 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     use directDA_radaruse_mod, only: l_use_dbz_directDA
     use directDA_radaruse_mod, only: l_cvpnr, cvpnr_pval
     use gridmod,  only: eta1_ll,eta2_ll
+    use constants, only: one
 
 
     implicit none
@@ -2059,6 +2112,8 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     real(r_kind),pointer,dimension(:,:,:):: ges_u   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_v   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
+    real(r_kind),pointer,dimension(:,:  ):: ges_t2m =>NULL()
+    real(r_kind),pointer,dimension(:,:  ):: ges_q2m  =>NULL()
    
     integer(i_kind) i,k
 
@@ -2094,6 +2149,11 @@ subroutine wrfv3_netcdf(fv3filenamegin)
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus);ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'w' , ges_w ,istatus);ier=ier+istatus
     end if
+    if(i_use_2mq4b > 0 .and. i_use_2mt4b > 0 ) then
+       call GSI_BundleGetPointer (GSI_MetGuess_Bundle(it),'q2m',ges_q2m,istatus); ier=ier+istatus
+       call GSI_BundleGetPointer (GSI_MetGuess_Bundle(it),'t2m',ges_t2m,istatus );ier=ier+istatus
+    endif
+
     if(l_reg_update_hydro_delz) then
       allocate(ges_delzinc(lat2,lon2,nsig))
       do k=1,nsig
@@ -2150,8 +2210,12 @@ subroutine wrfv3_netcdf(fv3filenamegin)
 !   write out
     if (ier/=0) call die('get ges','cannot get pointers for fv3 met-fields, ier =',ier)
 
-    add_saved=.true.
+    if(i_use_2mq4b > 0 .and. i_use_2mt4b > 0 ) then
+! Convert 2m guess specific humidity to mixing ratio
+      ges_q2m = ges_q2m/(one-ges_q2m)
+    endif
 
+    add_saved=.true.
 !   write out
     if(fv3sar_bg_opt == 0) then
       call gsi_fv3ncdf_write(grd_fv3lam_dynvar_ionouv,gsibundle_fv3lam_dynvar_nouv,&
@@ -2168,6 +2232,12 @@ subroutine wrfv3_netcdf(fv3filenamegin)
                                 add_saved,fv3filenamegin%tracers,fv3filenamegin)
       call gsi_fv3ncdf_writeuv_v1(grd_fv3lam_uv,ges_u,ges_v,add_saved,fv3filenamegin)
     endif
+
+    if(i_use_2mq4b > 0 .and. i_use_2mt4b > 0 ) then
+      call gsi_fv3ncdf_write_sfc(fv3filenamegin,'t2m',ges_t2m,add_saved)
+      call gsi_fv3ncdf_write_sfc(fv3filenamegin,'q2m',ges_q2m,add_saved)
+    endif
+
     if(allocated(g_prsi)) deallocate(g_prsi)
 
     deallocate(ny_layout_len)
@@ -2594,6 +2664,136 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
 
 end subroutine gsi_fv3ncdf_writeuv_v1
 
+subroutine gsi_fv3ncdf_write_sfc(fv3filenamegin,varname,var,add_saved)
+!$$$  subprogram documentation block
+!                .      .    .                                        .
+! subprogram:    gsi_fv3ncdf_write_sfc
+!   pgrmmr: wu
+!
+! abstract:
+!
+! program history log:
+! 2022-02-25  Hu  write surface fields  
+!   input argument list:
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+
+    use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mype
+    use gridmod, only: lat1,lon1,lat2,lon2,nlat,nlon
+    use gridmod, only: ijn,displs_g,itotsub,iglobal
+    use gridmod,  only: nlon_regional,nlat_regional
+    use mod_fv3_lola, only: fv3_ll_to_h,fv3_h_to_ll
+    use general_commvars_mod, only: ltosi,ltosj
+    use netcdf, only: nf90_open,nf90_close
+    use netcdf, only: nf90_write,nf90_inq_varid
+    use netcdf, only: nf90_put_var,nf90_get_var
+    use gridmod, only: strip
+    implicit none
+
+    real(r_kind)   ,intent(in   ) :: var(lat2,lon2)
+    logical        ,intent(in   ) :: add_saved
+    character(*)   ,intent(in   ) :: varname
+    type (type_fv3regfilenameg),intent (in) :: fv3filenamegin
+
+    integer(i_kind) :: VarId,gfile_loc
+    integer(i_kind) i,mm1
+    real(r_kind),allocatable,dimension(:):: work
+    real(r_kind),allocatable,dimension(:,:):: work_sub,work_a
+    real(r_kind),allocatable,dimension(:,:):: work_b
+    real(r_kind),allocatable,dimension(:,:):: workb2,worka2
+    character(len=80)   :: filename
+
+! for io_layout > 1
+    real(r_kind),allocatable,dimension(:,:):: work_b_layout
+    integer(i_kind) :: nio
+    integer(i_kind),allocatable :: gfile_loc_layout(:)
+    character(len=180)  :: filename_layout
+
+    filename=trim(fv3filenamegin%sfcdata)
+
+    mm1=mype+1
+    allocate(work(max(iglobal,itotsub)),work_sub(lat1,lon1))
+    call strip(var,work_sub)
+    call mpi_gatherv(work_sub,ijn(mm1),mpi_rtype, &
+          work,ijn,displs_g,mpi_rtype,0,mpi_comm_world,ierror)
+    deallocate(work_sub)
+
+    if(mype==0) then
+       allocate( work_a(nlat,nlon))
+       do i=1,iglobal
+          work_a(ltosi(i),ltosj(i))=work(i)
+       end do
+       allocate( work_b(nlon_regional,nlat_regional))
+
+
+       if(fv3_io_layout_y > 1) then
+         allocate(gfile_loc_layout(0:fv3_io_layout_y-1))
+         do nio=0,fv3_io_layout_y-1
+            write(filename_layout,'(a,a,I4.4)') trim(filename),'.',nio
+            call check(nf90_open(trim(filename_layout),nf90_write,gfile_loc_layout(nio)) )
+         enddo
+         gfile_loc=gfile_loc_layout(0)
+       else
+         call check( nf90_open(trim(filename),nf90_write,gfile_loc) )
+       endif
+       call check( nf90_inq_varid(gfile_loc,trim(varname),VarId) )
+
+       if(add_saved)then
+          allocate( workb2(nlon_regional,nlat_regional))
+          allocate( worka2(nlat,nlon))
+!!!!!!!! read in guess !!!!!!!!!!!!!!
+
+          if(fv3_io_layout_y > 1) then
+             do nio=0,fv3_io_layout_y-1
+                allocate(work_b_layout(nlon_regional,ny_layout_len(nio)))
+                call check(nf90_get_var(gfile_loc_layout(nio),VarId,work_b_layout) )
+                work_b(:,ny_layout_b(nio):ny_layout_e(nio))=work_b_layout
+                deallocate(work_b_layout)
+              enddo
+          else
+             call check( nf90_get_var(gfile_loc,VarId,work_b) )
+          endif
+          call fv3_h_to_ll(work_b,worka2,nlon_regional,nlat_regional,nlon,nlat,grid_reverse_flag)
+!!!!!!! analysis_inc work_a
+          work_a(:,:)=work_a(:,:)-worka2(:,:)
+          call fv3_ll_to_h(work_a,workb2,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
+             work_b(:,:)=work_b(:,:)+workb2(:,:)
+          deallocate(worka2,workb2)
+       else
+          call fv3_ll_to_h(work_a,work_b,nlon,nlat,nlon_regional,nlat_regional,grid_reverse_flag)
+       endif
+
+       if(fv3_io_layout_y > 1) then
+         do nio=0,fv3_io_layout_y-1
+            allocate(work_b_layout(nlon_regional,ny_layout_len(nio)))
+            work_b_layout=work_b(:,ny_layout_b(nio):ny_layout_e(nio))
+            call check( nf90_put_var(gfile_loc_layout(nio),VarId,work_b_layout) )
+            deallocate(work_b_layout)
+         enddo
+       else
+          call check( nf90_put_var(gfile_loc,VarId,work_b) )
+       endif
+
+       if(fv3_io_layout_y > 1) then
+         do nio=0,fv3_io_layout_y-1
+           call check(nf90_close(gfile_loc_layout(nio)))
+         enddo
+         deallocate(gfile_loc_layout)
+       else
+         call check(nf90_close(gfile_loc))
+       endif
+       deallocate(work_b,work_a)
+    end if !mype_io
+
+    deallocate(work)
+
+end subroutine gsi_fv3ncdf_write_sfc
 
 subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3filenamegin)
 !$$$  subprogram documentation block
