@@ -17,7 +17,6 @@ export INSTALL_PREFIX="$DIR_ROOT/install_4nco"
 export GSI_MODE="GFS"
 export ENKF_MODE="GFS"
 export REGRESSION_TESTS="NO"
-export UTIL_OPTS="-DBUILD_UTIL_ENKF_GFS=ON -DBUILD_UTIL_NCIO=ON"
 
 # Prune the directory structure per NCO liking
 if [[ "${PRUNE_4NCO:-}" =~ [yYtT] ]]; then
