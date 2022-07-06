@@ -741,7 +741,16 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
           !update the station elevation
           data(istnelv,i) = data(izz,i) 
 
-
+          if(save_jacobian) then
+             t2m_ind = getindex(svars2d, 't2m')
+             if (t2m_ind < 0) then
+                 print *, 'Error: no variable t2m in state vector.Exiting.'
+                 call stop2(1300)
+             endif
+             dhx_dx%st_ind(1) = sum(levels(1:ns3d))  + t2m_ind
+             dhx_dx%end_ind(1) = sum(levels(1:ns3d)) + t2m_ind
+             dhx_dx%val(1) = one
+          endif
      else
 ! SCENARIO 3: obs is sfctype, and neither sfcmodel nor do_global_2mDA is chosen
 !        .or. obs is not sfctype     
