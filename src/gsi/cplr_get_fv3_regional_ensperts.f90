@@ -66,6 +66,8 @@ contains
      use gridmod,only: regional
      use gsi_rfv3io_mod, only: fv3lam_io_dynmetvars3d_nouv,fv3lam_io_tracermetvars3d_nouv 
      use gsi_rfv3io_mod, only: fv3lam_io_dynmetvars2d_nouv,fv3lam_io_tracermetvars2d_nouv 
+     use netcdf   , only: nf90_open, nf90_close,nf90_nowrite,nf90_inquire,nf90_format_netcdf4
+     use netcdf_mod , only: nc_check
     
 
      implicit none
@@ -97,6 +99,7 @@ contains
      integer(i_kind):: inner_vars,numfields
      integer(i_kind):: ilev,ic2,ic3
      integer(i_kind):: m
+     integer(i_kind)::loc_id,ncfmt
 
      
      character(255) ensfilenam_str
@@ -249,6 +252,36 @@ contains
            fv3_filename%tracers=trim(ensfilenam_str)//"-fv3_tracer"
            fv3_filename%sfcdata=trim(ensfilenam_str)//"-fv3_sfcdata"
            fv3_filename%couplerres=trim(ensfilenam_str)//"-coupler.res"
+
+           if(mype == 0) then
+              call nc_check(nf90_open(fv3_filename%dynvars,nf90_nowrite,loc_id), &
+              "nf90 open ",trim(fv3_filename%dynvars))
+              call nc_check(nf90_inquire(loc_id,formatNum=ncfmt), &
+              "nf90_inquire formate of ",trim(fv3_filename%dynvars))
+              if(ncfmt /= nf90_format_netcdf4) then
+                 write(6,*) &
+                 'the current GSI parallelization IO for fv3_lam only works for netcdf4' ,&
+                  'ncfmt should be ', nf90_format_netcdf4,&
+                  'GSI will stop while ',trim(fv3_filename%dynvars),' is ', ncfmt
+                 call stop2(333)
+              endif
+              call nc_check(nf90_close(loc_id), &
+              "nf90 close ",trim(fv3_filename%dynvars))
+
+              call nc_check(nf90_open(fv3_filename%tracers,nf90_nowrite,loc_id), &
+              "nf90 open ",trim(fv3_filename%tracers))
+              call nc_check(nf90_inquire(loc_id,formatNum=ncfmt), &
+              "nf90_inquire formate of ",trim(fv3_filename%tracers))
+              if(ncfmt /= nf90_format_netcdf4) then
+                 write(6,*) &
+                 'the current GSI parallelization IO for fv3_lam only works for netcdf 4',&
+                  'ncfmt should be ', nf90_format_netcdf4,&
+                  'GSI will stop while ',trim(fv3_filename%tracers),' is ', ncfmt
+                 call stop2(333)
+              endif
+              call nc_check(nf90_close(loc_id), &
+              "nf90 close ",trim(fv3_filename%tracers))
+           endif
  ! 
  ! READ ENEMBLE MEMBERS DATA
            if (mype == 0) write(6,'(a,a)') &
@@ -550,6 +583,7 @@ contains
     use netcdf, only: nf90_open,nf90_close
     use netcdf, only: nf90_inq_dimid,nf90_inquire_dimension
     use netcdf, only: nf90_inq_varid,nf90_inquire_variable,nf90_get_var
+    use netcdf, only: nf90_format_netcdf4
     use kinds, only: r_kind,r_single,i_kind
     use gridmod, only: eta1_ll,eta2_ll
     use constants, only: zero,one,fv,zero_single,one_tenth,h300
@@ -557,7 +591,6 @@ contains
     use hybrid_ensemble_parameters, only: fv3sar_ensemble_opt 
 
     use mpimod, only: mpi_comm_world,mpi_rtype
-    use netcdf_mod, only: nc_check
     use gsi_rfv3io_mod,only: type_fv3regfilenameg
     use gsi_rfv3io_mod,only:n2d 
     use constants, only: half,zero
