@@ -1,7 +1,0 @@
-Python utilities for GSI
-
-lib/
-   lib_GSI.py - utilities functions and class definitions
-
-bin/
-   proc_gsistat.py - process gsistat files and make quick plots

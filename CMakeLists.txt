@@ -32,7 +32,6 @@ option(BUILD_NCDIAG "Build GSI NetCDF Diagnostic Library" ON)
 option(BUILD_GSDCLOUD "Build GSD Cloud Analysis Library" OFF)
 option(BUILD_GSI "Build GSI" ON)
 option(BUILD_ENKF "Build EnKF" ON)
-option(BUILD_UTIL "Build Utilities" ON)
 option(BUILD_REG_TESTING "Build the Regression Testing Suite" OFF)
 
 # Echo user options
@@ -42,15 +41,10 @@ message(STATUS "BUILD_NCDIAG ........... ${BUILD_NCDIAG}")
 message(STATUS "BUILD_GSDCLOUD ......... ${BUILD_GSDCLOUD}")
 message(STATUS "BUILD_GSI .............. ${BUILD_GSI}")
 message(STATUS "BUILD_ENKF ............. ${BUILD_ENKF}")
-message(STATUS "BUILD_UTIL ............. ${BUILD_UTIL}")
 message(STATUS "BUILD_REG_TESTING ...... ${BUILD_REG_TESTING}")
 
 # Build components
 add_subdirectory(src)
-
-if(BUILD_UTIL)
-  add_subdirectory(util)
-endif()
 
 if(BUILD_REG_TESTING)
   add_subdirectory(regression)

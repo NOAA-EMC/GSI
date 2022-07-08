@@ -82,17 +82,6 @@ CMake allows for various options that can be specified on the command line via `
 | `BUILD_GSI`           | Build GSI library and executable (`ON`)              |
 | `BUILD_ENKF`          | Build EnKF library and executable (`ON`)             |
 | `BUILD_REG_TESTING`   | Enable Regression Testing (`ON`)                     |
-| `BUILD_UTIL`          | Build Utilities (`ON`)                               |
-| `BUILD_UTIL_ALL`      | Build All Utilities (`OFF`)                          |
-| `BUILD_UTIL_AERODA`   | Build Aerosol DA utility (`OFF`)                     |
-| `BUILD_UTIL_COV_CALC` | Build Correlated Obs. Error utility (`OFF`)          |
-| `BUILD_UTIL_EFSOI`    | Build Ensemble FSOI application (`OFF`)              |
-| `BUILD_UTIL_ENKF_GFS` | Build GFS ensemble utilities (`OFF`)                 |
-| `BUILD_UTIL_ENKF_ARW` | Build ARW ensemble utilities (`OFF`)                 |
-| `BUILD_UTIL_NCIO`     | Build NetCDF IO utilities (`OFF`)                    |
-| `BUILD_UTIL_COM`      | Build Miscellaneous community utilities (`OFF`)       |
-| `BUILD_UTIL_BKGERR`   | Build Background Error utility (`OFF`)               |
-| `BUILD_UTIL_ETC`      | Build Miscellaneous utilities (`OFF`)       |
 
 The flavor of GSI and EnKF can be defined with the use of the following options:
 
