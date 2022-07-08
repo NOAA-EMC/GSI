@@ -1,10 +1,10 @@
-#!/bin/sh
+#!/bin/bash
 
-# This script removes or restores directories and/or files found in 
+# This script removes or restores directories and/or files found in
 # the rlist below from the current working directory.   This script
 # is intended to be executed when NCO implements GFS DA updates.
 # NCO does not want package installations for operations to include
-# non-operational code.   This script removes directories and files 
+# non-operational code.   This script removes directories and files
 # not used by operations from the installation directory.
 #
 # Two modes are supported:  prune, restore
@@ -13,7 +13,7 @@
 #           in rlist below
 #   restore:  use git RESET head and git checkout to restore
 #             removed directories and files
-#    
+#
 
 set -ex
 
@@ -53,12 +53,12 @@ for type in $rlist; do
         exit
     fi
     if [[ "$mode" = "restore" ]]; then
-	git checkout ${type}*
-	rc=$?
-	if [[ $rc -ne 0 ]]; then
+  git checkout ${type}*
+  rc=$?
+  if [[ $rc -ne 0 ]]; then
             echo "***ERROR* git checkout ${type}"
             exit
-	fi
+  fi
     fi
 done
 
@@ -107,7 +107,7 @@ done
 
 # Process ush directories and files
 cd $topdir/ush
-rlist="Get_Initial_Files gfs_truncate_enkf llsub para refactor_4nco_global run_arw rungsi sub"
+rlist="sub"
 for type in $rlist; do
     git $string ${type}*
     rc=$?
