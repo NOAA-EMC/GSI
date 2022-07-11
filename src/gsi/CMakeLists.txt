@@ -67,6 +67,7 @@ find_package(sigio REQUIRED)
 find_package(sfcio REQUIRED)
 find_package(nemsio REQUIRED)
 find_package(ncio REQUIRED)
+find_package(ncdiag REQUIRED)
 find_package(sp REQUIRED)
 find_package(ip REQUIRED)
 find_package(w3emc REQUIRED)
@@ -78,11 +79,6 @@ endif()
 
 # See https://github.com/NOAA-EMC/NCEPLIBS-nemsio/pull/22
 target_link_libraries(nemsio::nemsio INTERFACE w3emc::w3emc_d bacio::bacio_4)
-
-# NetCDF Diagnostic IO library dependency
-if(NOT TARGET ncdiag)
-  find_package(ncdiag REQUIRED)
-endif()
 
 # GSD Cloud Analysis library dependency
 if(USE_GSDCLOUD)
@@ -154,9 +150,6 @@ target_link_libraries(gsi_fortran_obj PUBLIC bufr::bufr_d)
 target_link_libraries(gsi_fortran_obj PUBLIC crtm::crtm)
 if(GSI_MODE MATCHES "Regional")
   target_link_libraries(gsi_fortran_obj PUBLIC wrf_io::wrf_io)
-endif()
-if(TARGET ncdiag)
-  add_dependencies(gsi_fortran_obj ncdiag)
 endif()
 target_link_libraries(gsi_fortran_obj PUBLIC ncdiag::ncdiag)
 if(USE_GSDCLOUD)

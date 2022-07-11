@@ -15,6 +15,7 @@ local nemsio_ver=os.getenv("nemsio_ver") or "2.5.2"
 local wrf_io_ver=os.getenv("wrf_io_ver") or "1.2.0"
 local ncio_ver=os.getenv("ncio_ver") or "1.1.2"
 local crtm_ver=os.getenv("crtm_ver") or "2.3.0"
+local ncdiag_ver=os.getenv("ncdiag_ver") or "1.0.0"
 
 load(pathJoin("netcdf", netcdf_ver))
 
@@ -29,4 +30,5 @@ load(pathJoin("nemsio", nemsio_ver))
 load(pathJoin("wrf_io", wrf_io_ver))
 load(pathJoin("ncio", ncio_ver))
 load(pathJoin("crtm", crtm_ver))
+load(pathJoin("ncdiag",ncdiag_ver))
 
