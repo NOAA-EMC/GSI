@@ -40,6 +40,10 @@
 !                       configurable m_berror_stats::berror_stats, for the
 !                       filename.  This ensure the consistency, as well as the
 !                       reconfigurability of this variable through the GSI.
+!       20Apr22 - x.zhang - add variable dlsig_glb for calculating the delta
+!                       sigma from the global 127-L BE,which is used to
+!                       convert the grid unit of vertical length scale (vz) from
+!                       1/layer to the unit of 1/sigma.   
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname='m_berror_stats_reg'
@@ -55,6 +59,7 @@
 
   integer(i_kind),allocatable,dimension(:):: lsig
   real(r_kind),allocatable,dimension(:):: coef1,coef2
+  real(r_kind),allocatable,dimension(:):: dlsig_glb
 
 contains
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -150,6 +155,8 @@ end subroutine berror_set_reg
 !       25Feb10 - Zhu  - extracted from rdgstat_reg
 !                      - change the structure of error file
 !                      - make changes for generalized control variables
+!       20Apr22 - x.zhang - add the code to calculate the delta sigma from the
+!                           global 127-L BE  
 !EOP ___________________________________________________________________
 
     character(len=*),parameter :: myname_=myname//'::berror_read_bal_reg'
@@ -207,6 +214,17 @@ end subroutine berror_set_reg
     do k=1,msig
        rlsigo(k)=log(sigma_avn(k))
     enddo
+
+!   compute delta sigma of global level
+    if(usenewgfsberror)then
+      allocate(dlsig_glb(msig))
+      dlsig_glb(1)=log(sigma_avn(1))-log(sigma_avn(2))
+      do k=2,msig-1
+         dlsig_glb(k)=half*(log(sigma_avn(k-1))-log(sigma_avn(k+1)))
+      enddo
+      dlsig_glb(msig)=log(sigma_avn(msig-1))-log(sigma_avn(msig))
+    end if
+!
 
     allocate(lsig(nsig),coef1(nsig),coef2(nsig))
     do k=1,nsig
@@ -344,6 +362,8 @@ end subroutine berror_read_bal_reg
 !                       - which can be tuned in sub prewgt_reg.f90.
 !                       - extra caution required for using logarithmic transformation
 !       2018-10-22 CAPS(C.Liu) - add w
+!       20Apr22 x.zhang - Add the code to convert the unit of global 127-L BE
+!                         vertical length scale from 1/layer to 1/sigma
 !
 !EOP ___________________________________________________________________
 
@@ -502,12 +522,16 @@ end subroutine berror_read_bal_reg
                  if(usenewgfsberror)then
                     do i=1,mlat
                        hwll_tmp(i,k,n)=hwll_avn(i,k)
-                       vz_tmp(k,i,n)=vztdq_avn(i,k)
+
+!                      convert global BE vz from the unit of 1/layer to 1/sigma
+                       vz_tmp(k,i,n)=vztdq_avn(i,k)/dlsig_glb(k)
                     end do
                     hwll_tmp(0,k,n)=hwll_avn(1,k)
                     hwll_tmp(mlat+1,k,n)=hwll_avn(mlat,k)
-                    vz_tmp(k,0,n)=vztdq_avn(1,k)
-                    vz_tmp(k,mlat+1,n)=vztdq_avn(mlat,k)
+
+!                   convert global BE vz from the unit of 1/layer to 1/sigma
+                    vz_tmp(k,0,n)=vztdq_avn(1,k)/dlsig_glb(k)
+                    vz_tmp(k,mlat+1,n)=vztdq_avn(mlat,k)/dlsig_glb(k)
                  else
                     do i=0,mlat+1
                        hwll_tmp(i,k,n)=hwll_avn(i,k)

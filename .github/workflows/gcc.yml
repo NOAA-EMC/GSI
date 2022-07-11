@@ -90,6 +90,6 @@ jobs:
           export FC=mpif90
           cd GSI
           mkdir -p build && cd build
-          cmake -DCMAKE_INSTALL_PREFIX=../install -DGSI_MODE=Regional -DENKF_MODE=GFS -DBUILD_UTIL_ALL=ON -DBUILD_REG_TESTING=OFF -DBUILD_NCDIAG=OFF ..
+          cmake -DCMAKE_INSTALL_PREFIX=../install -DGSI_MODE=Regional -DENKF_MODE=GFS -DBUILD_REG_TESTING=OFF -DBUILD_NCDIAG=OFF ..
           make -j2 VERBOSE=1
           make install

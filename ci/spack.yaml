@@ -15,7 +15,7 @@ spack:
   - sfcio@1.4.1
   - nemsio@2.5.2
   - wrf-io@1.2.0
-  - ncio@1.0.0
+  - ncio@1.1.2
   - crtm@2.3.0
   - gsi-ncdiag@1.0.0
   view: true
