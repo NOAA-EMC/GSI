@@ -30,7 +30,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use m_obsdiagNode, only: obsdiagNode_assert
 
   use obsmod, only: sfcmodel,perturb_obs,oberror_tune,lobsdiag_forenkf,ianldate,&
-       lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,aircraft_recon 
+       lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,aircraft_recon
   use m_obsNode, only: obsNode
   use m_tNode, only: tNode
   use m_tNode, only: tNode_appendto
@@ -110,10 +110,10 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 
 ! !INPUT/OUTPUT PARAMETERS:
+
                                                             ! array containing information ...
   real(r_kind),dimension(npres_print,nconvtype,5,3), intent(inout) :: bwork !  about o-g stats
   real(r_kind),dimension(100+7*nsig)               , intent(inout) :: awork !  for data counts and gross checks
-
 
 ! !DESCRIPTION:  For temperature observations, this routine
 ! \begin{enumerate}
@@ -365,7 +365,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 !  call GSD terrain match for surface temperature observation
   if(l_gsd_terrain_match_surftobs) then
-     call gsd_terrain_match_surfTobs(mype,nele,nobs,data) 
+     call gsd_terrain_match_surfTobs(mype,nele,nobs,data)
   endif
 
 !    index information for data array (see reading routine)
@@ -984,7 +984,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         end if  
      endif
 
-
      if (sfctype .and. i_sfct_gross==1) then
 ! extend the threshold for surface T
         if(i_use_2mt4b<=0) tges2m=tges
@@ -1017,7 +1016,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            ratio_errors = ratio_errors/sqrt(dup(i))
         end if
      endif
-          
+     
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
 
      if (nobskeep>0 .and. luse_obsdiag) call obsdiagNode_get(my_diag, jiter=nobskeep, muse=muse(i))
@@ -1753,19 +1752,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("Height",                  sngl(data(iobshgt,i))  ) ! this is the obs height (= stn elevation,  before being corrected)
     call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
     call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
-    if (use_2m_obs  == .true. )  then  
-         idg = 1  
-    else  
-         idg = 0  
-    endif 
-    if (sfctype == .true.  ) then
-          ist = 1
-     else 
-          ist = 0 
-    endif 
-    write(flag_char,"(3I1)") ist, int(data(iqt,i)), idg 
-    call nc_diag_metadata("Setup_Flags",             flag_char               )
-    !call nc_diag_metadata("Setup_Flag",           sngl(data(iqt,i))      )
+    call nc_diag_metadata("Setup_QC_Mark",           sngl(data(iqt,i))      ) ! this is the virtual temp flag
     call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )
     if(muse(i)) then
        call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)              )
