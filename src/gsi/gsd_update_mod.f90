@@ -15,7 +15,7 @@ module gsd_update_mod
 ! subroutines included:
 !   sub gsd_update_soil_tq  - change surface and soil based on analysis increment
 !   sub gsd_limit_ocean_q   - limits to analysis increments over oceans 
-!   sub gsd_update_th2      - adjust 2-m t based on analysis increment
+!   sub gsd_update_t2m      - adjust 2-m t based on analysis increment
 !   sub gsd_update_q2       - adjust 2-m q based on analysis increment
 !
 ! Variable Definitions:
@@ -30,7 +30,7 @@ module gsd_update_mod
 ! set subroutines to public
   public :: gsd_update_soil_tq
   public :: gsd_limit_ocean_q
-  public :: gsd_update_th2
+  public :: gsd_update_t2m
   public :: gsd_update_q2
   public :: gsd_gen_coast_prox
 ! set passed variables to public
@@ -487,10 +487,10 @@ subroutine gsd_limit_ocean_q(qinc,it)
   deallocate(rhgues)
 end subroutine gsd_limit_ocean_q 
 
-subroutine gsd_update_th2(tinc,it)
+subroutine gsd_update_t2m(tinc,it)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    gsd_update_th2    adjust 2-m t based on analysis increment
+! subprogram:    gsd_update_t2m    adjust 2-m t based on analysis increment
 !   prgmmr: Hu          org: GSD                date: 2011-10-04
 !
 ! abstract:  This routine does the following things:
@@ -516,7 +516,8 @@ subroutine gsd_update_th2(tinc,it)
   use jfunc, only:  tsensible
   use constants, only: zero,one,fv,rd_over_cp_mass,one_tenth
   use gridmod, only: lat2,lon2,aeta1_ll,pt_ll,aeta2_ll
-! use guess_grids, only: nfldsig
+  use guess_grids, only:ges_prsi
+  use constants, only: half
 
   implicit none
 
@@ -530,14 +531,14 @@ subroutine gsd_update_th2(tinc,it)
   real(r_kind) :: dth2, work_prsl,work_prslk
 
   real(r_kind),dimension(:,:  ),pointer:: ges_ps =>NULL()
-  real(r_kind),dimension(:,:  ),pointer:: ges_th2=>NULL()
+  real(r_kind),dimension(:,:  ),pointer:: ges_t2m=>NULL()
   real(r_kind),dimension(:,:,:),pointer:: ges_q  =>NULL()
 
 !*******************************************************************************
 !
 ! 2-m temperature
 !  do it=1,nfldsig
-     call gsi_bundlegetpointer(gsi_metguess_bundle(it),'th2m',ges_th2,ier)
+     call gsi_bundlegetpointer(gsi_metguess_bundle(it),'t2m',ges_t2m,ier)
      if(ier/=0) return
      call gsi_bundlegetpointer(gsi_metguess_bundle(it),'ps',ges_ps,ier)
      if(ier/=0) return
@@ -552,17 +553,15 @@ subroutine gsd_update_th2(tinc,it)
               if(ihaveq/=0) cycle
               dth2=tinc(i,j)/(one+fv*ges_q(i,j,1))
            endif
-!          Convert sensible temperature to potential temperature
-           work_prsl  = one_tenth*(aeta1_ll(1)*(r10*ges_ps(i,j)-pt_ll)+ &
-                                   aeta2_ll(1) + pt_ll)
-           work_prslk = (work_prsl/r100)**rd_over_cp_mass
-           ges_th2(i,j) = ges_th2(i,j) + dth2/work_prslk
+
+!        do not need to convert sensible temperature to potential temperature
+           ges_t2m(i,j) = ges_t2m(i,j) + dth2
         end do
      end do
 !  end do
 
   return
-end subroutine gsd_update_th2
+end subroutine gsd_update_t2m
 
 subroutine gsd_update_q2(qinc,it)
 !$$$  subprogram documentation block
