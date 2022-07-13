@@ -211,7 +211,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use hilbertcurve,only: init_hilbertcurve, accum_hilbertcurve, &
                          apply_hilbertcurve,destroy_hilbertcurve
   use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
-  use jfunc, only: tsensible, do_global_2mDA
+  use jfunc, only: tsensible, use_2m_obs
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_deter
@@ -1617,7 +1617,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !          versus sensible temperature
            if(tob) then
               ! use tvirtual if tsensible flag not set, and not in either 2Dregional or global_2m DA mode
-              if ( (.not. tsensible)  .and. .not. (twodvar_regional .or. do_global_2mDA) ) then 
+              if ( (.not. tsensible)  .and. .not. (twodvar_regional .or. use_2m_obs) ) then 
               
                  do k=1,levs
                     tvflg(k)=one                               ! initialize as sensible
@@ -1917,7 +1917,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! CSD - temporary hack ( move to prepbufr pre-processing)
 !             Over-ride QM=9 for sfc obs 
-              if (sfctype .and. do_global_2mDA ) then 
+              if (sfctype .and. use_2m_obs ) then 
                 if (tob .and. qm == 9 ) qm = 2 ! 2=not checked
                 if (qob .and. qm == 9 ) qm = 2 ! 2=not checked
               endif
@@ -2079,7 +2079,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
                     call errormod_aircraft(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
                  else
-                    if (.not. (sfctype .and. do_global_2mDA)) then
+                    if (.not. (sfctype .and. use_2m_obs)) then
                        call errormod(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
                     endif
                  end if
@@ -2336,7 +2336,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  end if
                  qobcon=obsdat(2,k)*convert
                  tdry=r999
-                 if (sfctype .and. do_global_2mDA) then
+                 if (sfctype .and. use_2m_obs) then
                     if (tqm(k) < 10) tdry=(obsdat(3,k)+t0c)/(one+fv*qobcon)
                  else
                     if (tqm(k)<lim_tqm) tdry=(obsdat(3,k)+t0c)/(one+fv*qobcon)
