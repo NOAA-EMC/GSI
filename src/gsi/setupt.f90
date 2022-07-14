@@ -58,7 +58,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   use guess_grids, only: nfldsig, hrdifsig,ges_lnprsl,&
        geop_hgtl,ges_tsen,pbl_height
-  use state_vectors, only: svars3d, levels
+  use state_vectors, only: svars3d, levels, ns3d, svars2d
 
   use constants, only: zero, one, four,t0c,rd_over_cp,three,rd_over_cp_mass,ten
   use constants, only: tiny_r_kind,half,two
@@ -335,9 +335,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   type(obsLList),pointer,dimension(:):: thead
 
-  character(len=3) :: flag_char
-  integer :: idg, ist, itm 
-  
   real(r_kind) :: delta_z,  lapse_error
   real(r_kind), parameter :: T_lapse = -0.0045 ! standard lapse rate, K/m
                                                ! should match value in buddy_check_t 
@@ -677,18 +674,18 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
 
-     drpx=zero
-     if(sfctype ) then 
-        if ( use_2m_obs) then 
-                dpres = one ! put obs on surface (not sure about this)
-        elseif ( .not.twodvar_regional) then
-                drpx=abs(one-((one/exp(dpres-log(psges))))**rd_over_cp)*t0c
-        endif
-     end if
+     if ( .not. use_2m_obs) then 
+        drpx=zero
+        if(sfctype .and. .not.twodvar_regional) then
+            drpx=abs(one-((one/exp(dpres-log(psges))))**rd_over_cp)*t0c
+        end if
 
-
-!    Put obs pressure in correct units to get grid coord. number
-     call grdcrd1(dpres,prsltmp(1),nsig,-1)
+        !    Put obs pressure in correct units to get grid coord. number
+        call grdcrd1(dpres,prsltmp(1),nsig,-1)
+     else 
+        drpx = zero 
+        dpres = one  ! put obs at surface
+     endif
 
 ! Implementation of forward model ----------
 
@@ -747,13 +744,13 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
           data(istnelv,i) = data(izz,i) 
 
           if(save_jacobian) then
-             t2m_ind = getindex(svars2d, 't2m')
-             if (t2m_ind < 0) then
+             t_ind = getindex(svars2d, 't2m')
+             if (t_ind < 0) then
                  print *, 'Error: no variable t2m in state vector.Exiting.'
                  call stop2(1300)
              endif
-             dhx_dx%st_ind(1) = sum(levels(1:ns3d))  + t2m_ind
-             dhx_dx%end_ind(1) = sum(levels(1:ns3d)) + t2m_ind
+             dhx_dx%st_ind(1) = sum(levels(1:ns3d))  + t_ind
+             dhx_dx%end_ind(1) = sum(levels(1:ns3d)) + t_ind
              dhx_dx%val(1) = one
           endif
      else
@@ -883,7 +880,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         endif
     endif
 
-! note: for use_2m_obs tion, three middle terms in denominator will be zero
+! note: for use_2m_obs, three middle terms in denominator will be zero
 !    (elevation mistmatch between obs and model dealt with elsewhere) 
      ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+r8*ramp + lapse_error) 
 
