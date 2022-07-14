@@ -40,6 +40,7 @@ NCEP Libraries (NCEPLibs) compiled with the same compiler and MPI library (where
 | SFCIO           | 1.4.1 and above                                            |
 | NEMSIO          | 2.5.2 and above                                            |
 | NCIO            | 1.0.0 and above                                            |
+| NCDIAG          | 1.0.0 and above                                            |
 | WRF_IO          | 1.2.0 and above                                            |
 
 ### Building the GSI
@@ -77,7 +78,6 @@ CMake allows for various options that can be specified on the command line via `
 |---------------------|--------------------------------------------------------|
 | `OPENMP`              | Enable OpenMP Threading (`OFF`)                      |
 | `ENABLE_MKL`          | Use MKL (`ON`), If not found use LAPACK              |
-| `BUILD_NCDIAG`        | Build GSI NetCDF Diagnostics Library (`ON`)          |
 | `BUILD_GSDCLOUD`      | Build GSD Cloud Library (`OFF`)                      |
 | `BUILD_GSI`           | Build GSI library and executable (`ON`)              |
 | `BUILD_ENKF`          | Build EnKF library and executable (`ON`)             |

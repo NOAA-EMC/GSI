@@ -84,27 +84,6 @@ for type in $rlist; do
 done
 
 
-# Process scripts directories and files
-cd $topdir/scripts
-rlist="exurma2p5_gsianl.sh"
-for type in $rlist; do
-    git $string ${type}*
-    rc=$?
-    if [[ $rc -ne 0 ]]; then
-        echo "***ERROR* git $string ${type}"
-        exit
-    fi
-    if [[ "$mode" = "restore" ]]; then
-        git checkout ${type}*
-        rc=$?
-        if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git checkout ${type}"
-            exit
-        fi
-    fi
-done
-
-
 # Process ush directories and files
 cd $topdir/ush
 rlist="sub"
