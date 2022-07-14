@@ -1,3 +1,0 @@
-# Jet build option list
-#    compiler,         MPI,           LAPACK,      NETCDF,            
-    intel/2018.4    , impi/2018.4    ,mkl/2018.4 , netcdf/4.7.2  

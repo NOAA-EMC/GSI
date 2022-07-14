@@ -34,13 +34,13 @@ regtests_debug="global_T62
                 netcdf_fv3_regional
                 hwrf_nmm_d2
                 hwrf_nmm_d3
+                rtma
+                global_enkf_T62
                 global_C96_fv3aero
                 global_C96_fv3aerorad"
 
 # Choose which regression test to run; by default, run all
 regtests=${1:-$regtests_all}
-
-echo "`pwd`/regression_var.sh" > regression_var.out
 
 for regtest in $regtests; do
     rm -f ${regtest}.out

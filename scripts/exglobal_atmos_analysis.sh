@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/bash
 ################################################################################
 ####  UNIX Script Documentation Block
 #                      .                                             .
@@ -53,33 +53,14 @@ APRUNCFP=${APRUNCFP:-""}
 APRUN_GSI=${APRUN_GSI:-${APRUN:-""}}
 NTHREADS_GSI=${NTHREADS_GSI:-${NTHREADS:-1}}
 
-# Surface cycle related parameters
-DOGCYCLE=${DOGCYCLE:-"NO"}
-CYCLESH=${CYCLESH:-$HOMEgfs/ush/global_cycle.sh}
-export CYCLEXEC=${CYCLEXEC:-$HOMEgfs/exec/global_cycle}
-NTHREADS_CYCLE=${NTHREADS_CYCLE:-24}
-APRUN_CYCLE=${APRUN_CYCLE:-${APRUN:-""}}
-export SNOW_NUDGE_COEFF=${SNOW_NUDGE_COEFF:-'-2.'}
-export CYCLVARS=${CYCLVARS:-""}
-export FHOUR=${FHOUR:-0}
-export DELTSFC=${DELTSFC:-6}
-export FIXgsm=${FIXgsm:-$HOMEgfs/fix/fix_am}
-export FIXfv3=${FIXfv3:-$HOMEgfs/fix/fix_fv3_gmted2010}
-
-DOGAUSFCANL=${DOGAUSFCANL-"NO"}
-GAUSFCANLSH=${GAUSFCANLSH:-$HOMEgfs/ush/gaussian_sfcanl.sh}
-export GAUSFCANLEXE=${GAUSFCANLEXE:-$HOMEgfs/exec/gaussian_sfcanl.exe}
-NTHREADS_GAUSFCANL=${NTHREADS_GAUSFCANL:-1}
-APRUN_GAUSFCANL=${APRUN_GAUSFCANL:-${APRUN:-""}}
-
-# FV3 specific info (required for global_cycle)
-export CASE=${CASE:-"C384"}
-ntiles=${ntiles:-6}
-
 # Microphysics in the model; 99:ZC, 11:GFDLMP
 export imp_physics=${imp_physics:-99}
 lupp=${lupp:-".true."}
 cnvw_option=${cnvw_option:-".false."}
+
+# Observation usage options
+cao_check=${cao_check:-".false."}
+ta2tb=${ta2tb:-".false."}
 
 # Diagnostic files options
 lobsdiag_forenkf=${lobsdiag_forenkf:-".false."}
@@ -91,7 +72,7 @@ DOIAU=${DOIAU:-"NO"}
 export IAUFHRS=${IAUFHRS:-"6"}
 
 # Dependent Scripts and Executables
-GSIEXEC=${GSIEXEC:-$HOMEgfs/exec/global_gsi.x}
+GSIEXEC=${GSIEXEC:-$HOMEgfs/exec/gsi.x}
 export NTHREADS_CALCINC=${NTHREADS_CALCINC:-1}
 export APRUN_CALCINC=${APRUN_CALCINC:-${APRUN:-""}}
 export APRUN_CALCANL=${APRUN_CALCANL:-${APRUN:-""}}
@@ -458,9 +439,10 @@ fi
 # CRTM Spectral and Transmittance coefficients
 mkdir -p crtm_coeffs
 for file in $(awk '{if($1!~"!"){print $1}}' satinfo | sort | uniq); do
-   $NLN $RTMFIX/${file}.SpcCoeff.bin ./crtm_coeffs/
-   $NLN $RTMFIX/${file}.TauCoeff.bin ./crtm_coeffs/
+   $NLN $RTMFIX/${file}.SpcCoeff.bin ./crtm_coeffs/${file}.SpcCoeff.bin
+   $NLN $RTMFIX/${file}.TauCoeff.bin ./crtm_coeffs/${file}.TauCoeff.bin
 done
+$NLN $RTMFIX/amsua_metop-a_v2.SpcCoeff.bin ./crtm_coeffs/amsua_metop-a_v2.SpcCoeff.bin
 
 $NLN $RTMFIX/Nalli.IRwater.EmisCoeff.bin   ./crtm_coeffs/Nalli.IRwater.EmisCoeff.bin
 $NLN $RTMFIX/NPOESS.IRice.EmisCoeff.bin    ./crtm_coeffs/NPOESS.IRice.EmisCoeff.bin
@@ -473,6 +455,8 @@ $NLN $RTMFIX/NPOESS.VISwater.EmisCoeff.bin ./crtm_coeffs/NPOESS.VISwater.EmisCoe
 $NLN $RTMFIX/FASTEM6.MWwater.EmisCoeff.bin ./crtm_coeffs/FASTEM6.MWwater.EmisCoeff.bin
 $NLN $RTMFIX/AerosolCoeff.bin              ./crtm_coeffs/AerosolCoeff.bin
 $NLN $RTMFIX/CloudCoeff.bin                ./crtm_coeffs/CloudCoeff.bin
+#$NLN $RTMFIX/CloudCoeff.GFDLFV3.-109z-1.bin ./crtm_coeffs/CloudCoeff.bin
+
 
 ##############################################################
 # Observational data
@@ -620,7 +604,7 @@ if [ $GENDIAG = "YES" ] ; then
 	  rm -rf $DIAG_DIR
       fi
       npe_m1="$(($npe_gsi-1))"
-      for pe in {0..$npe_m1}; do
+      for pe in $(seq 0 $npe_m1); do
         pedir="dir."$(printf %04i $pe)
         mkdir -p $DIAG_DIR/$pedir
         $NLN $DIAG_DIR/$pedir $pedir
@@ -632,7 +616,6 @@ fi
 
 ##############################################################
 # Output files
-# $SFCANL is no longer created here since global_cycle is not called
 $NLN $ATMANL siganl
 $NLN $ATMINC siginc.nc
 if [ $DOHYBVAR = "YES" -a $l4densvar = ".true." -a $lwrite4danl = ".true." ]; then
@@ -759,11 +742,12 @@ cat > gsiparm.anl << EOF
   crtm_coeffs_path='./crtm_coeffs/',
   newpc4pred=.true.,adp_anglebc=.true.,angord=4,passive_bc=.true.,use_edges=.false.,
   diag_precon=.true.,step_start=1.e-3,emiss_bc=.true.,nhr_obsbin=${nhr_obsbin:-3},
-  cwoption=3,imp_physics=$imp_physics,lupp=$lupp,cnvw_option=$cnvw_option,
+  cwoption=3,imp_physics=$imp_physics,lupp=$lupp,cnvw_option=$cnvw_option,cao_check=${cao_check},
   netcdf_diag=$netcdf_diag,binary_diag=$binary_diag,
   lobsdiag_forenkf=$lobsdiag_forenkf,
   write_fv3_incr=$write_fv3_increment,
   nhr_anal=${IAUFHRS},
+  ta2tb=${ta2tb},
   $WRITE_INCR_ZERO
   $WRITE_ZERO_STRAT
   $WRITE_STRAT_EFOLD
@@ -804,7 +788,7 @@ cat > gsiparm.anl << EOF
   $OBSQC
 /
 &OBS_INPUT
-  dmesh(1)=145.0,dmesh(2)=150.0,dmesh(3)=100.0,dmesh(4)=70.0,time_window_max=3.0,
+  dmesh(1)=145.0,dmesh(2)=150.0,dmesh(3)=100.0,dmesh(4)=25.0,time_window_max=3.0,
   $OBSINPUT
 /
 OBS_INPUT::
@@ -901,7 +885,7 @@ OBS_INPUT::
    avhambufr      avhrr       metop-c     avhrr3_metop-c      0.0     4     0
    avhpmbufr      avhrr       n19         avhrr3_n19          0.0     4     0
    amsr2bufr      amsr2       gcom-w1     amsr2_gcom-w1       0.0     3     0
-   gmibufr        gmi         gpm         gmi_gpm             0.0     3     0
+   gmibufr        gmi         gpm         gmi_gpm             0.0     1     0
    saphirbufr     saphir      meghat      saphir_meghat       0.0     3     0
    ahibufr        ahi         himawari8   ahi_himawari8       0.0     1     0
    abibufr        abi         g16         abi_g16             0.0     1     0
@@ -982,75 +966,6 @@ if [ $DO_CALC_INCREMENT = "YES" ]; then
   export err=$?; err_chk
 fi
 
-##############################################################
-# Update surface fields in the FV3 restart's using global_cycle
-if [ $DOGCYCLE = "YES" ]; then
-
-    mkdir -p $COMOUT/RESTART
-
-    # Global cycle requires these files
-    export FNTSFA=${FNTSFA:-$COMIN_OBS/${OPREFIX}rtgssthr.grb}
-    export FNACNA=${FNACNA:-$COMIN_OBS/${OPREFIX}seaice.5min.blend.grb}
-    export FNSNOA=${FNSNOA:-$COMIN_OBS/${OPREFIX}snogrb_t${JCAP_CASE}.${LONB_CASE}.${LATB_CASE}}
-    [[ ! -f $FNSNOA ]] && export FNSNOA="$COMIN_OBS/${OPREFIX}snogrb_t1534.3072.1536"
-    FNSNOG=${FNSNOG:-$COMIN_GES_OBS/${GPREFIX}snogrb_t${JCAP_CASE}.${LONB_CASE}.${LATB_CASE}}
-    [[ ! -f $FNSNOG ]] && FNSNOG="$COMIN_GES_OBS/${GPREFIX}snogrb_t1534.3072.1536"
-
-    # Set CYCLVARS by checking grib date of current snogrb vs that of prev cycle
-    if [ $RUN_GETGES = "YES" ]; then
-        snoprv=$($GETGESSH -q -t snogrb_$JCAP_CASE -e $gesenvir -n $GDUMP -v $GDATE)
-    else
-        snoprv=${snoprv:-$FNSNOG}
-    fi
-
-    if [ $($WGRIB -4yr $FNSNOA 2>/dev/null | grep -i snowc | awk -F: '{print $3}' | awk -F= '{print $2}') -le \
-         $($WGRIB -4yr $snoprv 2>/dev/null | grep -i snowc | awk -F: '{print $3}' | awk -F= '{print $2}') ] ; then
-        export FNSNOA=" "
-        export CYCLVARS="FSNOL=99999.,FSNOS=99999.,"
-    else
-        export SNOW_NUDGE_COEFF=${SNOW_NUDGE_COEFF:-0.}
-        export CYCLVARS="FSNOL=${SNOW_NUDGE_COEFF},$CYCLVARS"
-    fi
-
-    if [ $DONST = "YES" ]; then
-        export NST_FILE=${NST_FILE:-$COMOUT/${APREFIX}dtfanl.nc}
-    else
-        export NST_FILE="NULL"
-    fi
-
-    if [ $DOIAU = "YES" ]; then
-        # update surface restarts at the beginning of the window, if IAU
-        # For now assume/hold dtfanl.nc valid at beginning of window
-        for n in $(seq 1 $ntiles); do
-            $NLN $COMIN_GES/RESTART/$bPDY.${bcyc}0000.sfc_data.tile${n}.nc $DATA/fnbgsi.00$n
-            $NLN $COMOUT/RESTART/$bPDY.${bcyc}0000.sfcanl_data.tile${n}.nc $DATA/fnbgso.00$n
-            $NLN $FIXfv3/$CASE/${CASE}_grid.tile${n}.nc                    $DATA/fngrid.00$n
-            $NLN $FIXfv3/$CASE/${CASE}_oro_data.tile${n}.nc                $DATA/fnorog.00$n
-        done
-
-        export APRUNCY=$APRUN_CYCLE
-        export OMP_NUM_THREADS_CY=$NTHREADS_CYCLE
-        export MAX_TASKS_CY=$ntiles
-
-        $CYCLESH
-        export err=$?; err_chk
-    fi
-    # update surface restarts at middle of window
-    for n in $(seq 1 $ntiles); do
-        $NLN $COMIN_GES/RESTART/$PDY.${cyc}0000.sfc_data.tile${n}.nc $DATA/fnbgsi.00$n
-        $NLN $COMOUT/RESTART/$PDY.${cyc}0000.sfcanl_data.tile${n}.nc $DATA/fnbgso.00$n
-        $NLN $FIXfv3/$CASE/${CASE}_grid.tile${n}.nc                  $DATA/fngrid.00$n
-        $NLN $FIXfv3/$CASE/${CASE}_oro_data.tile${n}.nc              $DATA/fnorog.00$n
-    done
-
-    export APRUNCY=$APRUN_CYCLE
-    export OMP_NUM_THREADS_CY=$NTHREADS_CYCLE
-    export MAX_TASKS_CY=$ntiles
-
-    $CYCLESH
-    export err=$?; err_chk
-fi
-
 
 ##############################################################
 # For eupd
@@ -1097,7 +1012,7 @@ cd $pwd
 if [ $SENDECF = "YES" -a "$RUN" != "enkf" ]; then
    ecflow_client --event release_fcst
 fi
-echo "$CDUMP $CDATE atminc and tiled sfcanl done at `date`" > $COMOUT/${APREFIX}loginc.txt
+echo "$CDUMP $CDATE atminc done at `date`" > $COMOUT/${APREFIX}loginc.txt
 
 ################################################################################
 set +x

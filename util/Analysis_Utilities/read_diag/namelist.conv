@@ -1,5 +1,0 @@
- &iosetup
-  infilename='./diag_conv_ges',
-  outfilename='./results_conv_ges',
- /     
-

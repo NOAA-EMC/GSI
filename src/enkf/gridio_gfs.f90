@@ -61,8 +61,8 @@
 
  subroutine readgriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,ntimes, &
                              fileprefixes,filesfcprefixes,reducedgrid,grdin,qsat)
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                 quantize_data,read_attribute, close_dataset, get_dim, read_vardata
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         quantize_data,read_attribute, close_dataset, get_dim, read_vardata
   implicit none
 
   character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
@@ -423,8 +423,8 @@
   use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_close,&
                            nemsio_getfilehead,nemsio_getheadvar,nemsio_realkind,nemsio_charkind,&
                            nemsio_readrecv,nemsio_init,nemsio_setheadvar,nemsio_writerecv
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                 quantize_data,read_attribute, close_dataset, get_dim, read_vardata
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         quantize_data,read_attribute, close_dataset, get_dim, read_vardata
   implicit none
 
   integer, intent(in) :: nanal1,nanal2
@@ -1032,11 +1032,11 @@
 
  subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
   use netcdf
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                          read_attribute, close_dataset, get_dim, read_vardata,&
-                          create_dataset, get_idate_from_time_units, &
-                          get_time_units_from_idate, write_vardata, &
-                          write_attribute, quantize_data, has_var, has_attr
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         read_attribute, close_dataset, get_dim, read_vardata,&
+                         create_dataset, get_idate_from_time_units, &
+                         get_time_units_from_idate, write_vardata, &
+                         write_attribute, quantize_data, has_var, has_attr
   use constants, only: grav, zero
   use params, only: nbackgrounds,anlfileprefixes,fgfileprefixes,reducedgrid,&
                     nccompress
@@ -1842,11 +1842,11 @@
                            nemsio_readrec,nemsio_writerec,nemsio_intkind,nemsio_charkind,&
                            nemsio_getheadvar,nemsio_realkind,nemsio_getfilehead,&
                            nemsio_readrecv,nemsio_init,nemsio_setheadvar,nemsio_writerecv
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                          read_attribute, close_dataset, get_dim, read_vardata,&
-                          create_dataset, get_idate_from_time_units, &
-                          get_time_units_from_idate, write_vardata, &
-                          write_attribute, quantize_data, has_var, has_attr
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         read_attribute, close_dataset, get_dim, read_vardata,&
+                         create_dataset, get_idate_from_time_units, &
+                         get_time_units_from_idate, write_vardata, &
+                         write_attribute, quantize_data, has_var, has_attr
   use constants, only: grav
   use params, only: nbackgrounds,anlfileprefixes,fgfileprefixes,reducedgrid,&
                     nccompress,write_ensmean
@@ -3308,11 +3308,11 @@
                     datestring,nhr_anal,write_ensmean
   use constants, only: grav
   use mpi
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                          read_attribute, close_dataset, get_dim, read_vardata,&
-                          create_dataset, get_idate_from_time_units, &
-                          get_time_units_from_idate, write_vardata, &
-                          write_attribute, quantize_data, has_var, has_attr
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         read_attribute, close_dataset, get_dim, read_vardata,&
+                         create_dataset, get_idate_from_time_units, &
+                         get_time_units_from_idate, write_vardata, &
+                         write_attribute, quantize_data, has_var, has_attr
   implicit none
 
   integer, intent(in) :: nanal1,nanal2
@@ -3711,11 +3711,11 @@
                     datestring,nhr_anal
   use constants, only: grav
   use mpi
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                          read_attribute, close_dataset, get_dim, read_vardata,&
-                          create_dataset, get_idate_from_time_units, &
-                          get_time_units_from_idate, write_vardata, &
-                          write_attribute, quantize_data, has_var, has_attr
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         read_attribute, close_dataset, get_dim, read_vardata,&
+                         create_dataset, get_idate_from_time_units, &
+                         get_time_units_from_idate, write_vardata, &
+                         write_attribute, quantize_data, has_var, has_attr
   implicit none
 
   character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
