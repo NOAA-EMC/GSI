@@ -36,16 +36,18 @@ module gridinfo
 !   2016-05-02: shlyaeva: Modification for reading state vector from table
 !   2016-04-20  Modify to handle the updated nemsio sig file (P, DP & DPDT removed)
 !   2021-02-08  CAPS(J. Park) - Modified 'vars3d_supported' for direct reflectivity DA capability
+!   2022-06-    Ting   --  Implement paranc=.true. for fv3-lam
 !
 ! attributes:
 !   language: f95
 !
 !$$$
 
-use mpi, only: mpi_real4,mpi_comm_world
-use mpisetup, only: nproc
+use mpisetup, only: nproc, mpi_integer, mpi_real4, mpi_comm_world,mpi_status
 use params, only: datapath,nlevs,nlons,nlats,use_gfs_nemsio, fgfileprefixes, &
-                  fv3fixpath, nx_res,ny_res, ntiles,l_fv3reg_filecombined
+                  fv3fixpath, nx_res,ny_res, ntiles,l_fv3reg_filecombined,paranc, &
+                  fv3_io_layout_nx,fv3_io_layout_ny
+          
 use kinds, only: r_kind, i_kind, r_double, r_single
 use constants, only: one,zero,pi,cp,rd,grav,rearth,max_varname_length
 use constants, only: half
@@ -66,8 +68,8 @@ real(r_single),public, allocatable, dimension(:) :: lonsgrd, latsgrd
 real(r_single),public, allocatable, dimension(:,:) :: gridloc
 real(r_single),public, allocatable, dimension(:,:) :: logp
 integer(i_kind),                                  public     :: nlevs_pres
-integer,public :: npts
-integer,public :: ntrunc
+integer(i_kind),public :: npts
+integer(i_kind),public :: ntrunc
 ! supported variable names in anavinfo
 character(len=max_varname_length),public, dimension(15) :: &
   vars3d_supported = [character(len=max_varname_length) :: &
@@ -76,8 +78,11 @@ character(len=max_varname_length),public, dimension(15) :: &
 character(len=max_varname_length),public, dimension(3) :: &
   vars2d_supported = [character(len=max_varname_length) :: &
     'ps', 'pst', 'sst']
-! supported variable names in anavinfo
 real(r_single), allocatable, dimension(:) :: ak,bk,eta1_ll,eta2_ll
+integer (i_kind),public,allocatable,dimension(:,:):: nxlocgroup,nylocgroup
+integer(i_kind):: numproc_io_sub
+integer (i_kind),public,allocatable,dimension(:):: recvcounts2d,displs2d
+integer (i_kind),public,allocatable,dimension(:,:):: ij_pe,myneb_table
 contains
 
 subroutine getgridinfo(fileprefix, reducedgrid)
@@ -91,7 +96,7 @@ logical, intent(in)            :: reducedgrid
 
 integer(i_kind) ierr,  k, nn 
 character(len=500) filename
-integer(i_kind) i,j
+integer(i_kind) i,j,ij
 real(r_kind), allocatable, dimension(:) :: spressmn
 real(r_kind), allocatable, dimension(:,:) :: pressimn,presslmn
 real(r_kind) kap,kapr,kap1
@@ -100,12 +105,20 @@ integer(i_kind) :: file_id,var_id,dim_id,nlevsp1,nx_tile,ny_tile,ntile
 integer (i_kind):: nn_tile0
 integer(i_kind) :: nlevsp1n
 real(r_single), allocatable, dimension(:,:) :: lat_tile,lon_tile,ps
+real(r_single), allocatable, dimension(:,:) :: loclat_tile,loclon_tile
 real(r_single), allocatable, dimension(:,:,:) :: delp,g_prsi
+real(r_single), allocatable, dimension(:,:,:) :: delploc
 real(r_single) ptop
 character(len=4) char_nxres
 character(len=4) char_nyres
 character(len=1) char_tile
 character(len=24),parameter :: myname_ = 'fv3: getgridinfo'
+integer (i_kind),allocatable,dimension(:):: mpi_id_group
+integer(i_kind):: world_group,pe_group
+integer (i_kind):: mpi_comm_userread,ierror,iope,nxloc,nyloc,ipe,jpe
+character(len=24) strsubid
+integer(i_kind)::ii,nx_res1,ny_res1
+integer(i_kind):: iocomtest,iret,nproc1
 write (6,*)"The input fileprefix, reducedgrid are not used in the current implementation", &
            fileprefix, reducedgrid
 nlevsp1 = nlevs + 1
@@ -115,6 +128,7 @@ kap = rd/cp
 kapr = cp/rd
 kap1 = kap + one
 
+!when paranc=.false, fv3_io_layout_nx=fv3_io_layout_ny=1
 ! read data on root task
 if (nproc .eq. 0) then
 
@@ -142,10 +156,10 @@ if (nproc .eq. 0) then
 
 !!!!! change unit of ak,also reverse the 
      
-    do i=1,nlevsp1
+   do i=1,nlevsp1
        eta1_ll(i)=ak(i)*0.01_r_kind
        eta2_ll(i)=bk(i)
-    enddo
+   enddo
 
 
 
@@ -153,140 +167,304 @@ if (nproc .eq. 0) then
    ptop = eta1_ll(nlevsp1)
    call nc_check( nf90_close(file_id),&
    myname_,'close '//trim(filename) )
-   filename = 'fv3sar_tile1_grid_spec.nc'
-   call nc_check( nf90_open(trim(adjustl(filename)),nf90_nowrite,file_id),&
-   myname_,'open: '//trim(adjustl(filename)) )
-
-   call nc_check( nf90_inq_dimid(file_id,'grid_xt',dim_id),&
-                 myname_,'inq_dimid grid_xt '//trim(filename) )
-   call nc_check( nf90_inquire_dimension(file_id,dim_id,len=nx_tile),&
-                 myname_,'inquire_dimension grid_xt '//trim(filename) )
-   if(nx_res.ne.nx_tile) then
-     write(6,*)"nx_tile and nx_res are ",nx_tile,nx_res
-     write(6,*)'the readin nx_tile does not equal to nx_res as expected, stop'
-     call stop2(25)
-   endif
-
-   call nc_check( nf90_inq_dimid(file_id,'grid_yt',dim_id),&
-                 myname_,'inq_dimid grid_yt '//trim(filename) )
-   call nc_check( nf90_inquire_dimension(file_id,dim_id,len=ny_tile),&
-                 myname_,'inquire_dimension grid_yt '//trim(filename) )
-   if(ny_res.ne.ny_tile) then
-     write(6,*)'the readin ny_tile does not equal to ny_res as expected, stop'
-     call stop2(25)
-   endif
-
-
-   
-   !  read lats/lons from C###_oro_data.tile#.nc 
-   ! (this requires path to FV3 fix dir)
-   write(char_nxres, '(i4)') nx_res
-   write(char_nyres, '(i4)') ny_res
-   allocate(lat_tile(nx_res,ny_res),lon_tile(nx_res,ny_res))
-   nn = 0
-   allocate(latsgrd(npts),lonsgrd(npts))
-   do ntile=1,ntiles
-      nn_tile0=(ntile-1)*nx_res*ny_res
-      write(char_tile, '(i1)') ntile
-      filename='fv3sar_tile'//char_tile//'_grid_spec.nc'
-      call nc_check( nf90_open(trim(adjustl(filename)),nf90_nowrite,file_id),&
-      myname_,'open: '//trim(adjustl(filename)) )
-      call read_fv3_restart_data2d('grid_lont',filename,file_id,lon_tile)
-      !print *,'min/max lon_tile',ntile,minval(lon_tile),maxval(lon_tile)
-      call read_fv3_restart_data2d('grid_latt',filename,file_id,lat_tile)
-      !print *,'min/max lat_tile',ntile,minval(lat_tile),maxval(lat_tile)
-      call nc_check( nf90_close(file_id),&
-      myname_,'close '//trim(filename) )
-      nn = nn_tile0
-      do j=1,ny_res
-         do i=1,nx_res
-            nn=nn+1
-            latsgrd(nn) = lat_tile(i,j)
-            lonsgrd(nn) = lon_tile(i,j)
-         enddo
-      enddo
-   enddo  !loop for ntilet
-   latsgrd = pi*latsgrd/180._r_single
-   lonsgrd = pi*lonsgrd/180._r_single
-   allocate(delp(nx_res,ny_res,nlevs),ps(nx_res,ny_res))
-   allocate(g_prsi(nx_res,ny_res,nlevsp1))
-   allocate(pressimn(npts,nlevsp1),presslmn(npts,nlevs))
-   allocate(spressmn(npts))
-   nn = 0
-   do ntile=1,ntiles
-      nn_tile0=(ntile-1)*nx_res*ny_res
-      nn=nn_tile0
-      write(char_tile, '(i1)') ntile
-      if(l_fv3reg_filecombined) then
-        filename = 'fv3sar_tile'//char_tile//"_ensmean_dynvartracer"
-      else
-        filename = 'fv3sar_tile'//char_tile//"_ensmean_dynvars"
-      endif 
-      !print *,trim(adjustl(filename))
-      call nc_check( nf90_open(trim(adjustl(filename)),nf90_nowrite,file_id),&
-      myname_,'open: '//trim(adjustl(filename)) )
-      call read_fv3_restart_data3d('delp',filename,file_id,delp)
-      !print *,'min/max delp',ntile,minval(delp),maxval(delp)
-      call nc_check( nf90_close(file_id),&
-      myname_,'close '//trim(filename) )
-      g_prsi(:,:,nlevsp1)=eta1_ll(nlevsp1) !etal_ll is needed
-        do i=nlevs,1,-1
-        g_prsi(:,:,i)=delp(:,:,i)*0.01_r_kind+g_prsi(:,:,i+1)
-       enddo
-
-      ps = g_prsi(:,:,1)
-      !print *,'min/max ps',ntile,minval(ps),maxval(ps)
-      nn=nn_tile0
-      do j=1,ny_res
-         do i=1,nx_res
-            nn=nn+1
-            spressmn(nn) = ps(i,j)
-         enddo
-      enddo
-   enddo
-   ! pressure at interfaces
-   do k=1,nlevsp1
-      nn=nn_tile0
-      do j=1,ny_res
-      do i=1,nx_res  
-        nn=nn+1
-        pressimn(nn,k) = g_prsi(i,j,k)
-      enddo
-      enddo
-   enddo
-   do k=1,nlevs
-      nn=nn_tile0
-      do j=1,ny_res
-      do i=1,nx_res  
-        nn=nn+1
-        presslmn(nn,k) = (pressimn(nn,k)+pressimn(nn,k+1)) *half
-      enddo
-      enddo
-   end do
-   print *,'ensemble mean first guess surface pressure:'
-   print *,minval(spressmn),maxval(spressmn)
-   ! logp holds log(pressure) or pseudo-height on grid, for each level/variable.
-   allocate(logp(npts,nlevs_pres)) ! log(ens mean first guess press) on mid-layers
-   do k=1,nlevs
-      ! all variables to be updated are on mid-layers, not layer interfaces.
-      logp(:,k) = -log(presslmn(:,k))
-      !print *,'min/max presslmn',k,minval(presslmn(:,k)),maxval(presslmn(:,k)),minval(logp(:,k)),maxval(logp(:,k))
-   end do
-   logp(:,nlevs_pres) = -log(spressmn(:))
-   deallocate(spressmn,presslmn,pressimn)
-   deallocate(ak,bk,ps)
-   deallocate(g_prsi,delp)
-   deallocate(lat_tile,lon_tile)
+   deallocate(ak,bk)
 endif ! root task
 
-   allocate(gridloc(3,npts))
+allocate(nxlocgroup(fv3_io_layout_nx,fv3_io_layout_ny))
+allocate(nylocgroup(fv3_io_layout_nx,fv3_io_layout_ny))
+
+if(nproc.eq.0) then 
+  ii=0
+  do j=1,fv3_io_layout_ny
+    do i=1,fv3_io_layout_nx
+      if(paranc) then
+        write(strsubid,'(a,I4.4)')'.',ii
+      else
+        strsubid=""
+      endif
+      filename = 'fv3sar_tile1_grid_spec.nc'//trim(strsubid)
+      call nc_check( nf90_open(trim(adjustl(filename)),nf90_nowrite,file_id),&
+       myname_,'open: '//trim(adjustl(filename)) )
+      call nc_check( nf90_inq_dimid(file_id,'grid_xt',dim_id),&
+                     myname_,'inq_dimid grid_xt '//trim(filename) )
+      call nc_check( nf90_inquire_dimension(file_id,dim_id,len=nxlocgroup(i,j)),&
+                     myname_,'inquire_dimension grid_xt '//trim(filename) )
+      call nc_check( nf90_inq_dimid(file_id,'grid_yt',dim_id),&
+                     myname_,'inq_dimid grid_yt '//trim(filename) )
+      call nc_check( nf90_inquire_dimension(file_id,dim_id,len=nylocgroup(i,j)),&
+                     myname_,'inquire_dimension grid_yt '//trim(filename) )
+      ii=ii+1
+    enddo
+  enddo
+
+endif !nproc=0 
+
+call mpi_bcast(nxlocgroup,size(nxlocgroup),mpi_integer,0,MPI_COMM_WORLD,ierr) ! 
+call mpi_bcast(nylocgroup,size(nxlocgroup),mpi_integer,0,MPI_COMM_WORLD,ierr) !
+numproc_io_sub=fv3_io_layout_ny*fv3_io_layout_nx
+allocate(recvcounts2d(numproc_io_sub),displs2d(numproc_io_sub))
+allocate(mpi_id_group(numproc_io_sub))
+allocate(ij_pe(2,0:numproc_io_sub-1))
+allocate(myneb_table(4,0:numproc_io_sub-1))
+ij=1
+do j=1,fv3_io_layout_ny
+  do i=1,fv3_io_layout_nx
+     recvcounts2d(ij) = nxlocgroup(i,j)*nylocgroup(i,j)
+     if(ij == 1) then
+       displs2d(ij) =0 
+     else
+       displs2d(ij) =displs2d(ij-1)+recvcounts2d(ij-1) 
+     endif
+     ij=ij+1
+  end do
+enddo 
+
+nx_res1=sum(nxlocgroup(:,1))
+ny_res1=sum(nylocgroup(1,:))
+if(nx_res1.ne.nx_res.or.ny_res1.ne.ny_res) then
+  write(6,*)'something wroing with dimensions of the whole domain and dimensions in subdomains, stop '
+  call stop2(25)
+endif
+
+
+ij=0
+do j=1,fv3_io_layout_ny
+  do i=1,fv3_io_layout_nx
+     ij_pe(1,ij)=i
+     ij_pe(2,ij)=j
+     !for Northen boundary ,the MPI ID on this direction , if no, =-1
+     if(j.lt.fv3_io_layout_ny) then
+        myneb_table(1,ij)=j*fv3_io_layout_nx+i-1
+     else
+        myneb_table(1,ij)=-1
+     endif
+     !for Easten boundary, 
+     if(i.lt.fv3_io_layout_nx) then
+        myneb_table(2,ij)=(j-1)*fv3_io_layout_nx+i
+     else
+        myneb_table(2,ij)=-1
+     endif
+     !for Sourthern boundary
+     if(j.gt.1) then
+        myneb_table(3,ij)=(j-2)*fv3_io_layout_nx+i-1
+     else
+        myneb_table(3,ij)=-1
+     endif
+     !for West boundary
+     if(i.gt.1) then
+        myneb_table(4,ij)=(j-1)*fv3_io_layout_nx+i-2
+     else
+        myneb_table(4,ij)=-1
+     endif
+
+     ij=ij+1
+  enddo
+enddo 
+    
+
+
+mpi_id_group=(/(i,i=0,numproc_io_sub-1)/)
+call MPI_COMM_GROUP(MPI_COMM_WORLD, world_group, ierror)
+if(any (mpi_id_group == nproc))  then ! if paranc=.fales., this equal to "nproc== 00 
+  call MPI_GROUP_INCL(world_group, numproc_io_sub, mpi_id_group, pe_group, ierror)
+  call MPI_COMM_CREATE_GROUP(MPI_COMM_WORLD, pe_group, 0, mpi_comm_userread, ierror)
+endif
+  write(char_nxres, '(i4)') nx_res
+  write(char_nyres, '(i4)') ny_res
+if(nproc==0) then 
+   allocate(lat_tile(nx_res,ny_res),lon_tile(nx_res,ny_res))
+else
+   allocate(lat_tile(1,1),lon_tile(1,1))
+endif
+
+if(nproc == 0)  then
+  nn = 0
+  npts=nx_res*ny_res
+  allocate(latsgrd(npts),lonsgrd(npts))
+endif
+if(any (mpi_id_group == nproc))  then ! if paranc=.fales., this equal to "nproc== 00 
+  call mpi_comm_rank(mpi_comm_userread,iope, ierror)
+  if(iope.ne.nproc) then
+     write(6,*) "it is assumed the so generated subgroup of mpi should & 
+      match the first N (size of the fomer) MPI process of the total MPI group, if not, & 
+      something wrong, stop" 
+     call stop2(25)
+  endif
+        
+
+
+
+
+  ipe=ij_pe(1,nproc)
+  jpe=ij_pe(2,nproc)
+  nxloc=nxlocgroup(ipe,jpe)
+  nyloc=nylocgroup(ipe,jpe)
+
+  allocate(loclat_tile(nxloc,nyloc),loclon_tile(nxloc,nyloc))
+  do ntile=1,ntiles
+     nn_tile0=(ntile-1)*nx_res*ny_res
+     write(char_tile, '(i1)') ntile
+     i=ij_pe(1,nproc)
+     j=ij_pe(2,nproc)
+     ii=(j-1)*fv3_io_layout_nx+i-1 
+     if(paranc) then
+       write(strsubid,'(a,I4.4)')'.',ii
+     else
+       strsubid=""
+     endif
+     filename='fv3sar_tile'//char_tile//'_grid_spec.nc'//trim(strsubid)
+     
+     call nc_check( nf90_open(trim(adjustl(filename)),nf90_nowrite,file_id),&
+     myname_,'open: '//trim(adjustl(filename)) )
+     call read_fv3_restart_data2d('grid_lont',filename,file_id,loclon_tile)
+     call read_fv3_restart_data2d('grid_latt',filename,file_id,loclat_tile)
+     call nc_check( nf90_close(file_id),&
+     myname_,'close '//trim(filename) )
+     if(paranc) then
+        call mpi_gatherv(loclat_tile, recvcounts2d(nproc+1), mpi_real4, lat_tile, recvcounts2d, displs2d,&
+                mpi_real4, 0,mpi_comm_userread ,ierror)
+        call mpi_gatherv(loclon_tile, recvcounts2d(nproc+1), mpi_real4, lon_tile, recvcounts2d, displs2d,&
+                mpi_real4, 0,mpi_comm_userread ,ierror)
+     else
+        if(nproc==0) then
+          lon_tile=loclon_tile
+          lat_tile=loclat_tile
+        endif
+     endif
+     if (nproc == 0) then 
+        nn = nn_tile0
+        do j=1,ny_res
+           do i=1,nx_res
+              nn=nn+1
+              latsgrd(nn) = lat_tile(i,j)
+              lonsgrd(nn) = lon_tile(i,j)
+           enddo
+        enddo
+     endif
+  enddo  !loop for ntilet
+  if(nproc == 0) then
+    latsgrd = pi*latsgrd/180._r_single
+    lonsgrd = pi*lonsgrd/180._r_single
+  endif 
+endif ! nproc in mpi_id_group
+
+call mpi_bcast(npts,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+
+if(nproc==0 )then
+  allocate(delp(nx_res,ny_res,nlevs),ps(nx_res,ny_res))
+  allocate(g_prsi(nx_res,ny_res,nlevsp1))
+  allocate(pressimn(npts,nlevsp1),presslmn(npts,nlevs))
+  allocate(spressmn(npts))
+else
+  allocate(delp(1,1,nlevs),ps(1,1))
+  allocate(g_prsi(1,1,nlevs))
+  allocate(pressimn(1,1),presslmn(1,1))
+  allocate(spressmn(1))
+endif
+
+if(any (mpi_id_group == nproc))  then ! if paranc=.fales., this equal to "nproc== 00 
+  nn = 0
+  do ntile=1,ntiles
+     nn_tile0=(ntile-1)*nx_res*ny_res
+     nn=nn_tile0
+     write(char_tile, '(i1)') ntile
+     i=ij_pe(1,nproc)
+     j=ij_pe(2,nproc)
+     nxloc=nxlocgroup(i,j) 
+     nyloc=nylocgroup(i,j) 
+     allocate(delploc(nxloc,nyloc,nlevs))
+     ii=(j-1)*fv3_io_layout_nx+i-1 
+
+     if (paranc ) then
+          write(strsubid,'(a,I4.4)')'.',ii
+     else
+          strsubid=""
+     endif
+     if(l_fv3reg_filecombined) then
+       filename = 'fv3sar_tile'//char_tile//"_ensmean_dynvartracer"//trim(strsubid)
+     else
+       filename = 'fv3sar_tile'//char_tile//"_ensmean_dynvars"//trim(strsubid)
+     endif 
+     call nc_check( nf90_open(trim(adjustl(filename)),nf90_nowrite,file_id),&
+     myname_,'open: '//trim(adjustl(filename)) )
+     call read_fv3_restart_data3d('delp',filename,file_id,delploc)
+     call nc_check( nf90_close(file_id),&
+     myname_,'close '//trim(filename) )
+     if(paranc) then
+       do k=1,nlevs
+          call mpi_gatherv(delploc(:,:,k), recvcounts2d(nproc+1), mpi_real4, delp(:,:,k), recvcounts2d, displs2d,&
+                      mpi_real4, 0,mpi_comm_userread ,ierror)
+       enddo
+     else 
+        delp=delploc  
+     endif
+     deallocate(delploc)
+
+     if(nproc == 0) then 
+        g_prsi(:,:,nlevsp1)=eta1_ll(nlevsp1) !etal_ll is needed
+        do i=nlevs,1,-1
+          g_prsi(:,:,i)=delp(:,:,i)*0.01_r_kind+g_prsi(:,:,i+1)
+        enddo
+
+       ps = g_prsi(:,:,1)
+       nn=nn_tile0
+       do j=1,ny_res
+          do i=1,nx_res
+             nn=nn+1
+             spressmn(nn) = ps(i,j)
+          enddo
+       enddo
+
+
+
+    ! pressure at interfaces
+       do k=1,nlevsp1
+          nn=nn_tile0
+          do j=1,ny_res
+            do i=1,nx_res  
+              nn=nn+1
+              pressimn(nn,k) = g_prsi(i,j,k)
+            enddo
+          enddo
+       enddo
+       do k=1,nlevs
+          nn=nn_tile0
+          do j=1,ny_res
+            do i=1,nx_res  
+              nn=nn+1
+              presslmn(nn,k) = (pressimn(nn,k)+pressimn(nn,k+1)) *half
+            enddo
+          enddo
+       end do
+    endif !nproc==0
+  enddo !ntile
+
+  if(nproc ==0 ) then
+    print *,'ensemble mean first guess surface pressure:'
+    print *,minval(spressmn),maxval(spressmn)
+   ! logp holds log(pressure) or pseudo-height on grid, for each level/variable.
+    allocate(logp(npts,nlevs_pres)) ! log(ens mean first guess press) on mid-layers
+    do k=1,nlevs
+       ! all variables to be updated are on mid-layers, not layer interfaces.
+       logp(:,k) = -log(presslmn(:,k))
+       print *,'min/max presslmn',k,minval(presslmn(:,k)),maxval(presslmn(:,k)),minval(logp(:,k)),maxval(logp(:,k))
+    end do
+    logp(:,nlevs_pres) = -log(spressmn(:))
+  endif
+  deallocate(spressmn,presslmn,pressimn)
+  deallocate(ps)
+  deallocate(g_prsi,delp)
+  deallocate(lat_tile,lon_tile)
+endif ! nproc in IO group 
+
+allocate(gridloc(3,npts))
 if (nproc .ne. 0) then
    ! allocate arrays on other (non-root) tasks
    allocate(latsgrd(npts),lonsgrd(npts))
    allocate(logp(npts,nlevs_pres)) ! log(ens mean first guess press) on mid-layers
    allocate(eta1_ll(nlevsp1),eta2_ll(nlevsp1))
 endif
-!call mpi_bcast(logp,npts*nlevs_pres,mpi_real4,0,MPI_COMM_WORLD,ierr)
+if(nproc==0) write(6,*)logp(1,:)
 do k=1,nlevs_pres
   call mpi_bcast(logp(1,k),npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 enddo
@@ -302,6 +480,7 @@ do nn=1,npts
    gridloc(2,nn) = cos(latsgrd(nn))*sin(lonsgrd(nn))
    gridloc(3,nn) = sin(latsgrd(nn))
 end do
+deallocate (mpi_id_group)
 end subroutine getgridinfo
 
 subroutine gridinfo_cleanup()

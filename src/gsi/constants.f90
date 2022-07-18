@@ -90,7 +90,7 @@ module constants
 
 ! Declare derived constants
   integer(i_kind):: huge_i_kind
-  integer(i_kind), parameter :: max_varname_length=32
+  integer(i_kind), parameter :: max_varname_length=64
   real(r_single):: tiny_single, huge_single
   real(r_kind):: xai, xa, xbi, xb, dldt, rozcon,ozcon,fv, tpwcon,eps, rd_over_g
   real(r_kind):: el2orc, g_over_rd, rd_over_cp, cpr, omeps, epsm1, factor2

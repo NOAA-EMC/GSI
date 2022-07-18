@@ -13,7 +13,6 @@ BUILD_DIR=${BUILD_DIR:-"${DIR_ROOT}/build"}
 INSTALL_PREFIX=${INSTALL_PREFIX:-"${DIR_ROOT}/install"}
 GSI_MODE=${GSI_MODE:-"Regional"}  # By default build Regional GSI (for regression testing)
 ENKF_MODE=${ENKF_MODE:-"GFS"}     # By default build Global EnKF  (for regression testing)
-UTIL_OPTS=${UTIL_OPTS:-"-DBUILD_UTIL_ALL=ON"} # By default build all GFS utilities
 REGRESSION_TESTS=${REGRESSION_TESTS:-"YES"} # Build regression test suite
 
 #==============================================================================#
@@ -44,9 +43,6 @@ CMAKE_OPTS+=" -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX"
 
 # Configure for GSI and EnKF
 CMAKE_OPTS+=" -DGSI_MODE=$GSI_MODE -DENKF_MODE=${ENKF_MODE}"
-
-# Build utilities
-[[ -n ${UTIL_OPTS:-""} ]] && CMAKE_OPTS+=" $UTIL_OPTS"
 
 # Build regression test suite (on supported MACHINE_ID where CONTROLPATH exists)
 [[ ${REGRESSION_TESTS} =~ [yYtT] ]] && CMAKE_OPTS+=" -DBUILD_REG_TESTING=ON -DCONTROLPATH=${CONTROLPATH:-}"

@@ -226,6 +226,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !                         information in diagonostic file, which is used
 !                         in offline observation quality control program (AutoObsQC) 
 !                         for 3D-RTMA (if l_obsprvdiag is true).
+!   2022-03-15  Hu  change all th2 to t2m to indicate that 2m temperature 
+!                   is sensible instead of potentionl temperature
 !
 ! !REMARKS:
 !   language: f90
@@ -334,7 +336,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_q2
-  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_th2
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_t2m
 
   logical:: l_pbl_pseudo_itype
   integer(i_kind):: ich0
@@ -742,10 +744,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            if(i_coastline==1 .or. i_coastline==3) then
 
 !          Interpolate guess th 2m to observation location and time
-              call tintrp2a11_csln(ges_th2,tges2m,tges2m_water,dlat,dlon,dtime,hrdifsig,&
+              call tintrp2a11_csln(ges_t2m,tges2m,tges2m_water,dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
-              tges2m=tges2m*(r10*psges/r1000)**rd_over_cp_mass  ! convert to sensible T         
-              tges2m_water=tges2m_water*(r10*psges/r1000)**rd_over_cp_mass  ! convert to sensible T         
               if(iqtflg)then
                  call tintrp2a11_csln(ges_q2,qges2m,qges2m_water,dlat,dlon,dtime,hrdifsig,&
                      mype,nfldsig)
@@ -755,9 +755,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               if( abs(tob-tges2m) > abs(tob-tges2m_water)) tges2m=tges2m_water
            else
 !          Interpolate guess th 2m to observation location and time
-              call tintrp2a11(ges_th2,tges2m,dlat,dlon,dtime,hrdifsig,&
+              call tintrp2a11(ges_t2m,tges2m,dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
-              tges2m=tges2m*(r10*psges/r1000)**rd_over_cp_mass  ! convert to sensible T         
               if(iqtflg)then
                  call tintrp2a11(ges_q2,qges2m,dlat,dlon,dtime,hrdifsig,&
                      mype,nfldsig)
@@ -1413,19 +1412,19 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
          call stop2(999)
      endif
      if(i_use_2mt4b>0) then
-!    get th2m ...
-        varname='th2m'
+!    get t2m ...
+        varname='t2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
         if (istatus==0) then
-            if(allocated(ges_th2))then
+            if(allocated(ges_t2m))then
                write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
                call stop2(999)
             endif
-            allocate(ges_th2(size(rank2,1),size(rank2,2),nfldsig))
-            ges_th2(:,:,1)=rank2
+            allocate(ges_t2m(size(rank2,1),size(rank2,2),nfldsig))
+            ges_t2m(:,:,1)=rank2
             do ifld=2,nfldsig
                call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
-               ges_th2(:,:,ifld)=rank2
+               ges_t2m(:,:,ifld)=rank2
             enddo
         else
             write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
@@ -1835,7 +1834,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     if(allocated(ges_u )) deallocate(ges_u )
     if(allocated(ges_ps)) deallocate(ges_ps)
     if(allocated(ges_q2)) deallocate(ges_q2)
-    if(allocated(ges_th2)) deallocate(ges_th2)
+    if(allocated(ges_t2m)) deallocate(ges_t2m)
   end subroutine final_vars_
 
 end subroutine setupt

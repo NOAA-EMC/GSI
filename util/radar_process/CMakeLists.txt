@@ -1,2 +1,0 @@
-add_subdirectory(radialwind)
-add_subdirectory(reflectivity)
