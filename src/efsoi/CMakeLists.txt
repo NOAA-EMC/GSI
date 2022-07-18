@@ -4,6 +4,22 @@ elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fconvert=big-endian -ffree-line-length-0 -ffast-math -fno-second-underscore -frecord-marker=4")
 endif()
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+
+find_package(NetCDF REQUIRED Fortran)
+
+
+# NCEPLibs dependencies
+find_package(bacio REQUIRED)
+find_package(sigio REQUIRED)
+find_package(sfcio REQUIRED)
+find_package(nemsio REQUIRED)
+find_package(ncio REQUIRED)
+find_package(sp REQUIRED)
+find_package(w3emc REQUIRED)
+
+
 list(APPEND SRCS
   efsoi.f90
   efsoi_main.f90

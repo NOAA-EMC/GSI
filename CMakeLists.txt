@@ -31,6 +31,7 @@ option(ENABLE_MKL "Use MKL for LAPACK implementation (if available)" ON)
 option(BUILD_GSDCLOUD "Build GSD Cloud Analysis Library" OFF)
 option(BUILD_GSI "Build GSI" ON)
 option(BUILD_ENKF "Build EnKF" ON)
+option(BUILD_EFSOI "Build EFSOI" OFF)
 option(BUILD_REG_TESTING "Build the Regression Testing Suite" OFF)
 
 # Echo user options
@@ -39,6 +40,7 @@ message(STATUS "ENABLE_MKL ............. ${ENABLE_MKL}")
 message(STATUS "BUILD_GSDCLOUD ......... ${BUILD_GSDCLOUD}")
 message(STATUS "BUILD_GSI .............. ${BUILD_GSI}")
 message(STATUS "BUILD_ENKF ............. ${BUILD_ENKF}")
+message(STATUS "BUILD_EFSOI ............ ${BUILD_EFSOI}")
 message(STATUS "BUILD_REG_TESTING ...... ${BUILD_REG_TESTING}")
 
 # Build components

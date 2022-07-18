@@ -12,3 +12,8 @@ if(BUILD_ENKF)
   message(STATUS "Building EnKF")
   add_subdirectory(enkf)
 endif()
+
+if(BUILD_EFSOI)
+  message(STATUS "Building EFSOI")
+  add_subdirectory(efsoi)
+endif()
