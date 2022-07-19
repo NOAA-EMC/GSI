@@ -848,7 +848,8 @@ contains
                          varA(i,j)=varx(i)
                       end do
                       ostats(j)=ostatsx
-                      if ((any(varx>r10) .and. iuse_rad(j)>-2) .or. iuse_rad(j)==4) &
+                      if ((all(varx==zero) .and. iuse_rad(j)>-2) .or. iuse_rad(j)==4) cycle read3 
+                      if ((any(varx/=r10) .and. iuse_rad(j)>-2) .or. iuse_rad(j)==4) &
                          inew_rad(j)=.false.
                       cycle read3
                    end if
