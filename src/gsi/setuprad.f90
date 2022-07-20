@@ -373,6 +373,7 @@ contains
   logical in_curbin, in_anybin, save_jacobian
   logical account_for_corr_obs
   logical,dimension(nobs):: zero_irjaco3_pole
+  logical abi2km    ! use 2km abi data (not CSR/ASR) 
 
 ! Declare local arrays
 
@@ -406,6 +407,7 @@ contains
   real(r_kind) :: tnoise_save
   real(r_kind),dimension(:), allocatable :: rsqrtinv
   real(r_kind),dimension(:), allocatable :: rinvdiag
+  real(r_kind),dimension(nchanl) :: abi2km_bc
 
 !for GMI (dual scan angles)
   real(r_kind),dimension(nchanl):: emissivity2,ts2, emissivity_k2,tsim2
@@ -479,7 +481,6 @@ contains
      end do
   end do
 
-
 ! Initialize logical flags for satellite platform
 
   cao_flag   = .false.     
@@ -520,6 +521,7 @@ contains
   atms       = obstype == 'atms'
   saphir     = obstype == 'saphir'
   abi        = obstype == 'abi'
+  abi2km     = .false.
 
   ssmis=ssmis_las.or.ssmis_uas.or.ssmis_img.or.ssmis_env.or.ssmis 
 
@@ -1178,6 +1180,22 @@ contains
               do j=npred-angord+1, npred                                         
                  pred(j,i)=pred(j,i)*ang_rad(mm)
               end do
+           end if
+
+           if (abi2km .and. regional) then
+              abi2km_bc = zero
+              abi2km_bc(2) = 233.5_r_kind
+              abi2km_bc(3) = 241.7_r_kind
+              abi2km_bc(4) = 250.5_r_kind
+              pred(:,i) = zero
+              if (i>=2 .and. i<=4) then
+                 if (tb_obs(i) > 190.0_r_kind .and. tb_obs(i) < 300.0_r_kind) then
+                    pred(1,i)=1.0_r_kind
+                    pred(2,i)=tb_obs(i)-abi2km_bc(i)
+                    pred(3,i)=(tb_obs(i)-abi2km_bc(i))**2
+                    pred(4,i)=(tb_obs(i)-abi2km_bc(i))**3
+                 end if
+              end if
            end if
 
            do j = 1,npred
