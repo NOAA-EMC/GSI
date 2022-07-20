@@ -1184,7 +1184,7 @@ contains
               end do
            end if
 
-           if (abi2km) then
+           if (abi2km .and. regional) then
               pred(:,i) = zero
               if (i>=2 .and. i<=4) then
                  if (tb_obs > 190.0 .and. tb_obs(i) < 300.0) then
