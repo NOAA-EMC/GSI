@@ -747,6 +747,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     use gridmod, only: grd_a
     use mpimod, only: mype
     use gsi_metguess_mod, only: gsi_metguess_get
+    use netcdf, only:nf90_open,nf90_close,nf90_inquire,nf90_nowrite, nf90_format_netcdf4
 
     implicit none
 
@@ -784,6 +785,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     integer(i_kind):: inner_vars,numfields
     integer(i_kind):: ndynvario2d,ntracerio2d,ilev,jdynvar,jtracer
     integer(r_kind):: iuv,ndynvario3d,ntracerio3d
+    integer(i_kind):: loc_id,ncfmt
 
 !clt this block is still maintained for they would be needed for a certain 2d fields IO 
     it=ntguessig
@@ -1053,6 +1055,28 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
             if (ier/=0) call die(trim(myname),'cannot get pointers for q2m, ier=',ier)
             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it),'t2m',ges_t2m,istatus );ier=ier+istatus
             if (ier/=0) call die(trim(myname),'cannot get pointers for t2m,ier=',ier)
+         endif
+         if(mype == 0 ) then
+           call check(nf90_open(fv3filenamegin(it)%dynvars,nf90_nowrite,loc_id))
+           call check(nf90_inquire(loc_id,formatNum=ncfmt))
+           call check(nf90_close(loc_id))
+           if(ncfmt /= nf90_format_netcdf4) then
+              write(6,*) &
+              'the current GSI parallelization IO for fv3_lam only works for netcdf4',&
+              'ncfmt should be ', nf90_format_netcdf4,&
+              ' GSI will stop  while, dynvars file is ', ncfmt
+              call stop2(333)
+           endif
+           call check(nf90_open(fv3filenamegin(it)%tracers,nf90_nowrite,loc_id))
+           call check(nf90_inquire(loc_id,formatNum=ncfmt))
+           call check(nf90_close(loc_id))
+           if(ncfmt /= nf90_format_netcdf4) then
+              write(6,*) &
+              'the current GSI parallelization IO for fv3_lam only works for netcdf4',&
+              'ncfmt should be ', nf90_format_netcdf4,&
+              ' GSI will stop  while, tracer file is ', ncfmt
+              call stop2(333)
+           endif
          endif
 
          if( fv3sar_bg_opt == 0) then 
@@ -1334,6 +1358,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m)
            endif
          enddo
          gfile_loc=gfile_loc_layout(0)
+                  
        else
          iret=nf90_open(dynvars,nf90_nowrite,gfile_loc)
          if(iret/=nf90_noerr) then
