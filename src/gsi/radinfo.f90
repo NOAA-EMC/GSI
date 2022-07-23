@@ -608,7 +608,7 @@ contains
 ! !USES:
 
     use obsmod, only: iout_rad
-    use constants, only: zero,one,zero_quad
+    use constants, only: zero,one,zero_quad, r10
     use mpimod, only: mype
     use mpeu_util, only: perr,die
     implicit none
@@ -848,7 +848,8 @@ contains
                          varA(i,j)=varx(i)
                       end do
                       ostats(j)=ostatsx
-                      if ((any(varx/=zero) .and. iuse_rad(j)>-2) .or. iuse_rad(j)==4) & 
+                      if ((all(varx==zero) .and. iuse_rad(j)>-2) .or. iuse_rad(j)==4) cycle read3 
+                      if ((any(varx/=r10) .and. iuse_rad(j)>-2) .or. iuse_rad(j)==4) &
                          inew_rad(j)=.false.
                       cycle read3
                    end if
@@ -1860,6 +1861,7 @@ contains
          end do 
       end do loop_a
 
+      write(6,*) 'INIT_PREDX: inst_sat  new_chan = ', trim(fdiag_rad), new_chan
       if (.not. update .and. new_chan==0) then 
          call close_radiag(fdiag_rad,lndiag)
          cycle loopf
