@@ -89,7 +89,7 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
 ! get total number of conventional and sat obs for ensmean.
     id = 'ensmean'
     if(nproc == 0)call get_num_convobs(obspath,datestring,nobs_conv,nobs_convdiag,id)
-    if (global_2mDA) then
+    if (global_2mDA) then ! flag for not reading other conventional obs
        if(nproc == iozproc) nobs_oz=0; nobs_ozdiag=0
        if(nproc == isatproc) nobs_sat=0; nobs_satdiag=0
     else

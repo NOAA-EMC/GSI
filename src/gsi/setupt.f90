@@ -503,7 +503,9 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      if (lobsdiagsave) nreal=nreal+4*miter+1
      if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
      if (save_jacobian) then
-       nnz   = 2                   ! number of non-zero elements in dH(x)/dx profile
+       write(6,*) 'CSD - setting nnz to 1' 
+       !nnz   = 2                   ! number of non-zero elements in dH(x)/dx profile
+       nnz = 1 ! for T2m.
        nind   = 1
        call new(dhx_dx, nnz, nind)
        nreal = nreal + size(dhx_dx)

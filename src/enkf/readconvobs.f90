@@ -282,7 +282,7 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
 
      obtype = obtypes(itype)
      ! only read t and q obs for global_2mDA
-     if (global_2mDA .and. (obtype .ne. '  t' .and. obtype .ne. '  q')) cycle obtypeloop
+     if (global_2mDA .and. (obtype .ne. '  t' .and. obtype .ne. '  q')) cycle obtypeloop ! flag for nor reading other convention obs type
      peloop: do ipe=0,npefiles
 
         write(pe_name,'(i4.4)') ipe
@@ -338,10 +338,10 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
         num_obs_totdiag = num_obs_totdiag + nobs_curr
         do i = 1, nobs_curr
 
-           ! for global_2mDA skip if not 2m (surface) ob
+           ! for global_2mDA skip if not 2m (surface) ob 
            ityp = Observation_Type(i)
            sfctype=(ityp>179.and.ityp<190).or.(ityp>=192.and.ityp<=199)
-           if (global_2mDA .and. .not. sfctype) cycle
+           if (global_2mDA .and. .not. sfctype) cycle ! flag for not reading other conventional obs types
 
            errorlimit2=errorlimit2_obs
 
@@ -350,7 +350,7 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
            endif
 
            ! for q, normalize by qsatges
-           if (obtype == '  q' .and. .not. global_2mDA) then
+           if (obtype == '  q' .and. .not. global_2mDA) then ! flag for normalzing q by ens mean (if q read in)
               obmax     = abs(Observation(i) / Forecast_Saturation_Spec_Hum(i))
               error     = Errinv_Final(i) * Forecast_Saturation_Spec_Hum(i)
            else
@@ -553,7 +553,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
 
      obtype = obtypes(itype)
      ! only read t and q obs for global_2mDA
-     if (global_2mDA .and. (obtype .ne. '  t' .and. obtype .ne. '  q')) cycle obtypeloop
+     if (global_2mDA .and. (obtype .ne. '  t' .and. obtype .ne. '  q')) cycle obtypeloop ! flag for not reading other obs types
      peloop: do ipe=0,npefiles
 
         write(pe_name,'(i4.4)') ipe
@@ -678,7 +678,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
            ! for global_2mDA skip if not 2m (surface) ob
            ityp = Observation_Type(i)
            sfctype=(ityp>179.and.ityp<190).or.(ityp>=192.and.ityp<=199)
-           if (global_2mDA .and. .not. sfctype) cycle
+           if (global_2mDA .and. .not. sfctype) cycle ! flag for not reading other conventional obs types
            nobdiag = nobdiag + 1
            ! special handling for error limits for GPS bend angle
            if (obtype == 'gps') then
@@ -686,7 +686,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
            endif
 
            ! for q, normalize by qsatges
-           if (.not. global_2mDA .and. obtype == '  q') then
+           if (.not. global_2mDA .and. obtype == '  q') then ! flag for normazling q
               obmax     = abs(real(Observation(i),r_single) / real(Forecast_Saturation_Spec_Hum(i),r_single))
               errororig = real(Errinv_Input(i),r_single) * real(Forecast_Saturation_Spec_Hum(i),r_single)
               error     = real(Errinv_Final(i),r_single) * real(Forecast_Saturation_Spec_Hum(i),r_single)
@@ -795,13 +795,13 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
               endif
 
               ! normalize q by qsatges
-              if (obtype == '  q' .and. .not. global_2mDA) then
+              if (obtype == '  q' .and. .not. global_2mDA) then ! flag for normalizing q
                  hx(nob) = hx(nob) / Forecast_Saturation_Spec_Hum(i)
               endif
            endif
 
            ! normalize q by qsatges
-           if (obtype == '  q' .and. .not. global_2mDA) then
+           if (obtype == '  q' .and. .not. global_2mDA) then ! flag for normalizing q
               x_obs(nob)   = x_obs(nob) /Forecast_Saturation_Spec_Hum(i)
               hx_mean(nob)     = hx_mean(nob) /Forecast_Saturation_Spec_Hum(i)
               hx_mean_nobc(nob) = hx_mean_nobc(nob) /Forecast_Saturation_Spec_Hum(i)

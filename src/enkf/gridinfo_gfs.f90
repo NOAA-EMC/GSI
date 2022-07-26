@@ -45,7 +45,7 @@ module gridinfo
 
 use mpisetup, only: nproc, mpi_integer, mpi_real4
 use mpimod, only: mpi_comm_world
-use params, only: datapath,nlevs,nlons,nlats,use_gfs_nemsio,use_gfs_ncio,fgfileprefixes, global_2mDA
+use params, only: datapath,nlevs,nlons,nlats,use_gfs_nemsio,use_gfs_ncio,fgfileprefixes
 use kinds, only: r_kind, i_kind, r_double, r_single
 use constants, only: one,zero,pi,cp,rd,grav,rearth,max_varname_length
 use specmod, only: sptezv_s, sptez_s, init_spec_vars, isinitialized, asin_gaulats, &
@@ -138,11 +138,7 @@ else if (use_gfs_ncio) then
      dset = open_dataset(filename)
      londim = get_dim(dset,'grid_xt'); nlonsin = londim%len
      latdim = get_dim(dset,'grid_yt'); nlatsin = latdim%len
-     if (.not. global_2mDA) then 
-        levdim = get_dim(dset,'pfull');   nlevsin = levdim%len
-     else
-        nlevsin = 1
-     endif
+     levdim = get_dim(dset,'pfull');   nlevsin = levdim%len
      idvc = 2; ntrunc = nlatsin-2
      if (nlons /= nlonsin .or. nlats /= nlatsin .or. nlevs /= nlevsin) then
        print *,'incorrect dims in netcdf file'
@@ -233,13 +229,8 @@ if (nproc .eq. 0) then
       endif
       ! convert to 1d array, units to millibars, flip so lats go N to S.
       spressmn = 0.01_r_kind*reshape(values_2d,(/nlons*nlats/))
-      if (.not. global_2mDA) then
-         call read_attribute(dset, 'ak', ak)
-         call read_attribute(dset, 'bk', bk)
-      else
-         allocate(ak(nlevs+1),bk(nlevs+1))
-         ak=0; bk=1
-      endif
+      call read_attribute(dset, 'ak', ak)
+      call read_attribute(dset, 'bk', bk)
       call close_dataset(dset)
       ! pressure at interfaces
       do k=1,nlevs+1
@@ -311,15 +302,11 @@ if (nproc .eq. 0) then
          enddo
       enddo
    endif
-   if (global_2mDA) then
-      presslmn(:,nlevs) = spressmn
-   else
-      do k=1,nlevs
-        ! layer pressure from Phillips vertical interpolation.
-        presslmn(:,k) = ((pressimn(:,k)**kap1-pressimn(:,k+1)**kap1)/&
+   do k=1,nlevs
+      ! layer pressure from Phillips vertical interpolation.
+      presslmn(:,k) = ((pressimn(:,k)**kap1-pressimn(:,k+1)**kap1)/&
                          (kap1*(pressimn(:,k)-pressimn(:,k+1))))**kapr
-      end do
-   endif
+   end do
    print *,'ensemble mean first guess surface pressure:'
    print *,minval(spressmn),maxval(spressmn)
    !do k=1,nlevs

@@ -484,9 +484,6 @@ if (fv3_native) then
 endif
 close(912)
 
-! all fields are 2d if global_2mDA
-if (global_2mDA) nlevs=1
-
 ! find number of satellite files
 nsats_rad=0
 do i=1,nsatmax_rad
@@ -717,11 +714,7 @@ do while (nhr_anal(nbackgrounds+1) > 0)
         fgfileprefixes(nbackgrounds+1)="firstguess."
       endif
      else  ! global
-      if (global_2mDA) then
-      fgfileprefixes(nbackgrounds+1)="bfg_"//datestring//"_fhr"//charfhr_anal(nbackgrounds+1)//"_"
-      else
       fgfileprefixes(nbackgrounds+1)="sfg_"//datestring//"_fhr"//charfhr_anal(nbackgrounds+1)//"_"
-      endif
      endif
    endif
    if (trim(fgsfcfileprefixes(nbackgrounds+1)) .eq. "") then
@@ -743,11 +736,11 @@ do while (nhr_state(nstatefields+1) > 0)
         statefileprefixes(nstatefields+1)="firstguess."
       endif
      else  ! global
-      if (global_2mda) then
-      statefileprefixes(nstatefields+1)="bfg_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
-      else
+      !if (global_2mda) then
+      !statefileprefixes(nstatefields+1)="bfg_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
+      !else
       statefileprefixes(nstatefields+1)="sfg_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
-      endif
+      !endif
      endif
    endif
    if (trim(statesfcfileprefixes(nstatefields+1)) .eq. "") then
