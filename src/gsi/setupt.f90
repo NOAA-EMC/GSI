@@ -503,9 +503,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      if (lobsdiagsave) nreal=nreal+4*miter+1
      if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
      if (save_jacobian) then
-       write(6,*) 'CSD - setting nnz to 1' 
-       !nnz   = 2                   ! number of non-zero elements in dH(x)/dx profile
-       nnz = 1 ! for T2m.
+       nnz   = 2                   ! number of non-zero elements in dH(x)/dx profile
        nind   = 1
        call new(dhx_dx, nnz, nind)
        nreal = nreal + size(dhx_dx)
@@ -725,7 +723,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      elseif (sfctype .and. use_2m_obs ) then 
 ! SCENARIO 2: obs is sfctype, and use_2m_obs  scheme is on. 
 ! 2m forecast has been read from the sfc guess files
-! note: any changes to ges_t2m and tob in this block should also be made in buddy_check_t 
 
     ! mask: 0 - sea, 1 - land, 2-ice (val + 3 = interpolated from at least one different land cover
     ! for now, use only pure land (interpolation from mixed grid cells is pretty sketchy, but 
@@ -754,6 +751,11 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
              dhx_dx%st_ind(1) = sum(levels(1:ns3d))  + t_ind
              dhx_dx%end_ind(1) = sum(levels(1:ns3d)) + t_ind
              dhx_dx%val(1) = one
+             dhx_dx%val(2) = zero ! in this case, there is no vertical interp 
+                                  ! and nnz (=dim(dhx_dx%val)) should be one, 
+                                  ! but nnz is a file attribute, so need to use 
+                                  ! same value as for vertical profile obs. Get 
+                                  ! around this by setting val(2) to zero.
           endif
      else
 ! SCENARIO 3: obs is sfctype, and neither sfcmodel nor use_2m_obs  is chosen
