@@ -12,7 +12,7 @@ module abstract_get_wrf_mass_ensperts_mod
     import abstract_get_wrf_mass_ensperts_class
     implicit none
     class(abstract_get_wrf_mass_ensperts_class), intent(inout) :: this
-    type(gsi_bundle),allocatable, intent(inout) :: en_perts(:,:)
+    type(gsi_bundle),allocatable, intent(inout) :: en_perts(:,:,:)
     integer(i_kind), intent(in   ):: nelen
     real(r_single),dimension(:,:,:),allocatable:: ps_bar
   end subroutine get_wrf_mass_ensperts
@@ -25,7 +25,7 @@ module abstract_get_wrf_mass_ensperts_mod
     implicit none
     class(abstract_get_wrf_mass_ensperts_class), intent(inout) :: this
     integer(i_kind),intent(in):: mype
-    type(gsi_bundle),allocatable, intent(in   ) :: en_perts(:,:)
+    type(gsi_bundle),allocatable, intent(in   ) :: en_perts(:,:,:)
     integer(i_kind), intent(in   ):: nelen
     type(gsi_bundle),OPTIONAL,intent(in):: en_bar
   end subroutine ens_spread_dualres_regional

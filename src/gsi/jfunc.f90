@@ -738,6 +738,7 @@ contains
     use gsi_4dvar, only: nsubwin, lsqrtb
     use bias_predictors, only: setup_predictors
     use hybrid_ensemble_parameters, only: l_hyb_ens,n_ens,generate_ens,grd_ens,nval_lenz_en
+    use hybrid_ensemble_parameters, only: naensgrp
     implicit none
 
     integer(i_kind) n_ensz,nval_lenz_tot,nval_lenz_enz
@@ -748,8 +749,8 @@ contains
     nval_levs=max(0,nc3d)*nsig+max(0,nc2d)
     nval_len=nval_levs*latlon11
     if(l_hyb_ens) then
-       nval_len=nval_len+n_ens*nsig*grd_ens%latlon11
-       nval_levs_ens=nval_levs+n_ens*nsig
+       nval_len=nval_len+naensgrp*n_ens*nsig*grd_ens%latlon11
+       nval_levs_ens=nval_levs+naensgrp*n_ens*nsig
     end if
     nsclen=npred*jpch_rad
     npclen=npredp*npcptype

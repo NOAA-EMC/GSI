@@ -90,7 +90,7 @@ subroutine ens_spread_dualres_regional(en_bar)
      do n=1,n_ens
         do i=1,nelen
            sube%values(i)=sube%values(i) &
-             +en_perts(n,1)%valuesr4(i)*en_perts(n,1)%valuesr4(i)
+             +en_perts(n,1,1)%valuesr4(i)*en_perts(n,1,1)%valuesr4(i)
         end do
      end do
 
@@ -101,7 +101,7 @@ subroutine ens_spread_dualres_regional(en_bar)
      do n=1,n_ens
         do i=1,nelen
            sube%values(i)=sube%values(i) &
-             +(en_perts(n,1)%valuesr4(i)-en_bar%values(i))*(en_perts(n,1)%valuesr4(i)-en_bar%values(i))
+             +(en_perts(n,1,1)%valuesr4(i)-en_bar%values(i))*(en_perts(n,1,1)%valuesr4(i)-en_bar%values(i))
         end do
      end do
  

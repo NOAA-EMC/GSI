@@ -38,7 +38,7 @@ contains
     implicit none
     class(get_wrf_mass_ensperts_class), intent(inout) :: this
     integer(i_kind),intent(in):: mype
-    type(gsi_bundle),allocatable, intent(in   ) :: en_perts(:,:)
+    type(gsi_bundle),allocatable, intent(in   ) :: en_perts(:,:,:)
     integer(i_kind), intent(in   ):: nelen
     type(gsi_bundle),OPTIONAL,intent(in):: en_bar
     write(6,*)'get_wrf_mass_ensperts:  ***WARNING*** dummy call ... does nothing!'
@@ -50,7 +50,7 @@ contains
     use gsi_bundlemod, only: gsi_bundle
     implicit none
     class(get_wrf_mass_ensperts_class), intent(inout) :: this
-    type(gsi_bundle),allocatable, intent(inout) :: en_perts(:,:)
+    type(gsi_bundle),allocatable, intent(inout) :: en_perts(:,:,:)
     integer(i_kind), intent(in   ):: nelen
     real(r_single),dimension(:,:,:),allocatable:: ps_bar
     write(6,*)'get_wrf_mass_ensperts:  ***WARNING*** dummy call ... does nothing!'
