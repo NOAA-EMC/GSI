@@ -1043,7 +1043,7 @@
   if (use_gfs_nemsio) call nemsio_close(gfilesfc,iret=iret)
 
   if ( read_sfc_file ) then
-
+ 
       if ( .not.  use_gfs_ncio ) then 
          write(6,*) 'griddio/griddata for sfc update vars only coded for nc io' 
          call stop2(23)
@@ -1062,7 +1062,7 @@
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))
-        call copytogrdin(ug,grdin(:,tmp2m_ind,nb,ne))
+        call copytogrdin(ug,grdin(:,levels(n3d) + tmp2m_ind,nb,ne))
      endif
      if (spfh2m_ind > 0) then
         call read_vardata(dset_sfc, 'spfh2m', values_2d, errcode=iret)
@@ -1071,7 +1071,7 @@
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))
-        call copytogrdin(ug,grdin(:,spfh2m_ind,nb,ne))
+        call copytogrdin(ug,grdin(:,levels(n3d) + spfh2m_ind,nb,ne))
      endif
      if (soilt1_ind > 0) then
         call read_vardata(dset_sfc, 'soilt1', values_2d, errcode=iret)
@@ -1080,7 +1080,7 @@
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))
-        call copytogrdin(ug,grdin(:,soilt1_ind,nb,ne))
+        call copytogrdin(ug,grdin(:,levels(n3d) + soilt1_ind,nb,ne))
      endif
      if (soilt2_ind > 0) then
         call read_vardata(dset_sfc, 'soilt2', values_2d, errcode=iret)
@@ -1089,7 +1089,7 @@
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))
-        call copytogrdin(ug,grdin(:,soilt2_ind,nb,ne))
+        call copytogrdin(ug,grdin(:,levels(n3d) + soilt2_ind,nb,ne))
      endif
      if (soilt3_ind > 0) then
         call read_vardata(dset_sfc, 'soilt3', values_2d, errcode=iret)
@@ -1098,7 +1098,7 @@
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))
-        call copytogrdin(ug,grdin(:,soilt3_ind,nb,ne))
+        call copytogrdin(ug,grdin(:,levels(n3d) + soilt3_ind,nb,ne))
      endif
      if (soilt4_ind > 0) then
         call read_vardata(dset_sfc, 'soilt4', values_2d, errcode=iret)
@@ -1107,7 +1107,7 @@
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))
-        call copytogrdin(ug,grdin(:,soilt4_ind,nb,ne))
+        call copytogrdin(ug,grdin(:,levels(n3d) + soilt4_ind,nb,ne))
      endif
      if (slc1_ind > 0) then
         call read_vardata(dset_sfc, 'slc1', values_2d, errcode=iret)
@@ -1116,7 +1116,7 @@
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))
-        call copytogrdin(ug,grdin(:,slc1_ind,nb,ne))
+        call copytogrdin(ug,grdin(:,levels(n3d) + slc1_ind,nb,ne))
      endif
      if (slc2_ind > 0) then
         call read_vardata(dset_sfc, 'slc2', values_2d, errcode=iret)
@@ -1125,7 +1125,7 @@
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))
-        call copytogrdin(ug,grdin(:,slc2_ind,nb,ne))
+        call copytogrdin(ug,grdin(:,levels(n3d) + slc2_ind,nb,ne))
      endif
      if (slc3_ind > 0) then
         call read_vardata(dset_sfc, 'slc3', values_2d, errcode=iret)
@@ -1134,7 +1134,7 @@
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))
-        call copytogrdin(ug,grdin(:,slc3_ind,nb,ne))
+        call copytogrdin(ug,grdin(:,levels(n3d) + slc3_ind,nb,ne))
      endif
      if (slc4_ind > 0) then
         call read_vardata(dset_sfc, 'slc4', values_2d, errcode=iret)
@@ -1143,7 +1143,7 @@
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))
-        call copytogrdin(ug,grdin(:,slc4_ind,nb,ne))
+        call copytogrdin(ug,grdin(:,levels(n3d) + slc4_ind,nb,ne))
      endif
 
      call close_dataset(dset_sfc)
@@ -1976,7 +1976,7 @@
 
  end subroutine writegriddata_pnc
 
- subroutine writegriddata_2mDA(nanal1,nanal2,vars2d,n2d,ndim,grdin,no_inflate_flag)
+ subroutine writegriddata_2mDA(nanal1,nanal2,vars2d,n2d,grdin_2d,no_inflate_flag)
   use netcdf
   use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
                           read_attribute, close_dataset, get_dim, read_vardata,&
@@ -1989,8 +1989,9 @@
 
   integer, intent(in) :: nanal1,nanal2
   character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
-  integer, intent(in) :: n2d,ndim
-  real(r_single), dimension(npts,ndim,nbackgrounds,nanal2-nanal1+1), intent(inout) :: grdin
+  integer, intent(in) :: n2d
+  ! only 2d segment of grdin should be input here
+  real(r_single), dimension(npts,n2d,nbackgrounds,nanal2-nanal1+1), intent(inout) :: grdin_2d
   logical, intent(in) :: no_inflate_flag
   character(len=500):: filenamein, filenameout
   real(r_kind), dimension(nlons*nlats) :: ug,vg
@@ -2126,7 +2127,7 @@
         call stop2(29)
      endif
      vg = reshape(values_2d,(/nlons*nlats/))
-     call copyfromgrdin(grdin(:,tmp2m_ind,nb,ne),ug)
+     call copyfromgrdin(grdin_2d(:,tmp2m_ind,nb,ne),ug)
      ! add increment to background.
      values_2d = reshape(ug+vg,(/nlons,nlats/))
      ! quantize data if lossy compression desired.
@@ -2155,7 +2156,7 @@
         call stop2(29)
      endif
      vg = reshape(values_2d,(/nlons*nlats/))
-     call copyfromgrdin(grdin(:,spfh2m_ind,nb,ne),ug)
+     call copyfromgrdin(grdin_2d(:,spfh2m_ind,nb,ne),ug)
      ! add increment to background.
      values_2d = reshape(ug+vg,(/nlons,nlats/))
      ! quantize data if lossy compression desired.
@@ -2184,7 +2185,7 @@
         call stop2(29)
      endif
      vg = reshape(values_2d,(/nlons*nlats/))
-     call copyfromgrdin(grdin(:,soilt1_ind,nb,ne),ug)
+     call copyfromgrdin(grdin_2d(:,soilt1_ind,nb,ne),ug)
      ! add increment to background.
      values_2d = reshape(ug+vg,(/nlons,nlats/))
      ! quantize data if lossy compression desired.
@@ -3708,7 +3709,7 @@
 
  end subroutine writegriddata
 
- subroutine writeincrement_2mDA(nanal1,nanal2,vars2d,n2d,ndim,grdin,no_inflate_flag)
+ subroutine writeincrement_2mDA(nanal1,nanal2,vars2d,n2d,grdin_2d,no_inflate_flag)
   use netcdf
   use params, only: nbackgrounds,fgsfcfileprefixes,incsfcfileprefixes,&
                     datestring,nhr_anal,write_ensmean,reducedgrid
@@ -3722,8 +3723,9 @@
 
   integer, intent(in) :: nanal1,nanal2
   character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
-  integer, intent(in) :: n2d,ndim
-  real(r_single), dimension(npts,ndim,nbackgrounds,1), intent(inout) :: grdin
+  integer, intent(in) :: n2d
+  ! only the 2d segment of grdin is input
+  real(r_single), dimension(npts,n2d,nbackgrounds,1), intent(inout) :: grdin_2d
   logical, intent(in) :: no_inflate_flag
   character(len=500):: filenamein, filenameout
   integer(i_kind) :: i, j, nb, ne, nanal
@@ -3874,7 +3876,7 @@
   ! tmp2m increment
   inc(:) = zero
   if (tmp2m_ind > 0) then
-    call copyfromgrdin(grdin(:,tmp2m_ind,nb,ne),inc)
+    call copyfromgrdin(grdin_2d(:,tmp2m_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
   do j=1,nlats
@@ -3885,7 +3887,7 @@
   ! spfh2m increment
   inc(:) = zero
   if (spfh2m_ind > 0) then
-    call copyfromgrdin(grdin(:,spfh2m_ind,nb,ne),inc)
+    call copyfromgrdin(grdin_2d(:,spfh2m_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
   do j=1,nlats
@@ -3896,7 +3898,7 @@
   ! soilt1 increment
   inc(:) = zero
   if (soilt1_ind > 0) then
-    call copyfromgrdin(grdin(:,soilt1_ind,nb,ne),inc)
+    call copyfromgrdin(grdin_2d(:,soilt1_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
   inc2dout=0.
@@ -3910,7 +3912,7 @@
   ! soilt2 increment
   inc(:) = zero
   if (soilt2_ind > 0) then
-    call copyfromgrdin(grdin(:,soilt2_ind,nb,ne),inc)
+    call copyfromgrdin(grdin_2d(:,soilt2_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
   inc2dout=0.
@@ -3924,7 +3926,7 @@
   ! soilt3 increment
   inc(:) = zero
   if (soilt3_ind > 0) then
-    call copyfromgrdin(grdin(:,soilt3_ind,nb,ne),inc)
+    call copyfromgrdin(grdin_2d(:,soilt3_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
   inc2dout=0.
@@ -3938,7 +3940,7 @@
   ! soilt4 increment
   inc(:) = zero
   if (soilt4_ind > 0) then
-    call copyfromgrdin(grdin(:,soilt4_ind,nb,ne),inc)
+    call copyfromgrdin(grdin_2d(:,soilt4_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
   inc2dout=0.
@@ -3952,7 +3954,7 @@
   ! slc1 increment
   inc(:) = zero
   if (slc1_ind > 0) then
-    call copyfromgrdin(grdin(:,slc1_ind,nb,ne),inc)
+    call copyfromgrdin(grdin_2d(:,slc1_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
   do j=1,nlats
@@ -3963,7 +3965,7 @@
   ! slc2 increment
   inc(:) = zero
   if (slc2_ind > 0) then
-    call copyfromgrdin(grdin(:,slc2_ind,nb,ne),inc)
+    call copyfromgrdin(grdin_2d(:,slc2_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
   do j=1,nlats
@@ -3974,7 +3976,7 @@
   ! slc3 increment
   inc(:) = zero
   if (slc3_ind > 0) then
-    call copyfromgrdin(grdin(:,slc3_ind,nb,ne),inc)
+    call copyfromgrdin(grdin_2d(:,slc3_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
   do j=1,nlats
@@ -3985,7 +3987,7 @@
   ! slc4 increment
   inc(:) = zero
   if (slc4_ind > 0) then
-    call copyfromgrdin(grdin(:,slc4_ind,nb,ne),inc)
+    call copyfromgrdin(grdin_2d(:,slc4_ind,nb,ne),inc)
   endif
   inc2d(:,:) = reshape(inc,(/nlons,nlats/))
   do j=1,nlats

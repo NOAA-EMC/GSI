@@ -371,13 +371,13 @@ if (nproc <= ntasks_io-1) then
    if (.not. paranc) then
       if (write_fv3_incr) then
          if (global_2mDA) then ! flag for writing sfc increments
-             call writeincrement_2mDA(nanal1(nproc),nanal2(nproc),cvars2d,nc2d,ncdim,grdin,no_inflate_flag)
+             call writeincrement_2mDA(nanal1(nproc),nanal2(nproc),cvars2d,nc2d,grdin(:,clevels(nc3d)+1:ncdim, :, :),no_inflate_flag)
          else
              call writeincrement(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
          endif
       else
          if (global_2mDA) then ! flag for witing sfc analyis
-             call writegriddata_2mDA(nanal1(nproc),nanal2(nproc),cvars2d,nc2d,ncdim,grdin,no_inflate_flag)
+             call writegriddata_2mDA(nanal1(nproc),nanal2(nproc),cvars2d,nc2d,grdin(:,clevels(nc3d)+1:ncdim,:,:),no_inflate_flag)
          else
              call writegriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
          endif
@@ -387,13 +387,13 @@ if (nproc <= ntasks_io-1) then
            ! also write out ens mean on root task.
            if (write_fv3_incr) then
               if (global_2mDA) then ! flag for writing sfc inctements
-                 call writeincrement_2mDA(0,0,cvars2d,nc2d,ncdim,grdin_mean,no_inflate_flag)
+                 call writeincrement_2mDA(0,0,cvars2d,nc2d,grdin_mean(:,clevels(nc3d)+1:ncdim,:,:),no_inflate_flag)
               else 
                  call writeincrement(0,0,cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin_mean,no_inflate_flag)
               endif
            else
               if (global_2mDA) then ! flag for writing sfc analysis
-                 call writegriddata_2mDA(0,0,cvars2d,nc2d,ncdim,grdin_mean,no_inflate_flag)
+                 call writegriddata_2mDA(0,0,cvars2d,nc2d,grdin_mean(:,clevels(nc3d)+1:ncdim,:,:),no_inflate_flag)
               else
                  call writegriddata(0,0,cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin_mean,no_inflate_flag)
               endif
