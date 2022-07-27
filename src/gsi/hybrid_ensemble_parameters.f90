@@ -293,6 +293,7 @@ module hybrid_ensemble_parameters
   public :: region_dx_ens,region_dy_ens
   public :: ens_fast_read
   public :: sst_staticB
+  public :: limqens
 
   logical l_hyb_ens,uv_hyb_ens,q_hyb_ens,oz_univ_static,sst_staticB
   logical aniso_a_en
@@ -340,6 +341,7 @@ module hybrid_ensemble_parameters
   integer(i_kind) nelen
   type(gsi_bundle),save,allocatable :: en_perts(:,:)
   real(r_single),dimension(:,:,:),allocatable:: ps_bar
+  real(r_single):: limqens
 
 !    following is for interpolation of global ensemble to regional ensemble grid
 
@@ -417,6 +419,8 @@ subroutine init_hybrid_ensemble_parameters
   i_en_perts_io=0            ! default for en_pert IO. 0 is no IO
   ensemble_path = './'       ! default for path to ensemble members
   ens_fast_read=.false.
+  limqens=1.0_r_single       ! default for limiting ensemble RH (+/-)
+  
 
 end subroutine init_hybrid_ensemble_parameters
 

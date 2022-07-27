@@ -111,7 +111,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   use mpeu_util, only: getindex
   use intradmod, only: luseu,lusev,luset,luseq,lusecw,luseoz,luseqg,luseqh,luseqi,luseql, &
           luseqr,luseqs
-  use intradmod, only: itv,iqv,ioz,icw,ius,ivs,isst,iqg,iqh,iqi,iql,iqr,iqs,lgoback
+  use intradmod, only: itsen,iqv,ioz,icw,ius,ivs,isst,iqg,iqh,iqi,iql,iqr,iqs,lgoback
   use m_obsNode, only: obsNode
   use m_radNode, only: radNode
   use m_radNode, only: radNode_typecast
@@ -153,7 +153,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 ! Retrieve pointers
   call gsi_bundlegetpointer(xval,'u',  su, istatus)
   call gsi_bundlegetpointer(xval,'v',  sv, istatus)
-  call gsi_bundlegetpointer(xval,'tv' ,st, istatus)
+  call gsi_bundlegetpointer(xval,'tsen' ,st, istatus)
   call gsi_bundlegetpointer(xval,'q',  sq, istatus)
   call gsi_bundlegetpointer(xval,'cw' ,scw,istatus)
   call gsi_bundlegetpointer(xval,'oz' ,soz,istatus)
@@ -167,7 +167,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 
   call gsi_bundlegetpointer(dval,'u',  ru, istatus)
   call gsi_bundlegetpointer(dval,'v',  rv, istatus)
-  call gsi_bundlegetpointer(dval,'tv' ,rt, istatus)
+  call gsi_bundlegetpointer(dval,'tsen' ,rt, istatus)
   call gsi_bundlegetpointer(dval,'q',  rq, istatus)
   call gsi_bundlegetpointer(dval,'cw' ,rcw,istatus)
   call gsi_bundlegetpointer(dval,'oz' ,roz,istatus)
@@ -227,8 +227,8 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 !             Input state vector
 !             Input search direction vector
               if(luset)then
-                 tdir(itv+n)=w1* st(j1) +w2* st(j2) + w3* st(j3) +w4*  st(j4)
-                 rdir(itv+n)=w1* rt(j1) +w2* rt(j2) + w3* rt(j3) +w4*  rt(j4)
+                 tdir(itsen+n)=w1* st(j1) +w2* st(j2) + w3* st(j3) +w4*  st(j4)
+                 rdir(itsen+n)=w1* rt(j1) +w2* rt(j2) + w3* rt(j3) +w4*  rt(j4)
               endif
               if(luseq)then
                  tdir(iqv+n)=w1* sq(j1) +w2* sq(j2) + w3* sq(j3) +w4*  sq(j4)
