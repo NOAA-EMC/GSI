@@ -44,6 +44,8 @@ subroutine control2state(xhat,sval,bval)
 !   2016-05-03  pondeca  - add uwnd10m and vwnd10m
 !   2017-05-12  Y. Wang and X. Wang - add w as state variable for rw DA, POC: xuguang.wang@ou.edu
 !   2016-08-12  lippi    - add vertical velocity (w) to mycvars and mysvars.
+!   2022-05-24  H.Wang   - add amass2aero_tl for regional FV3-CMAQ DA when using
+!                          total mass as control variable. 
 !
 !   input argument list:
 !     xhat - Control variable
@@ -63,6 +65,7 @@ use gsi_4dvar, only: nsubwin, l4dvar, lsqrtb, ladtest_obs
 use gridmod, only: regional,lat2,lon2,nsig, nlat, nlon, twodvar_regional            
 use jfunc, only: nsclen,npclen,ntclen
 use cwhydromod, only: cw2hydro_tl
+use amassaeromod, only: amass2aero_tl
 use cwhydromod, only: cw2hydro_tl_hwrf
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
@@ -78,6 +81,7 @@ use constants, only : max_varname_length, zero
 use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
 use general_commvars_mod, only: s2g_cv
 use gridmod, only: nems_nmmb_regional
+use chemmod, only: laeroana_fv3cmaq, naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,icvt_cmaq_fv3
 implicit none
   
 ! Declare passed variables  
@@ -142,7 +146,6 @@ real(r_kind),allocatable,dimension(:,:,:):: uland,vland,uwter,vwter
 logical :: do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,do_cw_to_hydro
 logical :: do_cw_to_hydro_hwrf
 
-!******************************************************************************
 
 if (lsqrtb) then
    write(6,*)trim(myname),': not for sqrt(B)'
@@ -403,18 +406,27 @@ do jj=1,nsubwin
    end if
 
 !  Same one-to-one map for chemistry-vars; take care of them together 
-   do ic=1,ngases
-      id=getindex(cvars3d,gases(ic))
-      if (id>0) then
+   if (.not.laeroana_fv3cmaq .and. icvt_cmaq_fv3 == 2) then
+         write(6,*) ' icvt_cmaq_fv3 == 2 but laeroana_fv3cmaq=false stop!!!'
+         call stop2(999)
+   endif
+   if (icvt_cmaq_fv3 == 2) then
+      call amass2aero_tl(sval(jj),wbundle,aeronames_cmaq_fv3,naero_cmaq_fv3)
+   else
+     do ic=1,ngases
+       ! take care gases and aero variables if one to one mapping
+       id=getindex(cvars3d,gases(ic))
+       if (id>0) then
           call gsi_bundlegetpointer (sval(jj),gases(ic),sv_rank3,istatus)
           call gsi_bundlegetvar     (wbundle, gases(ic),sv_rank3,istatus)
-      endif
-      id=getindex(cvars2d,gases(ic))
-      if (id>0) then
+       endif
+       id=getindex(cvars2d,gases(ic))
+       if (id>0) then
           call gsi_bundlegetpointer (sval(jj),gases(ic),sv_rank2,istatus)
           call gsi_bundlegetvar     (wbundle, gases(ic),sv_rank2,istatus)
-      endif
-   enddo
+       endif
+     enddo
+   end if 
 
 !$omp end parallel sections
 

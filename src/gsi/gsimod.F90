@@ -118,7 +118,7 @@
   use mod_vtrans, only: nvmodes_keep,init_vtrans
   use mod_strong, only: l_tlnmc,reg_tlnmc_type,nstrong,tlnmc_option,&
        period_max,period_width,init_strongvars,baldiag_full,baldiag_inc
-  use gridmod, only: nlat,nlon,nsig,wrf_nmm_regional,nems_nmmb_regional,fv3_regional,cmaq_regional,&
+  use gridmod, only: nlat,nlon,nsig,wrf_nmm_regional,nems_nmmb_regional,fv3_regional,cmaq_regional,fv3_cmaq_regional,&
      nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass,grid_ratio_fv3_regional,fv3_io_layout_y,&
      filled_grid,half_grid,wrf_mass_regional,nsig1o,nnnn1o,update_regsfc,&
      diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
@@ -127,7 +127,7 @@
      use_gfs_nemsio,sfcnst_comb,use_readin_anl_sfcmask,use_sp_eqspace,final_grid_vars,&
      jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut,wrf_mass_hybridcord,use_gfs_ncio,write_fv3_incr,&
      use_fv3_aero,grid_type_fv3_regional
-  use gridmod,only: l_reg_update_hydro_delz
+  use gridmod,only: l_reg_update_hydro_delz,fv3_cmaq_regional
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop,commgpstop,commgpserrinf
   use gsi_io, only: init_io,lendian_in,verbose,print_obs_para
   use regional_io_mod, only: regional_io_class
@@ -174,12 +174,15 @@
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
-  use chemmod, only : init_chem,berror_chem,oneobtest_chem,&
+  use chemmod, only : init_chem,berror_chem,berror_fv3_cmaq_regional,oneobtest_chem,&
        maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,&
        oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname, &
-       laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue, lread_ext_aerosol
+       laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue, lread_ext_aerosol, &
+       laeroana_fv3cmaq,crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
+       icvt_cmaq_fv3, raod_radius_mean_scale,raod_radius_std_scale 
+
   use chemmod, only : wrf_pm2_5,aero_ratios
   use gfs_stratosphere, only: init_gfs_stratosphere,use_gfs_stratosphere,pblend0,pblend1
   use gfs_stratosphere, only: broadcast_gfs_stratosphere_vars
@@ -487,6 +490,12 @@
 !  01-07-2022 Hu        Add fv3_io_layout_y to let fv3lam interface read/write subdomain restart
 !                       files. The fv3_io_layout_y needs to match fv3lam model
 !                       option io_layout(2).
+!  05-24-2022 H.Wang    Add PM2.5 and AOD DA for regional FV3-CMAQ (RRFS-CMAQ).
+!                       GSI will perform aerosol analysis when 
+!                           1. laeroana_fv3cmaq =  .true.
+!                           2. fv3_regional =      .true.  
+!                           3. fv3_cmaq_regional = .true. 
+!                           4. berror_fv3_cmaq_regional = .true. 
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -795,7 +804,7 @@
 
 
   namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,nlat_regional,nlon_regional,&
-       diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,fv3_regional,&
+       diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,fv3_regional,fv3_cmaq_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,cmaq_regional,&
        nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_fv3_regional,grid_ratio_wrfmass,jcap_gfs,jcap_cut,&
        wrf_mass_hybridcord,grid_type_fv3_regional,fv3_io_layout_y
@@ -1519,16 +1528,20 @@
 !     out_fname         - CMAQ output filename
 !     incr_fname        - CMAQ increment filename
 !     laeroana_gocart   - when true, do chem analysis with wrfchem (or NGAC)
+!     laeroana_fv3cmaq  - when true, do chem analysis with fv3 lam (both fv3_cmaq_regional and fv3_regional are true!) 
 !     l_aoderr_table    - whethee to use aod error table or default error
 !     aod_qa_limit      - minimum acceptable value of error flag for total column AOD
 !     luse_deepblue     - whether to use MODIS AOD from the deepblue   algorithm
 !     lread_ext_aerosol - if true, reads aerfNN file for aerosol arrays rather than sigfNN (NGAC NEMS IO)
 
-  namelist/chem/berror_chem,oneobtest_chem,maginnov_chem,magoberr_chem,&
+  namelist/chem/berror_chem,berror_fv3_cmaq_regional,oneobtest_chem,maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,oblon_chem,obpres_chem,&
        diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname,&
-       laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue,&
+       laeroana_gocart, laeroana_fv3cmaq,l_aoderr_table, aod_qa_limit, &
+       crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
+       icvt_cmaq_fv3, &
+       raod_radius_mean_scale,raod_radius_std_scale, luse_deepblue,&
        aero_ratios,wrf_pm2_5, lread_ext_aerosol
 
 ! NST (NSST control namelist) :
@@ -1782,7 +1795,7 @@
 ! Set regional parameters
   if(filled_grid.and.half_grid) filled_grid=.false.
   regional=wrf_nmm_regional.or.wrf_mass_regional.or.twodvar_regional.or.nems_nmmb_regional .or. cmaq_regional
-  regional=regional.or.fv3_regional
+  regional=regional.or.fv3_regional.or.fv3_cmaq_regional
 
 ! Currently only able to have use_gfs_stratosphere=.true. for nems_nmmb_regional=.true.
   use_gfs_stratosphere=use_gfs_stratosphere.and.(nems_nmmb_regional.or.wrf_nmm_regional)   

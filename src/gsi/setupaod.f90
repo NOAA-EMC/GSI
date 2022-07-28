@@ -69,6 +69,9 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
   use jfunc, only: jiter,miter
   use m_dtime, only: dtime_setup, dtime_check
   use chemmod, only: laeroana_gocart, l_aoderr_table
+  use chemmod, only: naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,laeroana_fv3cmaq
+  use gridmod, only: fv3_cmaq_regional
+
   use aeroinfo, only: jpch_aero, nusis_aero, nuchan_aero, iuse_aero, &
        error_aero, gross_aero
   use m_obsdiagNode, only: obs_diag
@@ -187,8 +190,7 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
   type(obsLList),pointer,dimension(:):: aerohead
   aerohead => obsLL(:)
 
-
-  if ( .not. laeroana_gocart ) then
+  if ( .not. laeroana_gocart .and. .not. laeroana_fv3cmaq) then
      return
   endif
 
@@ -215,7 +217,6 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
   else              ! obstype /= 'modis_aod' or 'viirs_aod'
      write(6,*)'SETUP_AOD:  *** WARNING: unknown aerosol input type, obstype=',obstype
   end if
-
 
 ! Determine cloud & aerosol usages in radiance assimilation
   call radiance_obstype_search(obstype,radmod)
@@ -301,7 +302,6 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
 ! Load data array for current satellite
   read(lunin) data_s,luse,ioid
 
-  write(*,*) 'read in AOD data ',nobs
 ! Loop over data in this block
   call dtime_setup()
   do n = 1,nobs
@@ -373,6 +373,14 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
                  case( 23 )     ! over bright land surface, high quality
                     tnoise = 0.0550472_r_kind+ 0.299558_r_kind*aod_obs
                end select
+               if (fv3_cmaq_regional)then
+                  if (aod_obs(n_viirs_550nm) < 0.4_r_kind)then
+                     tnoise = 0.0216_r_kind+ 0.1936_r_kind*aod_obs(n_viirs_550nm)
+                  else
+                     tnoise = -0.1081_r_kind+ 0.5005_r_kind*aod_obs(n_viirs_550nm)
+                  end if
+                  tnoise = max(0.0216_r_kind,tnoise)
+               end if
            else
               if (mype == 0) then
                  write(6,*),'unknown obstype = ',obstype
@@ -380,6 +388,21 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
               end if
            end if ! end if obstype
         end if ! end if not l_aoderr_table
+
+!  if viirs_aod and fv3_cmaq_regional, apply bias correction 
+        if (obstype == 'viirs_aod' .and. fv3_cmaq_regional)then
+           do i = 1, nchanl
+             if ( i /= n_viirs_550nm) cycle
+             if (aod_obs(i) < 0.4_r_kind) then
+                aod_obs(i) = aod_obs(i) - ( 0.41_r_kind*aod_obs(i)-0.03_r_kind )
+             end if
+             if (aod_obs(i) >= 0.4_r_kind .and. aod_obs(i) < 0.9_r_kind)then
+               aod_obs(i) = aod_obs(i) - ( -0.119_r_kind*aod_obs(i)+0.121_r_kind )
+             end if
+             aod_obs(i) = max(0.0_r_kind,aod_obs(i))
+           end do
+        end if
+!
  
 !       Interpolate model fields to observation location, call crtm and create jacobians
         call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
