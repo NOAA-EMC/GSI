@@ -731,6 +731,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
               bufr_chan = bufr_index(i)
               if(temperature(bufr_chan) <= tbmin .or. temperature(bufr_chan) > tbmax ) then
                  temperature(bufr_chan) = min(tbmax,max(zero,temperature(bufr_chan)))
+!                CO2_cloud_detect requrement
+                 if (( sc_chan == 185 .or. sc_chan == 243 .or. sc_chan == 282 .or. sc_chan == 354 .or. sc_chan == 414) &
+                    .and. (temperature(bufr_chan) <= (tbmin +2.0_r_kind))) cycle read_loop
                  if(iuse_rad(ioff+i) >= 0)iskip = iskip + 1
               endif
            end do skip_loop
