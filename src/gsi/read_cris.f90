@@ -756,6 +756,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
               bufr_chan = bufr_index(i)
               if(temperature(bufr_chan) <= tbmin .or. temperature(bufr_chan) >= tbmax ) then
                  temperature(bufr_chan) = tbmin
+!                CO2_cloud_detect requirement
+                 if (bufr_chan == 67 .or. bufr_chan == 89 .or. bufr_chan == 105 .or. bufr_chan == 134 .or. bufr_chan == 158) &
+                     cycle read_loop
                  if(iuse_rad(ioff+i) >= 0) iskip = iskip + 1
               endif
            end do skip_loop
