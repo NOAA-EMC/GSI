@@ -2266,14 +2266,14 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
   cld=zero
   cldp=r10*prsltmp(1)
 
-  if (iasi .or. cris .or. airs .or. hirs .or. goessndr)then
+  if (cris .or. iasi .or. airs .or. hirs .or. goessndr)then
      if ( cris ) then
-        ichan_pairs(1,1:4) = (/68, 89, 105, 134/)   ! channels used for CO2 cloud detection
+        ichan_pairs(1,1:4) = (/67, 89, 105, 134/)   ! channels used for CO2 cloud detection
         ichan_pairs(2,1:4) = (/89, 105, 134, 158/)
         isurface_chan = 501                         ! surface channel
         cloud_threshold = 0.005_r_kind              ! cloud detection minimum (0.5%)
      elseif ( iasi ) then
-        ichan_pairs(1,1:4) = (/187, 243, 282, 354/) ! channels used for CO2 cloud detection
+        ichan_pairs(1,1:4) = (/185, 243, 282, 354/) ! channels used for CO2 cloud detection
         ichan_pairs(2,1:4) = (/243, 282, 354, 414/)
         isurface_chan = 1271                        ! surface channel
         cloud_threshold = 0.005_r_kind              ! cloud detection minimum (0.5%)
@@ -2288,7 +2288,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
         isurface_chan = 8                           ! surface channel
         cloud_threshold = 0.02_r_kind               ! cloud detection minimum (2.0%)   !! estimated !!
      endif
-     call CO2_cloud_detect(sensorindex,ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,tvp,tsavg5,  &
+     call CO2_cloud_detect(ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,tvp,tsavg5,  &
                            prsltmp,trop5,emissivity,ptau5,cloud_threshold,lcloud )
   else
      call statistical_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,ptau5,lcloud,cloudp,cldp)
@@ -2359,7 +2359,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 ! Temporary additional check for CrIS to reduce influence of land points on window channels (particularly important for bias correction)
 !
   if (cris .and. .not. sea) then
-!JAJ  if (.not. sea .and. .not. snow) then
+!  if (.not. sea .and. .not. snow) then
      do i=1,nchanl
         if (ts(i) > 0.2_r_kind) then
            !             QC3 in statsrad
@@ -2507,7 +2507,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 
 end subroutine qc_irsnd
 
-subroutine CO2_cloud_detect(sensorindex,ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,tvp,tsavg5,  &
+subroutine CO2_cloud_detect(ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,tvp,tsavg5,  &
                             prsltmp,trop5,emissivity,ptau5,cloud_threshold,icloud_layer )
 
 !$$$ subprogram documentation block
@@ -2528,7 +2528,7 @@ subroutine CO2_cloud_detect(sensorindex,ichan_pairs,isurface_chan,nchanl,nsig,ic
 !     isurface_chan- surface channel used to determine cloud amount
 !     nchanl       - number of channels per obs
 !     nsig         - number of model layers
-!     ich          - channel number
+!     ich          - channel index for nuchan 
 !     tbc          - simulated - observed BT with bias correction
 !     tsim         - simulated brightness temperature
 !     tvp          - array of temperatures in vertical (surface to toa)
@@ -2549,10 +2549,11 @@ subroutine CO2_cloud_detect(sensorindex,ichan_pairs,isurface_chan,nchanl,nsig,ic
 !$$$ end documentation block
 
 use crtm_planck_functions, only: crtm_planck_radiance
+use radinfo, only: nuchan
 use constants, only: zero, one
 implicit none
 
-integer(i_kind),                      intent(in   ) :: nchanl, nsig, sensorindex, isurface_chan
+integer(i_kind),                      intent(in   ) :: nchanl, nsig, isurface_chan
 integer(i_kind),                      intent(  out) :: icloud_layer
 integer(i_kind), dimension(nchanl),   intent(in   ) :: ich
 integer(i_kind), dimension(2,4),      intent(in   ) :: ichan_pairs
@@ -2566,96 +2567,95 @@ integer(i_kind) :: i, j, k, m
 
 real(r_kind) :: radiance_chan, radiance_model, co2_val, eff_cloud
 real(r_kind),dimension(2) :: radiance_diff
-real(r_kind),dimension(4) :: layer_thresholds
+real(r_kind),dimension(5) :: layer_thresholds
 real(r_kind),dimension(nsig) :: radiance_layer
 real(r_kind),dimension(nsig,2) :: radiance_layer_sum
 
 !    top and bottom pressure levels used by ichan_pairs 
-     layer_thresholds = (/40.0_r_kind, 55.0_r_kind, 70.0_r_kind, 80.0_r_kind/)
+     layer_thresholds = (/trop5, 40.0_r_kind, 55.0_r_kind, 70.0_r_kind, 80.0_r_kind/)
      icloud_layer = 0
 
 !  The CO2_slicing code
      chan_pairs: do j = 1, 4
        channel_loop: do i=1, nchanl
-         m = ich(i)
+         m = nuchan(ich(i))
          if ( m == ichan_pairs(1,j)) then
-          call crtm_planck_radiance(sensorindex,m,(tbc(i)+tsim(i)),radiance_chan)    ! channel radiance
-          call crtm_planck_radiance(sensorindex,m,tsim(i),radiance_model)     ! model derived channel radiance (clear)
-          radiance_diff(1) = radiance_chan - radiance_model
+           call crtm_planck_radiance(1,m,(tbc(i)+tsim(i)),radiance_chan)    ! channel radiance
+           call crtm_planck_radiance(1,m,tsim(i),radiance_model)     ! model derived channel radiance (clear)
+           radiance_diff(1) = radiance_chan - radiance_model
 ! integrate model radiance from surface upward for first channel
-          profile_loop_1: do k=1, nsig
-            if ( k == 1) then
-              call crtm_planck_radiance(sensorindex,m,tsavg5,radiance_layer(k))
-              radiance_layer_sum(k,1) = ptau5(k,i) * radiance_layer(k) * emissivity(i)
-            else
-              call crtm_planck_radiance(sensorindex,m,tvp(k),radiance_layer(k)) ! model layer radiancea
-              radiance_layer(k) = ptau5(k,i) * radiance_layer(k)
-              radiance_layer_sum(k,1) = radiance_layer_sum(k-1,1) + (radiance_layer(k) - radiance_layer(k-1))
-            endif
-          end do  profile_loop_1
+           profile_loop_1: do k=1, nsig
+             if ( k == 1) then
+               call crtm_planck_radiance(1,m,tsavg5,radiance_layer(k))
+               radiance_layer_sum(k,1) = ptau5(k,i) * radiance_layer(k) * emissivity(i)
+             else
+               call crtm_planck_radiance(1,m,tvp(k),radiance_layer(k)) ! model layer radiancea
+               radiance_layer(k) = ptau5(k,i) * radiance_layer(k)
+               radiance_layer_sum(k,1) = radiance_layer_sum(k-1,1) + (radiance_layer(k) - radiance_layer(k-1))
+             endif
+           end do  profile_loop_1
 
-        elseif ( m == ichan_pairs(2,j)) then
-          call crtm_planck_radiance(sensorindex,m,(tbc(i)+tsim(i)),radiance_chan)    ! channel radiance
-          call crtm_planck_radiance(sensorindex,m,tsim(i),radiance_model)     ! model derived channel radiance (clear)
-          radiance_diff(2) = radiance_chan - radiance_model
+         elseif ( m == ichan_pairs(2,j)) then
+           call crtm_planck_radiance(1,m,(tbc(i)+tsim(i)),radiance_chan)    ! channel radiance
+           call crtm_planck_radiance(1,m,tsim(i),radiance_model)     ! model derived channel radiance (clear)
+           radiance_diff(2) = radiance_chan - radiance_model
 ! integrate model radiance from surface upward for second channel
-          profile_loop_2: do k=1, nsig
-            if ( k == 1) then
-              call crtm_planck_radiance(sensorindex,m,tsavg5,radiance_layer(k))
-              radiance_layer_sum(k,2) = ptau5(k,i) * radiance_layer(k) * emissivity(i)
-            else
-              call crtm_planck_radiance(sensorindex,m,tvp(k),radiance_layer(k)) ! model layer radiance
-              radiance_layer(k) = ptau5(k,i) * radiance_layer(k)
-              radiance_layer_sum(k,2) = radiance_layer_sum(k-1,2) + (radiance_layer(k) - radiance_layer(k-1))
-            endif
-          end do  profile_loop_2
-        endif ! ichan_pairs
-      end do  channel_loop
+           profile_loop_2: do k=1, nsig
+             if ( k == 1) then
+               call crtm_planck_radiance(1,m,tsavg5,radiance_layer(k))
+               radiance_layer_sum(k,2) = ptau5(k,i) * radiance_layer(k) * emissivity(i)
+             else
+               call crtm_planck_radiance(1,m,tvp(k),radiance_layer(k)) ! model layer radiance
+               radiance_layer(k) = ptau5(k,i) * radiance_layer(k)
+               radiance_layer_sum(k,2) = radiance_layer_sum(k-1,2) + (radiance_layer(k) - radiance_layer(k-1))
+             endif
+           end do  profile_loop_2
+         endif ! ichan_pairs
+       end do  channel_loop
 
 ! test for cloud in this pair
-       if ( radiance_diff(1) < zero .and. radiance_diff(2) < zero ) then
 ! if cloud is detected, find layer cloud is in
-         cloud_test: do k=nsig, 1, -1
-           if (prsltmp(k) > trop5 .and. prsltmp(k) < layer_thresholds(j)) then !range to look for clouds
-             co2_val = radiance_diff(1) / radiance_diff(2) * radiance_layer_sum(k,2) / radiance_layer_sum(k,1)
-             if (co2_val < one .and. co2_val > zero ) then   ! FOUND A CLOUD !
-               nchanl_loop: do i=1, nchanl
-                 m = ich(i)
-                 if ( m == isurface_chan ) then
-                   call crtm_planck_radiance(sensorindex,m,(tbc(i)+tsim(i)),radiance_chan) ! same as tb_obs + bias correction
-                   call crtm_planck_radiance(sensorindex,m,tsim(i),radiance_model)
-                   call crtm_planck_radiance(sensorindex,m,tvp(k),radiance_layer(k)) 
-                   eff_cloud = (radiance_chan - radiance_model)/(radiance_layer(k) - radiance_model)  ! effective cloud amount
-                   if ( eff_cloud < cloud_threshold ) cycle chan_pairs  ! Do not use if cloud amount is too small
-                   icloud_layer = k
-                   exit chan_pairs
-                 endif   ! isurface_chan
-               end do  nchanl_loop
+        cloud_test: do k = nsig, 1, -1
+          if (prsltmp(k) > layer_thresholds(j) .and. prsltmp(k) < layer_thresholds(j+1)) then !range to look for clouds
+            co2_val = radiance_diff(1) / radiance_diff(2) * radiance_layer_sum(k,2) / radiance_layer_sum(k,1)
+            if (co2_val < one .and. co2_val > zero ) then   ! FOUND A CLOUD !
+              nchanl_loop: do i=1, nchanl
+                m = nuchan(ich(i))
+                if ( m == isurface_chan ) then
+                  call crtm_planck_radiance(1,m,(tbc(i)+tsim(i)),radiance_chan) ! same as tb_obs + bias correction
+                  call crtm_planck_radiance(1,m,tsim(i),radiance_model)
+                  call crtm_planck_radiance(1,m,tvp(k),radiance_layer(k)) 
+                  eff_cloud = (radiance_chan - radiance_model)/(radiance_layer(k) - radiance_model)  ! effective cloud amount
+                  if ( eff_cloud < cloud_threshold ) cycle chan_pairs  ! Do not use if cloud amount is too small
+                  icloud_layer = k
+                  exit chan_pairs
+                endif   ! isurface_chan
+              end do  nchanl_loop
              endif !co2_val
            endif  !prsltmp
          end do  cloud_test
-       endif !radiance_diff
      end do chan_pairs
 
 !  window test
 !  if co2_slicing technique is inconclusive, use the window channel test
-         if ( icloud_layer == 0 ) then
-           window_test: do i=1, nchanl
-             m = ich(i)
-             if ( m == isurface_chan ) then
-               call crtm_planck_radiance(sensorindex,m,(tbc(i)+tsim(i)),radiance_chan)
-               radiance_chan = radiance_chan / emissivity(i) / ptau5(1,i)
-               call crtm_planck_radiance(sensorindex,m,(tsavg5-1.5_r_kind),radiance_model)
-               if ( radiance_chan < radiance_model ) then
-                 profile_test: do j=2, nsig
-                   call crtm_planck_radiance(sensorindex,m,tvp(j),radiance_model)
-                   if (prsltmp(j) < trop5 .or. radiance_chan > radiance_model ) exit profile_test  ! stay below tropopause
-                   if ( j > icloud_layer ) icloud_layer = j
-                 end do profile_test
-               endif  ! radiance difference
-             endif ! isurface channel
-           end do window_test
-         endif
+     if ( icloud_layer == 0 ) then
+       window_test: do i=1, nchanl
+         m = nuchan(ich(i))
+         if ( m == isurface_chan ) then
+           call crtm_planck_radiance(1,m,(tbc(i)+tsim(i)),radiance_chan)
+           radiance_chan = radiance_chan / emissivity(i) / ptau5(1,i)
+           call crtm_planck_radiance(1,m,tvp(1),radiance_model) 
+           if ( radiance_chan < radiance_model ) then
+             icloud_layer = 1
+             profile_test: do j=2, nsig
+               call crtm_planck_radiance(1,m,tvp(j),radiance_model)
+               if (prsltmp(j) < trop5 .or. radiance_chan > radiance_model ) exit profile_test  ! stay below tropopause
+               if ( j > icloud_layer ) icloud_layer = j
+             end do profile_test
+           endif  ! radiance difference
+         endif ! isurface channel
+       end do window_test
+     endif
 ! end of window test
 
 end subroutine CO2_cloud_detect
