@@ -215,7 +215,7 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   type(sparr2) :: dhx_dx
 
   integer(i_kind) i,nlev,ii,jj,iextra,ibin, kk, nperobs
-  integer(i_kind) k,j,nz,jc,idia,irdim1,istatus,ioff0
+  integer(i_kind) k1,k2,k,j,nz,jc,idia,irdim1,istatus,ioff0
   integer(i_kind) ioff,itoss,ikeep,ierror_toq,ierror_poq
   integer(i_kind) isolz,ifovn,itoqf
   integer(i_kind) mm1,itime,ilat,ilon,ilate,ilone,itoq,ipoq
@@ -581,14 +581,33 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
               endif
 
               if (netcdf_diag) then
+                 k1 = k
+                 k2 = k - 1
+                 if(k2 == 0)k2 = 1
+                 if(k == nlevs)then
+                   k1=nlevs-1
+                   k2=1
+                 endif
+                 if (obstype == 'sbuv2' .or. obstype == 'ompsnp' ) then
+                    call nc_diag_metadata("TopLevelPressure",sngl(pobs(k2)*r100))
+                    call nc_diag_metadata("BottomLevelPressure", & sngl(pobs(k1)*r100))
+                 else
+                    call nc_diag_metadata("TopLevelPressure",sngl(prsitmp(nsig+1)*r1000) )
+                    call nc_diag_metadata("BottomLevelPressure", sngl(prsitmp(1)*r1000) )
+                 endif
+                 call nc_diag_data2d("mole_fraction_of_ozone_in_air", sngl(ozgestmp*constoz))
+                call nc_diag_data2d("air_pressure_levels",sngl(prsitmp*r1000))
                  call nc_diag_metadata("MPI_Task_Number", mype                      )
                  call nc_diag_metadata("Latitude",        sngl(data(ilate,i))       )
                  call nc_diag_metadata("Longitude",       sngl(data(ilone,i))       )
                  call nc_diag_metadata("Time",            sngl(data(itime,i)-time_offset) )
-                 call nc_diag_metadata("Reference_Pressure",     sngl(pobs(k))      )
+                 call nc_diag_metadata("Total_Ozone_Error_Flag", sngl(ierror_toq ))
+                 call nc_diag_metadata("Profile_Ozone_Error_Flag", sngl(ierror_poq ))
+                 call nc_diag_metadata("Reference_Pressure",     sngl(pobs(k)*r100)      )
                  call nc_diag_metadata("Analysis_Use_Flag",      iouse(k)           )
                  call nc_diag_metadata("Observation",                  sngl(ozobs(k)))
                  call nc_diag_metadata("Inverse_Observation_Error",    sngl(errorinv))
+                 call nc_diag_metadata("Input_Observation_Error",      sngl(error(k)))
                  call nc_diag_metadata("Obs_Minus_Forecast_adjusted",  sngl(ozone_inv(k)))
                  call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",sngl(ozone_inv(k)))
                  if (obstype == 'gome' .or. obstype == 'omieff'  .or. &
