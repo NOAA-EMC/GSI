@@ -85,6 +85,7 @@ public call_crtm            ! Subroutine creates profile for crtm, calls crtm, t
 public destroy_crtm         ! Subroutine destroys initialization for crtm
 public sensorindex
 public surface
+public atmosphere
 public isatid               ! = 1  index of satellite id
 public itime                ! = 2  index of analysis relative obs time
 public ilon                 ! = 3  index of grid relative obs location (x)
@@ -125,6 +126,8 @@ public itref                ! = 34/36 index of Tr
 public idtw                 ! = 35/37 index of d(Tw)
 public idtc                 ! = 36/38 index of d(Tc)
 public itz_tr               ! = 37/39 index of d(Tz)/d(Tr)
+public n_clouds_fwd_wk
+public n_absorbers
 
 ! For TMI and GMI
 public iedge_log            ! = 32  ! index, if obs is to be obleted beause of locating near scan edges.
@@ -202,6 +205,7 @@ public isazi_ang2           ! = 37 index of solar azimuth angle (degrees)
   logical        ,save :: mixed_use
   logical        ,save :: use_gfdl_qsat 
   integer(i_kind), parameter :: min_n_absorbers = 2
+  integer(i_kind) :: n_absorbers
 
   integer(i_kind),save :: iedge_log
   integer(i_kind),save :: ilzen_ang2,ilazi_ang2,iscan_ang2,iszen_ang2,isazi_ang2
@@ -356,7 +360,6 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
 ! ...all "additional absorber" variables
   integer(i_kind) :: j,icount
   integer(i_kind) :: ig
-  integer(i_kind) :: n_absorbers
   logical quiet
   logical print_verbose
 
