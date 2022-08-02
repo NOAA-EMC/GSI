@@ -113,7 +113,7 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use state_vectors, only: svars3d, levels
 
   use constants, only : zero,half,one,two,tiny_r_kind
-  use constants, only : rozcon,cg_term,wgtlim,h300,r10,r1000,constoz
+  use constants, only : rozcon,cg_term,wgtlim,h300,r10,r100,r1000,constoz
 
   use m_obsdiagNode, only : obs_diag
   use m_obsdiagNode, only : obs_diags
@@ -1074,7 +1074,7 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use guess_grids, only : nfldsig,ges_lnprsl,hrdifsig
 
   use constants, only : zero,half,one,two,tiny_r_kind,four
-  use constants, only : cg_term,wgtlim,r10,constoz
+  use constants, only : cg_term,wgtlim,r10,r100,r1000,constoz
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
@@ -1141,6 +1141,8 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   real(r_kind) dpres,obserror,ozone_inv,preso3l
   real(r_kind),dimension(nreal+nlevs,nobs):: data
   real(r_kind),dimension(nsig):: prsltmp
+  real(r_kind),dimension(nsig+1)::prsitmp
+  real(r_kind),dimension(nsig)::ozgestmp   ! GeoVaLs for JEDI/UFO
   real(r_single),dimension(ireal,nobs):: diagbuf
   real(r_single),allocatable,dimension(:,:,:)::rdiagbuf
 
@@ -1298,6 +1300,12 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
 !    Interpolate log(pres) at mid-layers to obs locations/times
      call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig, &
           nsig,mype,nfldsig)
+
+       ! GeoVaLs for JEDI/UFO
+       call tintrp2a1(ges_oz,ozgestmp,dlat,dlon,dtime,hrdifsig,&
+                      nsig,mype,nfldsig)
+       call tintrp2a1(ges_prsi, prsitmp,dlat,dlon,dtime,hrdifsig,&
+                      nsig+1,mype,nfldsig)
 
 !    Get approximate k value of surface by using surface pressure
 !    for surface check.
