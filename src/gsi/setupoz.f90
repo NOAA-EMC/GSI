@@ -1072,6 +1072,7 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use obsmod, only : luse_obsdiag
 
   use guess_grids, only : nfldsig,ges_lnprsl,hrdifsig
+  use guess_grids, only : ges_prsi,ntguessig
 
   use constants, only : zero,half,one,two,tiny_r_kind,four
   use constants, only : cg_term,wgtlim,r10,r100,r1000,constoz
