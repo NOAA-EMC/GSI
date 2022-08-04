@@ -333,7 +333,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_u
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_v
-  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_t
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_q2
@@ -658,7 +657,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 ! GEOVALS for UFO eval
      psges2  = psges          ! keep in cb
      prsltmp2 = exp(prsltmp)
-     call tintrp2a1(ges_t,ttmp,dlat,dlon,dtime,hrdifsig,&
+     call tintrp2a1(ges_tsen,ttmp,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
      call tintrp2a1(ges_q,qtmp,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
@@ -1392,24 +1391,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
      endif
-!    get t ...
-     varname='t'
-     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
-     if (istatus==0) then
-         if(allocated(ges_t))then
-            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
-            call stop2(999)
-         endif
-         allocate(ges_t(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
-         ges_t(:,:,:,1)=rank3
-         do ifld=2,nfldsig
-            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
-            ges_t(:,:,:,ifld)=rank3
-         enddo
-     else
-         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
-         call stop2(999)
-     endif
 !    get tv ...
      varname='tv'
      call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
@@ -1791,7 +1772,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_data2d("specific_humidity", sngl(qtmp))
     call nc_diag_data2d("eastward_wind", sngl(utmp))
     call nc_diag_data2d("northward_wind", sngl(vtmp))
-    call nc_diag_metadata("surface_geopotential_height", sngl(hsges) )
+    call nc_diag_metadata("geopotential_height", sngl(hsges) )
     call nc_diag_metadata("surface_air_pressure", sngl(psges2*r1000) )
     ! END GEOVALS
 
@@ -1878,7 +1859,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   subroutine final_vars_
     if(allocated(ges_q )) deallocate(ges_q )
-    if(allocated(ges_t)) deallocate(ges_t)
     if(allocated(ges_tv)) deallocate(ges_tv)
     if(allocated(ges_v )) deallocate(ges_v )
     if(allocated(ges_u )) deallocate(ges_u )
