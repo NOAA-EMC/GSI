@@ -57,7 +57,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   use guess_grids, only: nfldsig, hrdifsig,ges_lnprsl,&
        geop_hgtl,ges_tsen,pbl_height
-  use state_vectors, only: svars3d, levels
+  use state_vectors, only: svars3d, svars2d, levels
 
   use constants, only: zero, one, four,t0c,rd_over_cp,three,rd_over_cp_mass,ten
   use constants, only: tiny_r_kind,half,two
@@ -292,7 +292,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   type(sparr2) :: dhx_dx
 
-  integer(i_kind) :: iz, t_ind, nind, nnz, iprev_station
+  integer(i_kind) :: iz, t_ind, nind, nnz, iprev_station, t2m_ind
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf,cdiagbufp
   character(8),allocatable,dimension(:):: cprvstg,csprvstg
@@ -336,7 +336,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   type(obsLList),pointer,dimension(:):: thead
 
   character(len=3) :: flag_char
-  integer :: idg, ist, itm 
+  integer :: idg, ist, itm, ns3d
   
   real(r_kind) :: delta_z,  lapse_error
   real(r_kind), parameter :: T_lapse = -0.0045 ! standard lapse rate, K/m
