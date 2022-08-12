@@ -60,7 +60,6 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
   use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc, &
        aircraft_t_bc_ext
   use convinfo, only: ictype
-  use jfunc, only: use_2m_obs 
   implicit none
 
 ! !INPUT PARAMETERS:
@@ -154,14 +153,10 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
  
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
-  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_t2
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_u
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_v
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
-
-  real(r_kind) :: delta_z 
-  real(r_kind), parameter :: T_lapse = -0.0045 ! must match setupt 
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -280,19 +275,6 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
              prsltmp2(2), tvtmp(2), qtmp(2), hsges(1), roges, msges, &
              f10ges,u10ges,v10ges, t2ges, q2ges, regime, iqtflg)
         tges = t2ges
-
-     elseif(sfctype .and. use_2m_obs) then 
-! SCENARIO 2: obs is sfctype, and use_2m_obs scheme is on. 
-! 2m forecast has been read from the sfc guess files
-! note: this block should match that in setupt.
-
-          call tintrp2a11(ges_t2,tges,dlat,dlon,dtime,hrdifsig,&
-            mype,nfldsig)
-
-! correct obs to model terrain height - equivalent to gsd_terrain_match 
-
-          delta_z = data(izz,i) -  data(istnelv,i)
-          tob = tob + delta_z*T_lapse
 
      else
         if(iqtflg)then
@@ -467,26 +449,6 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
      endif
-     if( use_2m_obs) then
-!    get t2m ...
-        varname='t2m'
-        call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
-        if (istatus==0) then
-            if(allocated(ges_t2))then
-               write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
-               call stop2(999)
-            endif
-            allocate(ges_t2(size(rank2,1),size(rank2,2),nfldsig))
-            ges_t2(:,:,1)=rank2
-            do ifld=2,nfldsig
-               call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
-               ges_t2(:,:,ifld)=rank2
-            enddo
-        else
-            write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
-            call stop2(999)
-        endif
-     endif
   else
      write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
                  nfldsig,size(gsi_metguess_bundle)
@@ -500,7 +462,6 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
     if(allocated(ges_v )) deallocate(ges_v )
     if(allocated(ges_u )) deallocate(ges_u )
     if(allocated(ges_ps)) deallocate(ges_ps)
-    if(allocated(ges_t2)) deallocate(ges_t2)
   end subroutine final_vars_
 
 end subroutine buddy_check_t

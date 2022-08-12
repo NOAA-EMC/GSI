@@ -128,7 +128,7 @@ contains
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
     use mpimod, only: npe,mype
     use cloud_efr_mod, only: cloud_calc_gfs,set_cloud_lower_bound
-    use jfunc, only: use_2m_obs
+    use jfunc, only: hofx_2m_sfcfile
     implicit none
 
     character(len=*),parameter::myname_=myname//'*read_'
@@ -178,7 +178,7 @@ contains
 
 !   Allocate bundle used for reading members
     call gsi_gridcreate(atm_grid,lat2,lon2,nsig)
-    if (use_2m_obs) then 
+    if (hofx_2m_sfcfile) then 
         call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-read',istatus,names2d=vars2d_with2m,names3d=vars3d)
     else 
         call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-read',istatus,names2d=vars2d,names3d=vars3d)
@@ -191,20 +191,20 @@ contains
     do it=1,nfldsig
 
 !      Read background fields into bundle
-       if (use_2m_obs) then  ! current read_sfc routines called from differebt part of 
+       if (hofx_2m_sfcfile) then  ! current read_sfc routines called from different part of 
                                  ! of the code, can't easily read into the met-bundle 
                                  ! wrote a new routine here
           write(filename,'(''sfcf'',i2.2)') ifilesig(it)
           call general_read_gfsatm_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
-              use_2m_obs,atm_bundle,.true.,istatus)
+               atm_bundle,.true.,istatus)
 
           write(filename,'(''sigf'',i2.2)') ifilesig(it)
           call general_read_gfsatm_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
-              use_2m_obs,atm_bundle,.true.,istatus)
+               atm_bundle,.true.,istatus)
        else 
           write(filename,'(''sigf'',i2.2)') ifilesig(it)
           call general_read_gfsatm_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
-              use_2m_obs,atm_bundle,.true.,istatus)
+               atm_bundle,.true.,istatus)
        endif
 
        inithead=.false.
