@@ -52,7 +52,7 @@ use gridinfo,  only: getgridinfo, gridinfo_cleanup,                    &
                      npts, vars3d_supported, vars2d_supported
 use params,    only: nlevs, nbackgrounds, fgfileprefixes, reducedgrid, &
                      nanals, pseudo_rh, use_qsatensmean, nlons, nlats,&
-                     nanals_per_iotask, ntasks_io, nanal1, nanal2, global_2mDA, &
+                     nanals_per_iotask, ntasks_io, nanal1, nanal2,&
                      fgsfcfileprefixes, paranc, write_fv3_incr, write_ensmean
 use kinds,     only: r_kind, i_kind, r_double, r_single
 use mpeu_util, only: gettablesize, gettable, getindex
@@ -215,11 +215,6 @@ allocate(grdin(npts,ncdim,nbackgrounds,nanals_per_iotask))
 q_ind = getindex(cvars3d, 'q')
 if (q_ind > 0)  allocate(qsat(npts,nlevs,nbackgrounds,nanals_per_iotask))
 if (paranc) then
-   if (global_2mDA) then ! flag for parallel read support
-      print *,'paranc not supported for global_2mDA'
-      call mpi_barrier(mpi_comm_world,ierr)
-      call mpi_finalize(ierr)
-   endif
    if (nproc == 0) t1 = mpi_wtime()
    call readgriddata_pnc(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,nbackgrounds, &
            fgfileprefixes,fgsfcfileprefixes,reducedgrid,grdin,qsat)
@@ -391,11 +386,6 @@ if (nproc <= ntasks_io-1) then
 end if ! io task
 
 if (paranc) then
-   if (global_2mDA) then ! flag for parralell write
-      print *,'paranc not supported for global_2mDA'
-      call mpi_barrier(mpi_comm_world,ierr)
-      call mpi_finalize(ierr)
-   endif
    if (write_fv3_incr) then
       call writeincrement_pnc(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
    else

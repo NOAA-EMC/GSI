@@ -157,8 +157,6 @@ integer,public :: nobsl_max = -1
 ! matrix are read from a file called 'vlocal_eig.dat'
 ! (created by an external python utility).
 logical,public :: modelspace_vloc=.false.
-! if global_2mDA true, update land states only using 2m obs in diag_t, diag_q
-logical, public :: global_2mDA=.false. 
 ! use correlated obs errors
 ! (implies letkf_flag=T, modelspace_vloc=T and lobsdiag_forenkf=T)
 ! if T, extra fields read from diag file and innovation stats
@@ -269,7 +267,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
                    lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh,&
                    fgfileprefixes,fgsfcfileprefixes,anlfileprefixes, &
-                   anlsfcfileprefixes,incfileprefixes,incsfcfileprefixes,global_2mDA,&
+                   anlsfcfileprefixes,incfileprefixes,incsfcfileprefixes,&
                    statefileprefixes,statesfcfileprefixes, &
                    covl_minfact,covl_efold,lupd_obspace_serial,letkf_novlocal,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
