@@ -47,8 +47,7 @@ use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc,&
                 mpi_integer,mpi_wtime,mpi_status,mpi_real8
 
 use gridio,    only: readgriddata, readgriddata_pnc, writegriddata, writegriddata_pnc, &
-                     writeincrement, writeincrement_pnc, &
-                     writegriddata_2mDA
+                     writeincrement, writeincrement_pnc 
 use gridinfo,  only: getgridinfo, gridinfo_cleanup,                    &
                      npts, vars3d_supported, vars2d_supported
 use params,    only: nlevs, nbackgrounds, fgfileprefixes, reducedgrid, &
@@ -380,11 +379,7 @@ if (nproc <= ntasks_io-1) then
            if (write_fv3_incr) then
                  call writeincrement(0,0,cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin_mean,no_inflate_flag)
            else
-              if (global_2mDA) then ! flag for writing sfc analysis
-                 call writegriddata_2mDA(0,0,cvars2d,nc2d,grdin_mean(:,clevels(nc3d)+1:ncdim,:,:),no_inflate_flag)
-              else
                  call writegriddata(0,0,cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin_mean,no_inflate_flag)
-              endif
            end if
         endif
         deallocate(grdin_mean)

@@ -46,7 +46,7 @@ use gridinfo, only: getgridinfo, gridinfo_cleanup,               &
                     npts, vars3d_supported, vars2d_supported
 use params, only: nlevs,nstatefields,nanals,statefileprefixes,&
                   ntasks_io,nanals_per_iotask,nanal1,nanal2, &
-                  statesfcfileprefixes, paranc, global_2mDA
+                  statesfcfileprefixes, paranc 
 use kinds, only: r_kind, i_kind, r_double, r_single
 use mpeu_util, only: gettablesize, gettable, getindex
 use constants, only : max_varname_length
@@ -188,11 +188,6 @@ end if
 allocate(state_d(npts,nsdim,nstatefields,nanals_per_iotask))
 allocate(qsat(npts,nlevs,nstatefields,nanals_per_iotask))
 if (paranc) then
-   if (global_2mDA) then ! flag for parallel rad
-      print *,'paranc not supported for global_2mDA'
-      call mpi_barrier(mpi_comm_world,ierr)
-      call mpi_finalize(ierr)
-   endif
    call readgriddata_pnc(svars3d,svars2d,ns3d,ns2d,slevels,nsdim,nstatefields, &
                          statefileprefixes,statesfcfileprefixes,.false.,state_d,qsat)
 end if
