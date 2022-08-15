@@ -240,6 +240,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Initialize variables
   maxinfo    =  31
   disterrmax=zero
+  chsst=zero
   ntest=0
   if(dval_use) maxinfo = maxinfo+2
   nreal  = maxinfo+nstinfo
@@ -775,7 +776,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         if( iskip >= satinfo_nchan )cycle read_loop
 
 !       Map obs to grids
-        if (chsst > tsavg) then
+        if ((airs).and.(chsst > tsavg)) then
            call finalcheck(dist1,crit1,itx,iuse)
         else
            call finalcheck(one,crit1,itx,iuse)
