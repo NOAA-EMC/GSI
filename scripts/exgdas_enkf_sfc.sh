@@ -128,9 +128,9 @@ else
 fi
 
 if [ $DONST = "YES" ]; then
-    export NST_FILE=${NST_FILE:-$COMIN/${APREFIX}dtfanl.nc}
+    export GSI_FILE=${GSI_FILE:-$COMIN/${APREFIX}dtfanl.nc}
 else
-    export NST_FILE="NULL"
+    export GSI_FILE="NULL"
 fi
 
 export APRUNCY=${APRUN_CYCLE:-$APRUN_ESFC}

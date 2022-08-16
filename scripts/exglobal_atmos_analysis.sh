@@ -1021,9 +1021,9 @@ if [ $DOGCYCLE = "YES" ]; then
     fi
 
     if [ $DONST = "YES" ]; then
-        export NST_FILE=${NST_FILE:-$COMOUT/${APREFIX}dtfanl.nc}
+        export GSI_FILE=${GSI_FILE:-$COMOUT/${APREFIX}dtfanl.nc}
     else
-        export NST_FILE="NULL"
+        export GSI_FILE="NULL"
     fi
 
     if [ $DOIAU = "YES" ]; then
