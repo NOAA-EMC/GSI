@@ -32,7 +32,7 @@ module readconvobs
 
 use kinds, only: r_kind,i_kind,r_single,r_double
 use constants, only: one,zero,deg2rad
-use params, only: npefiles, netcdf_diag, modelspace_vloc, global_2mDA, &
+use params, only: npefiles, netcdf_diag, modelspace_vloc,&
 l_use_enkf_directZDA,diagprefix
 implicit none
 
@@ -281,8 +281,6 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
     obtypeloop: do itype=1, nobtype
 
      obtype = obtypes(itype)
-     ! only read t and q obs for global_2mDA
-     if (global_2mDA .and. (obtype .ne. '  t' .and. obtype .ne. '  q')) cycle obtypeloop
      peloop: do ipe=0,npefiles
 
         write(pe_name,'(i4.4)') ipe
@@ -334,14 +332,11 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
 
         call nc_diag_read_close(obsfile)
 
-
         num_obs_totdiag = num_obs_totdiag + nobs_curr
         do i = 1, nobs_curr
 
-           ! for global_2mDA skip if not 2m (surface) ob
            ityp = Observation_Type(i)
            sfctype=(ityp>179.and.ityp<190).or.(ityp>=192.and.ityp<=199)
-           if (global_2mDA .and. .not. sfctype) cycle
 
            errorlimit2=errorlimit2_obs
 
@@ -350,7 +345,7 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
            endif
 
            ! for q, normalize by qsatges
-           if (obtype == '  q' .and. .not. global_2mDA) then
+           if (obtype == '  q' .and. .not. sfctype) then  ! not normalizing for sfc q (should we?)
               obmax     = abs(Observation(i) / Forecast_Saturation_Spec_Hum(i))
               error     = Errinv_Final(i) * Forecast_Saturation_Spec_Hum(i)
            else
@@ -552,8 +547,6 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
   obtypeloop: do itype=1, nobtype
 
      obtype = obtypes(itype)
-     ! only read t and q obs for global_2mDA
-     if (global_2mDA .and. (obtype .ne. '  t' .and. obtype .ne. '  q')) cycle obtypeloop
      peloop: do ipe=0,npefiles
 
         write(pe_name,'(i4.4)') ipe
@@ -675,10 +668,8 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
         errorlimit2=errorlimit2_obs
 
         do i = 1, nobs
-           ! for global_2mDA skip if not 2m (surface) ob
            ityp = Observation_Type(i)
            sfctype=(ityp>179.and.ityp<190).or.(ityp>=192.and.ityp<=199)
-           if (global_2mDA .and. .not. sfctype) cycle
            nobdiag = nobdiag + 1
            ! special handling for error limits for GPS bend angle
            if (obtype == 'gps') then
@@ -686,7 +677,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
            endif
 
            ! for q, normalize by qsatges
-           if (.not. global_2mDA .and. obtype == '  q') then
+           if (.not. sfctype  .and. obtype == '  q') then ! not normalizing for sfc q (should we?)
               obmax     = abs(real(Observation(i),r_single) / real(Forecast_Saturation_Spec_Hum(i),r_single))
               errororig = real(Errinv_Input(i),r_single) * real(Forecast_Saturation_Spec_Hum(i),r_single)
               error     = real(Errinv_Final(i),r_single) * real(Forecast_Saturation_Spec_Hum(i),r_single)
@@ -795,13 +786,13 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
               endif
 
               ! normalize q by qsatges
-              if (obtype == '  q' .and. .not. global_2mDA) then
+              if (obtype == '  q' .and. .not.  sfctype ) then 
                  hx(nob) = hx(nob) / Forecast_Saturation_Spec_Hum(i)
               endif
            endif
 
            ! normalize q by qsatges
-           if (obtype == '  q' .and. .not. global_2mDA) then
+           if (obtype == '  q' .and. .not. sfctype ) then 
               x_obs(nob)   = x_obs(nob) /Forecast_Saturation_Spec_Hum(i)
               hx_mean(nob)     = hx_mean(nob) /Forecast_Saturation_Spec_Hum(i)
               hx_mean_nobc(nob) = hx_mean_nobc(nob) /Forecast_Saturation_Spec_Hum(i)

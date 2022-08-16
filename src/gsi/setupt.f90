@@ -1,4 +1,5 @@
 module t_setup
+    
   implicit none
   private
   public:: setup
@@ -53,11 +54,11 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   use gridmod, only: nsig,twodvar_regional,regional
   use gridmod, only: get_ijk,pt_ll
-  use jfunc, only: jiter,last,jiterstart,miter, do_global_2mDA
+  use jfunc, only: jiter,last,jiterstart,miter, hofx_2m_sfcfile
 
   use guess_grids, only: nfldsig, hrdifsig,ges_lnprsl,&
        geop_hgtl,ges_tsen,pbl_height
-  use state_vectors, only: svars3d, levels
+  use state_vectors, only: svars3d, levels, ns3d, svars2d
 
   use constants, only: zero, one, four,t0c,rd_over_cp,three,rd_over_cp_mass,ten
   use constants, only: tiny_r_kind,half,two
@@ -112,7 +113,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
                                                             ! array containing information ...
   real(r_kind),dimension(npres_print,nconvtype,5,3), intent(inout) :: bwork !  about o-g stats
   real(r_kind),dimension(100+7*nsig)               , intent(inout) :: awork !  for data counts and gross checks
-
 
 ! !DESCRIPTION:  For temperature observations, this routine
 ! \begin{enumerate}
@@ -335,9 +335,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   type(obsLList),pointer,dimension(:):: thead
 
-  character(len=3) :: flag_char
-  integer :: idg, ist, itm 
-  
   real(r_kind) :: delta_z,  lapse_error
   real(r_kind), parameter :: T_lapse = -0.0045 ! standard lapse rate, K/m
                                                ! should match value in buddy_check_t 
@@ -345,6 +342,9 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   ! 0.5 ~ 2K/km - chosen based on Fig 2d of https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2019EA000984
   real(r_kind), parameter :: lapse_error_frac = 0.5 ! CSD - tune
   real(r_kind), parameter :: max_delta_z = 300. ! CSD - probably OK
+
+
+  if (i_use_2mt4b>0)  hofx_2m_sfcfile=.false. 
 
   thead => obsLL(:)
 
@@ -440,7 +440,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      itype=ictype(ikx)
      sfctype=(itype>179.and.itype<190).or.(itype>=192.and.itype<=199)
      do l=k+1,nobs
-        if (twodvar_regional .or. (do_global_2mDA .and. sfctype) ) then
+        if (twodvar_regional .or. (hofx_2m_sfcfile .and. sfctype) ) then
            duplogic=data(ilat,k) == data(ilat,l) .and.  &
            data(ilon,k) == data(ilon,l) .and.  &
            data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
@@ -471,29 +471,17 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      end do
   end do
 
-! Run a buddy-check (does not work for do_global_2mDA, 
+! Run a buddy-check (does not work for hofx_2m_sfcfile, 
 ! pre-existing routine crashes with an MPI problem )
 ! Note: current params have buddy radius of 108 km, max diff of 8 K. 
 ! gross error check removes O-F > 7., so this is probably removing 
 ! most obs that fail the buddy check already 
 ! GSD uses the buddy check to expand gross error check for obs that pass 
 ! the buddy check. Not sure if we want to do this globally. Turn off for now.
-  !if ( (twodvar_regional .or. do_global_2mDA)  .and. buddycheck_t) & 
+  !if ( (twodvar_regional .or. hofx_2m_sfcfile)  .and. buddycheck_t) & 
   if ( (twodvar_regional)  .and. buddycheck_t) & 
                 call buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
 
-! for 2mDA, remove obs that failed  the buddcheck
- ! if (do_global_2mDA) then
- !     do i = 1,nobs
- !        ikx=nint(data(ikxx,k))
- !        itype=ictype(ikx)
- !        sfctype=(itype>179.and.itype<190).or.(itype>=192.and.itype<=199)
- !        if (sfctype) then 
- !           if ( buddycheck_t .and. buddyuse(i) == -1) muse(i) = .false.
- !        endif
- !     enddo
- ! endif
-          
 ! If requested, save select data for output to diagnostic file
   if(conv_diagsave)then
      ii=0
@@ -677,13 +665,18 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
 
-     drpx=zero
-     if(sfctype .and. .not.twodvar_regional) then
-        drpx=abs(one-((one/exp(dpres-log(psges))))**rd_over_cp)*t0c
-     end if
+     if ( .not. hofx_2m_sfcfile) then 
+        drpx=zero
+        if(sfctype .and. .not.twodvar_regional) then
+            drpx=abs(one-((one/exp(dpres-log(psges))))**rd_over_cp)*t0c
+        end if
 
-!    Put obs pressure in correct units to get grid coord. number
-     call grdcrd1(dpres,prsltmp(1),nsig,-1)
+        !    Put obs pressure in correct units to get grid coord. number
+        call grdcrd1(dpres,prsltmp(1),nsig,-1)
+     else 
+        drpx = zero 
+        dpres = one  ! put obs at surface
+     endif
 
 ! Implementation of forward model ----------
 
@@ -718,10 +711,9 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
              prsltmp2(2), tvtmp(2), qtmp(2), hsges(1), roges, msges, &
              f10ges,u10ges,v10ges, t2ges, q2ges, regime, iqtflg)
         tges = t2ges
-     elseif (sfctype .and. do_global_2mDA) then 
-! SCENARIO 2: obs is sfctype, and do_global_2mDA scheme is on. 
+     elseif (sfctype .and. hofx_2m_sfcfile ) then 
+! SCENARIO 2: obs is sfctype, and hofx_2m_sfcfile  scheme is on. 
 ! 2m forecast has been read from the sfc guess files
-! note: any changes to ges_t2m and tob in this block should also be made in buddy_check_t 
 
     ! mask: 0 - sea, 1 - land, 2-ice (val + 3 = interpolated from at least one different land cover
     ! for now, use only pure land (interpolation from mixed grid cells is pretty sketchy, but 
@@ -742,17 +734,22 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
           data(istnelv,i) = data(izz,i) 
 
           if(save_jacobian) then
-             t2m_ind = getindex(svars2d, 't2m')
-             if (t2m_ind < 0) then
+             t_ind = getindex(svars2d, 't2m')
+             if (t_ind < 0) then
                  print *, 'Error: no variable t2m in state vector.Exiting.'
                  call stop2(1300)
              endif
-             dhx_dx%st_ind(1) = sum(levels(1:ns3d))  + t2m_ind
-             dhx_dx%end_ind(1) = sum(levels(1:ns3d)) + t2m_ind
+             dhx_dx%st_ind(1) = sum(levels(1:ns3d))  + t_ind
+             dhx_dx%end_ind(1) = sum(levels(1:ns3d)) + t_ind
              dhx_dx%val(1) = one
+             dhx_dx%val(2) = zero ! in this case, there is no vertical interp 
+                                  ! and nnz (=dim(dhx_dx%val)) should be one, 
+                                  ! but nnz is a file attribute, so need to use 
+                                  ! same value as for vertical profile obs. Get 
+                                  ! around this by setting val(2) to zero.
           endif
      else
-! SCENARIO 3: obs is sfctype, and neither sfcmodel nor do_global_2mDA is chosen
+! SCENARIO 3: obs is sfctype, and neither sfcmodel nor hofx_2m_sfcfile  is chosen
 !        .or. obs is not sfctype     
 !       ! SCENARIO 3a: obs is a virtual temp.
         if(iqtflg)then
@@ -836,13 +833,13 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      call grdcrd1(sfcchk,prsltmp(1),nsig,-1)
 
 !    Check to see if observations is above the top of the model (regional mode)
-     if(sfctype .and. .not. do_global_2mDA )then
+     if(sfctype .and. .not. hofx_2m_sfcfile  )then
         if(abs(dpres)>four) drpx=1.0e10_r_kind
         pres_diff=prest-r10*psges
         if (twodvar_regional .and. abs(pres_diff)>=r1000) drpx=1.0e10_r_kind
      end if
 
-     if (.not. (do_global_2mDA .and. sfctype) ) then 
+     if (.not. (hofx_2m_sfcfile  .and. sfctype) ) then 
          rlow=max(sfcchk-dpres,zero) ! sfcchk = k of sfc, dpres k of obs
     ! linear variation of observation ramp [between grid points 1(~3mb) and 15(~45mb) below the surface]
          if(l_sfcobserror_ramp_t) then
@@ -853,7 +850,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      else
         rlow  = zero
         ramp  = zero
-        drpx  = zero
      endif
 
      rhgh=max(zero,dpres-rsigp-r0_001)
@@ -868,7 +864,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
    
    ! inflate error for uncertainty in the terrain adjustment 
     lapse_error = 0. 
-    if  ( do_global_2mDA .and. sfctype) then 
+    if  ( hofx_2m_sfcfile  .and. sfctype) then 
         if (abs(delta_z)<max_delta_z) then  ! if height discrepency >300 m. do not assim.
                 ! inflate obs error to account for error in lapse_rate 
                 ! also include some representativity error here (assuming 
@@ -879,14 +875,15 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         endif
     endif
 
-! note: for global_2mDA option, three middle terms in denominator will be zero
+! note: for hofx_2m_sfcfile, three middle terms in denominator will be zero
 !    (elevation mistmatch between obs and model dealt with elsewhere) 
      ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+r8*ramp + lapse_error) 
 
 
 
 ! Compute innovation
-     if(sfctype .and. (( i_use_2mt4b>0) .or. do_global_2mDA) ) then
+     !if(i_use_2mt4b>0 .and. sfctype) then
+     if(sfctype .and. (( i_use_2mt4b>0) .or. hofx_2m_sfcfile ) ) then
         ddiff = tob-tges2m
      else
         ddiff = tob-tges
@@ -1013,7 +1010,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            ratio_errors = ratio_errors/sqrt(dup(i))
         end if
      endif
-          
+     
      if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
 
      if (nobskeep>0 .and. luse_obsdiag) call obsdiagNode_get(my_diag, jiter=nobskeep, muse=muse(i))
@@ -1494,7 +1491,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
      endif
-     if(i_use_2mt4b>0 .or. do_global_2mDA) then
+     if(i_use_2mt4b>0 .or. hofx_2m_sfcfile) then
 !    get t2m ...
         varname='t2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
@@ -1513,6 +1510,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
             write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
             call stop2(999)
         endif
+
 !    get q2m ...
         varname='q2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
@@ -1727,19 +1725,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("Height",                  sngl(data(iobshgt,i))  ) ! this is the obs height (= stn elevation,  before being corrected)
     call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
     call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
-    if (do_global_2mDA == .true. )  then  
-         idg = 1  
-    else  
-         idg = 0  
-    endif 
-    if (sfctype == .true.  ) then
-          ist = 1
-     else 
-          ist = 0 
-    endif 
-    write(flag_char,"(3I1)") ist, int(data(iqt,i)), idg 
-    call nc_diag_metadata("Setup_Flags",             flag_char               )
-    !call nc_diag_metadata("Setup_Flag",           sngl(data(iqt,i))      )
+    call nc_diag_metadata("Setup_QC_Mark",           sngl(data(iqt,i))      ) ! this is the virtual temp flag
     call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )
     if(muse(i)) then
        call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)              )
@@ -1751,7 +1737,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)     )
     call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
     call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
-    if (do_global_2mDA) then 
+    if (hofx_2m_sfcfile ) then 
     call nc_diag_metadata("Observation",             sngl(tob)    )
     call nc_diag_metadata("Observation_Before_Elev_Correction",     sngl(data(itob,i))  )
     else
@@ -1795,7 +1781,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )              
     endif
 
-    if (twodvar_regional .or. do_global_2mDA ) then
+    if (twodvar_regional .or. hofx_2m_sfcfile  ) then
        call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i)              )
 ! this is the model height interpolated to the obs location in read_prepbufr
        call nc_diag_metadata("Model_Terrain",     data(izz,i)                  )

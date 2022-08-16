@@ -1687,7 +1687,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
 
 end subroutine general_read_gfsatm_nems
 
-subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag,do_global_2mDA, &
+subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
            gfs_bundle,init_head,iret_read)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1748,7 +1748,6 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag,do_g
    type(spec_vars)                       ,intent(in   ) :: sp_a
    character(*)                          ,intent(in   ) :: filename
    logical                               ,intent(in   ) :: uvflag,zflag,vordivflag,init_head 
-   logical                               ,intent(in   ) :: do_global_2mDA
    integer(i_kind)                       ,intent(  out) :: iret_read
    type(gsi_bundle)                      ,intent(inout) :: gfs_bundle
 
@@ -1810,21 +1809,11 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag,do_g
         read_z = .false. 
         if ( mype == 0 ) write(6,* ) & 
             trim(my_name), ': reading 2m variables from ', trim(filename) 
-        if (.not. do_global_2mDA) then 
-               write(6,*) 'error, requesting sfc file read, but not do_global_2mDA. Check options' 
-               call stop2(101)
-        endif
    else  
        read_2m = .false. 
-       if (do_global_2mDA) then 
-           read_z =.true.  ! over-ride, as this is the only var we want.
-           if ( mype == 0 ) write(6,* ) & 
-                trim(my_name), ': reading z only from ', trim(filename) 
-       else
-           read_z = zflag
-           if ( mype == 0 ) write(6,* ) & 
-                trim(my_name), ': reading atmos variables from ', trim(filename) 
-        endif 
+       read_z = zflag
+       if ( mype == 0 ) write(6,* ) & 
+             trim(my_name), ': reading atmos variables from ', trim(filename) 
    endif
 
    
@@ -2052,14 +2041,13 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag,do_g
             call general_fill_ns(grd,grid,work)
          endif
       endif
-      ! CSD for 2 m case, icm = 2. this doesn't get triggered.
-       if ( do_global_2mDA .or. ( (.not. do_global_2mDA ) .and. ( icount == icm))  ) then
+       if ( read_2m .or. ( (.not. read_2m ) .and. ( icount == icm))  ) then
          call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
               icount,iflag,ilev,work,uvflag,vordivflag)
       endif
    endif
 
-   if ((.not. read_2m) .and. (.not. do_global_2mDA)) then
+   if (.not. read_2m)  then
 
    icount=icount+1
    iflag(icount)=2
@@ -2500,7 +2488,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag,do_g
    !enddo
 
    ! Load u->div and v->vor slot when uv are used instead
-   if ( (.not. read_2m) .and. (.not. do_global_2mDA)) then 
+   if ( .not. read_2m ) then 
        if ( uvflag ) then
           call gsi_bundlegetpointer(gfs_bundle,'u' ,ptr3d,ier)
           if ( ier == 0 ) then

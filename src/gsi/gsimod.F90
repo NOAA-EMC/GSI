@@ -98,7 +98,7 @@
      factv,factl,factp,factg,factw10m,facthowv,factcldch,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,cwoption,switch_on_derivatives,tendsflag,jiterstart,jiterend,R_option,&
      bcoption,diurnalbc,print_diag_pcg,tsensible,diag_precon,step_start,pseudo_q2,&
-     clip_supersaturation,cnvw_option,do_global_2mDA
+     clip_supersaturation,cnvw_option,hofx_2m_sfcfile
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,&
      nrf_var,lcalc_gfdl_cfrac,incvars_to_zero,incvars_zero_strat,incvars_efold 
@@ -1020,7 +1020,7 @@
 !      l_foreaft_thin -   separate TDR fore/aft scan for thinning
 
   namelist/obs_input/dmesh,time_window_max,time_window_rad, &
-       ext_sonde,l_foreaft_thin
+       ext_sonde,l_foreaft_thin,hofx_2m_sfcfile
 
 ! SINGLEOB_TEST (one observation test case setup):
 !      maginnov   - magnitude of innovation for one ob
@@ -1533,7 +1533,6 @@
 !     fac_dtl  - index to apply diurnal thermocline layer  or not: 0 = no; 1 = yes.
 !     fac_tsl  - index to apply thermal skin layer or not: 0 = no; 1 = yes.
    namelist/nst/nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl
-   namelist/global_2mDA/do_global_2mDA
 
 !EOC
 
@@ -1650,7 +1649,6 @@
   read(5,rapidrefresh_cldsurf)
   read(5,chem)
   read(5,nst)
-  read(5,global_2mDA)
 #else
 ! Initialize table of instruments and data types
   call obsmod_init_instr_table(nhr_assimilation,ndat,rcname='gsiparm.anl')
@@ -1701,9 +1699,6 @@
 
   read(11,nst,iostat=ios)
   if(ios/=0) call die(myname_,'read(nst)',ios)
-
-  read(11,global_2mDA,iostat=ios)
-  if(ios/=0) call die(myname_,'read(global_2mDA)',ios)
 
   close(11)
 #endif
