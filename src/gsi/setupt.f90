@@ -443,7 +443,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      ! GDAS assmilates 180 and 182 over ocean. Would probably be better to read h(x) from 
      ! the surface file for these, but have left as is (default is LML) for zero-diff 
      ! changes. 
-     landsfctype =( ityp==181 .or. ityp==183 .or. ityp==187 ) 
+     landsfctype =( itype==181 .or. itype==183 .or. itype==187 ) 
      do l=k+1,nobs
         if (twodvar_regional .or. (hofx_2m_sfcfile .and. sfctype) ) then
            duplogic=data(ilat,k) == data(ilat,l) .and.  &
