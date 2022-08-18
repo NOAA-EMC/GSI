@@ -336,7 +336,7 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
         do i = 1, nobs_curr
 
            ityp = Observation_Type(i)
-           sfctype=(ityp>179.and.ityp<190).or.(ityp>=192.and.ityp<=199)
+           sfctype =( ityp==181 .or. ityp==183 .or. ityp==187 )
 
            errorlimit2=errorlimit2_obs
 
@@ -669,7 +669,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
 
         do i = 1, nobs
            ityp = Observation_Type(i)
-           sfctype=(ityp>179.and.ityp<190).or.(ityp>=192.and.ityp<=199)
+           sfctype =( ityp==181 .or. ityp==183 .or. ityp==187 )
            nobdiag = nobdiag + 1
            ! special handling for error limits for GPS bend angle
            if (obtype == 'gps') then
