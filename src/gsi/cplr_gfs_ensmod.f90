@@ -930,7 +930,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
 
    atmges = open_dataset(filename,errcode=ierror)
    if (ierror /=0) then
-      write(6,*)' PARALLEL_READ_GFSNC_STATE:  ***ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
+      write(6,*)' PARALLEL_READ_GFSNC_STATE:  ***FATAL ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
       call stop2(999)
    endif
    ! get dimension sizes
