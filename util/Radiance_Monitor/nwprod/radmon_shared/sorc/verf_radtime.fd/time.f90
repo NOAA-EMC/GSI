@@ -93,6 +93,7 @@ program time
 !
 ! Initialize variables
   iread=0
+  rread=0.0
   npred_radiag = 12 
 
 ! Read namelist input

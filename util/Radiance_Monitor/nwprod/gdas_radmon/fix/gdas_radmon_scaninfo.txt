@@ -29,6 +29,7 @@
  avhrr_metop-a          -52.612     1.182       90
  avhrr_n19              -52.612     1.182       90
  avhrr_metop-b          -52.612     1.182       90
+ avhrr_metop-c          -52.612     1.182       90
  mhs_n18                -49.444     1.111       90 
  mhs_n19                -49.444     1.111       90 
  airs_aqua              -48.90      1.10        90 
@@ -66,5 +67,8 @@
  ahi_himawari9            0.00      1.00        90
  atms_n21               -52.393     1.10        96
  cris-fsr_n21           -48.130     3.333       30
+ viirs-m_npp            -56.280     1.265       90
+ viirs-m_j1             -56.280     1.265       90
+ viirs-m_j2             -56.280     1.265       90
  gmi_gpm                  0.00      1.00       221
 !sat_sis                  start      step       nstep
