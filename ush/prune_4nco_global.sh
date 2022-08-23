@@ -149,7 +149,7 @@ done
 
 # Process util directories and files
 cd $topdir/util
-rlist="Aero Analysis_Utilities Baseline Config Conventional_Monitor/data_extract Correlated_Obs DTC EFSOI Fit2Obs_Scorecard FOV GEN_BE_V2.0 GMI_BUFR MODIS_AOD Minimization_Monitor/data_xtrct Minimization_Monitor/image_gen Minimization_Monitor/nwprod/nam_minmon Misc NCEP NMC_Bkerror Ozone_Monitor/image_gen README Radar_Monitor Radiance_bias_correction_Utilities Radiance_Monitor/nwprod/nam_radmon Radiance_Utilities Single_Observation bufr_tools global_angupdate gsienvreport.sh python_utilities radar_process zero_biascoeff"
+rlist="Aero Analysis_Utilities Baseline Config Conventional_Monitor Correlated_Obs DTC EFSOI Fit2Obs_Scorecard FOV GEN_BE_V2.0 GMI_BUFR MODIS_AOD Minimization_Monitor/data_xtrct Minimization_Monitor/image_gen Minimization_Monitor/nwprod/nam_minmon Misc NCEP NMC_Bkerror Ozone_Monitor/image_gen README Radar_Monitor Radiance_bias_correction_Utilities Radiance_Monitor/nwprod/nam_radmon Radiance_Utilities Single_Observation bufr_tools global_angupdate gsienvreport.sh python_utilities radar_process zero_biascoeff"
 for type in $rlist; do
     git $string ${type}*
     rc=$?
