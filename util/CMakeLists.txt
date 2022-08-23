@@ -148,7 +148,7 @@ if(BUILD_UTIL_BKGERR)
 endif()
 
 if(BUILD_UTIL_MON)
-  add_subdirectory(Conventional_Monitor)
+# add_subdirectory(Conventional_Monitor)
   add_subdirectory(Ozone_Monitor)
   add_subdirectory(Radiance_Monitor)
 endif()
