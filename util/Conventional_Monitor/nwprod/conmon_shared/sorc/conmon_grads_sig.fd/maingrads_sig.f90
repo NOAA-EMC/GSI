@@ -23,7 +23,7 @@ program maingrads_sig
 
          integer ifileo
          character(ifileo)              :: fileo
-         integer                        :: nobs,nreal,nlev,igrads,isubtype
+         integer                        :: nobs,nreal,nlev,igrads,isubtype,iscater
          real(4),dimension(nlev)        :: plev
          character(3)                   :: subtype
          type(list_node_t), pointer     :: list

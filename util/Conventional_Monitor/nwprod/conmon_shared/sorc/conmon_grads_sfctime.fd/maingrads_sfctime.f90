@@ -20,10 +20,11 @@ program maingrads_sfctime
                     nlev,plev,iscater,igrads,isubtype,subtype,list,run)
 
          use generic_list
-         character(ifileo)       :: fileo
          integer                 :: ifileo,nobs,nreal,nlev 
+         character(ifileo)       :: fileo
          real(4),dimension(nlev) :: plev
-         integer                 :: iscater,igrdas,isubtype
+!        integer                 :: iscater,igrdas,isubtype
+         integer                 :: iscater,igrads,isubtype
          character(3)            :: subtype
          type(list_node_t),pointer   :: list
          character(3)            :: run
