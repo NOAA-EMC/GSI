@@ -1169,13 +1169,14 @@ end subroutine normal_new_factorization_rf_y
                                           pseudo_hybens,regional_ensemble_option,&
                                           i_en_perts_io
     use hybrid_ensemble_parameters, only: nelen,en_perts,ps_bar
+    use hybrid_ensemble_parameters, only: l_both_fv3sar_gfs_ens 
     use gsi_enscouplermod, only: gsi_enscoupler_put_gsi_ens
     use mpimod, only: mype
     use get_pseudo_ensperts_mod, only: get_pseudo_ensperts_class
     use get_wrf_mass_ensperts_mod, only: get_wrf_mass_ensperts_class
     use get_fv3_regional_ensperts_mod, only: get_fv3_regional_ensperts_class
     use get_wrf_nmm_ensperts_mod, only: get_wrf_nmm_ensperts_class
-  use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
+    use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
     use mpimod, only: mpi_comm_world
 
     implicit none
@@ -1358,6 +1359,10 @@ end subroutine normal_new_factorization_rf_y
 
                 call get_nmmb_ensperts
              case(5)
+                if (l_both_fv3sar_gfs_ens) then ! first read in gfs ensembles for regional 
+                   call get_gefs_for_regional
+                endif
+    
 !     regional_ensemble_option = 5: ensembles are fv3 regional.
                 call fv3_regional_enspert%get_fv3_regional_ensperts(en_perts,nelen,ps_bar)
    
