@@ -30,12 +30,15 @@ contains
   
   subroutine convert_netcdf_nmm_dummy(this,update_pint,ctph0,stph0,tlm0,guess)
     use kinds, only: r_single,i_kind,r_kind
+    use constants, only: zero 
     implicit none
     class(convert_netcdf_class) ,intent(inout) :: this
     logical     ,intent(in   ) :: guess
     logical     ,intent(inout) :: update_pint
     real(r_kind),intent(  out) :: ctph0,stph0,tlm0
-  
+    ctph0 = zero 
+    stph0 = zero 
+    tlm0 = zero 
   end subroutine convert_netcdf_nmm_dummy
   
   subroutine update_netcdf_mass_dummy(this)
