@@ -39,7 +39,6 @@ fi
 idate=`${scripts}/find_cycle.pl -dir ~/nbns/stats/${OZN_SUFFIX} -cyc 1 -run ${run}`
 echo "idate = $idate"
 
-export NDATE=/gpfs/dell1/nco/ops/nwprod/prod_util.v1.1.1/exec/ips/ndate
 #export START_DATE=2020010500
 START_DATE=`${NDATE} +06 $idate`
 

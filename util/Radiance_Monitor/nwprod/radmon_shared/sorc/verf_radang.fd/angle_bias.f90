@@ -93,6 +93,7 @@ program angle
 !
 ! Initialize variables
   iread=0
+  rread=0.0
   npred_radiag = 12
 
 ! Read namelist input
@@ -392,7 +393,8 @@ program angle
            nbc_omg(2) =  (data_chan(j)%omgnbc)**2
            bc_omg(2)  =  (data_chan(j)%omgbc)**2
 
-           cor_fixang(1) =  data_chan(j)%bifix(angord+1)
+           cor_fixang(1) = 0.0
+           if (.not.netcdf) cor_fixang(1) = data_chan(j)%bifix(angord+1)
            cor_lapse(1)  =  data_chan(j)%bilap
            cor_lapse2(1) =  data_chan(j)%bilap2
            cor_const(1)  =  data_chan(j)%bicons
@@ -413,7 +415,8 @@ program angle
               cor_ordang1(1)   =  0.0
            endif
 
-           cor_fixang(2) =  (data_chan(j)%bifix(angord+1))**2
+           cor_fixang(2) = 0.0
+           if (.not.netcdf) cor_fixang(2) = (data_chan(j)%bifix(angord+1))**2
            cor_lapse(2)  =  (data_chan(j)%bilap)**2
            cor_lapse2(2) =  (data_chan(j)%bilap2)**2
            cor_const(2)  =  (data_chan(j)%bicons)**2

@@ -165,8 +165,6 @@ if [[ $MINMON_CONFIG -ne 1 ]]; then
       export UNCOMPRESS="gunzip -f"
    fi
 
-   export NDATE=${NDATE:-${NWPROD}/util/exec/ndate}
-
 else
    echo "MinMon_config already loaded"
 fi
