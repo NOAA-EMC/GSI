@@ -23,7 +23,7 @@
 
          integer ifileo
          character(ifileo)              :: fileo
-         integer                        :: nobs,nreal,nlev,igrads,isubtype
+         integer                        :: nobs,nreal,nlev,igrads,isubtype,iscater
          real(4),dimension(nlev)        :: plev
          character(10)                  :: levcard
          real*4                         :: hint
