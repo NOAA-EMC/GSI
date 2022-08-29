@@ -144,7 +144,7 @@ done
 
 # Process ush directories and files
 cd $topdir/ush
-rlist="Get_Initial_Files comenkf comgsi gfs_truncate_enkf llsub para refactor_4nco_global run_arw rungsi sub"
+rlist="Get_Initial_Files comenkf_namelist_gfs.sh comenkf_namelist.sh comenkf_run_gfs.ksh comenkf_run_regional.ksh comgsi_namelist_chem.sh comgsi_namelist_gfs.sh comgsi_namelist.sh comgsi_run_chem.ksh comgsi_run_gfs.ksh comgsi_run_regional.ksh gfs_truncate_enkf.sh llsub_gsi_cmaq.sh para_config.gdas_analysis_high para_config.gfs_analysis refactor_4nco_global.sh run_arw_netcdf_hybens_testcase.sh rungsi62_prod.sh rungsi_globalprod.sh rungsi_nems_nmmb.sh rungsi_nmm_binary.sh rungsi_nmmprod.sh sub_discover sub_hera sub_jet sub_ncar sub_wcoss sub_wcoss_c sub_wcoss_d test_gdas_analysis_high.sh test_gfs_analysis.sh"
 for type in $rlist; do
     if [[ "$mode" = "prune" ]]; then
 	if [ -e $type ] ; then
