@@ -78,6 +78,7 @@ aero_guess_at_obs_locations.f90
 aeroinfo.f90
 aircraftinfo.f90
 aircraftobsqc.f90
+amassaeromod.f90
 anberror.f90
 anbkerror.f90
 aniso_ens_util.f90
