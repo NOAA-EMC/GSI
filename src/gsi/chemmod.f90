@@ -98,7 +98,7 @@ module chemmod
        code_pm25_anowbufr=102,code_pm10_ncbufr=code_pm25_ncbufr,&
        code_pm10_anowbufr=code_pm25_anowbufr
 
-  real(r_kind),parameter :: pm2_5_teom_max=100.0_r_kind !ug/m3
+  real(r_kind),parameter :: pm2_5_teom_max=900.0_r_kind !ug/m3
 !some parameters need to be put here since convinfo file won't
 !accomodate, stands for maximum realistic value of surface pm2.5
   real(r_kind),parameter :: pm10_teom_max=150.0_r_kind !ug/m3

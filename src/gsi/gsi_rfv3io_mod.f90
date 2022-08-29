@@ -21,7 +21,8 @@ module gsi_rfv3io_mod
 !   2022-03-15  Hu      - add code to read/write 2m T and Q for they will be
 !                         used as background for surface observation operator
 !   2022-04-15  Wang    - add IO for regional FV3-CMAQ (RRFS-CMAQ) model 
-
+!   2022-08-10  Wang    - add IO for regional FV3-SMOKE (RRFS-SMOKE) model 
+!
 ! subroutines included:
 !   sub gsi_rfv3io_get_grid_specs
 !   sub read_fv3_files 
@@ -54,6 +55,8 @@ module gsi_rfv3io_mod
   use guess_grids, only: nfldsig,ntguessig,ifilesig
   use rapidrefresh_cldsurf_mod, only: i_use_2mq4b,i_use_2mt4b
   use chemmod, only: naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,laeroana_fv3cmaq
+  use chemmod, only: naero_smoke_fv3,aeronames_smoke_fv3,laeroana_fv3smoke  
+
   implicit none
   public type_fv3regfilenameg
   public bg_fv3regfilenameg
@@ -87,22 +90,23 @@ module gsi_rfv3io_mod
   type(sub2grid_info) :: grd_fv3lam_dynvar_ionouv 
   type(sub2grid_info) :: grd_fv3lam_tracer_ionouv 
   type(sub2grid_info) :: grd_fv3lam_tracerchem_ionouv
+  type(sub2grid_info) :: grd_fv3lam_tracersmoke_ionouv 
   type(sub2grid_info) :: grd_fv3lam_uv 
   integer(i_kind) ,parameter:: ndynvarslist=13, ntracerslist=8
 
   character(len=max_varname_length), dimension(ndynvarslist), parameter :: &
     vardynvars = [character(len=max_varname_length) :: &
       "u","v","u_w","u_s","v_w","v_s","t","tv","tsen","w","delp","ps","delzinc"]
-  character(len=max_varname_length), dimension(ntracerslist+naero_cmaq_fv3+7), parameter :: & 
+  character(len=max_varname_length), dimension(ntracerslist+naero_cmaq_fv3+7+naero_smoke_fv3), parameter :: & 
     vartracers =  [character(len=max_varname_length) :: &
-      'q','oz','ql','qi','qr','qs','qg','qnr',aeronames_cmaq_fv3,'pm25at','pm25ac','pm25co','pm2_5','amassi','amassj','amassk']
-  character(len=max_varname_length), dimension(15+naero_cmaq_fv3+7), parameter :: &
+      'q','oz','ql','qi','qr','qs','qg','qnr',aeronames_cmaq_fv3,'pm25at','pm25ac','pm25co','pm2_5','amassi','amassj','amassk',aeronames_smoke_fv3]
+  character(len=max_varname_length), dimension(15+naero_cmaq_fv3+7+naero_smoke_fv3), parameter :: &
     varfv3name = [character(len=max_varname_length) :: &
       'u','v','W','T','delp','sphum','o3mr','liq_wat','ice_wat','rainwat','snowwat','graupel','rain_nc','ps','DZ', & 
-      aeronames_cmaq_fv3,'pm25at','pm25ac','pm25co','pm2_5','amassi','amassj','amassk'], &
+      aeronames_cmaq_fv3,'pm25at','pm25ac','pm25co','pm2_5','amassi','amassj','amassk',aeronames_smoke_fv3], &
       vgsiname = [character(len=max_varname_length) :: &
         'u','v','w','tsen','delp','q','oz','ql','qi','qr','qs','qg','qnr','ps','delzinc', &
-        aeronames_cmaq_fv3,'pm25at','pm25ac','pm25co','pm2_5','amassi','amassj','amassk']
+        aeronames_cmaq_fv3,'pm25at','pm25ac','pm25co','pm2_5','amassi','amassj','amassk',aeronames_smoke_fv3]
   character(len=max_varname_length),dimension(:),allocatable:: name_metvars2d
   character(len=max_varname_length),dimension(:),allocatable:: name_metvars3d
   character(len=max_varname_length),dimension(:),allocatable:: name_chemvars3d
@@ -125,7 +129,8 @@ module gsi_rfv3io_mod
   public :: k_slmsk,k_tsea,k_vfrac,k_vtype,k_stype,k_zorl,k_smc,k_stc
   public :: k_snwdph,k_f10m,mype_2d,n2d,k_orog,k_psfc,k_t2m,k_q2m
   public :: ijns,ijns2d,displss,displss2d,ijnz,displsz_g
-  public :: fv3lam_io_dynmetvars3d_nouv,fv3lam_io_tracermetvars3d_nouv,fv3lam_io_tracerchemvars3d_nouv
+  public :: fv3lam_io_dynmetvars3d_nouv,fv3lam_io_tracermetvars3d_nouv
+  public :: fv3lam_io_tracerchemvars3d_nouv,fv3lam_io_tracersmokevars3d_nouv
   public :: fv3lam_io_dynmetvars2d_nouv,fv3lam_io_tracermetvars2d_nouv
 
   integer(i_kind) mype_u,mype_v,mype_t,mype_q,mype_p,mype_delz,mype_oz,mype_ql
@@ -154,6 +159,7 @@ module gsi_rfv3io_mod
   character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_io_tracermetvars3d_nouv 
                                     ! copy of cvars3d excluding uv 3-d fields   
   character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_io_tracerchemvars3d_nouv
+  character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_io_tracersmokevars3d_nouv 
                                     ! copy of cvars3d excluding uv 3-d fields
   character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_io_dynmetvars2d_nouv 
                                     ! copy of cvars3d excluding uv 3-d fields   
@@ -166,7 +172,8 @@ module gsi_rfv3io_mod
   type(gsi_bundle):: gsibundle_fv3lam_dynvar_nouv 
   type(gsi_bundle):: gsibundle_fv3lam_tracer_nouv 
   type(gsi_bundle):: gsibundle_fv3lam_tracerchem_nouv
-
+  type(gsi_bundle):: gsibundle_fv3lam_tracersmoke_nouv 
+ 
 contains
   subroutine fv3regfilename_init(this,it)
   implicit None
@@ -873,6 +880,9 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     real(r_kind),dimension(:,:,:),pointer::ges_amassj=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_amassk=>NULL()
 
+    real(r_kind),dimension(:,:,:),pointer::ges_smoke=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_dust=>NULL()
+
 
     character(len=max_varname_length)  :: vartem=""
     character(len=64),dimension(:,:),allocatable:: names  !to be same as in the grid the dummy sub2grid_info
@@ -881,7 +891,8 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     integer(i_kind),dimension(:,:),allocatable:: uvlnames
     integer(i_kind):: inner_vars,numfields
     integer(i_kind):: ndynvario2d,ntracerio2d,ilev,jdynvar,jtracer
-    integer(r_kind):: iuv,ndynvario3d,ntracerio3d,ntracerchemio3d
+    integer(r_kind):: iuv,ndynvario3d,ntracerio3d
+    integer(i_kind):: ntracerchemio3d,ntracersmokeio3d
     integer(i_kind):: loc_id,ncfmt
 
 !clt this block is still maintained for they would be needed for a certain 2d fields IO 
@@ -915,7 +926,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
       allocate( name_metvars3d(GSI_MetGuess_Bundle(it)%n3d))
     end if
     
-    if (laeroana_fv3cmaq) then
+    if (laeroana_fv3cmaq.or.laeroana_fv3smoke) then
       if (.not.allocated(name_chemvars3d)) then
         allocate( name_chemvars3d(GSI_ChemGuess_Bundle(it)%n3d))
       endif
@@ -923,7 +934,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 
     call gsi_bundleinquire (GSI_MetGuess_Bundle(it),'shortnames::2d', name_metvars2d,istatus)
     call gsi_bundleinquire (GSI_MetGuess_Bundle(it),'shortnames::3d', name_metvars3d,istatus)
-    if (laeroana_fv3cmaq) then
+    if (laeroana_fv3cmaq.or.laeroana_fv3smoke) then
       call gsi_bundleinquire (GSI_ChemGuess_Bundle(it),'shortnames::3d', name_chemvars3d,istatus)
     endif
 
@@ -934,7 +945,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
       do i=1,GSI_MetGuess_Bundle(it)%n3d
         write(6,*)'metvardeb333-3d name ', trim(name_metvars3d(i))
       enddo
-      if (laeroana_fv3cmaq) then
+      if (laeroana_fv3cmaq.or.laeroana_fv3smoke) then
         do i=1,GSI_ChemGuess_Bundle(it)%n3d
           write(6,*)'chemvardeb333-3d name ', trim(name_chemvars3d(i))
         enddo
@@ -980,6 +991,10 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
       if (laeroana_fv3cmaq) then
         allocate(fv3lam_io_tracerchemvars3d_nouv(naero_cmaq_fv3+7))
       endif 
+  
+      if (laeroana_fv3smoke) then 
+        allocate(fv3lam_io_tracersmokevars3d_nouv(naero_smoke_fv3+1)) 
+      endif
 
       jdynvar=0
       jtracer=0
@@ -1101,6 +1116,31 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 
       endif !laeroana_fv3cmaq
 
+      if (laeroana_fv3smoke) then
+        jtracer = 0
+!name_chemvars3d chemguess from anainfo
+        do i=1,size(name_chemvars3d)
+          vartem=trim(name_chemvars3d(i))
+           if (ifindstrloc(aeronames_smoke_fv3,trim(vartem)) > 0) then
+             jtracer=jtracer+1
+             fv3lam_io_tracersmokevars3d_nouv(jtracer)=trim(vartem)
+              write(6,*)'the chemvarname ',jtracer,vartem,' is found '
+           else
+              write(6,*)'the chemvarname ',vartem,' is not in aeronames_smoke_fv3, !!!!!!!!!!'
+              !call flush(6)
+              !call stop2(333)
+           endif
+        enddo
+        ntracersmokeio3d=jtracer+1
+        fv3lam_io_tracersmokevars3d_nouv(jtracer+1)="pm2_5"
+
+        if (mype == 0) then
+          write(6,*) ' fv3lam_io_tracersmokevars3d_nouv is',(trim(fv3lam_io_tracersmokevars3d_nouv(i)),i=1,ntracersmokeio3d)
+        endif
+
+      endif !laeroana_fv3smoke
+
+
       if (allocated(fv3lam_io_dynmetvars2d_nouv) ) then   
         call gsi_bundlecreate(gsibundle_fv3lam_dynvar_nouv,GSI_MetGuess_Bundle(it)%grid,'gsibundle_fv3lam_dynvar_nouv',istatus,&
                  names2d=fv3lam_io_dynmetvars2d_nouv,names3d=fv3lam_io_dynmetvars3d_nouv)
@@ -1126,6 +1166,14 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
                  names3d=fv3lam_io_tracerchemvars3d_nouv)
         endif
       endif
+
+      if (laeroana_fv3smoke) then
+        if (allocated(fv3lam_io_tracersmokevars3d_nouv) ) then
+          call gsi_bundlecreate(gsibundle_fv3lam_tracersmoke_nouv,GSI_ChemGuess_Bundle(it)%grid,'gsibundle_fv3lam_tracersmoke_nouv',istatus,&
+                 names3d=fv3lam_io_tracersmokevars3d_nouv)
+        endif
+      endif
+
 
       inner_vars=1
       numfields=inner_vars*(ndynvario3d*grd_a%nsig+ndynvario2d) 
@@ -1182,6 +1230,25 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
             grd_a%nlon,grd_a%nsig,numfields,regional,names=names,lnames=lnames)
 
       endif
+
+      if (laeroana_fv3smoke) then
+        inner_vars=1
+        numfields=inner_vars*(ntracersmokeio3d*grd_a%nsig)
+        deallocate(lnames,names)
+        allocate(lnames(1,numfields),names(1,numfields))
+        ilev=1
+        do i=1,ntracersmokeio3d
+          do k=1,grd_a%nsig
+            lnames(1,ilev)=k
+            names(1,ilev)=trim(fv3lam_io_tracersmokevars3d_nouv(i))
+            ilev=ilev+1
+          enddo
+        enddo
+        call general_sub2grid_create_info(grd_fv3lam_tracersmoke_ionouv,inner_vars,grd_a%nlat,&
+              grd_a%nlon,grd_a%nsig,numfields,regional,names=names,lnames=lnames)
+
+      endif
+
 
       inner_vars=2
       numfields=grd_a%nsig
@@ -1254,6 +1321,12 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
             if (ier/=0) call die(trim(myname),'cannot get pointers for fv3chem-fields, ier =',ier)
          end if
 
+         if (laeroana_fv3smoke) then
+           call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it),'smoke',ges_smoke,istatus );ier=ier+istatus
+           call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it),'dust', ges_dust,istatus );ier=ier+istatus
+           call GSI_BundleGetPointer ( GSI_ChemGuess_Bundle(it),'pm2_5',ges_pm2_5,istatus );ier=ier+istatus
+         end if
+
          if( fv3sar_bg_opt == 0) then 
             call gsi_fv3ncdf_readuv(grd_fv3lam_uv,ges_u,ges_v,fv3filenamegin(it))
          else
@@ -1269,6 +1342,10 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
               call gsi_fv3ncdf_read(grd_fv3lam_tracerchem_ionouv,gsibundle_fv3lam_tracerchem_nouv &
               & ,fv3filenamegin(it)%tracers,fv3filenamegin(it))
             endif
+            if (laeroana_fv3smoke) then
+              call gsi_fv3ncdf_read(grd_fv3lam_tracersmoke_ionouv,gsibundle_fv3lam_tracersmoke_nouv &
+              & ,fv3filenamegin(it)%tracers,fv3filenamegin(it))
+            endif
          else
             call gsi_fv3ncdf_read_v1(grd_fv3lam_dynvar_ionouv,gsibundle_fv3lam_dynvar_nouv &
             & ,fv3filenamegin(it)%dynvars,fv3filenamegin(it))
@@ -1276,6 +1353,10 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
             & ,fv3filenamegin(it)%tracers,fv3filenamegin(it))
             if (laeroana_fv3cmaq) then
               call gsi_fv3ncdf_read_v1(grd_fv3lam_tracerchem_ionouv,gsibundle_fv3lam_tracerchem_nouv &
+              & ,fv3filenamegin(it)%tracers,fv3filenamegin(it))
+            endif
+            if (laeroana_fv3smoke) then
+              call gsi_fv3ncdf_read_v1(grd_fv3lam_tracersmoke_ionouv,gsibundle_fv3lam_tracersmoke_nouv &
               & ,fv3filenamegin(it)%tracers,fv3filenamegin(it))
             endif
          endif
@@ -1324,12 +1405,36 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
            enddo
          end if ! laeroana_fv3cmaq 
 
+         if (laeroana_fv3smoke) then
+           ier=0
+           call GSI_BundleGetPointer ( gsibundle_fv3lam_tracersmoke_nouv,'smoke',ges_smoke,istatus );ier=ier+istatus
+           call GSI_BundleGetPointer ( gsibundle_fv3lam_tracersmoke_nouv,'dust',ges_dust,istatus );ier=ier+istatus
+           call GSI_BundleGetPointer ( gsibundle_fv3lam_tracersmoke_nouv,'pm2_5',ges_pm2_5,istatus );ier=ier+istatus
+           ! if (ier/=0) call die(trim(myname),'cannot get pointers for fv3    !  chem-fields, ier =',ier)
+           if (ier/=0) write(6,*),"cannot get pointers for fv3 smoke" 
+!!   pm2_5   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+             do k=1,nsig
+               do j=1,lon2
+                 do i=1,lat2
+                   ges_pm2_5(i,j,k)=ges_smoke(i,j,k) +  ges_dust(i,j,k)
+                 enddo
+               enddo
+             enddo
+         endif !laeroana_fv3smoke 
+
          if( fv3sar_bg_opt == 0) then
            call GSI_BundleGetPointer ( gsibundle_fv3lam_dynvar_nouv, 'delp'  ,ges_delp ,istatus );ier=ier+istatus
            if(istatus==0) ges_delp=ges_delp*0.001_r_kind
          endif
          call gsi_copy_bundle(gsibundle_fv3lam_dynvar_nouv,GSI_MetGuess_Bundle(it))
          call gsi_copy_bundle(gsibundle_fv3lam_tracer_nouv,GSI_MetGuess_Bundle(it))
+         if (laeroana_fv3cmaq) then
+           call gsi_copy_bundle(gsibundle_fv3lam_tracerchem_nouv,GSI_ChemGuess_Bundle(it))
+         endif
+         if (laeroana_fv3smoke) then
+           call gsi_copy_bundle(gsibundle_fv3lam_tracersmoke_nouv,GSI_ChemGuess_Bundle(it))
+         endif
+
          call GSI_BundleGetPointer ( gsibundle_fv3lam_dynvar_nouv, 'tsen' ,ges_tsen_readin ,istatus );ier=ier+istatus
      !!  tsen2tv  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          do k=1,nsig
@@ -1866,8 +1971,8 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m)
           end do
        end do
 
-       deallocate (dim_id,sfc,sfc1,dim)
-       deallocate (sfc_fulldomain)
+       if(allocated(sfc1) .and. allocated(sfc))deallocate (dim_id,sfc,sfc1,dim)
+       if(allocated(sfc_fulldomain)) deallocate (sfc_fulldomain)
     endif  ! mype
 
 
@@ -2825,6 +2930,10 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     if (laeroana_fv3cmaq) then
       call gsi_copy_bundle(GSI_ChemGuess_Bundle(it),gsibundle_fv3lam_tracerchem_nouv)
     end if
+    if (laeroana_fv3smoke) then
+      call gsi_copy_bundle(GSI_ChemGuess_Bundle(it),gsibundle_fv3lam_tracersmoke_nouv)
+    end if
+
     call gsi_bundleputvar (gsibundle_fv3lam_dynvar_nouv,'tsen',ges_tsen(:,:,:,it),istatus)
 
     if( fv3sar_bg_opt == 0) then
@@ -2871,6 +2980,10 @@ subroutine wrfv3_netcdf(fv3filenamegin)
         call gsi_fv3ncdf_write(grd_fv3lam_tracerchem_ionouv,gsibundle_fv3lam_tracerchem_nouv, &
                              add_saved,fv3filenamegin%tracers,fv3filenamegin)
       endif
+      if (laeroana_fv3smoke) then
+        call gsi_fv3ncdf_write(grd_fv3lam_tracersmoke_ionouv,gsibundle_fv3lam_tracersmoke_nouv,&
+                             add_saved,fv3filenamegin%tracers,fv3filenamegin)
+      endif
 
     else
       call gsi_fv3ncdf_write_v1(grd_fv3lam_dynvar_ionouv,gsibundle_fv3lam_dynvar_nouv,& 
@@ -2882,6 +2995,11 @@ subroutine wrfv3_netcdf(fv3filenamegin)
         call gsi_fv3ncdf_write_v1(grd_fv3lam_tracerchem_ionouv,gsibundle_fv3lam_tracerchem_nouv,&
                                 add_saved,fv3filenamegin%tracers,fv3filenamegin)
       endif
+      if (laeroana_fv3smoke) then
+        call gsi_fv3ncdf_write_v1(grd_fv3lam_tracersmoke_ionouv,gsibundle_fv3lam_tracersmoke_nouv,&
+                                add_saved,fv3filenamegin%tracers,fv3filenamegin)
+      endif
+
     endif
 
     if(i_use_2mq4b > 0 .and. i_use_2mt4b > 0 ) then
