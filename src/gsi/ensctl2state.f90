@@ -165,9 +165,9 @@ do jj=1,ntlevs_ens
 !  For 4densvar, this is the "3D/Time-invariant contribution from static B"
 
    if(dual_res) then
-      call ensemble_forward_model_dual_res(wbundle_c,xhat%aens(1,:),jj)
+      call ensemble_forward_model_dual_res(wbundle_c,xhat%aens(1,:,:),jj)
    else
-      call ensemble_forward_model(wbundle_c,xhat%aens(1,:),jj)
+      call ensemble_forward_model(wbundle_c,xhat%aens(1,:,:),jj)
    end if
 
 !  Get pointers to required state variables

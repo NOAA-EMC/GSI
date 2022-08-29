@@ -151,6 +151,9 @@ module hybrid_ensemble_parameters
 !   2015-01-22  Hu      - add flag i_en_perts_io to control reading ensemble perturbation.
 !   2015-02-11  Hu      - add flag l_ens_in_diff_time to force GSI hybrid use ensembles not available at analysis time
 !   2015-09-18  todling - add sst_staticB to control use of ensemble SST error covariance 
+!   2022-08-29  Y. Wang, X. Wang - add parameters for multiscale DA by using scale- and variable-dependent localization
+!                                  Wang and Wang (2022ab, MWR)
+!                                  poc: xuguang.wang@ou.edu
 !
 ! subroutines included:
 
@@ -297,6 +300,16 @@ module hybrid_ensemble_parameters
   public :: sst_staticB
   public :: limqens
 
+  public :: nsclgrp
+  public :: alphacvarsclgrpmat
+  public :: para_covwithsclgrp
+  public :: spc_multwgt
+  public :: spcwgt_params
+  public :: l_sum_spc_weights
+  public :: smooth_scales
+  public :: cross_correlation_reset
+  public :: vdl_scale,small_loc_varlist,smooth_scales_num
+
   logical l_hyb_ens,uv_hyb_ens,q_hyb_ens,oz_univ_static,sst_staticB
   logical aniso_a_en
   logical full_ensemble,pwgtflg
@@ -316,12 +329,20 @@ module hybrid_ensemble_parameters
   logical l_both_fv3sar_gfs_ens
   integer(i_kind) i_en_perts_io
   integer(i_kind) n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test
+  integer(i_kind),parameter::max_aens=10
+  real(r_kind) s_ens_h(max_aens)
+  real(r_kind) smooth_scales(max_aens)
+  character(len=3) small_loc_varlist(100)
+  integer(i_kind) vdl_scale(max_aens)
+  real(r_kind), dimension(max_aens,max_aens)   ::  cross_correlation_reset
+  integer(i_kind) smooth_scales_num
   integer(i_kind) n_ens_gfs,n_ens_fv3sar
-  real(r_kind) beta_s0,beta_e0,s_ens_h,s_ens_v,grid_ratio_ens
+  real(r_kind) beta_s0,beta_e0,s_ens_v,grid_ratio_ens
   type(sub2grid_info),save :: grd_ens,grd_loc,grd_sploc,grd_anl,grd_e1,grd_a1
   type(spec_vars),save :: sp_ens,sp_loc
   type(egrid2agrid_parm),save :: p_e2a,p_sploc2ens
-  real(r_kind),allocatable,dimension(:) :: s_ens_hv,s_ens_vv
+  real(r_kind),allocatable,dimension(:,:) :: s_ens_hv
+  real(r_kind),allocatable,dimension(:) :: s_ens_vv
   real(r_kind),allocatable,dimension(:) :: sqrt_beta_s,sqrt_beta_e
   real(r_kind),allocatable,dimension(:) :: beta_s,beta_e
   real(r_kind),allocatable,dimension(:,:,:) :: pwgt
@@ -337,13 +358,20 @@ module hybrid_ensemble_parameters
   integer(i_kind) fv3sar_ensemble_opt 
   character(len=512),save :: ensemble_path
 
+  real(r_kind),allocatable,dimension(:,:) :: alphacvarsclgrpmat
+  real(r_kind),allocatable,dimension(:,:) :: spc_multwgt
+  real(r_kind),allocatable,dimension(:,:) :: spcwgt_params
+  real (r_kind)  ::  para_covwithsclgrp=1
+  integer(i_kind)::  nsclgrp=1
+  integer(i_kind)::  l_sum_spc_weights=0
+
 ! following is for storage of ensemble perturbations:
 
 !   def en_perts            - array of ensemble perturbations
 !   def nelen               - length of one ensemble perturbation vector
 
   integer(i_kind) nelen
-  type(gsi_bundle),save,allocatable :: en_perts(:,:)
+  type(gsi_bundle),save,allocatable :: en_perts(:,:,:)
   real(r_single),dimension(:,:,:),allocatable:: ps_bar
   real(r_single):: limqens
 
@@ -412,6 +440,11 @@ subroutine init_hybrid_ensemble_parameters
   beta_s0=one
   beta_e0=-one
   grid_ratio_ens=one
+  cross_correlation_reset=1.0
+  smooth_scales=-999.0
+  smooth_scales_num = -999
+  vdl_scale = 0
+  small_loc_varlist = 'aaa'
   s_ens_h = 2828._r_kind     !  km (this was optimal value in 
                              !   Wang, X.,D. M. Barker, C. Snyder, and T. M. Hamill, 2008: A hybrid
                              !      ETKF.3DVAR data assimilation scheme for the WRF Model. Part II: 
@@ -435,15 +468,17 @@ subroutine create_hybens_localization_parameters
   use constants, only: zero
   implicit none
   
-  allocate( s_ens_hv(grd_ens%nsig),s_ens_vv(grd_ens%nsig) )
+  allocate( s_ens_hv(grd_ens%nsig,nsclgrp),s_ens_vv(grd_ens%nsig) )
   allocate( beta_s(grd_ens%nsig),beta_e(grd_ens%nsig))
   allocate( sqrt_beta_s(grd_ens%nsig),sqrt_beta_e(grd_ens%nsig) )
   allocate( pwgt(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig) )
+  allocate(alphacvarsclgrpmat(nsclgrp,nsclgrp))
   beta_s  =one
   beta_e  =zero
   sqrt_beta_s=one
   sqrt_beta_e=zero
   pwgt=zero
+  alphacvarsclgrpmat=one
   
 end subroutine create_hybens_localization_parameters
 

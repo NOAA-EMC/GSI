@@ -747,7 +747,7 @@ contains
     if_vterminal=.false.
     l2rwthin    =.false.  
     if_vrobs_raw=.false.
-    if_model_dbz=.true.
+    if_model_dbz=.false.
     inflate_obserr=.false.
     whichradar="KKKK"
 

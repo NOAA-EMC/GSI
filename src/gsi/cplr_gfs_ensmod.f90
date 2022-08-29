@@ -440,7 +440,7 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
 !      if(trim(cvars2d(m))=='sst') sst=en_loc3(:,:,m_cvars2d(m)) !no sst for now
     enddo
 
-    km = en_perts(1,1)%grid%km
+    km = en_perts(1,1,1)%grid%km
 !$omp parallel do  schedule(dynamic,1) private(m) 
     do m=1,nc3d
        if(trim(cvars3d(m))=='sf')then

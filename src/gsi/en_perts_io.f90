@@ -124,7 +124,7 @@ subroutine en_perts_get_from_save_fulldomain
 
      do ic3=1,nc3d
 
-        call gsi_bundlegetpointer(en_perts(n,1),trim(cvars3d(ic3)),w3,istatus)
+        call gsi_bundlegetpointer(en_perts(n,1,1),trim(cvars3d(ic3)),w3,istatus)
         if(istatus/=0) then
            write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for ensemble member ',n
            call stop2(999)
@@ -142,7 +142,7 @@ subroutine en_perts_get_from_save_fulldomain
 
      do ic2=1,nc2d
 
-        call gsi_bundlegetpointer(en_perts(n,1),trim(cvars2d(ic2)),w2,istatus)
+        call gsi_bundlegetpointer(en_perts(n,1,1),trim(cvars2d(ic2)),w2,istatus)
         if(istatus/=0) then
            write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for ensemble member ',n
            call stop2(999)
@@ -221,7 +221,7 @@ subroutine en_perts_get_from_save
 !
      do ic3=1,nc3d
 
-        call gsi_bundlegetpointer(en_perts(n,1),trim(cvars3d(ic3)),w3,istatus)
+        call gsi_bundlegetpointer(en_perts(n,1,1),trim(cvars3d(ic3)),w3,istatus)
         if(istatus/=0) then
            write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for ensemble member ',n
            call stop2(999)
@@ -238,7 +238,7 @@ subroutine en_perts_get_from_save
 
      do ic2=1,nc2d
 
-        call gsi_bundlegetpointer(en_perts(n,1),trim(cvars2d(ic2)),w2,istatus)
+        call gsi_bundlegetpointer(en_perts(n,1,1),trim(cvars2d(ic2)),w2,istatus)
         if(istatus/=0) then
            write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for ensemble member ',n
            call stop2(999)
@@ -312,7 +312,7 @@ subroutine en_perts_save
 !
      do ic3=1,nc3d
 
-        call gsi_bundlegetpointer(en_perts(n,1),trim(cvars3d(ic3)),w3,istatus)
+        call gsi_bundlegetpointer(en_perts(n,1,1),trim(cvars3d(ic3)),w3,istatus)
         if(istatus/=0) then
            write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for ensemble member ',n
            call stop2(999)
@@ -324,7 +324,7 @@ subroutine en_perts_save
      end do
      do ic2=1,nc2d
 
-        call gsi_bundlegetpointer(en_perts(n,1),trim(cvars2d(ic2)),w2,istatus)
+        call gsi_bundlegetpointer(en_perts(n,1,1),trim(cvars2d(ic2)),w2,istatus)
         if(istatus/=0) then
            write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for ensemble member ',n
            call stop2(999)

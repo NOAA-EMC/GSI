@@ -334,7 +334,6 @@ subroutine pcgsoi()
         end if
      end if
 
-
 !    3. Calculate new norm of gradients and factors going into b calculation
      dprod(1) = qdot_prod_sub(gradx,grady)
      if(iter > 0 .and. .not. lanlerr)then

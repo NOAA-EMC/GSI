@@ -31,7 +31,7 @@ module abstract_get_fv3_regional_ensperts_mod
     import abstract_get_fv3_regional_ensperts_class
     implicit none
     class(abstract_get_fv3_regional_ensperts_class),intent(inout) :: this
-    type(gsi_bundle),allocatable, intent(inout) :: en_perts(:,:)
+    type(gsi_bundle),allocatable, intent(inout) :: en_perts(:,:,:)
     integer(i_kind), intent(in   ):: nelen
     real(r_single),dimension(:,:,:),allocatable, intent(inout):: ps_bar
 

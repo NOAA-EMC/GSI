@@ -23,7 +23,7 @@ subroutine ensctl2model_ad(eval,mval,grad)
 use kinds, only: r_kind,i_kind
 use control_vectors, only: control_vector,cvars3d
 use gsi_4dvar, only: ibin_anl
-use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,nval_lenz_en,ntlevs_ens,n_ens,q_hyb_ens
+use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,nval_lenz_en,ntlevs_ens,n_ens,q_hyb_ens,nsclgrp
 use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad
 use hybrid_ensemble_isotropic, only: ckgcov_a_en_new_factorization_ad
 use hybrid_ensemble_isotropic, only: ensemble_forward_model_ad_dual_res
@@ -55,9 +55,9 @@ character(len=max_varname_length),allocatable,dimension(:) :: clouds
 integer(i_kind) :: ii,jj,ic,id,istatus,nclouds,nn
 
 integer(i_kind), parameter :: ncvars = 5
-integer(i_kind) :: icps(ncvars)
+integer(i_kind) :: icps(ncvars),ig
 type(gsi_bundle):: wbundle_c ! work bundle
-type(gsi_bundle),allocatable :: ebundle(:)
+type(gsi_bundle),allocatable :: ebundle(:,:)
 real(r_kind) :: grade(nval_lenz_en)
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
                                'sf ', 'vp ', 'ps ', 't  ',    &
@@ -122,13 +122,15 @@ do jj=1,ntlevs_ens
          (jj==ibin_anl .and. tlnmc_option==2) )
 
    !allocate(grade(nval_lenz_en))
-   allocate(ebundle(n_ens))
-   do nn=1,n_ens
-      call gsi_bundlecreate (ebundle(nn),grad%aens(1,1),'m2c ensemble work',istatus)
-      if(istatus/=0) then
-         write(6,*) trim(myname), ': trouble creating work ens-bundle'
-         call stop2(999)
-      endif
+   allocate(ebundle(nsclgrp,n_ens))
+   do ig=1,nsclgrp
+     do nn=1,n_ens
+        call gsi_bundlecreate (ebundle(ig,nn),grad%aens(1,1,1),'m2c ensemble work',istatus)
+        if(istatus/=0) then
+           write(6,*) trim(myname), ': trouble creating work ens-bundle'
+           call stop2(999)
+        endif
+     enddo
    enddo
 
 !  Create a temporary bundle similar to grad, and copy contents of grad into it
@@ -210,8 +212,10 @@ do jj=1,ntlevs_ens
       if(do_getprs_ad) call getprs_ad(cv_ps,cv_tv,rv_prse)
    end if
 
-   do nn=1,n_ens
-      ebundle(nn)%values=grad%aens(jj,nn)%values
+   do ig=1,nsclgrp
+     do nn=1,n_ens
+        ebundle(ig,nn)%values=grad%aens(jj,ig,nn)%values
+     enddo
    enddo
    if(dual_res) then
       call ensemble_forward_model_ad_dual_res(wbundle_c,ebundle,jj)
@@ -222,7 +226,9 @@ do jj=1,ntlevs_ens
 
 !  Apply square-root of ensemble error covariance
    call sqrt_beta_e_mult(ebundle)
-   call ckgcov_a_en_new_factorization_ad(grade,ebundle)
+   do ig=1,nsclgrp
+     call ckgcov_a_en_new_factorization_ad(ig,grade,ebundle(ig,:))
+   end do
 
    call gsi_bundledestroy(wbundle_c,istatus)
    if (istatus/=0) then
@@ -230,19 +236,23 @@ do jj=1,ntlevs_ens
       call stop2(999)
    endif
 
-   do ii=1,n_ens
-      grad%aens(jj,ii)%values=grad%aens(jj,ii)%values + grade
-   enddo
+   do ig=1,nsclgrp
+     do ii=1,n_ens
+        grad%aens(jj,ig,ii)%values=grad%aens(jj,ig,ii)%values + grade
+     enddo
+   end do
 !  do ii=1,nval_lenz_en
 !     grad%aens(jj,1)%values(ii)=grad%aens(jj,1)%values(ii)+grade(ii)
 !  enddo
 
-   do nn=n_ens,1,-1 ! first in; last out
-      call gsi_bundledestroy(ebundle(nn),istatus)
-      if(istatus/=0) then
-         write(6,*) trim(myname), ': trouble destroying work ens bundle', nn, istatus
-         call stop2(999)
-      endif
+   do ig=1,nsclgrp
+     do nn=n_ens,1,-1 ! first in; last out
+        call gsi_bundledestroy(ebundle(ig,nn),istatus)
+        if(istatus/=0) then
+           write(6,*) trim(myname), ': trouble destroying work ens bundle', nn, istatus
+           call stop2(999)
+        endif
+     enddo
    enddo
    deallocate(ebundle)
 !  deallocate(grade)
