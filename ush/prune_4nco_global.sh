@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # This script removes or restores directories and/or files found in 
 # the rlist below from the current working directory.   This script
@@ -15,6 +15,8 @@
 #             removed directories and files
 #    
 
+function version { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'; }
+
 set -ex
 
 mode=$1
@@ -23,7 +25,14 @@ mode=$1
 if [[ "$mode" = "prune" ]]; then
     string="rm -r"
 elif [[ "$mode" = "restore" ]]; then
-    string="reset HEAD"
+    git_ver=$(git version | cut -d" " -f3)
+    if [ $(version $git_ver) -lt $(version "2.23.0") ]; then
+	use_checkout="YES"
+	string="checkout"
+    else
+	use_checkout="NO"
+	string="restore"
+    fi
 else
     echo " "
     echo "***ERROR*** invalid mode= $mode"
@@ -51,16 +60,22 @@ for type in $rlist; do
 	    git $string ${type}*
 	    rc=$?
 	    if [[ $rc -ne 0 ]]; then
-		echo "***ERROR* git $string ${type}"
+		echo "***ERROR*** git $string ${type}"
 		exit
 	    fi
 	fi
     elif [[ "$mode" = "restore" ]]; then
-	git restore --staged ${type}*
-	git restore ${type}*
-	rc=$?
+	if [[ "$use_checkout" = "YES" ]]; then
+	    git reset HEAD ${type}*
+            git checkout ${type}*
+	    rc=$?
+	else
+	    git restore --staged ${type}*
+	    git restore ${type}*
+	    rc=$?
+	fi
 	if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git restore --staged ${type}"
+            echo "***ERROR*** restore failed for ${type}"
             exit
 	fi
     fi
@@ -76,16 +91,22 @@ for type in $rlist; do
 	    git $string ${type}*
 	    rc=$?
 	    if [[ $rc -ne 0 ]]; then
-		echo "***ERROR* git $string ${type}"
+		echo "***ERROR*** git $string ${type}"
 		exit
 	    fi
 	fi
     elif [[ "$mode" = "restore" ]]; then
-        git restore --staged ${type}*
-        git restore ${type}*	
-        rc=$?
+        if [[ "$use_checkout" = "YES" ]]; then
+            git reset HEAD ${type}*
+            git checkout ${type}*
+            rc=$?
+        else
+            git restore --staged ${type}*
+            git restore ${type}*
+            rc=$?
+        fi
         if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git restore --staged ${type}"
+            echo "***ERROR*** restore failed for ${type}"
             exit
         fi
     fi
@@ -101,16 +122,22 @@ for type in $rlist; do
 	    git $string ${type}*
 	    rc=$?
 	    if [[ $rc -ne 0 ]]; then
-		echo "***ERROR* git $string ${type}"
+		echo "***ERROR*** git $string ${type}"
 		exit
 	    fi
 	fi
     elif [[ "$mode" = "restore" ]]; then
-        git restore --staged ${type}*
-        git restore ${type}*	
-        rc=$?
+        if [[ "$use_checkout" = "YES" ]]; then
+            git reset HEAD ${type}*
+            git checkout ${type}*
+            rc=$?
+        else
+            git restore --staged ${type}*
+            git restore ${type}*
+            rc=$?
+        fi
         if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git restore --staged ${type}"
+            echo "***ERROR*** restore failed for ${type}"
             exit
         fi
     fi
@@ -126,16 +153,22 @@ for type in $rlist; do
 	    git $string ${type}*
 	    rc=$?
 	    if [[ $rc -ne 0 ]]; then
-		echo "***ERROR* git $string ${type}"
+		echo "***ERROR*** git $string ${type}"
 		exit
 	    fi
 	fi
     elif [[ "$mode" = "restore" ]]; then
-        git restore --staged ${type}*
-        git restore ${type}*	
-        rc=$?
+        if [[ "$use_checkout" = "YES" ]]; then
+            git reset HEAD ${type}*
+            git checkout ${type}*
+            rc=$?
+        else
+            git restore --staged ${type}*
+            git restore ${type}*
+            rc=$?
+        fi
         if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git restore --staged ${type}"
+            echo "***ERROR*** restore failed for ${type}"
             exit
         fi
     fi
@@ -147,20 +180,26 @@ cd $topdir/ush
 rlist="Get_Initial_Files comenkf_namelist_gfs.sh comenkf_namelist.sh comenkf_run_gfs.ksh comenkf_run_regional.ksh comgsi_namelist_chem.sh comgsi_namelist_gfs.sh comgsi_namelist.sh comgsi_run_chem.ksh comgsi_run_gfs.ksh comgsi_run_regional.ksh gfs_truncate_enkf.sh llsub_gsi_cmaq.sh para_config.gdas_analysis_high para_config.gfs_analysis refactor_4nco_global.sh run_arw_netcdf_hybens_testcase.sh rungsi62_prod.sh rungsi_globalprod.sh rungsi_nems_nmmb.sh rungsi_nmm_binary.sh rungsi_nmmprod.sh sub_discover sub_hera sub_jet sub_ncar sub_wcoss sub_wcoss_c sub_wcoss_d test_gdas_analysis_high.sh test_gfs_analysis.sh"
 for type in $rlist; do
     if [[ "$mode" = "prune" ]]; then
-	if [ -e $type ] ; then
+	if [ -e $type ]; then
 	    git $string ${type}*
 	    rc=$?
 	    if [[ $rc -ne 0 ]]; then
-		echo "***ERROR* git $string ${type}"
+		echo "***ERROR*** git $string ${type}"
 		exit
 	    fi
 	fi
     elif [[ "$mode" = "restore" ]]; then
-        git restore --staged ${type}*
-        git restore ${type}*	
-        rc=$?
+        if [[ "$use_checkout" = "YES" ]]; then
+            git reset HEAD ${type}*
+            git checkout ${type}*
+            rc=$?
+        else
+            git restore --staged ${type}*
+            git restore ${type}*
+            rc=$?
+        fi
         if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git restore --staged ${type}"
+            echo "***ERROR*** restore failed for ${type}"
             exit
         fi
     fi
@@ -176,16 +215,22 @@ for type in $rlist; do
 	    git $string ${type}*
 	    rc=$?
 	    if [[ $rc -ne 0 ]]; then
-		echo "***ERROR* git $string ${type}"
+		echo "***ERROR*** git $string ${type}"
 		exit
 	    fi
 	fi
     elif [[ "$mode" = "restore" ]]; then
-        git restore --staged ${type}*
-        git restore ${type}*	
-        rc=$?
+        if [[ "$use_checkout" = "YES" ]]; then
+            git reset HEAD ${type}*
+            git checkout ${type}*
+            rc=$?
+        else
+            git restore --staged ${type}*
+            git restore ${type}*
+            rc=$?
+        fi
         if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git restore --staged ${type}"
+            echo "***ERROR*** restore failed for ${type}"
             exit
         fi
     fi
@@ -201,16 +246,22 @@ for type in $rlist; do
 	    git $string ${type}*
 	    rc=$?
 	    if [[ $rc -ne 0 ]]; then
-		echo "***ERROR* git $string ${type}"
+		echo "***ERROR*** git $string ${type}"
 		exit
 	    fi
 	fi
     elif [[ "$mode" = "restore" ]]; then
-        git restore --staged ${type}*
-	git restore ${type}*
-        rc=$?
+        if [[ "$use_checkout" = "YES" ]]; then
+            git reset HEAD ${type}*
+            git checkout ${type}*
+            rc=$?
+        else
+            git restore --staged ${type}*
+            git restore ${type}*
+            rc=$?
+        fi
         if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git restore --staged ${type}"
+            echo "***ERROR*** restore failed for ${type}"
             exit
         fi
     fi
@@ -226,16 +277,22 @@ for type in $rlist; do
 	    git $string ${type}*
 	    rc=$?
 	    if [[ $rc -ne 0 ]]; then
-		echo "***ERROR* git $string ${type}"
+		echo "***ERROR*** git $string ${type}"
 		exit
 	    fi
 	fi
     elif [[ "$mode" = "restore" ]]; then
-        git restore --staged ${type}*
-        git restore ${type}*	
-        rc=$?
+        if [[ "$use_checkout" = "YES" ]]; then
+            git reset HEAD ${type}* 
+            git checkout ${type}*
+            rc=$?
+        else
+            git restore --staged ${type}*
+            git restore ${type}*
+            rc=$?
+        fi
         if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git restore --staged ${type}"
+            echo "***ERROR*** restore failed for ${type}"
             exit
         fi
     fi
