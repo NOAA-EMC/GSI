@@ -208,7 +208,7 @@ done
 
 # Process util directories and files
 cd $topdir/util
-rlist="AeroDA Analysis_Utilities Baseline Config Conventional_Monitor Correlated_Obs DTC EFSOI_Utilities Fit2Obs_Scorecard FOV_utilities GEN_BE_V2.0 GMI_BUFR_gen MODIS_AOD Minimization_Monitor/data_xtrct Minimization_Monitor/image_gen Minimization_Monitor/nwprod/nam_minmon Misc NCEP_bkerror NCEPgsi_Coupler NMC_Bkerror Ozone_Monitor/image_gen README Radar_Monitor Radiance_bias_correction_Utilities Radiance_Monitor/nwprod/nam_radmon Radiance_Utilities Single_Observation bufr_tools global_angupdate gsienvreport.sh python_utilities radar_process zero_biascoeff"
+rlist="AeroDA Analysis_Utilities Baseline Config Conventional_Monitor Correlated_Obs DTC EFSOI_Utilities Fit2Obs_Scorecard FOV_utilities GEN_BE_V2.0 GMI_BUFR_gen MODIS_AOD Minimization_Monitor/data_xtrct Minimization_Monitor/image_gen Minimization_Monitor/nwprod/gdas/driver Minimization_Monitor/nwprod/gfs/driver Minimization_Monitor/nwprod/nam_minmon Misc NCEP_bkerror NCEPgsi_Coupler NMC_Bkerror Ozone_Monitor/image_gen Ozone_Monitor/nwprod/gdas_oznmon/driver README Radar_Monitor Radiance_bias_correction_Utilities Radiance_Monitor/nwprod/gdas_radmon/driver Radiance_Monitor/nwprod/nam_radmon Radiance_Utilities Single_Observation bufr_tools global_angupdate gsienvreport.sh python_utilities radar_process zero_biascoeff"
 for type in $rlist; do
     if [[ "$mode" = "prune" ]]; then
 	if [ -e $type ]; then
