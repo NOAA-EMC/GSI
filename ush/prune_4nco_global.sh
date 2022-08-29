@@ -119,7 +119,7 @@ done
 
 # Process scripts directories and files
 cd $topdir/scripts
-rlist="exurma2p5_gsianl.sh exgdas_efsoi"
+rlist="exurma2p5_gsianl.sh exgdas_efsoi.sh exgdas_efsoi_update.sh"
 for type in $rlist; do
     if [[ "$mode" = "prune" ]]; then
 	if [ -e $type ]; then
