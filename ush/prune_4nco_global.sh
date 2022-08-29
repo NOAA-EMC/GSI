@@ -46,19 +46,21 @@ echo " "
 cd $topdir
 rlist="regression src/GSD unit-tests"
 for type in $rlist; do
-    if [ -e $type ]; then
-	git $string ${type}*
-	rc=$?
-	if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git $string ${type}"
-            exit
+    if [[ "$mode" = "prune" ]]; then
+	if [ -e $type ]; then
+	    git $string ${type}*
+	    rc=$?
+	    if [[ $rc -ne 0 ]]; then
+		echo "***ERROR* git $string ${type}"
+		exit
+	    fi
 	fi
-    fi
-    if [[ "$mode" = "restore" ]]; then
-	git checkout ${type}*
+    elif [[ "$mode" = "restore" ]]; then
+	git restore --staged ${type}*
+	git restore ${type}*
 	rc=$?
 	if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git checkout ${type}"
+            echo "***ERROR* git restore --staged ${type}"
             exit
 	fi
     fi
@@ -69,19 +71,21 @@ done
 cd $topdir/doc
 rlist="EnKF_user_guide GSI_user_guide README.discover Release_Notes.fv3gfs_da.v15.0.0.txt Release_Notes.gfsda.v16.0.0.txt"
 for type in $rlist; do
-    if [ -e $type ]; then
-	git $string ${type}*
-	rc=$?
-	if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git $string ${type}"
-            exit
+    if [[ "$mode" = "prune" ]]; then
+	if [ -e $type ]; then
+	    git $string ${type}*
+	    rc=$?
+	    if [[ $rc -ne 0 ]]; then
+		echo "***ERROR* git $string ${type}"
+		exit
+	    fi
 	fi
-    fi
-    if [[ "$mode" = "restore" ]]; then
-        git checkout ${type}*
+    elif [[ "$mode" = "restore" ]]; then
+        git restore --staged ${type}*
+        git restore ${type}*	
         rc=$?
         if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git checkout ${type}"
+            echo "***ERROR* git restore --staged ${type}"
             exit
         fi
     fi
@@ -92,19 +96,21 @@ done
 cd $topdir/jobs
 rlist="JGDAS_EFSOI"
 for type in $rlist; do
-    if [ -e $type ]; then
-	git $string ${type}*
-	rc=$?
-	if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git $string ${type}"
-            exit
+    if [[ "$mode" = "prune" ]]; then
+	if [ -e $type ]; then
+	    git $string ${type}*
+	    rc=$?
+	    if [[ $rc -ne 0 ]]; then
+		echo "***ERROR* git $string ${type}"
+		exit
+	    fi
 	fi
-    fi
-    if [[ "$mode" = "restore" ]]; then
-        git checkout ${type}*
+    elif [[ "$mode" = "restore" ]]; then
+        git restore --staged ${type}*
+        git restore ${type}*	
         rc=$?
         if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git checkout ${type}"
+            echo "***ERROR* git restore --staged ${type}"
             exit
         fi
     fi
@@ -115,19 +121,21 @@ done
 cd $topdir/scripts
 rlist="exurma2p5_gsianl.sh exgdas_efsoi"
 for type in $rlist; do
-    if [ -e $type ]; then
-	git $string ${type}*
-	rc=$?
-	if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git $string ${type}"
-            exit
+    if [[ "$mode" = "prune" ]]; then
+	if [ -e $type ]; then
+	    git $string ${type}*
+	    rc=$?
+	    if [[ $rc -ne 0 ]]; then
+		echo "***ERROR* git $string ${type}"
+		exit
+	    fi
 	fi
-    fi
-    if [[ "$mode" = "restore" ]]; then
-        git checkout ${type}*
+    elif [[ "$mode" = "restore" ]]; then
+        git restore --staged ${type}*
+        git restore ${type}*	
         rc=$?
         if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git checkout ${type}"
+            echo "***ERROR* git restore --staged ${type}"
             exit
         fi
     fi
@@ -138,19 +146,21 @@ done
 cd $topdir/ush
 rlist="Get_Initial_Files comenkf comgsi gfs_truncate_enkf llsub para refactor_4nco_global run_arw rungsi sub"
 for type in $rlist; do
-    if [ -e $type ] ; then
-	git $string ${type}*
-	rc=$?
-	if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git $string ${type}"
-            exit
+    if [[ "$mode" = "prune" ]]; then
+	if [ -e $type ] ; then
+	    git $string ${type}*
+	    rc=$?
+	    if [[ $rc -ne 0 ]]; then
+		echo "***ERROR* git $string ${type}"
+		exit
+	    fi
 	fi
-    fi
-    if [[ "$mode" = "restore" ]]; then
-        git checkout ${type}*
+    elif [[ "$mode" = "restore" ]]; then
+        git restore --staged ${type}*
+        git restore ${type}*	
         rc=$?
         if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git checkout ${type}"
+            echo "***ERROR* git restore --staged ${type}"
             exit
         fi
     fi
@@ -159,21 +169,23 @@ done
 
 # Process util directories and files
 cd $topdir/util
-rlist="Aero Analysis_Utilities Baseline Config Conventional_Monitor Correlated_Obs DTC EFSOI Fit2Obs_Scorecard FOV GEN_BE_V2.0 GMI_BUFR MODIS_AOD Minimization_Monitor/data_xtrct Minimization_Monitor/image_gen Minimization_Monitor/nwprod/nam_minmon Misc NCEP NMC_Bkerror Ozone_Monitor/image_gen README Radar_Monitor Radiance_bias_correction_Utilities Radiance_Monitor/nwprod/nam_radmon Radiance_Utilities Single_Observation bufr_tools global_angupdate gsienvreport.sh python_utilities radar_process zero_biascoeff"
+rlist="AeroDA Analysis_Utilities Baseline Config Conventional_Monitor Correlated_Obs DTC EFSOI_Utilities Fit2Obs_Scorecard FOV_utilities GEN_BE_V2.0 GMI_BUFR_gen MODIS_AOD Minimization_Monitor/data_xtrct Minimization_Monitor/image_gen Minimization_Monitor/nwprod/nam_minmon Misc NCEP_bkerror NCEPgsi_Coupler NMC_Bkerror Ozone_Monitor/image_gen README Radar_Monitor Radiance_bias_correction_Utilities Radiance_Monitor/nwprod/nam_radmon Radiance_Utilities Single_Observation bufr_tools global_angupdate gsienvreport.sh python_utilities radar_process zero_biascoeff"
 for type in $rlist; do
-    if [ -e $type ]; then
-	git $string ${type}*
-	rc=$?
-	if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git $string ${type}"
-            exit
+    if [[ "$mode" = "prune" ]]; then
+	if [ -e $type ]; then
+	    git $string ${type}*
+	    rc=$?
+	    if [[ $rc -ne 0 ]]; then
+		echo "***ERROR* git $string ${type}"
+		exit
+	    fi
 	fi
-    fi
-    if [[ "$mode" = "restore" ]]; then
-        git checkout ${type}*
+    elif [[ "$mode" = "restore" ]]; then
+        git restore --staged ${type}*
+        git restore ${type}*	
         rc=$?
         if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git checkout ${type}"
+            echo "***ERROR* git restore --staged ${type}"
             exit
         fi
     fi
@@ -184,19 +196,21 @@ done
 cd $topdir/util/EnKF
 rlist="arw python_utilities"
 for type in $rlist; do
-    if [ -e $type ]; then
-	git $string ${type}*
-	rc=$?
-	if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git $string ${type}"
-            exit
+    if [[ "$mode" = "prune" ]]; then    
+	if [ -e $type ]; then
+	    git $string ${type}*
+	    rc=$?
+	    if [[ $rc -ne 0 ]]; then
+		echo "***ERROR* git $string ${type}"
+		exit
+	    fi
 	fi
-    fi
-    if [[ "$mode" = "restore" ]]; then
-        git checkout ${type}*
+    elif [[ "$mode" = "restore" ]]; then
+        git restore --staged ${type}*
+	git restore ${type}*
         rc=$?
         if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git checkout ${type}"
+            echo "***ERROR* git restore --staged ${type}"
             exit
         fi
     fi
@@ -205,21 +219,23 @@ done
 
 # Process util/EnKF/gfs/src directories and files
 cd $topdir/util/EnKF/gfs/src
-rlist="adjustps misc preproc gribmean recenterncio_hybgain recenternemsiop_hybgain getnstensmeanp adderrspec getsfcnstensupdp"
+rlist="adjustps.fd misc preproc gribmean.fd recenterncio_hybgain.fd recenternemsiop_hybgain.fd getnstensmeanp.fd adderrspec.fd getsfcnstensupdp.fd"
 for type in $rlist; do
-    if [ -e $type ]; then
-	git $string ${type}*
-	rc=$?
-	if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git $string ${type}"
-            exit
+    if [[ "$mode" = "prune" ]]; then
+	if [ -e $type ]; then
+	    git $string ${type}*
+	    rc=$?
+	    if [[ $rc -ne 0 ]]; then
+		echo "***ERROR* git $string ${type}"
+		exit
+	    fi
 	fi
-    fi
-    if [[ "$mode" = "restore" ]]; then
-        git checkout ${type}*
+    elif [[ "$mode" = "restore" ]]; then
+        git restore --staged ${type}*
+        git restore ${type}*	
         rc=$?
         if [[ $rc -ne 0 ]]; then
-            echo "***ERROR* git checkout ${type}"
+            echo "***ERROR* git restore --staged ${type}"
             exit
         fi
     fi
