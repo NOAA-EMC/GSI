@@ -28,18 +28,12 @@ else
 fi
 
 # Determine the machine
-if [[ -d /dcom && -d /hwrf ]]; then # WCOSS
-  export machine="WCOSS"
-elif [[ -d /glade ]]; then # Cheyenne
+if [[ -d /glade ]]; then # Cheyenne
   export machine="Cheyenne"
 elif [[ -d /scratch1 ]]; then # Hera
   export machine="Hera"
 elif [[ -d /jetmon ]]; then # Jet
   export machine="Jet"
-elif [[ -d /cm ]]; then # LUNA or SURGE
-  export machine="WCOSS_C"
-elif [[ -d /ioddev_dell ]]; then # venus or mars
-  export machine="WCOSS_D"
 elif [[ -d /discover ]]; then # NCCS Discover
   export machine="Discover"
 elif [[ -d /sw/gaea ]]; then # Gaea
@@ -52,41 +46,6 @@ fi
 echo "Running Regression Tests on '$machine'";
 
 case $machine in
-  WCOSS_D)
-    export noscrub=/gpfs/dell2/emc/modeling/noscrub/$LOGNAME
-    export group="dev"
-    export queue="dev"
-
-    export ptmp="/gpfs/dell2/ptmp/$LOGNAME/$ptmpName"
-
-    export fixcrtm="/gpfs/dell2/emc/modeling/noscrub/Michael.Lueken/fix_update"
-    export casesdir="/gpfs/dell2/emc/modeling/noscrub/Michael.Lueken/CASES"
-
-    export check_resource="yes"
-
-    export accnt=""
-  ;;
-  WCOSS)
-    if [ -d /da/noscrub/$LOGNAME ]; then
-      export noscrub=/da/noscrub/$LOGNAME
-    elif [ -d /global/noscrub/$LOGNAME ]; then
-      export noscrub=/global/noscrub/$LOGNAME
-    fi
-    if [[ "$cmaketest" = "false" ]]; then
-      export basedir="/global/save/$LOGNAME/gsi"
-    fi
-    export group="dev"
-    export queue="dev"
-
-    export ptmp="/ptmpp1/$LOGNAME/$ptmpName"
-
-    export fixcrtm="/da/save/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
-    export casesdir="/da/noscrub/Michael.Lueken/CASES"
-
-    export check_resource="yes"
-
-    export accnt=""
-  ;;
   Cheyenne)
     export queue="economy"
     export noscrub="/glade/scratch/$LOGNAME"
@@ -150,29 +109,6 @@ case $machine in
     #  On Jet, there are no scrubbers to remove old contents from stmp* directories.
     #  After completion of regression tests, will remove the regression test subdirecories
     export clean=".true."
-  ;;
-  WCOSS_C)
-    if [ -d /gpfs/hps3/emc/global/noscrub/$LOGNAME ]; then
-       export noscrub="/gpfs/hps3/emc/global/noscrub/$LOGNAME"
-    elif [ -d /gpfs/hps3/emc/da/noscrub/$LOGNAME ]; then
-       export noscrub="/gpfs/hps3/emc/da/noscrub/$LOGNAME"
-    elif [ -d /gpfs/hps3/emc/hwrf/noscrub/$LOGNAME ]; then
-        export noscrub="/gpfs/hps3/emc/hwrf/noscrub/$LOGNAME"
-    fi
-    if [[ "$cmaketest" = "false" ]]; then
-      export basedir="/gpfs/hps3/emc/global/noscrub/$LOGNAME/svn/gsi"
-    fi
-    export group="dev"
-    export queue="dev"
-
-    export ptmp="/gpfs/hps/ptmp/$LOGNAME/$ptmpName"
-
-    export fixcrtm="/gpfs/hps3/emc/da/noscrub/Michael.Lueken/CRTM_REL-2.2.3/fix_update"
-    export casesdir="/gpfs/hps3/emc/da/noscrub/Michael.Lueken/CASES"
-
-    export check_resource="no"
-
-    export accnt=""
   ;;
   Discover)
     if [[ "$cmaketest" = "false" ]]; then
