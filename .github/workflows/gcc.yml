@@ -8,7 +8,7 @@ defaults:
     shell: bash -leo pipefail {0}
 
 env:
-  cache_key: gcc3  # The number (#) following the cache_key "gcc" is to flush Action cache.
+  cache_key: gcc4  # The number (#) following the cache_key "gcc" is to flush Action cache.
   CC: gcc-10
   FC: gfortran-10
   CXX: g++-10
