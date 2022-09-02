@@ -91,7 +91,8 @@
       erradar_inflate,tdrerr_inflate,use_poq7,qc_satwnds,&
       init_qcvars,vadfile,noiqc,c_varqc,gps_jacqc,qc_noirjaco3,qc_noirjaco3_pole,&
       buddycheck_t,buddydiag_save,njqc,vqc,nvqc,hub_norm,vadwnd_l2rw_qc, &
-      pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres,cao_check
+      pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres,cao_check, &
+      airs_co2,cris_co2,iasi_co2,hirs_co2,goessndr_co2
   use qcmod, only: troflg,lat_c,nrand
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,superfact,limitqobs, &
@@ -487,6 +488,10 @@
 !  01-07-2022 Hu        Add fv3_io_layout_y to let fv3lam interface read/write subdomain restart
 !                       files. The fv3_io_layout_y needs to match fv3lam model
 !                       option io_layout(2).
+!  09-02-2022 Jung      Added namelist entries to call a new IR cloud detection routine
+!                       the original cloud detection routine is the default.  To use the new 
+!                       co2_slicing cloud detection routine, set the flags to .true.
+!                       
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1009,6 +1014,14 @@
 !                                                wind observations.
 
 !     vad_near_analtime - assimilate newvadwnd obs around analysis time only
+!
+!     Flags to use the new IR cloud detection routine.  Flag must be set to true to use the new routine.  The default
+!     (no flag or .false.) will use the default.
+!     airs_co2:  use the co2_slicing routine for the AIRS instrument
+!     cris_co2:  use the co2_slicing routine for the CrIS instruments
+!     iasi_co2:  use the co2 slicing routine for the IASI instruments
+!     hirs_co2:  use the co2_slicing routine for the HIRS instruments
+!     goessndr_co2: use the co2_slicing routine for the GOES sounder instruments.
   
   namelist/obsqc/dfact,dfact1,erradar_inflate,tdrerr_inflate,oberrflg,&
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
@@ -1019,7 +1032,7 @@
        q_doe_a_136,q_doe_a_137,q_doe_b_136,q_doe_b_137, &
        t_doe_a_136,t_doe_a_137,t_doe_b_136,t_doe_b_137, &
        uv_doe_a_236,uv_doe_a_237,uv_doe_a_213,uv_doe_b_236,uv_doe_b_237,uv_doe_b_213, &
-       vad_near_analtime
+       vad_near_analtime,airs_co2,cris_co2,iasi_co2,hirs_co2,goessndr_co2 
 
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group
