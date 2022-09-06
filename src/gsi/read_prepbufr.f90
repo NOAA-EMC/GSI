@@ -3057,7 +3057,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
  
         do k=1,ndata
            ikx=nint(cdata_out(10,k))
-           itype=ictype(ikx)
+           if (ikx>0) then
+              itype=ictype(ikx)
+           else
+              itype=0
+           endif
            if( itype ==230 .or. itype ==231 .or. itype ==233) then
               prest=r10*exp(cdata_out(4,k))
               if (prest <100.0_r_kind) cycle
