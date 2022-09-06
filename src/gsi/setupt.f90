@@ -58,6 +58,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   use guess_grids, only: nfldsig, hrdifsig,ges_lnprsl,&
        geop_hgtl,ges_tsen,pbl_height
+  use guess_grids, only: ges_prsi
   use state_vectors, only: svars3d, levels
 
   use constants, only: zero, one, four,t0c,rd_over_cp,three,rd_over_cp_mass,ten
@@ -285,6 +286,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 
   real(r_kind),dimension(nsig):: prsltmp2
+  real(r_kind),dimension(nsig+1):: prsitmp
 
   integer(i_kind) i,j,nchar,nreal,k,ii,iip,jj,l,nn,ibin,idia,idia0,ix,ijb
   integer(i_kind) mm1,jsig,iqt
@@ -657,6 +659,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 ! GEOVALS for UFO eval
      psges2  = psges          ! keep in cb
      prsltmp2 = exp(prsltmp)
+     call tintrp2a1(ges_prsi,prsitmp,dlat,dlon,dtime,hrdifsig,&
+          nsig+1,mype,nfldsig)
      call tintrp2a1(ges_tsen,ttmp,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
      call tintrp2a1(ges_q,qtmp,dlat,dlon,dtime,hrdifsig,&
@@ -1768,6 +1772,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
     ! GEOVALS
     call nc_diag_data2d("atmosphere_pressure_coordinate", sngl(prsltmp2*r1000))
+    call nc_diag_data2d("atmosphere_pressure_coordinate_interface", sngl(prsitmp*r1000))
     call nc_diag_data2d("air_temperature", sngl(ttmp))
     call nc_diag_data2d("specific_humidity", sngl(qtmp))
     call nc_diag_data2d("eastward_wind", sngl(utmp))
@@ -1847,6 +1852,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
     ! GEOVALS
     call nc_diag_data2d("atmosphere_pressure_coordinate", sngl(prsltmp2*r1000))
+    call nc_diag_data2d("atmosphere_pressure_coordinate_interface", sngl(prsitmp*r1000))
     call nc_diag_data2d("air_temperature", sngl(ttmp))
     call nc_diag_data2d("specific_humidity", sngl(qtmp))
     call nc_diag_data2d("eastward_wind", sngl(utmp))

@@ -1031,7 +1031,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
              call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
            endif
            ! geovals for JEDI UFO
-           call nc_diag_metadata("surface_geopotential_height", sngl(zsges))
+           call nc_diag_metadata("surface_geometric_height", sngl(zsges))
            call nc_diag_metadata("surface_pressure", sngl(pgesorig*r100))
            !call nc_diag_metadata("surface_roughness", sngl())
            !call nc_diag_metadata("surface_height", sngl())

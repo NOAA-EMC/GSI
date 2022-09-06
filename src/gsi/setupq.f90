@@ -156,6 +156,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use oneobmod, only: oneobtest,maginnov,magoberr
   use guess_grids, only: ges_lnprsl,hrdifsig,nfldsig,ges_tsen,ges_prsl,pbl_height,ges_qsat
   use guess_grids, only: geop_hgtl
+  use guess_grids, only: ges_prsi
   use gridmod, only: lat2,lon2,nsig,get_ijk,twodvar_regional
   use constants, only: zero,one,r1000,r10,r100
   use constants, only: huge_single,wgtlim,three
@@ -238,6 +239,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_single),allocatable,dimension(:,:)::rdiagbufp
   real(r_kind),dimension(nsig):: prsltmp2, ttmp, qtmp, utmp,vtmp,hsges
   real(r_kind) :: psges2
+  real(r_kind),dimension(nsig+1):: prsitmp
 
 
   integer(i_kind) i,j,nchar,nreal,ii,l,jj,mm1,itemp,iip
@@ -514,6 +516,8 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 ! GEOVALS for UFO eval
      psges2  = psges          ! keep in cb
      prsltmp2 = exp(prsltmp)
+     call tintrp2a1(ges_prsi,prsitmp,dlat,dlon,dtime,hrdifsig,&
+          nsig+1,mype,nfldsig)
      call tintrp2a1(ges_tsen,ttmp,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
      call tintrp2a1(ges_q,qtmp,dlat,dlon,dtime,hrdifsig,&
@@ -1382,6 +1386,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
     ! GEOVALS
     call nc_diag_data2d("atmosphere_pressure_coordinate", sngl(prsltmp2*r1000))
+    call nc_diag_data2d("atmosphere_pressure_coordinate_interface", sngl(prsitmp*r1000))
     call nc_diag_data2d("air_temperature", sngl(ttmp))
     call nc_diag_data2d("specific_humidity", sngl(qtmp))
     call nc_diag_data2d("eastward_wind", sngl(utmp))
@@ -1460,6 +1465,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
     ! GEOVALS
     call nc_diag_data2d("atmosphere_pressure_coordinate", sngl(prsltmp2*r1000))
+    call nc_diag_data2d("atmosphere_pressure_coordinate_interface", sngl(prsitmp*r1000))
     call nc_diag_data2d("air_temperature", sngl(ttmp))
     call nc_diag_data2d("specific_humidity", sngl(qtmp))
     call nc_diag_data2d("eastward_wind", sngl(utmp))
