@@ -1934,7 +1934,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_data2d("eastward_wind", sngl(utmp))
     call nc_diag_data2d("northward_wind", sngl(vtmp))
     call nc_diag_data2d("geopotential_height", sngl(hsges) )
-    call nc_diag_data2d("tropopause_pressure", sngl(trop5*r100) )
+    call nc_diag_metadata("tropopause_pressure", sngl(trop5*r100) )
     call nc_diag_metadata("surface_air_pressure", sngl(psges2*r1000) )
     ! END GEOVALS
 
