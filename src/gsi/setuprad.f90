@@ -294,7 +294,7 @@ contains
                    ifail_iomg_det, ifail_isst_det, ifail_itopo_det,ifail_iwndspeed_det
   use qcmod, only: qc_gmi,qc_saphir,qc_amsr2
   use radinfo, only: iland_det, isnow_det, iwater_det, imix_det, iice_det, &
-                      iomg_det, itopo_det, isst_det,iwndspeed_det
+                      iomg_det, itopo_det, isst_det,iwndspeed_det, optconv
   use qcmod, only: setup_tzr_qc,ifail_scanedge_qc,ifail_outside_range
   use state_vectors, only: svars3d, levels, svars2d, ns3d
   use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
@@ -332,7 +332,7 @@ contains
   integer(i_kind) n,nlev,kval,ibin,ioff,ioff0,iii,ijacob
   integer(i_kind) ii,jj,idiag,inewpc,nchanl_diag
   integer(i_kind) nadir,kraintype,ierrret
-  integer(i_kind) ioz,ius,ivs,iwrmype
+  integer(i_kind) ioz,ius,ivs,iqs,iwrmype
   integer(i_kind) iversion_radiag, istatus
   integer(i_kind) cor_opt,iinstr,chan_count
   character(len=80) covtype
@@ -352,7 +352,7 @@ contains
 !  real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl,tpwc_guess_retrieval
   real(r_kind) sfc_speed,frac_sea,tpwc_obs,sgagl,tpwc_guess_retrieval
   real(r_kind) gwp,clw_obs
-  real(r_kind) scat,scatp
+  real(r_kind) scat,scatp,asum
   real(r_kind) dtsavg,r90,coscon,sincon
   real(r_kind) bias       
   real(r_kind) factch6    
@@ -384,7 +384,7 @@ contains
   real(r_kind),dimension(npred+2,nchanl):: predbias
   real(r_kind),dimension(npred,nchanl):: pred,predchan
   real(r_kind),dimension(nchanl):: err2,tbc0,tb_obs0,raterr2,wgtjo
-  real(r_kind),dimension(nchanl):: varinv0
+  real(r_kind),dimension(nchanl):: varinv0,diagadd
   real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf,errf0
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv
   real(r_kind),dimension(nchanl):: tnoise,tnoise_cld
@@ -395,7 +395,7 @@ contains
   real(r_kind),dimension(nsig,nchanl):: wmix,temp,ptau5
   real(r_kind),dimension(nsigradjac,nchanl):: jacobian
   real(r_kind),dimension(nreal+nchanl,nobs)::data_s
-  real(r_kind),dimension(nsig):: qvp,tvp
+  real(r_kind),dimension(nsig):: qvp,tvp,qs
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind),dimension(nchanl):: weightmax
@@ -413,7 +413,7 @@ contains
   real(r_kind),dimension(5)     :: gmi_low_angles
   real(r_kind),dimension(nsig,nchanl):: wmix2,temp2,ptau52
   real(r_kind),dimension(nsigradjac,nchanl):: jacobian2
-  real(r_kind) cosza2 
+  real(r_kind) cosza2
 
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nchanl):: kmax
@@ -601,6 +601,9 @@ contains
   if(ioz>0) then
      ioz=radjacindxs(ioz)
   endif
+  iqs =getindex(radjacnames,'q')
+  iqs=radjacindxs(iqs)
+
   ius =getindex(radjacnames,'u')
   ivs =getindex(radjacnames,'v')
   if(ius>0.and.ivs>0) then
@@ -894,7 +897,7 @@ contains
         total_cloud_cover=zero
         if (radmod%lcloud_fwd) then
           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
-             tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+             tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
              tsim,emissivity,ptau5,ts,emissivity_k, &
                 temp,wmix,jacobian,error_status,tsim_clr=tsim_clr,tcc=tcc, & 
@@ -905,7 +908,7 @@ contains
              data_s(ilzen_ang:iscan_ang, n) = data_s(ilzen_ang2:iscan_ang2, n)
              data_s(iszen_ang:isazi_ang, n) = data_s(iszen_ang2:isazi_ang2, n)
              call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
-                tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+                tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
                  trop5,tzbgr,dtsavg,sfc_speed, &
                  tsim2,emissivity2,ptau52,ts2,emissivity_k2, &
                  temp2,wmix2,jacobian2,error_status,tsim_clr=tsim_clr2,tcc=tcc,&
@@ -929,7 +932,7 @@ contains
           cld = total_cloud_cover
         else
           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
-             tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+             tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
              tsim,emissivity,ptau5,ts,emissivity_k, &
              temp,wmix,jacobian,error_status)
@@ -939,7 +942,7 @@ contains
              data_s(ilzen_ang:iscan_ang, n) = data_s(ilzen_ang2:iscan_ang2, n)
              data_s(iszen_ang:isazi_ang, n) = data_s(iszen_ang2:isazi_ang2, n)
              call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
-                tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+                tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
                  trop5,tzbgr,dtsavg,sfc_speed, &
                  tsim2,emissivity2,ptau52,ts2,emissivity_k2, &
                  temp2,wmix2,jacobian2,error_status)
@@ -1771,34 +1774,46 @@ contains
 
         enddo
 
+        diagadd=zero
+        account_for_corr_obs = .false.
+        iii=0
+        varinv0=zero
+        do ii=1,nchanl
+           m=ich(ii)
+           if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1) then
+             iii=iii+1
+             varinv0(ii)=varinv(ii)
+             raterr2(ii)=error0(ii)**2*varinv0(ii)
+             if (l_may_be_passive .and. .not. retrieval) then
+               if(optconv > zero .and. (iasi .or. cris) .and. iinstr /= -1)then
+                 asum=zero
+                 do k=1,nsig
+                   asum=asum+abs(jacobian(iqs+k,ii))*qs(k)
+                 end do
+                 diagadd(ii)=optconv*asum
+               end if
+             end if
+           end if
+        enddo
+        err2 = one/error0**2
         tbc0=tbc
         tb_obs0=tb_obs
-        varinv0 = varinv
-        raterr2 = zero
-        err2 = one/error0**2
-        wgtjo= varinv     ! weight used in Jo term
-        account_for_corr_obs = .false.
+        wgtjo=varinv0
         if (l_may_be_passive .and. .not. retrieval) then
-          iii=0
-          do ii=1,nchanl
-             m=ich(ii)
-             if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1) then
-               iii=iii+1
-               raterr2(ii)=error0(ii)**2*varinv(ii)
-             endif
-          enddo
           if(iii>0 .and. iinstr.ne.-1)then
             chan_count=(iii*(iii+1))/2
+            if(allocated(rsqrtinv))deallocate(rsqrtinv)
+            if(allocated(rinvdiag))deallocate(rinvdiag)
             allocate(rsqrtinv(chan_count))
             allocate(rinvdiag(iii))
             rsqrtinv=zero
             rinvdiag=zero
-            account_for_corr_obs = corr_adjust_jacobian(iinstr,nchanl,nsigradjac,ich,varinv,&
-                                               tbc,tb_obs,err2,raterr2,wgtjo,jacobian,cor_opt,iii,rsqrtinv,rinvdiag)
-            varinv = wgtjo
+            account_for_corr_obs = corr_adjust_jacobian(iinstr,nchanl,nsigradjac,ich,varinv0,diagadd,&
+                                    tbc,tb_obs,err2,raterr2,wgtjo,jacobian,cor_opt,iii,rsqrtinv,rinvdiag)
+            varinv=wgtjo
           endif
         endif
-
+  
         icc = 0
         iccm= 0
 
@@ -1843,10 +1858,11 @@ contains
                  endif
                  stats(7,m)  = stats(7,m) -two*raterr2(i)*term
               end if
-           
+
 !             Only "good" obs are included in J calculation.
               if (iuse_rad(m) >= 1)then
                  if(luse(n))then
+                    varrad  = tbc(i)*varinv(i)
                     aivals(40,is) = aivals(40,is) + tbc(i)*varrad
                     aivals(39,is) = aivals(39,is) -two*raterr2(i)*term
                     aivals(38,is) = aivals(38,is) +one

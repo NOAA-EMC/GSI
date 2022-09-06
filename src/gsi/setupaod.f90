@@ -406,13 +406,12 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
  
 !       Interpolate model fields to observation location, call crtm and create jacobians
         call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
-             tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+             tvp,qvp,qsat,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
              tsim,emissivity,ptau5,ts,emissivity_k, &
              temp,wmix,jacobian,error_status,layer_od=layer_od,jacobian_aero=jacobian_aero)
         ! interpolate aerosols at observation locations for diag files here
         if (aero_diagsave) then
-           call genqsat(qsat,tvp,prsltmp,1,1,nsig,.true.,0)
            rh = qvp/qsat
            call aero_guess_at_obs_locations(dtime,data_s(:,n),&
                nchanl,nreal,nsig, n_aerosols_fwd, aerosols, aerosol_names)

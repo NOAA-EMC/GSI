@@ -72,7 +72,7 @@
                        ssmis_method,ssmis_precond,gmi_method,amsr2_method,bias_zero_start, &
                        reset_bad_radbc,cld_det_dec2bin,diag_version,lupdqc,lqcoef
   use radinfo, only: tzr_qc,tzr_bufrsave
-  use radinfo, only: crtm_coeffs_path
+  use radinfo, only: crtm_coeffs_path,optconv
   use ozinfo, only: diag_ozone,init_oz
   use aeroinfo, only: diag_aero, init_aero, init_aero_vars, final_aero_vars
   use coinfo, only: diag_co,init_co
@@ -149,7 +149,8 @@
                          beta_s0,beta_e0,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
                          readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,&
                          readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens,i_en_perts_io, &
-                         l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB
+                         l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens
+  use hybrid_ensemble_parameters,only : l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
                             metar_impact_radius_lowcloud,l_gsd_terrain_match_surftobs, &
@@ -716,6 +717,9 @@
 !                     (.TRUE.: on; .FALSE.: off) / Inputfile: dbzbufr (bufr format)
 !     l_obsprvdiag - trigger (if true) writing out observation provider and sub-provider
 !                    information into obsdiags files (used for AutoObsQC)
+!     optconv - downweighting option for iasi and cris for moisture channels to
+!     improve convergence.  default 0.0 (no change).  Larger number improves
+!     convergence.
 !
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -761,7 +765,7 @@
        write_fv3_incr,incvars_to_zero,incvars_zero_strat,incvars_efold,diag_version,&
        cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef,cnvw_option,l2rwthin,hurricane_radar,&
        l_reg_update_hydro_delz, l_obsprvdiag,&
-       l_use_dbz_directDA, l_use_rw_columntilt, ta2tb
+       l_use_dbz_directDA, l_use_rw_columntilt, ta2tb, optconv
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -1347,12 +1351,12 @@
 !     sst_staticB - use only static background error covariance for SST statistic
 !              
 !                         
-  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
+  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,fv3sar_bg_opt,fv3sar_ensemble_opt,full_ensemble,pwgtflg,&
                 jcap_ens_test,beta_s0,beta_e0,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
                 grid_ratio_ens, &
                 oz_univ_static,write_ens_sprd,use_localization_grid,use_gfs_ens, &
-                i_en_perts_io,l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB
+                i_en_perts_io,l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
 !                             enhancement for RR appilcation  ):
@@ -1742,6 +1746,23 @@
         c_varqc=c_varqc_new
      end if
   end if
+  if(l_both_fv3sar_gfs_ens) then
+    if(n_ens /= n_ens_gfs + n_ens_fv3sar .or. regional_ensemble_option /= 5 ) then 
+       write(6,*)'the set up for l_both_fv3sar_gfs_ens=.true. is wrong,stop'
+       call stop2(137)
+    endif
+  else
+    if (regional_ensemble_option==5) then 
+       n_ens_gfs=0
+       n_ens_fv3sar=n_ens
+    elseif (regional_ensemble_option==1) then 
+       n_ens_gfs=n_ens
+       n_ens_fv3sar=0
+    else 
+       write(6,*)'n_ens_gfs and n_ens_fv3sar won"t be used if not regional_ensemble_option==5' 
+    endif
+    
+  endif
   if(ltlint) then
      if(vqc .or. njqc .or. nvqc)then
        vqc = .false.
