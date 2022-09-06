@@ -58,7 +58,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use guess_grids, only: ges_tsen
   use guess_grids, only: ges_prsi
   use constants, only: zero,half,one,tiny_r_kind,two, &
-           three,rd,grav,four,five,huge_single,r1000,wgtlim,r10,r400
+           three,rd,grav,four,five,huge_single,r100,r1000,wgtlim,r10,r400
   use constants, only: grav_ratio,flattening,deg2rad, &
        grav_equator,somigliana,semi_major_axis,eccentricity
   use jfunc, only: jiter,last,jiterstart,miter
@@ -1934,6 +1934,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_data2d("eastward_wind", sngl(utmp))
     call nc_diag_data2d("northward_wind", sngl(vtmp))
     call nc_diag_data2d("geopotential_height", sngl(hsges) )
+    call nc_diag_data2d("tropopause_pressure", sngl(trop5*r100) )
     call nc_diag_metadata("surface_air_pressure", sngl(psges2*r1000) )
     ! END GEOVALS
 
