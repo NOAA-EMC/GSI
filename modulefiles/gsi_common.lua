@@ -4,7 +4,7 @@ Load common modules to build GSI on all machines
 
 local netcdf_ver=os.getenv("netcdf_ver") or "4.7.4"
 
-local bufr_ver=os.getenv("bufr_ver") or "11.5.0"
+local bufr_ver=os.getenv("bufr_ver") or "11.7.0"
 local bacio_ver=os.getenv("bacio_ver") or "2.4.1"
 local w3emc_ver=os.getenv("w3emc_ver") or "2.9.1"
 local sp_ver=os.getenv("sp_ver") or "2.3.3"
