@@ -127,6 +127,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
   use gsi_io, only: verbose
+  use qcmod,  only: iasi_co2
 ! use radiance_mod, only: rad_obs_type
 
   implicit none
@@ -219,6 +220,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind):: radedge_min, radedge_max
   integer(i_kind)   :: subset_start, subset_end, satinfo_nchan, sc_chan, bufr_chan
   integer(i_kind)   :: sfc_channel_index
+  integer(i_kind),dimension(5) :: co2_channel = (/185, 243, 282, 354, 414/)
+  integer(i_kind),dimension(5) :: co2_channel_index
   integer(i_kind),allocatable, dimension(:) :: channel_number, sc_index, bufr_index
   integer(i_kind),allocatable, dimension(:) :: bufr_chan_test
   character(len=20),dimension(1):: sensorlist
@@ -685,6 +688,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          If this is the first time or a change in the bufr channels is detected, sync with satinfo file
            if (ANY(int(allchan(1,:)) /= bufr_chan_test(:))) then
               sfc_channel_index = 0
+              co2_channel_index = 0
               bufr_index(:) = 0
               bufr_chans: do l=1,bufr_nchan
                  bufr_chan_test(l) = int(allchan(1,l))                      ! Copy this bufr channel selection into array for comparison to next profile
@@ -692,6 +696,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
                     if ( channel_number(i) == int(allchan(1,l)) ) then      ! Channel found in both bufr and satinfo file
                        bufr_index(i) = l
                        if ( channel_number(i) == sfc_channel) sfc_channel_index = l
+                       co2_index: do k=1, 5
+                          if ( channel_number(i) == co2_channel(k)) co2_channel_index(k) = l
+                       end do co2_index
                        exit satinfo_chans                                   ! go to next bufr channel
                     endif
                  end do  satinfo_chans
@@ -702,6 +709,13 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
              write(6,*)'READ_IASI: ***ERROR*** SURFACE CHANNEL USED FOR QC WAS NOT FOUND'
              cycle read_loop
            endif
+
+           do k=1, 5
+             if ( iasi_co2 .and. co2_channel_index(k) == 0) then
+               write(6,*) 'READ_IASI:  ***ERROR*** CO2 CLOUD DETECTION CHANNEL WAS NOT FOUND'
+               cycle read_loop
+             endif
+           end do
 
            iskip = 0
            jstart=1
@@ -732,8 +746,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
               if(temperature(bufr_chan) <= tbmin .or. temperature(bufr_chan) > tbmax ) then
                  temperature(bufr_chan) = min(tbmax,max(zero,temperature(bufr_chan)))
 !                CO2_cloud_detect requrement
-                 if (( sc_chan == 185 .or. sc_chan == 243 .or. sc_chan == 282 .or. sc_chan == 354 .or. sc_chan == 414) &
-                    .and. (temperature(bufr_chan) <= (tbmin +2.0_r_kind))) cycle read_loop
+                 do k=1, 5
+                   if ( iasi_co2 .and. bufr_chan == co2_channel_index(k)) cycle read_loop
+                 end do
                  if(iuse_rad(ioff+i) >= 0)iskip = iskip + 1
               endif
            end do skip_loop
