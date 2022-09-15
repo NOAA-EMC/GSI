@@ -154,6 +154,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use mpimod, only: npe
   use radiance_mod, only: rad_obs_type
   use gsi_io, only: verbose
+  use qcmod,  only: hirs_co2
   implicit none
 
 ! Declare passed variables
@@ -196,17 +197,19 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) i,j,k,ifov,ntest,llll
   integer(i_kind) sacv
   integer(i_kind) iret,idate,nchanl,n,idomsfc(1)
-  integer(i_kind) ich1,ich2,ich8,ich15,ich16,ich17
+  integer(i_kind) ich1,ich2,ich3,ich4,ich5,ich6,ich7,ich8,ich15,ich16,ich17
   integer(i_kind) kidsat,instrument,maxinfo
   integer(i_kind) nmind,itx,nreal,nele,itt,ninstruments
-  integer(i_kind) iskip,ichan2,ichan1,ichan15
-  integer(i_kind) lnbufr,ksatid,ichan8,isflg,ichan3,ich3,ich4,ich6
+  integer(i_kind) ichan1,ichan2,ichan3,ichan8,ichan15
+  integer(i_kind) iskip,lnbufr,ksatid,isflg
   integer(i_kind) ilat,ilon,ifovmod
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) instr,ichan
   integer(i_kind) error_status,irecx,ierr
   integer(i_kind) radedge_min, radedge_max
   integer(i_kind),allocatable,dimension(:)::nrec
+  integer(i_kind),dimension(5) :: co2_channel = (/3, 4, 5, 6, 7/)
+  integer(i_kind),dimension(5) :: co2_channel_index
   character(len=20),dimension(1):: sensorlist
 
   real(r_kind) cosza,sfcr
@@ -293,7 +296,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   ich2   = 2   !2
   ich3   = 3   !3
   ich4   = 4   !4
+  ich5   = 5   !4
   ich6   = 6   !6
+  ich7   = 7   !4
   ich8   = 8   !8
   ich15  = 15  !15
   ich16  = 16  !16
@@ -809,7 +814,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                  if(( msu  .and.  j == ich1) .or.                                 &
                     (amsua .and. (j == ich1 .or. j == ich2 .or. j == ich3 .or.    &
                                   j == ich4 .or. j == ich6 .or. j == ich15 )) .or.&
-                    (hirs  .and. (j == ich8 )) .or.                               &
+                    (hirs  .and. (j == ich3 .or. j == ich4 .or. j == ich5 .or.    &
+                                  j == ich6 .or. j == ich7 .or. j == ich8 )) .or. &
                     (amsub .and.  j == ich1) .or.                                 &
                     (mhs   .and. (j == ich1 .or. j == ich2)) ) critical_channels_missing = .true.
               endif
