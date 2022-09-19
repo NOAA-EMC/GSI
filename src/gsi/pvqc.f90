@@ -382,8 +382,8 @@ if(qx<x1.or.qx>x2)then
    g=g-ya
    w=-w/xx
 else
-   g=-qx**2/2
-   w=1
+   g=-qx**2/2_dp
+   w=1_dp
 endif
 g=p*g
 end subroutine vqch_iii

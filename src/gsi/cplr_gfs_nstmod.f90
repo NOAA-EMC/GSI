@@ -139,15 +139,15 @@ subroutine deter_nst_(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
      integer(i_kind):: itnst,itnstp
      integer(i_kind):: ix,iy,ixp,iyp,j
      real(r_kind):: dx,dy,dx1,dy1,w00,w10,w01,w11,dtnst,dtnstp
-     real(r_kind):: tref_00,tref_01,tref_10,tref_11,tr_tmp
-     real(r_kind):: dt_cool_00,dt_cool_01,dt_cool_10,dt_cool_11
-     real(r_kind):: z_c_00,z_c_01,z_c_10,z_c_11
-     real(r_kind):: dt_warm_00,dt_warm_01,dt_warm_10,dt_warm_11
-     real(r_kind):: z_w_00,z_w_01,z_w_10,z_w_11,z_w_tmp
-     real(r_kind):: c_0_00,c_0_01,c_0_10,c_0_11
-     real(r_kind):: c_d_00,c_d_01,c_d_10,c_d_11
-     real(r_kind):: w_0_00,w_0_01,w_0_10,w_0_11
-     real(r_kind):: w_d_00,w_d_01,w_d_10,w_d_11
+     real(r_kind):: tref_tt,tref2
+     real(r_kind):: dt_cool_tt
+     real(r_kind):: z_c_tt
+     real(r_kind):: dt_warm_tt
+     real(r_kind):: z_w_tt
+     real(r_kind):: c_0_tt
+     real(r_kind):: c_d_tt
+     real(r_kind):: w_0_tt
+     real(r_kind):: w_d_tt
      real(r_kind):: wgtavg,dlat,dlon
      logical outside
 
@@ -199,138 +199,137 @@ subroutine deter_nst_(dlat_earth,dlon_earth,obstime,zob,tref,dtw,dtc,tz_tr)
 !
 !    Use the time interpolation factors for nst files
 !
-     tref_00    = tref_full   (ix ,iy ,itnst)*dtnst + tref_full   (ix ,iy ,itnstp)*dtnstp
-     tref_01    = tref_full   (ix ,iyp,itnst)*dtnst + tref_full   (ix ,iyp,itnstp)*dtnstp
-     tref_10    = tref_full   (ixp,iy ,itnst)*dtnst + tref_full   (ixp,iy ,itnstp)*dtnstp
-     tref_11    = tref_full   (ixp,iyp,itnst)*dtnst + tref_full   (ixp,iyp,itnstp)*dtnstp
-
-     dt_cool_00 = dt_cool_full(ix ,iy ,itnst)*dtnst + dt_cool_full(ix ,iy ,itnstp)*dtnstp
-     dt_cool_01 = dt_cool_full(ix ,iyp,itnst)*dtnst + dt_cool_full(ix ,iyp,itnstp)*dtnstp
-     dt_cool_10 = dt_cool_full(ixp,iy ,itnst)*dtnst + dt_cool_full(ixp,iy ,itnstp)*dtnstp
-     dt_cool_11 = dt_cool_full(ixp,iyp,itnst)*dtnst + dt_cool_full(ixp,iyp,itnstp)*dtnstp
-
-     z_c_00     = z_c_full    (ix ,iy ,itnst)*dtnst + z_c_full    (ix ,iy ,itnstp)*dtnstp
-     z_c_01     = z_c_full    (ix ,iyp,itnst)*dtnst + z_c_full    (ix ,iyp,itnstp)*dtnstp
-     z_c_10     = z_c_full    (ixp,iy ,itnst)*dtnst + z_c_full    (ixp,iy ,itnstp)*dtnstp
-     z_c_11     = z_c_full    (ixp,iyp,itnst)*dtnst + z_c_full    (ixp,iyp,itnstp)*dtnstp
-
-     dt_warm_00 = dt_warm_full(ix ,iy ,itnst)*dtnst + dt_warm_full(ix ,iy ,itnstp)*dtnstp
-     dt_warm_01 = dt_warm_full(ix ,iyp,itnst)*dtnst + dt_warm_full(ix ,iyp,itnstp)*dtnstp
-     dt_warm_10 = dt_warm_full(ixp,iy ,itnst)*dtnst + dt_warm_full(ixp,iy ,itnstp)*dtnstp
-     dt_warm_11 = dt_warm_full(ixp,iyp,itnst)*dtnst + dt_warm_full(ixp,iyp,itnstp)*dtnstp
-
-     z_w_00     = z_w_full    (ix ,iy ,itnst)*dtnst + z_w_full    (ix ,iy ,itnstp)*dtnstp
-     z_w_01     = z_w_full    (ix ,iyp,itnst)*dtnst + z_w_full    (ix ,iyp,itnstp)*dtnstp
-     z_w_10     = z_w_full    (ixp,iy ,itnst)*dtnst + z_w_full    (ixp,iy ,itnstp)*dtnstp
-     z_w_11     = z_w_full    (ixp,iyp,itnst)*dtnst + z_w_full    (ixp,iyp,itnstp)*dtnstp
-
-     c_0_00     = c_0_full    (ix ,iy ,itnst)*dtnst + c_0_full    (ix ,iy ,itnstp)*dtnstp
-     c_0_01     = c_0_full    (ix ,iyp,itnst)*dtnst + c_0_full    (ix ,iyp,itnstp)*dtnstp
-     c_0_10     = c_0_full    (ixp,iy ,itnst)*dtnst + c_0_full    (ixp,iy ,itnstp)*dtnstp
-     c_0_11     = c_0_full    (ixp,iyp,itnst)*dtnst + c_0_full    (ixp,iyp,itnstp)*dtnstp
-
-     c_d_00     = c_d_full    (ix ,iy ,itnst)*dtnst + c_d_full    (ix ,iy ,itnstp)*dtnstp
-     c_d_01     = c_d_full    (ix ,iyp,itnst)*dtnst + c_d_full    (ix ,iyp,itnstp)*dtnstp
-     c_d_10     = c_d_full    (ixp,iy ,itnst)*dtnst + c_d_full    (ixp,iy ,itnstp)*dtnstp
-     c_d_11     = c_d_full    (ixp,iyp,itnst)*dtnst + c_d_full    (ixp,iyp,itnstp)*dtnstp
-
-     w_0_00     = w_0_full    (ix ,iy ,itnst)*dtnst + w_0_full    (ix ,iy ,itnstp)*dtnstp
-     w_0_01     = w_0_full    (ix ,iyp,itnst)*dtnst + w_0_full    (ix ,iyp,itnstp)*dtnstp
-     w_0_10     = w_0_full    (ixp,iy ,itnst)*dtnst + w_0_full    (ixp,iy ,itnstp)*dtnstp
-     w_0_11     = w_0_full    (ixp,iyp,itnst)*dtnst + w_0_full    (ixp,iyp,itnstp)*dtnstp
-
-     w_d_00     = w_d_full    (ix ,iy ,itnst)*dtnst + w_d_full    (ix ,iy ,itnstp)*dtnstp
-     w_d_01     = w_d_full    (ix ,iyp,itnst)*dtnst + w_d_full    (ix ,iyp,itnstp)*dtnstp
-     w_d_10     = w_d_full    (ixp,iy ,itnst)*dtnst + w_d_full    (ixp,iy ,itnstp)*dtnstp
-     w_d_11     = w_d_full    (ixp,iyp,itnst)*dtnst + w_d_full    (ixp,iyp,itnstp)*dtnstp
 
 !    Interpolate nst variables to obs location (water surface only)
 
      wgtavg  = zero
-     tr_tmp  = zero
+     tref2   = zero
      dt_cool = zero
-     z_c     = zero
      dt_warm = zero
-     z_w_tmp = zero
+     z_c     = zero
+     z_w     = zero
      c_0     = zero
      c_d     = zero
      w_0     = zero
      w_d     = zero
+     tz_tr   = one
+     dtw     = zero
+     dtc     = zero
 
      if (istyp00 == 0)then
+        tref_tt    = tref_full   (ix ,iy ,itnst)*dtnst + tref_full   (ix ,iy ,itnstp)*dtnstp
+        dt_cool_tt = dt_cool_full(ix ,iy ,itnst)*dtnst + dt_cool_full(ix ,iy ,itnstp)*dtnstp
+        dt_warm_tt = dt_warm_full(ix ,iy ,itnst)*dtnst + dt_warm_full(ix ,iy ,itnstp)*dtnstp
+        z_c_tt     = z_c_full    (ix ,iy ,itnst)*dtnst + z_c_full    (ix ,iy ,itnstp)*dtnstp
+        z_w_tt     = z_w_full    (ix ,iy ,itnst)*dtnst + z_w_full    (ix ,iy ,itnstp)*dtnstp
+        c_0_tt     = c_0_full    (ix ,iy ,itnst)*dtnst + c_0_full    (ix ,iy ,itnstp)*dtnstp
+        c_d_tt     = c_d_full    (ix ,iy ,itnst)*dtnst + c_d_full    (ix ,iy ,itnstp)*dtnstp
+        w_0_tt     = w_0_full    (ix ,iy ,itnst)*dtnst + w_0_full    (ix ,iy ,itnstp)*dtnstp
+        w_d_tt     = w_d_full    (ix ,iy ,itnst)*dtnst + w_d_full    (ix ,iy ,itnstp)*dtnstp
         wgtavg  = wgtavg  + w00
-        tr_tmp  = tr_tmp  + w00*tref_00
-        dt_cool = dt_cool + w00*dt_cool_00
-        z_c     = z_c     + w00*z_c_00
-        dt_warm = dt_warm + w00*dt_warm_00
-        z_w_tmp = z_w_tmp + w00*z_w_00
-        c_0     = c_0     + w00*c_0_00
-        c_d     = c_d     + w00*c_d_00
-        w_0     = w_0     + w00*w_0_00
-        w_d     = w_d     + w00*w_d_00
+        tref2   = tref2   + w00*tref_tt
+        dt_cool = dt_cool + w00*dt_cool_tt
+        dt_warm = dt_warm + w00*dt_warm_tt
+        z_c     = z_c     + w00*z_c_tt
+        z_w     = z_w     + w00*z_w_tt
+        c_0     = c_0     + w00*c_0_tt
+        c_d     = c_d     + w00*c_d_tt
+        w_0     = w_0     + w00*w_0_tt
+        w_d     = w_d     + w00*w_d_tt
      endif
      if(istyp01 == 0)then
+        tref_tt    = tref_full   (ix ,iyp,itnst)*dtnst + tref_full   (ix ,iyp,itnstp)*dtnstp
+        dt_cool_tt = dt_cool_full(ix ,iyp,itnst)*dtnst + dt_cool_full(ix ,iyp,itnstp)*dtnstp
+        dt_warm_tt = dt_warm_full(ix ,iyp,itnst)*dtnst + dt_warm_full(ix ,iyp,itnstp)*dtnstp
+        z_c_tt     = z_c_full    (ix ,iyp,itnst)*dtnst + z_c_full    (ix ,iyp,itnstp)*dtnstp
+        z_w_tt     = z_w_full    (ix ,iyp,itnst)*dtnst + z_w_full    (ix ,iyp,itnstp)*dtnstp
+        c_0_tt     = c_0_full    (ix ,iyp,itnst)*dtnst + c_0_full    (ix ,iyp,itnstp)*dtnstp
+        c_d_tt     = c_d_full    (ix ,iyp,itnst)*dtnst + c_d_full    (ix ,iyp,itnstp)*dtnstp
+        w_0_tt     = w_0_full    (ix ,iyp,itnst)*dtnst + w_0_full    (ix ,iyp,itnstp)*dtnstp
+        w_d_tt     = w_d_full    (ix ,iyp,itnst)*dtnst + w_d_full    (ix ,iyp,itnstp)*dtnstp
         wgtavg  = wgtavg  + w01
-        tr_tmp  = tr_tmp  + w01*tref_01
-        dt_cool = dt_cool + w01*dt_cool_01
-        z_c     = z_c     + w01*z_c_01
-        dt_warm = dt_warm + w01*dt_warm_01
-        z_w_tmp = z_w_tmp + w01*z_w_01
-        c_0     = c_0     + w01*c_0_01
-        c_d     = c_d     + w01*c_d_01
-        w_0     = w_0     + w01*w_0_01
-        w_d     = w_d     + w01*w_d_01
+        tref2   = tref2   + w01*tref_tt
+        dt_cool = dt_cool + w01*dt_cool_tt
+        dt_warm = dt_warm + w01*dt_warm_tt
+        z_c     = z_c     + w01*z_c_tt
+        z_w     = z_w     + w01*z_w_tt
+        c_0     = c_0     + w01*c_0_tt
+        c_d     = c_d     + w01*c_d_tt
+        w_0     = w_0     + w01*w_0_tt
+        w_d     = w_d     + w01*w_d_tt
      end if
      if(istyp10 == 0)then
+        tref_tt    = tref_full   (ixp,iy ,itnst)*dtnst + tref_full   (ixp,iy ,itnstp)*dtnstp
+        dt_cool_tt = dt_cool_full(ixp,iy ,itnst)*dtnst + dt_cool_full(ixp,iy ,itnstp)*dtnstp
+        dt_warm_tt = dt_warm_full(ixp,iy ,itnst)*dtnst + dt_warm_full(ixp,iy ,itnstp)*dtnstp
+        z_c_tt     = z_c_full    (ixp,iy ,itnst)*dtnst + z_c_full    (ixp,iy ,itnstp)*dtnstp
+        z_w_tt     = z_w_full    (ixp,iy ,itnst)*dtnst + z_w_full    (ixp,iy ,itnstp)*dtnstp
+        c_0_tt     = c_0_full    (ixp,iy ,itnst)*dtnst + c_0_full    (ixp,iy ,itnstp)*dtnstp
+        c_d_tt     = c_d_full    (ixp,iy ,itnst)*dtnst + c_d_full    (ixp,iy ,itnstp)*dtnstp
+        w_0_tt     = w_0_full    (ixp,iy ,itnst)*dtnst + w_0_full    (ixp,iy ,itnstp)*dtnstp
+        w_d_tt     = w_d_full    (ixp,iy ,itnst)*dtnst + w_d_full    (ixp,iy ,itnstp)*dtnstp
         wgtavg  = wgtavg  + w10
-        tr_tmp  = tr_tmp  + w10*tref_10
-        dt_cool = dt_cool + w10*dt_cool_10
-        z_c     = z_c     + w10*z_c_10
-        dt_warm = dt_warm + w10*dt_warm_10
-        z_w_tmp = z_w_tmp + w10*z_w_10
-        c_0     = c_0     + w10*c_0_10
-        c_d     = c_d     + w10*c_d_10
-        w_0     = w_0     + w10*w_0_10
-        w_d     = w_d     + w10*w_d_10
+        tref2   = tref2   + w10*tref_tt
+        dt_cool = dt_cool + w10*dt_cool_tt
+        dt_warm = dt_warm + w10*dt_warm_tt
+        z_c     = z_c     + w10*z_c_tt
+        z_w     = z_w     + w10*z_w_tt
+        c_0     = c_0     + w10*c_0_tt
+        c_d     = c_d     + w10*c_d_tt
+        w_0     = w_0     + w10*w_0_tt
+        w_d     = w_d     + w10*w_d_tt
      end if
      if(istyp11 == 0)then
+        tref_tt    = tref_full   (ixp,iyp,itnst)*dtnst + tref_full   (ixp,iyp,itnstp)*dtnstp
+        dt_cool_tt = dt_cool_full(ixp,iyp,itnst)*dtnst + dt_cool_full(ixp,iyp,itnstp)*dtnstp
+        dt_warm_tt = dt_warm_full(ixp,iyp,itnst)*dtnst + dt_warm_full(ixp,iyp,itnstp)*dtnstp
+        z_c_tt     = z_c_full    (ixp,iyp,itnst)*dtnst + z_c_full    (ixp,iyp,itnstp)*dtnstp
+        z_w_tt     = z_w_full    (ixp,iyp,itnst)*dtnst + z_w_full    (ixp,iyp,itnstp)*dtnstp
+        c_0_tt     = c_0_full    (ixp,iyp,itnst)*dtnst + c_0_full    (ixp,iyp,itnstp)*dtnstp
+        c_d_tt     = c_d_full    (ixp,iyp,itnst)*dtnst + c_d_full    (ixp,iyp,itnstp)*dtnstp
+        w_0_tt     = w_0_full    (ixp,iyp,itnst)*dtnst + w_0_full    (ixp,iyp,itnstp)*dtnstp
+        w_d_tt     = w_d_full    (ixp,iyp,itnst)*dtnst + w_d_full    (ixp,iyp,itnstp)*dtnstp
         wgtavg  = wgtavg  + w11
-        tr_tmp  = tr_tmp  + w11*tref_11
-        dt_cool = dt_cool + w11*dt_cool_11
-        z_c     = z_c     + w11*z_c_11
-        dt_warm = dt_warm + w11*dt_warm_11
-        z_w_tmp = z_w_tmp + w11*z_w_11
-        c_0     = c_0     + w11*c_0_11
-        c_d     = c_d     + w11*c_d_11
-        w_0     = w_0     + w11*w_0_11
-        w_d     = w_d     + w11*w_d_11
+        tref2   = tref2   + w11*tref_tt
+        dt_cool = dt_cool + w11*dt_cool_tt
+        dt_warm = dt_warm + w11*dt_warm_tt
+        z_c     = z_c     + w11*z_c_tt
+        z_w     = z_w     + w11*z_w_tt
+        c_0     = c_0     + w11*c_0_tt
+        c_d     = c_d     + w11*c_d_tt
+        w_0     = w_0     + w11*w_0_tt
+        w_d     = w_d     + w11*w_d_tt
      end if
+     if(wgtavg < 1.e-6)return
 
-     if(wgtavg > zero)then
-        tr_tmp  = tr_tmp/wgtavg
-        tref    = tr_tmp
+     tref = tref2/wgtavg
+     z_w  = z_w/wgtavg
+     z_c  = z_c/wgtavg
 
-        z_w_tmp = z_w_tmp/wgtavg
-        z_w     = z_w_tmp
-
-        dt_cool = dt_cool/wgtavg
-        z_c     = z_c/wgtavg
-        dt_warm = dt_warm/wgtavg
+     if(fac_tsl == 1)then
         c_0     = c_0/wgtavg
         c_d     = c_d/wgtavg
+        dt_cool = dt_cool/wgtavg
+        if(z_c > zero)dtc = dt_cool*(one-min(zob,z_c)/z_c)
+     else
+        c_0     = zero
+        c_d     = zero
+        dt_cool = zero
+     end if
+     if(fac_dtl == 1)then
         w_0     = w_0/wgtavg
         w_d     = w_d/wgtavg
-
-        dtw = fac_dtl*dt_warm*(one-min(zob,z_w)/z_w)
-        if ( z_c > zero ) then
-          dtc = fac_tsl*dt_cool*(one-min(zob,z_c)/z_c)
-        else
-          dtc = zero
-        endif
-
-        call cal_tztr_(dt_warm,c_0,c_d,w_0,w_d,z_c,z_w,zob,tz_tr)
-
+        dt_warm = dt_warm/wgtavg
+        if(z_w > zero)dtw = dt_warm*(one-min(zob,z_w)/z_w)
+     else
+        w_0     = zero
+        w_d     = zero
+        dt_warm = zero
      end if
+
+
+     call cal_tztr_(dt_warm,c_0,c_d,w_0,w_d,z_c,z_w,zob,tz_tr)
+
 end subroutine deter_nst_
 !*******************************************************************************************
 
@@ -343,10 +342,10 @@ subroutine cal_tztr_(dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr)
 !
 ! dt_warm :       diurnal warming amount at the surface
 ! xz      :       DTL depth                           (M)
-! c_0     :       coefficint 1 to calculate d(Tc)/d(Ts)
-! c_d     :       coefficint 2 to calculate d(Tc)/d(Ts)
-! w_0     :       coefficint 1 to calculate d(Tw)/d(Ts)
-! w_d     :       coefficint 2 to calculate d(Tw)/d(Ts)
+! c_0     :       coefficient 1 to calculate d(Tc)/d(Ts)
+! c_d     :       coefficient 2 to calculate d(Tc)/d(Ts)
+! w_0     :       coefficient 1 to calculate d(Tw)/d(Ts)
+! w_d     :       coefficient 2 to calculate d(Tw)/d(Ts)
 !
 ! output variables
 !
@@ -354,34 +353,39 @@ subroutine cal_tztr_(dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr)
 
   use kinds, only: r_kind
   use constants, only: one,two,half,zero
-  use gsi_nstcouplermod, only: fac_dtl,fac_tsl
   real(kind=r_kind), intent(in)  :: dt_warm,c_0,c_d,w_0,w_d,zc,zw,z
   real(kind=r_kind), intent(out) :: tztr
 ! local variables
-  real(kind=r_kind) :: c1,c2,c3
+  real(kind=r_kind) :: c1,c2,c3,fact
 
-  c1 = one-two*(fac_dtl*w_0-fac_tsl*c_0)-(fac_dtl*w_d-fac_tsl*c_d)*z
-  c2 = one-two*(fac_dtl*w_0-fac_tsl*c_0)-fac_dtl*w_d*z
-  c3 = one+fac_tsl*two*c_0+fac_dtl*c_d*z
 
   tztr = one
+  c1 = zero
+  c2 = zero
+  c3 = zero
 
   if ( dt_warm > zero ) then
-    if ( z <= zc  .and. c1 /= zero ) then
-      tztr = (one-fac_dtl*w_0+fac_tsl*c_0)/c1
-    elseif ( z > zc .and. z < zw .and. c2 /= zero ) then
-      tztr = (one-fac_dtl*w_0+fac_tsl*c_0)/c2
+    fact = (one-w_0+c_0)
+    if ( z <= zc) then
+      c1 = one-two*(w_0-c_0)-(w_d-c_d)*z
+      if ( c1 /= zero ) tztr = fact/c1
+    elseif ( z > zc .and. z < zw) then
+      c2 = one-two*(w_0-c_0)-w_d*z
+      if (c2 /= zero ) tztr = fact/c2
+    else
     endif
-  elseif ( dt_warm == zero .and. c3 /= zero ) then
-    if ( z <= zc ) then
-      tztr = (one+fac_tsl*c_0)/c3
+  elseif (dt_warm == zero) then
+    if ( z <= zc) then
+      c3 = one+two*c_0+c_d*z
+      if (c3 /= zero) tztr = (one+c_0)/c3
     endif
   endif
 
-  if ( tztr <= -1.0_r_kind .or. tztr > 4.0_r_kind ) then
-     write(6,100) fac_dtl,fac_tsl,c1,c2,c3,dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr
-100  format('CAL_TZTR compute ',2(i2,1x),12(g13.6,1x),' RESET tztr to 1.0')
-     tztr = one
+  if ( tztr < 0.5_r_kind .or. tztr > 1.5_r_kind ) then
+     write(6,100) c1,c2,c3,dt_warm,c_0,c_d,w_0,w_d,zc,zw,z,tztr
+100  format('CAL_TZTR compute ',12(g13.6,1x),' RESET tztr to 0.5 .or. 1.5')
+     tztr = min(1.5_r_kind,tztr)
+     tztr = max(0.5_r_kind,tztr)
   endif
 
 end subroutine cal_tztr_

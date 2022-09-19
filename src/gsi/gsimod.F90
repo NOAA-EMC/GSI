@@ -1759,7 +1759,7 @@
        n_ens_gfs=n_ens
        n_ens_fv3sar=0
     else 
-       write(6,*)'n_ens_gfs and n_ens_fv3sar won"t be used if not regional_ensemble_option==5' 
+       if(mype == 0)write(6,*)'n_ens_gfs and n_ens_fv3sar won"t be used if not regional_ensemble_option==5' 
     endif
     
   endif

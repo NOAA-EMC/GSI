@@ -226,14 +226,15 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
   use stpjcmod, only: stplimq,stplimg,stplimv,stplimp,stplimw10m,&
        stplimhowv,stplimcldch,stpjcdfi,stpjcpdry,stpliml,stplimqc  
   use bias_predictors, only: predictors
-  use control_vectors, only: control_vector,qdot_prod_sub,cvars2d,cvars3d  
+  use control_vectors, only: control_vector,qdot_prod_sub  
+  use state_vectors, only: qgpresent,qspresent,qrpresent,qipresent,qlpresent
+  use state_vectors, only: cldchpresent,lcbaspresent,howvpresent,wspd10mpresent,pblhpresent,vispresent,gustpresent
   use state_vectors, only: allocate_state,deallocate_state
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: assignment(=)
   use guess_grids, only: ntguessig,nfldsig
   use mpl_allreducemod, only: mpl_allreduce
-  use mpeu_util, only: getindex
   use timermod, only: timer_ini,timer_fnl
   use stpjomod, only: stpjo
   use gsi_io, only: verbose
@@ -493,42 +494,49 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
            end if
         end if
 !       penalties for gust constraint
-        if(getindex(cvars2d,'gust')>0) & 
-        call stplimg(dval(1),sval(1),sges,pbc(1,6),nstep)
-        if(pjcalc)pj(6,1)=pbc(1,6)+pbc(ipenloc,6)
+        if(gustpresent) then
+           call stplimg(dval(1),sval(1),sges,pbc(1,6),nstep)
+           if(pjcalc)pj(6,1)=pbc(1,6)+pbc(ipenloc,6)
+        end if
 
 !       penalties for vis constraint
-        if(getindex(cvars2d,'vis')>0) &
-        call stplimv(dval(1),sval(1),sges,pbc(1,7),nstep)
-        if(pjcalc)pj(7,1)=pbc(1,7)+pbc(ipenloc,7)
+        if(vispresent) then
+           call stplimv(dval(1),sval(1),sges,pbc(1,7),nstep)
+           if(pjcalc)pj(7,1)=pbc(1,7)+pbc(ipenloc,7)
+        end if
 
 !       penalties for pblh constraint
-        if(getindex(cvars2d,'pblh')>0) &
-        call stplimp(dval(1),sval(1),sges,pbc(1,8),nstep)
-        if(pjcalc)pj(8,1)=pbc(1,8)+pbc(ipenloc,8)
+        if(pblhpresent) then
+           call stplimp(dval(1),sval(1),sges,pbc(1,8),nstep)
+           if(pjcalc)pj(8,1)=pbc(1,8)+pbc(ipenloc,8)
+        end if
 
 !       penalties for wspd10m constraint
-        if(getindex(cvars2d,'wspd10m')>0) & 
-        call stplimw10m(dval(1),sval(1),sges,pbc(1,9),nstep)
-        if(pjcalc)pj(9,1)=pbc(1,9)+pbc(ipenloc,9)
+        if(wspd10mpresent) then
+           call stplimw10m(dval(1),sval(1),sges,pbc(1,9),nstep)
+           if(pjcalc)pj(9,1)=pbc(1,9)+pbc(ipenloc,9)
+        end if
 
 !       penalties for howv constraint
-        if(getindex(cvars2d,'howv')>0) & 
-        call stplimhowv(dval(1),sval(1),sges,pbc(1,10),nstep)
-        if(pjcalc)pj(10,1)=pbc(1,10)+pbc(ipenloc,10)
+        if(howvpresent) then
+           call stplimhowv(dval(1),sval(1),sges,pbc(1,10),nstep)
+           if(pjcalc)pj(10,1)=pbc(1,10)+pbc(ipenloc,10)
+        end if
 
 !       penalties for lcbas constraint
-        if(getindex(cvars2d,'lcbas')>0) &
-        call stpliml(dval(1),sval(1),sges,pbc(1,11),nstep) 
-        if(pjcalc)pj(11,1)=pbc(1,11)+pbc(ipenloc,11)
+        if(lcbaspresent) then
+           call stpliml(dval(1),sval(1),sges,pbc(1,11),nstep) 
+           if(pjcalc)pj(11,1)=pbc(1,11)+pbc(ipenloc,11)
+        end if
 
 !       penalties for cldch constraint
-        if(getindex(cvars2d,'cldch')>0) &
-        call stplimcldch(dval(1),sval(1),sges,pbc(1,12),nstep)
-        if(pjcalc)pj(12,1)=pbc(1,12)+pbc(ipenloc,12)
+        if(cldchpresent) then
+           call stplimcldch(dval(1),sval(1),sges,pbc(1,12),nstep)
+           if(pjcalc)pj(12,1)=pbc(1,12)+pbc(ipenloc,12)
+        end if
 
         if (ljclimqc) then
-         if (getindex(cvars3d,'ql')>0) then
+         if (qlpresent) then
            if(.not.ljc4tlevs) then
               call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,13),nstep,ntguessig,'ql')
               if(pjcalc) pj(13,1)=pbc(1,13)+pbc(ipenloc,13)
@@ -554,7 +562,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
               end if
            end if
          end if
-         if (getindex(cvars3d,'qi')>0) then
+         if (qipresent) then
            if(.not.ljc4tlevs) then
               call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,14),nstep,ntguessig,'qi')
               if(pjcalc) pj(14,1)=pbc(1,14)+pbc(ipenloc,14)
@@ -580,7 +588,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
               end if
            end if
          end if
-         if (getindex(cvars3d,'qr')>0) then
+         if (qrpresent) then
            if(.not.ljc4tlevs) then
               call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,15),nstep,ntguessig,'qr')
               if(pjcalc) pj(15,1)=pbc(1,15)+pbc(ipenloc,15)
@@ -606,7 +614,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
               end if
            end if
          end if
-         if (getindex(cvars3d,'qs')>0) then
+         if (qspresent) then
            if(.not.ljc4tlevs) then
               call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,16),nstep,ntguessig,'qs')
               if(pjcalc) pj(16,1)=pbc(1,16)+pbc(ipenloc,16)
@@ -632,7 +640,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
               end if
            end if
          end if
-         if (getindex(cvars3d,'qg')>0) then
+         if (qgpresent) then
            if(.not.ljc4tlevs) then
               call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,17),nstep,ntguessig,'qg')
               if(pjcalc) pj(17,1)=pbc(1,17)+pbc(ipenloc,17)

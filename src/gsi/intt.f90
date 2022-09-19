@@ -145,7 +145,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
 
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,ier,istatus,isst,ix,n
-  real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,time_t
+  real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8
 ! real(r_kind) penalty
   real(r_kind) cg_t,val,grad,rat_err2,error2,t_pg,var_jb
   real(r_kind) psfc_grad,tg_grad
@@ -160,14 +160,13 @@ subroutine intt_(thead,rval,sval,rpred,spred)
 
 ! Retrieve pointers
 ! Simply return if any pointer not found
-  ier=0; isst=0
-  call gsi_bundlegetpointer(sval,'tsen', st,istatus);ier=istatus+ier
+  call gsi_bundlegetpointer(sval,'tsen', st,istatus);ier=istatus
   call gsi_bundlegetpointer(sval,'tv',  stv,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval,'q',    sq,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval,'u',    su,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval,'v',    sv,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval,'prse', sp,istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(sval,'sst',ssst,istatus);isst=istatus+isst
+  call gsi_bundlegetpointer(sval,'sst',ssst,istatus);isst=istatus
   if(ier/=0) return
 
   call gsi_bundlegetpointer(rval,'tsen', rt,istatus);ier=istatus+ier
@@ -179,7 +178,6 @@ subroutine intt_(thead,rval,sval,rpred,spred)
   call gsi_bundlegetpointer(rval,'sst',rsst,istatus);isst=istatus+isst
   if(ier/=0) return
 
-  time_t=zero
   !tptr => thead
   tptr => tNode_typecast(thead)
   do while (associated(tptr))
@@ -205,20 +203,22 @@ subroutine intt_(thead,rval,sval,rpred,spred)
 
 !----------use surface model----------------------
 
+        qs_prime0=w1*   sq(j1)+w2*  sq(j2)+w3*  sq(j3)+w4*  sq(j4)
+        us_prime0=w1*   su(j1)+w2*  su(j2)+w3*  su(j3)+w4*  su(j4)
+        vs_prime0=w1*   sv(j1)+w2*  sv(j2)+w3*  sv(j3)+w4*  sv(j4)
+        psfc_prime0=w1* sp(j1)+w2*  sp(j2)+w3*  sp(j3)+w4*  sp(j4)
+
         if(tptr%tv_ob)then
            ts_prime0=w1*stv(j1)+w2*stv(j2)+w3*stv(j3)+w4*stv(j4)
         else
            ts_prime0=w1*st(j1)+w2*st(j2)+w3*st(j3)+w4*st(j4)
         end if 
+
         if (isst==0) then 
            tg_prime0=w1* ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)
         else 
            tg_prime0=zero
         end if
-        qs_prime0=w1*   sq(j1)+w2*  sq(j2)+w3*  sq(j3)+w4*  sq(j4)
-        us_prime0=w1*   su(j1)+w2*  su(j2)+w3*  su(j3)+w4*  su(j4)
-        vs_prime0=w1*   sv(j1)+w2*  sv(j2)+w3*  sv(j3)+w4*  sv(j4)
-        psfc_prime0=w1* sp(j1)+w2*  sp(j2)+w3*  sp(j3)+w4*  sp(j4)
 
         val=psfc_prime0*tptr%tlm_tsfc(1) + tg_prime0*tptr%tlm_tsfc(2) + &
             ts_prime0  *tptr%tlm_tsfc(3) + qs_prime0*tptr%tlm_tsfc(4) + &
@@ -231,8 +231,8 @@ subroutine intt_(thead,rval,sval,rpred,spred)
            val=w1*stv(j1)+w2*stv(j2)+w3*stv(j3)+w4*stv(j4)&
               +w5*stv(j5)+w6*stv(j6)+w7*stv(j7)+w8*stv(j8)
         else
-           val=w1*    st(j1)+w2*    st(j2)+w3*    st(j3)+w4*    st(j4)&
-              +w5*    st(j5)+w6*    st(j6)+w7*    st(j7)+w8*    st(j8)
+           val=w1*st(j1)+ w2*st(j2)+ w3*st(j3)+ w4*st(j4)&
+              +w5*st(j5)+ w6*st(j6)+ w7*st(j7)+ w8*st(j8)
         end if
 
      end if
@@ -310,21 +310,7 @@ subroutine intt_(thead,rval,sval,rpred,spred)
            rp(j2)=rp(j2)+w2*psfc_grad
            rp(j3)=rp(j3)+w3*psfc_grad
            rp(j4)=rp(j4)+w4*psfc_grad
-           vs_grad  =tptr%tlm_tsfc(6)*grad
-           rv(j1)=rv(j1)+w1*vs_grad
-           rv(j2)=rv(j2)+w2*vs_grad
-           rv(j3)=rv(j3)+w3*vs_grad
-           rv(j4)=rv(j4)+w4*vs_grad
-           us_grad  =tptr%tlm_tsfc(5)*grad
-           ru(j1)=ru(j1)+w1*us_grad
-           ru(j2)=ru(j2)+w2*us_grad
-           ru(j3)=ru(j3)+w3*us_grad
-           ru(j4)=ru(j4)+w4*us_grad
-           qs_grad  =tptr%tlm_tsfc(4)*grad
-           rq(j1)=rq(j1)+w1*qs_grad
-           rq(j2)=rq(j2)+w2*qs_grad
-           rq(j3)=rq(j3)+w3*qs_grad
-           rq(j4)=rq(j4)+w4*qs_grad
+
            if (isst==0) then
               tg_grad  =tptr%tlm_tsfc(2)*grad
               rsst(j1)=rsst(j1)+w1*tg_grad
@@ -333,21 +319,38 @@ subroutine intt_(thead,rval,sval,rpred,spred)
               rsst(j4)=rsst(j4)+w4*tg_grad
            end if
 
-
            ts_grad  =tptr%tlm_tsfc(3)*grad
            if(tptr%tv_ob)then
               rtv(j1)=rtv(j1)+w1*ts_grad
               rtv(j2)=rtv(j2)+w2*ts_grad
               rtv(j3)=rtv(j3)+w3*ts_grad
               rtv(j4)=rtv(j4)+w4*ts_grad
-
            else
               rt(j1)=rt(j1)+w1*ts_grad
               rt(j2)=rt(j2)+w2*ts_grad
               rt(j3)=rt(j3)+w3*ts_grad
               rt(j4)=rt(j4)+w4*ts_grad
- 
            end if
+
+           qs_grad  =tptr%tlm_tsfc(4)*grad
+           rq(j1)=rq(j1)+w1*qs_grad
+           rq(j2)=rq(j2)+w2*qs_grad
+           rq(j3)=rq(j3)+w3*qs_grad
+           rq(j4)=rq(j4)+w4*qs_grad
+
+           us_grad  =tptr%tlm_tsfc(5)*grad
+           ru(j1)=ru(j1)+w1*us_grad
+           ru(j2)=ru(j2)+w2*us_grad
+           ru(j3)=ru(j3)+w3*us_grad
+           ru(j4)=ru(j4)+w4*us_grad
+
+           vs_grad  =tptr%tlm_tsfc(6)*grad
+           rv(j1)=rv(j1)+w1*vs_grad
+           rv(j2)=rv(j2)+w2*vs_grad
+           rv(j3)=rv(j3)+w3*vs_grad
+           rv(j4)=rv(j4)+w4*vs_grad
+
+
 
         else
 

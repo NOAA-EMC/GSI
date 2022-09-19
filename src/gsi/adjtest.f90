@@ -37,6 +37,7 @@ use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: assignment(=)
 use bias_predictors, only: predictors,allocate_preds,deallocate_preds, &
     assignment(=)
+use control2state_mod, only: control2state,c2sset,control2state_ad
 
 implicit none
 private
@@ -116,6 +117,7 @@ sbias2=zero
 if(lsqrtb)then
    call control2model(xtest1,stest1,sbias1)
 else
+   call c2sset(xtest1,stest1)
    call control2state(xtest1,stest1,sbias1)
 endif
 do ii=1,nsubwin

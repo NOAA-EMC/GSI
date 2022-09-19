@@ -61,6 +61,7 @@ use hybrid_ensemble_parameters,only : l_hyb_ens,ntlevs_ens,destroy_hybens_locali
 use hybrid_ensemble_isotropic, only: create_ensemble,load_ensemble,destroy_ensemble
 use hybrid_ensemble_isotropic, only: hybens_localization_setup
 use mpeu_util, only: perr,die
+use control2state_mod, only: c2sset,control2state,control2state_ad
 ! ------------------------------------------------------------------------------
 implicit none
 save
@@ -263,6 +264,7 @@ if (lobsensfc) then
                call control2model_ad(fcgrad,zbias,fcsens)
             else
                if (l_hyb_ens) then
+                  call c2sset(fcsens,fcgrad)
                   do ii=1,ntlevs_ens
                      call allocate_state(eval(ii))
                   end do
@@ -389,6 +391,7 @@ end if
  eval(1)=fcgrad(1)
  fcgrad(1)=zero
  call ensctl2state_ad(eval,fcgrad(1),fcsens)
+ call c2sset(fcsens,fcgrad)
  call control2state_ad(fcgrad,zbias,fcsens)
  do ii=1,ntlevs_ens
     call deallocate_state(eval(ii))
@@ -421,6 +424,7 @@ end if
  end do
  call allocate_preds(zbias)
 
+ call c2sset(fcsens,mval)
 ! Convert from control variable to state space
  call control2state(fcsens,mval,zbias)
 

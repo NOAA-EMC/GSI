@@ -3460,7 +3460,7 @@ subroutine bkerror_a_en(grady)
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
-  use gsi_4dvar, only: nsubwin, lsqrtb
+  use gsi_4dvar, only: nsubwin
   use control_vectors, only: control_vector
   use timermod, only: timer_ini,timer_fnl
   use hybrid_ensemble_parameters, only: n_ens
@@ -3472,11 +3472,6 @@ subroutine bkerror_a_en(grady)
 
 ! Declare local variables
   integer(i_kind) ii,ip,istatus
-
-  if (lsqrtb) then
-     write(6,*)'bkerror_a_en: not for use with lsqrtb'
-     call stop2(317)
-  end if
 
 ! Initialize timer
   call timer_ini('bkerror_a_en')
@@ -3492,6 +3487,7 @@ subroutine bkerror_a_en(grady)
   call sqrt_beta_e_mult(grady)
 
 ! Apply variances, as well as vertical & horizontal parts of background error
+!$omp parallel do schedule(dynamic,1) private(ii)
   do ii=1,nsubwin
     !if(test_sqrt_localization) then
     !        write(6,*)' using ckgcov_a_en_new_factorization'

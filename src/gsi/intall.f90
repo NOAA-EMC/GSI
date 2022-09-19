@@ -184,13 +184,13 @@ subroutine intall(sval,sbias,rval,rbias)
   use intjomod, only: intjo
   use bias_predictors, only : predictors,assignment(=)
   use state_vectors, only: allocate_state,deallocate_state
+  use state_vectors, only: qgpresent,qspresent,qrpresent,qipresent,qlpresent
+  use state_vectors, only: cldchpresent,lcbaspresent,howvpresent,wspd10mpresent,pblhpresent,vispresent,gustpresent
   use intjcmod, only: intlimq,intlimg,intlimv,intlimp,intlimw10m,intlimhowv,intlimcldch,&
       intliml,intjcpdry1,intjcpdry2,intjcdfi,intlimqc  
   use timermod, only: timer_ini,timer_fnl
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: assignment(=)
-  use state_vectors, only: svars2d, svars3d  
-  use mpeu_util, only: getindex
   use guess_grids, only: ntguessig,nfldsig
   use mpl_allreducemod, only: mpl_allreduce
 
@@ -238,11 +238,11 @@ subroutine intall(sval,sbias,rval,rbias)
      end if
      if (ljclimqc) then
         if (.not.ljc4tlevs) then
-           if (getindex(svars3d,'ql')>0) call intlimqc(rval(ibin_anl),sval(ibin_anl),ntguessig,'ql')
-           if (getindex(svars3d,'qi')>0) call intlimqc(rval(ibin_anl),sval(ibin_anl),ntguessig,'qi')
-           if (getindex(svars3d,'qr')>0) call intlimqc(rval(ibin_anl),sval(ibin_anl),ntguessig,'qr')
-           if (getindex(svars3d,'qs')>0) call intlimqc(rval(ibin_anl),sval(ibin_anl),ntguessig,'qs')
-           if (getindex(svars3d,'qg')>0) call intlimqc(rval(ibin_anl),sval(ibin_anl),ntguessig,'qg')
+           if (qlpresent) call intlimqc(rval(ibin_anl),sval(ibin_anl),ntguessig,'ql')
+           if (qipresent) call intlimqc(rval(ibin_anl),sval(ibin_anl),ntguessig,'qi')
+           if (qrpresent) call intlimqc(rval(ibin_anl),sval(ibin_anl),ntguessig,'qr')
+           if (qspresent) call intlimqc(rval(ibin_anl),sval(ibin_anl),ntguessig,'qs')
+           if (qgpresent) call intlimqc(rval(ibin_anl),sval(ibin_anl),ntguessig,'qg')
         else
            do ibin=1,nobs_bins
               if (nobs_bins /= nfldsig) then
@@ -250,34 +250,34 @@ subroutine intall(sval,sbias,rval,rbias)
               else
                  it=ibin
               end if
-              if (getindex(svars3d,'ql')>0) call intlimqc(rval(ibin),sval(ibin),it,'ql')
-              if (getindex(svars3d,'qi')>0) call intlimqc(rval(ibin),sval(ibin),it,'qi')
-              if (getindex(svars3d,'qr')>0) call intlimqc(rval(ibin),sval(ibin),it,'qr')
-              if (getindex(svars3d,'qs')>0) call intlimqc(rval(ibin),sval(ibin),it,'qs')
-              if (getindex(svars3d,'qg')>0) call intlimqc(rval(ibin),sval(ibin),it,'qg')
+              if (qlpresent) call intlimqc(rval(ibin),sval(ibin),it,'ql')
+              if (qipresent) call intlimqc(rval(ibin),sval(ibin),it,'qi')
+              if (qrpresent) call intlimqc(rval(ibin),sval(ibin),it,'qr')
+              if (qspresent) call intlimqc(rval(ibin),sval(ibin),it,'qs')
+              if (qgpresent) call intlimqc(rval(ibin),sval(ibin),it,'qg')
            end do
         end if
      end if  ! ljclimqc
 ! RHS for gust constraint
-     if (getindex(svars2d,'gust')>0)call intlimg(rval(1),sval(1))
+     if (gustpresent)call intlimg(rval(1),sval(1))
 
 ! RHS for vis constraint
-     if (getindex(svars2d,'vis')>0) call intlimv(rval(1),sval(1))
+     if (vispresent) call intlimv(rval(1),sval(1))
 
 ! RHS for pblh constraint
-     if (getindex(svars2d,'pblh')>0) call intlimp(rval(1),sval(1))
+     if (pblhpresent) call intlimp(rval(1),sval(1))
 
 ! RHS for wspd10m constraint
-     if (getindex(svars2d,'wspd10m')>0) call intlimw10m(rval(1),sval(1))
+     if (wspd10mpresent) call intlimw10m(rval(1),sval(1))
 
 ! RHS for howv constraint
-     if (getindex(svars2d,'howv')>0) call intlimhowv(rval(1),sval(1))
+     if (howvpresent) call intlimhowv(rval(1),sval(1))
 
 ! RHS for lcbas constraint
-     if (getindex(svars2d,'lcbas')>0) call intliml(rval(1),sval(1))
+     if (lcbaspresent) call intliml(rval(1),sval(1))
 
 ! RHS for cldch constraint
-     if (getindex(svars2d,'cldch')>0) call intlimcldch(rval(1),sval(1))
+     if (cldchpresent) call intlimcldch(rval(1),sval(1))
 
   end if
 
@@ -296,7 +296,7 @@ subroutine intall(sval,sbias,rval,rbias)
 
   end if
 
-! Take care of background error for bias correction terms
+! Sum over all processors for bias correction terms
 
   call mpl_allreduce(nrclen,qpvals=qpred)
 
@@ -313,6 +313,7 @@ subroutine intall(sval,sbias,rval,rbias)
 ! RHS for Jc DFI
   if (ljcdfi .and. nobs_bins>1) call intjcdfi(rval,sval)
 
+!  Put bias correction terms in correct location
   if(nsclen > 0)then
      do i=1,nsclen
         rbias%predr(i)=qpred(i)

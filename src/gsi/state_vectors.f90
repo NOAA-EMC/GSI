@@ -62,7 +62,7 @@ use GSI_BundleMod, only : GSI_Grid
 use GSI_BundleMod, only : GSI_GridCreate
 
 use mpeu_util, only: gettablesize
-use mpeu_util, only: gettable
+use mpeu_util, only: gettable,getindex
 
 implicit none
 
@@ -83,6 +83,8 @@ private
   public  svars
   public  levels
   public  ns2d,ns3d,nsdim
+  public  qgpresent,qspresent,qrpresent,qipresent,qlpresent
+  public  cldchpresent,lcbaspresent,howvpresent,wspd10mpresent,pblhpresent,vispresent,gustpresent
 
 ! State vector definition
 ! Could contain model state fields plus other fields required
@@ -101,6 +103,8 @@ character(len=max_varname_length),allocatable,dimension(:) :: svars3d
 character(len=max_varname_length),allocatable,dimension(:) :: svars2d
 integer(i_kind)                  ,allocatable,dimension(:) :: levels
 
+logical qgpresent,qspresent,qrpresent,qipresent,qlpresent
+logical cldchpresent,lcbaspresent,howvpresent,wspd10mpresent,pblhpresent,vispresent,gustpresent
 
 ! ----------------------------------------------------------------------
 INTERFACE PRT_STATE_NORMS
@@ -245,6 +249,18 @@ if (mype==0) then
     write(6,*) myname_,':  3D-STATE VARIABLES ', svars3d
     write(6,*) myname_,': ALL STATE VARIABLES ', svars
 end if
+qgpresent=getindex(svars3d,'qg')>0
+qspresent=getindex(svars3d,'qs')>0
+qrpresent=getindex(svars3d,'qr')>0
+qipresent=getindex(svars3d,'qi')>0
+qlpresent=getindex(svars3d,'ql')>0
+cldchpresent=getindex(svars2d,'cldch')>0
+lcbaspresent=getindex(svars2d,'lcbas')>0
+howvpresent=getindex(svars2d,'howv')>0
+wspd10mpresent=getindex(svars2d,'wspd10m')>0
+pblhpresent=getindex(svars2d,'pblh')>0
+vispresent=getindex(svars2d,'vis')>0
+gustpresent=getindex(svars2d,'gust')>0
 
 end subroutine init_anasv
 subroutine final_anasv
