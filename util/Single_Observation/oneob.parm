@@ -1,4 +1,0 @@
- &SETUP
-   oneob_type='ps',oblat=45.,oblon=180.,obpres=1030.,ob1=0.0,ob2=0.0,
-        obhourset=0,oberror=1.,idate=1982090106,
-/

@@ -12,7 +12,8 @@ module lagmod
 !   2005-12-01  cucurull - implement tangent linear and adjoint code 
 !                        - adapt the code to GSI standards
 !   2008-05-09  safford  - complete documentation block
-! 
+!   2021-11-04  cucurull - bug fix
+!
 ! subroutines included:
 !   setq
 !   setq_TL
@@ -716,6 +717,13 @@ ELSEIF(wb<zero)THEN
    wb_AD =zero
    dwb_AD=zero
 ENDIF
+
+!Criterion for target lying outside the central interval:                                                                                                
+if(dwb==zero)then
+   wb_AD =zero
+   dwb_AD=zero
+endif
+
 
 xa_AD        =xa_AD-wb_AD*dwb
 dwb_AD       =dwb_AD+(xt-xa)*wb_AD

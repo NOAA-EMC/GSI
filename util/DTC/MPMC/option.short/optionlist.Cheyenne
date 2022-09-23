@@ -1,4 +1,0 @@
-# Cheyenne build option list
-#
-#   compiler,         MPI,        [lapack],       NETCDF
-    intel/17.0.1, mpt           , mkl         , netcdf

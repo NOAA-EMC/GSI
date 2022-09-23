@@ -68,7 +68,7 @@ contains
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gridmod, only: cmaq_regional,latlon11,nsig
-    use chemmod, only: laeroana_gocart
+    use chemmod, only: laeroana_gocart,laeroana_fv3cmaq
     implicit none
     
 ! declare passed variables
@@ -105,7 +105,7 @@ contains
 
     endif
 
-    if (laeroana_gocart) then
+    if (laeroana_gocart .or. laeroana_fv3cmaq) then
 
        tdir=zero
        rdir=zero

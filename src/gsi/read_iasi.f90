@@ -67,6 +67,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   2015-10-22  Jung    - added logic to allow subset changes based on the satinfo file
 !   2016-04-28  jung - added logic for RARS and direct broadcast from NESDIS/UW
 !   2018-05-21  j.jin   - added time-thinning. Moved the checking of thin4d into satthin.F90.
+!   2022-04-29  Jung/Collard - allow thinning based on clear sky if AVHRR is missing
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -187,7 +188,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
 ! Other work variables
-  real(r_kind)     :: clr_amt,piece
+  real(r_kind)     :: piece
   real(r_kind)     :: rsat, dlon, dlat
   real(r_kind)     :: dlon_earth,dlat_earth,dlon_earth_deg,dlat_earth_deg
   real(r_kind)     :: lza, lzaest,sat_height_ratio
@@ -205,7 +206,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00
 
   logical          :: outside,iuse,assim,valid
-  logical          :: iasi,quiet
+  logical          :: iasi,quiet,cloud_info
 
   integer(i_kind)  :: ifov, instr, iscn, ioff, sensorindex
   integer(i_kind)  :: i, j, l, iskip, ifovn, bad_line, ksatid, kidsat, llll
@@ -217,6 +218,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind):: error_status, irecx,ierr
   integer(i_kind):: radedge_min, radedge_max
   integer(i_kind)   :: subset_start, subset_end, satinfo_nchan, sc_chan, bufr_chan
+  integer(i_kind)   :: sfc_channel_index
   integer(i_kind),allocatable, dimension(:) :: channel_number, sc_index, bufr_index
   integer(i_kind),allocatable, dimension(:) :: bufr_chan_test
   character(len=20),dimension(1):: sensorlist
@@ -224,6 +226,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Set standard parameters
   character(8),parameter:: fov_flag="crosstrk"
+  integer(i_kind),parameter:: sfc_channel=1271
   integer(i_kind),parameter:: ichan=-999  ! fov-based surface code is not channel specific for iasi 
   real(r_kind),parameter:: expansion=one         ! exansion factor for fov-based surface code.
                                                  ! use one for ir sensors.
@@ -633,22 +636,23 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          Set common predictor parameters
            crit1 = crit1 + rlndsea(isflg)
  
-           call checkob(dist1,crit1,itx,iuse)
+           call checkob(one,crit1,itx,iuse)
            if(.not. iuse)cycle read_loop
 
 !          Clear Amount  (percent clear)
-           call ufbrep(lnbufr,cloud_frac,1,7,iret,'FCPH')
-           clr_amt = cloud_frac(1)
-           clr_amt=max(clr_amt,zero)
-           clr_amt=min(clr_amt,100.0_r_kind)
-     
 !          Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
-           pred = 100.0_r_kind - clr_amt
+           pred = r100
+           cloud_info = .false.
+           call ufbrep(lnbufr,cloud_frac,1,7,iret,'FCPH')
+           if (iret == 7 .and. cloud_frac(1) <= r100 .and. cloud_frac(1) >= zero) then
+              pred = r100 - cloud_frac(1)
+              cloud_info = .true.
+           endif
 
            crit1 = crit1 + pred
- 
-           call checkob(dist1,crit1,itx,iuse)
+           call checkob(one,crit1,itx,iuse)
            if(.not. iuse)cycle read_loop
+
            call ufbseq(lnbufr,cscale,3,10,iret,'IASIL1CB')
            if(iret /= 10) then
               write(6,*) 'READ_IASI  read scale error ',iret
@@ -680,16 +684,23 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          Coordinate bufr channels with satinfo file channels
 !          If this is the first time or a change in the bufr channels is detected, sync with satinfo file
            if (ANY(int(allchan(1,:)) /= bufr_chan_test(:))) then
+              sfc_channel_index = 0
               bufr_index(:) = 0
               bufr_chans: do l=1,bufr_nchan
                  bufr_chan_test(l) = int(allchan(1,l))                      ! Copy this bufr channel selection into array for comparison to next profile
                  satinfo_chans: do i=1,satinfo_nchan                        ! Loop through sensor (iasi) channels in the satinfo file
                     if ( channel_number(i) == int(allchan(1,l)) ) then      ! Channel found in both bufr and satinfo file
                        bufr_index(i) = l
+                       if ( channel_number(i) == sfc_channel) sfc_channel_index = l
                        exit satinfo_chans                                   ! go to next bufr channel
                     endif
                  end do  satinfo_chans
               end do bufr_chans
+           endif
+
+           if (sfc_channel_index == 0) then
+             write(6,*)'READ_IASI: ***ERROR*** SURFACE CHANNEL USED FOR QC WAS NOT FOUND'
+             cycle read_loop
            endif
 
            iskip = 0
@@ -729,8 +740,21 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
            crit1=crit1 + ten*float(iskip)
 
+!          If the surface channel exists (~960.0 cm-1) and the AVHRR cloud information is missing, use an
+!          estimate of the surface temperature to determine if the profile may be clear.
+           if (.not. cloud_info) then
+              pred = tsavg*0.98_r_kind - temperature(sfc_channel_index)
+              pred = max(pred,zero)
+           endif
+
+           crit1=crit1 + pred
+
 !          Map obs to grids
-           call finalcheck(dist1,crit1,itx,iuse)
+           if (pred == zero) then
+              call finalcheck(dist1,crit1,itx,iuse)
+           else
+              call finalcheck(one,crit1,itx,iuse)
+           endif
            if(.not. iuse)cycle read_loop
 
 !

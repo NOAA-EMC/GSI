@@ -42,7 +42,7 @@ subroutine write_all(increment)
   use mpeu_util, only: die
 
   use control_vectors, only: control_vector
-  
+
   implicit none
 
 ! !INPUT PARAMETERS:
@@ -96,6 +96,7 @@ subroutine write_all(increment)
 !   2013-10-19  todling - metguess holds ges fields now
 !   2014-10-05  todling - background biases now held in bundle
 !   2017-10-10  Wu W    - add FV3 option for regional output
+!   2020-11-19  Lu & Wang - modify output filename option for fgat. POC:  xuguang.wang@ou.edu
 !
 ! !REMARKS:
 !
@@ -120,7 +121,7 @@ subroutine write_all(increment)
 ! Regional output
   if (regional) then
      if (fv3_regional) then
-        call wrfv3_netcdf(bg_fv3regfilenameg)
+        call wrfv3_netcdf(bg_fv3regfilenameg(ntguessig))
      else
         call io%write_regional_analysis(mype)
      endif

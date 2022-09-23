@@ -11,6 +11,8 @@ module gsd_update_mod
 !   2015-01-12  Hu  fix the bug in coast proximity calculation in subdomain
 !   2015-01-14  Hu  do T soil nudging over snow
 !   2015-01-15  Hu  move the land/sea mask check to fine grid update step
+!   2022-03-15  Hu  change all th2 to t2m to indicate that 2m temperature 
+!                   is sensible instead of potentionl temperature
 !
 ! subroutines included:
 !   sub gsd_update_soil_tq  - change surface and soil based on analysis increment
@@ -528,7 +530,7 @@ subroutine gsd_update_t2m(tinc,it)
   real(r_kind),parameter:: r10=10.0_r_kind
   real(r_kind),parameter:: r100=100.0_r_kind
   integer(i_kind) i,j,ier,ihaveq
-  real(r_kind) :: dth2, work_prsl,work_prslk
+  real(r_kind) :: dth2
 
   real(r_kind),dimension(:,:  ),pointer:: ges_ps =>NULL()
   real(r_kind),dimension(:,:  ),pointer:: ges_t2m=>NULL()
@@ -553,7 +555,6 @@ subroutine gsd_update_t2m(tinc,it)
               if(ihaveq/=0) cycle
               dth2=tinc(i,j)/(one+fv*ges_q(i,j,1))
            endif
-
 !        do not need to convert sensible temperature to potential temperature
            ges_t2m(i,j) = ges_t2m(i,j) + dth2
         end do

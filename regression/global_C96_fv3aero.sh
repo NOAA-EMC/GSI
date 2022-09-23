@@ -29,7 +29,7 @@ ncp=/bin/cp
 # for guess and observation data files
 PDY=`echo $global_C96_fv3aero_adate | cut -c1-8`
 cyc=`echo $global_C96_fv3aero_adate | cut -c9-10`
-gdate=`$ndate -06 $global_C96_fv3aero_adate`
+gdate=`date +%Y%m%d%H -d "${global_C96_fv3aero_adate:0:8} ${global_C96_fv3aero_adate:8:2} - 6 hours"`
 gPDY=`echo $gdate | cut -c1-8`
 gcyc=`echo $gdate | cut -c9-10`
 hha=`echo $global_C96_fv3aero_adate | cut -c9-10`

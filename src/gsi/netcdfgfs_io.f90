@@ -31,7 +31,7 @@ module netcdfgfs_io
 !   machine:
 !
 ! NOTE: This module adds capability to read netCDF FV3 first guess files
-!       and to write netCDF FV3 analysis files using the fv3gfs_ncio interface 
+!       and to write netCDF FV3 analysis files using the ncio interface 
 !       Using this is controled by a namelist argument "use_gfs_ncio"
 !
 !
@@ -116,8 +116,9 @@ contains
 !$$$ end documentation block
 
     use kinds, only: i_kind,r_kind
+    use constants, only: qcmin
     use gridmod, only: sp_a,grd_a,lat2,lon2,nsig
-    use guess_grids, only: ifilesig,nfldsig
+    use guess_grids, only: ifilesig,nfldsig,ntguessig
     use gsi_metguess_mod, only: gsi_metguess_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use gsi_bundlemod, only: gsi_bundlecreate
@@ -129,12 +130,15 @@ contains
     use mpimod, only: npe,mype
     use cloud_efr_mod, only: cloud_calc_gfs,set_cloud_lower_bound
     use jfunc, only: hofx_2m_sfcfile
+    use gridmod, only: fv3_full_hydro
+
     implicit none
 
     character(len=*),parameter::myname_=myname//'*read_'
     character(24) filename
     integer(i_kind):: it, istatus, inner_vars, num_fields
-    integer(i_kind):: iret_ql,iret_qi
+    integer(i_kind):: i,j,k
+
 
     real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_z_it   =>NULL()
@@ -150,6 +154,10 @@ contains
     real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it=>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_ql_it  => NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_qi_it  => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_qr_it  => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_qs_it  => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_qg_it  => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_cf_it  => NULL()
 
     type(sub2grid_info) :: grd_t
     logical regional
@@ -158,20 +166,28 @@ contains
     type(gsi_bundle) :: atm_bundle
     type(gsi_grid)   :: atm_grid
     integer(i_kind),parameter :: n2d=2
+    ! integer(i_kind),parameter :: n3d=8
     integer(i_kind),parameter :: n2d_2m=4
-    integer(i_kind),parameter :: n3d=8
+    integer(i_kind),parameter :: n3d=14
     character(len=4), parameter :: vars2d(n2d) = (/ 'z   ', 'ps  ' /)
     character(len=4), parameter :: vars2d_with2m(n2d_2m) = (/ 'z   ', 'ps  ','t2m ','q2m ' /)
+    ! character(len=4), parameter :: vars3d(n3d) = (/ 'u   ', 'v   ', &
+    !                                                 'vor ', 'div ', &
+    !                                                 'tv  ', 'q   ', &
+    !                                                 'cw  ', 'oz  ' /)
     character(len=4), parameter :: vars3d(n3d) = (/ 'u   ', 'v   ', &
                                                     'vor ', 'div ', &
                                                     'tv  ', 'q   ', &
-                                                    'cw  ', 'oz  ' /)
+                                                    'cw  ', 'oz  ', &
+                                                    'ql  ', 'qi  ', &
+                                                    'qr  ', 'qs  ', &
+                                                    'qg  ', 'cf  ' /)
     real(r_kind),pointer,dimension(:,:):: ptr2d   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ptr3d =>NULL()
 
     regional=.false.
     inner_vars=1
-    num_fields=min(8*grd_a%nsig+2,npe)
+    num_fields=min(14*grd_a%nsig+2,npe)
 !  Create temporary communication information fore read routines
     call general_sub2grid_create_info(grd_t,inner_vars,grd_a%nlat,grd_a%nlon, &
           grd_a%nsig,num_fields,regional)
@@ -194,17 +210,23 @@ contains
        if (hofx_2m_sfcfile) then  ! current read_sfc routines called from different part of 
                                  ! of the code, can't easily read into the met-bundle 
                                  ! wrote a new routine here
+          if (mype==0) write(*,*) 'calling general_read_gfsatm_nc for 2m data', it
           write(filename,'(''sfcf'',i2.2)') ifilesig(it)
           call general_read_gfsatm_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
                atm_bundle,.true.,istatus)
-
-          write(filename,'(''sigf'',i2.2)') ifilesig(it)
-          call general_read_gfsatm_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
-               atm_bundle,.true.,istatus)
+          if (mype==0) write(*,*) 'done with general_read_gfsatm_nc for 2m data', it 
+       endif
+       write(filename,'(''sigf'',i2.2)') ifilesig(it)
+       if (fv3_full_hydro) then
+          if (mype==0) write(*,*) 'calling general_read_gfsatm_allhydro_nc', it
+          call general_read_gfsatm_allhydro_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
+              atm_bundle,istatus) ! this loads cloud and precip
+          if (mype==0) write(*,*) 'done with general_read_gfsatm_allhydro_nc', it 
        else 
-          write(filename,'(''sigf'',i2.2)') ifilesig(it)
+          if (mype==0) write(*,*) 'calling general_read_gfsatm_nc'
           call general_read_gfsatm_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
                atm_bundle,.true.,istatus)
+          if (mype==0) write(*,*) 'done with general_read_gfsatm_nc'
        endif
 
        inithead=.false.
@@ -213,17 +235,41 @@ contains
 !      Set values to actual MetGuess fields
        call set_guess_
 
-       l_cld_derived = associated(ges_cwmr_it).and.&
-                       associated(ges_q_it)   .and.&
-                       associated(ges_ql_it)  .and.&
-                       associated(ges_qi_it)  .and.&
-                       associated(ges_tv_it)
-!      call set_cloud_lower_bound(ges_cwmr_it)
-       if (mype==0) write(6,*)'READ_GFS_NETCDF: l_cld_derived = ', l_cld_derived
+       if (it==ntguessig) then
+          if (mype==0) write(6,*)'Print guess field ... after set_guess'
+          call prt_guess('guess')
+       endif
+       if (fv3_full_hydro) then
+          do k=1, nsig
+             do j=1, lon2
+                do i=1, lat2
+                   ! set lower bound to hydrometeors
+                   if (associated(ges_ql_it)) ges_ql_it(i,j,k) = max(qcmin,ges_ql_it(i,j,k))
+                   if (associated(ges_qi_it)) ges_qi_it(i,j,k) = max(qcmin,ges_qi_it(i,j,k))
+                   if (associated(ges_qr_it)) ges_qr_it(i,j,k) = max(qcmin,ges_qr_it(i,j,k))
+                   if (associated(ges_qs_it)) ges_qs_it(i,j,k) = max(qcmin,ges_qs_it(i,j,k))
+                   if (associated(ges_qg_it)) ges_qg_it(i,j,k) = max(qcmin,ges_qg_it(i,j,k))
+                   if (associated(ges_cf_it)) ges_cf_it(i,j,k) = min(max(zero,ges_cf_it(i,j,k)),one)
+                enddo
+             enddo
+          enddo
+       else
+          l_cld_derived = associated(ges_cwmr_it).and.&
+                          associated(ges_q_it)   .and.&
+                          associated(ges_ql_it)  .and.&
+                          associated(ges_qi_it)  .and.& 
+                          associated(ges_tv_it)
+!         call set_cloud_lower_bound(ges_cwmr_it)
+          if (mype==0) write(6,*)'READ_GFS_NETCDF: l_cld_derived = ', l_cld_derived
 
-       if (l_cld_derived) then
-          call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it,.true.)
+          if (l_cld_derived) then
+             call cloud_calc_gfs(ges_ql_it,ges_qi_it,ges_cwmr_it,ges_q_it,ges_tv_it,.true.)
+          end if
        end if
+       if (it==ntguessig) then
+          if (mype==0) write(6,*)'Print guess field ... after set lower bound for hydrometers'
+          call prt_guess('guess')
+       endif
 
     end do
     call general_sub2grid_destroy_info(grd_t)
@@ -293,15 +339,36 @@ contains
        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cw',ges_cwmr_it,istatus)
        if(istatus==0) ges_cwmr_it = ptr3d
     endif
-    call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql_it,  iret_ql)
-    call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi_it,  iret_qi)
-    if (iret_ql/=0) then
-       if (mype==0) write(6,*)'READ_ NETCDF: cannot get pointer to ql,iret_ql=',iret_ql
+    call gsi_bundlegetpointer (atm_bundle,'ql',ptr3d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql_it,istatus)
+       if(istatus==0) ges_ql_it = ptr3d
     endif
-    if (iret_qi/=0) then
-       if (mype==0) write(6,*)'READ_ NETCDF: cannot get pointer to qi,iret_qi=',iret_qi
+    call gsi_bundlegetpointer (atm_bundle,'qi',ptr3d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qi',ges_qi_it,istatus)
+       if(istatus==0) ges_qi_it = ptr3d
     endif
-
+    call gsi_bundlegetpointer (atm_bundle,'qr',ptr3d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qr',ges_qr_it,istatus)
+       if(istatus==0) ges_qr_it = ptr3d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'qs',ptr3d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qs',ges_qs_it,istatus)
+       if(istatus==0) ges_qs_it = ptr3d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'qg',ptr3d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'qg',ges_qg_it,istatus)
+       if(istatus==0) ges_qg_it = ptr3d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'cf',ptr3d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'cf',ges_cf_it,istatus)
+       if(istatus==0) ges_cf_it = ptr3d
+    endif
   end subroutine set_guess_
 
   end subroutine read_
@@ -420,7 +487,7 @@ contains
     use general_specmod, only: spec_vars
     use general_sub2grid_mod, only: sub2grid_info
     use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype,mype
-    use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+    use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
                 quantize_data,close_dataset, get_dim, read_vardata, get_idate_from_time_units 
     use egrid2agrid_mod,only: g_egrid2agrid,g_create_egrid2agrid,egrid2agrid_parm,destroy_egrid2agrid
     use constants, only: two,pi,half,deg2rad
@@ -893,7 +960,7 @@ contains
     use gridmod, only: nlat_sfc,nlon_sfc
     use guess_grids, only: nfldsfc,ifilesfc
     use constants, only: zero,two
-    use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+    use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
                            close_dataset, get_dim, read_vardata, get_idate_from_time_units 
     implicit none
 
@@ -1229,7 +1296,7 @@ contains
     use kinds, only: r_kind,i_kind,r_single
     use gridmod, only: nlat,nlon
     use constants, only: zero
-    use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+    use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
                            close_dataset, get_dim, read_vardata, get_idate_from_time_units 
     implicit none
 
@@ -1393,7 +1460,7 @@ contains
     use gridmod, only: nlat_sfc,nlon_sfc
     use constants, only: zero,two
     use guess_grids, only: nfldnst,ifilenst
-    use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+    use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
                            close_dataset, get_dim, read_vardata, get_idate_from_time_units 
     implicit none
 
@@ -1634,7 +1701,7 @@ contains
     use cloud_efr_mod, only: cloud_calc_gfs
 
     use netcdf, only: nf90_max_name
-    use module_fv3gfs_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
+    use module_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
          read_attribute, write_attribute,get_dim, create_dataset, write_vardata, read_vardata,&
          get_idate_from_time_units,quantize_data,get_time_units_from_idate,has_attr,has_var
     use ncepnems_io, only: error_msg
@@ -2340,7 +2407,7 @@ contains
 
     use constants, only: zero
     use netcdf, only: nf90_max_name
-    use module_fv3gfs_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
+    use module_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
                            get_dim, create_dataset, write_vardata, read_vardata,&
                            get_time_units_from_idate, write_attribute  
 
@@ -2549,7 +2616,7 @@ contains
     use gsi_nstcouplermod, only: nst_gsi,zsea1,zsea2
     use gridmod, only: rlats,rlons,rlats_sfc,rlons_sfc
 
-    use module_fv3gfs_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
+    use module_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
                            get_dim, create_dataset, write_vardata, read_vardata,&
                            get_time_units_from_idate, write_attribute  
     use netcdf, only: nf90_max_name
