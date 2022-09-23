@@ -757,7 +757,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 ! SCENARIO 3: obs is sfctype, and neither sfcmodel nor hofx_2m_sfcfile  is chosen
 !        .or. obs is not sfctype     
 !       ! SCENARIO 3a: obs is a virtual temp.
-        write(6,*) ' CSD going into iqtflg', iqtflg, dpres
         if(iqtflg)then
 !          Interpolate guess tv to observation location and time
            call tintrp31(ges_tv,tges,dlat,dlon,dpres,dtime, &
@@ -803,7 +802,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               dhx_dx%val(2) = delz               ! weight for iz+1's level
            endif
         end if
-        write(6,*) ' CSD coming out iqtflg', tges
 
 
 ! SCENARIO 4: obs is sfctype, and i_use_2mt4b flag is on (turns on LAM sfc DA)
