@@ -12,7 +12,7 @@
       use kinds,only : i_kind,r_kind
       use constants, only: zero,one,max_varname_length,half
       use gridmod, only: nsig
-      use chemmod, only : berror_chem,upper2lower,lower2upper
+      use chemmod, only : berror_chem,berror_fv3_cmaq_regional,upper2lower,lower2upper
       use m_berror_stats, only: usenewgfsberror,berror_stats
 
       implicit none
@@ -44,6 +44,7 @@
 !                       sigma from the global 127-L BE,which is used to
 !                       convert the grid unit of vertical length scale (vz) from
 !                       1/layer to the unit of 1/sigma.   
+!       2022-05-24 ESRL(H.Wang) - Add B for reginal FV3-CMAQ (berror_fv3_cmaq_regional=.true.) . 
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname='m_berror_stats_reg'
@@ -311,6 +312,7 @@ end subroutine berror_read_bal_reg
       use constants, only: zero,one,ten,three
       use mpeu_util,only: getindex
       use radiance_mod, only: icloud_cv,n_clouds_fwd,cloud_names_fwd
+      use chemmod, only: berror_fv3_cmaq_regional
 
       implicit none
 
@@ -364,6 +366,8 @@ end subroutine berror_read_bal_reg
 !       2018-10-22 CAPS(C.Liu) - add w
 !       20Apr22 x.zhang - Add the code to convert the unit of global 127-L BE
 !                         vertical length scale from 1/layer to 1/sigma
+!       2022-05-24 ESRL(H.Wang) - Add B for reginal FV3-CMAQ
+!                        (berror_fv3_cmaq_regional=.true.) . 
 !
 !EOP ___________________________________________________________________
 
@@ -383,6 +387,11 @@ end subroutine berror_read_bal_reg
 
 
   character*5 :: varshort
+! varlong is for regional FV3-CMAQ model 
+! the B file should include stats of both meterological  and aerosol control
+! variables that are listed in anavinfo (control_vector section). 
+  character*10 :: varlong
+
   character(len=max_varname_length) :: var
   logical,dimension(nrf):: nrf_err
 
@@ -457,8 +466,13 @@ end subroutine berror_read_bal_reg
         var=upper2lower(varshort)
         if (trim(var) == 'pm25') var = 'pm2_5'
      else 
-        read(inerr,iostat=istat) varshort, isig
-        var=varshort
+        if ( berror_fv3_cmaq_regional) then
+          read(inerr,iostat=istat) varlong, isig
+          var=varlong
+        else
+          read(inerr,iostat=istat) varshort, isig
+          var=varshort
+        endif
      endif
      if (istat /= 0) exit read
      do n=1,nrf

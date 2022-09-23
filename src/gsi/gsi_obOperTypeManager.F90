@@ -357,6 +357,7 @@ function dtype2index_(dtype) result(index_)
   case("aero"   ,"[aerooper]"   ); index_= iobOper_aero
     case("aod"      ); index_= iobOper_aero
     case("modis_aod"); index_= iobOper_aero
+    case("viirs_aod"); index_= iobOper_aero
 
  !case("aerol"  ,"[aeroloper]"  ); index_= iobOper_aerol
 
