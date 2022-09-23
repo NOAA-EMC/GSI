@@ -309,7 +309,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   logical,dimension(nobs):: luse,muse
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
-  logical sfctype
+  logical sfctype, landsfctype
   logical iqtflg
   logical aircraftobst
   logical duplogic
@@ -447,6 +447,11 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      ikx=nint(data(ikxx,k))
      itype=ictype(ikx)
      sfctype=(itype>179.and.itype<190).or.(itype>=192.and.itype<=199)
+     ! landsfctype below is used to restrict hofx_2m_sfcfile to land obs only.
+     ! GDAS assmilates 180 and 182 over ocean. Would probably be better to read h(x) from 
+     ! the surface file for these, but have left as is (default is LML) for zero-diff 
+     ! changes. 
+     landsfctype =( itype==181 .or. itype==183 .or. itype==187 ) 
      do l=k+1,nobs
         if (twodvar_regional .or. (hofx_2m_sfcfile .and. sfctype) ) then
            duplogic=data(ilat,k) == data(ilat,l) .and.  &
@@ -677,7 +682,10 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
 
-     if ( .not. hofx_2m_sfcfile) then 
+     if ( hofx_2m_sfcfile .and. landsfctype) then 
+        drpx = zero 
+        dpres = one  ! put obs at surface
+     else
         drpx=zero
         if(sfctype .and. .not.twodvar_regional) then
             drpx=abs(one-((one/exp(dpres-log(psges))))**rd_over_cp)*t0c
@@ -685,9 +693,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
         !    Put obs pressure in correct units to get grid coord. number
         call grdcrd1(dpres,prsltmp(1),nsig,-1)
-     else 
-        drpx = zero 
-        dpres = one  ! put obs at surface
      endif
 
 ! Implementation of forward model ----------
@@ -723,7 +728,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
              prsltmp2(2), tvtmp(2), qtmp(2), hsges(1), roges, msges, &
              f10ges,u10ges,v10ges, t2ges, q2ges, regime, iqtflg)
         tges = t2ges
-     elseif (sfctype .and. hofx_2m_sfcfile ) then 
+     elseif (landsfctype .and. hofx_2m_sfcfile ) then 
 ! SCENARIO 2: obs is sfctype, and hofx_2m_sfcfile  scheme is on. 
 ! 2m forecast has been read from the sfc guess files
 
@@ -809,6 +814,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               dhx_dx%val(2) = delz               ! weight for iz+1's level
            endif
         end if
+
 
 ! SCENARIO 4: obs is sfctype, and i_use_2mt4b flag is on (turns on LAM sfc DA)
         if(i_use_2mt4b>0 .and. sfctype) then
