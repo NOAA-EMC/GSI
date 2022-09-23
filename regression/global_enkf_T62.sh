@@ -59,7 +59,7 @@ fi
 # first guess comes.  Extract cycle and set prefix and suffix
 # for guess and observation data files
 export adate=$global_enkf_T62_adate
-gdate=`$ndate -06 $global_enkf_T62_adate`
+gdate=`date +%Y%m%d%H -d "${global_enkf_T62_adate:0:8} ${global_enkf_T62_adate:8:2} - 6 hours"`
 yyg=`echo $gdate | cut -c1-8`
 hhg=`echo $gdate | cut -c9-10`
 yya=`echo $global_enkf_T62_adate | cut -c1-8`

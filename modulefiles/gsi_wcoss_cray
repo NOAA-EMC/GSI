@@ -1,0 +1,57 @@
+#%Module######################################################################
+## NOAA-EMC/GSI
+##_____________________________________________________
+proc ModulesHelp { } {
+puts stderr "Set environment variables for NOAA-EMC/GSI"
+puts stderr "This module initializes the environment "
+puts stderr "for the Intel Compiler Suite $version\n"
+}
+module-whatis " NOAA-EMC/GSI whatis description"
+
+set COMPILER intel
+
+setenv FFLAGS_COM "-fp-model strict"
+setenv LDFLAGS_COM " "
+
+set WRF_SHARED_VER v1.1.0
+set WRF_SHARED_ROOT /gpfs/hps/nco/ops/nwprod/wrf_shared
+setenv WRF_SHARED_PATH ${WRF_SHARED_ROOT}.${WRF_SHARED_VER}-${COMPILER}
+
+# Loading ncep environment
+module load ncep/1.0
+module load prod_util/1.1.2
+
+# Loading Intel Compiler Suite
+module load PrgEnv-intel/5.2.82
+module unload intel/15.0.3.187
+module load intel/18.1.163
+
+# Loading pe environment
+module load craype-sandybridge
+module load cray-mpich/7.2.0
+
+module load cmake/3.16.2
+
+# Loading netcdf modules
+module load HDF5-parallel-intel-sandybridge/1.10.6
+module load NetCDF-intel-sandybridge/4.7.4
+
+# Loading nceplibs modules
+module load bufr-intel/11.3.0
+module load ip-intel/3.0.2
+module load nemsio-intel/2.2.4
+module load sfcio-intel/1.0.0
+module load sigio-intel/2.1.0
+module load sp-intel/2.0.3
+module load w3nco-intel/2.2.0
+module load w3emc-intel/2.4.0
+module load bacio-intel/2.0.3
+module load crtm-intel/2.3.0
+
+# Loading python
+module load python/3.6.3
+
+# Compiler flags specific to this platform
+setenv CFLAGS "-xHOST"
+setenv FFLAGS "-xHOST"
+

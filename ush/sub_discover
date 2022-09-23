@@ -130,7 +130,7 @@ echo "" >>$cfile
 echo ". "$(awk '{ print $1, $2, $3, $4, $5, $6, $7, $8, $9 }' $regdir/regression_var.out)  >>$cfile
 echo "" >>$cfile
 echo "module use -a $gsisrc/modulefiles"   >> $cfile
-echo "module load modulefile.ProdGSI.discover" >> $cfile
+echo "module load gsi_discover" >> $cfile
 echo "" >>$cfile
 echo "jobname=$jobname" >>$cfile
 echo "" >>$cfile

@@ -81,6 +81,11 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
 !   2017-03-31  Hu      -  addd option l_closeobs to use closest obs to analysis
 !                                     time in analysis
 !   2019-09-20  Su      -  remove current VQC part and add subroutine call on VQC and add new VQC option
+!   2021-10-xx  pondeca/morris/zhao - added observation provider/subprovider
+!                         information in diagonostic file, which is used
+!                         in offline observation quality control program (AutoObsQC) 
+!                         for 3D-RTMA (if l_obsprvdiag is true).
+!
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -118,6 +123,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
   use oneobmod, only: magoberr,maginnov,oneobtest
   use obsmod, only: netcdf_diag, binary_diag, dirname
+  use obsmod, only: l_obsprvdiag
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
@@ -321,7 +327,10 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
      ioff0=20
      nreal=ioff0
      if (lobsdiagsave) nreal=nreal+4*miter+1
-     if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
+     if (twodvar_regional .or. l_obsprvdiag) then
+       nreal=nreal+2                           !account for idomsfc,izz
+       allocate(cprvstg(nobs),csprvstg(nobs))  !obs provider info
+     endif
      if (save_jacobian) then
        nnz   = 1                   ! number of non-zero elements in dH(x)/dx profile
        nind   = 1
@@ -667,13 +676,13 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
      if(binary_diag .and. ii>0)then
         write(7)' ps',nchar,nreal,ii,mype,ioff0
         write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
-        deallocate(cdiagbuf,rdiagbuf)
 
-        if (twodvar_regional) then
+        if (twodvar_regional .or. l_obsprvdiag) then
            write(7)cprvstg(1:ii),csprvstg(1:ii)
            deallocate(cprvstg,csprvstg)
         endif
      end if
+     deallocate(cdiagbuf,rdiagbuf)
   end if
   
 ! End of routine
@@ -856,7 +865,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
            enddo
        endif
 
-        if (twodvar_regional) then
+        if (twodvar_regional .or. l_obsprvdiag) then
            ioff = ioff + 1
            rdiagbuf(ioff,ii) = data(idomsfc,i) ! dominate surface type
            ioff = ioff + 1
@@ -904,6 +913,8 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
            call nc_diag_metadata("Observation",                   sngl(pob)        )
            call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(pob-pges)   )
            call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(pob-pgesorig))
+           call nc_diag_metadata("Forecast_adjusted",             sngl(pges)       )
+           call nc_diag_metadata("Forecast_unadjusted",           sngl(pgesorig)   )
  
           if (lobsdiagsave) then
 
@@ -921,7 +932,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
               call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )             
           endif
    
-           if (twodvar_regional) then
+           if (twodvar_regional .or. l_obsprvdiag) then
               call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i)              )
               call nc_diag_metadata("Model_Terrain",     data(izz,i)                  )
               r_prvstg            = data(iprvd,i)
@@ -935,6 +946,8 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
              call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
              call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
            endif
+
+           call nc_diag_data2d("atmosphere_pressure_coordinate", sngl(exp(prsltmp)*r1000))
 
   end subroutine contents_netcdf_diag_
 

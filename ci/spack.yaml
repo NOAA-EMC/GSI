@@ -1,0 +1,23 @@
+# Spack environment file to build GSI dependencies
+spack:
+  packages:
+    all:
+      compiler: [intel, gcc]
+  specs:
+  - netcdf-c@4.7.4
+  - netcdf-fortran@4.5.3
+  - bufr@11.5.0
+  - bacio@2.4.1
+  - w3emc@2.9.2
+  - sp@2.3.3
+  - ip@3.3.3
+  - sigio@2.3.2
+  - sfcio@1.4.1
+  - nemsio@2.5.2
+  - wrf-io@1.2.0
+  - ncio@1.1.2
+  - crtm@2.3.0
+  - gsi-ncdiag@1.0.0
+  view: true
+  concretizer:
+    unify: true

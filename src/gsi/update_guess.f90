@@ -462,7 +462,7 @@ subroutine update_guess(sval,sbias)
         end do
         call  gsd_update_t2m(tinc_1st,it)
      endif ! l_gsd_t2m_adjust
-     if ( (i_use_2mq4b > 0) .and. is_q>0) then
+     if (i_use_2mq4b > 0 .and. is_q>0) then
         do j=1,lon2
            do i=1,lat2
               qinc_1st(i,j)=p_q(i,j,1)

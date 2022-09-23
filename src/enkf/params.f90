@@ -245,7 +245,9 @@ character(len=500),public :: fv3fixpath = ' '
 character(len=24),public :: diagprefix = 'diag'
 integer(i_kind),public :: ntiles=6
 integer(i_kind),public :: nx_res=0,ny_res=0
+integer(i_kind),public :: fv3_io_layout_nx=1,fv3_io_layout_ny=1
 logical,public ::l_pres_add_saved
+logical,public ::l_fv3reg_filecombined =.true.  !=.true., the dynvar and tracer files  would be combined for enkf fv3_reg
 
 ! for parallel netCDF
 logical, public :: paranc = .false.
@@ -289,7 +291,8 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    lnsigcutoffrdrnh,lnsigcutoffrdrsh,lnsigcutoffrdrtr,&
                    l_use_enkf_directZDA
 namelist /nam_wrf/arw,nmm,nmm_restart
-namelist /nam_fv3/fv3fixpath,nx_res,ny_res,ntiles,l_pres_add_saved
+namelist /nam_fv3/fv3fixpath,nx_res,ny_res,ntiles,l_pres_add_saved,l_fv3reg_filecombined, &
+                  fv3_io_layout_nx,fv3_io_layout_ny
 namelist /satobs_enkf/sattypes_rad,dsis
 namelist /ozobs_enkf/sattypes_oz
 
@@ -591,6 +594,10 @@ else
    ! set paranc to false
    if (nproc .eq. 0) print *,"nanals > numproc; forcing paranc=F"
    paranc = .false.
+   if(fv3_io_layout_nx > 1 .or. fv3_io_layout_ny >1 ) then
+     if (nproc .eq. 0) print *,"paranc=.T. is needed to deal with subdomain restart files for ,stop"
+     call stop2(19)
+   endif  
    nanals_per_iotask = 1
    do
       ntasks_io = nanals/nanals_per_iotask

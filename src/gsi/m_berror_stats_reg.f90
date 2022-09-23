@@ -12,7 +12,7 @@
       use kinds,only : i_kind,r_kind
       use constants, only: zero,one,max_varname_length,half
       use gridmod, only: nsig
-      use chemmod, only : berror_chem,upper2lower,lower2upper
+      use chemmod, only : berror_chem,berror_fv3_cmaq_regional,upper2lower,lower2upper
       use m_berror_stats, only: usenewgfsberror,berror_stats
 
       implicit none
@@ -40,6 +40,11 @@
 !                       configurable m_berror_stats::berror_stats, for the
 !                       filename.  This ensure the consistency, as well as the
 !                       reconfigurability of this variable through the GSI.
+!       20Apr22 - x.zhang - add variable dlsig_glb for calculating the delta
+!                       sigma from the global 127-L BE,which is used to
+!                       convert the grid unit of vertical length scale (vz) from
+!                       1/layer to the unit of 1/sigma.   
+!       2022-05-24 ESRL(H.Wang) - Add B for reginal FV3-CMAQ (berror_fv3_cmaq_regional=.true.) . 
 !EOP ___________________________________________________________________
 
   character(len=*),parameter :: myname='m_berror_stats_reg'
@@ -55,6 +60,7 @@
 
   integer(i_kind),allocatable,dimension(:):: lsig
   real(r_kind),allocatable,dimension(:):: coef1,coef2
+  real(r_kind),allocatable,dimension(:):: dlsig_glb
 
 contains
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -150,6 +156,8 @@ end subroutine berror_set_reg
 !       25Feb10 - Zhu  - extracted from rdgstat_reg
 !                      - change the structure of error file
 !                      - make changes for generalized control variables
+!       20Apr22 - x.zhang - add the code to calculate the delta sigma from the
+!                           global 127-L BE  
 !EOP ___________________________________________________________________
 
     character(len=*),parameter :: myname_=myname//'::berror_read_bal_reg'
@@ -207,6 +215,17 @@ end subroutine berror_set_reg
     do k=1,msig
        rlsigo(k)=log(sigma_avn(k))
     enddo
+
+!   compute delta sigma of global level
+    if(usenewgfsberror)then
+      allocate(dlsig_glb(msig))
+      dlsig_glb(1)=log(sigma_avn(1))-log(sigma_avn(2))
+      do k=2,msig-1
+         dlsig_glb(k)=half*(log(sigma_avn(k-1))-log(sigma_avn(k+1)))
+      enddo
+      dlsig_glb(msig)=log(sigma_avn(msig-1))-log(sigma_avn(msig))
+    end if
+!
 
     allocate(lsig(nsig),coef1(nsig),coef2(nsig))
     do k=1,nsig
@@ -293,6 +312,7 @@ end subroutine berror_read_bal_reg
       use constants, only: zero,one,ten,three
       use mpeu_util,only: getindex
       use radiance_mod, only: icloud_cv,n_clouds_fwd,cloud_names_fwd
+      use chemmod, only: berror_fv3_cmaq_regional
 
       implicit none
 
@@ -344,6 +364,10 @@ end subroutine berror_read_bal_reg
 !                       - which can be tuned in sub prewgt_reg.f90.
 !                       - extra caution required for using logarithmic transformation
 !       2018-10-22 CAPS(C.Liu) - add w
+!       20Apr22 x.zhang - Add the code to convert the unit of global 127-L BE
+!                         vertical length scale from 1/layer to 1/sigma
+!       2022-05-24 ESRL(H.Wang) - Add B for reginal FV3-CMAQ
+!                        (berror_fv3_cmaq_regional=.true.) . 
 !
 !EOP ___________________________________________________________________
 
@@ -363,6 +387,11 @@ end subroutine berror_read_bal_reg
 
 
   character*5 :: varshort
+! varlong is for regional FV3-CMAQ model 
+! the B file should include stats of both meterological  and aerosol control
+! variables that are listed in anavinfo (control_vector section). 
+  character*10 :: varlong
+
   character(len=max_varname_length) :: var
   logical,dimension(nrf):: nrf_err
 
@@ -437,8 +466,13 @@ end subroutine berror_read_bal_reg
         var=upper2lower(varshort)
         if (trim(var) == 'pm25') var = 'pm2_5'
      else 
-        read(inerr,iostat=istat) varshort, isig
-        var=varshort
+        if ( berror_fv3_cmaq_regional) then
+          read(inerr,iostat=istat) varlong, isig
+          var=varlong
+        else
+          read(inerr,iostat=istat) varshort, isig
+          var=varshort
+        endif
      endif
      if (istat /= 0) exit read
      do n=1,nrf
@@ -502,12 +536,16 @@ end subroutine berror_read_bal_reg
                  if(usenewgfsberror)then
                     do i=1,mlat
                        hwll_tmp(i,k,n)=hwll_avn(i,k)
-                       vz_tmp(k,i,n)=vztdq_avn(i,k)
+
+!                      convert global BE vz from the unit of 1/layer to 1/sigma
+                       vz_tmp(k,i,n)=vztdq_avn(i,k)/dlsig_glb(k)
                     end do
                     hwll_tmp(0,k,n)=hwll_avn(1,k)
                     hwll_tmp(mlat+1,k,n)=hwll_avn(mlat,k)
-                    vz_tmp(k,0,n)=vztdq_avn(1,k)
-                    vz_tmp(k,mlat+1,n)=vztdq_avn(mlat,k)
+
+!                   convert global BE vz from the unit of 1/layer to 1/sigma
+                    vz_tmp(k,0,n)=vztdq_avn(1,k)/dlsig_glb(k)
+                    vz_tmp(k,mlat+1,n)=vztdq_avn(mlat,k)/dlsig_glb(k)
                  else
                     do i=0,mlat+1
                        hwll_tmp(i,k,n)=hwll_avn(i,k)

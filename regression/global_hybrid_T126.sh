@@ -68,7 +68,7 @@ export NLAT=$((${LATA}+2))
 # Given the analysis date, compute the date from which the
 # first guess comes.  Extract cycle and set prefix and suffix
 # for guess and observation data files
-gdate=`$ndate -06 $global_hybrid_T126_adate`
+gdate=`date +%Y%m%d%H -d "${global_hybrid_T126_adate:0:8} ${global_hybrid_T126_adate:8:2} - 6 hours"`
 yyg=`echo $gdate | cut -c1-8`
 hhg=`echo $gdate | cut -c9-10`
 yya=`echo $global_hybrid_T126_adate | cut -c1-8`

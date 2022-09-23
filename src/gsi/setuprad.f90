@@ -280,7 +280,7 @@ contains
   use sst_retrieval, only: setup_sst_retrieval,avhrr_sst_retrieval,&
       finish_sst_retrieval,spline_cub
   use m_dtime, only: dtime_setup, dtime_check
-  use crtm_interface, only: init_crtm,call_crtm,destroy_crtm,sensorindex,surface, &
+  use crtm_interface, only: init_crtm,call_crtm,destroy_crtm,sensorindex,surface,&
       itime,ilon,ilat,ilzen_ang,ilazi_ang,iscan_ang,iscan_pos,iszen_ang,isazi_ang, &
       ifrac_sea,ifrac_lnd,ifrac_ice,ifrac_sno,itsavg, &
       izz,idomsfc,isfcr,iff10,ilone,ilate, &
@@ -294,7 +294,7 @@ contains
                    ifail_iomg_det, ifail_isst_det, ifail_itopo_det,ifail_iwndspeed_det
   use qcmod, only: qc_gmi,qc_saphir,qc_amsr2
   use radinfo, only: iland_det, isnow_det, iwater_det, imix_det, iice_det, &
-                      iomg_det, itopo_det, isst_det,iwndspeed_det
+                      iomg_det, itopo_det, isst_det,iwndspeed_det, optconv
   use qcmod, only: setup_tzr_qc,ifail_scanedge_qc,ifail_outside_range
   use state_vectors, only: svars3d, levels, svars2d, ns3d
   use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
@@ -332,7 +332,7 @@ contains
   integer(i_kind) n,nlev,kval,ibin,ioff,ioff0,iii,ijacob
   integer(i_kind) ii,jj,idiag,inewpc,nchanl_diag
   integer(i_kind) nadir,kraintype,ierrret
-  integer(i_kind) ioz,ius,ivs,iwrmype
+  integer(i_kind) ioz,ius,ivs,iqs,iwrmype
   integer(i_kind) iversion_radiag, istatus
   integer(i_kind) cor_opt,iinstr,chan_count
   character(len=80) covtype
@@ -352,13 +352,15 @@ contains
 !  real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl,tpwc_guess_retrieval
   real(r_kind) sfc_speed,frac_sea,tpwc_obs,sgagl,tpwc_guess_retrieval
   real(r_kind) gwp,clw_obs
-  real(r_kind) scat,scatp
+  real(r_kind) scat,scatp,asum
   real(r_kind) dtsavg,r90,coscon,sincon
   real(r_kind) bias       
   real(r_kind) factch6    
   real(r_kind) stability,tcwv,hwp_ratio         
-  real(r_kind) si_obs,si_fg,si_mean                     
-  
+  real(r_kind) si_obs,si_fg                
+! real(r_kind) si_mean                     
+  real(r_kind) total_cloud_cover
+
   logical cao_flag                       
   logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,ahi,mhs,abi
   type(sparr2) :: dhx_dx
@@ -382,7 +384,7 @@ contains
   real(r_kind),dimension(npred+2,nchanl):: predbias
   real(r_kind),dimension(npred,nchanl):: pred,predchan
   real(r_kind),dimension(nchanl):: err2,tbc0,tb_obs0,raterr2,wgtjo
-  real(r_kind),dimension(nchanl):: varinv0
+  real(r_kind),dimension(nchanl):: varinv0,diagadd
   real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf,errf0
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv
   real(r_kind),dimension(nchanl):: tnoise,tnoise_cld
@@ -393,7 +395,7 @@ contains
   real(r_kind),dimension(nsig,nchanl):: wmix,temp,ptau5
   real(r_kind),dimension(nsigradjac,nchanl):: jacobian
   real(r_kind),dimension(nreal+nchanl,nobs)::data_s
-  real(r_kind),dimension(nsig):: qvp,tvp
+  real(r_kind),dimension(nsig):: qvp,tvp,qs
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind),dimension(nchanl):: weightmax
@@ -411,7 +413,7 @@ contains
   real(r_kind),dimension(5)     :: gmi_low_angles
   real(r_kind),dimension(nsig,nchanl):: wmix2,temp2,ptau52
   real(r_kind),dimension(nsigradjac,nchanl):: jacobian2
-  real(r_kind) cosza2 
+  real(r_kind) cosza2
 
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nchanl):: kmax
@@ -599,6 +601,9 @@ contains
   if(ioz>0) then
      ioz=radjacindxs(ioz)
   endif
+  iqs =getindex(radjacnames,'q')
+  iqs=radjacindxs(iqs)
+
   ius =getindex(radjacnames,'u')
   ivs =getindex(radjacnames,'v')
   if(ius>0.and.ivs>0) then
@@ -889,9 +894,10 @@ contains
 !       Output both tsim and tsim_clr for allsky
         tsim_clr=zero
         tcc=zero
+        total_cloud_cover=zero
         if (radmod%lcloud_fwd) then
           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
-             tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+             tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
              tsim,emissivity,ptau5,ts,emissivity_k, &
                 temp,wmix,jacobian,error_status,tsim_clr=tsim_clr,tcc=tcc, & 
@@ -902,10 +908,11 @@ contains
              data_s(ilzen_ang:iscan_ang, n) = data_s(ilzen_ang2:iscan_ang2, n)
              data_s(iszen_ang:isazi_ang, n) = data_s(iszen_ang2:isazi_ang2, n)
              call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
-                tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+                tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
                  trop5,tzbgr,dtsavg,sfc_speed, &
                  tsim2,emissivity2,ptau52,ts2,emissivity_k2, &
-                 temp2,wmix2,jacobian2,error_status,tsim_clr2)
+                 temp2,wmix2,jacobian2,error_status,tsim_clr=tsim_clr2,tcc=tcc,&
+                 tcwv=tcwv,hwp_ratio=hwp_ratio,stability=stability)
              ! merge 
              emissivity(10:13)  = emissivity2(10:13)
              ts(10:13)          = ts2(10:13)
@@ -921,9 +928,11 @@ contains
              tsim_clr(10:13)    = tsim_clr2(10:13)
              cosza2 = cos(data_s(ilzen_ang2,n))
           endif
+          total_cloud_cover = tcc(1)
+          cld = total_cloud_cover
         else
           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
-             tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+             tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
              tsim,emissivity,ptau5,ts,emissivity_k, &
              temp,wmix,jacobian,error_status)
@@ -933,7 +942,7 @@ contains
              data_s(ilzen_ang:iscan_ang, n) = data_s(ilzen_ang2:iscan_ang2, n)
              data_s(iszen_ang:isazi_ang, n) = data_s(iszen_ang2:isazi_ang2, n)
              call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
-                tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+                tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
                  trop5,tzbgr,dtsavg,sfc_speed, &
                  tsim2,emissivity2,ptau52,ts2,emissivity_k2, &
                  temp2,wmix2,jacobian2,error_status)
@@ -1047,7 +1056,7 @@ contains
            endif
         endif
         ! Screening for cold-air outbreak area (only applied to MW for now)
-        if (cao_check) then   
+        if (cao_check .and. radmod%lprecip) then   
            if(microwave .and. sea) then 
               if(radmod%lcloud_fwd) then                            
                  cao_flag = (stability < 12.0_r_kind) .and. (hwp_ratio  < half) .and.  (tcwv < 8.0_r_kind) 
@@ -1159,9 +1168,12 @@ contains
               end if
            end if
 
-           do j=1, npred-angord                              
+!          Zero out air mass terms if required
+           do j=2, npred-angord                              
               pred(j,i)=pred(j,i)*air_rad(mm)
            end do
+
+!          Zero out angle terms if required
            if (adp_anglebc) then
               do j=npred-angord+1, npred                                         
                  pred(j,i)=pred(j,i)*ang_rad(mm)
@@ -1368,7 +1380,7 @@ contains
            end if
 
            call qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse(n),   &
-              zsges,cenlat,tb_obsbc1,si_mean,cosza,clw_obs,tbc,ptau5,emissivity_k,ts, &                   
+              zsges,cenlat,tb_obsbc1,cosza,clw_obs,tbc,ptau5,emissivity_k,ts, &                   
               pred,predchan,id_qc,aivals,errf,errf0,clw_obs,varinv,cldeff_obs,cldeff_fg,factch6, & 
               cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp,radmod)                    
 
@@ -1406,10 +1418,10 @@ contains
            end if
            si_obs = (tb_obsbc16-tb_obsbc17) - (tsim_clr(16)-tsim_clr(17)) 
            si_fg  = (tsim(16)-tsim(17)) - (tsim_clr(16)-tsim_clr(17)) 
-           si_mean= half*(si_obs+si_fg) 
+!          si_mean= half*(si_obs+si_fg) 
 
            call qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse(n),    &
-              zsges,cenlat,tb_obsbc1,si_mean,cosza,clw_obs,tbc,ptau5,emissivity_k,ts, & 
+              zsges,cenlat,tb_obsbc1,cosza,clw_obs,tbc,ptau5,emissivity_k,ts, & 
               pred,predchan,id_qc,aivals,errf,errf0,clw_obs,varinv,cldeff_obs,cldeff_fg,factch6, &
               cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp,radmod)                   
 
@@ -1606,9 +1618,17 @@ contains
               m=ich(i)
               if(radmod%lcloud_fwd .and. eff_area) then
                  if(radmod%rtype == 'amsua' .and. (i <=5 .or. i==15) ) then 
-                    errf(i) = three*errf(i)    
+                    if (radmod%lprecip) then
+                       errf(i) = 2.5_r_kind*errf(i)
+                    else
+                       errf(i) = three*errf(i)
+                    endif
                  else if(radmod%rtype == 'atms' .and. (i <= 6 .or. i>=16) ) then
-                    errf(i) = min(three*errf(i),10.0_r_kind)    
+                    if (radmod%lprecip) then
+                       errf(i) = min(2.5_r_kind*errf(i),10.0_r_kind)
+                    else
+                       errf(i) = min(three*errf(i),10.0_r_kind)
+                    endif
                  else if(radmod%rtype == 'gmi') then
                     errf(i) = min(2.0_r_kind*errf(i),ermax_rad(m))
                  else if (radmod%rtype/='amsua' .and. radmod%rtype/='atms' .and. radmod%rtype/='gmi' .and. radmod%lcloud4crtm(i)>=0) then
@@ -1754,34 +1774,46 @@ contains
 
         enddo
 
+        diagadd=zero
+        account_for_corr_obs = .false.
+        iii=0
+        varinv0=zero
+        do ii=1,nchanl
+           m=ich(ii)
+           if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1) then
+             iii=iii+1
+             varinv0(ii)=varinv(ii)
+             raterr2(ii)=error0(ii)**2*varinv0(ii)
+             if (l_may_be_passive .and. .not. retrieval) then
+               if(optconv > zero .and. (iasi .or. cris) .and. iinstr /= -1)then
+                 asum=zero
+                 do k=1,nsig
+                   asum=asum+abs(jacobian(iqs+k,ii))*qs(k)
+                 end do
+                 diagadd(ii)=optconv*asum
+               end if
+             end if
+           end if
+        enddo
+        err2 = one/error0**2
         tbc0=tbc
         tb_obs0=tb_obs
-        varinv0 = varinv
-        raterr2 = zero
-        err2 = one/error0**2
-        wgtjo= varinv     ! weight used in Jo term
-        account_for_corr_obs = .false.
+        wgtjo=varinv0
         if (l_may_be_passive .and. .not. retrieval) then
-          iii=0
-          do ii=1,nchanl
-             m=ich(ii)
-             if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1) then
-               iii=iii+1
-               raterr2(ii)=error0(ii)**2*varinv(ii)
-             endif
-          enddo
           if(iii>0 .and. iinstr.ne.-1)then
             chan_count=(iii*(iii+1))/2
+            if(allocated(rsqrtinv))deallocate(rsqrtinv)
+            if(allocated(rinvdiag))deallocate(rinvdiag)
             allocate(rsqrtinv(chan_count))
             allocate(rinvdiag(iii))
             rsqrtinv=zero
             rinvdiag=zero
-            account_for_corr_obs = corr_adjust_jacobian(iinstr,nchanl,nsigradjac,ich,varinv,&
-                                               tbc,tb_obs,err2,raterr2,wgtjo,jacobian,cor_opt,iii,rsqrtinv,rinvdiag)
-            varinv = wgtjo
+            account_for_corr_obs = corr_adjust_jacobian(iinstr,nchanl,nsigradjac,ich,varinv0,diagadd,&
+                                    tbc,tb_obs,err2,raterr2,wgtjo,jacobian,cor_opt,iii,rsqrtinv,rinvdiag)
+            varinv=wgtjo
           endif
         endif
-
+  
         icc = 0
         iccm= 0
 
@@ -1826,10 +1858,11 @@ contains
                  endif
                  stats(7,m)  = stats(7,m) -two*raterr2(i)*term
               end if
-           
+
 !             Only "good" obs are included in J calculation.
               if (iuse_rad(m) >= 1)then
                  if(luse(n))then
+                    varrad  = tbc(i)*varinv(i)
                     aivals(40,is) = aivals(40,is) + tbc(i)*varrad
                     aivals(39,is) = aivals(39,is) -two*raterr2(i)*term
                     aivals(38,is) = aivals(38,is) +one

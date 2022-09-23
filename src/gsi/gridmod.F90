@@ -147,7 +147,7 @@ module gridmod
   public :: nlat_regional,nlon_regional,update_regsfc,half_grid,gencode
   public :: diagnostic_reg,nmmb_reference_grid,filled_grid
   public :: grid_ratio_nmmb,isd_g,isc_g,dx_gfs,lpl_gfs,nsig5,nmmb_verttype
-  public :: grid_ratio_fv3_regional,fv3_io_layout_y,fv3_regional,grid_type_fv3_regional
+  public :: grid_ratio_fv3_regional,fv3_io_layout_y,fv3_regional,fv3_cmaq_regional,grid_type_fv3_regional
   public :: l_reg_update_hydro_delz
   public :: nsig3,nsig4,grid_ratio_wrfmass
   public :: use_gfs_ozone,check_gfs_ozone_date,regional_ozone,nvege_type
@@ -179,6 +179,7 @@ module gridmod
 
   logical wrf_nmm_regional  !
   logical fv3_regional      ! .t. to run with fv3 regional model
+  logical fv3_cmaq_regional ! .t. to run with fv3_cmaq_regional model
   logical l_reg_update_hydro_delz  ! .true. to update delz in fv3 model
   logical nems_nmmb_regional! .t. to run with NEMS NMMB model
   logical wrf_mass_regional !
@@ -455,6 +456,7 @@ contains
     wrf_mass_hybridcord = .false.
     cmaq_regional=.false.
     fv3_regional=.false.
+    fv3_cmaq_regional=.false.
     l_reg_update_hydro_delz=.false.
     nems_nmmb_regional = .false.
     twodvar_regional = .false. 
