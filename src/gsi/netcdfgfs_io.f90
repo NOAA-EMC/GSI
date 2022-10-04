@@ -210,20 +210,23 @@ contains
        if (hofx_2m_sfcfile) then  ! current read_sfc routines called from different part of 
                                  ! of the code, can't easily read into the met-bundle 
                                  ! wrote a new routine here
-          if (mype==0) write(*,*) 'calling general_read_gfsatm_nc for 2m data', it
+          if (mype==0) write(*,*) 'calling general_read_gfsatm_nc for 2m data', it, ifilesig(it)
           write(filename,'(''sfcf'',i2.2)') ifilesig(it)
           call general_read_gfsatm_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
                atm_bundle,.true.,istatus)
-          if (mype==0) write(*,*) 'done with general_read_gfsatm_nc for 2m data', it 
-       endif
-       write(filename,'(''sigf'',i2.2)') ifilesig(it)
-       if (fv3_full_hydro) then
+
+          write(filename,'(''sigf'',i2.2)') ifilesig(it)
+          call general_read_gfsatm_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
+               atm_bundle,.true.,istatus)
+       elseif (fv3_full_hydro) then
           if (mype==0) write(*,*) 'calling general_read_gfsatm_allhydro_nc', it
+          write(filename,'(''sigf'',i2.2)') ifilesig(it)
           call general_read_gfsatm_allhydro_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
               atm_bundle,istatus) ! this loads cloud and precip
           if (mype==0) write(*,*) 'done with general_read_gfsatm_allhydro_nc', it 
-       else 
+       else
           if (mype==0) write(*,*) 'calling general_read_gfsatm_nc'
+          write(filename,'(''sigf'',i2.2)') ifilesig(it)
           call general_read_gfsatm_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
                atm_bundle,.true.,istatus)
           if (mype==0) write(*,*) 'done with general_read_gfsatm_nc'

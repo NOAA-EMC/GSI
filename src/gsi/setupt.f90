@@ -1844,12 +1844,12 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )              
     endif
 
-    if (twodvar_regional .or. hofx_2m_sfcfile .or. l_obsprvdiag) then
+    if (twodvar_regional .or. l_obsprvdiag .or. hofx_2m_sfcfile  ) then
        call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i)              )
 ! this is the model height interpolated to the obs location in read_prepbufr
        call nc_diag_metadata("Model_Terrain",     data(izz,i)                  )
     endif 
-    if (twodvar_regional) then
+    if (twodvar_regional .or. l_obsprvdiag) then
        r_prvstg            = data(iprvd,i)
        call nc_diag_metadata("Provider_Name",     c_prvstg                     )    
        r_sprvstg           = data(isprvd,i)
