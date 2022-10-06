@@ -2730,7 +2730,7 @@ contains
                  call nc_diag_metadata("Sfc_Wind_Direction", sngl(surface(1)%wind_direction)                    )
                  call nc_diag_metadata("Sfc_Height",         sngl(zsges    )                                    )   ! do we need this for geoval? I think we do not
 
-                 call nc_diag_metadata("tropopause_pressure", sngl(trop5))
+                 call nc_diag_metadata("tropopause_pressure", sngl(trop5*10.0_r_kind))    ! trop5 is in kPa - convert to hPa
 
                  ! Get GeoVaLs for atmosphere
                  call nc_diag_data2d("air_temperature",      sngl(atmosphere(1)%temperature)                    )   ! K 
