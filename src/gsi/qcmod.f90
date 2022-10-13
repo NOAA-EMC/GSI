@@ -2283,16 +2283,16 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 !  if (cris .or. iasi .or. airs .or. hirs .or. goessndr)then
   if ( cris .and. cris_co2 ) then
      ichan_pairs(1,1:4) = (/67, 89, 105, 134/)   ! channels used for CO2 cloud detection
-     ichan_pairs(2,1:4) = (/89, 105, 134, 158/)
+     ichan_pairs(2,1:4) = (/89, 105, 134, 159/)
      isurface_chan = 501                         ! surface channel
-     cloud_threshold = 0.01_r_kind              ! cloud detection minimum (1.0%)
+     cloud_threshold = 0.007_r_kind              ! cloud detection minimum (1.0%)
      call CO2_cloud_detect(ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,tvp,tsavg5,  &
                            prsltmp,trop5,emissivity,ptau5,cloud_threshold,lcloud )
   elseif ( iasi .and. iasi_co2 ) then
      ichan_pairs(1,1:4) = (/185, 243, 282, 354/) ! channels used for CO2 cloud detection
      ichan_pairs(2,1:4) = (/243, 282, 354, 414/)
      isurface_chan = 1271                        ! surface channel
-     cloud_threshold = 0.01_r_kind              ! cloud detection minimum (1.0%)
+     cloud_threshold = 0.007_r_kind              ! cloud detection minimum (1.0%)
      call CO2_cloud_detect(ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,tvp,tsavg5,  &
                            prsltmp,trop5,emissivity,ptau5,cloud_threshold,lcloud )
   elseif ( airs .and. airs_co2 ) then
@@ -2310,7 +2310,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
      call CO2_cloud_detect(ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,tvp,tsavg5,  &
                            prsltmp,trop5,emissivity,ptau5,cloud_threshold,lcloud )
   else
-     call statistical_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,ptau5,lcloud,cloudp,cldp)
+     call emc_legacy_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,ptau5,lcloud,cloudp,cldp)
   endif
 
   if ( lcloud > 0 ) then  ! If cloud detected, reject channels affected by it.
@@ -2567,7 +2567,7 @@ subroutine CO2_cloud_detect(ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,t
 
 use crtm_planck_functions, only: crtm_planck_radiance
 use radinfo, only: nuchan
-use constants, only: zero, one
+use constants, only: zero, one, two
 implicit none
 
 integer(i_kind),                      intent(in   ) :: nchanl, nsig, isurface_chan
@@ -2582,16 +2582,15 @@ real(r_kind), dimension(nsig),        intent(in   ) :: tvp, prsltmp
 
 integer(i_kind) :: i, j, k, m
 
-real(r_kind) :: radiance_chan, radiance_model, radiance_cloud
-real(r_kind) :: co2_val, co2_val_previous, slope, eff_cloud
-real(r_kind) :: cloud_temperature, cloud_pressure
+real(r_kind) :: radiance_chan, radiance_model, radiance_cloud, radiance_layer
+real(r_kind) :: co2_val, co2_val_previous, slope, temp_avg
+real(r_kind) :: cloud_temperature, cloud_pressure, eff_cloud
 real(r_kind),dimension(2) :: radiance_diff
-real(r_kind),dimension(5) :: layer_thresholds
-real(r_kind),dimension(nsig) :: radiance_layer
+real(r_kind),dimension(4) :: layer_thresholds
 real(r_kind),dimension(nsig,2) :: radiance_layer_sum
 
 !    top and bottom pressure levels used by ichan_pairs 
-     layer_thresholds = (/trop5, 40.0_r_kind, 55.0_r_kind, 70.0_r_kind, 80.0_r_kind/)
+     layer_thresholds = (/40.0_r_kind, 55.0_r_kind, 70.0_r_kind, 80.0_r_kind/)
      icloud_layer = 0
 
 !  The CO2_slicing code
@@ -2605,12 +2604,14 @@ real(r_kind),dimension(nsig,2) :: radiance_layer_sum
 ! integrate model radiance from surface upward for first channel
            profile_loop_1: do k=1, nsig
              if ( k == 1) then
-               call crtm_planck_radiance(1,m,tsavg5,radiance_layer(k))
-               radiance_layer_sum(k,1) = ptau5(k,i) * radiance_layer(k) * emissivity(i)
+               call crtm_planck_radiance(1,m,tsavg5,radiance_layer)
+               radiance_layer_sum(k,1) = ptau5(k,i) * radiance_layer * emissivity(i)
+               call crtm_planck_radiance(1,m,tvp(k),radiance_layer)
+               radiance_layer_sum(k,1) = radiance_layer_sum(k,1) + ptau5(k,i) * radiance_layer 
              else
-               call crtm_planck_radiance(1,m,tvp(k),radiance_layer(k)) ! model layer radiancea
-               radiance_layer(k) = ptau5(k,i) * radiance_layer(k)
-               radiance_layer_sum(k,1) = radiance_layer_sum(k-1,1) + (radiance_layer(k) - radiance_layer(k-1))
+               temp_avg = (tvp(k) + tvp(k-1)) / two
+               call crtm_planck_radiance(1,m,temp_avg,radiance_layer) ! model layer radiance
+               radiance_layer_sum(k,1) = radiance_layer_sum(k,1) + (radiance_layer * (ptau5(k,i) - ptau5(k-1,i))) ! integration
              endif
            end do  profile_loop_1
 
@@ -2621,12 +2622,14 @@ real(r_kind),dimension(nsig,2) :: radiance_layer_sum
 ! integrate model radiance from surface upward for second channel
            profile_loop_2: do k=1, nsig
              if ( k == 1) then
-               call crtm_planck_radiance(1,m,tsavg5,radiance_layer(k))
-               radiance_layer_sum(k,2) = ptau5(k,i) * radiance_layer(k) * emissivity(i)
+               call crtm_planck_radiance(1,m,tsavg5,radiance_layer)
+               radiance_layer_sum(k,2) = ptau5(k,i) * radiance_layer * emissivity(i)
+               call crtm_planck_radiance(1,m,tvp(k),radiance_layer)
+               radiance_layer_sum(k,2) = radiance_layer_sum(k,2) + ptau5(k,i) * radiance_layer 
              else
-               call crtm_planck_radiance(1,m,tvp(k),radiance_layer(k)) ! model layer radiance
-               radiance_layer(k) = ptau5(k,i) * radiance_layer(k)
-               radiance_layer_sum(k,2) = radiance_layer_sum(k-1,2) + (radiance_layer(k) - radiance_layer(k-1))
+               temp_avg = (tvp(k) + tvp(k-1)) / two
+               call crtm_planck_radiance(1,m,temp_avg,radiance_layer) ! model layer radiance
+               radiance_layer_sum(k,2) = radiance_layer_sum(k,2) + (radiance_layer * (ptau5(k,i) - ptau5(k-1,i))) ! integration
              endif
            end do  profile_loop_2
          endif ! ichan_pairs
@@ -2635,12 +2638,13 @@ real(r_kind),dimension(nsig,2) :: radiance_layer_sum
 ! test for cloud in this pair
 ! if cloud is detected, find layer cloud is in
         cloud_test: do k = nsig, 1, -1
-          if (prsltmp(k) > layer_thresholds(j) .and. prsltmp(k) < layer_thresholds(j+1)) then !range to look for clouds
-            co2_val = radiance_diff(1) / radiance_diff(2) * radiance_layer_sum(k,2) / radiance_layer_sum(k,1)
+          if (prsltmp(k) > trop5 .and. prsltmp(k) < layer_thresholds(j)) then !range to look for clouds
+            co2_val = radiance_diff(2) / radiance_diff(1) * radiance_layer_sum(k,1) / radiance_layer_sum(k,2)
             if (co2_val < one .and. co2_val > zero ) then   ! FOUND A CLOUD !
 !             derive cloud height within the layer
-              co2_val_previous =  radiance_diff(1) / radiance_diff(2) * radiance_layer_sum(k+1,2) / radiance_layer_sum(k+1,1)
+              co2_val_previous =  radiance_diff(2) / radiance_diff(1) * radiance_layer_sum(k+1,1) / radiance_layer_sum(k+1,2)
               slope = (tvp(k+1) - tvp(k)) / (co2_val_previous - co2_val) ! temperature slope across layer 
+              if ( slope > zero) cycle chan_pairs
               cloud_temperature = slope * (one - co2_val_previous) + tvp(k+1) !cloud top temperature
               slope = log(prsltmp(k+1) / prsltmp(k)) / (co2_val_previous - co2_val) ! pressure slope across layer
               cloud_pressure = exp(slope * (one - co2_val_previous)) + prsltmp(k+1) ! cloud top pressure
@@ -2691,11 +2695,11 @@ real(r_kind),dimension(nsig,2) :: radiance_layer_sum
 end subroutine CO2_cloud_detect
 
 
-subroutine statistical_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,ptau5,lcloud,cloudp,cldp)
+subroutine emc_legacy_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,ptau5,lcloud,cloudp,cldp)
 
 !$$$ subprogram documentation block
 !               .      .    .
-! subprogram:  statistical_cloud_detect    determine clear/cloudy profiles from hirs,goessndr,airs,iasi,cris instruments
+! subprogram:  emc_legacy_cloud_detect    determine clear/cloudy profiles from hirs,goessndr,airs,iasi,cris instruments
 !
 !   prgmmr: derber ???        org: np23            date: ???
 !
@@ -2790,7 +2794,7 @@ real(r_kind),dimension(nchanl) :: dtb
 
   end do
 
-end subroutine statistical_cloud_detect
+end subroutine emc_legacy_cloud_detect
 
 
 
