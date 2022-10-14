@@ -16,12 +16,22 @@ module get_gfs_ensmod_mod
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+    use kinds, only: i_kind,r_kind,r_single
     use mpeu_util, only: die
     use mpimod, only: mype,npe
     use abstract_ensmod, only: this_ens_class => abstractEnsemble
+    use genex_mod, only: genex_info
 
     implicit none
     private
+
+    integer(i_kind) :: ias,iae,iasm,iaem,iaemz,jas,jae,jasm,jaem,jaemz
+    integer(i_kind) :: kas,kae,kasm,kaem,kaemz,mas,mae,masm,maem,maemz
+    integer(i_kind) :: ibs,ibe,ibsm,ibem,ibemz,jbs,jbe,jbsm,jbem,jbemz
+    integer(i_kind) :: kbs,kbe,kbsm,kbem,kbemz,mbs,mbe,mbsm,mbem,mbemz
+    integer(i_kind) :: n2d
+    type(genex_info) :: s_a2b
+
     public :: ensemble
     public :: ensemble_typemold
 
@@ -84,7 +94,6 @@ subroutine get_gfs_Nens(this,grd,members,ntindex,atm_bundle,iret)
 !
 !$$$
 
-    use kinds, only: i_kind,r_kind,r_single
     use gridmod, only: use_gfs_nemsio, use_gfs_ncio
     use general_sub2grid_mod, only: sub2grid_info
     use hybrid_ensemble_parameters, only: ens_fast_read
@@ -166,7 +175,6 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
 !$$$
 
     use mpimod, only: mpi_comm_world,ierror,mpi_real8,mpi_integer4,mpi_max
-    use kinds, only: i_kind,r_single,r_kind
     use constants, only: zero
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_destroy_info
     use gsi_4dvar, only: ens_fhrlevs
@@ -175,7 +183,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     use hybrid_ensemble_parameters, only: ensemble_path
     use control_vectors, only: nc2d,nc3d
     !use control_vectors, only: cvars2d,cvars3d
-    use genex_mod, only: genex_info,genex_create_info,genex,genex_destroy_info
+    use genex_mod, only: genex_create_info,genex,genex_destroy_info
     use gridmod, only: use_gfs_nemsio
     use jfunc, only: cnvw_option
 
@@ -195,14 +203,9 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     character(len=70) :: filenamesfc
     integer(i_kind) :: i,ii,j,jj,k,n
     integer(i_kind) :: io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,i_ens
-    integer(i_kind) :: ip,ips,ipe,jps,jpe
-    integer(i_kind) :: ias,iae,iasm,iaem,iaemz,jas,jae,jasm,jaem,jaemz
-    integer(i_kind) :: kas,kae,kasm,kaem,kaemz,mas,mae,masm,maem,maemz
-    integer(i_kind) :: ibs,ibe,ibsm,ibem,ibemz,jbs,jbe,jbsm,jbem,jbemz
-    integer(i_kind) :: kbs,kbe,kbsm,kbem,kbemz,mbs,mbe,mbsm,mbem,mbemz
-    integer(i_kind) :: n2d
+    integer(i_kind) :: ip
     integer(i_kind) :: nlon,nlat,nsig
-    type(genex_info) :: s_a2b
+    integer(i_kind),dimension(n_ens) :: io_pe0
     real(r_single),allocatable,dimension(:,:,:,:) :: en_full,en_loc
     real(r_kind),allocatable,dimension(:,:,:) :: en_loc3
     integer(i_kind),allocatable,dimension(:) :: m_cvars2dw,m_cvars3dw
@@ -214,61 +217,69 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     nlon=grd_ens%nlon
     nsig=grd_ens%nsig
 
+    if(ntindex == 1)then
     !  set up partition of available processors for parallel read
-    if ( n_ens > npe ) &
-        call die(myname_, ': ***ERROR*** CANNOT READ ENSEMBLE  n_ens > npe, increase npe >= n_ens', 99)
+      if ( n_ens > npe ) &
+          call die(myname_, ': ***ERROR*** CANNOT READ ENSEMBLE  n_ens > npe, increase npe >= n_ens', 99)
 
-    call ens_io_partition_(n_ens,ntindex,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,i_ens)
+
+      call ens_io_partition_(n_ens,ntindex,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,io_pe0,i_ens)
+
 
     ! setup communicator for scatter to subdomains:
-
     ! first, define gsi subdomain boundaries in global units:
-
-    ip=1   !  halo width is hardwired at 1
-    ips=grd_ens%istart(mype+1)
-    ipe=ips+grd_ens%lat1-1
-    jps=grd_ens%jstart(mype+1)
-    jpe=jps+grd_ens%lon1-1
-
 
 !!!!!!!!!!!!NOTE--FOLLOWING HAS MANY VARS TO BE DEFINED--NLAT,NLON ARE ENSEMBLE DOMAIN DIMS
 !!!!!!!!for example,  n2d = nc3d*nsig + nc2d
 
-    n2d=nc3d*grd_ens%nsig+nc2d
-    ias=1 ; iae=0 ; jas=1 ; jae=0 ; kas=1 ; kae=0 ; mas=1 ; mae=0
-    if(mype==io_pe) then
-       iae=nlat
-       jae=nlon
-       kae=n2d
-       mas=n_io_pe_s ; mae=n_io_pe_em
-    endif
-    iasm=ias ; iaem=iae ; jasm=jas ; jaem=jae ; kasm=kas ; kaem=kae ; masm=mas ; maem=mae
+      n2d=nc3d*grd_ens%nsig+nc2d
+      ias=1 ; iae=0 ; jas=1 ; jae=0 ; kas=1 ; kae=0 ; mas=1 ; mae=0
+      if(mype==io_pe) then
+         iae=nlat
+         jae=nlon
+         kae=n2d
+         mas=n_io_pe_s ; mae=n_io_pe_em
+      endif
+      iasm=ias ; iaem=iae ; jasm=jas ; jaem=jae ; kasm=kas ; kaem=kae ; masm=mas ; maem=mae
 
-    ibs =ips    ; ibe =ipe    ; jbs =jps    ; jbe =jpe
-    ibsm=ibs-ip ; ibem=ibe+ip ; jbsm=jbs-ip ; jbem=jbe+ip
-    kbs =1   ; kbe =n2d ; mbs =1   ; mbe =n_ens
-    kbsm=kbs ; kbem=kbe ; mbsm=mbs ; mbem=mbe
-    iaemz=max(iasm,iaem) ; jaemz=max(jasm,jaem)
-    kaemz=max(kasm,kaem) ; maemz=max(masm,maem)
-    ibemz=max(ibsm,ibem) ; jbemz=max(jbsm,jbem)
-    kbemz=max(kbsm,kbem) ; mbemz=max(mbsm,mbem)
-    call genex_create_info(s_a2b,ias ,iae ,jas ,jae ,kas ,kae ,mas ,mae , &
-                                 ibs ,ibe ,jbs ,jbe ,kbs ,kbe ,mbs ,mbe , &
-                                 iasm,iaem,jasm,jaem,kasm,kaem,masm,maem, &
-                                 ibsm,ibem,jbsm,jbem,kbsm,kbem,mbsm,mbem)
+      ip=1   !  halo width is hardwired at 1
+      ibs=grd_ens%istart(mype+1)
+      ibe=ibs+grd_ens%lat1-1
+      jbs=grd_ens%jstart(mype+1)
+      jbe=jbs+grd_ens%lon1-1
 
-    write(filename,22) trim(adjustl(ensemble_path)),ens_fhrlevs(ntindex),mas
-22  format(a,'sigf',i2.2,'_ens_mem',i3.3)
+      ibsm=ibs-ip ; ibem=ibe+ip ; jbsm=jbs-ip ; jbem=jbe+ip
+      kbs =1   ; kbe =n2d ; mbs =1   ; mbe =n_ens
+      kbsm=kbs ; kbem=kbe ; mbsm=mbs ; mbem=mbe
+      iaemz=max(iasm,iaem) ; jaemz=max(jasm,jaem)
+      kaemz=max(kasm,kaem) ; maemz=max(masm,maem)
+      ibemz=max(ibsm,ibem) ; jbemz=max(jbsm,jbem)
+      kbemz=max(kbsm,kbem) ; mbemz=max(mbsm,mbem)
+      call genex_create_info(s_a2b,ias ,iae ,jas ,jae ,kas ,kae ,mas ,mae , &
+                                   ibs ,ibe ,jbs ,jbe ,kbs ,kbe ,mbs ,mbe , &
+                                   iasm,iaem,jasm,jaem,kasm,kaem,masm,maem, &
+                                   ibsm,ibem,jbsm,jbem,kbsm,kbem,mbsm,mbem)
+  
+      if(mype==0)then
+         do n=1,n_ens
+          write(6,'(3(a,1x,i5,1x))') 'reading ensemble member', n,'on pe', io_pe0(n)
+         enddo
+      end if
+
+    end if
+    if(mype==0) write(6,*) ' reading time level ',ntindex 
 
     allocate(m_cvars2dw(nc2din),m_cvars3dw(nc3din))
     m_cvars2dw=-999
     m_cvars3dw=-999
 
-    allocate(en_full(iasm:iaemz,jasm:jaemz,kasm:kaemz,masm:maemz))
 
 !!  read ensembles
 
     if ( mas == mae ) then
+       allocate(en_full(iasm:iaemz,jasm:jaemz,kasm:kaemz,masm:maemz))
+       write(filename,22) trim(adjustl(ensemble_path)),ens_fhrlevs(ntindex),mas
+22     format(a,'sigf',i2.2,'_ens_mem',i3.3)
        if ( use_gfs_nemsio ) then
           if (cnvw_option) then
              write(filenamesfc,23) trim(adjustl(ensemble_path)),ens_fhrlevs(ntindex),mas
@@ -289,6 +300,8 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
                                          iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
                                          filename)
        end if
+    else
+       allocate(en_full(1,1,1,1))
     end if
 
     call mpi_allreduce(m_cvars2dw,m_cvars2d,nc2d,mpi_integer4,mpi_max,mpi_comm_world,ierror)
@@ -303,7 +316,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     call genex(s_a2b,en_full,en_loc)
 
     deallocate(en_full)
-    call genex_destroy_info(s_a2b)  ! check on actual routine name
+!   call genex_destroy_info(s_a2b)  ! check on actual routine name
 
 ! transfer en_loc to en_loc3 then to atm_bundle
 
@@ -361,7 +374,6 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
 !
 !$$$
 
-    use kinds, only: i_kind,r_kind,r_single
     use constants, only: zero,one,two,fv
     use general_sub2grid_mod, only: sub2grid_info
     use hybrid_ensemble_parameters, only: en_perts
@@ -477,7 +489,6 @@ end subroutine move2bundle_
 
 subroutine create_grd23d_(grd23d,nvert)
 
-    use kinds, only: i_kind
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
     use hybrid_ensemble_parameters, only: grd_ens
 
@@ -500,7 +511,6 @@ end subroutine create_grd23d_
 
 subroutine update_halos_(grd,s)
 
-    use kinds, only: i_kind,r_kind
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid,general_grid2sub
 
     implicit none
@@ -524,8 +534,9 @@ subroutine update_halos_(grd,s)
     kbegin_loc=grd%kbegin_loc
     kend_loc=grd%kend_loc
     kend_alloc=grd%kend_alloc
+
     allocate(sloc(lat2*lon2*nvert))
-    allocate(work(inner_vars,nlat,nlon,kbegin_loc:kend_alloc))
+
     ii=0
     do k=1,nvert
        do j=1,lon2
@@ -535,9 +546,13 @@ subroutine update_halos_(grd,s)
           enddo
        enddo
     enddo
+
+    allocate(work(inner_vars,nlat,nlon,kbegin_loc:kend_alloc))
     call general_sub2grid(grd,sloc,work)
 
     call general_grid2sub(grd,work,sloc)
+    deallocate(work)
+
     ii=0
     do k=1,nvert
        do j=1,lon2
@@ -548,16 +563,15 @@ subroutine update_halos_(grd,s)
        enddo
     enddo
 
-    deallocate(sloc,work)
+    deallocate(sloc)
 
 end subroutine update_halos_
 
-subroutine ens_io_partition_(n_ens,ntindex,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,i_ens)
+subroutine ens_io_partition_(n_ens,ntindex,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,io_pe0,i_ens)
 
 !     do computation on all processors, then assign final local processor
 !     values.
 
-      use kinds, only: r_kind,i_kind
       use constants, only: half
 
       implicit none
@@ -565,9 +579,9 @@ subroutine ens_io_partition_(n_ens,ntindex,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,
 !     Declare passed variables
       integer(i_kind),intent(in   ) :: n_ens,ntindex
       integer(i_kind),intent(  out) :: io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,i_ens
+      integer(i_kind),intent(  out) :: io_pe0(n_ens)
 
 !     Declare local variables
-      integer(i_kind) :: io_pe0(n_ens)
       integer(i_kind) :: iskip,jskip,nextra,ipe,n
       integer(i_kind) :: nsig
 
@@ -591,11 +605,6 @@ subroutine ens_io_partition_(n_ens,ntindex,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,
          endif
          ipe=ipe+jskip
       enddo
-      if(mype==0)then
-         do n=1,n_ens
-            write(6,'(3(a,1x,i5,1x))') 'reading ensemble member', n,' time level',ntindex,'on pe', io_pe0(n)
-         enddo
-      end if
 
       do n=1,n_ens
          if(mype==io_pe0(n)) then
@@ -614,7 +623,6 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
                                         iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
                                         filename,init_head,filenamesfc)
 
-   use kinds, only: i_kind,r_kind,r_single
    use constants, only: r60,r3600,zero,one,half,deg2rad
    use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
    use ncepnems_io, only: error_msg,imp_physics
@@ -641,7 +649,6 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    ! Declare local variables
    integer(i_kind) i,ii,j,jj,k,lonb,latb,levs,latb2,lonb2
    integer(i_kind) k2,k3,k3u,k3v,k3t,k3q,k3cw,k3oz,kf
-   integer(i_kind) k3ql,k3qi,k3qr,k3qs,k3qg
    integer(i_kind) iret
    integer(i_kind) :: istop = 101
    integer(i_kind),dimension(7):: idate
@@ -726,23 +733,40 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    allocate(work(nlon*(nlat-2)))
    if (imp_physics == 11) allocate(work2(nlon*(nlat-2)))
    allocate(temp3(nlat,nlon,nsig,nc3d))
-   allocate(temp2(nlat,nlon,nc2d))
+   temp3=zero
    k3u=0 ; k3v=0 ; k3t=0 ; k3q=0 ; k3cw=0 ; k3oz=0
-   k3ql=0; k3qi=0; k3qr=0; k3qs=0; k3qg=0 
    do k3=1,nc3d
-      if(cvars3d(k3)=='sf') k3u=k3
-      if(cvars3d(k3)=='vp') k3v=k3
-      if(cvars3d(k3)=='t') k3t=k3
-      if(cvars3d(k3)=='q') k3q=k3
-      if(cvars3d(k3)=='cw') k3cw=k3
-      if(cvars3d(k3)=='oz') k3oz=k3
-      if(cvars3d(k3)=='ql') k3ql=k3
-      if(cvars3d(k3)=='qi') k3qi=k3
-      if(cvars3d(k3)=='qr') k3qr=k3
-      if(cvars3d(k3)=='qs') k3qs=k3
-      if(cvars3d(k3)=='qg') k3qg=k3
       do k=1,nsig
-         if(trim(cvars3d(k3))=='cw') then
+         if(trim(cvars3d(k3))=='t') then
+            k3t=k3
+            call nemsio_readrecv(gfile,'tmp','mid layer',k,work,iret=iret)
+            if (iret /= 0) call error_msg(trim(myname_),trim(filename),'tmp','read',istop+3,iret,.true.)
+            call move1_(work,temp3(:,:,k,k3),nlon,nlat)
+            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
+         elseif(trim(cvars3d(k3))=='sf') then
+            k3u=k3
+            call nemsio_readrecv(gfile,'ugrd','mid layer',k,work,iret=iret)
+            if (iret /= 0) call error_msg(trim(myname_),trim(filename),'ugrd','read',istop+1,iret,.true.)
+            call move1_(work,temp3(:,:,k,k3),nlon,nlat)
+         elseif(trim(cvars3d(k3))=='vp') then
+            k3v=k3
+            call nemsio_readrecv(gfile,'vgrd','mid layer',k,work,iret=iret)
+            if (iret /= 0) call error_msg(trim(myname_),trim(filename),'vgrd','read',istop+2,iret,.true.)
+            call move1_(work,temp3(:,:,k,k3),nlon,nlat)
+         elseif(trim(cvars3d(k3))=='q') then
+            k3q=k3
+            call nemsio_readrecv(gfile,'spfh','mid layer',k,work,iret=iret)
+            if (iret /= 0) call error_msg(trim(myname_),trim(filename),trim(cvars3d(k3)),'read',istop+4,iret,.true.)
+            call move1_(work,temp3(:,:,k,k3),nlon,nlat)
+            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
+         elseif(trim(cvars3d(k3))=='oz') then
+            k3oz=k3
+            call nemsio_readrecv(gfile,'o3mr','mid layer',k,work,iret=iret)
+            if (iret /= 0) call error_msg(trim(myname_),trim(filename),'o3mr','read',istop+5,iret,.true.)
+            call move1_(work,temp3(:,:,k,k3),nlon,nlat)
+            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
+         elseif(trim(cvars3d(k3))=='cw') then
+            k3cw=k3
             call nemsio_readrecv(gfile,'clwmr','mid layer',k,work,iret=iret)
             if (iret /= 0) call error_msg(trim(myname_),trim(filename),'clwmr','read',istop+6,iret,.true.)
             if (imp_physics == 11) then
@@ -789,30 +813,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
             if (iret /= 0) call error_msg(trim(myname_),trim(filename),'grle','read',istop+12,iret)
             call move1_(work,temp3(:,:,k,k3),nlon,nlat)
             call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         elseif(trim(cvars3d(k3))=='oz') then
-            call nemsio_readrecv(gfile,'o3mr','mid layer',k,work,iret=iret)
-            if (iret /= 0) call error_msg(trim(myname_),trim(filename),'o3mr','read',istop+5,iret,.true.)
-            call move1_(work,temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         elseif(trim(cvars3d(k3))=='q') then
-            call nemsio_readrecv(gfile,'spfh','mid layer',k,work,iret=iret)
-            if (iret /= 0) call error_msg(trim(myname_),trim(filename),trim(cvars3d(k3)),'read',istop+4,iret,.true.)
-            call move1_(work,temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         elseif(trim(cvars3d(k3))=='t') then
-            call nemsio_readrecv(gfile,'tmp','mid layer',k,work,iret=iret)
-            if (iret /= 0) call error_msg(trim(myname_),trim(filename),'tmp','read',istop+3,iret,.true.)
-            call move1_(work,temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         elseif(trim(cvars3d(k3))=='sf') then
-            call nemsio_readrecv(gfile,'ugrd','mid layer',k,work,iret=iret)
-            if (iret /= 0) call error_msg(trim(myname_),trim(filename),'ugrd','read',istop+1,iret,.true.)
-            call move1_(work,temp3(:,:,k,k3),nlon,nlat)
-         elseif(trim(cvars3d(k3))=='vp') then
-            call nemsio_readrecv(gfile,'vgrd','mid layer',k,work,iret=iret)
-            if (iret /= 0) call error_msg(trim(myname_),trim(filename),'vgrd','read',istop+2,iret,.true.)
-            call move1_(work,temp3(:,:,k,k3),nlon,nlat)
-         endif
+         end if
       enddo
    enddo
    do k=1,nsig
@@ -822,10 +823,29 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    if (k3u==0.or.k3v==0.or.k3t==0.or.k3q==0.or.k3oz==0) &  
       write(6,'(" WARNING, problem with one of k3-")')
 
+!  move temp3 to en_full
+   kf=0
+   do k3=1,nc3d
+      m_cvars3d(k3)=kf+1
+      do k=1,nsig
+         kf=kf+1
+         jj=jas-1
+         do j=1,nlon
+            jj=jj+1
+            ii=ias-1
+            do i=1,nlat
+               ii=ii+1
+               en_full(ii,jj,kf,mas)=temp3(i,j,k,k3)
+            enddo
+         enddo
+      enddo
+   enddo
+   deallocate(temp3)
 
 !   convert T to Tv:    postpone this calculation
 !  temp3(:,:,:,k3t)=temp3(:,:,:,k3t)*(one+fv*temp3(:,:,:,k3q))
 
+   allocate(temp2(nlat,nlon,nc2d))
    temp2=zero
    do k2=1,nc2d
      !if(trim(cvars2d(k2))=='sst') then
@@ -844,24 +864,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    deallocate(work)
    if (imp_physics == 11) deallocate(work2)
 
-!  move temp2,temp3 to en_full
-   kf=0
-   do k3=1,nc3d
-      m_cvars3d(k3)=kf+1
-      do k=1,nsig
-         kf=kf+1
-         jj=jas-1
-         do j=1,nlon
-            jj=jj+1
-            ii=ias-1
-            do i=1,nlat
-               ii=ii+1
-               en_full(ii,jj,kf,mas)=temp3(i,j,k,k3)
-            enddo
-         enddo
-      enddo
-   enddo
-   deallocate(temp3)
+!  move temp2 to en_full
    do k2=1,nc2d
       m_cvars2d(k2)=kf+1
       kf=kf+1
@@ -894,7 +897,6 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
 !
 !$$$
 
-   use kinds, only: i_kind,r_kind,r_single
    use constants, only: r60,r3600,zero,one,half,deg2rad
    use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
    use general_sub2grid_mod, only: sub2grid_info
@@ -916,7 +918,6 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
    ! Declare local variables
    integer(i_kind) i,ii,j,jj,k,lonb,latb,levs,kr,ierror
    integer(i_kind) k2,k3,k3u,k3v,k3t,k3q,k3cw,k3oz,kf
-   integer(i_kind) k3ql,k3qi,k3qr,k3qs,k3qg
    character(len=120) :: myname_ = 'parallel_read_gfsnc_state_'
    real(r_single),allocatable,dimension(:,:,:) :: rwork3d1, rwork3d2
    real(r_single),allocatable,dimension(:,:) ::  temp2,rwork2d
@@ -960,78 +961,8 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
    allocate(rwork3d1(nlon,(nlat-2),nsig))
    allocate(temp3(nlat,nlon,nsig,nc3d))
    k3u=0 ; k3v=0 ; k3t=0 ; k3q=0 ; k3cw=0 ; k3oz=0
-   k3ql=0; k3qi=0; k3qr=0; k3qs=0; k3qg=0
    do k3=1,nc3d
-      if (trim(cvars3d(k3))=='cw') then
-         k3cw=k3
-         call read_vardata(atmges, 'clwmr', rwork3d1)
-         allocate(rwork3d2(nlon,(nlat-2),nsig))
-         rwork3d2 = 0._r_single
-         call read_vardata(atmges, 'icmr', rwork3d2) 
-         rwork3d1 = rwork3d1 + rwork3d2
-         deallocate(rwork3d2)
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         end do
-      else if(trim(cvars3d(k3))=='ql') then
-         k3ql=k3
-         call read_vardata(atmges, 'clwmr', rwork3d1)
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         end do
-      else if(trim(cvars3d(k3))=='qi') then
-         k3qi=k3
-         call read_vardata(atmges, 'icmr', rwork3d1)
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         end do
-      else if(trim(cvars3d(k3))=='qr') then
-         k3qr=k3
-         call read_vardata(atmges, 'rwmr', rwork3d1)
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         end do
-      else if(trim(cvars3d(k3))=='qs') then
-         k3qs=k3
-         call read_vardata(atmges, 'snmr', rwork3d1)
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         end do
-      else if(trim(cvars3d(k3))=='qg') then
-         k3qg=k3
-         call read_vardata(atmges, 'grle', rwork3d1)
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         end do
-      else if(trim(cvars3d(k3))=='oz') then
-         k3oz=k3
-         call read_vardata(atmges, 'o3mr', rwork3d1)
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         end do
-      else if(trim(cvars3d(k3))=='q') then
-         k3q=k3
-         call read_vardata(atmges, 'spfh', rwork3d1)
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         end do
-      else if(trim(cvars3d(k3))=='t') then
+      if(trim(cvars3d(k3))=='t') then
          k3t=k3
          call read_vardata(atmges, 'tmp', rwork3d1)
          do k=1,nsig
@@ -1053,6 +984,70 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
             kr = levs+1-k
             call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
          end do
+      else if(trim(cvars3d(k3))=='q') then
+         k3q=k3
+         call read_vardata(atmges, 'spfh', rwork3d1)
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
+         end do
+      else if (trim(cvars3d(k3))=='cw') then
+         k3cw=k3
+         call read_vardata(atmges, 'clwmr', rwork3d1)
+         allocate(rwork3d2(nlon,(nlat-2),nsig))
+         rwork3d2 = 0._r_single
+         call read_vardata(atmges, 'icmr', rwork3d2) 
+         rwork3d1 = rwork3d1 + rwork3d2
+         deallocate(rwork3d2)
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
+         end do
+      else if(trim(cvars3d(k3))=='oz') then
+         k3oz=k3
+         call read_vardata(atmges, 'o3mr', rwork3d1)
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
+         end do
+      else if(trim(cvars3d(k3))=='ql') then
+         call read_vardata(atmges, 'clwmr', rwork3d1)
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
+         end do
+      else if(trim(cvars3d(k3))=='qi') then
+         call read_vardata(atmges, 'icmr', rwork3d1)
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
+         end do
+      else if(trim(cvars3d(k3))=='qr') then
+         call read_vardata(atmges, 'rwmr', rwork3d1)
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
+         end do
+      else if(trim(cvars3d(k3))=='qs') then
+         call read_vardata(atmges, 'snmr', rwork3d1)
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
+         end do
+      else if(trim(cvars3d(k3))=='qg') then
+         call read_vardata(atmges, 'grle', rwork3d1)
+         do k=1,nsig
+            kr = levs+1-k
+            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
+         end do
       end if
    enddo
    deallocate(rwork3d1)
@@ -1065,7 +1060,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
       call fillpoles_sv_(temp3(:,:,k,k3u),temp3(:,:,k,k3v),nlon,nlat,clons,slons)
    end do
 
-!  move temp2,temp3 to en_full
+!  move temp3 to en_full
    kf=0
    do k3=1,nc3d
       m_cvars3d(k3)=kf+1
@@ -1095,6 +1090,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
          temp2=zero
       endif
 
+!  move temp2 to en_full
       kf=kf+1
       m_cvars2d(k2)=kf
       jj=jas-1
@@ -1139,7 +1135,6 @@ subroutine fillpoles_ss_(temp,nlon,nlat)
 !
 !$$$
 
-   use kinds, only: i_kind,r_kind,r_single
    use constants, only: zero,one
 
    implicit none
@@ -1149,6 +1144,7 @@ subroutine fillpoles_ss_(temp,nlon,nlat)
 
    integer(i_kind) nlatm1,i
    real(r_kind) sumn,sums,rnlon
+   real(r_single) sumn_sing,sums_sing
 
 !  Compute mean along southern and northern latitudes
    sumn=zero
@@ -1159,13 +1155,13 @@ subroutine fillpoles_ss_(temp,nlon,nlat)
       sums=sums+temp(2,i)
    end do
    rnlon=one/float(nlon)
-   sumn=sumn*rnlon
-   sums=sums*rnlon
+   sumn_sing=sumn*rnlon
+   sums_sing=sums*rnlon
 
 !  Load means into local work array
    do i=1,nlon
-      temp(1,i)   =sums
-      temp(nlat,i)=sumn
+      temp(1,i)   =sums_sing
+      temp(nlat,i)=sumn_sing
    end do
 
 end subroutine fillpoles_ss_
@@ -1197,13 +1193,12 @@ subroutine fillpoles_sv_(tempu,tempv,nlon,nlat,clons,slons)
 !
 !$$$
 
-   use kinds, only: i_kind,r_kind,r_single
    use constants, only: zero
 
    implicit none
 
    integer(i_kind),intent(in   ) :: nlon,nlat
-   real(r_single),   intent(inout) :: tempu(nlat,nlon),tempv(nlat,nlon)
+   real(r_single), intent(inout) :: tempu(nlat,nlon),tempv(nlat,nlon)
    real(r_kind),   intent(in   ) :: clons(nlon),slons(nlon)
 
    integer(i_kind) i
@@ -1258,7 +1253,6 @@ subroutine move1_(work,temp,nlon,nlat)
 !
 !$$$
 
-    use kinds, only: i_kind,r_kind,r_single
     use constants, only: zero
 
     implicit none
@@ -1308,7 +1302,6 @@ end subroutine move1_
 !
 !$$$
 
-    use kinds, only: i_kind,r_kind
     use gridmod, only: use_gfs_nemsio, use_gfs_ncio
     use general_sub2grid_mod, only: sub2grid_info
     use gsi_4dvar, only: ens_fhrlevs
@@ -1412,7 +1405,6 @@ subroutine put_gfs_ens(this,grd,member,ntindex,pert,iret)
 !
 !$$$
 
-    use kinds, only: i_kind
     use general_sub2grid_mod, only: sub2grid_info
     use gsi_bundlemod, only: gsi_bundle
     use gsi_4dvar, only: ens_fhrlevs
@@ -1475,7 +1467,6 @@ end subroutine put_gfs_ens
 
 subroutine non_gaussian_ens_grid_gfs(this,elats,elons)
 
-    use kinds, only: r_kind
     use hybrid_ensemble_parameters, only: sp_ens
 
     implicit none
@@ -1507,7 +1498,6 @@ end subroutine non_gaussian_ens_grid_gfs
 
 subroutine create_sub2grid_info(s2gi,nsig,npe,s2gi_ref)
 !> Create temporary communication information object for read ensemble routines
-   use kinds, only: i_kind
    use gridmod, only: regional
    use general_sub2grid_mod, only: sub2grid_info
    use general_sub2grid_mod, only: general_sub2grid_create_info
