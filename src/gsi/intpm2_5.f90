@@ -342,6 +342,8 @@ contains
                w3* spm2_5(j3)+w4* spm2_5(j4)+ &
                w5* spm2_5(j5)+w6* spm2_5(j6)+ &
                w7* spm2_5(j7)+w8* spm2_5(j8)
+          val= val*pm2_5ptr%pm25wc(iaero)
+
           nullify(spm2_5)
 !
           do iaero=2, naero_smoke_fv3
@@ -354,7 +356,7 @@ contains
           val=(w1* spm2_5(j1)+w2* spm2_5(j2)+ &
                w3* spm2_5(j3)+w4* spm2_5(j4)+ &
                w5* spm2_5(j5)+w6* spm2_5(j6)+ &
-               w7* spm2_5(j7)+w8* spm2_5(j8)) + val
+               w7* spm2_5(j7)+w8* spm2_5(j8))*pm2_5ptr%pm25wc(iaero) + val
 
           nullify(spm2_5)
           end do !iaero
@@ -396,7 +398,7 @@ contains
 
 !       adjoint
              !aeroname='smoke'
-          do iaero=1,1 ! naero_smoke_fv3  ! Smoke only 
+          do iaero=1, naero_smoke_fv3   
              aeroname = aeronames_smoke_fv3(iaero)
              call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus)
              if(istatus /= 0) then
@@ -405,14 +407,14 @@ contains
                 call stop2(455)
              endif
 
-             rpm2_5(j1)=rpm2_5(j1)+w1*grad 
-             rpm2_5(j2)=rpm2_5(j2)+w2*grad 
-             rpm2_5(j3)=rpm2_5(j3)+w3*grad 
-             rpm2_5(j4)=rpm2_5(j4)+w4*grad 
-             rpm2_5(j5)=rpm2_5(j5)+w5*grad 
-             rpm2_5(j6)=rpm2_5(j6)+w6*grad
-             rpm2_5(j7)=rpm2_5(j7)+w7*grad
-             rpm2_5(j8)=rpm2_5(j8)+w8*grad
+             rpm2_5(j1)=rpm2_5(j1)+w1*grad*pm2_5ptr%pm25wc(iaero) 
+             rpm2_5(j2)=rpm2_5(j2)+w2*grad*pm2_5ptr%pm25wc(iaero) 
+             rpm2_5(j3)=rpm2_5(j3)+w3*grad*pm2_5ptr%pm25wc(iaero) 
+             rpm2_5(j4)=rpm2_5(j4)+w4*grad*pm2_5ptr%pm25wc(iaero) 
+             rpm2_5(j5)=rpm2_5(j5)+w5*grad*pm2_5ptr%pm25wc(iaero) 
+             rpm2_5(j6)=rpm2_5(j6)+w6*grad*pm2_5ptr%pm25wc(iaero)
+             rpm2_5(j7)=rpm2_5(j7)+w7*grad*pm2_5ptr%pm25wc(iaero)
+             rpm2_5(j8)=rpm2_5(j8)+w8*grad*pm2_5ptr%pm25wc(iaero)
              nullify(rpm2_5)
           end do
           endif

@@ -237,7 +237,8 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
      call gsi_chemguess_get ( 'aerosols::3d', n_smoke_var, ier )
 
 !n_smoke_var ges vars in anainfo; naero_smoke_fv3 in chemmod
-
+!if naero_smoke_fv3 is greater than 3, change the dimension of
+!pm25wc_ges(naero_smoke_fv3) 
      if (n_smoke_var /= naero_smoke_fv3) then
         if (n_smoke_var < naero_smoke_fv3) then
            write(6,*) 'setuppm2_5: not all smoke aerosols in anavinfo',n_smoke_var,naero_smoke_fv3
@@ -262,9 +263,12 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            allocate(ges_pm2_5(size(rank3,1),size(rank3,2),size(rank3,3),&
                 nfldsig))
            ges_pm2_5(:,:,:,1)=rank3
+           allocate(pm25wc(size(rank3,1),size(rank3,2),size(rank3,3),naero_smoke_fv3,nfldsig))
+           pm25wc(:,:,:,1,1)=rank3
            do ifld=2,nfldsig
               call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
               ges_pm2_5(:,:,:,ifld)=rank3
+              pm25wc(:,:,:,1,ifld)=rank3
            enddo
         else
            write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chembundle,ier= ',ier
@@ -275,11 +279,13 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            aeroname=trim(aeronames_smoke_fv3(i))
            call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
              rank3,ier)
+           pm25wc(:,:,:,i,1)=rank3
            if (ier==0) then
              ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3
              do ifld=2,nfldsig
                call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
                ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3
+               pm25wc(:,:,:,i,ifld)=rank3
              enddo
            else
              write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chembundle,ier= ',ier
@@ -693,7 +699,7 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !convert for cmaq as well
 
 
-        if (wrf_mass_regional .or. fv3_cmaq_regional) then
+        if (wrf_mass_regional .or. fv3_cmaq_regional .or. laeroana_fv3smoke) then
            call tintrp2a11(ges_ps,ps_ges,dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
 
@@ -731,23 +737,42 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
                 mype,nfldsig)
            innov = conc - pm2_5ges
            if (laeroana_fv3smoke) then
-              if (abs(innov) >= 30.0 .or. conc >= 60.0) then
+              if ( -1.0*innov >= 5.0_r_kind .or. & 
+                  (innov > 15.0_r_kind .and. pm2_5ges >=1.0_r_kind).or. &
+                  (conc >= 60.0_r_kind .and. pm2_5ges >=1.0_r_kind).or. &
+                   conc >= 100.0_r_kind ) then
                  innov = innov
               else 
-                 innov = 0.0 
+                 innov = 0.0_r_kind 
               end if
+              if (tv_ges-273.15_r_kind < 0.0_r_kind) then
+                 innov = 0.0_r_kind
+              end if
+
            end if
         end if
 
         if ( fv3_cmaq_regional .and. laeroana_fv3cmaq) then
-! interpoloate pm25ac 
+          ! interpoloate pm25ac 
           call tintrp2a11(pm25wc(:,:,:,1,nfldsig),pm25wc_ges(1),dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig) 
           call tintrp2a11(pm25wc(:,:,:,2,nfldsig),pm25wc_ges(2),dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
           call tintrp2a11(pm25wc(:,:,:,3,nfldsig),pm25wc_ges(3),dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
-
+        elseif (laeroana_fv3smoke) then
+             call tintrp2a11(pm25wc(:,:,:,1,nfldsig),pm25wc_ges(1),dlat,dlon,dtime,hrdifsig,&
+                mype,nfldsig)
+             call tintrp2a11(pm25wc(:,:,:,2,nfldsig),pm25wc_ges(2),dlat,dlon,dtime,hrdifsig,&
+                mype,nfldsig)
+              print*,"tv_ges= ",tv_ges,conc,pm2_5ges,pm25wc_ges(1:2)
+             if ( sum(pm25wc_ges(1:2)) >= 1.0_r_kind) then
+                pm25wc_ges(1)=pm25wc_ges(1)/sum(pm25wc_ges(1:2))
+                pm25wc_ges(2)=1.0_r_kind-pm25wc_ges(1)
+             else
+                pm25wc_ges(1)=1.0_r_kind
+                pm25wc_ges(2)=0.0_r_kind
+             end if
         else
           pm25wc_ges = 0.0_r_kind
         end if

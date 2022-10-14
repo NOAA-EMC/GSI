@@ -302,10 +302,10 @@ contains
                    call stop2(457)
                 endif
 
-                val= 1.0* &
+                val= pm2_5ptr%pm25wc(iaero)* &
                     (w1* rpm2_5(j1)+w2* rpm2_5(j2)+w3* rpm2_5(j3)+w4*rpm2_5(j4)+&
                      w5* rpm2_5(j5)+w6* rpm2_5(j6)+w7*rpm2_5(j7)+w8*rpm2_5(j8))+val
-                val2= 1.0* &
+                val2= pm2_5ptr%pm25wc(iaero)* &
                     (w1* spm2_5(j1)+w2* spm2_5(j2)+w3* spm2_5(j3)+w4*spm2_5(j4)+&
                      w5* spm2_5(j5)+w6* spm2_5(j6)+w7*spm2_5(j7)+w8*spm2_5(j8))+val2
 
