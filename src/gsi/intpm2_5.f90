@@ -169,7 +169,7 @@ contains
                 if( ladtest_obs ) then
                    grad = val
                 else
-                   grad     = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+                   grad = val*pm2_5ptr%raterr2*pm2_5ptr%err2
                 end if
              endif
 !       adjoint
@@ -227,7 +227,7 @@ contains
                w7* spm2_5(j7)+w8* spm2_5(j8)
           val=val *pm2_5ptr%pm25wc(imodes_cmaq_fv3(iaero))
           nullify(spm2_5)
-!
+
           do iaero=2, naero_cmaq_fv3
             aeroname=aeronames_cmaq_fv3(iaero) 
             call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
@@ -276,7 +276,7 @@ contains
                 if( ladtest_obs ) then
                    grad = val
                 else
-                   grad     = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+                   grad = val*pm2_5ptr%raterr2*pm2_5ptr%err2
                 end if
              endif
 
@@ -308,7 +308,6 @@ contains
 
     end if
 
-!
    if (laeroana_fv3smoke) then
        !pm2_5ptr => pm2_5head
        pm2_5ptr => pm2_5Node_typecast(pm2_5head)
@@ -329,11 +328,11 @@ contains
           w6=pm2_5ptr%wij(6)
           w7=pm2_5ptr%wij(7)
           w8=pm2_5ptr%wij(8)
-!naero_smoke_fv3
+
           iaero=1
           aeroname=aeronames_smoke_fv3(iaero) !'smoke'
           call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
-          if(istatus /= 0) then
+          if (istatus /= 0) then
              write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ', aeroname
              call stop2(454)
           endif
@@ -345,11 +344,11 @@ contains
           val= val*pm2_5ptr%pm25wc(iaero)
 
           nullify(spm2_5)
-!
+
           do iaero=2, naero_smoke_fv3
           aeroname=aeronames_smoke_fv3(iaero)
           call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
-          if(istatus /= 0) then
+          if (istatus /= 0) then
              write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',aeroname
              call stop2(454)
           endif
@@ -384,39 +383,37 @@ contains
                    pm2_5_pg=pm2_5ptr%pg*varqc_iter
                    cg_pm2_5=cg_term/pm2_5ptr%b
                    wnotgross= one-pm2_5_pg
-                   wgross =pm2_5_pg*cg_pm2_5/wnotgross              ! wgross isi gama in the reference by enderson
+                   wgross=pm2_5_pg*cg_pm2_5/wnotgross                  ! wgross isi gama in the reference by enderson
                    p0=wgross/(wgross+exp(-half*pm2_5ptr%err2*val**2))  ! p0 is p in the reference by enderson
-                   val=val*(one-p0)                         ! term is wqc in the referenc by enderson
+                   val=val*(one-p0)                                    ! term is wqc in the referenc by enderson
                 endif
 
-                if( ladtest_obs ) then
+                if ( ladtest_obs ) then
                    grad = val
                 else
-                   grad     = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+                   grad = val*pm2_5ptr%raterr2*pm2_5ptr%err2
                 end if
              endif
 
-!       adjoint
-             !aeroname='smoke'
-          do iaero=1, naero_smoke_fv3   
-             aeroname = aeronames_smoke_fv3(iaero)
-             call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus)
-             if(istatus /= 0) then
-                write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',&
-                     aeroname
-                call stop2(455)
-             endif
+!           adjoint
+            do iaero=1, naero_smoke_fv3
+               aeroname = aeronames_smoke_fv3(iaero)
+               call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus)
+               if (istatus /= 0) then
+                 write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',aeroname
+                 call stop2(455)
+               endif
 
-             rpm2_5(j1)=rpm2_5(j1)+w1*grad*pm2_5ptr%pm25wc(iaero) 
-             rpm2_5(j2)=rpm2_5(j2)+w2*grad*pm2_5ptr%pm25wc(iaero) 
-             rpm2_5(j3)=rpm2_5(j3)+w3*grad*pm2_5ptr%pm25wc(iaero) 
-             rpm2_5(j4)=rpm2_5(j4)+w4*grad*pm2_5ptr%pm25wc(iaero) 
-             rpm2_5(j5)=rpm2_5(j5)+w5*grad*pm2_5ptr%pm25wc(iaero) 
-             rpm2_5(j6)=rpm2_5(j6)+w6*grad*pm2_5ptr%pm25wc(iaero)
-             rpm2_5(j7)=rpm2_5(j7)+w7*grad*pm2_5ptr%pm25wc(iaero)
-             rpm2_5(j8)=rpm2_5(j8)+w8*grad*pm2_5ptr%pm25wc(iaero)
-             nullify(rpm2_5)
-          end do
+               rpm2_5(j1)=rpm2_5(j1)+w1*grad*pm2_5ptr%pm25wc(iaero)
+               rpm2_5(j2)=rpm2_5(j2)+w2*grad*pm2_5ptr%pm25wc(iaero)
+               rpm2_5(j3)=rpm2_5(j3)+w3*grad*pm2_5ptr%pm25wc(iaero)
+               rpm2_5(j4)=rpm2_5(j4)+w4*grad*pm2_5ptr%pm25wc(iaero)
+               rpm2_5(j5)=rpm2_5(j5)+w5*grad*pm2_5ptr%pm25wc(iaero)
+               rpm2_5(j6)=rpm2_5(j6)+w6*grad*pm2_5ptr%pm25wc(iaero)
+               rpm2_5(j7)=rpm2_5(j7)+w7*grad*pm2_5ptr%pm25wc(iaero)
+               rpm2_5(j8)=rpm2_5(j8)+w8*grad*pm2_5ptr%pm25wc(iaero)
+               nullify(rpm2_5)
+            end do ! iaero
           endif
 
           pm2_5ptr => pm2_5Node_nextcast(pm2_5ptr)
@@ -425,9 +422,6 @@ contains
 
 
     end if
-!
-
-!
 
     if (wrf_mass_regional .and. laeroana_gocart) then
 
@@ -635,15 +629,15 @@ contains
                    pm2_5_pg=pm2_5ptr%pg*varqc_iter
                    cg_pm2_5=cg_term/pm2_5ptr%b
                    wnotgross= one-pm2_5_pg
-                   wgross =pm2_5_pg*cg_pm2_5/wnotgross              ! wgross is gama in the reference by enderson
+                   wgross=pm2_5_pg*cg_pm2_5/wnotgross                  ! wgross is gama in the reference by enderson
                    p0=wgross/(wgross+exp(-half*pm2_5ptr%err2*val**2))  ! p0 is p in the reference by enderson
-                   val=val*(one-p0)                         ! term is wqc in the referenc by enderson
+                   val=val*(one-p0)                                    ! term is wqc in the referenc by enderson
                 endif
 
                 if( ladtest_obs ) then
                    grad = val
                 else
-                   grad     = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+                   grad = val*pm2_5ptr%raterr2*pm2_5ptr%err2
                 end if
              endif
 

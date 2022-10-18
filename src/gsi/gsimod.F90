@@ -183,7 +183,7 @@
        oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname, &
        laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue, lread_ext_aerosol, &
-       laeroana_fv3cmaq,laeroana_fv3smoke,crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
+       laeroana_fv3cmaq,laeroana_fv3smoke,pm2_5_innov_threshold,crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
        icvt_cmaq_fv3, raod_radius_mean_scale,raod_radius_std_scale 
 
   use chemmod, only : wrf_pm2_5,aero_ratios
@@ -1570,7 +1570,7 @@
        in_fname,out_fname,incr_fname,&
        laeroana_gocart, laeroana_fv3cmaq,laeroana_fv3smoke,l_aoderr_table, aod_qa_limit, &
        crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
-       icvt_cmaq_fv3, &
+       icvt_cmaq_fv3,pm2_5_innov_threshold, &
        raod_radius_mean_scale,raod_radius_std_scale, luse_deepblue,&
        aero_ratios,wrf_pm2_5, lread_ext_aerosol
 

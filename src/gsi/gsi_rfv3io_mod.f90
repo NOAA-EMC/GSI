@@ -1125,10 +1125,15 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
              jtracer=jtracer+1
              fv3lam_io_tracersmokevars3d_nouv(jtracer)=trim(vartem)
               write(6,*)'the chemvarname ',jtracer,vartem,' is found '
+              if (trim(vartem) == "pm2_5")then
+                write(6,*)'the chemvarname ',vartem,' will be calculated.'
+              endif
+
            else
-              write(6,*)'the chemvarname ',vartem,' is not in aeronames_smoke_fv3, !!!!!!!!!!'
-              !call flush(6)
-              !call stop2(333)
+              if (trim(vartem) /= "pm2_5")then
+                write(6,*)'the chemvarname ',vartem,' is not in aeronames_smoke_fv3 !!!'
+                call flush(6)
+              endif
            endif
         enddo
         ntracersmokeio3d=jtracer+1
@@ -1410,9 +1415,8 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
            call GSI_BundleGetPointer ( gsibundle_fv3lam_tracersmoke_nouv,'smoke',ges_smoke,istatus );ier=ier+istatus
            call GSI_BundleGetPointer ( gsibundle_fv3lam_tracersmoke_nouv,'dust',ges_dust,istatus );ier=ier+istatus
            call GSI_BundleGetPointer ( gsibundle_fv3lam_tracersmoke_nouv,'pm2_5',ges_pm2_5,istatus );ier=ier+istatus
-           ! if (ier/=0) call die(trim(myname),'cannot get pointers for fv3    !  chem-fields, ier =',ier)
-           if (ier/=0) write(6,*),"cannot get pointers for fv3 smoke" 
-!!   pm2_5   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+           if (ier/=0) call die(trim(myname),'cannot get pointers for fv3 chem-fields, ier =',ier)
+           ! Calculate  pm2_5
              do k=1,nsig
                do j=1,lon2
                  do i=1,lat2

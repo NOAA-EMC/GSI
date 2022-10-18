@@ -40,7 +40,7 @@ module chemmod
   public :: naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3
 
 ! fv3smoke
-  public :: naero_smoke_fv3,aeronames_smoke_fv3  
+  public :: naero_smoke_fv3,aeronames_smoke_fv3,pm2_5_innov_threshold 
 
   public :: naero_gocart_wrf,aeronames_gocart_wrf
 
@@ -79,6 +79,8 @@ module chemmod
   integer(i_kind) :: icvt_cmaq_fv3
   real(r_kind)    :: raod_radius_mean_scale,raod_radius_std_scale
   real(r_kind)    :: ppmv_conv = 96.06_r_kind/28.964_r_kind*1.0e+3_r_kind
+  real(r_kind)    :: pm2_5_innov_threshold 
+
   logical :: wrf_pm2_5
 
   logical :: lread_ext_aerosol ! if true, will read in aerosols from aerfXX rather than from sigfXX
@@ -305,6 +307,7 @@ contains
     laeroana_gocart = .false.
     laeroana_fv3cmaq = .false.    ! .true. for performing aerosol analysis for regional FV3-CMAQ model(Please other parameters requred in gsimod.F90) 
     laeroana_fv3smoke = .false.
+    pm2_5_innov_threshold = 20.0_r_kind
     l_aoderr_table = .false.
     icvt_cmaq_fv3   = 1           ! 1. Control variable is individual aerosol specie; 2: CV is total mass per I,J,K mode
     raod_radius_mean_scale = 1.0_r_kind  ! Tune radius of particles when calculating AOD using CRTM

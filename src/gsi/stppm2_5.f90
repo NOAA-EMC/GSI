@@ -284,41 +284,40 @@ contains
                 val2=-pm2_5ptr%res
                 val=zero
 
-          !!!
-          do iaero=1,naero_smoke_fv3
-             aeroname=aeronames_smoke_fv3(iaero)
-                call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
-                if(istatus /= 0) then
-                   write(6,*) 'error gsi_bundlegetpointer in stppm2_5 for ',&
+                do iaero=1,naero_smoke_fv3
+                  aeroname=aeronames_smoke_fv3(iaero)
+                  call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
+                  if (istatus /= 0) then
+                    write(6,*) 'error gsi_bundlegetpointer in stppm2_5 for ',&
                         aeroname
-                   call stop2(456)
-                endif
+                    call stop2(456)
+                  endif
 
-                call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus)
+                  call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus)
 
-                if(istatus /= 0) then
-                   write(6,*) 'error gsi_bundlegetpointer in stppm2_5 for ',&
+                  if (istatus /= 0) then
+                    write(6,*) 'error gsi_bundlegetpointer in stppm2_5 for ',&
                         aeroname
-                   call stop2(457)
-                endif
+                    call stop2(457)
+                  endif
 
-                val= pm2_5ptr%pm25wc(iaero)* &
+                  val= pm2_5ptr%pm25wc(iaero)* &
                     (w1* rpm2_5(j1)+w2* rpm2_5(j2)+w3* rpm2_5(j3)+w4*rpm2_5(j4)+&
                      w5* rpm2_5(j5)+w6* rpm2_5(j6)+w7*rpm2_5(j7)+w8*rpm2_5(j8))+val
-                val2= pm2_5ptr%pm25wc(iaero)* &
+                  val2= pm2_5ptr%pm25wc(iaero)* &
                     (w1* spm2_5(j1)+w2* spm2_5(j2)+w3* spm2_5(j3)+w4*spm2_5(j4)+&
                      w5* spm2_5(j5)+w6* spm2_5(j6)+w7*spm2_5(j7)+w8*spm2_5(j8))+val2
 
 
-                nullify(spm2_5,rpm2_5)
-           end do
+                  nullify(spm2_5)
+                end do ! iaero
                 do kk=1,nstep
                    qq=val2+sges(kk)*val
                    pen(kk)=qq*qq*pm2_5ptr%err2
                 end do
              else
                 pen(1)=pm2_5ptr%res*pm2_5ptr%res*pm2_5ptr%err2
-             end if
+             end if !nstep
 
 !  modify penalty term if nonlinear qc
 
@@ -337,7 +336,7 @@ contains
              do kk=2,nstep
                 out(kk) = out(kk)+(pen(kk)-pen(1))*pm2_5ptr%raterr2
              end do
-          end if
+          end if ! pm2_5ptr%luse
 
           pm2_5ptr => pm2_5Node_nextcast(pm2_5ptr)
 
