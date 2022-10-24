@@ -2285,14 +2285,14 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
      ichan_pairs(1,1:4) = (/67, 89, 105, 134/)   ! channels used for CO2 cloud detection
      ichan_pairs(2,1:4) = (/89, 105, 134, 159/)
      isurface_chan = 501                         ! surface channel
-     cloud_threshold = 0.007_r_kind              ! cloud detection minimum (1.0%)
+     cloud_threshold = 0.005_r_kind              ! cloud detection minimum (1.0%)
      call CO2_cloud_detect(ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,tvp,tsavg5,  &
                            prsltmp,trop5,emissivity,ptau5,cloud_threshold,lcloud )
   elseif ( iasi .and. iasi_co2 ) then
      ichan_pairs(1,1:4) = (/185, 243, 282, 354/) ! channels used for CO2 cloud detection
      ichan_pairs(2,1:4) = (/243, 282, 354, 414/)
      isurface_chan = 1271                        ! surface channel
-     cloud_threshold = 0.007_r_kind              ! cloud detection minimum (1.0%)
+     cloud_threshold = 0.006_r_kind              ! cloud detection minimum (1.0%)
      call CO2_cloud_detect(ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,tvp,tsavg5,  &
                            prsltmp,trop5,emissivity,ptau5,cloud_threshold,lcloud )
   elseif ( airs .and. airs_co2 ) then
