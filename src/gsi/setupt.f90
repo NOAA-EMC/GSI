@@ -903,6 +903,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      !if(i_use_2mt4b>0 .and. sfctype) then
      if(sfctype .and. (( i_use_2mt4b>0) .or. hofx_2m_sfcfile ) ) then
         ddiff = tob-tges2m
+        if (hofx_2m_sfcfile) tges=tges2m
      else
         ddiff = tob-tges
      endif
@@ -1798,10 +1799,10 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
     call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
     if (hofx_2m_sfcfile ) then 
-    call nc_diag_metadata("Observation",             sngl(tob)    )
-    call nc_diag_metadata("Observation_Before_Elev_Correction",     sngl(data(itob,i))  )
+      call nc_diag_metadata("Observation",             sngl(tob)    )
+      call nc_diag_metadata("Observation_Before_Elev_Correction",     sngl(data(itob,i))  )
     else
-    call nc_diag_metadata("Observation",             sngl(data(itob,i))     )
+      call nc_diag_metadata("Observation",             sngl(data(itob,i))     )
     endif
     call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)      )
     call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(tob-tges)   )
@@ -1844,12 +1845,12 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )              
     endif
 
-    if (twodvar_regional .or. hofx_2m_sfcfile .or. l_obsprvdiag) then
+    if (twodvar_regional .or. l_obsprvdiag .or. hofx_2m_sfcfile  ) then
        call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i)              )
 ! this is the model height interpolated to the obs location in read_prepbufr
        call nc_diag_metadata("Model_Terrain",     data(izz,i)                  )
     endif 
-    if (twodvar_regional) then
+    if (twodvar_regional .or. l_obsprvdiag) then
        r_prvstg            = data(iprvd,i)
        call nc_diag_metadata("Provider_Name",     c_prvstg                     )    
        r_sprvstg           = data(isprvd,i)
