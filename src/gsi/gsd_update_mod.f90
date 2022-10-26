@@ -516,9 +516,8 @@ subroutine gsd_update_t2m(tinc,it)
 !$$$
   use kinds, only: r_kind,i_kind
   use jfunc, only:  tsensible
-  use constants, only: zero,one,fv,rd_over_cp_mass,one_tenth
-  use gridmod, only: lat2,lon2,aeta1_ll,pt_ll,aeta2_ll
-  use guess_grids, only:ges_prsi
+  use constants, only: zero,one,fv,one_tenth
+  use gridmod, only: lat2,lon2
   use constants, only: half
 
   implicit none
@@ -555,7 +554,7 @@ subroutine gsd_update_t2m(tinc,it)
               if(ihaveq/=0) cycle
               dth2=tinc(i,j)/(one+fv*ges_q(i,j,1))
            endif
-!        do not need to convert sensible temperature to potential temperature
+
            ges_t2m(i,j) = ges_t2m(i,j) + dth2
         end do
      end do

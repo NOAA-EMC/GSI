@@ -1915,9 +1915,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Missing Values ==>  Cycling! In this case for howv only.  #ww3 
               if (howvob  .and. owave(1,k) > r0_1_bmiss) cycle LOOP_K_LEVS
 
-! CSD - temporary hack ( move to prepbufr pre-processing)
+! CSD - temporary hack ( move to prepbufr pre-processing later)
 !             Over-ride QM=9 for sfc obs 
               if (sfctype .and. hofx_2m_sfcfile ) then 
+                if (tob) then!hardwire 187 obs error to 1.2 for now
+                  tqm(k)=2
+                  obserr(3,k)=1.2
+                endif
                 if (tob .and. qm == 9 ) qm = 2 ! 2=not checked
                 if (qob .and. qm == 9 ) qm = 2 ! 2=not checked
               endif
