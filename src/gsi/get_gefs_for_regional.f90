@@ -41,11 +41,9 @@ subroutine get_gefs_for_regional
                      fv3_regional
   use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
   use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
-  use hybrid_ensemble_parameters, only: n_ens,grd_ens,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
-  use hybrid_ensemble_parameters, only: n_ens_gfs
+  use hybrid_ensemble_parameters, only: n_ens_gfs,grd_ens,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
   use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens,l_ens_in_diff_time,write_ens_sprd
   use hybrid_ensemble_parameters, only: ntlevs_ens,ensemble_path,jcap_ens
- !use hybrid_ensemble_parameters, only: add_bias_perturbation
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundlecreate
   use gsi_bundlemod, only: gsi_bundle
@@ -79,7 +77,7 @@ subroutine get_gefs_for_regional
   use nemsio_module, only: nemsio_init,nemsio_open,nemsio_close
   use ncepnems_io, only: error_msg
   use nemsio_module, only: nemsio_gfile,nemsio_getfilehead
-  use module_fv3gfs_ncio, only: Dimension, Dataset, open_dataset, get_dim, &
+  use module_ncio, only: Dimension, Dataset, open_dataset, get_dim, &
                                 read_vardata, get_idate_from_time_units,&
                                 read_attribute, close_dataset
   use get_wrf_mass_ensperts_mod, only: get_wrf_mass_ensperts_class
@@ -231,9 +229,12 @@ subroutine get_gefs_for_regional
      read(10,'(a)',err=20,end=40)filename 
   enddo
 40 n_ens_temp=n-1
-write(6,*)'the number of ensemble members in the filelist is ',n_ens_temp
-write(6,*)'The actual number to be used of the first ensembles is ',n_ens_gfs
-!cltorg 40 n_ens=n-1
+  if(n_ens_gfs/=n_ens_temp) then
+     n_ens_gfs=n_ens_temp
+     if(mype == 0) then
+         write(6,*)'the n_ens_gfs is adjusted to the actual number of ensemble members ',n_ens_temp
+     endif
+  endif
 
 !    set n_ens_temp depending on if we want to add bias perturbation to the ensemble
 
@@ -378,6 +379,7 @@ write(6,*)'The actual number to be used of the first ensembles is ',n_ens_gfs
         gfshead%jcap = -9999
         gfshead%idsl= 1
         gfshead%idvc = 2
+
 
         nlat_gfs=gfshead%latb+2
         nlon_gfs=gfshead%lonb
@@ -598,6 +600,7 @@ write(6,*)'The actual number to be used of the first ensembles is ',n_ens_gfs
   st_eg=zero ; vp_eg=zero ; t_eg=zero ; rh_eg=zero ; oz_eg=zero ; cw_eg=zero 
   p_eg_nmmb=zero
 
+!
 ! prepare terrain height
 !
   allocate(ges_z_ens(grd_mix%lat2,grd_mix%lon2))
@@ -952,6 +955,7 @@ write(6,*)'The actual number to be used of the first ensembles is ',n_ens_gfs
 !                   if(mype==0) write(6,*)' with halo, n,min,max ges_ps - matt ps =',n,pdiffmin0,pdiffmax0
 
   end do   !  end loop over ensemble members.
+
   deallocate(ges_z_ens)
 
 !   next, compute mean of ensembles.

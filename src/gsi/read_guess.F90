@@ -134,7 +134,6 @@ subroutine read_guess(iyear,month,idd,mype)
   logical :: ice
   integer(i_kind) i,j,k,it,iret_bias,ier,istatus
   integer(i_kind) iderivative
-  logical :: file_exists
   type(read_wrf_nmm_guess_class) :: nmm_binary_guess
   type(read_wrf_mass_guess_class) :: nmm_mass_guess
 

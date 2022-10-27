@@ -55,7 +55,7 @@ ncp=/bin/cp
 # first guess comes.  Extract cycle and set prefix and suffix
 # for guess and observation data files
 sdate=`echo $nmm_binary_adate |cut -c1-8`
-odate=`$ndate +12 $nmm_binary_adate`
+odate=`date +%Y%m%d%H -d "${nmm_binary_adate:0:8} ${nmm_binary_adate:8:2} + 12 hours"`
 hha=`echo $nmm_binary_adate | cut -c9-10`
 hho=`echo $odate | cut -c9-10`
 prefixo=ndas.t${hho}z

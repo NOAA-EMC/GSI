@@ -1,5 +1,0 @@
-All the conmon_read_*.x executables have an
-enumerated list of index values for use with
-rdiag.  These should be put into a module 
-and declared there, rather than defining 
-them w/in a file unique to each executable.

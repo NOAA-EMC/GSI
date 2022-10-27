@@ -22,7 +22,7 @@ subroutine write_all(increment)
 
   use gridmod, only: regional,fv3_regional
   
-  use guess_grids, only: ntguessig,ifilesig
+  use guess_grids, only: ntguessig
 
   use m_gsiBiases, only: gsi_bkgbias_bundle
   use m_gsibiases ,only: nbc
@@ -113,7 +113,6 @@ subroutine write_all(increment)
   integer(i_kind) mype_atm,mype_bias,mype_sfc,iret_bias,ier
   real(r_kind),dimension(:,:),pointer::ges_z=>NULL()
   type(regional_io_class) :: io 
-  logical :: file_exists
 
 #ifndef HAVE_ESMF
 !********************************************************************

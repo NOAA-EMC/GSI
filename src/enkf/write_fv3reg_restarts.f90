@@ -38,7 +38,6 @@
        character(len=*), intent(in) :: filename
        integer(i_kind), intent(in) :: file_id
        integer(i_kind) :: var_id
-       data_arr=data_arr(ubound(data_arr,1):lbound(data_arr,1):-1,ubound(data_arr,2):lbound(data_arr,2):-1)
        call nc_check( nf90_inq_varid(file_id,trim(adjustl(varname)),var_id),&
        myname_,'inq_varid '//trim(adjustl(varname))//' '//trim(filename) )
        call nc_check( nf90_put_var(file_id,var_id,data_arr),&
@@ -52,7 +51,7 @@
        character(len=*), intent(in) :: filename
        integer(i_kind), intent(in) :: file_id
        integer(i_kind) :: var_id
-       data_arr=data_arr(ubound(data_arr,1):lbound(data_arr,1):-1,ubound(data_arr,2):lbound(data_arr,2):-1, &
+       data_arr=data_arr(:,:, &
                           ubound(data_arr,3):lbound(data_arr,3):-1)
        call nc_check( nf90_inq_varid(file_id,trim(adjustl(varname)),var_id),&
        myname_,'inq_varid '//trim(adjustl(varname))//' '//trim(filename) )
@@ -67,7 +66,7 @@
        character(len=*), intent(in) :: filename
        integer(i_kind), intent(in) :: file_id
        integer(i_kind) :: var_id
-       data_arr=data_arr(ubound(data_arr,1):lbound(data_arr,1):-1,ubound(data_arr,2):lbound(data_arr,2):-1, &
+       data_arr=data_arr(:,:, &
                           ubound(data_arr,3):lbound(data_arr,3):-1,lbound(data_arr,4):ubound(data_arr,4))
 !Notice, the 4th dimension is not reversed
        call nc_check( nf90_inq_varid(file_id,trim(adjustl(varname)),var_id),&

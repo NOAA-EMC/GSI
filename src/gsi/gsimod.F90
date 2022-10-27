@@ -72,7 +72,7 @@
                        ssmis_method,ssmis_precond,gmi_method,amsr2_method,bias_zero_start, &
                        reset_bad_radbc,cld_det_dec2bin,diag_version,lupdqc,lqcoef
   use radinfo, only: tzr_qc,tzr_bufrsave
-  use radinfo, only: crtm_coeffs_path
+  use radinfo, only: crtm_coeffs_path,optconv
   use ozinfo, only: diag_ozone,init_oz
   use aeroinfo, only: diag_aero, init_aero, init_aero_vars, final_aero_vars
   use coinfo, only: diag_co,init_co
@@ -118,7 +118,7 @@
   use mod_vtrans, only: nvmodes_keep,init_vtrans
   use mod_strong, only: l_tlnmc,reg_tlnmc_type,nstrong,tlnmc_option,&
        period_max,period_width,init_strongvars,baldiag_full,baldiag_inc
-  use gridmod, only: nlat,nlon,nsig,wrf_nmm_regional,nems_nmmb_regional,fv3_regional,cmaq_regional,&
+  use gridmod, only: nlat,nlon,nsig,wrf_nmm_regional,nems_nmmb_regional,fv3_regional,cmaq_regional,fv3_cmaq_regional,&
      nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_wrfmass,grid_ratio_fv3_regional,fv3_io_layout_y,&
      filled_grid,half_grid,wrf_mass_regional,nsig1o,nnnn1o,update_regsfc,&
      diagnostic_reg,gencode,nlon_regional,nlat_regional,nvege_type,&
@@ -127,7 +127,7 @@
      use_gfs_nemsio,sfcnst_comb,use_readin_anl_sfcmask,use_sp_eqspace,final_grid_vars,&
      jcap_gfs,nlat_gfs,nlon_gfs,jcap_cut,wrf_mass_hybridcord,use_gfs_ncio,write_fv3_incr,&
      use_fv3_aero,grid_type_fv3_regional
-  use gridmod,only: l_reg_update_hydro_delz
+  use gridmod,only: l_reg_update_hydro_delz,fv3_cmaq_regional
   use guess_grids, only: ifact10,sfcmod_gfs,sfcmod_mm5,use_compress,nsig_ext,gpstop,commgpstop,commgpserrinf
   use gsi_io, only: init_io,lendian_in,verbose,print_obs_para
   use regional_io_mod, only: regional_io_class
@@ -149,8 +149,8 @@
                          beta_s0,beta_e0,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
                          readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,&
                          readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens,i_en_perts_io, &
-                         l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB, &
-                         l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar
+                         l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens
+  use hybrid_ensemble_parameters,only : l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
                             metar_impact_radius_lowcloud,l_gsd_terrain_match_surftobs, &
@@ -175,12 +175,15 @@
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
-  use chemmod, only : init_chem,berror_chem,oneobtest_chem,&
+  use chemmod, only : init_chem,berror_chem,berror_fv3_cmaq_regional,oneobtest_chem,&
        maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,&
        oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname, &
-       laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue, lread_ext_aerosol
+       laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue, lread_ext_aerosol, &
+       laeroana_fv3cmaq,crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
+       icvt_cmaq_fv3, raod_radius_mean_scale,raod_radius_std_scale 
+
   use chemmod, only : wrf_pm2_5,aero_ratios
   use gfs_stratosphere, only: init_gfs_stratosphere,use_gfs_stratosphere,pblend0,pblend1
   use gfs_stratosphere, only: broadcast_gfs_stratosphere_vars
@@ -488,6 +491,12 @@
 !  01-07-2022 Hu        Add fv3_io_layout_y to let fv3lam interface read/write subdomain restart
 !                       files. The fv3_io_layout_y needs to match fv3lam model
 !                       option io_layout(2).
+!  05-24-2022 H.Wang    Add PM2.5 and AOD DA for regional FV3-CMAQ (RRFS-CMAQ).
+!                       GSI will perform aerosol analysis when 
+!                           1. laeroana_fv3cmaq =  .true.
+!                           2. fv3_regional =      .true.  
+!                           3. fv3_cmaq_regional = .true. 
+!                           4. berror_fv3_cmaq_regional = .true. 
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -708,6 +717,9 @@
 !                     (.TRUE.: on; .FALSE.: off) / Inputfile: dbzbufr (bufr format)
 !     l_obsprvdiag - trigger (if true) writing out observation provider and sub-provider
 !                    information into obsdiags files (used for AutoObsQC)
+!     optconv - downweighting option for iasi and cris for moisture channels to
+!     improve convergence.  default 0.0 (no change).  Larger number improves
+!     convergence.
 !
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -753,7 +765,7 @@
        write_fv3_incr,incvars_to_zero,incvars_zero_strat,incvars_efold,diag_version,&
        cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef,cnvw_option,l2rwthin,hurricane_radar,&
        l_reg_update_hydro_delz, l_obsprvdiag,&
-       l_use_dbz_directDA, l_use_rw_columntilt, ta2tb
+       l_use_dbz_directDA, l_use_rw_columntilt, ta2tb, optconv
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -796,7 +808,7 @@
 
 
   namelist/gridopts/jcap,jcap_b,nsig,nlat,nlon,nlat_regional,nlon_regional,&
-       diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,fv3_regional,&
+       diagnostic_reg,update_regsfc,netcdf,regional,wrf_nmm_regional,nems_nmmb_regional,fv3_regional,fv3_cmaq_regional,&
        wrf_mass_regional,twodvar_regional,filled_grid,half_grid,nvege_type,nlayers,cmaq_regional,&
        nmmb_reference_grid,grid_ratio_nmmb,grid_ratio_fv3_regional,grid_ratio_wrfmass,jcap_gfs,jcap_cut,&
        wrf_mass_hybridcord,grid_type_fv3_regional,fv3_io_layout_y
@@ -1339,13 +1351,12 @@
 !     sst_staticB - use only static background error covariance for SST statistic
 !              
 !                         
-  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,&
+  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,fv3sar_bg_opt,fv3sar_ensemble_opt,full_ensemble,pwgtflg,&
                 jcap_ens_test,beta_s0,beta_e0,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
                 grid_ratio_ens, &
                 oz_univ_static,write_ens_sprd,use_localization_grid,use_gfs_ens, &
-                i_en_perts_io,l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB, &
-                l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar
+                i_en_perts_io,l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
 !                             enhancement for RR appilcation  ):
@@ -1521,16 +1532,20 @@
 !     out_fname         - CMAQ output filename
 !     incr_fname        - CMAQ increment filename
 !     laeroana_gocart   - when true, do chem analysis with wrfchem (or NGAC)
+!     laeroana_fv3cmaq  - when true, do chem analysis with fv3 lam (both fv3_cmaq_regional and fv3_regional are true!) 
 !     l_aoderr_table    - whethee to use aod error table or default error
 !     aod_qa_limit      - minimum acceptable value of error flag for total column AOD
 !     luse_deepblue     - whether to use MODIS AOD from the deepblue   algorithm
 !     lread_ext_aerosol - if true, reads aerfNN file for aerosol arrays rather than sigfNN (NGAC NEMS IO)
 
-  namelist/chem/berror_chem,oneobtest_chem,maginnov_chem,magoberr_chem,&
+  namelist/chem/berror_chem,berror_fv3_cmaq_regional,oneobtest_chem,maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,oblon_chem,obpres_chem,&
        diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname,&
-       laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue,&
+       laeroana_gocart, laeroana_fv3cmaq,l_aoderr_table, aod_qa_limit, &
+       crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
+       icvt_cmaq_fv3, &
+       raod_radius_mean_scale,raod_radius_std_scale, luse_deepblue,&
        aero_ratios,wrf_pm2_5, lread_ext_aerosol
 
 ! NST (NSST control namelist) :
@@ -1731,17 +1746,23 @@
         c_varqc=c_varqc_new
      end if
   end if
-  if(.not. l_both_fv3sar_gfs_ens) then
-    if (regional_ensemble_option==5) then
-     n_ens_gfs=0
-     n_ens_fv3sar=n_ens
-    elseif (regional_ensemble_option==1) then
-     n_ens_gfs=n_ens
-    else
-     write(6,*)'n_ens_gfs and n_ens_fv3sar won"t be used if not regional_ensemble_option==5'
+  if(l_both_fv3sar_gfs_ens) then
+    if(n_ens /= n_ens_gfs + n_ens_fv3sar .or. regional_ensemble_option /= 5 ) then 
+       write(6,*)'the set up for l_both_fv3sar_gfs_ens=.true. is wrong,stop'
+       call stop2(137)
     endif
+  else
+    if (regional_ensemble_option==5) then 
+       n_ens_gfs=0
+       n_ens_fv3sar=n_ens
+    elseif (regional_ensemble_option==1) then 
+       n_ens_gfs=n_ens
+       n_ens_fv3sar=0
+    else 
+       write(6,*)'n_ens_gfs and n_ens_fv3sar won"t be used if not regional_ensemble_option==5' 
+    endif
+    
   endif
-
   if(ltlint) then
      if(vqc .or. njqc .or. nvqc)then
        vqc = .false.
@@ -1795,7 +1816,7 @@
 ! Set regional parameters
   if(filled_grid.and.half_grid) filled_grid=.false.
   regional=wrf_nmm_regional.or.wrf_mass_regional.or.twodvar_regional.or.nems_nmmb_regional .or. cmaq_regional
-  regional=regional.or.fv3_regional
+  regional=regional.or.fv3_regional.or.fv3_cmaq_regional
 
 ! Currently only able to have use_gfs_stratosphere=.true. for nems_nmmb_regional=.true.
   use_gfs_stratosphere=use_gfs_stratosphere.and.(nems_nmmb_regional.or.wrf_nmm_regional)   

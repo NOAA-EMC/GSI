@@ -56,7 +56,7 @@ export NLON=$(( NX3 - 1 ))
 # Given the analysis date, compute the date from which the
 # first guess comes.  Extract cycle and set prefix and suffix
 # for guess and observation data files
-gdate=`$ndate -06 $adate`
+gdate=`date +%Y%m%d%H -d "${adate:0:8} ${adate:8:2} - 6 hours"`
 hha=`echo $adate | cut -c9-10`
 hhg=`echo $gdate | cut -c9-10`
 prefixa=gfs.t${hha}z
