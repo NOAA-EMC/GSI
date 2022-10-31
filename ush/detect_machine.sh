@@ -2,16 +2,6 @@
 
 case $(hostname -f) in
 
-  llogin[1-3]) MACHINE_ID=wcoss_cray ;; ### luna
-  slogin[1-3]) MACHINE_ID=wcoss_cray ;; ### surge
-
-  m7[12]a[1-3].ncep.noaa.gov) MACHINE_ID=wcoss_dell_p3 ;; ### mars
-  v7[12]a[1-3].ncep.noaa.gov) MACHINE_ID=wcoss_dell_p3 ;; ### venus
-  m109a[1-4].ncep.noaa.gov)   MACHINE_ID=wcoss_dell_p3 ;; ### mars3.5
-  m110a[1-4].ncep.noaa.gov)   MACHINE_ID=wcoss_dell_p3 ;; ### mars3.5
-  v109a[1-4].ncep.noaa.gov)   MACHINE_ID=wcoss_dell_p3 ;; ### venus3.5
-  v110a[1-4].ncep.noaa.gov)   MACHINE_ID=wcoss_dell_p3 ;; ### venus3.5
-
   adecflow0[12].acorn.wcoss2.ncep.noaa.gov)  MACHINE_ID=wcoss2 ;; ### acorn
   alogin0[12].acorn.wcoss2.ncep.noaa.gov)    MACHINE_ID=wcoss2 ;; ### acorn
   clogin0[1-9].cactus.wcoss2.ncep.noaa.gov)  MACHINE_ID=wcoss2 ;; ### cactus01-9
