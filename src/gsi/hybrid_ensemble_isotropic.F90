@@ -3487,7 +3487,7 @@ subroutine bkerror_a_en(grady)
   call sqrt_beta_e_mult(grady)
 
 ! Apply variances, as well as vertical & horizontal parts of background error
-!$omp parallel do schedule(dynamic,1) private(ii)
+!   !$omp parallel do schedule(dynamic,1) private(ii)
   do ii=1,nsubwin
     !if(test_sqrt_localization) then
     !        write(6,*)' using ckgcov_a_en_new_factorization'
@@ -3552,11 +3552,9 @@ subroutine bkgcov_a_en_new_factorization(a_en)
   type(gsi_bundle),intent(inout) :: a_en(n_ens)
 
 ! Local Variables
-  integer(i_kind) ii,k,iflg,iadvance,iback,is,ie,ipnt,istatus
+  integer(i_kind) ii,k,iadvance,iback,is,ie,ipnt,istatus
   real(r_kind) hwork(grd_loc%inner_vars,grd_loc%nlat,grd_loc%nlon,grd_loc%kbegin_loc:grd_loc%kend_alloc)
   real(r_kind),allocatable,dimension(:):: a_en_work
-
-  iflg=1
 
   call gsi_bundlegetpointer(a_en(1),'a_en',ipnt,istatus)
   if(istatus/=0) then

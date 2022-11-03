@@ -387,7 +387,7 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
 
     ! Declare passed variables
     type(sub2grid_info), intent(in   ) :: grd3d
-    real(r_kind),      intent(inout) :: en_loc3(grd3d%lat2,grd3d%lon2,nc2d+nc3d*grd3d%nsig)
+    real(r_kind),        intent(inout) :: en_loc3(grd3d%lat2,grd3d%lon2,nc2d+nc3d*grd3d%nsig)
     type(gsi_bundle),    intent(inout) :: atm_bundle
     integer(i_kind),     intent(in   ) :: m_cvars2d(nc2d),m_cvars3d(nc3d)
     integer(i_kind),     intent(  out) :: iret

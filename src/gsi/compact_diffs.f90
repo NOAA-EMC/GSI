@@ -268,7 +268,6 @@ contains
   integer(i_kind) ix,iy
   integer(i_kind) ny,i,j
   real(r_kind) polsu,polnu,polnv,polsv
-  real(r_kind),dimension(nlon):: grid3n,grid3s,grid1n,grid1s
   real(r_kind),dimension(nlat-2,nlon):: a,b,grid1,grid2,grid3,grid4
 
   if(idim <=1) write(6,*) ' error in call to stvp2uv ',idim
@@ -318,27 +317,17 @@ contains
   polnv=polnv/float(nlon)
   polsu=polsu/float(nlon)
   polsv=polsv/float(nlon)
-  do ix=1,nlon
-     grid3n(ix)= polnu*coslon(ix)+polnv*sinlon(ix)
-     grid1n(ix)=-polnu*sinlon(ix)+polnv*coslon(ix)
-     grid3s(ix)= polsu*coslon(ix)+polsv*sinlon(ix)
-     grid1s(ix)= polsu*sinlon(ix)-polsv*coslon(ix)
-  end do
 ! work(1 is u, work(2 is v
   do j=1,nlon
-     do i=1,nlat
-        if(i /= 1 .and. i /= nlat)then
-           work(1,i,j)=grid3(i-1,j)
-           work(2,i,j)=grid1(i-1,j)
-        else if(i == 1)then
-           work(1,i,j)=grid3s(j)
-           work(2,i,j)=grid1s(j)
-        else
-           work(1,i,j)=grid3n(j)
-           work(2,i,j)=grid1n(j)
-        end if
+     do i=2,nlat-1
+        work(1,i,j)=grid3(i-1,j)
+        work(2,i,j)=grid1(i-1,j)
      end do
-  enddo
+     work(1,1,j)= polsu*coslon(j)+polsv*sinlon(j)
+     work(2,1,j)= polsu*sinlon(j)-polsv*coslon(j)
+     work(1,nlat,j)= polnu*coslon(j)+polnv*sinlon(j)
+     work(2,nlat,j)= -polnu*sinlon(j)+polnv*coslon(j)
+  end do
 
   return
   end subroutine stvp2uv
@@ -749,18 +738,14 @@ end subroutine uv2vordiv
   ny=nlat-2
   
   do j=1,nlon
-     do i=1,nlat
-        if(i /= 1 .and. i /= nlat)then
-           grid3(i-1,j)=work(1,i,j)
-           grid1(i-1,j)=work(2,i,j)
-        else if(i == 1)then
-           grid3s(j)=work(1,i,j)
-           grid1s(j)=work(2,i,j)
-        else
-           grid3n(j)=work(1,i,j)
-           grid1n(j)=work(2,i,j)
-        end if
+     do i=2,nlat-1
+        grid3(i-1,j)=work(1,i,j)
+        grid1(i-1,j)=work(2,i,j)
      end do
+     grid3s(j)=work(1,1,j)
+     grid1s(j)=work(2,1,j)
+     grid3n(j)=work(1,nlat,j)
+     grid1n(j)=work(2,nlat,j)
   end do
   
   polnu=zero
@@ -815,16 +800,15 @@ end subroutine uv2vordiv
        nlon,ny,noq)
 !$omp end parallel sections
   do j=1,nlon
-     do i=1,nlat
-        if(i /= 1 .and. i /= nlat)then
-!          NOTE:  Adjoint of first derivative is its negative
-           work(1,i,j)=-(a(i-1,j)+d(i-1,j))
-           work(2,i,j)=-(b(i-1,j)+c(i-1,j))
-        else
-           work(1,i,j)=zero
-           work(2,i,j)=zero
-        end if
+     do i=2,nlat-1
+!       NOTE:  Adjoint of first derivative is its negative
+        work(1,i,j)=-(a(i-1,j)+d(i-1,j))
+        work(2,i,j)=-(b(i-1,j)+c(i-1,j))
      end do
+     work(1,1,j)=zero
+     work(2,1,j)=zero
+     work(1,nlat,j)=zero
+     work(2,nlat,j)=zero
   end do
   
   return
