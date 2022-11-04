@@ -6,7 +6,7 @@ spack:
   specs:
   - netcdf-c@4.7.4
   - netcdf-fortran@4.5.3
-  - bufr@11.5.0
+  - bufr@11.7.0
   - bacio@2.4.1
   - w3emc@2.9.2
   - sp@2.3.3
