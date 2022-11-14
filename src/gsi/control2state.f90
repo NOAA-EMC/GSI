@@ -16,8 +16,7 @@ module control2state_mod
 
 use kinds, only: r_kind,i_kind
 use control_vectors, only: control_vector
-use gsi_4dvar, only: nsubwin, l4dvar, lsqrtb, ladtest_obs
-use gridmod, only: regional            
+use gsi_4dvar, only: nsubwin, l4dvar, lsqrtb,ladtest_obs
 use gsi_chemguess_mod, only: gsi_chemguess_get
 use gsi_metguess_mod, only: gsi_metguess_get
 use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -117,7 +116,7 @@ use kinds, only: r_kind,i_kind
 use control_vectors, only: control_vector
 use control_vectors, only: cvars3d,cvars2d
 use bias_predictors, only: predictors
-use gsi_4dvar, only: nsubwin, l4dvar, lsqrtb, ladtest_obs
+use gsi_4dvar, only: nsubwin, l4dvar, ladtest_obs
 use gridmod, only: lat2,lon2,nsig, nlat, nlon            
 use jfunc, only: nsclen,npclen,ntclen
 use cwhydromod, only: cw2hydro_tl
@@ -578,7 +577,7 @@ use control_vectors, only: control_vector
 use control_vectors, only: cvars3d,cvars2d
 use bias_predictors, only: predictors
 use gsi_4dvar, only: nsubwin, lsqrtb
-use gridmod, only: regional,lat2,lon2,nsig,twodvar_regional
+use gridmod, only: lat2,lon2,nsig,twodvar_regional
 use jfunc, only: nsclen,npclen,ntclen
 use cwhydromod, only: cw2hydro_ad
 use amassaeromod, only: amass2aero_ad 

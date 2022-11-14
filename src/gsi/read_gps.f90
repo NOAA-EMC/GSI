@@ -368,8 +368,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
            good=.true.
            if((abs(rlat)>90._r_kind).or.(abs(rlon)>r360).or.(height<=zero)) then
               good=.false.
-           endif
-           if (ref_obs) then
+           else if (ref_obs) then
               if ((ref>=1.e+9_r_kind).or.(ref<=zero).or.(height>=1.e+9_r_kind)) then
                  good=.false.
               endif
@@ -466,8 +465,9 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   write(6,*)'READ_GPS:  # bad or missing data=', notgood
   do i=1,ngpsro_type
      if (nmrecs_id(i)>0) &
-          write(6,1020)'READ_GPS:  LEO_id,nprof_gps = ',gpsro_itype(i),nmrecs_id(i)
+          write(6,1021)'READ_GPS:  LEO_id,nprof_gps = ',gpsro_itype(i),nmrecs_id(i)
   end do
+1021 format(a31,i6,i6)
   write(6,1020)'READ_GPS:  ref_obs,nprof_gps= ',ref_obs,nprof_gps
 1020 format(a31,L,i6)
 

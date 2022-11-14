@@ -1440,7 +1440,7 @@ end subroutine write_ghg_grid
         if ( use_gfs_nemsio ) then
 
             if ( write_fv3_incr ) then
-                call write_fv3_increment(grd_a,sp_a,filename,mype_atm, &
+                call write_fv3_increment(grd_a,filename,mype_atm, &
                      atm_bundle,itoutsig)
             else
                 if (fv3_full_hydro) then
@@ -1461,7 +1461,7 @@ end subroutine write_ghg_grid
 
         else if ( use_gfs_ncio ) then
             if  ( write_fv3_incr ) then
-                call write_fv3_increment(grd_a,sp_a,filename,mype_atm, &
+                call write_fv3_increment(grd_a,filename,mype_atm, &
                      atm_bundle,itoutsig)
             else
                 call write_gfsncatm(grd_a,sp_a,filename,mype_atm, &

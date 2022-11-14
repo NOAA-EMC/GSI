@@ -223,7 +223,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
           call die(myname_, ': ***ERROR*** CANNOT READ ENSEMBLE  n_ens > npe, increase npe >= n_ens', 99)
 
 
-      call ens_io_partition_(n_ens,ntindex,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,io_pe0,i_ens)
+      call ens_io_partition_(n_ens,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,io_pe0,i_ens)
 
 
     ! setup communicator for scatter to subdomains:
@@ -567,7 +567,7 @@ subroutine update_halos_(grd,s)
 
 end subroutine update_halos_
 
-subroutine ens_io_partition_(n_ens,ntindex,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,io_pe0,i_ens)
+subroutine ens_io_partition_(n_ens,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,io_pe0,i_ens)
 
 !     do computation on all processors, then assign final local processor
 !     values.
@@ -577,7 +577,7 @@ subroutine ens_io_partition_(n_ens,ntindex,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,
       implicit none
 
 !     Declare passed variables
-      integer(i_kind),intent(in   ) :: n_ens,ntindex
+      integer(i_kind),intent(in   ) :: n_ens
       integer(i_kind),intent(  out) :: io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,i_ens
       integer(i_kind),intent(  out) :: io_pe0(n_ens)
 

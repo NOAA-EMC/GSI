@@ -189,7 +189,7 @@ subroutine pcgsoi()
   
   type(control_vector), allocatable, dimension(:) :: cglwork
   type(control_vector), allocatable, dimension(:) :: cglworkhat
-  integer(i_kind) :: iortho,ip,istatus
+  integer(i_kind) :: iortho
   logical :: print_verbose,ortho,diag_print
   logical :: lanlerr,read_success
 

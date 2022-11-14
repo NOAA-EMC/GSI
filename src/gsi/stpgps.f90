@@ -113,6 +113,7 @@ subroutine stpgps(gpshead,rval,sval,out,sges,nstep)
   real(r_kind) :: w1,w2,w3,w4
   real(r_kind) :: q_TL,p_TL,t_TL
   real(r_kind) :: rq_TL,rp_TL,rt_TL
+  real(r_kind),dimension(nsig) :: valk2,valk
   real(r_kind),pointer,dimension(:) :: st,sq
   real(r_kind),pointer,dimension(:) :: rt,rq
   real(r_kind),pointer,dimension(:) :: sp
@@ -164,6 +165,7 @@ subroutine stpgps(gpshead,rval,sval,out,sges,nstep)
            val=zero
 
 
+!$omp parallel do schedule(dynamic,1) !private(j,t_TL,rt_TL,q_TL,rq_TL,p_TL,rp_TL)
            do j=1,nsig
               t_TL =w1* st(i1(j))+w2* st(i2(j))+w3* st(i3(j))+w4* st(i4(j))
               rt_TL=w1* rt(i1(j))+w2* rt(i2(j))+w3* rt(i3(j))+w4* rt(i4(j))
@@ -171,12 +173,14 @@ subroutine stpgps(gpshead,rval,sval,out,sges,nstep)
               rq_TL=w1* rq(i1(j))+w2* rq(i2(j))+w3* rq(i3(j))+w4* rq(i4(j))
               p_TL =w1* sp(i1(j))+w2* sp(i2(j))+w3* sp(i3(j))+w4* sp(i4(j))
               rp_TL=w1* rp(i1(j))+w2* rp(i2(j))+w3* rp(i3(j))+w4* rp(i4(j))
-              val2 = val2 + t_tl*gpsptr%jac_t(j)+ q_tl*gpsptr%jac_q(j)+p_tl*gpsptr%jac_p(j) 
-              val  = val + rt_tl*gpsptr%jac_t(j)+rq_tl*gpsptr%jac_q(j)+rp_tl*gpsptr%jac_p(j)
-
+              valk2(j) =  t_tl*gpsptr%jac_t(j)+ q_tl*gpsptr%jac_q(j)+ p_tl*gpsptr%jac_p(j) 
+              valk(j)  = rt_tl*gpsptr%jac_t(j)+rq_tl*gpsptr%jac_q(j)+rp_tl*gpsptr%jac_p(j)
            enddo
 
-
+           do j=1,nsig
+              val2 = val2 + valk2(j) 
+              val  = val + valk(j)
+           enddo
 !          penalty and gradient
 
            do kk=1,nstep

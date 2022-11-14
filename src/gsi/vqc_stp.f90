@@ -41,7 +41,7 @@
 !       Note:  if wgross=0 (no gross error, then wnotgross=1 and this
 !       all reduces to the linear case (no qc)
 
-      if (vqc .and. nlnqc_iter .and. tpg_v > tiny_r_kind .and. cgt_v >tiny_r_kind) then
+        if (vqc .and. nlnqc_iter .and. tpg_v > tiny_r_kind .and. cgt_v >tiny_r_kind) then
            wnotgross= one-tpg_v
            wgross =tpg_v*cgt_v/wnotgross
            do kk=1,max(1,nstep_v)

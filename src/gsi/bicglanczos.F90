@@ -211,7 +211,7 @@ integer(i_kind), PARAMETER :: N_DOUBLE_KIND       = KIND(DL_DOUBLE_PRECISION)
 
 
 !<<<
-integer(i_kind) :: jk,isize,jm,ip,istatus
+integer(i_kind) :: jk,isize,jm
 real(r_kind)    :: zdla,zbndlm
 
 type(control_vector) :: gradf

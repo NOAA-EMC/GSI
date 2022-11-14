@@ -77,6 +77,8 @@ subroutine init_
 
   allocate(xhat_vor(lat2,lon2,nsig,nobs_bins))
   allocate(xhat_div(lat2,lon2,nsig,nobs_bins))
+  xhat_vor=zero
+  xhat_div=zero
 end subroutine init_
 
 subroutine clean_
@@ -145,18 +147,6 @@ subroutine calc_(sval)
   logical docalc
 
 !*******************************************************************************
-
-! Initialize local arrays
-  do ii=1,nobs_bins
-     do k=1,nsig
-        do j=1,lon2
-           do i=1,lat2
-              xhat_vor(i,j,k,ii) = zero
-              xhat_div(i,j,k,ii) = zero
-           end do
-        end do
-     end do
-  end do
 
 ! The GSI analyzes stream function (sf) and velocity potential (vp).  
 ! Wind field observations are in terms of zonal (u) and meridional 

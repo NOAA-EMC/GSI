@@ -101,7 +101,6 @@ subroutine stpsst(ssthead,rval,sval,out,sges,nstep)
   real(r_kind) pg_sst
   real(r_kind),pointer,dimension(:) :: ssst
   real(r_kind),pointer,dimension(:) :: rsst
-  real(r_kind) tdir,rdir
   type(sstNode), pointer :: sstptr
 
   out=zero_quad

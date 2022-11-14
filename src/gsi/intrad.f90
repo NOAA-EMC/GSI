@@ -90,7 +90,7 @@ subroutine setrad(sval)
   type(gsi_bundle), intent(in   ) :: sval
 
 ! Declare local variables
-  integer(i_kind) istatus,indx
+  integer(i_kind) indx
   logical         look
 
   real(r_kind),pointer,dimension(:) :: st,sq,scw,soz,su,sv,sqg,sqh,sqi,sql,sqr,sqs

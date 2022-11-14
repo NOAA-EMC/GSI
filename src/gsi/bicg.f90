@@ -62,7 +62,7 @@ logical              :: lsavinc, lsavev
 character(len=12)    :: clfile
 
 real(r_kind) :: zeps
-integer(i_kind) :: jtermax,istatus,ip
+integer(i_kind) :: jtermax
 type(control_vector) :: yhat,grady
 real(r_kind)         :: zgk
 integer(i_kind)      :: ilen,nprt

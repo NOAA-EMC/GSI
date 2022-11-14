@@ -71,7 +71,6 @@ subroutine bkerror(grady)
 
 ! Declare local variables
   integer(i_kind) i,ii
-  integer(i_kind) i_t,i_p,i_st,i_vp
   integer(i_kind) ipnts(4),istatus
 ! integer(i_kind) nval_lenz,ndim2d
   real(r_kind),pointer,dimension(:,:,:):: p_t  =>NULL()
@@ -97,11 +96,7 @@ subroutine bkerror(grady)
 ! Only need to get pointer for ii=1 - all other are the same
   call gsi_bundlegetpointer ( grady%step(1), (/'t ','sf','vp','ps'/), &
                               ipnts, istatus )
-  i_t  = ipnts(1)
-  i_st = ipnts(2)
-  i_vp = ipnts(3)
-  i_p  = ipnts(4)
-  dobal = i_t>0.and.i_p>0.and.i_st>0.and.i_vp>0
+  dobal = ipnts(1)>0 .and. ipnts(2)>0 .and. ipnts(3)>0 .and. ipnts(4)>0
 
 ! if ensemble run, multiply by sqrt_beta_s
   if(l_hyb_ens) call sqrt_beta_s_mult(grady)
