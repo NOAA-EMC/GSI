@@ -130,7 +130,6 @@ integer(i_kind),public, allocatable, dimension(:) :: iprocob, indxob_chunk,&
                           numptsperproc, numobsperproc
 integer(i_kind),public, allocatable, dimension(:,:) :: indxproc, indxproc_obs
 integer(i_kind),public :: npts_min, npts_max, nobs_min, nobs_max
-integer(8) totsize
 ! kd-tree structures.
 type(kdtree2),public,pointer :: kdtree_obs, kdtree_grid, kdtree_obs2
 
@@ -356,6 +355,9 @@ integer(i_kind) :: np, nb, nn, n, nanal, i, ierr, ne
 allocate(scounts(0:numproc-1))
 allocate(displs(0:numproc-1))
 allocate(rcounts(0:numproc-1))
+! allocate array to hold pieces of state vector on each proc.
+allocate(anal_chunk(nanals,npts_max,ncdim,nbackgrounds))
+if (nproc == 0) print *,'anal_chunk size = ',size(anal_chunk,kind=8)
 
 ! only IO tasks send any data.
 ! scounts is number of data elements to send to processor np.
@@ -454,7 +456,7 @@ else
        call mpi_alltoallv(sendbuf, scounts, displs, mpi_real4, recvbuf, rcounts, displs,&
                           mpi_real4, mpi_comm_world, ierr)
        !==> compute ensemble of first guesses on each task, remove mean from anal.
-       !$omp parallel do schedule(dynamic,1)  private(nn,i,nanal,n)
+       !$omp parallel do schedule(dynamic,1)  private(i,nanal,n)
        do i=1,numptsperproc(nproc+1)
           do nanal=1,nanals
              n = (nanal-1)*npts_max + i
@@ -468,18 +470,13 @@ else
 endif
 
 deallocate(sendbuf, recvbuf)
-
-! allocate array to hold pieces of state vector on each proc.
-allocate(anal_chunk(nanals,npts_max,ncdim,nbackgrounds))
-if (nproc == 0) print *,'anal_chunk size = ',size(anal_chunk,kind=8)
-
 allocate(anal_chunk_prior(nanals,npts_max,ncdim,nbackgrounds))
 allocate(ensmean_chunk(npts_max,ncdim,nbackgrounds))
 allocate(ensmean_chunk_prior(npts_max,ncdim,nbackgrounds))
 ensmean_chunk = 0_r_single
 
 !==> compute mean, remove it from anal_chunk
-!$omp parallel do schedule(dynamic,1)  private(nn,i,n,nb)
+!!$omp parallel do schedule(dynamic,1)  private(nn,i,n,nb)
 do nb=1,nbackgrounds
   do nn=1,ncdim
      do i=1,numptsperproc(nproc+1)
@@ -493,7 +490,7 @@ do nb=1,nbackgrounds
      end do
   end do
 end do
-!$omp end parallel do
+!!$omp end parallel do
 
 
 end subroutine scatter_chunks
@@ -602,7 +599,6 @@ else
      enddo ! end loop over levels
    enddo ! end loop over background time levels
 endif
-call mpi_barrier(mpi_comm_world,ierr)
 deallocate(sendbuf, recvbuf)
 
 end subroutine gather_chunks
