@@ -309,13 +309,21 @@ if (nproc <= ntasks_io-1) then
          print *,'--------------'
       endif
       ! gather ensmean increment on root.
-      do nn=1,ncdim
-      do ne=1,nanals_per_iotask
-         call mpi_reduce(grdin(:,nn,nb,ne), grdin_mean_tmp, npts, mpi_real4,&
-                         mpi_sum,0,mpi_comm_io,ierr)
-         if (nproc == 0) grdin_mean(:,nn,nb,1) = grdin_mean(:,nn,nb,1) + grdin_mean_tmp(:,nn)
-      enddo
-      enddo
+      if (real(npts)*real(ncdim) < 2**32/2. - 1) then
+         do ne=1,nanals_per_iotask
+            call mpi_reduce(grdin(:,:,nb,ne), grdin_mean_tmp, npts*ncdim, mpi_real4,&
+                            mpi_sum,0,mpi_comm_io,ierr)
+            if (nproc == 0) grdin_mean(:,:,nb,1) = grdin_mean(:,:,nb,1) + grdin_mean_tmp
+         enddo
+      else
+         do nn=1,ncdim
+         do ne=1,nanals_per_iotask
+            call mpi_reduce(grdin(:,nn,nb,ne), grdin_mean_tmp(:,nn), npts, mpi_real4,&
+                            mpi_sum,0,mpi_comm_io,ierr)
+            if (nproc == 0) grdin_mean(:,nn,nb,1) = grdin_mean(:,nn,nb,1) + grdin_mean_tmp(:,nn)
+         enddo
+         enddo
+      endif
       ! print out ens mean increment info
       if (nproc == 0) then
          grdin_mean(:,:,nb,1) = grdin_mean(:,:,nb,1)/real(nanals)
