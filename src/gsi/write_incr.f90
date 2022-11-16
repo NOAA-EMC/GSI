@@ -485,47 +485,53 @@ contains
        call mpi_barrier(mpi_comm_world,ierror)
     endif
     ! rain water mixing ratio increment
-    if (iqr>0) then
-       do k=1,grd%nsig
-          krev = grd%nsig+1-k
-          if (zero_increment_strat('rwmr_inc')) then 
-            call zero_inc_strat(qrsm(:,:,k), k, troplev) 
-          end if
-          if (should_zero_increments_for('rwmr_inc')) qrsm(:,:,k) = 0.0_r_kind
-          out3d(:,:,krev) = transpose(qrsm(j1:j2,:,k))
-       end do
-       !call nccheck_incr(nf90_put_var(ncid_out, qrvarid, sngl(out3d), &
-       !                  start = ncstart, count = nccount))
-       call mpi_barrier(mpi_comm_world,ierror)
-    endif
+    ! this increment will be zero, so this is commented out
+    ! to save disk space for the increment netCDF files
+    !if (iqr>0) then
+    !   do k=1,grd%nsig
+    !      krev = grd%nsig+1-k
+    !      if (zero_increment_strat('rwmr_inc')) then 
+    !        call zero_inc_strat(qrsm(:,:,k), k, troplev) 
+    !      end if
+    !      if (should_zero_increments_for('rwmr_inc')) qrsm(:,:,k) = 0.0_r_kind
+    !      out3d(:,:,krev) = transpose(qrsm(j1:j2,:,k))
+    !   end do
+    !   call nccheck_incr(nf90_put_var(ncid_out, qrvarid, sngl(out3d), &
+    !                     start = ncstart, count = nccount))
+    !   call mpi_barrier(mpi_comm_world,ierror)
+    !endif
     ! snow water mixing ratio increment
-    if (iqs>0) then
-       do k=1,grd%nsig
-          krev = grd%nsig+1-k
-          if (zero_increment_strat('snmr_inc')) then 
-            call zero_inc_strat(qssm(:,:,k), k, troplev) 
-          end if
-          if (should_zero_increments_for('snmr_inc')) qssm(:,:,k) = 0.0_r_kind
-          out3d(:,:,krev) = transpose(qssm(j1:j2,:,k))
-       end do
-       !call nccheck_incr(nf90_put_var(ncid_out, qsvarid, sngl(out3d), &
-       !                  start = ncstart, count = nccount))
-       call mpi_barrier(mpi_comm_world,ierror)
-    endif
+    ! this increment will be zero, so this is commented out
+    ! to save disk space for the increment netCDF files
+    !if (iqs>0) then
+    !   do k=1,grd%nsig
+    !      krev = grd%nsig+1-k
+    !      if (zero_increment_strat('snmr_inc')) then 
+    !        call zero_inc_strat(qssm(:,:,k), k, troplev) 
+    !      end if
+    !      if (should_zero_increments_for('snmr_inc')) qssm(:,:,k) = 0.0_r_kind
+    !      out3d(:,:,krev) = transpose(qssm(j1:j2,:,k))
+    !   end do
+    !   call nccheck_incr(nf90_put_var(ncid_out, qsvarid, sngl(out3d), &
+    !                     start = ncstart, count = nccount))
+    !   call mpi_barrier(mpi_comm_world,ierror)
+    !endif
     ! graupel mixing ratio increment
-    if (iqg>0) then
-       do k=1,grd%nsig
-          krev = grd%nsig+1-k
-          if (zero_increment_strat('grle_inc')) then 
-            call zero_inc_strat(qgsm(:,:,k), k, troplev) 
-          end if
-          if (should_zero_increments_for('grle_inc')) qgsm(:,:,k) = 0.0_r_kind
-          out3d(:,:,krev) = transpose(qgsm(j1:j2,:,k))
-       end do
-       !call nccheck_incr(nf90_put_var(ncid_out, qgvarid, sngl(out3d), &
-       !                  start = ncstart, count = nccount))
-       call mpi_barrier(mpi_comm_world,ierror)
-    endif
+    ! this increment will be zero, so this is commented out
+    ! to save disk space for the increment netCDF files
+    !if (iqg>0) then
+    !   do k=1,grd%nsig
+    !      krev = grd%nsig+1-k
+    !      if (zero_increment_strat('grle_inc')) then 
+    !        call zero_inc_strat(qgsm(:,:,k), k, troplev) 
+    !      end if
+    !      if (should_zero_increments_for('grle_inc')) qgsm(:,:,k) = 0.0_r_kind
+    !      out3d(:,:,krev) = transpose(qgsm(j1:j2,:,k))
+    !   end do
+    !   !call nccheck_incr(nf90_put_var(ncid_out, qgvarid, sngl(out3d), &
+    !   !                  start = ncstart, count = nccount))
+    !   call mpi_barrier(mpi_comm_world,ierror)
+    !endif
     ! cleanup and exit
     call nccheck_incr(nf90_close(ncid_out))
     if ( mype == mype_out ) then
