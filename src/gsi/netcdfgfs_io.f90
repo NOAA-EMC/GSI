@@ -2393,7 +2393,7 @@ contains
     use cloud_efr_mod, only: cloud_calc_gfs
 
     use netcdf, only: nf90_max_name
-    use module_fv3gfs_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
+    use module_ncio, only: open_dataset, close_dataset, Dimension, Dataset,&
          read_attribute, write_attribute,get_dim, create_dataset, write_vardata, read_vardata,&
          get_idate_from_time_units,quantize_data,get_time_units_from_idate,has_attr,has_var
     use ncepnems_io, only: error_msg
