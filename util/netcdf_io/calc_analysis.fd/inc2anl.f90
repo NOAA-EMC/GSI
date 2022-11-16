@@ -22,9 +22,9 @@ module inc2anl
   data incvars_nemsio / 'ugrd   ', 'vgrd   ', 'dpres  ', 'delz   ', 'o3mr   ',&
                         'tmp    ', 'spfh   ', 'clwmr  ', 'icmr   ', 'pres   '/
   data incvars_netcdf / 'u      ', 'v      ', 'delp   ', 'delz   ', 'o3mr   ',&
-                        'T      ', 'sphum  ', 'liq_wat', 'icmr   ', 'pres   '/
+                        'T      ', 'sphum  ', 'pres   '/
   data incvars_ncio / 'ugrd   ', 'vgrd   ', 'dpres  ', 'delz   ', 'o3mr   ',&
-                        'tmp    ', 'spfh   ', 'clwmr  ', 'icmr   ', 'pressfc'/
+                        'tmp    ', 'spfh   ', 'pressfc'/
   data iovars_netcdf /  'grid_xt', 'grid_yt', 'pfull  ', 'phalf  ', 'clwmr  ',&
                         'delz   ', 'dpres  ', 'dzdt   ', 'grle   ', 'hgtsfc ',&
                         'icmr   ', 'o3mr   ', 'pressfc', 'rwmr   ', 'snmr   ',&
