@@ -50,8 +50,8 @@
  integer :: id_hyai_out, id_hybi_out
  integer :: id_delp_inc_out, id_delz_inc_out
  integer :: id_t_inc_out, id_sphum_inc_out
- integer :: id_o3mr_inc_out
- integer :: id_dim
+ integer :: id_liq_wat_inc_out, id_o3mr_inc_out
+ integer :: id_icmr_inc_out, id_dim
  integer :: header_buffer_val = 16384
  integer :: kgds_in(200), kgds_out(200)
  integer :: ip, ipopt(20), no
@@ -74,7 +74,7 @@
 
  ! NOTE: u_inc,v_inc must be consecutive
  data records /'u_inc', 'v_inc', 'delp_inc', 'delz_inc', 'T_inc', &
-               'sphum_inc', 'o3mr_inc' /
+               'sphum_inc', 'liq_wat_inc', 'o3mr_inc', 'icmr_inc' /
 
  namelist /setup/ lon_out, lat_out, outfile, infile, lev
 
@@ -174,8 +174,14 @@ call mpi_comm_size(mpi_comm_world, npes, mpierr)
    error = nf90_def_var(ncid_out, 'sphum_inc', nf90_float, (/dim_lon_out,dim_lat_out,dim_lev_out/), id_sphum_inc_out)
    call netcdf_err(error, 'defining variable sphum_inc for file='//trim(outfile) )
   
+   error = nf90_def_var(ncid_out, 'liq_wat_inc', nf90_float, (/dim_lon_out,dim_lat_out,dim_lev_out/), id_liq_wat_inc_out)
+   call netcdf_err(error, 'defining variable liq_wat_inc for file='//trim(outfile) )
+  
    error = nf90_def_var(ncid_out, 'o3mr_inc', nf90_float, (/dim_lon_out,dim_lat_out,dim_lev_out/), id_o3mr_inc_out)
    call netcdf_err(error, 'defining variable o3mr_inc for file='//trim(outfile) )
+  
+   error = nf90_def_var(ncid_out, 'icmr_inc', nf90_float, (/dim_lon_out,dim_lat_out,dim_lev_out/), id_icmr_inc_out)
+   call netcdf_err(error, 'defining variable icmr_inc for file='//trim(outfile) )
   
    error = nf90_put_att(ncid_out, nf90_global, 'source', 'GSI')
    call netcdf_err(error, 'defining source attribute for file='//trim(outfile) )

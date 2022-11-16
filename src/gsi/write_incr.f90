@@ -132,7 +132,7 @@ contains
     integer(i_kind) :: ncid_out, lon_dimid, lat_dimid, lev_dimid, ilev_dimid
     integer(i_kind) :: lonvarid, latvarid, levvarid, pfullvarid, ilevvarid, &
                        hyaivarid, hybivarid, uvarid, vvarid, delpvarid, delzvarid, &
-                       tvarid, sphumvarid, o3varid!, liqwatvarid, icvarid, &
+                       tvarid, sphumvarid, o3varid, liqwatvarid, icvarid!, &
                        !qrvarid, qsvarid, qgvarid
     integer(i_kind) :: iql,iqi,iqr,iqs,iqg
     integer(i_kind) :: dimids3(3),nccount(3),ncstart(3), cnksize(3), j1, j2
@@ -251,18 +251,17 @@ contains
     call nccheck_incr(nf90_var_par_access(ncid_out, tvarid, nf90_collective))
     call nccheck_incr(nf90_def_var(ncid_out, "sphum_inc", nf90_real, dimids3, sphumvarid)) 
     call nccheck_incr(nf90_var_par_access(ncid_out, sphumvarid, nf90_collective))
-    ! commented below lines out to save on disk usage for arrays of all zeros
-    !if (iql>0) then
-    !   call nccheck_incr(nf90_def_var(ncid_out, "liq_wat_inc", nf90_real, dimids3, liqwatvarid)) 
-    !   call nccheck_incr(nf90_var_par_access(ncid_out, liqwatvarid, nf90_collective))
-    !endif
+    if (iql>0) then
+       call nccheck_incr(nf90_def_var(ncid_out, "liq_wat_inc", nf90_real, dimids3, liqwatvarid)) 
+       call nccheck_incr(nf90_var_par_access(ncid_out, liqwatvarid, nf90_collective))
+    endif
     call nccheck_incr(nf90_def_var(ncid_out, "o3mr_inc", nf90_real, dimids3, o3varid)) 
     call nccheck_incr(nf90_var_par_access(ncid_out, o3varid, nf90_collective))
+    if (iqi>0) then
+       call nccheck_incr(nf90_def_var(ncid_out, "icmr_inc", nf90_real, dimids3, icvarid)) 
+       call nccheck_incr(nf90_var_par_access(ncid_out, icvarid, nf90_collective))
+    endif
     ! commented below lines out to save on disk usage for arrays of all zeros
-    !if (iqi>0) then
-    !   call nccheck_incr(nf90_def_var(ncid_out, "icmr_inc", nf90_real, dimids3, icvarid)) 
-    !   call nccheck_incr(nf90_var_par_access(ncid_out, icvarid, nf90_collective))
-    !endif
     !if (iqr>0) then
     !   call nccheck_incr(nf90_def_var(ncid_out, "rwmr_inc", nf90_real, dimids3, qrvarid)) 
     !   call nccheck_incr(nf90_var_par_access(ncid_out, qrvarid, nf90_collective))
@@ -455,8 +454,8 @@ contains
           if (should_zero_increments_for('liq_wat_inc')) qlsm(:,:,k) = 0.0_r_kind
           out3d(:,:,krev) = transpose(qlsm(j1:j2,:,k))
        end do
-       !call nccheck_incr(nf90_put_var(ncid_out, liqwatvarid, sngl(out3d), &
-       !                  start = ncstart, count = nccount))
+       call nccheck_incr(nf90_put_var(ncid_out, liqwatvarid, sngl(out3d), &
+                         start = ncstart, count = nccount))
        call mpi_barrier(mpi_comm_world,ierror)
     endif
     ! ozone increment
@@ -481,8 +480,8 @@ contains
           if (should_zero_increments_for('icmr_inc')) qism(:,:,k) = 0.0_r_kind
          out3d(:,:,krev) = transpose(qism(j1:j2,:,k))
        end do
-       !call nccheck_incr(nf90_put_var(ncid_out, icvarid, sngl(out3d), &
-       !                  start = ncstart, count = nccount))
+       call nccheck_incr(nf90_put_var(ncid_out, icvarid, sngl(out3d), &
+                         start = ncstart, count = nccount))
        call mpi_barrier(mpi_comm_world,ierror)
     endif
     ! rain water mixing ratio increment
