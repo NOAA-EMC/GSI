@@ -4055,9 +4055,6 @@ subroutine hybens_localization_setup
    print_verbose=.false. .and. mype == 0
    if(verbose .and. mype == 0)print_verbose=.true.
 
-   ! Allocate
-   !call create_hybens_localization_parameters
-
    if ( readin_localization .or. readin_beta ) then ! read info from file
 
       inquire(file=trim(fname),exist=lexist)
