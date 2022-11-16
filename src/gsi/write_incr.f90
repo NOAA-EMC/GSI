@@ -257,22 +257,23 @@ contains
     endif
     call nccheck_incr(nf90_def_var(ncid_out, "o3mr_inc", nf90_real, dimids3, o3varid)) 
     call nccheck_incr(nf90_var_par_access(ncid_out, o3varid, nf90_collective))
-    if (iqi>0) then
-       call nccheck_incr(nf90_def_var(ncid_out, "icmr_inc", nf90_real, dimids3, icvarid)) 
-       call nccheck_incr(nf90_var_par_access(ncid_out, icvarid, nf90_collective))
-    endif
-    if (iqr>0) then
-       call nccheck_incr(nf90_def_var(ncid_out, "rwmr_inc", nf90_real, dimids3, qrvarid)) 
-       call nccheck_incr(nf90_var_par_access(ncid_out, qrvarid, nf90_collective))
-    endif
-    if (iqs>0) then
-       call nccheck_incr(nf90_def_var(ncid_out, "snmr_inc", nf90_real, dimids3, qsvarid)) 
-       call nccheck_incr(nf90_var_par_access(ncid_out, qsvarid, nf90_collective))
-    endif
-    if (iqg>0) then
-       call nccheck_incr(nf90_def_var(ncid_out, "grle_inc", nf90_real, dimids3, qgvarid)) 
-       call nccheck_incr(nf90_var_par_access(ncid_out, qgvarid, nf90_collective))
-    endif
+    ! commented below lines out to save on disk usage for arrays of all zeros
+    !if (iqi>0) then
+    !   call nccheck_incr(nf90_def_var(ncid_out, "icmr_inc", nf90_real, dimids3, icvarid)) 
+    !   call nccheck_incr(nf90_var_par_access(ncid_out, icvarid, nf90_collective))
+    !endif
+    !if (iqr>0) then
+    !   call nccheck_incr(nf90_def_var(ncid_out, "rwmr_inc", nf90_real, dimids3, qrvarid)) 
+    !   call nccheck_incr(nf90_var_par_access(ncid_out, qrvarid, nf90_collective))
+    !endif
+    !if (iqs>0) then
+    !   call nccheck_incr(nf90_def_var(ncid_out, "snmr_inc", nf90_real, dimids3, qsvarid)) 
+    !   call nccheck_incr(nf90_var_par_access(ncid_out, qsvarid, nf90_collective))
+    !endif
+    !if (iqg>0) then
+    !   call nccheck_incr(nf90_def_var(ncid_out, "grle_inc", nf90_real, dimids3, qgvarid)) 
+    !   call nccheck_incr(nf90_var_par_access(ncid_out, qgvarid, nf90_collective))
+    !endif
     ! place global attributes to parallel calc_increment output
     call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "source", "GSI"))
     call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "comment", &
@@ -469,62 +470,63 @@ contains
        call nccheck_incr(nf90_put_var(ncid_out, o3varid, sngl(out3d), &
                          start = ncstart, count = nccount))
     call mpi_barrier(mpi_comm_world,ierror)
-    ! ice mixing ratio increment
-    if (iqi>0) then
-       do k=1,grd%nsig
-          krev = grd%nsig+1-k
-          if (zero_increment_strat('icmr_inc')) then 
-            call zero_inc_strat(qism(:,:,k), k, troplev) 
-          end if
-          if (should_zero_increments_for('icmr_inc')) qism(:,:,k) = 0.0_r_kind
-         out3d(:,:,krev) = transpose(qism(j1:j2,:,k))
-       end do
-       call nccheck_incr(nf90_put_var(ncid_out, icvarid, sngl(out3d), &
-                         start = ncstart, count = nccount))
-       call mpi_barrier(mpi_comm_world,ierror)
-    endif
-    ! rain water mixing ratio increment
-    if (iqr>0) then
-       do k=1,grd%nsig
-          krev = grd%nsig+1-k
-          if (zero_increment_strat('rwmr_inc')) then 
-            call zero_inc_strat(qrsm(:,:,k), k, troplev) 
-          end if
-          if (should_zero_increments_for('rwmr_inc')) qrsm(:,:,k) = 0.0_r_kind
-          out3d(:,:,krev) = transpose(qrsm(j1:j2,:,k))
-       end do
-       call nccheck_incr(nf90_put_var(ncid_out, qrvarid, sngl(out3d), &
-                         start = ncstart, count = nccount))
-       call mpi_barrier(mpi_comm_world,ierror)
-    endif
-    ! snow water mixing ratio increment
-    if (iqs>0) then
-       do k=1,grd%nsig
-          krev = grd%nsig+1-k
-          if (zero_increment_strat('snmr_inc')) then 
-            call zero_inc_strat(qssm(:,:,k), k, troplev) 
-          end if
-          if (should_zero_increments_for('snmr_inc')) qssm(:,:,k) = 0.0_r_kind
-          out3d(:,:,krev) = transpose(qssm(j1:j2,:,k))
-       end do
-       call nccheck_incr(nf90_put_var(ncid_out, qsvarid, sngl(out3d), &
-                         start = ncstart, count = nccount))
-       call mpi_barrier(mpi_comm_world,ierror)
-    endif
-    ! graupel mixing ratio increment
-    if (iqg>0) then
-       do k=1,grd%nsig
-          krev = grd%nsig+1-k
-          if (zero_increment_strat('grle_inc')) then 
-            call zero_inc_strat(qgsm(:,:,k), k, troplev) 
-          end if
-          if (should_zero_increments_for('grle_inc')) qgsm(:,:,k) = 0.0_r_kind
-          out3d(:,:,krev) = transpose(qgsm(j1:j2,:,k))
-       end do
-       call nccheck_incr(nf90_put_var(ncid_out, qgvarid, sngl(out3d), &
-                         start = ncstart, count = nccount))
-       call mpi_barrier(mpi_comm_world,ierror)
-    endif
+    ! below lines commented out to not write out unused increments to save disk
+    !! ice mixing ratio increment
+    !if (iqi>0) then
+    !   do k=1,grd%nsig
+    !      krev = grd%nsig+1-k
+    !      if (zero_increment_strat('icmr_inc')) then 
+    !        call zero_inc_strat(qism(:,:,k), k, troplev) 
+    !      end if
+    !      if (should_zero_increments_for('icmr_inc')) qism(:,:,k) = 0.0_r_kind
+    !     out3d(:,:,krev) = transpose(qism(j1:j2,:,k))
+    !   end do
+    !   call nccheck_incr(nf90_put_var(ncid_out, icvarid, sngl(out3d), &
+    !                     start = ncstart, count = nccount))
+    !   call mpi_barrier(mpi_comm_world,ierror)
+    !endif
+    !! rain water mixing ratio increment
+    !if (iqr>0) then
+    !   do k=1,grd%nsig
+    !      krev = grd%nsig+1-k
+    !      if (zero_increment_strat('rwmr_inc')) then 
+    !        call zero_inc_strat(qrsm(:,:,k), k, troplev) 
+    !      end if
+    !      if (should_zero_increments_for('rwmr_inc')) qrsm(:,:,k) = 0.0_r_kind
+    !      out3d(:,:,krev) = transpose(qrsm(j1:j2,:,k))
+    !   end do
+    !   call nccheck_incr(nf90_put_var(ncid_out, qrvarid, sngl(out3d), &
+    !                     start = ncstart, count = nccount))
+    !   call mpi_barrier(mpi_comm_world,ierror)
+    !endif
+    !! snow water mixing ratio increment
+    !if (iqs>0) then
+    !   do k=1,grd%nsig
+    !      krev = grd%nsig+1-k
+    !      if (zero_increment_strat('snmr_inc')) then 
+    !        call zero_inc_strat(qssm(:,:,k), k, troplev) 
+    !      end if
+    !      if (should_zero_increments_for('snmr_inc')) qssm(:,:,k) = 0.0_r_kind
+    !      out3d(:,:,krev) = transpose(qssm(j1:j2,:,k))
+    !   end do
+    !   call nccheck_incr(nf90_put_var(ncid_out, qsvarid, sngl(out3d), &
+    !                     start = ncstart, count = nccount))
+    !   call mpi_barrier(mpi_comm_world,ierror)
+    !endif
+    !! graupel mixing ratio increment
+    !if (iqg>0) then
+    !   do k=1,grd%nsig
+    !      krev = grd%nsig+1-k
+    !      if (zero_increment_strat('grle_inc')) then 
+    !        call zero_inc_strat(qgsm(:,:,k), k, troplev) 
+    !      end if
+    !      if (should_zero_increments_for('grle_inc')) qgsm(:,:,k) = 0.0_r_kind
+    !      out3d(:,:,krev) = transpose(qgsm(j1:j2,:,k))
+    !   end do
+    !   call nccheck_incr(nf90_put_var(ncid_out, qgvarid, sngl(out3d), &
+    !                     start = ncstart, count = nccount))
+    !   call mpi_barrier(mpi_comm_world,ierror)
+    !endif
 !    ! cleanup and exit
     call nccheck_incr(nf90_close(ncid_out))
     if ( mype == mype_out ) then
