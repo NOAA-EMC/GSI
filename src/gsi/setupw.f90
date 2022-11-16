@@ -1880,7 +1880,6 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               call nc_diag_data2d("v_Observation_Operator_Jacobian_val", real(dhx_dx_v%val,r_single))
            endif
 
-           call nc_diag_data2d("atmosphere_pressure_coordinate", exp(prsltmp)*r1000)
 
   end subroutine contents_netcdf_diag_
 
