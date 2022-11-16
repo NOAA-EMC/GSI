@@ -219,7 +219,6 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !                              level; they are now loaded by
 !                              aircraftinfo.
 !   2020-05-04  wu   - no rotate_wind for fv3_regional
-!   2021-07-25 Genkova  - write AMVQ in diagnostic files 
 !   2021-10-xx  pondeca/morris/zhao - added observation provider/subprovider
 !                         information in diagonostic file, which is used
 !                         in offline observation quality control program (AutoObsQC) 
@@ -293,7 +292,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   integer(i_kind) ihgt,ier2,iuse,ilate,ilone
   integer(i_kind) izz,iprvd,isprvd
   integer(i_kind) idomsfc,isfcr,iskint,iff10
-  integer(i_kind) ibb,ikk,ihil,idddd,iamvq
+  integer(i_kind) ibb,ikk,ihil,idddd
 
   integer(i_kind) num_bad_ikx,iprev_station
 
@@ -384,9 +383,8 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   icat=24     ! index of data level category
   ijb=25      ! index of non linear qc parameter
   ihil=26     ! index of  hilbert curve weight
-  iamvq=27    ! index of AMVQ
-  iptrbu=28   ! index of u perturbation
-  iptrbv=29   ! index of v perturbation
+  iptrbu=27   ! index of u perturbation
+  iptrbv=28   ! index of v perturbation
 
   mm1=mype+1
   scale=one
@@ -402,7 +400,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   if(conv_diagsave)then
      ii=0
      nchar=1
-     ioff0=26
+     ioff0=25
      nreal=ioff0
      if (lobsdiagsave) nreal=nreal+7*miter+2
      if (twodvar_regional .or. l_obsprvdiag) then
@@ -1254,7 +1252,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         call vqc_setup(vals,ratio_errors,error,cvar,&
                       cg_t,ibb,ikk,var_jb,rat_err2v,wgt,valqcv)
         rwgt = rwgt+0.5_r_kind*wgt/wgtlim
-        valqc=valqcu+valqcv
+        valqc=half*(valqcu+valqcv)
 
 !       Accumulate statistics for obs belonging to this task
         if (muse(i)) then
@@ -1725,7 +1723,6 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         rdiagbuf(23,ii) = factw            ! 10m wind reduction factor
         rdiagbuf(24,ii) = 1.e+10_r_single  ! u spread (filled in by EnKF)
         rdiagbuf(25,ii) = 1.e+10_r_single  ! v spread (filled in by EnKF)
-        rdiagbuf(26,ii) = data(iamvq,i)    ! AMVQ mitigation flag for AMVs;only for GOES17,LHP issue 
 
         ioff=ioff0
         if (lobsdiagsave) then
@@ -1812,8 +1809,6 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)     )
            call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
            call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
-           ! AMVQ Mitigated winds                                                  
-           call nc_diag_metadata("Mitigation_flag_AMVQ",    sngl(data(iamvq,i))    ) 
            call nc_diag_metadata("Wind_Reduction_Factor_at_10m", sngl(factw)       )
 
            if (.not. regional .or. fv3_regional) then

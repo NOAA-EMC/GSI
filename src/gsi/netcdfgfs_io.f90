@@ -1300,7 +1300,7 @@ contains
     ! open the netCDF file
     sfcges = open_dataset(filename,errcode=iret)
     if (iret/=0) then
-       write(6,*) trim(my_name),':  ***ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
+       write(6,*) trim(my_name),':  ***FATAL ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
        call stop2(999)
     endif
 

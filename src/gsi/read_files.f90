@@ -620,7 +620,7 @@ subroutine read_files(mype)
   endif
   if (l4densvar .and. nfldsig/=ntlevs_ens) then
      if (mype==0) then
-        write(6,*)'READ_FILES: ***ERROR*** insufficient atm fcst for 4densvar:  PROGRAM STOPS'
+        write(6,*)'READ_FILES: ***FATAL ERROR*** insufficient atm fcst for 4densvar:  PROGRAM STOPS'
         do i=1,ntlevs_ens
            ihr=nhr_obsbin*(i-1)+nhr_half
            present=.false.
@@ -629,7 +629,7 @@ subroutine read_files(mype)
            end do
            if (.not.present) then
               write(filename,'(''sigf'',i2.2)')ihr
-              write(6,*)'READ_FILES: ***ERROR*** file ',trim(filename),' missing:  PROGRAM STOPS'
+              write(6,*)'READ_FILES: ***FATAL ERROR*** file ',trim(filename),' missing:  PROGRAM STOPS'
            endif
         end do
      endif
@@ -652,7 +652,7 @@ subroutine read_files(mype)
   endif
   if (l4densvar .and. nfldsfc/=ntlevs_ens) then
      if (mype==0) then
-        write(6,*)'READ_FILES: ***ERROR*** insufficient sfc fcst for 4densvar:  PROGRAM STOPS'
+        write(6,*)'READ_FILES: ***FATAL ERROR*** insufficient sfc fcst for 4densvar:  PROGRAM STOPS'
         do i=1,ntlevs_ens
            ihr=nhr_obsbin*(i-1)+nhr_half
            present=.false.
@@ -661,7 +661,7 @@ subroutine read_files(mype)
            end do
            if (.not.present) then
               write(filename,'(''sfcf'',i2.2)')ihr
-              write(6,*)'READ_FILES: ***ERROR*** file ',trim(filename),' missing:  PROGRAM STOPS'
+              write(6,*)'READ_FILES: ***FATAL ERROR*** file ',trim(filename),' missing:  PROGRAM STOPS'
            endif
         end do
      endif

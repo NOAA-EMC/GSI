@@ -7,15 +7,6 @@ set -x
 # Set experiment name
 exp=$jobname
 
-#TM=00
-#TM2=03
-#tmmark=tm${TM}
-
-
-# Set path/file for gsi executable
-#gsiexec=/meso/save/Wanshu.Wu/Code/trunk/trunk_40320/src/global_gsi_org
-#gsiexec=/da/save/Michael.Lueken/trunk/src/global_gsi.x
-
 # Set runtime and save directories
 tmpdir=$tmpdir/tmpreg_netcdf_fv3_regional/${exp}
 savdir=$savdir/outreg_netcdf_fv3_regional/${exp}
