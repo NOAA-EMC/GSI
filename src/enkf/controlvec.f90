@@ -53,7 +53,7 @@ use gridinfo,  only: getgridinfo, gridinfo_cleanup,                    &
 use params,    only: nlevs, nbackgrounds, fgfileprefixes, reducedgrid, &
                      nanals, pseudo_rh, use_qsatensmean, nlons, nlats,&
                      nanals_per_iotask, ntasks_io, nanal1, nanal2, &
-                     fgsfcfileprefixes, paranc, write_fv3_incr
+                     fgsfcfileprefixes, paranc, write_fv3_incr, write_ensmean
 use kinds,     only: r_kind, i_kind, r_double, r_single
 use mpeu_util, only: gettablesize, gettable, getindex
 use constants, only: max_varname_length
@@ -291,13 +291,14 @@ logical, intent(in) :: no_inflate_flag
 real(r_double)  :: t1,t2
 integer(i_kind) :: nb, nvar, ne
 integer(i_kind) :: q_ind, ierr
-real(r_single), allocatable, dimension(:,:) :: grdin_mean, grdin_mean_tmp
+real(r_single), allocatable, dimension(:,:) :: grdin_mean_tmp
+real(r_single), allocatable, dimension(:,:,:,:) :: grdin_mean
 
 if (nproc <= ntasks_io-1) then
 
    allocate(grdin_mean_tmp(npts,ncdim))
    if (nproc == 0) then
-     allocate(grdin_mean(npts,ncdim))
+     allocate(grdin_mean(npts,ncdim,nbackgrounds,1))
      grdin_mean = 0_r_single
      t1 = mpi_wtime()
    endif
@@ -311,27 +312,24 @@ if (nproc <= ntasks_io-1) then
       do ne=1,nanals_per_iotask
          call mpi_reduce(grdin(:,:,nb,ne), grdin_mean_tmp, npts*ncdim, mpi_real4,&
                          mpi_sum,0,mpi_comm_io,ierr)
-         if (nproc == 0) grdin_mean = grdin_mean + grdin_mean_tmp
+         if (nproc == 0) grdin_mean(:,:,nb,1) = grdin_mean(:,:,nb,1) + grdin_mean_tmp
       enddo
       ! print out ens mean increment info
       if (nproc == 0) then
-         grdin_mean = grdin_mean/real(nanals)
+         grdin_mean(:,:,nb,1) = grdin_mean(:,:,nb,1)/real(nanals)
          do nvar=1,nc3d
             write(6,100) trim(cvars3d(nvar)),   &
-                minval(grdin_mean(:,clevels(nvar-1)+1:clevels(nvar))),     &
-                maxval(grdin_mean(:,clevels(nvar-1)+1:clevels(nvar)))
+                minval(grdin_mean(:,clevels(nvar-1)+1:clevels(nvar),nb,1)),     &
+                maxval(grdin_mean(:,clevels(nvar-1)+1:clevels(nvar),nb,1))
          enddo
          do nvar=1,nc2d
             write(6,100) trim(cvars2d(nvar)),   &
-                minval(grdin_mean(:,clevels(nc3d) + nvar)),                &
-                maxval(grdin_mean(:,clevels(nc3d) + nvar))
+                minval(grdin_mean(:,clevels(nc3d) + nvar,nb,1)),                &
+                maxval(grdin_mean(:,clevels(nc3d) + nvar,nb,1))
          enddo
       endif
    enddo
 100 format('ens. mean anal. increment min/max  ',a,2x,g19.12,2x,g19.12)
-   if (nproc == 0) then
-      deallocate(grdin_mean)
-   endif
    deallocate(grdin_mean_tmp)
 
    q_ind = getindex(cvars3d, 'q')
@@ -353,6 +351,14 @@ if (nproc <= ntasks_io-1) then
          enddo
          enddo
       endif
+      if (nproc == 0 .and. write_ensmean) then
+         ! write_ensmean implies use_qsatensmean
+         do nb=1,nbackgrounds
+            ! re-scale normalized spfh with sat. sphf of ensmean first guess
+            grdin_mean(:,(q_ind-1)*nlevs+1:q_ind*nlevs,nb,1) = &
+            grdin_mean(:,(q_ind-1)*nlevs+1:q_ind*nlevs,nb,1)*qsatmean(:,:,nb)
+         enddo
+      endif
    end if
    if (.not. paranc) then
       if (write_fv3_incr) then
@@ -361,6 +367,15 @@ if (nproc <= ntasks_io-1) then
          call writegriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
       end if
       if (nproc == 0) then
+        if (write_ensmean) then
+           ! also write out ens mean on root task.
+           if (write_fv3_incr) then
+              call writeincrement(0,0,cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin_mean,no_inflate_flag)
+           else
+              call writegriddata(0,0,cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin_mean,no_inflate_flag)
+           end if
+        endif
+        deallocate(grdin_mean)
         t2 = mpi_wtime()
         print *,'time in write_control on root',t2-t1,'secs'
       endif 
@@ -375,6 +390,15 @@ if (paranc) then
       call writegriddata_pnc(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin,no_inflate_flag)
    end if
    if (nproc == 0) then
+     ! also write out ens mean on root task
+     if (write_ensmean) then ! FIXME use parallel IO to write ensmean
+        if (write_fv3_incr) then
+           call writeincrement(0,0,cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin_mean,no_inflate_flag)
+        else
+           call writegriddata(0,0,cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin_mean,no_inflate_flag)
+        end if
+     endif
+     deallocate(grdin_mean)
      t2 = mpi_wtime()
      print *,'time in write_control on root',t2-t1,'secs'
    endif 

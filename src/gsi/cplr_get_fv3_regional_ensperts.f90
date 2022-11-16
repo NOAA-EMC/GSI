@@ -48,6 +48,7 @@ contains
      use constants, only: zero,one,half,zero_single,rd_over_cp,one_tenth
      use mpimod, only: mpi_comm_world,ierror,mype
      use hybrid_ensemble_parameters, only: n_ens,grd_ens
+     use hybrid_ensemble_parameters, only: l_both_fv3sar_gfs_ens, n_ens_gfs,n_ens_fv3sar
      use hybrid_ensemble_parameters, only: ntlevs_ens,ensemble_path
      use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
      use gsi_bundlemod, only: gsi_bundlecreate
@@ -66,6 +67,8 @@ contains
      use gridmod,only: regional
      use gsi_rfv3io_mod, only: fv3lam_io_dynmetvars3d_nouv,fv3lam_io_tracermetvars3d_nouv 
      use gsi_rfv3io_mod, only: fv3lam_io_dynmetvars2d_nouv,fv3lam_io_tracermetvars2d_nouv 
+     use netcdf   , only: nf90_open, nf90_close,nf90_nowrite,nf90_inquire,nf90_format_netcdf4
+     use netcdf_mod , only: nc_check
     
 
      implicit none
@@ -97,10 +100,23 @@ contains
      integer(i_kind):: inner_vars,numfields
      integer(i_kind):: ilev,ic2,ic3
      integer(i_kind):: m
+     integer(i_kind)::loc_id,ncfmt
 
      
      character(255) ensfilenam_str
      type(type_fv3regfilenameg)::fv3_filename 
+     integer(i_kind):: imem_start,n_fv3sar
+
+     if(n_ens/=(n_ens_gfs+n_ens_fv3sar)) then
+        write(6,*)'wrong, the sum of  n_ens_gfs and n_ens_fv3sar not equal n_ens, stop'
+        write(6,*)"n_ens, n_ens_gfs and n_ens_fv3sar are",n_ens, n_ens_gfs , n_ens_fv3sar
+        call stop2(222)
+     endif
+     if(l_both_fv3sar_gfs_ens) then
+        imem_start=n_ens_gfs+1
+     else
+        imem_start=1
+     endif
 
      call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
      ! Allocate bundle to hold mean of ensemble members
@@ -202,6 +218,7 @@ contains
           call stop2(9991)
        endif
     enddo ! for m 
+   
 
      ! print info message for dirZDA
     if(mype==0)then
@@ -230,7 +247,7 @@ contains
  ! INITIALIZE ENSEMBLE MEAN ACCUMULATORS
         en_bar(m)%values=zero
  
-        do n=1,n_ens
+        do n=imem_start,n_ens
            en_perts(n,m)%valuesr4 = zero
         enddo
  
@@ -239,8 +256,9 @@ contains
         kapr=one/rd_over_cp
  !
  ! LOOP OVER ENSEMBLE MEMBERS 
-        do n=1,n_ens
-           write(ensfilenam_str,22) trim(adjustl(ensemble_path)),ens_fhrlevs(m),n
+        do n_fv3sar=1,n_ens_fv3sar
+           n=n_ens_gfs+n_fv3sar
+           write(ensfilenam_str,22) trim(adjustl(ensemble_path)),ens_fhrlevs(m),n_fv3sar
 22  format(a,'fv3SAR',i2.2,'_ens_mem',i3.3)
  ! DEFINE INPUT FILE NAME
            fv3_filename%grid_spec=trim(ensfilenam_str)//'-fv3_grid_spec' !exmaple thinktobe
@@ -249,6 +267,36 @@ contains
            fv3_filename%tracers=trim(ensfilenam_str)//"-fv3_tracer"
            fv3_filename%sfcdata=trim(ensfilenam_str)//"-fv3_sfcdata"
            fv3_filename%couplerres=trim(ensfilenam_str)//"-coupler.res"
+
+           if(mype == 0) then
+              call nc_check(nf90_open(fv3_filename%dynvars,nf90_nowrite,loc_id), &
+              "nf90 open ",trim(fv3_filename%dynvars))
+              call nc_check(nf90_inquire(loc_id,formatNum=ncfmt), &
+              "nf90_inquire formate of ",trim(fv3_filename%dynvars))
+              if(ncfmt /= nf90_format_netcdf4) then
+                 write(6,*) &
+                 'the current GSI parallelization IO for fv3_lam only works for netcdf4' ,&
+                  'ncfmt should be ', nf90_format_netcdf4,&
+                  'GSI will stop while ',trim(fv3_filename%dynvars),' is ', ncfmt
+                 call stop2(333)
+              endif
+              call nc_check(nf90_close(loc_id), &
+              "nf90 close ",trim(fv3_filename%dynvars))
+
+              call nc_check(nf90_open(fv3_filename%tracers,nf90_nowrite,loc_id), &
+              "nf90 open ",trim(fv3_filename%tracers))
+              call nc_check(nf90_inquire(loc_id,formatNum=ncfmt), &
+              "nf90_inquire formate of ",trim(fv3_filename%tracers))
+              if(ncfmt /= nf90_format_netcdf4) then
+                 write(6,*) &
+                 'the current GSI parallelization IO for fv3_lam only works for netcdf 4',&
+                  'ncfmt should be ', nf90_format_netcdf4,&
+                  'GSI will stop while ',trim(fv3_filename%tracers),' is ', ncfmt
+                 call stop2(333)
+              endif
+              call nc_check(nf90_close(loc_id), &
+              "nf90 close ",trim(fv3_filename%tracers))
+           endif
  ! 
  ! READ ENEMBLE MEMBERS DATA
            if (mype == 0) write(6,'(a,a)') &
@@ -460,7 +508,7 @@ contains
         enddo 
  !
  ! CALCULATE ENSEMBLE MEAN
-        bar_norm = one/float(n_ens)
+        bar_norm = one/float(n_ens_fv3sar)
         en_bar(m)%values=en_bar(m)%values*bar_norm
  
  ! Copy pbar to module array.  ps_bar may be needed for vertical localization
@@ -488,9 +536,9 @@ contains
  !
  !
  ! CONVERT ENSEMBLE MEMBERS TO ENSEMBLE PERTURBATIONS
-        sig_norm=sqrt(one/max(one,n_ens-one))
+        sig_norm=sqrt(one/max(one,n_ens_fv3sar-one))
  
-        do n=1,n_ens
+        do n=imem_start,n_ens
            do i=1,nelen
               en_perts(n,m)%valuesr4(i)=(en_perts(n,m)%valuesr4(i)-en_bar(m)%values(i))*sig_norm
            end do
@@ -550,6 +598,7 @@ contains
     use netcdf, only: nf90_open,nf90_close
     use netcdf, only: nf90_inq_dimid,nf90_inquire_dimension
     use netcdf, only: nf90_inq_varid,nf90_inquire_variable,nf90_get_var
+    use netcdf, only: nf90_format_netcdf4
     use kinds, only: r_kind,r_single,i_kind
     use gridmod, only: eta1_ll,eta2_ll
     use constants, only: zero,one,fv,zero_single,one_tenth,h300
@@ -557,7 +606,6 @@ contains
     use hybrid_ensemble_parameters, only: fv3sar_ensemble_opt 
 
     use mpimod, only: mpi_comm_world,mpi_rtype
-    use netcdf_mod, only: nc_check
     use gsi_rfv3io_mod,only: type_fv3regfilenameg
     use gsi_rfv3io_mod,only:n2d 
     use constants, only: half,zero
@@ -567,6 +615,7 @@ contains
     use gsi_rfv3io_mod, only: gsi_fv3ncdf_readuv_v1
     use gsi_rfv3io_mod, only: gsi_fv3ncdf2d_read_v1
     use directDA_radaruse_mod, only: l_use_dbz_directDA
+    use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_gridcreate
     use gsi_bundlemod, only: gsi_grid
     use gsi_bundlemod, only: gsi_bundlecreate,gsi_bundledestroy

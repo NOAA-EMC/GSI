@@ -261,9 +261,9 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
          kidsat=223
        else if(jsatid == 'npp')then
          kidsat=224
-       else if(jsatid == 'n20')then
+       else if(jsatid == 'n20' .or. jsatid == 'j1')then
          kidsat=225
-       else if(jsatid == 'n21')then
+       else if(jsatid == 'n21' .or. jsatid == 'j2')then
          kidsat=226
        else if(jsatid == 'f08')then
          kidsat=241
@@ -307,6 +307,12 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
          kidsat=270
        else if(jsatid == 'g17' .or. jsatid == 'g17_prep')then
          kidsat=271
+       else if(jsatid == 'g18' .or. jsatid == 'g18_prep')then
+         kidsat=272
+       else if(jsatid == 'himawari8')then
+         kidsat=173
+       else if(jsatid == 'himawari9')then
+         kidsat=174
        else if(jsatid == 'n05')then
          kidsat=705
        else if(jsatid == 'n06')then
@@ -448,6 +454,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
                trim(subset) == 'NC005039' .or. &
                trim(subset) == 'NC005090' .or. trim(subset) == 'NC005091' .or.&
                trim(subset) == 'NC005067' .or. trim(subset) == 'NC005068' .or. trim(subset) == 'NC005069' .or.&
+               trim(subset) == 'NC005047' .or. trim(subset) == 'NC005048' .or. trim(subset) == 'NC005049' .or.&
                trim(subset) == 'NC005081' .or. &
                trim(subset) == 'NC005072' ) then
                lexist = .true.
@@ -768,7 +775,7 @@ subroutine read_obs(ndata,mype)
 
 !   Declare local variables
     logical :: lexist,ssmis,amsre,sndr,hirs,avhrr,lexistears,lexistdb,use_prsl_full,use_hgtl_full
-    logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri,mls,abi
+    logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri,mls,abi,ahi
     logical,dimension(ndat):: belong,parallel_read,ears_possible,db_possible
     logical :: modis,use_sfc_any
     logical :: acft_profl_file
@@ -882,6 +889,7 @@ subroutine read_obs(ndata,mype)
        modis = index(obstype,'modis') /= 0
        seviri = index(obstype,'seviri') /= 0
        abi = index(obstype,'abi') /= 0
+       ahi = index(obstype,'ahi') /= 0
        mls = index(obstype,'mls') /= 0
        if(obstype == 'mls20' ) nmls_type=nmls_type+1
        if(obstype == 'mls22' ) nmls_type=nmls_type+1
@@ -1562,7 +1570,7 @@ subroutine read_obs(ndata,mype)
                 if(i_gsdcldanal_type==2) then
                    call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,sis,nobs_sub1(1,i))
                 else if(i_gsdcldanal_type==1 .or. i_gsdcldanal_type==6 &
-                        .or. i_gsdcldanal_type==3 .or. i_gsdcldanal_type==7) then
+                        .or. i_gsdcldanal_type==3 .or. i_gsdcldanal_type==7 .or. i_gsdcldanal_type==99) then
                    call read_nasa_larc(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
                 end if
                 string='READ_NASA_LaRC'
@@ -1993,7 +2001,7 @@ subroutine read_obs(ndata,mype)
 !   Write collective obs selection information to scratch file.
     if (lread_obs_save .and. mype==0) then
        write(6,*)'READ_OBS:  write collective obs selection info to ',trim(obs_input_common)
-       call unformatted_open(lunsave,file=obs_input_common,class=".obs_input.")
+       call unformatted_open(lunsave,file=obs_input_common,class=".obs_input.",silent=.true.)
        write(lunsave) ndata,ndat,npe,superp,nprof_gps,ditype
        write(lunsave) super_val1
        write(lunsave) nobs_sub

@@ -61,8 +61,8 @@
 
  subroutine readgriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,ntimes, &
                              fileprefixes,filesfcprefixes,reducedgrid,grdin,qsat)
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                 quantize_data,read_attribute, close_dataset, get_dim, read_vardata
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         quantize_data,read_attribute, close_dataset, get_dim, read_vardata
   implicit none
 
   character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
@@ -333,14 +333,19 @@
 
   if (iope==0) then
      do k=1,nlevs
-        krev = nlevs-k+1
-        ! layer pressure from phillips vertical interolation
+        ! pressure at bottom of layer interface (for gps jacobian, see prsltmp in setupbend.f90)
+        if (prse_ind > 0) then
+           ug(:) = pressi(:,k)
+           call copytogrdin(ug,pslg(:,k))
+           ! Jacobian for gps in pressure is saved in different units in GSI; need to
+           ! multiply pressure by 0.1
+           grdin(:,levels(prse_ind-1)+k,nb,ne) = 0.1*pslg(:,k)
+        endif
+        ! layer pressure from phillips vertical interolation (used for qsat
+        ! calculation)
         ug(:) = ((pressi(:,k)**kap1-pressi(:,k+1)**kap1)/&
                 (kap1*(pressi(:,k)-pressi(:,k+1))))**kapr
         call copytogrdin(ug,pslg(:,k))
-        ! Jacobian for gps in pressure is saved in different units in GSI; need to
-        ! multiply pressure by 0.1
-        if (prse_ind > 0)     grdin(:,levels(prse_ind-1)+k,nb,ne) = 0.1*pslg(:,k)
      end do
      if (pseudo_rh) then
         call genqsat1(q,qsat(:,:,nb,ne),pslg,tv,ice,npts,nlevs)
@@ -418,8 +423,8 @@
   use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_close,&
                            nemsio_getfilehead,nemsio_getheadvar,nemsio_realkind,nemsio_charkind,&
                            nemsio_readrecv,nemsio_init,nemsio_setheadvar,nemsio_writerecv
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                 quantize_data,read_attribute, close_dataset, get_dim, read_vardata
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         quantize_data,read_attribute, close_dataset, get_dim, read_vardata
   implicit none
 
   integer, intent(in) :: nanal1,nanal2
@@ -952,15 +957,19 @@
 
   ! compute saturation q.
   do k=1,nlevs
-    ! layer pressure from phillips vertical interolation
+    ! pressure at bottom of layer interface (for gps jacobian, see prsltmp in setupbend.f90)
+    if (prse_ind > 0) then
+       ug(:) = pressi(:,k)
+       call copytogrdin(ug,pslg(:,k))
+       ! Jacobian for gps in pressure is saved in different units in GSI; need to
+       ! multiply pressure by 0.1
+       grdin(:,levels(prse_ind-1)+k,nb,ne) = 0.1*pslg(:,k)
+    endif
+    ! layer pressure from phillips vertical interolation (used for qsat
+    ! calculation)
     ug(:) = ((pressi(:,k)**kap1-pressi(:,k+1)**kap1)/&
             (kap1*(pressi(:,k)-pressi(:,k+1))))**kapr
-
     call copytogrdin(ug,pslg(:,k))
-    ! Jacobian for gps in pressure is saved in different units in GSI; need to
-    ! multiply pressure by 0.1
-    if (prse_ind > 0)     grdin(:,levels(prse_ind-1)+k,nb,ne) = 0.1*pslg(:,k)
-
   end do
   if (pseudo_rh) then
      call genqsat1(q,qsat(:,:,nb,ne),pslg,tv,ice,npts,nlevs)
@@ -1023,11 +1032,11 @@
 
  subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
   use netcdf
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                          read_attribute, close_dataset, get_dim, read_vardata,&
-                          create_dataset, get_idate_from_time_units, &
-                          get_time_units_from_idate, write_vardata, &
-                          write_attribute, quantize_data, has_var, has_attr
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         read_attribute, close_dataset, get_dim, read_vardata,&
+                         create_dataset, get_idate_from_time_units, &
+                         get_time_units_from_idate, write_vardata, &
+                         write_attribute, quantize_data, has_var, has_attr
   use constants, only: grav, zero
   use params, only: nbackgrounds,anlfileprefixes,fgfileprefixes,reducedgrid,&
                     nccompress
@@ -1115,7 +1124,9 @@
   ! need to distribute grdin to all PEs in this subcommunicator
   ! bring all the subdomains back to the main PE
   call mpi_barrier(iocomms(mem_pe(nproc)), iret)
-  call mpi_bcast(grdin,npts*ndim*nbackgrounds, mpi_real4, 0, iocomms(mem_pe(nproc)), iret)
+  do nb=1,nbackgrounds
+     call mpi_bcast(grdin(1,1,nb,1),npts*ndim, mpi_real4, 0, iocomms(mem_pe(nproc)), iret)
+  enddo
 
   ! loop through times and do the read
   ne = 1
@@ -1831,14 +1842,14 @@
                            nemsio_readrec,nemsio_writerec,nemsio_intkind,nemsio_charkind,&
                            nemsio_getheadvar,nemsio_realkind,nemsio_getfilehead,&
                            nemsio_readrecv,nemsio_init,nemsio_setheadvar,nemsio_writerecv
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                          read_attribute, close_dataset, get_dim, read_vardata,&
-                          create_dataset, get_idate_from_time_units, &
-                          get_time_units_from_idate, write_vardata, &
-                          write_attribute, quantize_data, has_var, has_attr
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         read_attribute, close_dataset, get_dim, read_vardata,&
+                         create_dataset, get_idate_from_time_units, &
+                         get_time_units_from_idate, write_vardata, &
+                         write_attribute, quantize_data, has_var, has_attr
   use constants, only: grav
   use params, only: nbackgrounds,anlfileprefixes,fgfileprefixes,reducedgrid,&
-                    nccompress
+                    nccompress,write_ensmean
   implicit none
 
   integer, intent(in) :: nanal1,nanal2
@@ -1906,12 +1917,17 @@
   write(charnanal,'(i3.3)') nanal
   backgroundloop: do nb=1,nbackgrounds
 
-  if(no_inflate_flag) then
-    filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"nimem"//charnanal
+  if (nanal == 0 .and. write_ensmean) then
+     filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"ensmean"
+     filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"ensmean"
   else
-    filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"mem"//charnanal
-  end if
-  filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+     if(no_inflate_flag) then
+       filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"nimem"//charnanal
+     else
+       filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"mem"//charnanal
+     end if
+     filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+  endif
 
   if (use_gfs_nemsio) then
      clip = tiny(vg(1))
@@ -3289,14 +3305,14 @@
  subroutine writeincrement(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
   use netcdf
   use params, only: nbackgrounds,incfileprefixes,fgfileprefixes,reducedgrid,&
-                    datestring,nhr_anal
+                    datestring,nhr_anal,write_ensmean
   use constants, only: grav
   use mpi
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                          read_attribute, close_dataset, get_dim, read_vardata,&
-                          create_dataset, get_idate_from_time_units, &
-                          get_time_units_from_idate, write_vardata, &
-                          write_attribute, quantize_data, has_var, has_attr
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         read_attribute, close_dataset, get_dim, read_vardata,&
+                         create_dataset, get_idate_from_time_units, &
+                         get_time_units_from_idate, write_vardata, &
+                         write_attribute, quantize_data, has_var, has_attr
   implicit none
 
   integer, intent(in) :: nanal1,nanal2
@@ -3354,12 +3370,17 @@
   write(charnanal,'(i3.3)') nanal
   backgroundloop: do nb=1,nbackgrounds
 
-  if(no_inflate_flag) then
-    filenameout = trim(adjustl(datapath))//trim(adjustl(incfileprefixes(nb)))//"nimem"//charnanal
+  if (nanal == 0 .and. write_ensmean) then
+     filenameout = trim(adjustl(datapath))//trim(adjustl(incfileprefixes(nb)))//"ensmean"
+     filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"ensmean"
   else
-    filenameout = trim(adjustl(datapath))//trim(adjustl(incfileprefixes(nb)))//"mem"//charnanal
-  end if
-  filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+     if(no_inflate_flag) then
+       filenameout = trim(adjustl(datapath))//trim(adjustl(incfileprefixes(nb)))//"nimem"//charnanal
+     else
+       filenameout = trim(adjustl(datapath))//trim(adjustl(incfileprefixes(nb)))//"mem"//charnanal
+     end if
+     filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+  endif
 
   ! create the output netCDF increment file
   call nccheck_incr(nf90_create(path=trim(filenameout), cmode=nf90_netcdf4, ncid=ncid_out))
@@ -3690,11 +3711,11 @@
                     datestring,nhr_anal
   use constants, only: grav
   use mpi
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                          read_attribute, close_dataset, get_dim, read_vardata,&
-                          create_dataset, get_idate_from_time_units, &
-                          get_time_units_from_idate, write_vardata, &
-                          write_attribute, quantize_data, has_var, has_attr
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         read_attribute, close_dataset, get_dim, read_vardata,&
+                         create_dataset, get_idate_from_time_units, &
+                         get_time_units_from_idate, write_vardata, &
+                         write_attribute, quantize_data, has_var, has_attr
   implicit none
 
   character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
@@ -3773,7 +3794,9 @@
   ! need to distribute grdin to all PEs in this subcommunicator
   ! bring all the subdomains back to the main PE
   call mpi_barrier(iocomms(mem_pe(nproc)), iret)
-  call mpi_bcast(grdin,npts*ndim*nbackgrounds, mpi_real4, 0, iocomms(mem_pe(nproc)), iret)
+  do nb=1,nbackgrounds
+     call mpi_bcast(grdin(1,1,nb,1),npts*ndim, mpi_real4, 0, iocomms(mem_pe(nproc)), iret)
+  enddo
 
   ! loop through times and do the read
   ne = 1

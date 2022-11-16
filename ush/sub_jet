@@ -131,7 +131,8 @@ echo "" >>$cfile
 
 echo ". /apps/lmod/lmod/init/sh"                           >> $cfile
 echo "module purge"                                        >> $cfile
-echo "source $gsisrc/modulefiles/modulefile.ProdGSI.jet"   >> $cfile
+echo "module use $gsisrc/modulefiles"                      >> $cfile
+echo "module load gsi_jet" >> $cfile
 echo "module list"                                         >> $cfile
 echo "" >>$cfile
 

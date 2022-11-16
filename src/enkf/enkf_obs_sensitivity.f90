@@ -45,7 +45,7 @@ use enkf_obsmod, only: nobstot,nobs_conv,nobs_oz,nobs_sat,obtype,obloclat, &
                        obloclon,obpress,indxsat,oberrvar,stattype,obtime,ob, &
                        ensmean_ob,ensmean_obnobc,obsprd_prior,obfit_prior, &
                        oberrvar_orig,biaspreds,anal_ob_post,nobstot,lnsigl, &
-                       corrlengthsq,obtimel,oblnp,obloc
+                       corrlengthsq,obtimel,oblnp,obloc ,assimltd_flag
 use convinfo, only: convinfo_read,init_convinfo
 use ozinfo, only: ozinfo_read,init_oz
 use radinfo, only: radinfo_read,jpch_rad,nusis,nuchan,npred
@@ -91,6 +91,7 @@ type obsense_info
   integer(i_kind) :: stattype           ! Observation type
   character(len=20) :: obtype           ! Observation element / Satellite name
   integer(i_kind) :: indxsat            ! Satellite index (channel)
+  integer(i_kind) :: assimltd_flag      ! is assimilated? flag
   real(r_single)  :: osense_kin         ! Observation sensitivity (kinetic energy) [J/kg]
   real(r_single)  :: osense_dry         ! Observation sensitivity (Dry total energy) [J/kg]
   real(r_single)  :: osense_moist       ! Observation sensitivity (Moist total energy) [J/kg]
@@ -215,6 +216,7 @@ subroutine read_ob_sens
   allocate(stattype(nobstot))
   allocate(obtype(nobstot))
   allocate(indxsat(nobs_sat))
+  allocate(assimltd_flag(nobstot))
   allocate(biaspreds(npred+1,nobs_sat))
   allocate(tmpanal_ob(nanals))
   allocate(tmpbiaspreds(npred+1))
@@ -235,6 +237,7 @@ subroutine read_ob_sens
      oberrvar_orig(nob) = real(indata%oberrvar_orig,r_kind)
      stattype(nob) = indata%stattype
      obtype(nob) = indata%obtype
+     assimltd_flag(nob) = indata%assimltd_flag
      if(nproc == 0) anal_ob_post(1:nanals,nob) = real(tmpanal_ob(1:nanals),r_kind)
   end do
   ! Read loop over satellite radiance observations
@@ -256,6 +259,7 @@ subroutine read_ob_sens
      stattype(nob) = indata%stattype
      obtype(nob) = indata%obtype
      indxsat(nn) = indata%indxsat
+     assimltd_flag(nob) = indata%assimltd_flag
      if(nproc == 0) anal_ob_post(1:nanals,nob) = real(tmpanal_ob(1:nanals),r_kind)
      biaspreds(1:npred+1,nn) = real(tmpbiaspreds(1:npred+1),r_kind)
   end do
@@ -430,6 +434,7 @@ subroutine print_ob_sens
         outdata%stattype = stattype(nob)
         outdata%obtype = obtype(nob)
         outdata%indxsat = 0
+        outdata%assimltd_flag = assimltd_flag(nob)
         if(efsoi_flag) then
            outdata%osense_kin = real(obsense_kin(nob),r_single)
            outdata%osense_dry = real(obsense_dry(nob),r_single)
@@ -500,6 +505,7 @@ subroutine print_ob_sens
         outdata%stattype = stattype(nob)
         outdata%obtype = obtype(nob)
         outdata%indxsat = nchan
+        outdata%assimltd_flag = assimltd_flag(nob)
         tmpbiaspreds(1:npred+1) = real(biaspreds(1:npred+1,nn),r_single)
         if(efsoi_flag) then
            outdata%osense_kin = real(obsense_kin(nob),r_single)

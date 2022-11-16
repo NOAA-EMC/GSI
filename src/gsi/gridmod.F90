@@ -92,6 +92,7 @@ module gridmod
 !   2019-09-04  martin  - add write_fv3_incr to write netCDF increment rather than analysis in NEMSIO format
 !   2019-09-23  martin  - add use_gfs_ncio to read global first guess from netCDF file
 !   2020-12-18  Hu      - add grid_type_fv3_regional
+!   2021-12-30  Hu      - add fv3_io_layout_y
 !
 !                        
 !
@@ -146,7 +147,7 @@ module gridmod
   public :: nlat_regional,nlon_regional,update_regsfc,half_grid,gencode
   public :: diagnostic_reg,nmmb_reference_grid,filled_grid
   public :: grid_ratio_nmmb,isd_g,isc_g,dx_gfs,lpl_gfs,nsig5,nmmb_verttype
-  public :: grid_ratio_fv3_regional,fv3_regional,grid_type_fv3_regional
+  public :: grid_ratio_fv3_regional,fv3_io_layout_y,fv3_regional,fv3_cmaq_regional,grid_type_fv3_regional
   public :: l_reg_update_hydro_delz
   public :: nsig3,nsig4,grid_ratio_wrfmass
   public :: use_gfs_ozone,check_gfs_ozone_date,regional_ozone,nvege_type
@@ -178,6 +179,7 @@ module gridmod
 
   logical wrf_nmm_regional  !
   logical fv3_regional      ! .t. to run with fv3 regional model
+  logical fv3_cmaq_regional ! .t. to run with fv3_cmaq_regional model
   logical l_reg_update_hydro_delz  ! .true. to update delz in fv3 model
   logical nems_nmmb_regional! .t. to run with NEMS NMMB model
   logical wrf_mass_regional !
@@ -205,6 +207,7 @@ module gridmod
   character(1) nmmb_reference_grid      ! ='H': use nmmb H grid as reference for analysis grid
                                         ! ='V': use nmmb V grid as reference for analysis grid
   real(r_kind) grid_ratio_fv3_regional  ! ratio of analysis grid to fv3 model grid in fv3 grid units.
+  integer(i_kind) fv3_io_layout_y       ! = io_layout(2) of fv3 regional model (subdomain y direction).
   integer(i_kind) grid_type_fv3_regional! type of fv3 model grid (grid orientation).
   real(r_kind) grid_ratio_nmmb ! ratio of analysis grid to nmmb model grid in nmmb model grid units.
   real(r_kind) grid_ratio_wrfmass ! ratio of analysis grid to wrf model grid in wrf mass grid units.
@@ -453,6 +456,7 @@ contains
     wrf_mass_hybridcord = .false.
     cmaq_regional=.false.
     fv3_regional=.false.
+    fv3_cmaq_regional=.false.
     l_reg_update_hydro_delz=.false.
     nems_nmmb_regional = .false.
     twodvar_regional = .false. 
@@ -463,6 +467,7 @@ contains
     filled_grid = .false.
     half_grid = .false.
     grid_ratio_fv3_regional = one
+    fv3_io_layout_y = 1
     grid_type_fv3_regional = 0
     grid_ratio_nmmb = sqrt(two)
     grid_ratio_wrfmass = one

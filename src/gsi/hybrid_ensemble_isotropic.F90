@@ -1169,6 +1169,7 @@ end subroutine normal_new_factorization_rf_y
                                           pseudo_hybens,regional_ensemble_option,&
                                           i_en_perts_io,write_generated_ens
     use hybrid_ensemble_parameters, only: nelen,en_perts,ps_bar
+    use hybrid_ensemble_parameters, only: l_both_fv3sar_gfs_ens 
     use gsi_enscouplermod, only: gsi_enscoupler_put_gsi_ens
     use mpimod, only: mype
     use get_pseudo_ensperts_mod, only: get_pseudo_ensperts_class
@@ -1392,6 +1393,10 @@ end subroutine normal_new_factorization_rf_y
 
                 call get_nmmb_ensperts
              case(5)
+                if (l_both_fv3sar_gfs_ens) then ! first read in gfs ensembles for regional 
+                   call get_gefs_for_regional
+                endif
+    
 !     regional_ensemble_option = 5: ensembles are fv3 regional.
                 call fv3_regional_enspert%get_fv3_regional_ensperts(en_perts,nelen,ps_bar)
    
@@ -4035,7 +4040,7 @@ subroutine hybens_localization_setup
    use gfs_stratosphere, only: use_gfs_stratosphere,blend_rm
    use hybrid_ensemble_parameters, only: grd_ens,jcap_ens,n_ens,grd_loc,sp_loc,&
                                          nval_lenz_en,regional_ensemble_option
-   use hybrid_ensemble_parameters, only: readin_beta,beta_s,beta_e,beta_s0,sqrt_beta_s,sqrt_beta_e
+   use hybrid_ensemble_parameters, only: readin_beta,beta_s,beta_e,beta_s0,beta_e0,sqrt_beta_s,sqrt_beta_e
    use hybrid_ensemble_parameters, only: readin_localization,create_hybens_localization_parameters, &
                                          vvlocal,s_ens_h,s_ens_hv,s_ens_v,s_ens_vv
    use gsi_io, only: verbose
@@ -4101,7 +4106,11 @@ subroutine hybens_localization_setup
 
    if ( .not. readin_beta ) then ! assign all levels to same value, sum = 1.0
       beta_s = beta_s0
-      beta_e = one - beta_s0
+      if (beta_e0 < 0) then
+         beta_e = one - beta_s0
+      else
+         beta_e = beta_e0
+      endif
    endif
 
    if ( regional_ensemble_option == 2 .and. use_gfs_stratosphere .and. .not. readin_beta ) then
@@ -4205,7 +4214,7 @@ subroutine convert_km_to_grid_units(s_ens_h_gu_x,s_ens_h_gu_y,nz)
   implicit none
 
   integer(i_kind) ,intent(in   ) ::nz
-  real(r_kind),intent(  out) ::s_ens_h_gu_x(nz),s_ens_h_gu_y(nz)
+  real(r_kind),intent(  out) ::s_ens_h_gu_x(nz*n_ens),s_ens_h_gu_y(nz*n_ens)
   logical :: print_verbose
   real(r_kind) dxmax,dymax
   integer(i_kind) k,n,nk
