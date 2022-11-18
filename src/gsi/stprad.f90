@@ -128,8 +128,8 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   type(gsi_bundle),intent(in) :: xval
 
 ! Declare local variables
-  integer(i_kind) istatus
-  integer(i_kind) nn,n,ic,k,nx,j1,j2,j3,j4,kk, mm, ic1,ncr
+  integer(i_kind) istatus,icx
+  integer(i_kind) nn,n,ic,k,nx,j1,j2,j3,j4,kk,mm,ncr
   real(r_kind) val2,val,w1,w2,w3,w4
   real(r_kind),dimension(nsigradjac):: tdir,rdir
   real(r_kind) cg_rad,wgross,wnotgross
@@ -230,7 +230,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
            allocate(biasvects(radptr%nchan))
            allocate(biasvectr(radptr%nchan))
 
-!$omp parallel do schedule(dynamic,1) !private(n,j1,j2,j3,j4,icl,vals_quad,valr_quad,nx)
+!$omp parallel do schedule(dynamic,1) private(n,j1,j2,j3,j4,icx,vals_quad,valr_quad,nx)
            do n=1,max(nsig,radptr%nchan)
               if(n <= nsig)then
                 j1 = j1n(n)
@@ -296,12 +296,12 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
                 end if
               end if
               if(n <= radptr%nchan)then
-                ic1=radptr%icx(n)
+                icx=radptr%icx(n)
                 vals_quad = zero_quad
                 valr_quad = zero_quad
                 do nx=1,npred
-                  vals_quad = vals_quad + spred(nx,ic1)*radptr%pred(nx,n)
-                  valr_quad = valr_quad + rpred(nx,ic1)*radptr%pred(nx,n)
+                  vals_quad = vals_quad + spred(nx,icx)*radptr%pred(nx,n)
+                  valr_quad = valr_quad + rpred(nx,icx)*radptr%pred(nx,n)
                 end do
                 biasvects(n) = vals_quad
                 biasvectr(n) = valr_quad

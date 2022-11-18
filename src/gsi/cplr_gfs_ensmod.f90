@@ -322,8 +322,8 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
 
     allocate(en_loc3(lat2in,lon2in,nc2d+nc3d*nsig))
 
-    iret = 0
     call create_grd23d_(grd3d,nc2d+nc3d*grd%nsig)
+    iret=0
     do n=1,n_ens
        do k=1,nc2d+nc3d*nsig
           jj=0
@@ -390,7 +390,7 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
     real(r_kind),        intent(inout) :: en_loc3(grd3d%lat2,grd3d%lon2,nc2d+nc3d*grd3d%nsig)
     type(gsi_bundle),    intent(inout) :: atm_bundle
     integer(i_kind),     intent(in   ) :: m_cvars2d(nc2d),m_cvars3d(nc3d)
-    integer(i_kind),     intent(  out) :: iret
+    integer(i_kind),     intent(inout) :: iret
 
     ! Declare internal variables
     character(len=*),parameter :: myname_='move2bundle_'
@@ -421,8 +421,14 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
 
     atm_bundle=zero
 
-    call gsi_bundlegetpointer(atm_bundle,'ps',ps,  ierr); iret = ierr
-    !call gsi_bundlegetpointer(atm_bundle,'sst',sst, ierr); iret = ierr
+    call gsi_bundlegetpointer(atm_bundle,'ps',ps,  ierr); iret = iret+ierr
+    !call gsi_bundlegetpointer(atm_bundle,'sst',sst, ierr); iret = iret+ierr
+    do m=1,nc2d
+!      convert ps from Pa to cb
+       if(trim(cvars2d(m))=='ps')   ps=r0_001*en_loc3(:,:,m_cvars2d(m))
+!      if(trim(cvars2d(m))=='sst') sst=en_loc3(:,:,m_cvars2d(m)) !no sst for now
+    enddo
+
     call gsi_bundlegetpointer(atm_bundle,'sf',u ,  ierr); iret = ierr + iret
     call gsi_bundlegetpointer(atm_bundle,'vp',v ,  ierr); iret = ierr + iret
     call gsi_bundlegetpointer(atm_bundle,'t' ,tv,  ierr); iret = ierr + iret
@@ -437,20 +443,13 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
     if ( iret /= 0 ) then
        if ( mype == 0 ) then
           write(6,'(A)') trim(myname_) // ': ERROR!'
-          write(6,'(A)') trim(myname_) // ': For now, GFS requires all MetFields: ps,u,v,(sf,vp)tv,q,oz,cw'
+          write(6,'(A)') trim(myname_) // ': For now, GFS requires all MetFields: ps,u,v,(sf,vp)tv,q,oz'
           write(6,'(A)') trim(myname_) // ': but some have not been found. Aborting ... '
           write(6,'(A)') trim(myname_) // ': WARNING!'
           write(6,'(3A,I5)') trim(myname_) // ': Trouble reading ensemble file : ', trim(filename), ', IRET = ', iret
        endif
        return
     endif
-
-
-    do m=1,nc2d
-!      convert ps from Pa to cb
-       if(trim(cvars2d(m))=='ps')   ps=r0_001*en_loc3(:,:,m_cvars2d(m))
-!      if(trim(cvars2d(m))=='sst') sst=en_loc3(:,:,m_cvars2d(m)) !no sst for now
-    enddo
 
     km = en_perts(1,1)%grid%km
 !$omp parallel do  schedule(dynamic,1) private(m) 
@@ -520,7 +519,7 @@ subroutine update_halos_(grd,s)
     real(r_kind),        intent(inout) :: s(grd%lat2,grd%lon2,grd%num_fields)
 
     ! Declare local variables
-    integer(i_kind) inner_vars,lat2,lon2,nlat,nlon,nvert,kbegin_loc,kend_loc,kend_alloc
+    integer(i_kind) inner_vars,lat2,lon2,nlat,nlon,nvert,kbegin_loc,kend_alloc
     integer(i_kind) ii,i,j,k
     real(r_kind),allocatable,dimension(:) :: sloc
     real(r_kind),allocatable,dimension(:,:,:,:) :: work
@@ -532,7 +531,6 @@ subroutine update_halos_(grd,s)
     nvert=grd%num_fields
     inner_vars=grd%inner_vars
     kbegin_loc=grd%kbegin_loc
-    kend_loc=grd%kend_loc
     kend_alloc=grd%kend_alloc
 
     allocate(sloc(lat2*lon2*nvert))
@@ -965,6 +963,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
       if(trim(cvars3d(k3))=='t') then
          k3t=k3
          call read_vardata(atmges, 'tmp', rwork3d1)
+!$omp parallel do  schedule(dynamic,1) private(k,kr) 
          do k=1,nsig
             kr = levs+1-k
             call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
@@ -973,6 +972,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
       else if(trim(cvars3d(k3))=='sf') then
          k3u=k3
          call read_vardata(atmges, 'ugrd', rwork3d1)
+!$omp parallel do  schedule(dynamic,1) private(k,kr) 
          do k=1,nsig
             kr = levs+1-k
             call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
@@ -980,6 +980,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
       else if(trim(cvars3d(k3))=='vp') then
          k3v=k3
          call read_vardata(atmges, 'vgrd', rwork3d1)
+!$omp parallel do  schedule(dynamic,1) private(k,kr) 
          do k=1,nsig
             kr = levs+1-k
             call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
@@ -987,6 +988,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
       else if(trim(cvars3d(k3))=='q') then
          k3q=k3
          call read_vardata(atmges, 'spfh', rwork3d1)
+!$omp parallel do  schedule(dynamic,1) private(k,kr) 
          do k=1,nsig
             kr = levs+1-k
             call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
@@ -1000,6 +1002,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
          call read_vardata(atmges, 'icmr', rwork3d2) 
          rwork3d1 = rwork3d1 + rwork3d2
          deallocate(rwork3d2)
+!$omp parallel do  schedule(dynamic,1) private(k,kr) 
          do k=1,nsig
             kr = levs+1-k
             call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
@@ -1008,6 +1011,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
       else if(trim(cvars3d(k3))=='oz') then
          k3oz=k3
          call read_vardata(atmges, 'o3mr', rwork3d1)
+!$omp parallel do  schedule(dynamic,1) private(k,kr) 
          do k=1,nsig
             kr = levs+1-k
             call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
@@ -1015,6 +1019,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
          end do
       else if(trim(cvars3d(k3))=='ql') then
          call read_vardata(atmges, 'clwmr', rwork3d1)
+!$omp parallel do  schedule(dynamic,1) private(k,kr) 
          do k=1,nsig
             kr = levs+1-k
             call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
@@ -1022,6 +1027,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
          end do
       else if(trim(cvars3d(k3))=='qi') then
          call read_vardata(atmges, 'icmr', rwork3d1)
+!$omp parallel do  schedule(dynamic,1) private(k,kr) 
          do k=1,nsig
             kr = levs+1-k
             call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
@@ -1029,6 +1035,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
          end do
       else if(trim(cvars3d(k3))=='qr') then
          call read_vardata(atmges, 'rwmr', rwork3d1)
+!$omp parallel do  schedule(dynamic,1) private(k,kr) 
          do k=1,nsig
             kr = levs+1-k
             call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
@@ -1036,6 +1043,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
          end do
       else if(trim(cvars3d(k3))=='qs') then
          call read_vardata(atmges, 'snmr', rwork3d1)
+!$omp parallel do  schedule(dynamic,1) private(k,kr) 
          do k=1,nsig
             kr = levs+1-k
             call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
@@ -1043,6 +1051,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
          end do
       else if(trim(cvars3d(k3))=='qg') then
          call read_vardata(atmges, 'grle', rwork3d1)
+!$omp parallel do  schedule(dynamic,1) private(k,kr) 
          do k=1,nsig
             kr = levs+1-k
             call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
@@ -1056,13 +1065,15 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
    if (k3u==0.or.k3v==0.or.k3t==0.or.k3q==0.or.k3oz==0) &
       write(6,'(" WARNING, problem with one of k3-")')
 
+!$omp parallel do  schedule(dynamic,1) private(k) 
    do k=1,nsig
       call fillpoles_sv_(temp3(:,:,k,k3u),temp3(:,:,k,k3v),nlon,nlat,clons,slons)
    end do
 
 !  move temp3 to en_full
-   kf=0
+!$omp parallel do  schedule(dynamic,1) private(k3,k,kf,j,jj,i,ii) 
    do k3=1,nc3d
+      kf=(k3-1)*nsig
       m_cvars3d(k3)=kf+1
       do k=1,nsig
          kf=kf+1
@@ -1081,6 +1092,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
    deallocate(temp3)
    allocate(temp2(nlat,nlon))
    allocate(rwork2d(nlon,(nlat-2)))
+   kf=nc3d*nsig
    do k2=1,nc2d
       if(trim(cvars2d(k2))=='ps') then
          call read_vardata(atmges, 'pressfc', rwork2d)

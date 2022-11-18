@@ -165,7 +165,7 @@ subroutine stpgps(gpshead,rval,sval,out,sges,nstep)
            val=zero
 
 
-!$omp parallel do schedule(dynamic,1) !private(j,t_TL,rt_TL,q_TL,rq_TL,p_TL,rp_TL)
+!$omp parallel do schedule(dynamic,1) private(j,t_TL,rt_TL,q_TL,rq_TL,p_TL,rp_TL)
            do j=1,nsig
               t_TL =w1* st(i1(j))+w2* st(i2(j))+w3* st(i3(j))+w4* st(i4(j))
               rt_TL=w1* rt(i1(j))+w2* rt(i2(j))+w3* rt(i3(j))+w4* rt(i4(j))

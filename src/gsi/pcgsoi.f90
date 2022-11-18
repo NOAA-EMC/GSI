@@ -269,7 +269,7 @@ subroutine pcgsoi()
 ! Perform inner iteration
   inner_iteration: do iter=0,niter(jiter)
 
-! Gradually turn on variational qc to avoid possible convergence problems
+! Gradually turn on old variational qc to avoid possible convergence problems
      if(vqc) then
         nlnqc_iter = iter >= niter_no_qc(jiter)
         if(jiter == jiterstart) then

@@ -157,7 +157,7 @@ subroutine intgps_(gpshead,rval,sval)
 
 !  local refractivity (linear operator)
 
-!$omp parallel do schedule(dynamic,1) !private(j,t_TL,q_TL,p_TL)
+!$omp parallel do schedule(dynamic,1) private(j,t_TL,q_TL,p_TL)
      do j=1,nsig
         t_TL=w1*st(i1(j))+w2*st(i2(j))+w3*st(i3(j))+w4*st(i4(j))
         q_TL=w1*sq(i1(j))+w2*sq(i2(j))+w3*sq(i3(j))+w4*sq(i4(j))
@@ -208,7 +208,7 @@ subroutine intgps_(gpshead,rval,sval)
 
 !       adjoint 
 
-!$omp parallel do schedule(dynamic,1) !private(j,t_AD,q_AD,p_AD)
+!$omp parallel do schedule(dynamic,1) private(j,t_AD,q_AD,p_AD)
         do j=1,nsig
            t_AD = grad*gpsptr%jac_t(j)
            rt(i1(j))=rt(i1(j))+w1*t_AD

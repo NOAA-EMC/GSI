@@ -399,59 +399,32 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
   zloc=zero
 
 ! Independent part of vector
-! Sum
-  ii=0
+! Sum,Max,Min and number of points
+!$omp parallel do schedule(dynamic,1) !private(i)
   do i = 1,ns3d
-     ii=ii+1
      if(xst%r3(i)%mykind==r_single)then
-        zloc(ii)= sum_mask(xst%r3(i)%qr4,ihalo=1)
+        zloc(i)= sum_mask(xst%r3(i)%qr4,ihalo=1)
+        zloc(nvars+i)= minval(xst%r3(i)%qr4)
+        zloc(2*nvars+i)= maxval(xst%r3(i)%qr4)
      else
-        zloc(ii)= sum_mask(xst%r3(i)%q,ihalo=1)
+        zloc(i)= sum_mask(xst%r3(i)%q,ihalo=1)
+        zloc(nvars+i)= minval(xst%r3(i)%q)
+        zloc(2*nvars+i)= maxval(xst%r3(i)%q)
      endif
-     nloc(ii) = real((lat2-2)*(lon2-2)*levels(i), r_kind) ! dim of 3d fields
+     nloc(i) = real((lat2-2)*(lon2-2)*levels(i), r_kind) ! dim of 3d fields
   enddo
+!$omp parallel do schedule(dynamic,1) !private(i)
   do i = 1,ns2d
-     ii=ii+1
      if(xst%r2(i)%mykind==r_single)then
-        zloc(ii)= sum_mask(xst%r2(i)%qr4,ihalo=1)
+        zloc(ns3d+i)= sum_mask(xst%r2(i)%qr4,ihalo=1)
+        zloc(nvars+ns3d+i)= minval(xst%r2(i)%qr4)
+        zloc(2*nvars+ns3d+i)= maxval(xst%r2(i)%qr4)
      else
-        zloc(ii)= sum_mask(xst%r2(i)%q,ihalo=1)
+        zloc(ns3d+i)= sum_mask(xst%r2(i)%q,ihalo=1)
+        zloc(nvars+ns3d+i)= minval(xst%r2(i)%q)
+        zloc(2*nvars+ns3d+i)= maxval(xst%r2(i)%q)
      endif
-     nloc(ii) = real((lat2-2)*(lon2-2), r_kind)           ! dim of 2d fields
-  enddo
-! Min
-  do i = 1,ns3d
-     ii=ii+1
-     if(xst%r3(i)%mykind==r_single)then
-        zloc(ii)= minval(xst%r3(i)%qr4)
-     else
-        zloc(ii)= minval(xst%r3(i)%q)
-     endif
-  enddo
-  do i = 1,ns2d
-     ii=ii+1
-     if(xst%r2(i)%mykind==r_single)then
-        zloc(ii)= minval(xst%r2(i)%qr4)
-      else
-        zloc(ii)= minval(xst%r2(i)%q)
-     endif
-  enddo
-! Max
-  do i = 1,ns3d
-     ii=ii+1
-     if(xst%r3(i)%mykind==r_single)then
-        zloc(ii)= maxval(xst%r3(i)%qr4)
-     else
-        zloc(ii)= maxval(xst%r3(i)%q)
-     endif
-  enddo
-  do i = 1,ns2d
-     ii=ii+1
-     if(xst%r2(i)%mykind==r_single)then
-        zloc(ii)= maxval(xst%r2(i)%qr4)
-     else
-        zloc(ii)= maxval(xst%r2(i)%q)
-     endif
+     nloc(ns3d+i) = real((lat2-2)*(lon2-2), r_kind)           ! dim of 2d fields
   enddo
 
 ! Gather contributions
@@ -460,20 +433,12 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
   call mpi_allgather(nloc,size(nloc),mpi_rtype, &
                    & nall,size(nloc),mpi_rtype, mpi_comm_world,ierror)
 
-  ii=0
-  do i=1,ns3d
-     ii=ii+1
-     psum(ii)=SUM(zall(ii,:))
-     pnum(ii)=SUM(nall(ii,:))
-  enddo
-  do i=1,ns2d
-     ii=ii+1
-     psum(ii)=SUM(zall(ii,:))
-     pnum(ii)=SUM(nall(ii,:))
-  enddo
-  do ii=1,nvars
-     pmin(ii)=MINVAL(zall(  nvars+ii,:))
-     pmax(ii)=MAXVAL(zall(2*nvars+ii,:))
+!$omp parallel do schedule(dynamic,1) !private(i)
+  do i=1,nvars
+     psum(i)=SUM(zall(i,:))
+     pnum(i)=SUM(nall(i,:))
+     pmin(i)=MINVAL(zall(  nvars+i,:))
+     pmax(i)=MAXVAL(zall(2*nvars+i,:))
   enddo
 
 ! Release work space
