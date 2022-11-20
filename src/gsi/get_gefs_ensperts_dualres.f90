@@ -161,10 +161,6 @@ subroutine get_gefs_ensperts_dualres
 
      en_bar%values=zero
      if (.not.q_hyb_ens) then !use RH
-       kap1=rd_over_cp+one
-       kapr=one/rd_over_cp
-       ice=.true.
-       iderivative=0
        allocate(pri(im,jm,km+1))
        allocate(prsl(im,jm,km),tsen(im,jm,km))
        allocate(qs(im,jm,km))
@@ -187,6 +183,8 @@ subroutine get_gefs_ensperts_dualres
          call general_getprs_glb(ps,tv,pri)
 ! Get sensible temperature and 3d layer pressure
          if (idsl5 /= 2) then
+            kap1=rd_over_cp+one
+            kapr=one/rd_over_cp
 !$omp parallel do schedule(dynamic,1) private(k,j,i)
             do k=1,km
                do j=1,jm
@@ -209,6 +207,8 @@ subroutine get_gefs_ensperts_dualres
             end do
          end if
 
+         ice=.true.
+         iderivative=0
          call genqsat(qs,tsen,prsl,im,jm,km,ice,iderivative)
          do k=1,km
             do j=1,jm
@@ -283,7 +283,6 @@ subroutine get_gefs_ensperts_dualres
 
 ! Copy pbar to module array.  ps_bar may be needed for vertical localization
 ! in terms of scale heights/normalized p/p
-! Convert to mean
      do j=1,jm
         do i=1,im
            ps_bar(i,j,m)=x2(i,j)
@@ -694,8 +693,6 @@ subroutine general_getprs_glb(ps,tv,prs)
   real(r_kind),parameter:: ten = 10.0_r_kind
 
 
-  kapr=one/rd_over_cp
-
   if (regional) then
      if(wrf_nmm_regional.or.nems_nmmb_regional) then
         do k=1,nsig+1
@@ -736,32 +733,45 @@ subroutine general_getprs_glb(ps,tv,prs)
         end do
      endif
   else
-     k=1
-     k2=nsig+1
-     do j=1,grd_ens%lon2
-        do i=1,grd_ens%lat2
-           prs(i,j,k)=ps(i,j)
-           prs(i,j,k2)=zero
-        end do
-     end do
      if (idvc5 /= 3) then
 !$omp parallel do schedule(dynamic,1) private(k,j,i)
-        do k=2,nsig
-           do j=1,grd_ens%lon2
-              do i=1,grd_ens%lat2
-                 prs(i,j,k)=ak5(k)+bk5(k)*ps(i,j)
+        do k=1,nsig
+           if(k == 1)then
+              k2=nsig+1
+              do j=1,grd_ens%lon2
+                do i=1,grd_ens%lat2
+                  prs(i,j,k)=ps(i,j)
+                  prs(i,j,k2)=zero
+                end do
               end do
-           end do
+           else
+              do j=1,grd_ens%lon2
+                 do i=1,grd_ens%lat2
+                    prs(i,j,k)=ak5(k)+bk5(k)*ps(i,j)
+                 end do
+              end do
+           end if
         end do
      else
+        kapr=one/rd_over_cp
 !$omp parallel do schedule(dynamic,1) private(k,j,i,trk)
-        do k=2,nsig
-           do j=1,grd_ens%lon2
-              do i=1,grd_ens%lat2
-                 trk=(half*(tv(i,j,k-1)+tv(i,j,k))/tref5(k))**kapr
-                 prs(i,j,k)=ak5(k)+(bk5(k)*ps(i,j))+(ck5(k)*trk)
+        do k=1,nsig
+           if(k == 1)then
+              k2=nsig+1
+              do j=1,grd_ens%lon2
+                do i=1,grd_ens%lat2
+                  prs(i,j,k)=ps(i,j)
+                  prs(i,j,k2)=zero
+                end do
               end do
-           end do
+           else
+              do j=1,grd_ens%lon2
+                 do i=1,grd_ens%lat2
+                    trk=(half*(tv(i,j,k-1)+tv(i,j,k))/tref5(k))**kapr
+                    prs(i,j,k)=ak5(k)+(bk5(k)*ps(i,j))+(ck5(k)*trk)
+                 end do
+              end do
+           end if
         end do
      end if
   end if

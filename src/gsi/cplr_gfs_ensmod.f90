@@ -261,9 +261,9 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
                                    ibsm,ibem,jbsm,jbem,kbsm,kbem,mbsm,mbem)
   
       if(mype==0)then
-         do n=1,n_ens
+        do n=1,n_ens
           write(6,'(3(a,1x,i5,1x))') 'reading ensemble member', n,'on pe', io_pe0(n)
-         enddo
+        enddo
       end if
 
     end if
@@ -295,7 +295,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
                                             filename,.true.)
           end if
        else
-           call parallel_read_gfsnc_state_(en_full,m_cvars2dw,m_cvars3dw,nlon,nlat,nsig, &
+          call parallel_read_gfsnc_state_(en_full,m_cvars2dw,m_cvars3dw,nlon,nlat,nsig, &
                                          ias,jas,mas, &
                                          iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
                                          filename)
@@ -340,7 +340,6 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     enddo
     call general_sub2grid_destroy_info(grd3d,grd)
     deallocate(en_loc,en_loc3)
-    
 
 end subroutine get_user_ens_gfs_fastread_
 

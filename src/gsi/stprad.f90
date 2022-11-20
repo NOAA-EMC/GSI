@@ -341,7 +341,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
                  rad(kk)=val2+sges(kk)*val
               end do
            else
-              rad(kk)= -radptr%res(nn)
+              rad(1)= -radptr%res(nn)
            end if
         
 !          calculate contribution to J
