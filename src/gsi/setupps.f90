@@ -913,8 +913,6 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
            call nc_diag_metadata("Observation",                   sngl(pob)        )
            call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(pob-pges)   )
            call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(pob-pgesorig))
-           call nc_diag_metadata("Forecast_adjusted",             sngl(pges)       )
-           call nc_diag_metadata("Forecast_unadjusted",           sngl(pgesorig)   )
  
           if (lobsdiagsave) then
 
@@ -946,8 +944,6 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
              call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
              call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
            endif
-
-           call nc_diag_data2d("atmosphere_pressure_coordinate", sngl(exp(prsltmp)*r1000))
 
   end subroutine contents_netcdf_diag_
 
