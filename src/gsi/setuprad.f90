@@ -302,6 +302,7 @@ contains
   use radiance_mod, only: rad_obs_type,radiance_obstype_search,radiance_ex_obserr,radiance_ex_biascor
   use sparsearr, only: sparr2, new, writearray, size, fullarray
   use radiance_mod, only: radiance_ex_obserr_gmi,radiance_ex_biascor_gmi
+!JAJ  use cads, only: cloud_aerosol_detection
 
   implicit none
 
@@ -398,6 +399,7 @@ contains
   real(r_kind),dimension(nsig):: qvp,tvp
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(nsig+1):: prsitmp
+  real(r_kind),dimension(nchanl):: chan_level
   real(r_kind),dimension(nchanl):: weightmax
   real(r_kind),dimension(nchanl):: cld_rbc_idx,cld_rbc_idx2
   real(r_kind),dimension(nchanl):: tcc         
@@ -437,6 +439,15 @@ contains
   type(fptr_obsdiagNode),dimension(nchanl):: odiags
 
   logical:: muse_ii
+
+!JAJ for cloud_aerosol_detect
+!  integer(i_kind) I_Sensor_ID
+!  integer(i_kind), dimension(nchanl) :: chan_array
+!  integer(i_kind) boundary_layer_pres
+!  integer(i_kind) tropopause_height
+!  real(r_kind),dimension(nchanl) :: cloud_detect_ht
+
+
 
 ! Notations in use: for a single obs. or a single obs. type
 ! nchanl        : a known channel count of a given type obs stream
@@ -896,7 +907,7 @@ contains
           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
              tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
-             tsim,emissivity,ptau5,ts,emissivity_k, &
+             tsim,emissivity,chan_level,ptau5,ts,emissivity_k, &
                 temp,wmix,jacobian,error_status,tsim_clr=tsim_clr,tcc=tcc, & 
                 tcwv=tcwv,hwp_ratio=hwp_ratio,stability=stability)         
           if(gmi) then
@@ -907,7 +918,7 @@ contains
              call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
                 tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
                  trop5,tzbgr,dtsavg,sfc_speed, &
-                 tsim2,emissivity2,ptau52,ts2,emissivity_k2, &
+                 tsim2,emissivity2,chan_level,ptau52,ts2,emissivity_k2, &
                  temp2,wmix2,jacobian2,error_status,tsim_clr=tsim_clr2,tcc=tcc,&
                  tcwv=tcwv,hwp_ratio=hwp_ratio,stability=stability)
              ! merge 
@@ -931,7 +942,7 @@ contains
           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
              tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
-             tsim,emissivity,ptau5,ts,emissivity_k, &
+             tsim,emissivity,chan_level,ptau5,ts,emissivity_k, &
              temp,wmix,jacobian,error_status)
           if(gmi) then
              gmi_low_angles(1:3)=data_s(ilzen_ang:iscan_ang,n)
@@ -941,7 +952,7 @@ contains
              call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
                 tvp,qvp,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
                  trop5,tzbgr,dtsavg,sfc_speed, &
-                 tsim2,emissivity2,ptau52,ts2,emissivity_k2, &
+                 tsim2,emissivity2,chan_level,ptau52,ts2,emissivity_k2, &
                  temp2,wmix2,jacobian2,error_status)
              ! merge 
              emissivity(10:13)  = emissivity2(10:13)
@@ -1354,10 +1365,11 @@ contains
                  end if
               end if
            end do
+
            call qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),goessndr,airs,                   &
-              cris,iasi,hirs,zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise, &
-              wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity,emissivity_k,ts,tsim,                       &
-              id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole(n))
+              cris,iasi,hirs,zsges,cenlat,cenlon,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise, &
+              wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity,chan_level,emissivity_k,ts,tsim,                 &
+              data_s(ifrac_lnd,n),id_qc,aivals,errf,varinv,varinv_use,cld,cldp,zero_irjaco3_pole(n))
 
 !  --------- MSU -------------------
 !       QC MSU data
