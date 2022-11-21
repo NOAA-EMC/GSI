@@ -116,8 +116,11 @@ module qcmod
 !   def use_poq7        - if true, accept sbuv/2 obs with profile ozone quality flag 7
 !   def cao_check       - if true, turn on cold-air-outbreak screening
 !   def airs_co2        - if true, use the co2_slicing ir cloud detection routine for Aqua/AIRS instrument
+!   def airs_cads       - if true, use the cloud and aerosol detection routine for Aqua/AIRS instrument
 !   def cris_co2        - if true, use the co2_slicing ir cloud detection routine for CrIS instruments
+!   def cris_cads       - if true, use the cloud and aerosol detection routine for CrIS instruments
 !   def iasi_co2        - if true, use the co2_slicing ir cloud detection routine for IASI instruments
+!   def iasi_cads       - if true, use the cloud and aerosol detection routine for IASI instruments
 !   def hirs_co2        - if true, use the co2_slicing ir cloud detection routine for HIRS instruments
 !   def goessndr_co2    - if true, use the co2_slicing ir cloud detection routine for GOES sounders
 !
@@ -157,7 +160,7 @@ module qcmod
   use constants, only: r0_01,r0_02,r0_03,r0_04,r0_05,r10,r60,r100,h300,r400,r1000,r2000,r2400,r4000
   use constants, only: deg2rad,rad2deg,t0c,one_tenth,rearth_equator
   use obsmod, only: rmiss_single
-  use radinfo, only: iuse_rad,passive_bc
+  use radinfo, only: iuse_rad,passive_bc,nuchan
   use radinfo, only: tzr_qc
   use radiance_mod, only: rad_obs_type
   implicit none
@@ -206,7 +209,7 @@ module qcmod
   public :: troflg
   public :: lat_c
   public :: nrand 
-  public :: airs_co2, cris_co2, iasi_co2, hirs_co2, goessndr_co2
+  public :: airs_co2, cris_co2, iasi_co2, hirs_co2, goessndr_co2, airs_cads, cris_cads, iasi_cads
 
   logical nlnqc_iter,njqc,vqc,nvqc,hub_norm
   logical noiqc
@@ -222,7 +225,7 @@ module qcmod
   logical vadwnd_l2rw_qc
   logical troflg
   logical cao_check
-  logical airs_co2, cris_co2, iasi_co2, hirs_co2, goessndr_co2
+  logical airs_co2, cris_co2, iasi_co2, hirs_co2, goessndr_co2, airs_cads, cris_cads, iasi_cads
 
   character(10):: vadfile
   integer(i_kind) npres_print
@@ -463,10 +466,13 @@ contains
     lat_c=21.0_r_kind
     nrand=13
 
-    airs_co2 = .false.
-    cris_co2 = .false.
-    iasi_co2 = .false.
-    hirs_co2 = .false.
+    airs_co2  = .false.
+    airs_cads = .false.
+    cris_co2  = .false.
+    cris_cads = .false.
+    iasi_co2  = .false.
+    iasi_cads = .false.
+    hirs_co2  = .false.
     goessndr_co2 = .false.
 
     return
@@ -2079,11 +2085,11 @@ subroutine qc_saphir(nchanl,sfchgt,luse,sea, &
   return
 end subroutine qc_saphir
 
-subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs,                      &
-     cris,iasi,hirs,zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise,     &
-     wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity,emissivity_k,ts,tsim,                           &
-     id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole)
-!    id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole,radmod) ! all-sky
+subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs,                         &
+     cris,iasi,hirs,zsges,cenlat,cenlon,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise, &
+     wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity,chan_level,emissivity_k,ts,tsim,                   &
+     land_fraction,id_qc,aivals,errf,varinv,varinv_use,cloudp,cldp,zero_irjaco3_pole)
+!    id_qc,aivals,errf,varinv,varinv_use,cloudp,cldp,zero_irjaco3_pole,radmod) ! all-sky
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -2115,13 +2121,14 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 !     avhrr        - logical flag - if avhrr data - true
 !     zsges        - elevation of guess
 !     cenlat       - latitude of observation
+!     cenlon       - longitude of observation
 !     frac_sea     - fraction of grid box covered with water
 !     pangs        - solar zenith angle
 !     trop5        - tropopause pressure
 !     zasat        - satellite zenith angle
 !     tzbgr        - Tz over water
 !     tsavg5       - surface skin temperature
-!     tbc          - simulated - observed BT with bias correction
+!     tsim         - simulated - observed BT with bias correction
 !     tb_obs       - observed Brightness temperatures
 !     tnoise       - channel noise array
 !     wavenumber   - array of channel wavenumbers
@@ -2156,6 +2163,8 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 
   use kinds, only: r_kind, i_kind
   use radinfo, only: iomg_det, itopo_det, isst_det
+  use crtm_planck_functions, only: crtm_planck_radiance
+  use cads, only: cloud_aerosol_detection
   implicit none
 
 ! Declare passed variables
@@ -2165,12 +2174,12 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
   integer(i_kind),                    intent(in   ) :: nsig,nchanl,ndat,is
   integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
-  integer(i_kind),dimension(nchanl),  intent(in   ) :: kmax
-  real(r_kind),                       intent(in   ) :: zsges,cenlat,frac_sea,pangs,trop5
-  real(r_kind),                       intent(in   ) :: tzbgr,tsavg5,zasat
-  real(r_kind),                       intent(  out) :: cld,cldp
+  real(r_kind),                       intent(in   ) :: zsges,cenlat,cenlon,frac_sea,pangs,trop5
+  real(r_kind),                       intent(in   ) :: tzbgr,tsavg5,zasat,land_fraction
+  real(r_kind),                       intent(  out) :: cloudp,cldp
   real(r_kind),dimension(40,ndat),    intent(inout) :: aivals
   real(r_kind),dimension(nchanl),     intent(in   ) :: tbc,emissivity_k,emissivity,ts,wavenumber,tb_obs,tbcnob
+  real(r_kind),dimension(nchanl),     intent(in   ) :: chan_level
   real(r_kind),dimension(nchanl),     intent(in   ) :: tnoise,tsim
   real(r_kind),dimension(nsig,nchanl),intent(in   ) :: ptau5,temp,wmix
   real(r_kind),dimension(nsig),       intent(in   ) :: prsltmp,tvp
@@ -2182,7 +2191,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 
 
   real(r_kind) :: demisf,dtempf,efact,dtbf,term,cenlatx,sfchgtfact
-  real(r_kind) :: sum,sum2,sum3,cloudp,tmp,dts,delta,cloud_threshold
+  real(r_kind) :: sum1,sum2,sum3,tmp,dts,delta,cloud_threshold
   real(r_kind),dimension(nchanl) :: dtb
   integer(i_kind) :: i,j,k,kk,lcloud,m,isurface_chan
   integer(i_kind), dimension(2,4) :: ichan_pairs
@@ -2191,13 +2200,20 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
   real(r_kind),parameter:: tbmax = 550._r_kind
   real(r_kind),parameter:: tbmin = 50._r_kind
 
+! for cloud_aerosol_detect
+  integer(i_kind) I_Sensor_ID
+  integer(i_kind), dimension(nchanl) :: chan_array, i_flag_cloud
+  integer(i_kind) boundary_layer_pres
+  integer(i_kind) tropopause_height
+  real(r_kind),dimension(nchanl) :: cloud_detect_ht, tb_bc
+  real(r_kind) cloud_temperature, radiance_chan, radiance_model, radiance_cloud
 
 ! Reduce weight given to obs for shortwave ir if
 ! solar zenith angle tiny_r_kind
   irday = 1
   if (pangs <= 89.0_r_kind .and. frac_sea > zero) then
 !    QC2 in statsrad
-     if(luse)aivals(9,is) = aivals(9,is) + one
+     if(luse) aivals(9,is) = aivals(9,is) + one
      do i=1,nchanl
         if(wavenumber(i) > r2000)then
            if(wavenumber(i) > r2400)then
@@ -2240,7 +2256,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 ! If GOES and lza > 60. do not use
   if( goessndr .and. zasat*rad2deg > r60) then
 !    QC5 in statsrad
-     if(luse)aivals(12,is) = aivals(12,is) + one
+     if(luse) aivals(12,is) = aivals(12,is) + one
      do i=1,nchanl
         varinv(i) = zero
         varinv_use(i)=zero
@@ -2252,7 +2268,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
   sfchgtfact=one
   if (zsges > r2000) then
 !    QC1 in statsrad
-     if(luse)aivals(8,is) = aivals(8,is) + one
+     if(luse) aivals(8,is) = aivals(8,is) + one
      sfchgtfact    = (r2000/zsges)**4
   endif
 
@@ -2277,114 +2293,180 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
   end do
   sum3=0.75_r_kind*sum3
   lcloud=0
-  cld=zero
+  cloudp=zero
   cldp=r10*prsltmp(1)
 
-!  if (cris .or. iasi .or. airs .or. hirs .or. goessndr)then
-  if ( cris .and. cris_co2 ) then
+!  Cloud and aerosol detection routines (ECMWF)
+  if (cris .and. cris_cads) then
+      I_Sensor_ID = 27
+      chan_array = nuchan(ich)                  ! channel numbers
+      tb_bc = tbc + tsim                        ! observation BT with bias correction
+      boundary_layer_pres = nint(0.8_r_kind*prsltmp(1))  !  boundary layer set to be 80% of surface pressure
+      tropopause_height = nint(trop5)
+      isurface_chan = 501                         ! surface channel
+
+      call cloud_aerosol_detection( I_Sensor_ID, nchanl, chan_array, cenlon, cenlat, land_fraction, &
+             tropopause_height, boundary_layer_pres, tb_bc, tsim, chan_level, i_flag_cloud, cldp )
+
+  elseif ( iasi .and. iasi_cads ) then
+      I_Sensor_ID = 16
+      chan_array = nuchan(ich)                  ! channel numbers
+      tb_bc = tbc + tsim                        ! observation BT with bias correction
+      boundary_layer_pres = nint(0.8_r_kind*prsltmp(1))  !  boundary layer set to be 80% of surface pressure
+      tropopause_height = nint(trop5)
+      isurface_chan = 1271                         ! surface channel
+      
+      call cloud_aerosol_detection( I_Sensor_ID, nchanl, chan_array, cenlon, cenlat, land_fraction, &
+             tropopause_height, boundary_layer_pres, tb_bc, tsim, chan_level, i_flag_cloud, cldp )
+
+  elseif ( airs .and. airs_cads ) then
+      I_Sensor_ID = 11
+      chan_array = nuchan(ich)                  ! channel numbers
+      tb_bc = tbc + tsim                        ! observation BT with bias correction
+      boundary_layer_pres = nint(0.8_r_kind*prsltmp(1))  !  boundary layer set to be 80% of surface pressure
+      tropopause_height = nint(trop5)
+      isurface_chan = 914                         ! surface channel
+!      airs_cloud_detect_height: do i=1, nchanl
+!        do k = 1, nsig
+!          if ( ptau5(k,i) > 0.20_r_kind  ) then         ! set cloud detection array to 20% of transmittance
+!            cloud_detect_ht(i)  =  prsltmp(k)
+!            cycle airs_cloud_detect_height
+!          endif
+!        end do
+!      end do airs_cloud_detect_height
+
+      call cloud_aerosol_detection( I_Sensor_ID, nchanl, chan_array, cenlon, cenlat, land_fraction, &
+             tropopause_height, boundary_layer_pres, tb_bc, tsim, chan_level, i_flag_cloud, cldp )
+
+  elseif ( cris .and. cris_co2 ) then
      ichan_pairs(1,1:4) = (/67, 89, 105, 134/)   ! channels used for CO2 cloud detection
      ichan_pairs(2,1:4) = (/89, 105, 134, 159/)
      isurface_chan = 501                         ! surface channel
      cloud_threshold = 0.005_r_kind              ! cloud detection minimum (1.0%)
      call CO2_cloud_detect(ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,tvp,tsavg5,  &
-                           prsltmp,trop5,emissivity,ptau5,cloud_threshold,lcloud )
+                           prsltmp,trop5,emissivity,ptau5,cloud_threshold,lcloud,cloudp,cldp )
   elseif ( iasi .and. iasi_co2 ) then
      ichan_pairs(1,1:4) = (/185, 243, 282, 354/) ! channels used for CO2 cloud detection
      ichan_pairs(2,1:4) = (/243, 282, 354, 414/)
      isurface_chan = 1271                        ! surface channel
-     cloud_threshold = 0.006_r_kind              ! cloud detection minimum (1.0%)
+     cloud_threshold = 0.005_r_kind              ! cloud detection minimum (1.0%)
      call CO2_cloud_detect(ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,tvp,tsavg5,  &
-                           prsltmp,trop5,emissivity,ptau5,cloud_threshold,lcloud )
+                           prsltmp,trop5,emissivity,ptau5,cloud_threshold,lcloud,cloudp,cldp )
   elseif ( airs .and. airs_co2 ) then
      ichan_pairs(1,1:4) = (/144, 192, 232, 295/) ! channels used cor CO2 cloud detection
      ichan_pairs(2,1:4) = (/192, 232, 295, 338/)
      isurface_chan = 914                         ! surface channel
      cloud_threshold = 0.01_r_kind              ! cloud detection minimum (1.5%) !! estimated !!
      call CO2_cloud_detect(ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,tvp,tsavg5,  &
-                           prsltmp,trop5,emissivity,ptau5,cloud_threshold,lcloud )
+                           prsltmp,trop5,emissivity,ptau5,cloud_threshold,lcloud,cloudp,cldp )
   elseif ( (hirs .and. hirs_co2) .or. (goessndr .and. goessndr_co2) ) then
      ichan_pairs(1,1:4) = (/3, 4, 5, 6/)         ! channels used for CO2 cloud detection
      ichan_pairs(2,1:4) = (/4, 5, 6, 7/)
      isurface_chan = 8                           ! surface channel
      cloud_threshold = 0.02_r_kind               ! cloud detection minimum (2.0%)   !! estimated !!
      call CO2_cloud_detect(ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,tvp,tsavg5,  &
-                           prsltmp,trop5,emissivity,ptau5,cloud_threshold,lcloud )
+                           prsltmp,trop5,emissivity,ptau5,cloud_threshold,lcloud,cloudp,cldp )
   else
      call emc_legacy_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,ptau5,lcloud,cloudp,cldp)
+
   endif
 
-  if ( lcloud > 0 ) then  ! If cloud detected, reject channels affected by it.
+! CADS cloud flag mapped onto use channels
+  if ((cris .and. cris_cads) .or. (iasi .and. iasi_cads) .or. (airs .and. airs_cads)) then
+    do i=1, nchanl
+       if ( i_flag_cloud(i) == 1) then
+!          QC4 in statsrad
+         if(luse) aivals(11,is) = aivals(11,is) + one
+         varinv(i) = zero
+         varinv_use(i) = zero
+         if(id_qc(i) == igood_qc) id_qc(i) = ifail_cloud_qc
+       end if
+    end do
 
-     do i=1,nchanl
+! cloud test. Determine if cloud exists, in which layer, and how much.
+    if ( cldp < prsltmp(1) ) then      
+      do i=2, nsig                       ! determine upper and lower bounds of cloud pressure.
+        if (prsltmp(i) < cldp) then
+          lcloud = i 
+          exit
+        endif
+      end do
 
-!       reject channels with iuse_rad(j)=-1 when they are peaking below the cloud
-        j=ich(i)
-        if (passive_bc .and. iuse_rad(j)==-1) then
-           if (lcloud .ge. kmax(i)) then
-              if(luse)aivals(11,is)   = aivals(11,is) + one
-              varinv(i) = zero
-              varinv_use(i) = zero
-              if(id_qc(i) == igood_qc)id_qc(i)=ifail_cloud_qc
-              cycle
-           end if
-        end if
+      do i=1, nchanl                      ! use surface channel to derive cloud amount
+        m = nuchan(ich(i))
+        if ( m == isurface_chan ) then     ! interpolate cloud top temperature
+          cloud_temperature = ((tvp(lcloud) -tvp(lcloud -1)/ log(prsltmp(lcloud) / prsltmp(lcloud - 1))) &
+                        *log(cldp/prsltmp(lcloud-1))) + tvp(lcloud-1)
+          call crtm_planck_radiance(1,m,tb_bc(i),radiance_chan)               ! observation radiance. same as tb_obs + bias correction
+          call crtm_planck_radiance(1,m,tsim(i),radiance_model)               ! model derived radiance
+          call crtm_planck_radiance(1,m,cloud_temperature,radiance_cloud)     ! cloud top temperature radiance
+          cloudp = (radiance_chan - radiance_model) / (radiance_cloud - radiance_model)
+          cloudp = min(max(cloudp,zero),one)
+          exit
+        endif   ! surface channel
+      end do
+    endif       ! cloud was found
+    cldp = cldp * r10
+  endif         ! CADS  cloud flag tests 
 
+!       If NOT CADS tests for clouds and add extra near surface QC
+  if (.not. ((cris .and. cris_cads) .or. (iasi .and. iasi_cads) .or. (airs .and. airs_cads))) then
+  if ( lcloud > 0 ) then
 !       If more than 2% of the transmittance comes from the cloud layer,
 !          reject the channel (0.02 is a tunable parameter)
-
-        delta = 0.02_r_kind
-        if ( ptau5(lcloud,i) > 0.02_r_kind) then
+    do i=1, nchanl
+          j=ich(i)
+       if ( ptau5(lcloud,i) > 0.02_r_kind) then
 !          QC4 in statsrad
-           if(luse)aivals(11,is)   = aivals(11,is) + one
+           if(luse) aivals(11,is) = aivals(11,is) + one
            varinv(i) = zero
            varinv_use(i) = zero
-           if(id_qc(i) == igood_qc)id_qc(i)=ifail_cloud_qc
-        end if
-     end do
+           if(id_qc(i) == igood_qc) id_qc(i) = ifail_cloud_qc
+       end if
+    end do
 
-!    If no clouds check surface temperature/emissivity
-
-  else                 ! If no cloud was detected, do surface temp/emiss checks
-     sum=zero
-     sum2=zero
-     do i=1,nchanl
-        if ( varinv_use(i) > tiny_r_kind .and. ts(i) > 0.0001_r_kind) then
-           sum=sum+tbc(i)*ts(i)*varinv_use(i)
-           sum2=sum2+ts(i)*ts(i)*varinv_use(i)
+  else               ! surface consistency and sensitivity chacks.
+    sum1=zero
+    sum2=zero
+    do i=1,nchanl
+      if ( varinv_use(i) > tiny_r_kind .and. ts(i) > 0.0001_r_kind) then
+        sum1 = sum1 +tbc(i)*ts(i)*varinv_use(i)
+        sum2 = sum2+ts(i)*ts(i)*varinv_use(i)
+      endif
+    end do
+    if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
+    dts=abs(sum1/sum2)
+    if(abs(dts) > one)then
+      if(.not. sea)then
+        dts=min(dtempf,dts)
+      else
+        dts=min(three,dts)
+      end if
+      do i=1,nchanl
+        delta=max(r0_05*tnoise(i),r0_02)
+        if(abs(dts*ts(i)) > delta)then
+!            QC3 in statsrad
+          if(luse .and. varinv(i) > zero) &
+              aivals(10,is) = aivals(10,is) + one
+           varinv(i) = zero
+           if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
         endif
-     end do
-     if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
-     dts=abs(sum/sum2)
-     if(abs(dts) > one)then
-        if(.not. sea)then
-           dts=min(dtempf,dts)
-        else
-           dts=min(three,dts)
-        end if
-        do i=1,nchanl
-           delta=max(r0_05*tnoise(i),r0_02)
-           if(abs(dts*ts(i)) > delta)then
-!             QC3 in statsrad
-              if(luse .and. varinv(i) > zero) &
-                 aivals(10,is)   = aivals(10,is) + one
-              varinv(i) = zero
-              if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
-           end if
-        end do
-     end if
+      enddo
+    endif
   endif
-
+  endif
 !
 ! Temporary additional check for CrIS to reduce influence of land points on window channels (particularly important for bias correction)
 !
-  if (cris .and. .not. sea) then
+!  if (cris .and. .not. sea) then
+  if ( (cris .or. iasi .or. airs) .and. .not. sea) then
      do i=1,nchanl
         if (ts(i) > 0.2_r_kind) then
            !             QC3 in statsrad
            if(luse .and. varinv(i) > zero) &
-                aivals(10,is)   = aivals(10,is) + one
+                aivals(10,is) = aivals(10,is) + one
            varinv(i) = zero
-           if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
+           if(id_qc(i) == igood_qc) id_qc(i) = ifail_sfcir_qc
         end if
      end do
   end if
@@ -2419,7 +2501,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 
   cenlatx=abs(cenlat)*r0_04     
   if (cenlatx < one) then
-     if(luse)aivals(6,is) = aivals(6,is) + one
+     if(luse) aivals(6,is) = aivals(6,is) + one
      efact   = half*(cenlatx+one)
      do i=1,nchanl
         if(varinv(i) > tiny_r_kind) errf(i)=efact*errf(i)
@@ -2431,7 +2513,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
      if(varinv(i) > tiny_r_kind)then
         dtbf = demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
         term = dtbf*dtbf
-        if(term > tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
+        if(term > tiny_r_kind) varinv(i) = varinv(i)/(one+varinv(i)*term)
      end if
   end do
 
@@ -2526,7 +2608,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 end subroutine qc_irsnd
 
 subroutine CO2_cloud_detect(ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,tvp,tsavg5,  &
-                            prsltmp,trop5,emissivity,ptau5,cloud_threshold,icloud_layer )
+                            prsltmp,trop5,emissivity,ptau5,cloud_threshold,icloud_layer,eff_cloud,cloud_pressure )
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -2567,7 +2649,7 @@ subroutine CO2_cloud_detect(ichan_pairs,isurface_chan,nchanl,nsig,ich,tbc,tsim,t
 
 use crtm_planck_functions, only: crtm_planck_radiance
 use radinfo, only: nuchan
-use constants, only: zero, one, two
+use constants, only: zero, one, two, r10
 implicit none
 
 integer(i_kind),                      intent(in   ) :: nchanl, nsig, isurface_chan
@@ -2576,6 +2658,7 @@ integer(i_kind), dimension(nchanl),   intent(in   ) :: ich
 integer(i_kind), dimension(2,4),      intent(in   ) :: ichan_pairs
 
 real(r_kind),                         intent(in   ) :: tsavg5, trop5, cloud_threshold
+real(r_kind),                         intent(  out) :: eff_cloud,cloud_pressure
 real(r_kind), dimension(nchanl),      intent(in   ) :: tbc, tsim, emissivity
 real(r_kind), dimension(nsig,nchanl), intent(in   ) :: ptau5
 real(r_kind), dimension(nsig),        intent(in   ) :: tvp, prsltmp
@@ -2584,14 +2667,17 @@ integer(i_kind) :: i, j, k, m
 
 real(r_kind) :: radiance_chan, radiance_model, radiance_cloud, radiance_layer
 real(r_kind) :: co2_val, co2_val_previous, slope, temp_avg
-real(r_kind) :: cloud_temperature, cloud_pressure, eff_cloud
+real(r_kind) :: cloud_temperature
 real(r_kind),dimension(2) :: radiance_diff
 real(r_kind),dimension(4) :: layer_thresholds
 real(r_kind),dimension(nsig,2) :: radiance_layer_sum
 
 !    top and bottom pressure levels used by ichan_pairs 
-     layer_thresholds = (/40.0_r_kind, 55.0_r_kind, 70.0_r_kind, 80.0_r_kind/)
+!JAJ     layer_thresholds = (/40.0_r_kind, 55.0_r_kind, 70.0_r_kind, 80.0_r_kind/)
+     layer_thresholds = (/40.0_r_kind, 55.0_r_kind, 70.0_r_kind, 0.80_r_kind*prsltmp(1) /)
      icloud_layer = 0
+     eff_cloud = zero
+     cloud_pressure = r10*prsltmp(1) 
 
 !  The CO2_slicing code
      chan_pairs: do j = 1, 4
@@ -2647,7 +2733,7 @@ real(r_kind),dimension(nsig,2) :: radiance_layer_sum
               if ( slope > zero) cycle chan_pairs
               cloud_temperature = slope * (one - co2_val_previous) + tvp(k+1) !cloud top temperature
               slope = log(prsltmp(k+1) / prsltmp(k)) / (co2_val_previous - co2_val) ! pressure slope across layer
-              cloud_pressure = exp(slope * (one - co2_val_previous)) + prsltmp(k+1) ! cloud top pressure
+              cloud_pressure = (exp(slope * (one - co2_val_previous)) + prsltmp(k+1)) * r10 ! cloud top pressure
 
               nchanl_loop: do i=1, nchanl
                 m = nuchan(ich(i))
@@ -2656,12 +2742,13 @@ real(r_kind),dimension(nsig,2) :: radiance_layer_sum
                   call crtm_planck_radiance(1,m,tsim(i),radiance_model)
                   if ( cloud_temperature < tvp(k+1) .or. cloud_temperature > tvp(k)) then
                     cloud_temperature = (tvp(k)+tvp(k+1)) / 2.0_r_kind              ! layer average cloud top temperature
-                    cloud_pressure = exp(log(prsltmp(k)*prsltmp(k+1))/ 2.0_r_kind)  ! layer average cloud top pressure
+                    cloud_pressure = (exp(log(prsltmp(k)*prsltmp(k+1))/ 2.0_r_kind)) * r10  ! layer average cloud top pressure
                   endif
                   call crtm_planck_radiance(1,m,cloud_temperature,radiance_cloud)
                   eff_cloud = (radiance_chan - radiance_model) / (radiance_cloud - radiance_model)
                   if ( eff_cloud < cloud_threshold ) cycle chan_pairs  ! Do not use if cloud amount is too small
                   icloud_layer = k
+                  eff_cloud = min(max(eff_cloud,zero),one)
                   exit chan_pairs
                 endif   ! isurface_chan
               end do  nchanl_loop
