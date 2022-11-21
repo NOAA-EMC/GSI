@@ -92,7 +92,7 @@
       init_qcvars,vadfile,noiqc,c_varqc,gps_jacqc,qc_noirjaco3,qc_noirjaco3_pole,&
       buddycheck_t,buddydiag_save,njqc,vqc,nvqc,hub_norm,vadwnd_l2rw_qc, &
       pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres,cao_check, &
-      airs_co2,cris_co2,iasi_co2,hirs_co2,goessndr_co2
+      airs_co2,cris_co2,iasi_co2,hirs_co2,goessndr_co2, cris_cads, iasi_cads, airs_cads
   use qcmod, only: troflg,lat_c,nrand
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,superfact,limitqobs, &
@@ -1018,10 +1018,14 @@
 !     Flags to use the new IR cloud detection routine.  Flag must be set to true to use the new routine.  The default
 !     (no flag or .false.) will use the default.
 !     airs_co2:  use the co2_slicing routine for the AIRS instrument
+!     airs_cads: use the clod and aerosool detection software for the AIRS instrument
 !     cris_co2:  use the co2_slicing routine for the CrIS instruments
-!     iasi_co2:  use the co2 slicing routine for the IASI instruments
+!     cris_cads: use the cloud and aerosol detection software for CrIS instruments
+!     iasi_co2:  use the co2 slicing routine for the IASI instrumentsa
+!     iasi_cads: use the cloud and aerosol detection software for IASI instruments
 !     hirs_co2:  use the co2_slicing routine for the HIRS instruments
 !     goessndr_co2: use the co2_slicing routine for the GOES sounder instruments.
+!     
   
   namelist/obsqc/dfact,dfact1,erradar_inflate,tdrerr_inflate,oberrflg,&
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
@@ -1032,7 +1036,7 @@
        q_doe_a_136,q_doe_a_137,q_doe_b_136,q_doe_b_137, &
        t_doe_a_136,t_doe_a_137,t_doe_b_136,t_doe_b_137, &
        uv_doe_a_236,uv_doe_a_237,uv_doe_a_213,uv_doe_b_236,uv_doe_b_237,uv_doe_b_213, &
-       vad_near_analtime,airs_co2,cris_co2,iasi_co2,hirs_co2,goessndr_co2 
+       vad_near_analtime,airs_co2,cris_co2,iasi_co2,hirs_co2,goessndr_co2,airs_cads,cris_cads,iasi_cads
 
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group
