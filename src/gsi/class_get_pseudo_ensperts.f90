@@ -12,7 +12,7 @@ module abstract_get_pseudo_ensperts_mod
     import abstract_get_pseudo_ensperts_class
     implicit none
     class(abstract_get_pseudo_ensperts_class), intent(inout) :: this
-    type(gsi_bundle),allocatable, intent(in   ) :: en_perts(:,:)
+    type(gsi_bundle),allocatable, intent(in   ) :: en_perts(:,:,:)
     integer(i_kind),                   intent(in   ) :: nelen
   end subroutine get_pseudo_ensperts
   end interface
