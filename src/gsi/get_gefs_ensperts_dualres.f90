@@ -163,7 +163,7 @@ subroutine get_gefs_ensperts_dualres
 !$omp parallel do schedule(dynamic,1) private(m,n)
   do m=1,ntlevs_ens
      do n=1,n_ens
-       en_perts(n,ig0,m)%valuesr4=zero_single
+       en_perts(n,1,m)%valuesr4=zero_single
      end do
   end do
 
@@ -270,7 +270,7 @@ subroutine get_gefs_ensperts_dualres
 
        end do !c3d
        do i=1,nelen
-          en_perts(n,ig0,m)%valuesr4(i)=en_read(n)%values(i)
+          en_perts(n,1,m)%valuesr4(i)=en_read(n)%values(i)
           en_bar%values(i)=en_bar%values(i)+en_read(n)%values(i)
        end do
 
@@ -311,7 +311,7 @@ subroutine get_gefs_ensperts_dualres
 !$omp parallel do schedule(dynamic,1) private(n,i,ic3,ipic,k,j)
      do n=1,n_ens
         do i=1,nelen
-           en_perts(n,ig0,m)%valuesr4(i)=en_perts(n,ig0,m)%valuesr4(i)-en_bar%values(i)
+           en_perts(n,1,m)%valuesr4(i)=en_perts(n,1,m)%valuesr4(i)-en_bar%values(i)
         end do
         if(.not. q_hyb_ens) then
           do ic3=1,nc3d
@@ -320,8 +320,8 @@ subroutine get_gefs_ensperts_dualres
                 do k=1,km
                    do j=1,jm
                       do i=1,im
-                         en_perts(n,ig0,m)%r3(ipic)%qr4(i,j,k) = min(en_perts(n,ig0,m)%r3(ipic)%qr4(i,j,k),limqens)
-                         en_perts(n,ig0,m)%r3(ipic)%qr4(i,j,k) = max(en_perts(n,ig0,m)%r3(ipic)%qr4(i,j,k),-limqens)
+                         en_perts(n,1,m)%r3(ipic)%qr4(i,j,k) = min(en_perts(n,1,m)%r3(ipic)%qr4(i,j,k),limqens)
+                         en_perts(n,1,m)%r3(ipic)%qr4(i,j,k) = max(en_perts(n,1,m)%r3(ipic)%qr4(i,j,k),-limqens)
                       end do
                    end do
                 end do
@@ -329,7 +329,7 @@ subroutine get_gefs_ensperts_dualres
           end do
         end if
         do i=1,nelen
-           en_perts(n,ig0,m)%valuesr4(i)=en_perts(n,ig0,m)%valuesr4(i)*sig_norm
+           en_perts(n,1,m)%valuesr4(i)=en_perts(n,1,m)%valuesr4(i)*sig_norm
         end do
      end do
   end do  ntlevs_ens_loop !end do over bins
@@ -487,7 +487,7 @@ subroutine ens_spread_dualres(en_bar,ibin)
   do n=1,n_ens
      do i=1,nelen
         sube%values(i)=sube%values(i) &
-           +(en_perts(n,ig0,ibin)%valuesr4(i)-en_bar%values(i))*(en_perts(n,ig0,ibin)%valuesr4(i)-en_bar%values(i))
+           +(en_perts(n,1,ibin)%valuesr4(i)-en_bar%values(i))*(en_perts(n,1,ibin)%valuesr4(i)-en_bar%values(i))
      end do
   end do
 

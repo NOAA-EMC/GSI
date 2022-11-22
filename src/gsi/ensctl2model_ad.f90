@@ -42,6 +42,7 @@ use mpeu_util, only: getindex
 use gsi_metguess_mod, only: gsi_metguess_get
 use mod_strong, only: tlnmc_option
 use timermod, only: timer_ini,timer_fnl
+use hybrid_ensemble_parameters,only: naensgrp
 implicit none
 
 ! Declare passed variables
@@ -77,7 +78,7 @@ real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
 
 logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad
 logical :: do_tlnmc,lstrong_bk_vars,do_q_copy
-
+integer(i_kind) :: ig
 !****************************************************************************
 
 ! Initialize timer
@@ -122,15 +123,15 @@ do jj=1,ntlevs_ens
          (jj==ibin_anl .and. tlnmc_option==2) )
 
    !allocate(grade(nval_lenz_en))
-   allocate(ebundle(nsclgrp,n_ens))
-   do ig=1,nsclgrp
-     do nn=1,n_ens
-        call gsi_bundlecreate (ebundle(ig,nn),grad%aens(1,1,1),'m2c ensemble work',istatus)
-        if(istatus/=0) then
-           write(6,*) trim(myname), ': trouble creating work ens-bundle'
-           call stop2(999)
-        endif
-     enddo
+   allocate(ebundle(naensgrp,n_ens))
+   do ig=1,naensgrp
+      do nn=1,n_ens
+         call gsi_bundlecreate (ebundle(ig,nn),grad%aens(1,1,1),'m2c ensemble work',istatus)
+         if(istatus/=0) then
+            write(6,*) trim(myname), ': trouble creating work ens-bundle'
+            call stop2(999)
+         endif
+      enddo
    enddo
 
 !  Create a temporary bundle similar to grad, and copy contents of grad into it
@@ -212,10 +213,10 @@ do jj=1,ntlevs_ens
       if(do_getprs_ad) call getprs_ad(cv_ps,cv_tv,rv_prse)
    end if
 
-   do ig=1,nsclgrp
-     do nn=1,n_ens
-        ebundle(ig,nn)%values=grad%aens(jj,ig,nn)%values
-     enddo
+   do ig=1,naensgrp
+      do nn=1,n_ens
+         ebundle(ig,nn)%values=grad%aens(jj,ig,nn)%values
+      enddo
    enddo
    if(dual_res) then
       call ensemble_forward_model_ad_dual_res(wbundle_c,ebundle,jj)
@@ -226,9 +227,23 @@ do jj=1,ntlevs_ens
 
 !  Apply square-root of ensemble error covariance
    call sqrt_beta_e_mult(ebundle)
-   do ig=1,nsclgrp
-     call ckgcov_a_en_new_factorization_ad(ig,grade,ebundle(ig,:))
-   end do
+   do ig=1,naensgrp
+      call ckgcov_a_en_new_factorization_ad(ig,grade,ebundle(ig,:))
+
+      do ii=1,n_ens
+         grad%aens(jj,ig,ii)%values=grad%aens(jj,ig,ii)%values + grade
+      enddo
+   enddo
+
+   do ig=1,naensgrp
+      do nn=n_ens,1,-1 ! first in; last out
+         call gsi_bundledestroy(ebundle(ig,nn),istatus)
+         if(istatus/=0) then
+            write(6,*) trim(myname), ': trouble destroying work ens bundle', ig, nn, istatus
+            call stop2(999)
+         endif
+      enddo
+   enddo
 
    call gsi_bundledestroy(wbundle_c,istatus)
    if (istatus/=0) then
@@ -236,24 +251,6 @@ do jj=1,ntlevs_ens
       call stop2(999)
    endif
 
-   do ig=1,nsclgrp
-     do ii=1,n_ens
-        grad%aens(jj,ig,ii)%values=grad%aens(jj,ig,ii)%values + grade
-     enddo
-   end do
-!  do ii=1,nval_lenz_en
-!     grad%aens(jj,1)%values(ii)=grad%aens(jj,1)%values(ii)+grade(ii)
-!  enddo
-
-   do ig=1,nsclgrp
-     do nn=n_ens,1,-1 ! first in; last out
-        call gsi_bundledestroy(ebundle(ig,nn),istatus)
-        if(istatus/=0) then
-           write(6,*) trim(myname), ': trouble destroying work ens bundle', nn, istatus
-           call stop2(999)
-        endif
-     enddo
-   enddo
    deallocate(ebundle)
 !  deallocate(grade)
 

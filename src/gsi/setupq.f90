@@ -1292,8 +1292,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Observation",                   sngl(data(iqob,i)))
            call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)       )
            call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(qob-qges)    )
-           call nc_diag_metadata("Forecast_adjusted",             sngl(data(iqob,i)-ddiff))
-           call nc_diag_metadata("Forecast_unadjusted",           sngl(qges))
            call nc_diag_metadata("Forecast_Saturation_Spec_Hum",  sngl(qsges)       )
            if (lobsdiagsave) then
               do jj=1,miter
@@ -1323,8 +1321,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
              call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
              call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
            endif
-
-           call nc_diag_data2d("atmosphere_pressure_coordinate",exp(prsltmp)*r1000)
 
   end subroutine contents_netcdf_diag_
 
@@ -1360,8 +1356,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Observation",                   sngl(data(iqob,i)))
            call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)       )
            call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(ddiff)       )
-           call nc_diag_metadata("Forecast_adjusted",             sngl(data(iqob,i)-ddiff))
-           call nc_diag_metadata("Forecast_unadjusted",           sngl(data(iqob,i)-ddiff))
            call nc_diag_metadata("Forecast_Saturation_Spec_Hum",  sngl(qsges)       )
 !----
            if (lobsdiagsave) then
@@ -1393,8 +1387,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
              call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
              call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
            endif
-
-           call nc_diag_data2d("atmosphere_pressure_coordinate",exp(prsltmp)*r1000)
 
   end subroutine contents_netcdf_diagp_
 

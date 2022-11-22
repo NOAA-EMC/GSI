@@ -292,7 +292,7 @@ contains
         en_bar(m)%values=zero
  
         do n=imem_start,n_ens
-           en_perts(n,ig0,m)%valuesr4 = zero
+           en_perts(n,1,m)%valuesr4 = zero
         enddo
  
         mm1=mype+1
@@ -361,7 +361,7 @@ contains
  ! SAVE ENSEMBLE MEMBER DATA IN COLUMN VECTOR
            do ic3=1,nc3d
  
-              call gsi_bundlegetpointer(en_perts(n,ig0,m),trim(cvars3d(ic3)),w3,istatus)
+              call gsi_bundlegetpointer(en_perts(n,1,m),trim(cvars3d(ic3)),w3,istatus)
               if(istatus/=0) then
                  write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for ensemble member ',n
                  call stop2(9992)
@@ -531,7 +531,7 @@ contains
  
            do ic2=1,nc2d
     
-              call gsi_bundlegetpointer(en_perts(n,ig0,m),trim(cvars2d(ic2)),w2,istatus)
+              call gsi_bundlegetpointer(en_perts(n,1,m),trim(cvars2d(ic2)),w2,istatus)
               if(istatus/=0) then
                  write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for ensemble member ',n
                  call stop2(9994)
@@ -600,7 +600,7 @@ contains
  
         do n=imem_start,n_ens
            do i=1,nelen
-              en_perts(n,ig0,m)%valuesr4(i)=(en_perts(n,ig0,m)%valuesr4(i)-en_bar(m)%values(i))*sig_norm
+              en_perts(n,1,m)%valuesr4(i)=(en_perts(n,1,m)%valuesr4(i)-en_bar(m)%values(i))*sig_norm
            end do
         end do
 
@@ -1020,7 +1020,7 @@ contains
          do n=1,n_ens
             do i=1,nelen
                sube%values(i)=sube%values(i) &
-                 +(en_perts(n,ig0,1)%valuesr4(i))*(en_perts(n,ig0,1)%valuesr4(i))
+                 +(en_perts(n,1,1)%valuesr4(i))*(en_perts(n,1,1)%valuesr4(i))
             end do
          end do
      
