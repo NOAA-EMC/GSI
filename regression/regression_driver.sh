@@ -5,6 +5,11 @@ set -x
 # regression test to launch
 export regtest=$1
 
+# option to set local values with a config file
+if [ -d "$config_path" ]; then
+    source $config_path/local_vars.sh
+fi
+
 # source the necessary files to setup
 if [ "$#" -eq 2 ]; then
   export regdir=$2
