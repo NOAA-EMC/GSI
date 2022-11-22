@@ -59,7 +59,7 @@ subroutine get_nmmb_ensperts
    endif
    
    do n=1,n_ens
-      en_perts(n,1)%valuesr4=zero
+      en_perts(n,1,1)%valuesr4=zero
    end do
 
    en_bar%values=zero
@@ -116,7 +116,7 @@ subroutine get_nmmb_ensperts
 
       do ic3=1,nc3d
 
-         call gsi_bundlegetpointer(en_perts(n,1),trim(cvars3d(ic3)),w3,istatus)
+         call gsi_bundlegetpointer(en_perts(n,1,1),trim(cvars3d(ic3)),w3,istatus)
          if(istatus/=0) then
             write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' for ensemble member ',n,' in get_nmmb_ensperts'
             call stop2(999)
@@ -277,7 +277,7 @@ subroutine get_nmmb_ensperts
 
       do ic2=1,nc2d
 
-         call gsi_bundlegetpointer(en_perts(n,1),trim(cvars2d(ic2)),w2,istatus)
+         call gsi_bundlegetpointer(en_perts(n,1,1),trim(cvars2d(ic2)),w2,istatus)
          if(istatus/=0) then
             write(6,*)' error retrieving pointer to ',trim(cvars2d(ic2)),' for ensemble member ',n, ' in get_nmmb_ensperts'
             call stop2(999)
@@ -344,7 +344,7 @@ subroutine get_nmmb_ensperts
     
    do n=1,n_ens
       do i=1,nelen
-         en_perts(n,1)%valuesr4(i)=(en_perts(n,1)%valuesr4(i)-en_bar%values(i))*sig_norm      
+         en_perts(n,1,1)%valuesr4(i)=(en_perts(n,1,1)%valuesr4(i)-en_bar%values(i))*sig_norm      
       end do
    end do
         
