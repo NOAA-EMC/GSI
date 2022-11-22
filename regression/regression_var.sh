@@ -62,28 +62,30 @@ case $machine in
     export accnt="p48503002"
   ;;
   Hera)
-    if [ -d /scratch1/NCEPDEV/da/$LOGNAME ]; then
-      export noscrub="/scratch1/NCEPDEV/da/$LOGNAME/noscrub"
+
+    export local_or_default="${local_or_default:-/scratch1/NCEPDEV/da/$LOGNAME}"
+    if [ -d $local_or_default ]; then
+      export noscrub="$local_or_default/noscrub"
     elif [ -d /scratch1/NCEPDEV/global/$LOGNAME ]; then
       export noscrub="/scratch1/NCEPDEV/global/$LOGNAME/noscrub"
      elif [ -d /scratch2/BMC/gsienkf/$LOGNAME ]; then
       export noscrub="/scratch2/BMC/gsienkf/$LOGNAME"
     fi
 
-    export group="global"
-    export queue="batch"
+    export group="${group:-global}"
+    export queue="${queue:-batch}"
     if [[ "$cmaketest" = "false" ]]; then
       export basedir="/scratch1/NCEPDEV/da/$LOGNAME/git/gsi"
     fi
 
-    export ptmp="/scratch1/NCEPDEV/stmp2/$LOGNAME/$ptmpName"
+    export ptmp="${ptmp:-/scratch1/NCEPDEV/stmp2/$LOGNAME/$ptmpName}"
 
-    export fixcrtm="/scratch1/NCEPDEV/da/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
+    export fixcrtm="${fixcrtm:-/scratch1/NCEPDEV/da/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update}"
     export casesdir="/scratch1/NCEPDEV/da/Michael.Lueken/noscrub/CASES"
 
     export check_resource="no"
 
-    export accnt="da-cpu"
+    export accnt="${accnt:-da-cpu}"
 
     #  On Hera, there are no scrubbers to remove old contents from stmp* directories.
     #  After completion of regression tests, will remove the regression test subdirecories
