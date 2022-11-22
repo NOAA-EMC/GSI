@@ -107,6 +107,7 @@
   integer(i_kind), allocatable, dimension(:) :: recvcounts, displs
   real(r_single), dimension(nlons,nlats,nlevs) :: ug3d_0, vg3d_0
 
+
   ! figure out what member to read and do MPI sub-communicator things
   allocate(mem_pe(0:numproc-1))
   allocate(iocomms(nanals))
@@ -290,31 +291,124 @@
         end do
      end if
   endif
-  if (cw_ind > 0 .or. ql_ind > 0 .or. qi_ind > 0) then
-     call read_vardata(dset, 'clwmr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
-     if (iret /= 0) then
-        print *,'error reading clwmr'
-        call stop2(27)
+
+  ! ToDo: add handling for Thompson Scheme (imp_physcs: 8)
+  ! Raed in hydrometeor fields based on control/state variables listed in anavinfo table 
+  if (use_full_hydro) then 
+     if(ql_ind > 0) then
+        call read_vardata(dset, 'clwmr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
+        if (iret /= 0) then
+           print *,'error reading clwmr'
+           call stop2(26)
+        endif
+        if (cliptracers)  where (ug3d < clip) ug3d = clip
+        call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
+                         mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
+        if (iope==0) then
+           do k=1,nlevs
+              krev = nlevs-k+1
+              ug = reshape(ug3d_0(:,:,krev),(/nlons*nlats/))
+              call copytogrdin(ug,grdin(:,levels(ql_ind-1)+k,nb,ne))
+           end do
+        end if
      endif
-     if (imp_physics == 11) then
-        call read_vardata(dset, 'icmr', vg3d, ncstart=ncstart, nccount=nccount, errcode=iret)
+     if(qi_ind > 0) then
+        call read_vardata(dset, 'icmr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
         if (iret /= 0) then
            print *,'error reading icmr'
-           call stop2(28)
+           call stop2(26)
         endif
-        ug3d = ug3d + vg3d
+        if (cliptracers)  where (ug3d < clip) ug3d = clip
+        call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
+                         mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
+        if (iope==0) then
+           do k=1,nlevs
+              krev = nlevs-k+1
+              ug = reshape(ug3d_0(:,:,krev),(/nlons*nlats/))
+              call copytogrdin(ug,grdin(:,levels(qi_ind-1)+k,nb,ne))
+           end do
+        end if
      endif
-     if (cliptracers)  where (ug3d < clip) ug3d = clip
-     call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
-                      mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
-     if (iope==0) then
-        do k=1,nlevs
-           krev = nlevs-k+1
-           ug = reshape(ug3d_0(:,:,krev),(/nlons*nlats/))
-           call copytogrdin(ug,cw(:,k))
-           if (cw_ind > 0) grdin(:,levels(cw_ind-1)+k,nb,ne) = cw(:,k)
-        end do
-     end if
+     if(qr_ind > 0) then
+        call read_vardata(dset, 'rwmr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
+        if (iret /= 0) then
+           print *,'error reading rwmr'
+           call stop2(26)
+        endif
+        if (cliptracers)  where (ug3d < clip) ug3d = clip
+        call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
+                         mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
+        if (iope==0) then
+           do k=1,nlevs
+              krev = nlevs-k+1
+              ug = reshape(ug3d_0(:,:,krev),(/nlons*nlats/))
+              call copytogrdin(ug,grdin(:,levels(qr_ind-1)+k,nb,ne))
+           end do
+        end if
+     endif
+     if(qs_ind > 0) then
+        call read_vardata(dset, 'snmr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
+        if (iret /= 0) then
+           print *,'error reading snmr'
+           call stop2(26)
+        endif
+        if (cliptracers)  where (ug3d < clip) ug3d = clip
+        call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
+                         mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
+        if (iope==0) then
+           do k=1,nlevs
+              krev = nlevs-k+1
+              ug = reshape(ug3d_0(:,:,krev),(/nlons*nlats/))
+              call copytogrdin(ug,grdin(:,levels(qs_ind-1)+k,nb,ne))
+           end do
+        end if
+     endif
+     if(qg_ind > 0) then
+        call read_vardata(dset, 'grle', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
+        if (iret /= 0) then
+           print *,'error reading grle'
+           call stop2(26)
+        endif
+        if (cliptracers)  where (ug3d < clip) ug3d = clip
+        call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
+                         mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
+        if (iope==0) then
+           do k=1,nlevs
+              krev = nlevs-k+1
+              ug = reshape(ug3d_0(:,:,krev),(/nlons*nlats/))
+              call copytogrdin(ug,grdin(:,levels(qg_ind-1)+k,nb,ne))
+           end do
+        end if
+     endif
+  else
+     ! Handle non-precipiting hydrometeors 
+     ! if control or state variable is cw, make sure combine background ql and qi to cw
+     if (cw_ind > 0 .or. ql_ind > 0 .or. qi_ind > 0) then
+        call read_vardata(dset, 'clwmr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
+        if (iret /= 0) then
+           print *,'error reading clwmr'
+           call stop2(27)
+        endif
+        if (imp_physics == 11) then
+           call read_vardata(dset, 'icmr', vg3d, ncstart=ncstart, nccount=nccount, errcode=iret)
+           if (iret /= 0) then
+              print *,'error reading icmr'
+              call stop2(28)
+           endif
+           ug3d = ug3d + vg3d
+        endif
+        if (cliptracers)  where (ug3d < clip) ug3d = clip
+        call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
+                         mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
+        if (iope==0) then
+           do k=1,nlevs
+              krev = nlevs-k+1
+              ug = reshape(ug3d_0(:,:,krev),(/nlons*nlats/))
+              call copytogrdin(ug,cw(:,k))
+              if (cw_ind > 0) grdin(:,levels(cw_ind-1)+k,nb,ne) = cw(:,k)
+           end do
+        end if
+     endif
   endif
   deallocate(ug3d,vg3d)
 
@@ -486,6 +580,8 @@
   iunitsig = 77
   filename = trim(adjustl(datapath))//trim(adjustl(fileprefixes(nb)))//trim(charnanal)
   filenamesfc = trim(adjustl(datapath))//trim(adjustl(filesfcprefixes(nb)))//trim(charnanal)
+
+
   if (use_gfs_nemsio) then
      call nemsio_init(iret=iret)
      if(iret/=0) then
@@ -1574,7 +1670,10 @@
      print *,'error writing spfh'
      call stop2(29)
   endif
-  ! write clwmr, icmr
+
+  ! Write clwmr, icmr
+  ! Handle when control/state variables are cw
+  ! If control variable is cw, analysis is cw, need to split cw into ql and qi to write out
   call read_vardata(dsfg,'clwmr',ug3d,ncstart=ncstart,nccount=nccount,errcode=iret)
   if (iret /= 0) then
      print *,'error reading clwmr'
@@ -1643,12 +1742,124 @@
         endif
         if (cliptracers)  where (vg3d < clip) vg3d = clip
      endif
-     call write_vardata(dsanl,'icmr',vg3d,ncstart=ncstart,nccount=nccount,errcode=iret) ! write icmr
+     call write_vardata(dsanl,'icmr',vg3d,ncstart=ncstart,nccount=nccount,errcode=iret) !  write icmr
      if (iret /= 0) then
         print *,'error writing icmr'
         call stop2(29)
      endif
   endif
+
+  ! write analysis qr
+  call read_vardata(dsfg,'rwmr',vg3d,ncstart=ncstart,nccount=nccount,errcode=iret)
+  if (iret /= 0) then
+     print *,'error reading rwmr'
+     call stop2(29)
+  endif
+  do k=lev_pe1(iope), lev_pe2(iope)
+     krev = nlevs-k+1
+     ki = k - lev_pe1(iope) + 1
+     ug = 0_r_kind
+     if (qr_ind > 0) then
+        call copyfromgrdin(grdin(:,levels(qr_ind-1)+krev,nb,ne),ug)
+     endif
+     vg3d(:,:,ki) = vg3d(:,:,ki) + reshape(ug,(/nlons,nlats/))
+  enddo
+  if (qr_ind > 0) then
+     if (has_attr(dsfg, 'nbits', 'rwmr') .and. .not. nocompress) then
+       call read_attribute(dsfg, 'nbits', nbits, 'rwmr')
+       values_3d = vg3d
+       call quantize_data(values_3d, vg3d, nbits, compress_err)
+       if (cliptracers)  where (vg3d < clip) vg3d = clip
+       ! again, below is lazy/not ideal/bad
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'rwmr',errcode=iret)
+       if (iret /= 0) then
+          print *,'error writing rwmr attribute'
+          call stop2(29)
+       end if
+     endif
+     if (cliptracers)  where (vg3d < clip) vg3d = clip
+  endif
+  call write_vardata(dsanl,'rwmr',vg3d,ncstart=ncstart,nccount=nccount,errcode=iret) !  write rwmr
+  if (iret /= 0) then
+     print *,'error writing rwmr'
+     call stop2(29)
+  end if
+
+  ! write analysis qs
+  call read_vardata(dsfg,'snmr',vg3d,ncstart=ncstart,nccount=nccount,errcode=iret)
+  if (iret /= 0) then
+     print *,'error reading snmr'
+     call stop2(29)
+  endif
+  do k=lev_pe1(iope), lev_pe2(iope)
+     krev = nlevs-k+1
+     ki = k - lev_pe1(iope) + 1
+     ug = 0_r_kind
+     if (qs_ind > 0) then
+        call copyfromgrdin(grdin(:,levels(qs_ind-1)+krev,nb,ne),ug)
+     endif
+     vg3d(:,:,ki) = vg3d(:,:,ki) + reshape(ug,(/nlons,nlats/))
+  enddo
+  if (qs_ind > 0) then
+     if (has_attr(dsfg, 'nbits', 'snmr') .and. .not. nocompress) then
+       call read_attribute(dsfg, 'nbits', nbits, 'snmr')
+       values_3d = vg3d
+       call quantize_data(values_3d, vg3d, nbits, compress_err)
+       if (cliptracers)  where (vg3d < clip) vg3d = clip
+       ! again, below is lazy/not ideal/bad
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'snmr',errcode=iret)
+       if (iret /= 0) then
+          print *,'error writing snmr attribute'
+          call stop2(29)
+       end if
+     endif
+     if (cliptracers)  where (vg3d < clip) vg3d = clip
+  endif
+
+  call write_vardata(dsanl,'snmr',vg3d,ncstart=ncstart,nccount=nccount,errcode=iret) !  write snmr
+  if (iret /= 0) then
+     print *,'error writing snmr'
+     call stop2(29)
+  end if
+
+  ! write analysis qg
+  call read_vardata(dsfg,'grle',vg3d,ncstart=ncstart,nccount=nccount,errcode=iret)
+  if (iret /= 0) then
+     print *,'error reading grle'
+     call stop2(29)
+  endif
+  do k=lev_pe1(iope), lev_pe2(iope)
+     krev = nlevs-k+1
+     ki = k - lev_pe1(iope) + 1
+     ug = 0_r_kind
+     if (qg_ind > 0) then
+        call copyfromgrdin(grdin(:,levels(qg_ind-1)+krev,nb,ne),ug)
+     endif
+     vg3d(:,:,ki) = vg3d(:,:,ki) + reshape(ug,(/nlons,nlats/))
+  enddo
+  if (qg_ind > 0) then
+     if (has_attr(dsfg, 'nbits', 'grle') .and. .not. nocompress) then
+       call read_attribute(dsfg, 'nbits', nbits, 'grle')
+       values_3d = vg3d
+       call quantize_data(values_3d, vg3d, nbits, compress_err)
+       if (cliptracers)  where (vg3d < clip) vg3d = clip
+       ! again, below is lazy/not ideal/bad
+       call write_attribute(dsanl,&
+       'max_abs_compression_error',compress_err,'grle',errcode=iret)
+       if (iret /= 0) then
+          print *,'error writing grle attribute'
+          call stop2(29)
+       end if
+     endif
+     if (cliptracers)  where (vg3d < clip) vg3d = clip
+  endif
+  call write_vardata(dsanl,'grle',vg3d,ncstart=ncstart,nccount=nccount,errcode=iret) !  write grle
+  if (iret /= 0) then
+     print *,'error writing grle'
+     call stop2(29)
+  end if
 
   ! write analysis ozone
   call read_vardata(dsfg,'o3mr',vg3d,ncstart=ncstart,nccount=nccount,errcode=iret)
@@ -3709,7 +3920,7 @@
   use netcdf
   use params, only: nbackgrounds,incfileprefixes,fgfileprefixes,reducedgrid,&
                     datestring,nhr_anal
-  use constants, only: grav
+  use constants, only: grav,qcmin
   use mpi
   use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
                          read_attribute, close_dataset, get_dim, read_vardata,&
@@ -3744,7 +3955,9 @@
   integer(i_kind) :: ncid_out, lon_dimid, lat_dimid, lev_dimid, ilev_dimid
   integer(i_kind) :: lonvarid, latvarid, levvarid, pfullvarid, ilevvarid, &
                      hyaivarid, hybivarid, uvarid, vvarid, delpvarid, delzvarid, &
-                     tvarid, sphumvarid, liqwatvarid, o3varid, icvarid
+                     tvarid, sphumvarid, liqwatvarid, o3varid, icvarid, &
+                     rwmrvarid, snmrvarid, grlevarid
+
   integer(i_kind) :: iadateout
 
   ! fixed fields such as lat, lon, levs
@@ -3756,7 +3969,7 @@
   ! increment
   real(r_kind), dimension(nlons*nlats) :: psinc, inc, ug, vg, work
   real(r_single), allocatable, dimension(:,:,:) :: inc3d, inc3d2, inc3dout
-  real(r_single), allocatable, dimension(:,:,:) :: tv, tvanl, tmp, tmpanl, q, qanl
+  real(r_single), allocatable, dimension(:,:,:) :: tv, tvanl, tmp, tmpanl, q, qanl, q2, qanl2
   real(r_kind), allocatable, dimension(:,:) :: values_2d
   real(r_kind), allocatable, dimension(:) :: psges, delzb, values_1d
 
@@ -3846,6 +4059,13 @@
   call nccheck_incr(nf90_var_par_access(ncid_out, o3varid, nf90_collective))
   call nccheck_incr(nf90_def_var(ncid_out, "icmr_inc", nf90_real, dimids3, icvarid))
   call nccheck_incr(nf90_var_par_access(ncid_out, icvarid, nf90_collective))
+  call nccheck_incr(nf90_def_var(ncid_out, "rwmr_inc", nf90_real, dimids3, rwmrvarid))
+  call nccheck_incr(nf90_var_par_access(ncid_out, rwmrvarid, nf90_collective))
+  call nccheck_incr(nf90_def_var(ncid_out, "snmr_inc", nf90_real, dimids3, snmrvarid))
+  call nccheck_incr(nf90_var_par_access(ncid_out, snmrvarid, nf90_collective))
+  call nccheck_incr(nf90_def_var(ncid_out, "grle_inc", nf90_real, dimids3, grlevarid))
+  call nccheck_incr(nf90_var_par_access(ncid_out, grlevarid, nf90_collective))
+
   ! place global attributes to parallel calc_increment output
   call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "source", "GSI EnKF"))
   call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "comment", &
@@ -4094,33 +4314,70 @@
   call nccheck_incr(nf90_put_var(ncid_out, o3varid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
+  ! For hydrometeors, following the treatment for specific humidity increment
+  ! Need to make sure the analysis value is not negative
+  ! Read in background + increment and make sure the minimum is qcmin
+  ! Adjust increment accordingly
+  ! ToDo #1: check o3, should do the same
+  ! ToDo #2: add handling for Thompson scheme (imp_physics: 8) 
+
   ! liq wat increment
   ! icmr increment
+  ! if cw increment, make sure split the cw increment into ql and qi increments
+  allocate(q2(nlons,nlats,nccount(3)),qanl2(nlons,nlats,nccount(3)))
+  call read_vardata(dsfg, 'clwmr', q, ncstart=ncstart, nccount=nccount, errcode=iret)
+  if (iret /= 0) then
+     print *,'error reading clwmr'
+     call stop2(29)
+  endif
+  call read_vardata(dsfg, 'icmr', q2, ncstart=ncstart, nccount=nccount, errcode=iret)
+  if (iret /= 0) then
+     print *,'error reading icmr'
+     call stop2(29)
+  endif
   do k=lev_pe1(iope), lev_pe2(iope)
      krev = nlevs-k+1
      ki = k - lev_pe1(iope) + 1
-     ug = zero
+     ug = zero; vg = zero
      if (cw_ind > 0) then
         call copyfromgrdin(grdin(:,levels(cw_ind-1)+krev,nb,ne),ug)
+     else if (ql_ind > 0) then
+        call copyfromgrdin(grdin(:,levels(ql_ind-1)+krev,nb,ne),ug)
      end if
-     if (imp_physics == 11) then
-        work = -r0_05 * (reshape(tmpanl(:,:,ki),(/nlons*nlats/)) - t0c)
-        do i=1,nlons*nlats
-           work(i) = max(zero,work(i))
-           work(i) = min(one,work(i))
-        enddo
-        vg = ug * work          ! cloud ice
-        ug = ug * (one - work)  ! cloud water
-        inc3d2(:,:,ki) = reshape(vg,(/nlons,nlats/))
+     ! analysis control variable is cw, need to split cw analysis to ql and qi 
+     if (cw_ind > 0) then
+        if (imp_physics == 11) then
+           work = -r0_05 * (reshape(tmpanl(:,:,ki),(/nlons*nlats/)) - t0c)
+           do i=1,nlons*nlats
+              work(i) = max(zero,work(i))
+              work(i) = min(one,work(i))
+           enddo
+           vg = ug * work          ! cloud ice
+           ug = ug * (one - work)  ! cloud water
+        endif
+     else if (qi_ind > 0) then
+        call copyfromgrdin(grdin(:,levels(qi_ind-1)+krev,nb,ne),vg)
      endif
-     inc3d(:,:,ki) = reshape(ug,(/nlons,nlats/))
+     inc3d(:,:,ki) = reshape(ug,(/nlons,nlats/))  ! cloud water
+     qanl(:,:,ki) = q(:,:,ki) + inc3d(:,:,ki)
+     inc3d2(:,:,ki) = reshape(vg,(/nlons,nlats/)) ! cloud ice
+     qanl2(:,:,ki) = q2(:,:,ki) + inc3d(:,:,ki)
   enddo
+
+  ! adjust hydrometeor increment to make sure analysis is positive
+  if (cliptracers)  where (qanl < qcmin) qanl = qcmin
+  inc3d = qanl - q     ! ql
+  if (cliptracers)  where (qanl2 < qcmin) qanl2 = qcmin
+  inc3d2 = qanl2 - q2  ! qi
+
+  ! output ql increment 
   do j=1,nlats
     inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
   end do
   if (should_zero_increments_for('liq_wat_inc')) inc3dout = zero
   call nccheck_incr(nf90_put_var(ncid_out, liqwatvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
+  ! output qi increment
   do j=1,nlats
     inc3dout(:,nlats-j+1,:) = inc3d2(:,j,:)
   end do
@@ -4128,11 +4385,86 @@
   call nccheck_incr(nf90_put_var(ncid_out, icvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
+  ! rwmr increment
+  call read_vardata(dsfg, 'rwmr', q, ncstart=ncstart, nccount=nccount, errcode=iret)
+  if (iret /= 0) then
+     print *,'error reading rwmr'
+     call stop2(29)
+  endif
+  do k=lev_pe1(iope), lev_pe2(iope)
+     krev = nlevs-k+1
+     ki = k - lev_pe1(iope) + 1
+     inc(:) = zero
+     if (qr_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(qr_ind-1) + krev,nb,ne),inc)
+     endif
+     inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
+     qanl(:,:,ki) = q(:,:,ki) + inc3d(:,:,ki)
+  end do
+  if (cliptracers)  where (qanl < qcmin) qanl = qcmin
+  inc3d = qanl - q   ! updated rwmr increment
+  do j=1,nlats
+    inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
+  end do
+  if (should_zero_increments_for('rwmr_inc')) inc3dout = zero
+  call nccheck_incr(nf90_put_var(ncid_out, rwmrvarid, sngl(inc3dout), &
+                      start = ncstart, count = nccount))
+
+  ! snmr increment
+  call read_vardata(dsfg, 'snmr', q, ncstart=ncstart, nccount=nccount, errcode=iret)
+  if (iret /= 0) then
+     print *,'error reading snmr'
+     call stop2(29)
+  endif
+  do k=lev_pe1(iope), lev_pe2(iope)
+     krev = nlevs-k+1
+     ki = k - lev_pe1(iope) + 1
+     inc(:) = zero
+     if (qs_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(qs_ind-1) + krev,nb,ne),inc)
+     endif
+     inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
+     qanl(:,:,ki) = q(:,:,ki) + inc3d(:,:,ki)
+  end do
+  if (cliptracers)  where (qanl < qcmin) qanl = qcmin
+  inc3d = qanl - q   ! updated snmr increment
+  do j=1,nlats
+    inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
+  end do
+  if (should_zero_increments_for('snmr_inc')) inc3dout = zero
+  call nccheck_incr(nf90_put_var(ncid_out, snmrvarid, sngl(inc3dout), &
+                      start = ncstart, count = nccount))
+
+  ! grle increment
+  call read_vardata(dsfg, 'grle', q, ncstart=ncstart, nccount=nccount, errcode=iret)
+  if (iret /= 0) then
+     print *,'error reading grle'
+     call stop2(29)
+  endif
+  do k=lev_pe1(iope), lev_pe2(iope)
+     krev = nlevs-k+1
+     ki = k - lev_pe1(iope) + 1
+     inc(:) = zero
+     if (qg_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(qg_ind-1) + krev,nb,ne),inc)
+     endif
+     inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
+     qanl(:,:,ki) = q(:,:,ki) + inc3d(:,:,ki)
+  end do
+  if (cliptracers)  where (qanl < qcmin) qanl = qcmin
+  inc3d = qanl - q   ! updated grle increment
+  do j=1,nlats
+    inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
+  end do
+  if (should_zero_increments_for('grle_inc')) inc3dout = zero
+  call nccheck_incr(nf90_put_var(ncid_out, grlevarid, sngl(inc3dout), &
+                      start = ncstart, count = nccount))
+
   call mpi_barrier(iocomms(mem_pe(nproc)), iret)
 
   ! deallocate things
   deallocate(inc3d,inc3d2,inc3dout)
-  deallocate(tmp,tv,q,tmpanl,tvanl,qanl)
+  deallocate(tmp,tv,q,tmpanl,tvanl,qanl,q2,qanl2)
   if (allocated(delzb)) deallocate(delzb)
   if (allocated(psges)) deallocate(psges)
 
