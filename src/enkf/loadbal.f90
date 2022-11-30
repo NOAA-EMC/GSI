@@ -110,7 +110,7 @@ use kinds, only: r_kind, i_kind, r_double, r_single
 use kdtree2_module, only: kdtree2, kdtree2_create, kdtree2_destroy, &
                           kdtree2_result, kdtree2_r_nearest
 use gridinfo, only: gridloc, logp, latsgrd, nlevs_pres, npts
-use constants, only: zero, rad2deg, deg2rad, one, two
+use constants, only: zero, rad2deg, deg2rad
 
 implicit none
 private
@@ -364,7 +364,7 @@ if (nproc == 0) print *,'anal_chunk size = ',size(anal_chunk,kind=8)
 ! rcounts is number of data elements to recv from processor np.
 ! displs is displacement into send array for data to go to proc np
 
-if (real(numproc)*real(nanals_per_iotask)*real(npts_max)*real(ncdim) < two**32/two - one) then
+if (real(numproc)*real(nanals_per_iotask)*real(npts_max)*real(ncdim) < 2_i_kind**32/2._r_kind - 1_i_kind) then
     do np=0,numproc-1
        displs(np) = np*nanals_per_iotask*npts_max
     enddo
@@ -512,7 +512,7 @@ allocate(rcounts(0:numproc-1))
 ! rcounts is number of data elements to recv from processor np.
 ! displs is displacement into send array for data to go to proc np
 
-if (real(numproc)*real(nanals_per_iotask)*real(npts_max)*real(ncdim) < two**32/two - one) then
+if (real(numproc)*real(nanals_per_iotask)*real(npts_max)*real(ncdim) < 2_i_kind**32/2._r_kind - 1_i_kind) then
    if (nproc <= ntasks_io-1) then
       rcounts = nanals_per_iotask*npts_max*ncdim
    else

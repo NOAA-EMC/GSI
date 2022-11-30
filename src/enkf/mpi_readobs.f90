@@ -45,7 +45,6 @@ use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc,&
                 mpi_comm_shmemroot,mpi_mode_nocheck,mpi_lock_exclusive,&
                 mpi_address_kind
 use, intrinsic :: iso_c_binding
-use constants, only: one, two
 
 implicit none
 
@@ -251,7 +250,7 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
 ! exchange obs prior ensemble members across all tasks to fully populate shared
 ! memory array pointer on each node.
     if (nproc_shm == 0) then
-       if (real(nanals)*real(nobs_tot) < two**32/two - one) then
+       if (real(nanals)*real(nobs_tot) < 2_i_kind**32/2._r_kind - 1_i_kind) then
           call mpi_allreduce(mpi_in_place,anal_ob,nanals*nobs_tot,mpi_real4,mpi_sum,mpi_comm_shmemroot,ierr)
        else
           ! count won't fit in 32-bit integer and mpi_allreduce doesn't handle

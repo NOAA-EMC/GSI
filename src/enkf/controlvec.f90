@@ -56,7 +56,7 @@ use params,    only: nlevs, nbackgrounds, fgfileprefixes, reducedgrid, &
                      fgsfcfileprefixes, paranc, write_fv3_incr, write_ensmean
 use kinds,     only: r_kind, i_kind, r_double, r_single
 use mpeu_util, only: gettablesize, gettable, getindex
-use constants, only: max_varname_length, one, two
+use constants, only: max_varname_length
 implicit none
 
 private
@@ -309,7 +309,7 @@ if (nproc <= ntasks_io-1) then
          print *,'--------------'
       endif
       ! gather ensmean increment on root.
-      if (real(npts)*real(ncdim) < two**32/two - one) then
+      if (real(npts)*real(ncdim) < 2_i_kind**32/2._r_kind - 1_i_kind) then
          do ne=1,nanals_per_iotask
             call mpi_reduce(grdin(:,:,nb,ne), grdin_mean_tmp, npts*ncdim, mpi_real4,&
                             mpi_sum,0,mpi_comm_io,ierr)
