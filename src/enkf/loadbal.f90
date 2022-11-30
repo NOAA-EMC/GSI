@@ -364,7 +364,7 @@ if (nproc == 0) print *,'anal_chunk size = ',size(anal_chunk,kind=8)
 ! rcounts is number of data elements to recv from processor np.
 ! displs is displacement into send array for data to go to proc np
 
-if (real(numproc)*real(nanals_per_iotask)*real(npts_max)*real(ncdim) < 2_i_kind**32/2._r_kind - 1_i_kind) then
+if (real(numproc)*real(nanals_per_iotask)*real(npts_max)*real(ncdim) < 2_r_kind**32/2_r_kind - 1_r_kind) then
     do np=0,numproc-1
        displs(np) = np*nanals_per_iotask*npts_max
     enddo
@@ -512,7 +512,7 @@ allocate(rcounts(0:numproc-1))
 ! rcounts is number of data elements to recv from processor np.
 ! displs is displacement into send array for data to go to proc np
 
-if (real(numproc)*real(nanals_per_iotask)*real(npts_max)*real(ncdim) < 2_i_kind**32/2._r_kind - 1_i_kind) then
+if (real(numproc)*real(nanals_per_iotask)*real(npts_max)*real(ncdim) < 2_r_kind**32/2_r_kind - 1_i_kind) then
    if (nproc <= ntasks_io-1) then
       rcounts = nanals_per_iotask*npts_max*ncdim
    else

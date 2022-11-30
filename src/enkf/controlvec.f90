@@ -309,7 +309,7 @@ if (nproc <= ntasks_io-1) then
          print *,'--------------'
       endif
       ! gather ensmean increment on root.
-      if (real(npts)*real(ncdim) < 2_i_kind**32/2._r_kind - 1_i_kind) then
+      if (real(npts)*real(ncdim) < 2_r_kind**32/2_r_kind - 1_r_kind) then
          do ne=1,nanals_per_iotask
             call mpi_reduce(grdin(:,:,nb,ne), grdin_mean_tmp, npts*ncdim, mpi_real4,&
                             mpi_sum,0,mpi_comm_io,ierr)
