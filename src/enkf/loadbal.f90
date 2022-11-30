@@ -366,7 +366,7 @@ if (nproc == 0) print *,'anal_chunk size = ',size(anal_chunk,kind=8)
 
 if (real(numproc)*real(nanals_per_iotask)*real(npts_max)*real(ncdim) < 2_r_kind**32/2_r_kind - 1_r_kind) then
     do np=0,numproc-1
-       displs(np) = np*nanals_per_iotask*npts_max
+       displs(np) = np*nanals_per_iotask*npts_max*ncdim
     enddo
     if (nproc <= ntasks_io-1) then
        scounts = nanals_per_iotask*npts_max*ncdim
