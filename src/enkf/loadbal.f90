@@ -110,7 +110,7 @@ use kinds, only: r_kind, i_kind, r_double, r_single
 use kdtree2_module, only: kdtree2, kdtree2_create, kdtree2_destroy, &
                           kdtree2_result, kdtree2_r_nearest
 use gridinfo, only: gridloc, logp, latsgrd, nlevs_pres, npts
-use constants, only: zero, rad2deg, deg2rad
+use constants, only: zero, rad2deg, deg2rad, one, two
 
 implicit none
 private
@@ -364,7 +364,7 @@ if (nproc == 0) print *,'anal_chunk size = ',size(anal_chunk,kind=8)
 ! rcounts is number of data elements to recv from processor np.
 ! displs is displacement into send array for data to go to proc np
 
-if (real(numproc)*real(nanals_per_iotask)*real(npts_max)*real(ncdim) < 2**32/2. - 1) then
+if (real(numproc)*real(nanals_per_iotask)*real(npts_max)*real(ncdim) < two**32/two - one) then
     do np=0,numproc-1
        displs(np) = np*nanals_per_iotask*npts_max
     enddo
@@ -476,7 +476,7 @@ allocate(ensmean_chunk_prior(npts_max,ncdim,nbackgrounds))
 ensmean_chunk = 0_r_single
 
 !==> compute mean, remove it from anal_chunk
-!!$omp parallel do schedule(dynamic,1)  private(nn,i,n,nb)
+!$omp parallel do schedule(dynamic,1)  private(nn,i,n,nb)
 do nb=1,nbackgrounds
   do nn=1,ncdim
      do i=1,numptsperproc(nproc+1)
@@ -490,7 +490,7 @@ do nb=1,nbackgrounds
      end do
   end do
 end do
-!!$omp end parallel do
+!$omp end parallel do
 
 
 end subroutine scatter_chunks
@@ -512,7 +512,7 @@ allocate(rcounts(0:numproc-1))
 ! rcounts is number of data elements to recv from processor np.
 ! displs is displacement into send array for data to go to proc np
 
-if (real(numproc)*real(nanals_per_iotask)*real(npts_max)*real(ncdim) < 2**32/2. - 1) then
+if (real(numproc)*real(nanals_per_iotask)*real(npts_max)*real(ncdim) < two**32/two - one) then
    if (nproc <= ntasks_io-1) then
       rcounts = nanals_per_iotask*npts_max*ncdim
    else
