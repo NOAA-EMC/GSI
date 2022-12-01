@@ -26,7 +26,7 @@ use kinds, only: r_kind,i_kind
 use control_vectors, only: control_vector,cvars3d
 use gsi_4dvar, only: ibin_anl
 use hybrid_ensemble_parameters, only: uv_hyb_ens,dual_res,ntlevs_ens
-use hybrid_ensemble_parameters, only: n_ens,q_hyb_ens
+use hybrid_ensemble_parameters, only: n_ens,q_hyb_ens,nsclgrp
 use hybrid_ensemble_isotropic, only: ensemble_forward_model,ensemble_forward_model_dual_res
 use hybrid_ensemble_isotropic, only: sqrt_beta_s_mult,sqrt_beta_e_mult, &
         ckgcov_a_en_new_factorization
@@ -57,7 +57,7 @@ character(len=max_varname_length),allocatable,dimension(:) :: clouds
 integer(i_kind) :: jj,ic,id,istatus,nclouds,nn
 
 integer(i_kind), parameter :: ncvars = 5
-integer(i_kind) :: icps(ncvars)
+integer(i_kind) :: icps(ncvars),ig
 type(gsi_bundle):: wbundle_c ! work bundle
 type(gsi_bundle),allocatable :: ebundle(:,:)
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here

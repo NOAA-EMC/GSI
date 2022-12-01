@@ -777,7 +777,7 @@ contains
        if(lsqrtb.and.l_hyb_ens) then
           n_ensz=n_ens
           nval_lenz_enz=nval_lenz_en
-          nval_lenz_tot=nval_lenz+n_ensz*nval_lenz_enz
+          nval_lenz_tot=nval_lenz+nsclgrp*n_ensz*nval_lenz_enz
        endif
        nclenz=nsubwin*nval_lenz_tot+nsclen+npclen+ntclen
     else

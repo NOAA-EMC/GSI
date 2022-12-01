@@ -68,6 +68,7 @@ subroutine get_gefs_ensperts_dualres
   use gsi_enscouplermod, only: gsi_enscoupler_create_sub2grid_info
   use gsi_enscouplermod, only: gsi_enscoupler_destroy_sub2grid_info
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
+  use hybrid_ensemble_parameters, only: nsclgrp,sp_ens,spc_multwgt
   implicit none
 
   real(r_kind),pointer,dimension(:,:)   :: ps
@@ -77,7 +78,9 @@ subroutine get_gefs_ensperts_dualres
   real(r_kind),pointer,dimension(:,:,:):: p3
   real(r_kind),pointer,dimension(:,:):: x2
   type(gsi_bundle),allocatable,dimension(:) :: en_read
-  type(gsi_bundle):: en_bar
+  type(gsi_bundle)            :: en_bar
+  type(gsi_bundle)            :: en_pertstmp1
+  type(gsi_bundle)            :: en_pertstmp2
 ! type(gsi_grid)  :: grid_ens
   real(r_kind) bar_norm,sig_norm,kapr,kap1
 ! real(r_kind),allocatable,dimension(:,:):: z,sst2
@@ -91,6 +94,7 @@ subroutine get_gefs_ensperts_dualres
 ! integer(i_kind) il,jl
   logical ice,hydrometeor 
   type(sub2grid_info) :: grd_tmp
+  integer(i_kind) :: ig0,ig
 
 ! Create perturbations grid and get variable names from perturbations
   if(en_perts(1,1,1)%grid%im/=grd_ens%lat2.or. &
@@ -130,6 +134,16 @@ subroutine get_gefs_ensperts_dualres
   if ( istatus /= 0 ) &
      call die('get_gefs_ensperts_dualres',': trouble creating en_bar bundle, istatus =',istatus)
 
+! Allocate bundle used for temporary usage
+  if( nsclgrp > 1 )then
+      call gsi_bundlecreate(en_pertstmp1,en_perts(1,1,1)%grid,'aux-ens-read',istatus,names2d=cvars2d,names3d=cvars3d)
+      call gsi_bundlecreate(en_pertstmp2,en_perts(1,1,1)%grid,'aux-ens-read',istatus,names2d=cvars2d,names3d=cvars3d)
+      if(istatus/=0) then
+        write(6,*)' get_gefs_ensperts_dualres: trouble creating en_read like tempbundle'
+        call stop2(999)
+      endif
+  end if
+
   ! Allocate bundle used for reading members
   allocate(en_read(n_ens))
   do n=1,n_ens
@@ -143,6 +157,8 @@ subroutine get_gefs_ensperts_dualres
 
 ! sst2=zero        !    for now, sst not used in ensemble perturbations, so if sst array is called for
                    !      then sst part of en_perts will be zero when sst2=zero
+
+  ig0 = 1
 
 !$omp parallel do schedule(dynamic,1) private(m,n)
   do m=1,ntlevs_ens
@@ -318,6 +334,20 @@ subroutine get_gefs_ensperts_dualres
      end do
   end do  ntlevs_ens_loop !end do over bins
 
+  if(nsclgrp > 1) then
+    do m=1,ntlevs_ens
+      do n=1,n_ens
+        en_pertstmp1%values=en_perts(n,ig0,m)%valuesr4
+        do ig=1,nsclgrp
+          call apply_scaledepwgts(grd_ens,sp_ens,en_pertstmp1,spc_multwgt(:,ig),en_pertstmp2,ig,n)
+          en_perts(n,ig,m)%valuesr4=en_pertstmp2%values
+        enddo
+      enddo
+
+    enddo
+
+  endif
+
   do n=n_ens,1,-1
      call gsi_bundledestroy(en_read(n),istatus)
      if ( istatus /= 0 ) &
@@ -429,6 +459,7 @@ subroutine ens_spread_dualres(en_bar,ibin)
   logical regional
   integer(i_kind) num_fields,inner_vars,istatus
   logical,allocatable::vector(:)
+  integer(i_kind) :: ig0
 
 !      create simple regular grid
   call gsi_gridcreate(grid_anl,grd_anl%lat2,grd_anl%lon2,grd_anl%nsig)
@@ -450,6 +481,7 @@ subroutine ens_spread_dualres(en_bar,ibin)
   endif
 
   sp_norm=(one/float(n_ens))
+  ig0 = 1
 
   sube%values=zero
   do n=1,n_ens

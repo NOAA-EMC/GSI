@@ -331,6 +331,16 @@ module hybrid_ensemble_parameters
   public :: sst_staticB
   public :: limqens
 
+  public :: nsclgrp
+  public :: alphacvarsclgrpmat
+  public :: para_covwithsclgrp
+  public :: spc_multwgt
+  public :: spcwgt_params
+  public :: l_sum_spc_weights
+  public :: smooth_scales
+  public :: cross_correlation_reset
+  public :: vdl_scale,small_loc_varlist,smooth_scales_num
+
   logical l_hyb_ens,uv_hyb_ens,q_hyb_ens,oz_univ_static,sst_staticB
   logical l_timloc_opt
   logical aniso_a_en
@@ -351,6 +361,13 @@ module hybrid_ensemble_parameters
   logical l_both_fv3sar_gfs_ens
   integer(i_kind) i_en_perts_io
   integer(i_kind) n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test
+  integer(i_kind),parameter::max_aens=10
+  real(r_kind) s_ens_h(max_aens)
+  real(r_kind) smooth_scales(max_aens)
+  character(len=3) small_loc_varlist(100)
+  integer(i_kind) vdl_scale(max_aens)
+  real(r_kind), dimension(max_aens,max_aens)   ::  cross_correlation_reset
+  integer(i_kind) smooth_scales_num
   integer(i_kind) n_ens_gfs,n_ens_fv3sar
   real(r_kind) beta_s0,beta_e0,grid_ratio_ens
   integer(i_kind),parameter::max_naensloc=20
@@ -388,6 +405,13 @@ module hybrid_ensemble_parameters
   integer(i_kind) :: i_ensloccov4var=0
   integer(i_kind) :: i_ensloccov4scl=0
   integer(i_kind),allocatable,dimension(:) :: idaen3d,idaen2d
+
+  real(r_kind),allocatable,dimension(:,:) :: alphacvarsclgrpmat
+  real(r_kind),allocatable,dimension(:,:) :: spc_multwgt
+  real(r_kind),allocatable,dimension(:,:) :: spcwgt_params
+  real (r_kind)  ::  para_covwithsclgrp=1
+  integer(i_kind)::  nsclgrp=1
+  integer(i_kind)::  l_sum_spc_weights=0
 
 ! following is for storage of ensemble perturbations:
 
@@ -465,6 +489,11 @@ subroutine init_hybrid_ensemble_parameters
   beta_s0=one
   beta_e0=-one
   grid_ratio_ens=one
+  cross_correlation_reset=1.0
+  smooth_scales=-999.0
+  smooth_scales_num = -999
+  vdl_scale = 0
+  small_loc_varlist = 'aaa'
   s_ens_h = 2828._r_kind     !  km (this was optimal value in 
                              !   Wang, X.,D. M. Barker, C. Snyder, and T. M. Hamill, 2008: A hybrid
                              !      ETKF.3DVAR data assimilation scheme for the WRF Model. Part II: 

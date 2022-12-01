@@ -536,7 +536,7 @@ subroutine allocate_cv(ycv)
 
 !    Set ensemble-based part of control vector
      if (l_hyb_ens) then
-
+       do ig=1,nsclgrp
          ltmp(1)='a_en'
          do ig=1,naensgrp
             do nn=1,n_ens
@@ -552,7 +552,7 @@ subroutine allocate_cv(ycv)
                ii=ii+n_aens
             enddo
          enddo
-
+       end do
      endif
 
   enddo
@@ -967,7 +967,7 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
   real(r_quad)        , intent(  out) :: prods(nsubwin+1)
 
   real(r_quad) :: zz(nsubwin)
-  integer(i_kind) :: ii,i,nn,m3d,m2d
+  integer(i_kind) :: ii,i,nn,m3d,m2d,ig,ngtmp,nn0
   real(r_quad),allocatable,dimension(:) :: partsum
   integer(i_kind) :: ig
   integer(i_kind) ::ngtmp,nn0
@@ -1389,7 +1389,7 @@ implicit none
 type(control_vector)     , intent(inout) :: ycv
 integer(i_kind), optional, intent(in   ) :: kseed
 
-integer(i_kind):: ii,jj,nn,iseed
+integer(i_kind):: ii,jj,nn,iseed,ig
 integer, allocatable :: nseed(:) ! Intentionaly default integer
 real(r_kind), allocatable :: zz(:)
 integer(i_kind) :: ig
@@ -1427,6 +1427,7 @@ if (nval_lenz_en>0) then
             enddo
          enddo
       enddo
+     end do
    enddo
    deallocate(zz)
 endif

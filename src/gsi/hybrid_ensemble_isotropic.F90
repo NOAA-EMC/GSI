@@ -134,6 +134,8 @@ module hybrid_ensemble_isotropic
   public :: bkerror_a_en
   public :: ckgcov_a_en_new_factorization
   public :: ckgcov_a_en_new_factorization_ad
+  public :: ckgcov_a_en_new_factorization_sdl
+  public :: ckgcov_a_en_new_factorization_ad_sdl
   public :: hybens_grid_setup
   public :: hybens_localization_setup
   public :: convert_km_to_grid_units
@@ -379,7 +381,7 @@ subroutine init_rf_x(x_len,kl)
 !
 !$$$
 
-  use hybrid_ensemble_parameters, only: grd_loc
+  use hybrid_ensemble_parameters, only: grd_loc,nsclgrp
   use hybrid_ensemble_parameters, only: region_dx_ens,region_dy_ens
   use hybrid_ensemble_parameters, only: naensloc
   use constants, only: half
@@ -1065,31 +1067,33 @@ subroutine normal_new_factorization_rf_y
   enddo !ig loop
 !               check that ynorm is corect
   if(debug) then
-     do loop=1,lend
-        ll=(loop-1)*iend
-        f=zero
-        do k=1,kl
-           do i=1,iend
-              lcount=ll+i
-              f(lcount,i,k)=one
-              if(lcount ==  grd_loc%nlat) exit
-           enddo
-        enddo
+     do ig=1,nsclgrp
+       do loop=1,lend
+          ll=(loop-1)*iend
+          f=zero
+          do k=1,kl
+             do i=1,iend
+                lcount=ll+i
+                f(lcount,i,k)=one
+                if(lcount ==  grd_loc%nlat) exit
+             enddo
+          enddo
 
         iadvance=1 ; iback=2
         call new_factorization_rf_y(f,iadvance,iback,kl,1)
         iadvance=2 ; iback=1
         call new_factorization_rf_y(f,iadvance,iback,kl,1) 
 
-        do k=1,kl
-           do i=1,iend
-              lcount=ll+i
-              diag(lcount,k)=sqrt(one/f(lcount,i,k))
-              if(lcount ==  grd_loc%nlat) exit
-           enddo
-        enddo
-    enddo
-    write(6,*)' in normal_new_factorization_rf_y, min,max(diag)=',minval(diag),maxval(diag)
+          do k=1,kl
+             do i=1,iend
+                lcount=ll+i
+                diag(lcount,k)=sqrt(one/f(lcount,i,k))
+                if(lcount ==  grd_loc%nlat) exit
+             enddo
+          enddo
+       enddo
+       write(6,*)' in normal_new_factorization_rf_y, min,max(diag)=',minval(diag),maxval(diag)
+    end do
   endif
   return
 end subroutine normal_new_factorization_rf_y
@@ -1205,7 +1209,7 @@ end subroutine normal_new_factorization_rf_y
     use get_wrf_mass_ensperts_mod, only: get_wrf_mass_ensperts_class
     use get_fv3_regional_ensperts_mod, only: get_fv3_regional_ensperts_class
     use get_wrf_nmm_ensperts_mod, only: get_wrf_nmm_ensperts_class
-    use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
+    use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens,nsclgrp
     use mpimod, only: mpi_comm_world
 
     implicit none
@@ -1217,7 +1221,7 @@ end subroutine normal_new_factorization_rf_y
     type(gsi_bundle),allocatable:: en_bar(:)
     type(gsi_bundle):: bundle_anl,bundle_ens
     type(gsi_grid)  :: grid_anl,grid_ens
-    integer(i_kind) i,j,n,ii,m
+    integer(i_kind) i,j,n,ii,m,ig
     integer(i_kind) istatus
     real(r_kind),allocatable:: seed(:,:)
     real(r_kind),pointer,dimension(:,:)   :: cv_ps=>NULL()
@@ -3604,6 +3608,7 @@ subroutine bkerror_a_en(grady)
 
 ! Declare passed variables
   type(control_vector),intent(inout) :: grady
+  type(gsi_bundle),allocatable :: ebundle(:,:)
 
 ! Declare local variables
   integer(i_kind) ii,ip,istatus,k,ig,ig2
@@ -3627,6 +3632,19 @@ subroutine bkerror_a_en(grady)
 
 !  multiply by sqrt_beta_e_mult
   call sqrt_beta_e_mult(grady)
+
+  if( nsclgrp > 1 .and. l_sum_spc_weights == 0 )then
+    allocate(ebundle(nsclgrp,n_ens))
+    do ig=1,nsclgrp
+     do nn=1,n_ens
+        call gsi_bundlecreate (ebundle(ig,nn),grady%aens(1,1,1),'c2m ensemble work',istatus)
+        if(istatus/=0) then
+           write(6,*) trim(myname), ': trouble creating work ens-bundle'
+           call stop2(999)
+        endif
+     enddo
+    enddo
+  end if
 
 ! Apply variances, as well as vertical & horizontal parts of background error
   do ii=1,nsubwin
@@ -3659,6 +3677,18 @@ subroutine bkerror_a_en(grady)
 
 !  multiply by sqrt_beta_e_mult
   call sqrt_beta_e_mult(grady)
+  if( nsclgrp > 1 .and. l_sum_spc_weights == 0 )then
+    do ig=1,nsclgrp
+      do nn=n_ens,1,-1 ! first in; last out
+         call gsi_bundledestroy(ebundle(ig,nn),istatus)
+         if(istatus/=0) then
+            write(6,*) trim(myname), ': trouble destroying work ens bundle,', istatus
+            call stop2(999)
+         endif
+      enddo
+    enddo
+    deallocate(ebundle)
+  end if
 
 ! Finalize timer
   call timer_fnl('bkerror_a_en')
@@ -3777,7 +3807,8 @@ end subroutine bkgcov_a_en_new_factorization
 subroutine ckgcov_a_en_new_factorization(ig,z,a_en)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    ckgcov_a_en_new_factorization sqrt(bkgcov_a_en_new_factorization)
+! subprogram:    ckgcov_a_en_new_factorization
+! sqrt(bkgcov_a_en_new_factorization)
 !   prgmmr: parrish        org: np22                date: 2011-06-27
 !
 ! abstract: make a copy of bkgcov_a_en_new_factorization and form sqrt.
@@ -3790,7 +3821,8 @@ subroutine ckgcov_a_en_new_factorization(ig,z,a_en)
 !     z        - long vector containing sqrt control vector for ensemble extended control variable
 !
 !   output argument list:
-!     a_en     - bundle containing intermediate control variable after multiplication by sqrt(S), the
+!     a_en     - bundle containing intermediate control variable after
+!     multiplication by sqrt(S), the
 !                    ensemble localization correlation.
 !
 ! attributes:
@@ -3820,8 +3852,10 @@ subroutine ckgcov_a_en_new_factorization(ig,z,a_en)
 !      and nhoriz = grd_loc%nlat*grd_loc%nlon for regional,
 !          nhoriz = (sp_loc%jcap+1)*(sp_loc%jcap+2) for global
 !   but internal array hwork always has
-!      dimension grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
-!    which just happens to match up with nval_lenz_en for regional case, but not global.
+!      dimension
+!      grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
+!    which just happens to match up with nval_lenz_en for regional case, but not
+!    global.
   real(r_kind),allocatable,dimension(:):: a_en_work
 
   call gsi_bundlegetpointer(a_en(1),'a_en',ipnt,istatus)
@@ -3832,8 +3866,10 @@ subroutine ckgcov_a_en_new_factorization(ig,z,a_en)
 
 
   if(grd_loc%kend_loc+1-grd_loc%kbegin_loc==0) then
-!     no work to be done on this processor, but hwork still has allocated space, since
-!                     grd_loc%kend_alloc = grd_loc%kbegin_loc in this case, so set to zero.
+!     no work to be done on this processor, but hwork still has allocated space,
+!     since
+!                     grd_loc%kend_alloc = grd_loc%kbegin_loc in this case, so
+!                     set to zero.
      hwork=zero
   else
 ! Apply horizontal smoother for number of horizontal scales
@@ -3884,7 +3920,141 @@ end subroutine ckgcov_a_en_new_factorization
 subroutine ckgcov_a_en_new_factorization_ad(ig,z,a_en)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    ckgcov_a_en_new_factorization_ad adjoint of ckgcov_a_en_new_factorization
+! subprogram:    ckgcov_a_en_new_factorization_sdl sqrt(bkgcov_a_en_new_factorization)
+!   prgmmr: parrish        org: np22                date: 2011-06-27
+!
+! abstract: make a copy of bkgcov_a_en_new_factorization and form sqrt.
+!
+! program history log:
+!   2011-06-27  parrish, initial documentation
+!
+!   input argument list:
+!     z        - long vector containing sqrt control vector for ensemble extended control variable
+!
+!   output argument list:
+!     a_en     - bundle containing intermediate control variable after multiplication by sqrt(S), the
+!                    ensemble localization correlation.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!$$$
+  use kinds, only: r_kind,i_kind
+  use constants, only: zero
+  use gridmod, only: regional
+  use hybrid_ensemble_parameters, only: n_ens,grd_loc,sp_loc
+  use hybrid_ensemble_parameters, only: nval_lenz_en
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
+  use gsi_bundlemod, only: gsi_bundle
+  use gsi_bundlemod, only: gsi_bundlegetpointer
+
+  implicit none
+
+! Passed Variables
+  integer(i_kind),intent(in   ) :: iscale
+  type(gsi_bundle),intent(inout) :: a_en(n_ens),a_en_in(n_ens)
+
+! Local Variables
+  integer(i_kind) ii,k,iadvance,iback,is,ie,ipnt,istatus
+  real(r_kind) hwork(grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1))
+  integer(i_kind) ilatlon,kk,i,j
+  real(r_kind) rwork(grd_loc%nlat,grd_loc%nlon)
+!NOTE:   nval_lenz_en = nhoriz*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
+!      and nhoriz = grd_loc%nlat*grd_loc%nlon for regional,
+!          nhoriz = (sp_loc%jcap+1)*(sp_loc%jcap+2) for global
+!   but internal array hwork always has
+!      dimension grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
+!    which just happens to match up with nval_lenz_en for regional case, but not global.
+  real(r_kind),allocatable,dimension(:):: a_en_work
+  real(r_kind) :: z(nval_lenz_en)
+  real(r_kind) :: zsp(sp_loc%nc,grd_loc%kbegin_loc:max(grd_loc%kbegin_loc,grd_loc%kend_alloc))
+
+  call gsi_bundlegetpointer(a_en(1),'a_en',ipnt,istatus)
+  if(istatus/=0) then
+     write(6,*)'ckgcov_a_en_new_factorization_sdl: trouble getting pointer to ensemble CV'
+     call stop2(999)
+  endif
+
+! Convert from subdomain to full horizontal field distributed among processors
+  allocate(a_en_work(n_ens*a_en(1)%ndim),stat=istatus)
+  if(istatus/=0) then
+     write(6,*)'ckgcov_a_en_new_factorization_sdl: trouble in alloc(a_en_work)'
+     call stop2(999)
+  endif
+
+  ii=0
+  do k=1,n_ens
+     is=ii+1
+     ie=ii+a_en(1)%ndim
+     a_en_work(is:ie)=a_en_in(k)%values(1:a_en_in(k)%ndim)
+     ii=ii+a_en(1)%ndim
+  enddo
+
+  call general_sub2grid(grd_loc,a_en_work,hwork)
+
+  ! global application requires spectral space
+  if( .not. regional )then
+      ilatlon=grd_loc%nlat*grd_loc%nlon
+      do kk=grd_loc%kbegin_loc,grd_loc%kend_alloc
+         k=kk-grd_loc%kbegin_loc
+         do j=1,grd_loc%nlon
+           do i=1,grd_loc%nlat
+              rwork(i,j)=hwork(k*ilatlon+(j-1)*grd_loc%nlat+i)
+           enddo
+         enddo
+         call general_g2s0(grd_loc,sp_loc,zsp(:,kk),rwork(:,:))
+     enddo
+     z=reshape(zsp,(/nval_lenz_en/))
+  end if
+
+  if(grd_loc%kend_loc+1-grd_loc%kbegin_loc==0) then
+!     no work to be done on this processor, but hwork still has allocated space, since
+!                     grd_loc%kend_alloc = grd_loc%kbegin_loc in this case, so set to zero.
+     hwork=zero
+  else
+! Apply horizontal smoother for number of horizontal scales
+     if(regional) then
+! Make a copy of input variable z to hwork
+        iadvance=2 ; iback=1
+        call new_factorization_rf_y(iscale,hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
+        call new_factorization_rf_x(iscale,hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc)
+     else
+#ifdef LATER
+        call sqrt_sf_xy(iscale,z,hwork,grd_loc%kbegin_loc,grd_loc%kend_loc)
+#else
+        write(6,*) ' problem with ibm compiler with "use hybrid_ensemble_isotropic, only: sqrt_sf_xy"'
+#endif /*LATER*/
+     end if
+  end if
+
+! Put back onto subdomains
+  call general_grid2sub(grd_loc,hwork,a_en_work)
+
+! Retrieve ensemble components from long vector
+  ii=0
+  do k=1,n_ens
+     is=ii+1
+     ie=ii+a_en(1)%ndim
+     a_en(k)%values(1:a_en(k)%ndim)=a_en_work(is:ie)
+     ii=ii+a_en(1)%ndim
+  enddo
+  deallocate(a_en_work)
+
+! Apply vertical smoother on each ensemble member
+  do k=1,n_ens
+
+     iadvance=2 ; iback=1
+     call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback)
+
+  enddo
+
+  return
+end subroutine ckgcov_a_en_new_factorization_sdl
+
+subroutine ckgcov_a_en_new_factorization_ad_sdl(iscale,a_en_out,a_en)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    ckgcov_a_en_new_factorization_ad_sdl adjoint of ckgcov_a_en_new_factorization
 !   prgmmr: parrish        org: np22                date: 2011-06-27
 !
 ! abstract: adjoint of ckgcov_a_en_new_factorization.  Calling ckgcov_a_en_new_factorization_ad,
@@ -3914,9 +4084,11 @@ subroutine ckgcov_a_en_new_factorization_ad(ig,z,a_en)
   use gridmod, only: regional
   use hybrid_ensemble_parameters, only: n_ens,grd_loc
   use hybrid_ensemble_parameters, only: nval_lenz_en
-  use general_sub2grid_mod, only: general_sub2grid
+  use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use egrid2agrid_mod,only: g_egrid2agrid
+  use hybrid_ensemble_parameters, only: sp_loc,grd_sploc
 
   implicit none
 
@@ -3926,8 +4098,10 @@ subroutine ckgcov_a_en_new_factorization_ad(ig,z,a_en)
   real(r_kind),dimension(nval_lenz_en),intent(inout) :: z
 
 ! Local Variables
-  integer(i_kind) ii,k,iadvance,iback,is,ie,ipnt,istatus
+  integer(i_kind) ii,k,kk,iadvance,iback,is,ie,ipnt,istatus
   real(r_kind) hwork(grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1))
+  real(r_kind):: zsp(sp_loc%nc,grd_loc%kbegin_loc:max(grd_loc%kbegin_loc,grd_loc%kend_alloc))
+
 !NOTE:   nval_lenz_en = nhoriz*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
 !      and nhoriz = grd_loc%nlat*grd_loc%nlon for regional,
 !          nhoriz = (sp_loc%jcap+1)*(sp_loc%jcap+2) for global
@@ -3935,10 +4109,15 @@ subroutine ckgcov_a_en_new_factorization_ad(ig,z,a_en)
 !      dimension grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
 !    which just happens to match up with nval_lenz_en for regional case, but not global.
   real(r_kind),allocatable,dimension(:):: a_en_work
+  real(r_kind) rwork(grd_loc%nlat,grd_loc%nlon)
+  real(r_kind) rwork1(grd_loc%nlat,grd_loc%nlon,1)
+  integer(i_kind):: i,j,ilatlon
+  real(r_kind) work_sp(grd_sploc%nlat,grd_sploc%nlon,1)
+  logical vector(grd_loc%kbegin_loc:max(grd_loc%kend_alloc,grd_loc%kbegin_loc))
 
   call gsi_bundlegetpointer(a_en(1),'a_en',ipnt,istatus)
   if(istatus/=0) then
-     write(6,*)'ckgcov_a_en_new_factorization_ad: trouble getting pointer to ensemble CV'
+     write(6,*)'ckgcov_a_en_new_factorization_ad_sdl: trouble getting pointer to ensemble CV'
      call stop2(999)
   endif
 
@@ -3954,7 +4133,7 @@ subroutine ckgcov_a_en_new_factorization_ad(ig,z,a_en)
 ! get copy for ensemble components to work array
   allocate(a_en_work(n_ens*a_en(1)%ndim),stat=istatus)
   if(istatus/=0) then
-     write(6,*)'ckgcov_a_en_new_factorization_ad: trouble in alloc(a_en_work)'
+     write(6,*)'ckgcov_a_en_new_factorization_ad_sdl: trouble in alloc(a_en_work)'
      call stop2(999)
   endif
   ii=0
@@ -3967,7 +4146,6 @@ subroutine ckgcov_a_en_new_factorization_ad(ig,z,a_en)
 
 ! Convert from subdomain to full horizontal field distributed among processors
   call general_sub2grid(grd_loc,a_en_work,hwork)
-  deallocate(a_en_work)
 
   if(grd_loc%kend_loc+1-grd_loc%kbegin_loc==0) then
 !     no work to be done on this processor, but z still has allocated space, since
@@ -3985,8 +4163,36 @@ subroutine ckgcov_a_en_new_factorization_ad(ig,z,a_en)
      end if
   end if
 
+  if( .not. regional )then
+    zsp=reshape(z,(/sp_loc%nc,max(grd_loc%kbegin_loc,grd_loc%kend_alloc)-grd_loc%kbegin_loc+1/))
+    z2=reshape(zsp,(/nval_lenz_en/))
+    ilatlon=grd_loc%nlat*grd_loc%nlon
+    do kk=grd_loc%kbegin_loc,grd_loc%kend_loc
+  
+       call general_s2g0(grd_loc,sp_loc,zsp(:,kk),rwork(:,:))
+       k=kk-grd_loc%kbegin_loc
+       do j=1,grd_loc%nlon
+          do i=1,grd_loc%nlat
+             hwork(k*ilatlon+(j-1)*grd_loc%nlat+i)=rwork(i,j)
+          enddo
+       enddo
+    enddo
+  end if
+  
+ ! Put back to subdomain
+ call general_grid2sub(grd_loc,hwork,a_en_work)
+
+  do k=1,n_ens
+     ii=(k-1)*a_en_out(1)%ndim
+     is=ii+1
+     ie=ii+a_en_out(1)%ndim
+     a_en_out(k)%values(1:a_en_out(k)%ndim)=a_en_work(is:ie)
+  enddo
+
+  deallocate(a_en_work)
+
   return
-end subroutine ckgcov_a_en_new_factorization_ad
+end subroutine ckgcov_a_en_new_factorization_ad_sdl
 
 ! ------------------------------------------------------------------------------
 ! ------------------------------------------------------------------------------
@@ -4029,6 +4235,7 @@ subroutine hybens_grid_setup
   use constants, only: zero,one
   use control_vectors, only: cvars3d,nc2d,nc3d
   use gridmod, only: region_lat,region_lon,region_dx,region_dy
+  use hybrid_ensemble_parameters, only:nsclgrp, spc_multwgt,spcwgt_params
 
   implicit none
 
@@ -4128,6 +4335,30 @@ subroutine hybens_grid_setup
         region_dy_ens=region_dy
      end if
   end if
+
+  allocate(spc_multwgt(0:jcap_ens,nsclgrp))
+  allocate(spcwgt_params(4,nsclgrp))
+  spc_multwgt=1.0
+  if(nsclgrp > 1) then
+     spcwgt_params(1,1)=1.E+4
+     spcwgt_params(2,1)=1.0E+8
+     spcwgt_params(3,1)=1.0
+     spcwgt_params(4,1)=8000.0
+   
+     spcwgt_params(1,2)=2000.0
+     spcwgt_params(2,2)=2000.0
+     spcwgt_params(3,2)=1.0
+     spcwgt_params(4,2)=6000.0
+   
+     spcwgt_params(1,3)=0.0
+     spcwgt_params(2,3)=500.0
+     spcwgt_params(3,3)=1.0
+     spcwgt_params(4,3)=500.0
+  endif
+
+  if(nsclgrp > 1) then
+    call init_mult_spc_wgts(jcap_ens)
+  endif
 
   return
 end subroutine hybens_grid_setup
@@ -4419,7 +4650,7 @@ subroutine hybens_localization_setup
 
 end subroutine hybens_localization_setup
 
-subroutine convert_km_to_grid_units(s_ens_h_gu_x,s_ens_h_gu_y,nz)
+subroutine convert_km_to_grid_units(s_ens_h_gu_x,s_ens_h_gu_y,nscale,nz)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    convert_km_to_grid_units

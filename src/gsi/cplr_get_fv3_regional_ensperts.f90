@@ -8,12 +8,15 @@ use abstract_get_fv3_regional_ensperts_mod,only: abstract_get_fv3_regional_enspe
     procedure, pass(this) :: get_fv3_regional_ensperts => get_fv3_regional_ensperts_run
     procedure, pass(this) :: ens_spread_dualres_regional => ens_spread_dualres_regional_fv3_regional
     procedure, pass(this) :: general_read_fv3_regional
+    procedure, nopass :: GFilter
+    procedure, nopass :: scale_decomposition
   end type get_fv3_regional_ensperts_class
-    type(sub2grid_info):: grd_fv3lam_ens_dynvar_io_nouv,grd_fv3lam_ens_tracer_io_nouv,grd_fv3lam_ens_uv
+    type(sub2grid_info):: grd_fv3lam_ens_dynvar_io_nouv,grd_fv3lam_ens_tracer_io_nouv,grd_fv3lam_ens_phyvar_io_nouv,grd_fv3lam_ens_uv
     character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_ens_io_dynmetvars3d_nouv 
                                ! copy of cvars3d excluding uv 3-d fields   
     character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_ens_io_tracermetvars3d_nouv
                                ! copy of cvars3d excluding uv 3-d fields   
+    character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_ens_io_phymetvars3d_nouv
     character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_ens_io_dynmetvars2d_nouv
     character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_ens_io_tracermetvars2d_nouv
 contains
@@ -34,6 +37,11 @@ contains
   !
   !   2021-08-10  lei     - modify for fv3-lam ensemble spread output
   !   2021-11-01  lei     - modify for fv3-lam parallel IO
+  !
+  !   2022-08-29  Y. Wang, X. Wang - add scale decomposition (Gaussian smoothing) for multiscale DA using
+  !                                  scale- and variable-dependent localization,
+  !                                  Wang and Wang (2022ab, MWR)
+  !                                  poc: xuguang.wang@ou.edu
   !   input argument list:
   !
   !   output argument list:
@@ -65,10 +73,12 @@ contains
      use directDA_radaruse_mod, only: l_cvpnr
      use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info
      use gridmod,only: regional
-     use gsi_rfv3io_mod, only: fv3lam_io_dynmetvars3d_nouv,fv3lam_io_tracermetvars3d_nouv 
+     use gsi_rfv3io_mod, only: fv3lam_io_dynmetvars3d_nouv,fv3lam_io_tracermetvars3d_nouv, fv3lam_io_phymetvars3d_nouv
      use gsi_rfv3io_mod, only: fv3lam_io_dynmetvars2d_nouv,fv3lam_io_tracermetvars2d_nouv 
      use netcdf   , only: nf90_open, nf90_close,nf90_nowrite,nf90_inquire,nf90_format_netcdf4
      use netcdf_mod , only: nc_check
+     use hybrid_ensemble_parameters, only: nsclgrp
+     use obsmod,only: if_model_dbz
     
 
      implicit none
@@ -79,13 +89,18 @@ contains
  
      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: u,v,tv,oz,rh
      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2):: ps
-     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)::w,ql,qi,qr,qg,qs,qnr
+     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)::w,ql,qi,qr,qg,qs,qnr,dbz
  
      real(r_single),pointer,dimension(:,:,:):: w3 =>NULL()
      real(r_single),pointer,dimension(:,:):: w2 =>NULL()
      real(r_kind),pointer,dimension(:,:,:):: x3 =>NULL()
      real(r_kind),pointer,dimension(:,:):: x2 =>NULL()
      type(gsi_bundle),allocatable,dimension(:):: en_bar
+
+     type(gsi_bundle),allocatable  :: en_pertstmp2(:)
+     type(gsi_bundle)              :: en_pertstmp1
+     integer(i_kind)               :: ig0,ig
+
      type(gsi_grid):: grid_ens
      real(r_kind):: bar_norm,sig_norm,kapr,kap1
 
@@ -96,7 +111,7 @@ contains
  
      integer(i_kind):: i,j,k,n,mm1,istatus
      integer(i_kind):: ndynvario2d,ntracerio2d
-     integer(r_kind):: ndynvario3d,ntracerio3d
+     integer(r_kind):: ndynvario3d,ntracerio3d,nphyvario3d
      integer(i_kind):: inner_vars,numfields
      integer(i_kind):: ilev,ic2,ic3
      integer(i_kind):: m
@@ -119,6 +134,16 @@ contains
      endif
 
      call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
+
+     if( nsclgrp > 1 )then
+         allocate(en_pertstmp2(nsclgrp))
+   
+         call gsi_bundlecreate(en_pertstmp1,grid_ens,'ensemble1',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_single)
+         do ig=1,nsclgrp
+           call gsi_bundlecreate(en_pertstmp2(ig),grid_ens,'ensemble2',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_single)
+         end do
+     end if
+
      ! Allocate bundle to hold mean of ensemble members
      allocate(en_bar(ntlevs_ens))
 
@@ -127,6 +152,7 @@ contains
      ntracerio2d=0
      ndynvario3d=size(fv3lam_io_dynmetvars3d_nouv)
      ntracerio3d=size(fv3lam_io_tracermetvars3d_nouv)
+     if(if_model_dbz) nphyvario3d=size(fv3lam_io_phymetvars3d_nouv)
      if (allocated(fv3lam_io_dynmetvars2d_nouv))then
        ndynvario2d=size(fv3lam_io_dynmetvars2d_nouv)
      endif
@@ -137,13 +163,14 @@ contains
      allocate(fv3lam_ens_io_tracermetvars3d_nouv(ndynvario3d))
      fv3lam_ens_io_dynmetvars3d_nouv=fv3lam_io_dynmetvars3d_nouv
      fv3lam_ens_io_tracermetvars3d_nouv=fv3lam_io_tracermetvars3d_nouv
+     if(if_model_dbz) fv3lam_ens_io_phymetvars3d_nouv=fv3lam_io_phymetvars3d_nouv
      if (ndynvario2d > 0 ) then
        allocate(fv3lam_ens_io_dynmetvars2d_nouv(ndynvario2d))
        fv3lam_ens_io_dynmetvars2d_nouv=fv3lam_io_dynmetvars2d_nouv
      endif
      if (ntracerio2d > 0 ) then
        allocate(fv3lam_ens_io_tracermetvars2d_nouv(ntracerio2d))
-       fv3lam_ens_io_tracermetvars2d_nouv =fv3lam_io_tracermetvars3d_nouv 
+       fv3lam_ens_io_tracermetvars2d_nouv =fv3lam_io_tracermetvars2d_nouv 
      endif
 
 
@@ -191,7 +218,23 @@ contains
          grd_ens%nlon,grd_ens%nsig,numfields,regional,names=names,lnames=lnames)
 
 
+    if( if_model_dbz )then
+      inner_vars=1
+      numfields=inner_vars*(nphyvario3d*grd_ens%nsig+ntracerio2d)
+      deallocate(lnames,names)
+      allocate(lnames(1,numfields),names(1,numfields))
+      ilev=1
+      do i=1,nphyvario3d
+        do k=1,grd_ens%nsig
+          lnames(1,ilev)=k
+          names(1,ilev)=fv3lam_ens_io_phymetvars3d_nouv(i)
+          ilev=ilev+1
+        enddo
+      enddo
 
+      call general_sub2grid_create_info(grd_fv3lam_ens_phyvar_io_nouv,inner_vars,grd_ens%nlat,&
+           grd_ens%nlon,grd_ens%nsig,numfields,regional,names=names,lnames=lnames)
+    end if
 
 
     numfields=grd_ens%nsig
@@ -239,6 +282,7 @@ contains
     end if
 
 
+    ig0 = 1
     do m=1,ntlevs_ens
 
 
@@ -265,6 +309,7 @@ contains
            fv3_filename%ak_bk=trim(ensfilenam_str)//'-fv3_akbk'
            fv3_filename%dynvars=trim(ensfilenam_str)//'-fv3_dynvars'
            fv3_filename%tracers=trim(ensfilenam_str)//"-fv3_tracer"
+           fv3_filename%phyvars=trim(ensfilenam_str)//'-fv3_phyvars'
            fv3_filename%sfcdata=trim(ensfilenam_str)//"-fv3_sfcdata"
            fv3_filename%couplerres=trim(ensfilenam_str)//"-coupler.res"
 
@@ -301,11 +346,16 @@ contains
  ! READ ENEMBLE MEMBERS DATA
            if (mype == 0) write(6,'(a,a)') &
                'CALL READ_FV3_REGIONAL_ENSPERTS FOR ENS DATA with the filename str : ',trim(ensfilenam_str)
-           if (.not.l_use_dbz_directDA ) then ! Read additional hydrometers and w for dirZDA
+           if ( (.not.l_use_dbz_directDA) .and. (.not. if_model_dbz) ) then ! Read additional hydrometers and w for dirZDA
               call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz) 
            else
-              call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
-                                                  g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w)
+              if( l_use_dbz_directDA ) then
+                  call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
+                                                      g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w)
+              else if( if_model_dbz )then
+                  call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
+                                                      g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_dbz=dbz)
+               end if
            end if
  
  ! SAVE ENSEMBLE MEMBER DATA IN COLUMN VECTOR
@@ -463,6 +513,16 @@ contains
                           end do
                        end do
                     end do
+
+                 case('dbz','DBZ')
+                    do k=1,grd_ens%nsig
+                       do i=1,grd_ens%lon2
+                          do j=1,grd_ens%lat2
+                             w3(j,i,k) = dbz(j,i,k)
+                             x3(j,i,k)=x3(j,i,k)+dbz(j,i,k)
+                          end do
+                       end do
+                    end do
               end select
 
        
@@ -561,6 +621,27 @@ contains
 
     deallocate(en_bar)
   !
+
+
+     if( nsclgrp > 1 )then
+       do m=1,ntlevs_ens
+           do n=1,n_ens
+             if(mype==0) print*,"Diffusion operator for mem ",n
+             en_pertstmp1%valuesr4 = en_perts(n,ig0,m)%valuesr4
+             call scale_decomposition(grd_ens,en_pertstmp1,en_pertstmp2,nsclgrp)
+             do ig=1,nsclgrp
+                en_perts(n,ig,m)%valuesr4 = en_pertstmp2(ig)%valuesr4
+             end do
+           end do
+       end do
+     endif
+
+     call gsi_bundledestroy(en_pertstmp1,istatus)
+     if( nsclgrp > 1 )then
+       do ig=1,nsclgrp
+         call gsi_bundledestroy(en_pertstmp2(ig),istatus)
+       end do
+     end if
   
    return
 
@@ -572,7 +653,7 @@ contains
   end subroutine get_fv3_regional_ensperts_run
   
   subroutine general_read_fv3_regional(this,fv3_filenameginput,g_ps,g_u,g_v,g_tv,g_rh,g_oz, &
-                                        g_ql,g_qi,g_qr,g_qs,g_qg,g_qnr,g_w)
+                                        g_ql,g_qi,g_qr,g_qs,g_qg,g_qnr,g_w,g_dbz)
   !$$$  subprogram documentation block
   !     first compied from general_read_arw_regional           .      .    .                                       .
   ! subprogram:    general_read_fv3_regional  read fv3sar model ensemble members
@@ -623,6 +704,7 @@ contains
     use hybrid_ensemble_parameters, only: grd_ens
     use directDA_radaruse_mod, only: l_use_cvpqx, cvpqx_pval, cld_nt_updt
     use directDA_radaruse_mod, only: l_cvpnr, cvpnr_pval
+    use obsmod, only:if_model_dbz
 
 
 
@@ -632,7 +714,7 @@ contains
     class(get_fv3_regional_ensperts_class), intent(inout) :: this
     type (type_fv3regfilenameg)                  , intent (in)   :: fv3_filenameginput
     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out)::g_u,g_v,g_tv,g_rh,g_oz
-    real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),optional,intent(out)::g_ql,g_qi,g_qr
+    real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),optional,intent(out)::g_ql,g_qi,g_qr,g_dbz
     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),optional,intent(out)::g_qs,g_qg,g_qnr,g_w
 
     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2),intent(out):: g_ps
@@ -656,11 +738,13 @@ contains
     character(len=24),parameter :: myname_ = 'general_read_fv3_regional'
     type(gsi_bundle) :: gsibundle_fv3lam_ens_dynvar_nouv
     type(gsi_bundle) :: gsibundle_fv3lam_ens_tracer_nouv
+    type(gsi_bundle) :: gsibundle_fv3lam_ens_phyvar_nouv
     type(gsi_grid):: grid_ens
 
     character(len=:),allocatable :: grid_spec !='fv3_grid_spec'            
     character(len=:),allocatable :: ak_bk     !='fv3_akbk'
     character(len=:),allocatable :: dynvars   !='fv3_dynvars'
+    character(len=:),allocatable :: phyvars   !='fv3_phyvars'
     character(len=:),allocatable :: tracers   !='fv3_tracer'
     character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
     character(len=:),allocatable :: couplerres!='coupler.res'
@@ -677,6 +761,7 @@ contains
     ak_bk=fv3_filenameginput%ak_bk
     dynvars=fv3_filenameginput%dynvars
     tracers=fv3_filenameginput%tracers
+    if(if_model_dbz) phyvars=fv3_filenameginput%phyvars
     sfcdata=fv3_filenameginput%sfcdata
     couplerres=fv3_filenameginput%couplerres
 
@@ -701,6 +786,10 @@ contains
     endif
      
   
+    if( if_model_dbz )then
+      call gsi_bundlecreate(gsibundle_fv3lam_ens_phyvar_nouv,grid_ens,'gsibundle_fv3lam_ens_phyvar_nouv',istatus, &
+                            names3d=fv3lam_ens_io_phymetvars3d_nouv)
+    end if
 
 
      
@@ -714,6 +803,9 @@ contains
                             fv3_filenameginput%dynvars,fv3_filenameginput)
       call gsi_fv3ncdf_read(grd_fv3lam_ens_tracer_io_nouv,gsibundle_fv3lam_ens_tracer_nouv,&
                             fv3_filenameginput%tracers,fv3_filenameginput)
+      if( if_model_dbz )&
+      call gsi_fv3ncdf_read(grd_fv3lam_ens_phyvar_io_nouv,gsibundle_fv3lam_ens_phyvar_nouv,&
+                            fv3_filenameginput%phyvars,fv3_filenameginput)
     else
       call gsi_fv3ncdf_read_v1(grd_fv3lam_ens_dynvar_io_nouv,gsibundle_fv3lam_ens_dynvar_nouv,&
                                fv3_filenameginput%dynvars,fv3_filenameginput)
@@ -724,14 +816,17 @@ contains
     call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_dynvar_nouv, 'tsen' ,g_tsen ,istatus );ier=ier+istatus
     call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'q'  ,g_q ,istatus );ier=ier+istatus
     call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'oz'  ,g_oz ,istatus );ier=ier+istatus
-    if (l_use_dbz_directDA) then
+    if (l_use_dbz_directDA .or. if_model_dbz ) then
        call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'ql' ,g_ql ,istatus );ier=ier+istatus
        call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'qi' ,g_qi ,istatus );ier=ier+istatus
        call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'qr' ,g_qr ,istatus );ier=ier+istatus
        call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'qs' ,g_qs ,istatus );ier=ier+istatus
        call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'qg' ,g_qg ,istatus );ier=ier+istatus
-       call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'qnr',g_qnr ,istatus );ier=ier+istatus
+       if (l_use_dbz_directDA) &
+           call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'qnr',g_qnr ,istatus );ier=ier+istatus
        call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_dynvar_nouv, 'w' , g_w ,istatus );ier=ier+istatus
+       if( if_model_dbz )&
+           call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_phyvar_nouv, 'dbz' , g_dbz ,istatus );ier=ier+istatus
     end if
     
 
@@ -834,6 +929,8 @@ contains
     enddo
     call gsi_bundledestroy(gsibundle_fv3lam_ens_dynvar_nouv)
     call gsi_bundledestroy(gsibundle_fv3lam_ens_tracer_nouv)
+  
+    if(if_model_dbz)call gsi_bundledestroy(gsibundle_fv3lam_ens_phyvar_nouv)
 
 
   return       
@@ -887,7 +984,7 @@ contains
     type(gsi_grid):: grid_ens,grid_anl
     real(r_kind) sp_norm
 
-    integer(i_kind) i,n
+    integer(i_kind) i,n,ig0
     integer(i_kind) istatus
     character(255) enspreadfilename 
 
@@ -917,6 +1014,7 @@ contains
          sp_norm=(one/float(n_ens))
   
          sube%values=zero
+         ig0=1
   !
   
          do n=1,n_ens
@@ -934,4 +1032,236 @@ contains
   
     return
   end subroutine ens_spread_dualres_regional_fv3_regional
+
+  subroutine scale_decomposition( grd_in, en_p, en_out, nscale  )
+    !
+    ! 2022-08-29  Y. Wang, X. Wang - Scale decomposition for multiscale DA using SDL and VDL
+    !                                poc: xuguang.wang@ou.edu
+    !
+    use hybrid_ensemble_parameters, only: smooth_scales,vdl_scale,small_loc_varlist, smooth_scales_num
+    use kinds, only: r_kind,i_kind,r_single
+    use general_sub2grid_mod, only: general_sub2grid,general_grid2sub,general_sub2grid_create_info, &
+                                    sub2grid_info,general_sub2grid_destroy_info
+    use gsi_bundlemod, only: gsi_bundlegetpointer,gsi_bundlemerge,gsi_bundle,gsi_bundledup,gsi_bundledestroy
+    use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d,nrf_var
+    use gridmod,only: nsig
+    use mpimod, only: mype,nvar_id
+  
+    implicit none
+    !
+    integer(i_kind)          :: scale_num,k,i,j,niter,n_ens, nscale
+    integer(i_kind)          :: lon2,lat2,nvert,kend_loc,ic3,istatus,iscl,ic2
+    integer(i_kind)          :: nlon, nlat, kbegin_loc, kend_alloc,ii,ie,is
+  
+    type(sub2grid_info),intent(in)     :: grd_in
+    type(gsi_bundle), intent(in)       :: en_p
+    type(gsi_bundle), intent(inout)    :: en_out(nscale)
+  
+    real(r_single),dimension(grd_in%nlat*grd_in%nlon*grd_in%nlevs_alloc)      :: hwork
+    real(r_single),dimension(grd_in%nlat,grd_in%nlon,grd_in%nlevs_alloc)      :: work
+    real(r_single),dimension(grd_in%nlat,grd_in%nlon,grd_in%nlevs_alloc)      :: tmpwork
+    real(r_single),dimension(grd_in%nlat,grd_in%nlon,grd_in%nlevs_alloc)      :: work_out
+    real(r_single),dimension(2,grd_in%nlat,grd_in%nlon,grd_in%nlevs_alloc)      :: work_vdl
+    real(r_single),dimension(2,grd_in%nlat,grd_in%nlon,grd_in%nlevs_alloc)      :: work_vdl_last
+    real(r_single),allocatable,dimension(:,:)                                 :: kernal
+  
+    logical     :: maskflg
+    integer(i_kind) :: nn, ig, ivdl, vdl_group
+    real(r_single)  :: sigma
+  
+    hwork=0.0_r_single
+    work=0.0_r_single
+    work_out=0.0_r_single
+    tmpwork = 0.0_r_single
+  
+    nlat = grd_in%nlat
+    nlon = grd_in%nlon
+  
+    call general_sub2grid(grd_in,en_p%valuesr4,hwork)
+    work=reshape(hwork,(/grd_in%nlat,grd_in%nlon,grd_in%nlevs_alloc/))
+  
+    ig = 1
+
+    do iscl = 1, smooth_scales_num
+       do k = 1,grd_in%nlevs_alloc
+  
+          if( any( trim(nrf_var(nvar_id(k))) == small_loc_varlist ) ) then
+              maskflg = .true.
+          else
+              maskflg = .false.
+          end if
+
+          nn = 2 * int(smooth_scales(iscl)) + 1
+          sigma = real( smooth_scales(iscl) / 3.0 )
+          if(allocated(kernal))deallocate(kernal)
+          allocate(kernal(nn,nn))
+          call Gaussian_kernal(nn, sigma, kernal)
+          call GFilter( work(:,:,k), work_out(:,:,k), kernal, nlat,nlon, int(smooth_scales(iscl)) )
+          tmpwork(:,:,k) = work(:,:,k) - work_out(:,:,k)
+
+          if( vdl_scale(ig) == 1 )then
+            if( maskflg ) then
+               work_vdl(vdl_scale(ig),:,:,k) = tmpwork(:,:,k)
+               work_vdl(vdl_scale(ig+1),:,:,k) = 0.0_r_kind
+            else
+               work_vdl(vdl_scale(ig),:,:,k) = 0.0_r_kind
+               work_vdl(vdl_scale(ig+1),:,:,k) = tmpwork(:,:,k)
+            end if   
+               
+          else if ( vdl_scale(ig) == 0 )then
+            work_vdl(1,:,:,k) = tmpwork(:,:,k)
+          end if
+
+          
+
+          work(:,:,k)    = work_out(:,:,k)
+       end do
+  
+       if( vdl_scale(ig) == 1 )then
+           vdl_group = 2
+       else if ( vdl_scale(ig) == 0 )then
+           vdl_group = 1
+       end if
+           
+       do ivdl = 1, vdl_group  ! we separate variables into 2 groups in this version for variable-dependent localization
+          hwork=reshape(work_vdl(ivdl,:,:,:),(/grd_in%nlat*grd_in%nlon*grd_in%nlevs_alloc/))
+          call general_grid2sub(grd_in,hwork,en_out(ig)%valuesr4)
+          ig = ig + 1
+       end do
+
+       if( iscl == smooth_scales_num )then
+         do k = 1,grd_in%nlevs_alloc
+
+           if( any( trim(nrf_var(nvar_id(k)))  == small_loc_varlist ) ) then
+               maskflg = .true.
+           else
+               maskflg = .false.
+           end if
+
+           if( vdl_scale(ig) == 1 )then
+             if( maskflg ) then
+                work_vdl(vdl_scale(ig),:,:,k) = work_out(:,:,k)
+                work_vdl(vdl_scale(ig+1),:,:,k) = 0.0_r_kind
+             else
+                work_vdl(vdl_scale(ig),:,:,k) = 0.0_r_kind
+                work_vdl(vdl_scale(ig+1),:,:,k) = work_out(:,:,k)
+             end if
+
+           else if ( vdl_scale(ig) == 0 )then
+             work_vdl(1,:,:,k) = work_out(:,:,k)
+           end if
+         end do
+       end if
+  
+  
+    end do ! iscl
+
+    if( vdl_scale(ig) == 1 )then
+        vdl_group = 2
+    else if ( vdl_scale(ig) == 0 )then
+        vdl_group = 1
+    end if
+  
+    do ivdl = 1, vdl_group
+       hwork=reshape(work_vdl(ivdl,:,:,:),(/grd_in%nlat*grd_in%nlon*grd_in%nlevs_alloc/))
+       call general_grid2sub(grd_in,hwork,en_out(ig)%valuesr4)
+       ig = ig + 1
+    end do
+
+    if( mype == 0 )then
+        if( ig - 1 /= nscale ) print*,'ig does not match the number of decomposed scales',ig,nscale
+    end if
+  
+  end subroutine scale_decomposition
+  
+  SUBROUTINE GFilter( field, fieldout, kernal, nx, ny, nn )
+    !
+    ! 2022-08-29  Y. Wang, X. Wang - Gaussian filter for scale decomposition
+    !                                poc: xuguang.wang@ou.edu
+
+    implicit none
+    !
+  
+    integer, intent(in)   :: nx,ny,nn
+  
+    real,dimension(nx,ny), intent(in)  :: field
+    real,dimension(2*nn+1,2*nn+1), intent(in)  :: kernal
+    real,dimension(nx,ny), intent(out) :: fieldout
+  
+    ! Local declare
+    real,parameter        :: pi = 3.14159
+    integer               :: ix,iy,ii,jj
+    real                  :: summ
+    real,dimension(nx+2*nn,ny+2*nn) :: field_ext
+  
+    ! Fill the center
+    field_ext(nn+1:nx+nn,nn+1:ny+nn) = field
+  
+    ! Extend bottom side
+    do ix = 1, nn
+       field_ext(ix,nn+1:ny+nn) = field_ext(2*nn+1-ix,nn+1:ny+nn)
+    end do
+  
+    ! Extend top side
+    do ix = 1, nn
+       field_ext(nx+nn+ix,nn+1:ny+nn) = field_ext(nx+nn+1-ix,nn+1:ny+nn)
+    end do
+  
+    ! Extend left
+    do iy = 1, nn
+       field_ext(:,iy) = field_ext(:,2*nn+1-iy)
+    end do
+  
+    ! Extend right
+    do iy = 1, nn
+       field_ext(:,ny+nn+iy) = field_ext(:,ny+nn+1-iy)
+    end do
+  
+    do ix = nn + 1, nx + nn
+      do iy = nn + 1, ny + nn
+        summ = 0.0
+        do ii = 1, 2*nn + 1
+          do jj = 1, 2*nn + 1
+            summ = summ + field_ext(ix-nn+ii-1,iy-nn+jj-1)*kernal(ii,jj)
+          end do
+        end do
+        fieldout(ix-nn,iy-nn) = summ
+      end do
+    end do
+  
+  END SUBROUTINE GFilter
+  
+  SUBROUTINE Gaussian_kernal(nn, sigma, kernal)
+    !
+    ! 2022-08-29  Y. Wang, X. Wang - Calculate kernal for Gaussian filter
+    !                                poc: xuguang.wang@ou.edu
+
+
+    implicit none
+    integer, intent(in) :: nn
+    real,    intent(in) :: sigma
+    real,dimension(nn, nn), intent(out) :: kernal
+    real,parameter      :: pi = 3.141593
+  
+    ! Local declare
+    integer :: i, j, k
+    real    :: norm, summ
+  
+    k = int(nn/2) + 1
+  
+    summ = 0.0
+    do i = 1, nn
+      do j = 1, nn
+        norm = real(i-k)**2.0 + real(j-k)**2.0
+        kernal(i,j) = exp(-1.0*norm/(2*sigma**2.0))/sqrt(2.0*pi*sigma**2.0)
+        summ = summ + kernal(i,j)
+      end do
+    end do
+  
+    kernal = kernal / summ
+  
+  END SUBROUTINE Gaussian_kernal
+
+
+
 end module get_fv3_regional_ensperts_mod
