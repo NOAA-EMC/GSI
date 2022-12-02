@@ -47,11 +47,10 @@ export USHminmon=${USHminmon:-$HOMEminmon/ush}
 #############################################
 # Run setpdy and initialize PDY variables
 #############################################
-if [[ $MY_MACHINE != "hera" ]]; then
-   export cycle=t${cyc}z
-   setpdy.sh
-   . ./PDY
-fi
+export cycle=t${cyc}z
+setpdy.sh
+. ./PDY
+
 
 #############################################
 #  determine PDY and cyc for previous cycle

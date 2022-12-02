@@ -37,10 +37,8 @@ export cycle=t${cyc}z
 ##############################################
 # Run setpdy and initialize PDY variables
 ##############################################
-if [[ $MY_MACHINE != "HERA" && $MY_MACHINE != "hera" ]]; then
-   setpdy.sh
-   . ./PDY
-fi
+setpdy.sh
+. ./PDY
 
 
 #---------------------------------------------
