@@ -128,6 +128,7 @@ module hybrid_ensemble_parameters
 !                function of z, default = .false. 
 !      ensemble_path: path to ensemble members; default './'
 !      ens_fast_read: read ensemble in parallel; default '.false.'
+!      parallelization_over_ensmembers: parallelly read ensemble members for FV3-LAM; default '.false'      
 !      sst_staticB:   if .true. (default) uses only static part of B error covariance for SST
 !      nsclgrp:         number of scale-dependent localization lengths
 !      l_timloc_opt:    if true, then turn on time-dependent localization
@@ -327,9 +328,16 @@ module hybrid_ensemble_parameters
   public :: i_ensloccov4tim,i_ensloccov4var,i_ensloccov4scl
   public :: idaen3d,idaen2d
   public :: ens_fast_read
+  public :: parallelization_over_ensmembers
   public :: l_both_fv3sar_gfs_ens 
   public :: sst_staticB
   public :: limqens
+
+  public :: spc_multwgt
+  public :: spcwgt_params
+  public :: vdl_scale,vloc_varlist
+  public :: global_spectral_filter_sd
+  public :: assign_vdl_nml
 
   logical l_hyb_ens,uv_hyb_ens,q_hyb_ens,oz_univ_static,sst_staticB
   logical l_timloc_opt
@@ -348,6 +356,7 @@ module hybrid_ensemble_parameters
   logical vvlocal
   logical l_ens_in_diff_time
   logical ens_fast_read
+  logical parallelization_over_ensmembers
   logical l_both_fv3sar_gfs_ens
   integer(i_kind) i_en_perts_io
   integer(i_kind) n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test
@@ -388,6 +397,13 @@ module hybrid_ensemble_parameters
   integer(i_kind) :: i_ensloccov4var=0
   integer(i_kind) :: i_ensloccov4scl=0
   integer(i_kind),allocatable,dimension(:) :: idaen3d,idaen2d
+
+  real(r_kind),allocatable,dimension(:,:) :: spc_multwgt
+  real(r_kind),allocatable,dimension(:,:) :: spcwgt_params
+  character(len=3) vloc_varlist(max_naensloc,max_nvars)
+  integer(i_kind) vdl_scale(max_naensloc)
+  logical :: global_spectral_filter_sd
+  logical :: assign_vdl_nml
 
 ! following is for storage of ensemble perturbations:
 
@@ -476,10 +492,15 @@ subroutine init_hybrid_ensemble_parameters
   i_en_perts_io=0            ! default for en_pert IO. 0 is no IO
   ensemble_path = './'       ! default for path to ensemble members
   ens_fast_read=.false.
+  parallelization_over_ensmembers=.false.
   limqens=1.0_r_single       ! default for limiting ensemble RH (+/-)
   l_both_fv3sar_gfs_ens=.false.
   n_ens_gfs=0 
   n_ens_fv3sar=0
+  vdl_scale = 0
+  vloc_varlist = 'aaa'
+  global_spectral_filter_sd=.false.
+  assign_vdl_nml=.false.
 
 end subroutine init_hybrid_ensemble_parameters
 
