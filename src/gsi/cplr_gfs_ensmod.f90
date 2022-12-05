@@ -300,8 +300,6 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
                                          iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
                                          filename)
        end if
-    else
-       allocate(en_full(1,1,1,1))
     end if
 
     call mpi_allreduce(m_cvars2dw,m_cvars2d,nc2d,mpi_integer4,mpi_max,mpi_comm_world,ierror)
@@ -315,7 +313,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     en_loc=zero
     call genex(s_a2b,en_full,en_loc)
 
-    deallocate(en_full)
+    if(allocated(en_full))deallocate(en_full)
 !   call genex_destroy_info(s_a2b)  ! check on actual routine name
 
 ! transfer en_loc to en_loc3 then to atm_bundle
@@ -585,7 +583,7 @@ subroutine ens_io_partition_(n_ens,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,io_pe0,i
       i_ens=-1
       nsig=1
       iskip=npe/n_ens
-      nextra=npe-iskip*n_ens
+      nextra=npe-iskip*(n_ens-1)-1
       jskip=iskip
       io_pe=-1
       io_pe0=-1
@@ -600,6 +598,10 @@ subroutine ens_io_partition_(n_ens,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,io_pe0,i
          else
             jskip=iskip
          endif
+         if(ipe > npe) then
+            write(6,*)' ens_io_partition_:  ***ERROR*** ',ipe,jskip,' processor error: PROGRAM STOPS'
+            call stop2(999)
+         end if
          ipe=ipe+jskip
       enddo
 

@@ -131,7 +131,7 @@ subroutine pcgsoi()
        niter_no_qc,print_diag_pcg
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, iwrtinc, ladtest, &
                        iorthomax,lsqrtb
-  use gridmod, only: twodvar_regional,periodic
+  use gridmod, only: twodvar_regional,periodic,minmype
   use constants, only: zero,one,tiny_r_kind
   use mpimod, only: mype
   use mpl_allreducemod, only: mpl_allreduce
@@ -282,7 +282,7 @@ subroutine pcgsoi()
 !    1. Calculate gradient
      gradx=zero
 
-     llprt=(mype==0).and.(iter<=1)
+     llprt=(mype==minmype).and.(iter<=1)
 
      if (iter<=1 .and. print_diag_pcg) then
         do ii=1,nobs_bins
@@ -360,7 +360,7 @@ subroutine pcgsoi()
 !       different due to round off, so use average.
         gnorm(2)=dprod(2)-0.5_r_quad*(dprod(3)+dprod(4))
         gnorm(3)=dprod(2)
-        if(mype == 0)then
+        if(mype == minmype)then
            aindex=abs(dprod(3)/dprod(2))
            write(iout_iter,*) 'NL Index ',aindex
            if(aindex > 0.5_r_kind .or. print_verbose) write(iout_iter,*) 'NL Values ', dprod(3),dprod(2)
@@ -380,7 +380,7 @@ subroutine pcgsoi()
 
      gnorm(1)=dprod(1)
 
-     if(mype == 0)write(iout_iter,*)'Minimization iteration',iter
+     if(mype == minmype)write(iout_iter,*)'Minimization iteration',iter
 
 !    4. Calculate b and new search direction
      b=zero
@@ -388,13 +388,13 @@ subroutine pcgsoi()
         if (iter > 1 .or. .not. read_success)then
            if (gsave>1.e-16_r_kind) b=gnorm(2)/gsave
            if (b<zero .or. b>30.0_r_kind) then
-              if (mype==0) then
+              if (mype==minmype) then
                  if (iout_6) write(6,105) gnorm(2),gsave,b
                  write(iout_iter,105) gnorm(2),gsave,b
               endif
               b=zero
            endif
-           if (mype==0 .and. print_verbose) write(6,888)'pcgsoi: gnorm(1:3),b=',gnorm,b
+           if (mype==minmype .and. print_verbose) write(6,888)'pcgsoi: gnorm(1:3),b=',gnorm,b
         end if
 
         do i=1,nclen
@@ -442,7 +442,7 @@ subroutine pcgsoi()
      gnormx=gnorm(1)/gnormorig
      penx=penalty/penorig
 
-     if (mype==0) then
+     if (mype==minmype) then
         if (iter==0) then
            zgini=gnorm(1)
            zfini=penalty
@@ -477,7 +477,7 @@ subroutine pcgsoi()
      if(gnormx < converge .or. penalty < converge  .or.  &
         penx >= pennorm .or. end_iter)then
 
-        if(mype == 0)then
+        if(mype == minmype)then
            if(iout_6) write(6,101)
            write(iout_iter,101)
 
@@ -531,7 +531,7 @@ subroutine pcgsoi()
 
 ! Calculate adjusted observation error factor
   if( oberror_tune .and. (.not.l4dvar) ) then
-     if (mype == 0) write(6,*) 'PCGSOI:  call penal for obs perturbation'
+     if (mype == minmype) write(6,*) 'PCGSOI:  call penal for obs perturbation'
 !    call c2s(xhat,sval,sbias,.false.,.false.)
 
      call penal(sval(1))
@@ -545,13 +545,13 @@ subroutine pcgsoi()
 
   if (l_tlnmc .and. baldiag_inc) call strong_baldiag_inc(sval,size(sval))
 
-  llprt=(mype==0)
+  llprt=(mype==minmype)
 ! call c2s(xhat,sval,sbias,llprt,.false.)
 
   if(print_diag_pcg)then
 
 ! Evaluate final cost function and gradient
-     if (mype==0) write(6,*)'Minimization final diagnostics'
+     if (mype==minmype) write(6,*)'Minimization final diagnostics'
 
      call intall(sval,sbias,rval,rbias)
      gradx=zero
@@ -585,7 +585,7 @@ subroutine pcgsoi()
      zfend=penaltynew
 !    if(l_hyb_ens) zfend=zfend+fjcost_e
 
-     if (mype==0) then
+     if (mype==minmype) then
         if(l_hyb_ens) then
 
 !          If hybrid ensemble run, print out contribution to Jb and Je separately

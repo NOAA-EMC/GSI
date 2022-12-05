@@ -2311,7 +2311,6 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
            if (lcloud .ge. kmax(i)) then
               if(luse)aivals(11,is)   = aivals(11,is) + one
               varinv(i) = zero
-              varinv_use(i) = zero
               if(id_qc(i) == igood_qc)id_qc(i)=ifail_cloud_qc
               cycle
            end if
@@ -2320,12 +2319,10 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 !       If more than 2% of the transmittance comes from the cloud layer,
 !          reject the channel (0.02 is a tunable parameter)
 
-        delta = 0.02_r_kind
         if ( ptau5(lcloud,i) > 0.02_r_kind) then
 !          QC4 in statsrad
            if(luse)aivals(11,is)   = aivals(11,is) + one
            varinv(i) = zero
-           varinv_use(i) = zero
            if(id_qc(i) == igood_qc)id_qc(i)=ifail_cloud_qc
         end if
      end do
@@ -2353,8 +2350,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
            delta=max(r0_05*tnoise(i),r0_02)
            if(abs(dts*ts(i)) > delta)then
 !             QC3 in statsrad
-              if(luse .and. varinv(i) > zero) &
-                 aivals(10,is)   = aivals(10,is) + one
+              if(luse .and. varinv(i) > zero) aivals(10,is)   = aivals(10,is) + one
               varinv(i) = zero
               if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
            end if
@@ -2369,8 +2365,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
      do i=1,nchanl
         if (ts(i) > 0.2_r_kind) then
            !             QC3 in statsrad
-           if(luse .and. varinv(i) > zero) &
-                aivals(10,is)   = aivals(10,is) + one
+           if(luse .and. varinv(i) > zero) aivals(10,is)   = aivals(10,is) + one
            varinv(i) = zero
            if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
         end if

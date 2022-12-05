@@ -238,6 +238,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
   use timermod, only: timer_ini,timer_fnl
   use stpjomod, only: stpjo
   use gsi_io, only: verbose
+  use gridmod, only: minmype
   implicit none
 
 ! Declare passed variables
@@ -274,7 +275,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
   real(r_quad) bx,cx,ccoef,bcoef,dels,sges1,sgesj
   real(r_quad),dimension(0:istp_iter):: stp   
   real(r_kind),dimension(istp_iter):: stprat
-  real(r_quad),dimension(ipen):: bsum,csum,bsum_save,csum_save,pen_save
+  real(r_quad),dimension(ipen):: bsum,csum
   real(r_quad),dimension(ipen,nobs_bins):: pj
   real(r_kind) delpen
   real(r_kind) outpensave
@@ -390,6 +391,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
   pstart=zero_quad
   pbc=zero_quad
   if(iter == 0 .and. kprt >= 2)pjcalc=.true.
+
 
 
 ! penalty, b and c for background terms
@@ -674,25 +676,25 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
      call stpjo(dval,dbias,sval,sbias,sges,pbcjoi,nstep)
 
      pbcjo=zero_quad
-     do ibin=1,size(pbcjoi,3)       ! == obs_bins
-        do j=1,size(pbcjoi,2)
-           do i=1,size(pbcjoi,1)
+     do ibin=1,nobs_bins          ! == obs_bins
+        do j=1,nobs_type
+           do i=1,4
               pbcjo(i,j)=pbcjo(i,j)+pbcjoi(i,j,ibin) 
            end do 
         end do 
      enddo
+     do j=1,nobs_type
+        do i=1,4
+           pbc(i,n0+j)=pbcjo(i,j) 
+        end do 
+     end do 
      if(pjcalc)then
-        do ibin=1,size(pbcjoi,3)
-           do j=1,size(pbcjoi,2)
+        do ibin=1,nobs_bins
+           do j=1,nobs_type
               pj(n0+j,ibin)=pj(n0+j,ibin)+pbcjoi(ipenloc,j,ibin)+pbcjoi(1,j,ibin)
            end do 
         enddo
      endif
-     do j=1,size(pbcjo,2)
-        do i=1,size(pbcjo,1)
-           pbc(i,n0+j)=pbcjo(i,j) 
-        end do 
-     end do 
 
 !    Gather J contributions
      call mpl_allreduce(4,ipen,pbc)
@@ -731,7 +733,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
          stp(ii)=stp(ii)+bx/cx         ! step size estimate
      else
 !    Check for cx <= 0. (probable error or large nonlinearity)
-        if(mype == 0) then
+        if(mype == minmype) then
           write(iout_iter,*) ' entering cx <=0 stepsize option',cx,stp(ii)
           write(iout_iter,105) (bsum(i),i=1,ipen)
           write(iout_iter,110) (csum(i),i=1,ipen)
@@ -745,7 +747,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
            end if
         end do
         if(outpensave < outpen(ipenloc))then
-           if(mype == 0)write(iout_iter,*) ' early termination due to cx <=0 ',cx,stp(ii)
+           if(mype == minmype)write(iout_iter,*) ' early termination due to cx <=0 ',cx,stp(ii)
            cxterm=.true.
          else
 !       Try different (better?) stepsize
@@ -761,27 +763,22 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
 
 !    estimate various terms in penalty on first iteration
      if(ii == 1)then
-        do i=1,ipen
-           pen_save(i)=pbc(1,i)
-           bsum_save(i)=bsum(i)
-           csum_save(i)=csum(i)
-        end do
-        pjcost(1) =  pen_save(1)+pbc(ipenloc,1)                    ! Jb
+        pjcost(1) =  pbc(1,1)+pbc(ipenloc,1)                    ! Jb
         pjcost(2) = zero_quad
         do i=1,nobs_type
-           pjcost(2) = pjcost(2)+pen_save(n0+i)+pbc(ipenloc,n0+i)  ! Jo
+           pjcost(2) = pjcost(2)+pbc(1,n0+i)+pbc(ipenloc,n0+i)  ! Jo
         end do
-        pjcost(3) = pen_save(2)   + pen_save(3)+pbc(ipenloc,3)     ! Jc
+        pjcost(3) = pbc(1,2)   + pbc(1,3)+pbc(ipenloc,3)     ! Jc
         pjcost(4) = zero_quad
         do i=4,n0
-           pjcost(4) = pjcost(4) + pen_save(i)+pbc(ipenloc,i)      ! Jl
+           pjcost(4) = pjcost(4) + pbc(1,i)+pbc(ipenloc,i)      ! Jl
         end do
 
         penalty=pjcost(1)+pjcost(2)+pjcost(3)+pjcost(4)    ! J = Jb + Jo + Jc +Jl
 
 !    Write out detailed results to iout_iter
-        if(mype == 0) then
-           write(iout_iter,100) (pen_save(i)+pbc(ipenloc,i),i=1,ipen)
+        if(mype == minmype) then
+           write(iout_iter,100) (pbc(1,i)+pbc(ipenloc,i),i=1,ipen)
            if(print_verbose)then
               write(iout_iter,105) (bsum(i),i=1,ipen)
               write(iout_iter,110) (csum(i),i=1,ipen)
@@ -794,7 +791,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
 
 !    If change in penalty is very small end stepsize calculation
      if(abs(delpen/penalty) < 1.e-17_r_kind) then
-        if(mype == 0)then
+        if(mype == minmype)then
            write(iout_iter,*) ' minimization has converged '
            write(iout_iter,140) ii,delpen,bx,cx,stp(ii)
            write(iout_iter,100) (pbc(1,i)+pbc(ipenloc,i),i=1,ipen)
@@ -812,7 +809,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
 
 !    Check for negative stepsize (probable error or large nonlinearity)
      if(stp(ii) <= zero_quad) then
-        if(mype == 0) then
+        if(mype == minmype) then
           write(iout_iter,*) ' entering negative stepsize option',stp(ii)
           write(iout_iter,105) (bsum(i),i=1,ipen)
           write(iout_iter,110) (csum(i),i=1,ipen)
@@ -871,7 +868,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
         end do
         if(ifound)exit stepsize
 !       If no best stepsize set to zero and end minimization
-        if(mype == 0)then
+        if(mype == minmype)then
            write(iout_iter,141)(outpen(i),i=1,nsteptot)
         end if
         end_iter = .true.
@@ -882,15 +879,15 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
   end do stepsize
   if(kprt >= 2 .and. iter == 0)then
      call mpl_allreduce(ipen,nobs_bins,pj)
-     if(mype == 0)call prnt_j(pj,n0,ipen,kprt)
+     if(mype == minmype)call prnt_j(pj,n0,ipen,kprt)
   end if
 
   stpinout=stp(istp_use)
 ! Estimate terms in penalty
-  if(mype == 0 .and. print_verbose)then
+  if(mype == minmype .and. print_verbose)then
      do i=1,ipen
-         pen_est(i)=pen_save(i)-(stpinout-stp(0))*(2.0_r_quad*bsum_save(i)- &
-                       (stpinout-stp(0))*csum_save(i))
+         pen_est(i)=pbc(1,i)-(stpinout-stp(0))*(2.0_r_quad*bsum(i)- &
+                       (stpinout-stp(0))*csum(i))
      end do
      write(iout_iter,101) (pbc(1,i)-pen_est(i),i=1,ipen)
   end if
@@ -906,7 +903,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
   end do
   penaltynew=pjcostnew(1)+pjcostnew(2)+pjcostnew(3)+pjcostnew(4)
 
-  if(mype == 0 .and. print_verbose)then
+  if(mype == minmype .and. print_verbose)then
      write(iout_iter,200) (stp(i),i=0,istp_use)
      write(iout_iter,199) (stprat(ii),ii=1,istp_use)
      write(iout_iter,201) (outstp(i),i=1,nsteptot)
@@ -914,7 +911,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
   end if
 ! Check for final stepsize negative (probable error)
   if(stpinout <= zero)then
-     if(mype == 0)then
+     if(mype == minmype)then
         write(iout_iter,130) ii,bx,cx,stp(ii)
         write(iout_iter,105) (bsum(i),i=1,ipen)
         write(iout_iter,110) (csum(i),i=1,ipen)
@@ -983,6 +980,7 @@ subroutine prnt_j(pj,n0,ipen,kprt)
   use mpimod, only: mype
   use gsi_obOperTypeManager, only: nobs_type => obOper_count
   use gsi_obOperTypeManager, only: obOper_typeInfo
+  use gridmod, only: minmype
   real(r_quad),dimension(ipen,nobs_bins),intent(in   ) :: pj
   integer(i_kind)                       ,intent(in   ) :: n0,ipen,kprt
 
@@ -994,7 +992,7 @@ subroutine prnt_j(pj,n0,ipen,kprt)
   integer(i_kind)              :: ii,jj
   character(len=20) :: ctype(ipen)
 
-  if(kprt <=0 .or. mype /=0)return
+  if(kprt <=0 .or. mype /=minmype)return
   ctype(:)=".unknown."
   ctype(1)='background          '
   ctype(2)='                    '
