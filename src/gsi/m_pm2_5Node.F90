@@ -51,6 +51,7 @@ module m_pm2_5Node
      real(r_kind)    :: pg            !  variational quality control parameter
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
      integer(i_kind) :: ij(8)         !  horizontal locations
+     real(r_kind)    :: pm25wc(3)     !  weight coes at i,j,k modes
      !logical         :: luse          !  flag indicating if ob is used in pen.
      !integer(i_kind) :: idv,iob       ! device id and obs index for sorting
      !real   (r_kind) :: elat, elon      ! earth lat-lon for redistribution
@@ -245,7 +246,6 @@ pure subroutine gettlddp_(aNode,jiter,tlddp,nob)
   integer(kind=i_kind),intent(in):: jiter
   real(kind=r_kind),intent(inout):: tlddp
   integer(kind=i_kind),optional,intent(inout):: nob
-
   tlddp = tlddp + aNode%diags%tldepart(jiter)*aNode%diags%tldepart(jiter)
   if(present(nob)) nob=nob+1
 return

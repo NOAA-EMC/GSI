@@ -42,6 +42,8 @@ subroutine control2state_ad(rval,bval,grad)
 !   2017-05-12  Y. Wang and X. Wang - add w as state variable for rw DA, POC: xuguang.wang@ou.edu
 !   2016-08-12  lippi    - add vertical velocity (w) to mycvars and mysvars.
 !   2016-05-03  pondeca  - add uwnd10m, and vwnd10m
+!   2022-05-24  H.Wang   - add amass2aero_ad for regional FV3-CMAQ DA when using
+!                          total mass as control variable. 
 !
 !   input argument list:
 !     rval - State variable
@@ -58,6 +60,7 @@ use gsi_4dvar, only: nsubwin, lsqrtb
 use gridmod, only: regional,lat2,lon2,nsig,twodvar_regional
 use jfunc, only: nsclen,npclen,ntclen
 use cwhydromod, only: cw2hydro_ad
+use amassaeromod, only: amass2aero_ad 
 use cwhydromod, only: cw2hydro_ad_hwrf
 use gsi_bundlemod, only: gsi_bundlecreate
 use gsi_bundlemod, only: gsi_bundle
@@ -70,6 +73,7 @@ use gsi_metguess_mod, only: gsi_metguess_get
 use mpeu_util, only: getindex
 use constants, only: max_varname_length,zero
 use gridmod, only: nems_nmmb_regional
+use chemmod, only: laeroana_fv3cmaq, naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,icvt_cmaq_fv3
 
 implicit none
 
@@ -130,6 +134,7 @@ real(r_kind),allocatable,dimension(:,:,:):: uland,vland,uwter,vwter
 
 logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,do_cw_to_hydro_ad
 logical :: do_cw_to_hydro_ad_hwrf
+
 
 !******************************************************************************
 
@@ -322,19 +327,28 @@ do jj=1,nsubwin
    end if
 
 !  Same one-to-one map for chemistry-vars; take care of them together
-   do ic=1,ngases
-      id=getindex(cvars3d,gases(ic))
-      if (id>0) then
+   if (.not.laeroana_fv3cmaq .and. icvt_cmaq_fv3 == 2) then
+         write(6,*) ' icvt_cmaq_fv3 == 2 but laeroana_fv3cmaq=false stop!!!'
+         call stop2(999)
+   endif
+
+   if (icvt_cmaq_fv3 == 2) then
+      call amass2aero_ad(rval(jj),wbundle,aeronames_cmaq_fv3,naero_cmaq_fv3)
+   else
+     do ic=1,ngases
+       id=getindex(cvars3d,gases(ic))
+       if (id>0) then
           call gsi_bundlegetpointer (rval(jj),gases(ic),rv_rank3,istatus)
           call gsi_bundleputvar     (wbundle, gases(ic),rv_rank3,istatus)
-      endif
-      id=getindex(cvars2d,gases(ic))
-      if (id>0) then
+       endif
+ 
+       id=getindex(cvars2d,gases(ic))
+       if (id>0) then
           call gsi_bundlegetpointer (rval(jj),gases(ic),rv_rank2,istatus)
           call gsi_bundleputvar     (wbundle, gases(ic),rv_rank2,istatus)
-      endif
-   enddo
-
+       endif
+     enddo
+   end if
    if (icgust>0) then
       call gsi_bundlegetpointer (rval(jj),'gust' ,rv_gust, istatus)
       call gsi_bundleputvar ( wbundle, 'gust', rv_gust, istatus )

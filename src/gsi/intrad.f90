@@ -39,7 +39,7 @@ implicit none
 
 PRIVATE
 PUBLIC intrad,setrad
-PUBLIC itv,iqv,ioz,icw,ius,ivs,isst,iqg,iqh,iqi,iql,iqr,iqs,lgoback
+PUBLIC itsen,iqv,ioz,icw,ius,ivs,isst,iqg,iqh,iqi,iql,iqr,iqs,lgoback
 PUBLIC luseu,lusev,luset,luseq,lusecw,luseoz,luseqg,luseqh,luseqi,luseql, &
        luseqr,luseqs,lusesst
 
@@ -47,7 +47,7 @@ interface intrad; module procedure &
           intrad_
 end interface
 
-integer(i_kind) :: itv,iqv,ioz,icw,ius,ivs,isst
+integer(i_kind) :: itsen,iqv,ioz,icw,ius,ivs,isst
 integer(i_kind) :: iqg,iqh,iqi,iql,iqr,iqs
 logical :: done_setting = .false.
 logical :: lgoback
@@ -98,11 +98,11 @@ subroutine setrad(sval)
   if(done_setting) return
 
 ! Retrieve pointers; return when not found (except in case of non-essentials)
-  ier=0; itv=0; iqv=0; ius=0; ivs=0; isst=0; ioz=0; icw=0
+  ier=0; itsen=0; iqv=0; ius=0; ivs=0; isst=0; ioz=0; icw=0
   iqg=0; iqh=0; iqi=0; iql=0; iqr=0; iqs=0
   call gsi_bundlegetpointer(sval,'u',  su, istatus);ius=istatus+ius
   call gsi_bundlegetpointer(sval,'v',  sv, istatus);ivs=istatus+ivs
-  call gsi_bundlegetpointer(sval,'tv' ,st, istatus);itv=istatus+itv
+  call gsi_bundlegetpointer(sval,'tsen' ,st, istatus);itsen=istatus+itsen
   call gsi_bundlegetpointer(sval,'q',  sq, istatus);iqv=istatus+iqv
   call gsi_bundlegetpointer(sval,'cw' ,scw,istatus);icw=istatus+icw
   call gsi_bundlegetpointer(sval,'oz' ,soz,istatus);ioz=istatus+ioz
@@ -113,16 +113,16 @@ subroutine setrad(sval)
   call gsi_bundlegetpointer(sval,'ql' ,sql,istatus);iql=istatus+iql
   call gsi_bundlegetpointer(sval,'qr' ,sqr,istatus);iqr=istatus+iqr
   call gsi_bundlegetpointer(sval,'qs' ,sqs,istatus);iqs=istatus+iqs
-  lgoback=(ius/=0).and.(ivs/=0).and.(itv/=0).and.(iqv/=0).and.(ioz/=0).and.(icw/=0).and.(isst/=0)
+  lgoback=(ius/=0).and.(ivs/=0).and.(itsen/=0).and.(iqv/=0).and.(ioz/=0).and.(icw/=0).and.(isst/=0)
   lgoback=lgoback .and.(iqg/=0).and.(iqh/=0).and.(iqi/=0).and.(iql/=0).and.(iqr/=0).and.(iqs/=0)
   if(lgoback)return
 
 ! check to see if variable participates in forward operator
-! tv
-  indx=getindex(radjacnames,'tv')
-  look=(itv==0.and.indx>0)
-  itv=-1
-  if(look) itv=radjacindxs(indx)
+! tsen
+  indx=getindex(radjacnames,'tsen')
+  look=(itsen==0.and.indx>0)
+  itsen=-1
+  if(look) itsen=radjacindxs(indx)
 ! q
   indx=getindex(radjacnames,'q')
   look=(iqv==0.and.indx>0)
@@ -185,7 +185,7 @@ subroutine setrad(sval)
 
   luseu=ius>=0
   lusev=ivs>=0
-  luset=itv>=0
+  luset=itsen>=0
   luseq=iqv>=0
   luseoz=ioz>=0
   lusecw=icw>=0
@@ -341,8 +341,8 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
     call gsi_bundlegetpointer(rval,'v',  rv, istatus)
   end if
   if(luset)then
-    call gsi_bundlegetpointer(sval,'tv' ,st, istatus)
-    call gsi_bundlegetpointer(rval,'tv' ,rt, istatus)
+    call gsi_bundlegetpointer(sval,'tsen' ,st, istatus)
+    call gsi_bundlegetpointer(rval,'tsen' ,rt, istatus)
   end if
   if(luseq)then
     call gsi_bundlegetpointer(sval,'q',  sq, istatus)
@@ -412,8 +412,8 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         i3 = i3n(k)
         i4 = i4n(k)
         if(luset)then
-           tdir(itv+k)=  w1*  st(i1)+w2*  st(i2)+ &
-                         w3*  st(i3)+w4*  st(i4)
+           tdir(itsen+k)=  w1*  st(i1)+w2*  st(i2)+ &
+                           w3*  st(i3)+w4*  st(i4)
         endif
         if(luseq)then
            tdir(iqv+k)= w1*  sq(i1)+w2*  sq(i2)+ &
@@ -634,7 +634,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
            end if
  
            if(luset)then
-              mm=itv+k
+              mm=itsen+k
               rt(i1)=rt(i1)+w1*tval(mm)
               rt(i2)=rt(i2)+w2*tval(mm)
               rt(i3)=rt(i3)+w3*tval(mm)

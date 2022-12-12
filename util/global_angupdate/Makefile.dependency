@@ -1,4 +1,0 @@
-determine_time_levels.o : determine_time_levels.f90
-kinds.o : kinds.F90
-main.o : main.F90 read_diag.o
-read_diag.o : read_diag.f90 kinds.o

@@ -11,7 +11,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@-config-version.cmake")
 include(CMakeFindDependencyMacro)
 
 # Get the ENKF_MODE attribute
--set(ENKF_MODE @ENKF_MODE@)
+set(ENKF_MODE @ENKF_MODE@)
 
 find_dependency(MPI)
 find_dependency(NetCDF COMPONENTS Fortran)

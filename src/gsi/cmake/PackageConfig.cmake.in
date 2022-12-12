@@ -35,6 +35,7 @@ find_dependency(sigio REQUIRED)
 find_dependency(sfcio REQUIRED)
 find_dependency(nemsio REQUIRED)
 find_dependency(ncio REQUIRED)
+find_dependency(ncdiag REQUIRED)
 find_dependency(sp REQUIRED)
 find_dependency(ip REQUIRED)
 find_dependency(w3emc REQUIRED)
@@ -44,10 +45,6 @@ find_dependency(crtm REQUIRED)
 if(${GSI_MODE} MATCHES "Regional")
   find_dependency(wrf_io REQUIRED)
 endif()
-
-# This gives more trouble since GSIApp is a nested project of projects
-# and targets are built in the GSIApp project
-#find_dependency(ncdiag REQUIRED)
 
 # Get the build type from library target
 get_target_property(@PROJECT_NAME@_BUILD_TYPES @PROJECT_NAME@::@PROJECT_NAME@ IMPORTED_CONFIGURATIONS)

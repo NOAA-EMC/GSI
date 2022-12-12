@@ -1059,7 +1059,7 @@ subroutine upd_varch_
 
 end subroutine upd_varch_
 !EOC
-logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,depart,obs, &
+logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,diagadd,depart,obs, &
                   err2,raterr2,wgtjo,jacobian,method,nchasm,rsqrtinv,rinvdiag)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -1093,7 +1093,7 @@ logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,depart,obs, &
    integer(i_kind), intent(in) :: nsigradjac
    integer(i_kind), intent(in) :: ich(nchanl)
    integer(i_kind), intent(out) :: method
-   real(r_kind), intent(in)    :: varinv(nchanl)
+   real(r_kind), intent(in)    :: varinv(nchanl),diagadd(nchanl)
    real(r_kind), intent(inout) :: depart(nchanl),obs(nchanl)
    real(r_kind), intent(inout) :: err2(nchanl)
    real(r_kind), intent(inout) :: raterr2(nchanl)
@@ -1114,7 +1114,7 @@ logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,depart,obs, &
 
    if( GSI_BundleErrorCov(iinstr)%nch_active < 0) return
 
-   adjust_jac_ = scale_jac_ (depart,obs,err2,raterr2,jacobian,nchanl,varinv,wgtjo, &
+   adjust_jac_ = scale_jac_ (depart,obs,err2,raterr2,jacobian,nchanl,varinv,diagadd,wgtjo, &
                              ich,nchasm,rsqrtinv,rinvdiag,GSI_BundleErrorCov(iinstr))
 
    method = GSI_BundleErrorCov(iinstr)%method
@@ -1128,7 +1128,7 @@ logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,depart,obs, &
 !
 ! !INTERFACE:
 !
-logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,wgtjo, &
+logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,diagadd,wgtjo, &
                             ich,nchasm,rsqrtinv,rinvdiag,ErrorCov)
 ! !USES:
    use constants, only: tiny_r_kind
@@ -1140,6 +1140,7 @@ logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,wgtjo
    integer(i_kind),intent(in) :: nchanl   ! total number of channels in instrument
    integer(i_kind),intent(in) :: ich(:)   ! true channel numeber
    real(r_kind),   intent(in) :: varinv(:)    ! inverse of specified ob-error-variance 
+   real(r_kind),   intent(in) :: diagadd(:)    ! addition to diagonal before cholesky factorization
 ! !INPUT/OUTPUT PARAMETERS:
    real(r_kind),intent(inout) :: depart(:)    ! observation-minus-guess departures
    real(r_kind),intent(inout) :: obs(:)       ! observations
@@ -1277,8 +1278,6 @@ logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,wgtjo
 !  Do as GSI would do otherwise
      do jj=1,ncp
        mm=IJsubset(jj)
-       raterr2(mm) = raterr2(mm)
-       err2(mm) = err2(mm)
        wgtjo(mm)    = varinv(mm)
      enddo
    else
@@ -1318,16 +1317,16 @@ logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,wgtjo
              jjj=IJsubset(jj)
              qcaj(jj) = raterr2(jjj)
            enddo
-           subset = choleskydecom_inv_ (IRsubset,ErrorCov,UT,qcaj)
+           subset = choleskydecom_inv_ (IRsubset,IJsubset,ErrorCov,UT,diagadd,qcaj)
          else
-         subset = choleskydecom_inv_ (IRsubset,ErrorCov,UT) 
+           subset = choleskydecom_inv_ (IRsubset,IJsubset,ErrorCov,UT,diagadd) 
          endif
        else if( ErrorCov%method==1 ) then
          do jj=1,ncp
            jjj=IJsubset(jj)
            qcaj(jj) = varinv(jjj)
          enddo
-         subset = choleskydecom_inv_ (IRsubset,ErrorCov,UT,qcaj)
+         subset = choleskydecom_inv_ (IRsubset,IJsubset,ErrorCov,UT,diagadd,qcaj)
 
        endif
        if(.not.subset) then
@@ -1408,11 +1407,12 @@ end function scale_jac_
 !
 ! !INTERFACE:
 !
-logical function choleskydecom_inv_(Isubset,ErrorCov,UT,qcaj)
+logical function choleskydecom_inv_(Isubset,IJsubset,ErrorCov,UT,diagadd,qcaj)
 ! !USES:
   implicit none
-  integer(i_kind),intent(in) :: Isubset(:)
+  integer(i_kind),intent(in) :: Isubset(:),IJsubset(:)
   real(r_kind),intent(inout) :: UT(:,:)
+  real(r_kind),intent(in   ) :: diagadd(:)
   real(r_kind),optional,intent(in) :: qcaj(:)
   type(ObsErrorCov),intent(in) :: ErrorCov
 ! !DESCRIPTION: This routine makes a LAPACK call to Cholesky factorization of cov(R),
@@ -1453,6 +1453,9 @@ logical function choleskydecom_inv_(Isubset,ErrorCov,UT,qcaj)
       enddo
     enddo
   endif
+  do jj=1,ncp
+      UT(jj,jj) = UT(jj,jj)+diagadd(IJsubset(jj))
+  enddo
   if(r_kind==r_single) then ! this trick only works because this uses the f77 lapack interfaces
      call SPOTRF('U', ncp, UT, ncp, info )
   else if(r_kind==r_double) then

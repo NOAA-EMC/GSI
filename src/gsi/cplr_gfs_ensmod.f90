@@ -440,7 +440,7 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
 !      if(trim(cvars2d(m))=='sst') sst=en_loc3(:,:,m_cvars2d(m)) !no sst for now
     enddo
 
-    km = en_perts(1,1)%grid%km
+    km = en_perts(1,1,1)%grid%km
 !$omp parallel do  schedule(dynamic,1) private(m) 
     do m=1,nc3d
        if(trim(cvars3d(m))=='sf')then
@@ -914,6 +914,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
    character(len=*), intent(in   ) :: filename
 
    ! Declare local variables
+   logical :: file_exist
    integer(i_kind) i,ii,j,jj,k,lonb,latb,levs,kr,ierror
    integer(i_kind) k2,k3,k3u,k3v,k3t,k3q,k3cw,k3oz,kf
    integer(i_kind) k3ql,k3qi,k3qr,k3qs,k3qg
@@ -927,11 +928,19 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
    type(Dataset) :: atmges
    type(Dimension) :: ncdim
 
+!  Check to see if requested file exists
+   inquire(file=filename,exist=file_exist)
+   if (.not.file_exist) then
+      write(6,*)' PARALLEL_READ_GFSNC_STATE:  ***FATAL ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
+      call die(myname_, ': ***FATAL ERROR*** insufficient ens fcst for hybrid',999)
+   endif
 
+!  If file exists, open and process
    atmges = open_dataset(filename,errcode=ierror)
    if (ierror /=0) then
-      write(6,*)' PARALLEL_READ_GFSNC_STATE:  ***ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
-      call stop2(999)
+      write(6,*)' PARALLEL_READ_GFSNC_STATE:  ***FATAL ERROR*** problem reading ',&
+           trim(filename),' ierror= ',ierror,' PROGRAM STOPS'
+      call die(myname_, ': ***FATAL ERROR*** problem reading ens fcst',999)
    endif
    ! get dimension sizes
    ncdim = get_dim(atmges, 'grid_xt'); lonb = ncdim%len

@@ -8,7 +8,7 @@ defaults:
     shell: bash -leo pipefail {0}
 
 env:
-  cache_key: gcc3  # The number (#) following the cache_key "gcc" is to flush Action cache.
+  cache_key: gcc4  # The number (#) following the cache_key "gcc" is to flush Action cache.
   CC: gcc-10
   FC: gfortran-10
   CXX: g++-10
@@ -90,6 +90,6 @@ jobs:
           export FC=mpif90
           cd GSI
           mkdir -p build && cd build
-          cmake -DCMAKE_INSTALL_PREFIX=../install -DGSI_MODE=Regional -DENKF_MODE=GFS -DBUILD_UTIL_ALL=ON -DBUILD_REG_TESTING=OFF -DBUILD_NCDIAG=OFF ..
+          cmake -DCMAKE_INSTALL_PREFIX=../install -DGSI_MODE=Regional -DENKF_MODE=GFS -DBUILD_REG_TESTING=OFF -DBUILD_NCDIAG=OFF ..
           make -j2 VERBOSE=1
           make install

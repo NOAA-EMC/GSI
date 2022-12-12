@@ -9,7 +9,7 @@ defaults:
 
 # Set I_MPI_CC/F90 so Intel MPI wrapper uses icc/ifort instead of gcc/gfortran
 env:
-  cache_key: intel3  # The number (#) following the cache_key "intel" is to flush Action cache.
+  cache_key: intel4  # The number (#) following the cache_key "intel" is to flush Action cache.
   CC: icc
   FC: ifort
   CXX: icpc
@@ -109,6 +109,6 @@ jobs:
           export FC=mpiifort
           cd GSI
           mkdir -p build && cd build
-          cmake -DCMAKE_INSTALL_PREFIX=../install -DGSI_MODE=Regional -DENKF_MODE=GFS -DBUILD_UTIL_ALL=ON -DBUILD_REG_TESTING=OFF -DBUILD_NCDIAG=OFF ..
+          cmake -DCMAKE_INSTALL_PREFIX=../install -DGSI_MODE=Regional -DENKF_MODE=GFS -DBUILD_REG_TESTING=OFF -DBUILD_NCDIAG=OFF ..
           make -j2 VERBOSE=1
           make install

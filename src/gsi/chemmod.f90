@@ -15,28 +15,39 @@ module chemmod
 ! 2011-09-09 pagowski - add codes for PM2.5 for prepbufr and bufr dump files
 ! 2013-11-01 pagowski - add code for PM2.5 assimilation with wrf-chem
 ! 2019-03-21 Wei/Martin - logical if to read in aerosols from ext. file (default F) 
-
+! 2020-10-02 Wang     - fv3_cmaq_regional is for fv3lam-cmaq, which is
+!                          one more option of model choice (different to cmaq_regional)
 
   use kinds, only : i_kind, r_kind, r_single
-  use gridmod, only: cmaq_regional,wrf_mass_regional,lat2,lon2,nsig
+  use gridmod, only: fv3_cmaq_regional, cmaq_regional,wrf_mass_regional,lat2,lon2,nsig
   use constants, only : tiny_single,max_varname_length
 
   implicit none
 
   private
 
-  public :: obs2model_anowbufr_pm,cmaq_pm,wrf_chem_pm,&
+  public :: obs2model_anowbufr_pm,cmaq_pm,fv3_cmaq_pm,wrf_chem_pm,&
         cmaq_o3,wrf_chem_o3
   public :: iconc,ierror,ilat,ilon,itime,iid,ielev,isite,iikx,ilate,ilone
 
   public :: elev_tolerance,elev_missing,pm2_5_teom_max,pm10_teom_max
+
+! wrfcmaq
   public :: ngrid1d_cmaq,ngrid2d_cmaq,nmet2d_cmaq,nmet3d_cmaq,&
-        naero_cmaq,aeronames_cmaq,naero_gocart_wrf,aeronames_gocart_wrf
+        naero_cmaq,aeronames_cmaq
+
+! fv3cmaq
+  public :: naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3
+
+! fv3smoke
+  public :: naero_smoke_fv3,aeronames_smoke_fv3  
+
+  public :: naero_gocart_wrf,aeronames_gocart_wrf
 
   public :: pm2_5_guess,init_pm2_5_guess,&
        aerotot_guess,init_aerotot_guess
   public :: init_chem
-  public :: berror_chem,oneobtest_chem,maginnov_chem,magoberr_chem,oneob_type_chem,conconeobs
+  public :: berror_chem,berror_fv3_cmaq_regional,oneobtest_chem,maginnov_chem,magoberr_chem,oneob_type_chem,conconeobs
   public :: oblat_chem,oblon_chem,obpres_chem,diag_incr,oneobschem
   public :: site_scale,nsites
   public :: tunable_error
@@ -45,7 +56,9 @@ module chemmod
   public :: code_pm10_ncbufr,code_pm10_anowbufr
 
   public :: l_aoderr_table
-  public :: laeroana_gocart
+
+  public :: laeroana_gocart,laeroana_fv3cmaq,laeroana_fv3smoke,crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
+            icvt_cmaq_fv3, raod_radius_mean_scale,raod_radius_std_scale
   public :: ppmv_conv
   public :: aod_qa_limit
   public :: luse_deepblue
@@ -59,9 +72,12 @@ module chemmod
   public :: s_2_5,d_2_5,d_10,nh4_mfac,oc_mfac
 
   logical :: l_aoderr_table
-  logical :: laeroana_gocart
+  logical :: laeroana_gocart,laeroana_fv3cmaq,laeroana_fv3smoke
   logical :: luse_deepblue
+  character(len=max_varname_length) :: crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file
   integer(i_kind) :: aod_qa_limit  ! qa >=  aod_qa_limit will be retained
+  integer(i_kind) :: icvt_cmaq_fv3
+  real(r_kind)    :: raod_radius_mean_scale,raod_radius_std_scale
   real(r_kind)    :: ppmv_conv = 96.06_r_kind/28.964_r_kind*1.0e+3_r_kind
   logical :: wrf_pm2_5
 
@@ -72,7 +88,7 @@ module chemmod
 
   logical :: aero_ratios
 
-  logical :: oneobtest_chem,diag_incr,berror_chem
+  logical :: oneobtest_chem,diag_incr,berror_chem,berror_fv3_cmaq_regional
   character(len=max_varname_length) :: oneob_type_chem
   integer(i_kind), parameter :: maxstr=256
   real(r_kind) :: maginnov_chem,magoberr_chem,conconeobs,&
@@ -109,7 +125,8 @@ module chemmod
 !conversion ratios between obs and model units
   real(r_kind),parameter :: kg2ug=1.e+9_r_kind,ppbv2ppmv=0.001_r_kind
   real(r_kind),parameter :: cmaq_pm=kg2ug,wrf_chem_pm=kg2ug,&
-        cmaq_o3=ppbv2ppmv,wrf_chem_o3=ppbv2ppmv
+        cmaq_o3=ppbv2ppmv,wrf_chem_o3=ppbv2ppmv, & 
+        fv3_cmaq_pm=kg2ug,fv3_smoke_pm=kg2ug 
 
 !position of obs parameters in obs output file record
   integer(i_kind), parameter :: &
@@ -130,13 +147,58 @@ module chemmod
         naero_gocart_wrf=15  !number of gocart aerosol species
 
   character(len=max_varname_length), dimension(naero_cmaq), parameter :: &
-        aeronames_cmaq=(/ character(len=max_varname_length) :: &
+        aeronames_cmaq= [character(len=max_varname_length) :: &
         'ASO4I',  'ANO3I',  'ANH4I',  'AORGPAI',  'AECI',   'ACLI', &
         'ASO4J',  'ANO3J',  'ANH4J',  'AORGPAJ',  'AECJ',   'ANAJ',&
         'ACLJ',   'A25J',   'AXYL1J', 'AXYL2J',   'AXYL3J', 'ATOL1J',&
         'ATOL2J', 'ATOL3J', 'ABNZ1J', 'ABNZ2J',   'ABNZ3J', 'AALKJ',&
         'AOLGAJ', 'AISO1J', 'AISO2J', 'AISO3J',   'ATRP1J', 'ATRP2J',&
-        'ASQTJ',  'AOLGBJ', 'AORGCJ'/)
+        'ASQTJ',  'AOLGBJ', 'AORGCJ']
+! fv3smoke
+  integer(i_kind), parameter ::  naero_smoke_fv3=2 
+
+  character(len=max_varname_length), dimension(naero_smoke_fv3), parameter :: &
+        aeronames_smoke_fv3=[character(len=max_varname_length) ::  'smoke','dust' ]
+
+! FV3CMAQ
+  integer(i_kind), parameter :: naero_cmaq_fv3=70 !  !number of cmaq aerosol species aero6
+! Please use lower-case letter
+  character(len=max_varname_length), dimension(naero_cmaq_fv3), parameter :: &
+        aeronames_cmaq_fv3= [character(len=max_varname_length) :: &
+        'aso4i','aso4j','aso4k','ano3i','ano3j','ano3k', &
+        'acli', 'aclj', 'aclk', 'anh4i','anh4j','anh4k', &
+        'anai', 'anaj', 'amgj', 'akj',  'acaj', &
+        'aeci', 'aecj', 'afej', 'aalj', 'asij', 'atij', &
+        'amnj','aothri','aothrj','axyl1j','axyl2j','axyl3j', &
+        'atol1j','asoil','acors','aseacat','alvpo1i','alvpo1j', &
+        'asvpo1i','asvpo1j','asvpo2i','asvpo2j','asvpo3j', &
+        'aivpo1j','alvoo1i','alvoo2i','asvoo1i','asvoo2i', &  
+        'atol2j','atol3j',          &
+        'abnz1j','abnz2j','abnz3j', &
+        'aiso1j','aiso2j','aiso3j', &
+        'atrp1j','atrp2j','asqtj',  &
+        'aalk1j','aalk2j',          &
+        'apah1j','apah2j','apah3j', &
+        'aorgcj','aolgbj','aolgaj', &
+        'alvoo1j','alvoo2j',        &
+        'asvoo1j','asvoo2j','asvoo3j', &
+        'apcsoj']
+
+  integer(i_kind),dimension(naero_cmaq_fv3), parameter :: &
+        imodes_cmaq_fv3=(/&
+         1,2,3,1,2,3, & 
+         1,2,3,1,2,3, & 
+         1,2,2,2,2,   &
+         1,2,2,2,2,2, &
+         2,1,2,2,2,2, & 
+         2,3,3,3,1,2, &
+         1,2,1,2,2,   & 
+         2,1,1,1,1,   &  
+         2,2,2,2,2,   &
+         2,2,2,2,2,   &
+         2,2,2,2,2,   &
+         2,2,2,2,2,   &
+         2,2,2,2,2 /)
 
   character(len=max_varname_length), dimension(naero_gocart_wrf), parameter :: &
         aeronames_gocart_wrf=(/&
@@ -164,8 +226,12 @@ contains
        obs2model_anowbufr_pm=cmaq_pm
     elseif (wrf_mass_regional) then
        obs2model_anowbufr_pm=wrf_chem_pm
+    elseif (laeroana_fv3cmaq) then
+       obs2model_anowbufr_pm=fv3_cmaq_pm
+    elseif (laeroana_fv3smoke) then
+       obs2model_anowbufr_pm=fv3_smoke_pm 
     else
-       write(6,*)'unknown chem model. stopping'
+       write(6,*)'unknown chem model. stopping in chemmod.f90'
        call stop2(414)
     endif
     
@@ -218,6 +284,7 @@ contains
 !initialiazes default values to &CHEM namelist parameters
     
     berror_chem=.false.
+    berror_fv3_cmaq_regional=.false.  ! Set .true. to use berror for fv3_cmaq_regional, whose cv has 10 characters
     oneobtest_chem=.false.
     maginnov_chem=30_r_kind
     magoberr_chem=2_r_kind
@@ -231,13 +298,22 @@ contains
     in_fname='cmaq_input.bin'
     out_fname='cmaq_output.bin'
     incr_fname='chem_increment.bin'
-
+!!! Aerosol model options: GOCART-GEOS5; GOCART; CMAQ
+    crtm_aerosol_model = "GOCART"
+    crtm_aerosolcoeff_format = "Binary"
+    crtm_aerosolcoeff_file   = "AerosolCoeff.bin"
     laeroana_gocart = .false.
+    laeroana_fv3cmaq = .false.    ! .true. for performing aerosol analysis for regional FV3-CMAQ model(Please other parameters requred in gsimod.F90) 
+    laeroana_fv3smoke = .false.
     l_aoderr_table = .false.
+    icvt_cmaq_fv3   = 1           ! 1. Control variable is individual aerosol specie; 2: CV is total mass per I,J,K mode
+    raod_radius_mean_scale = 1.0_r_kind  ! Tune radius of particles when calculating AOD using CRTM
+    raod_radius_std_scale  = 1.0_r_kind  ! Tune standard deviation of particles when calculating AOD using CRTM with CMAQ LUTs.
     aod_qa_limit = 3
     luse_deepblue = .false.
 
     wrf_pm2_5=.false.
+
     aero_ratios=.false.
     lread_ext_aerosol = .false.
 

@@ -42,7 +42,6 @@
        myname_,'inq_varid '//trim(adjustl(varname))//' '//trim(filename) )
        call nc_check( nf90_get_var(file_id,var_id,data_arr),&
        myname_,'get_var '//trim(adjustl(varname))//' '//trim(filename) )
-       data_arr=data_arr(ubound(data_arr,1):lbound(data_arr,1):-1,ubound(data_arr,2):lbound(data_arr,2):-1)
     end subroutine read_fv3_restart_data2d
 
     subroutine read_fv3_restart_data3d(varname,filename,file_id,data_arr)
@@ -56,7 +55,7 @@
        myname_,'inq_varid '//trim(adjustl(varname))//' '//trim(filename) )
        call nc_check( nf90_get_var(file_id,var_id,data_arr),&
        myname_,'get_var '//trim(adjustl(varname))//' '//trim(filename) )
-       data_arr=data_arr(ubound(data_arr,1):lbound(data_arr,1):-1,ubound(data_arr,2):lbound(data_arr,2):-1, &
+       data_arr=data_arr(:,:, &
                           ubound(data_arr,3):lbound(data_arr,3):-1)
     end subroutine read_fv3_restart_data3d
 
@@ -71,7 +70,7 @@
        myname_,'inq_varid '//trim(adjustl(varname))//' '//trim(filename) )
        call nc_check( nf90_get_var(file_id,var_id,data_arr),&
        myname_,'get_var '//trim(adjustl(varname))//' '//trim(filename) )
-       data_arr=data_arr(ubound(data_arr,1):lbound(data_arr,1):-1,ubound(data_arr,2):lbound(data_arr,2):-1, &
+       data_arr=data_arr(:,:, &
                           ubound(data_arr,3):lbound(data_arr,3):-1,ubound(data_arr,4):lbound(data_arr,4):-1)
     end subroutine read_fv3_restart_data4d
 
