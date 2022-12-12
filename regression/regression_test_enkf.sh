@@ -63,9 +63,6 @@ diff increment.$exp1.txt increment.$exp3.txt > increment.${exp1}-${exp3}.txt
 exp1_scale=$2
 exp2_scale=$4
 
-#exp1_scale=$global_T62_updat_exp2
-#exp2_scale=$global_T62_contrl_exp2
-
 # Copy stdout for additional scalability testing
 list="$exp1_scale $exp2_scale"
 for exp_scale in $list; do

@@ -2,7 +2,7 @@ job_name=$1
 
 case $job_name in
 
-global_T62)
+global_3dvar)
 
 # Define namelist for global run (pcgsoi minimization)
 

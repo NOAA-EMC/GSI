@@ -73,15 +73,15 @@ case $machine in
     fi
 
     export group="${group:-global}"
-    export queue="${queue:-batch}"
+    export queue="${queue:-debug}"
     if [[ "$cmaketest" = "false" ]]; then
       export basedir="/scratch1/NCEPDEV/da/$LOGNAME/git/gsi"
     fi
 
     export ptmp="${ptmp:-/scratch1/NCEPDEV/stmp2/$LOGNAME/$ptmpName}"
 
-    export fixcrtm="${fixcrtm:-/scratch1/NCEPDEV/da/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update}"
-    export casesdir="/scratch1/NCEPDEV/da/Michael.Lueken/noscrub/CASES"
+##  export fixcrtm="${fixcrtm:-/scratch1/NCEPDEV/da/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update}"
+    export casesdir="/scratch1/NCEPDEV/da/Russ.Treadon/CASES/regtest"
 
     export check_resource="no"
 
@@ -89,7 +89,7 @@ case $machine in
 
     #  On Hera, there are no scrubbers to remove old contents from stmp* directories.
     #  After completion of regression tests, will remove the regression test subdirecories
-    export clean=".true."
+    export clean=".false."
   ;;
   Jet)
 
@@ -158,7 +158,7 @@ export savdir="$ptmp"
 export JCAP="62"
 
 # Case Study analysis dates
-export global_T62_adate="2016120300"
+export global_adate="2022110900"
 export global_4dvar_T62_adate="2014080400"
 export global_hybrid_T126_adate="2014092912"
 export global_4denvar_T126_adate="2019041500"
@@ -179,8 +179,8 @@ export global_C96_fv3aero_adate="2019062200"
 export global_C96_fv3aerorad_adate="2019062200"
 
 # Paths for canned case data.
-export global_T62_obs="$casesdir/global/sigmap/$global_T62_adate"
-export global_T62_ges="$casesdir/global/sigmap/$global_T62_adate"
+export global_data="$casesdir/gfs/prod"
+export global_ges="$casesdir/global/sigmap/$global_adate"
 export global_4dvar_T62_obs="$casesdir/global/sigmap/$global_4dvar_T62_adate"
 export global_4dvar_T62_ges="$casesdir/global/sigmap/$global_4dvar_T62_adate"
 export global_hybrid_T126_datobs="$casesdir/global/sigmap/$global_hybrid_T126_adate/obs"
@@ -227,7 +227,7 @@ export regression_vfydir="$noscrub/regression"
 # Define debug variable - If you want to run the debug tests, set this variable to .true.  Default is .false.
 export debug=".false."
 
-# Define parameters for global_T62_3d4dvar and global_T62_4dvar
+# Define parameters for global_3dvar, global_4dvar, global_4denvar
 export minimization="lanczos"  # If "lanczos", use sqrtb lanczos minimization algorithm.  Otherwise use "pcgsoi".
 export nhr_obsbin="6"          # Time window for observation binning.  Use "6" for 3d4dvar test.  Otherwise use "1"
 

@@ -38,8 +38,7 @@ endif()
 
 # GSI regression test names
 list(APPEND GSI_REG_TEST_NAMES
-  global_T62 global_T62_ozonly global_4dvar_T62 global_4denvar_T126
-  global_fv3_4denvar_T126 global_fv3_4denvar_C192 global_lanczos_T62
+  global_3dvar global_4dvar global_4denvar global_lanczos
   arw_netcdf arw_binary nmm_binary nmm_netcdf
   nmmb_nems_4denvar
   hwrf_nmm_d2 hwrf_nmm_d3
@@ -50,7 +49,7 @@ list(APPEND GSI_REG_TEST_NAMES
 
 # EnKF regression test names
 list(APPEND ENKF_REG_TEST_NAMES
-  global_enkf_T62
+  global_enkf
 )
 
 # Add GSI regression tests to list of tests

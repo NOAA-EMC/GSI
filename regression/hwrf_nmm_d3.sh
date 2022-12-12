@@ -312,9 +312,9 @@ esac
    for type in $listall; do
       count=`ls dir.*/${type}_${loop}* | wc -l`
       if [[ $count -gt 0 ]]; then
-         cat dir.*/${type}_${loop}* > diag_${type}_${string}.${global_T62_adate}
-         compress diag_${type}_${string}.${global_T62_adate}
-         $ncp diag_${type}_${string}.${global_T62_adate}.Z $savdir/
+         cat dir.*/${type}_${loop}* > diag_${type}_${string}.${hwrf_nmm_adate}
+         compress diag_${type}_${string}.${hwrf_nmm_adate}
+         $ncp diag_${type}_${string}.${hwrf_nmm_adate}.Z $savdir/
       fi
    done
 done

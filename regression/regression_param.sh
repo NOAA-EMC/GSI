@@ -52,11 +52,11 @@ export maxmem=$((($memnode*1024*1024)/$numcore))  # Kb / core
 
 case $regtest in
 
-    global_T62)
+    global_3dvar)
 
         if [[ "$machine" = "Hera" ]]; then
-           topts[1]="0:50:00" ; popts[1]="12/3/" ; ropts[1]="/1"
-           topts[2]="0:50:00" ; popts[2]="12/9/" ; ropts[2]="/2"
+           topts[1]="0:30:00" ; popts[1]="12/3/" ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="12/9/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
            topts[1]="0:50:00" ; popts[1]="12/3/" ; ropts[1]="/1"
            topts[2]="0:50:00" ; popts[2]="12/9/" ; ropts[2]="/2"
@@ -75,39 +75,6 @@ case $regtest in
         elif [[ "$machine" = "Discover" ]]; then
            topts[1]="0:30:00" ; popts[1]="36/2"  ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="72/3"  ; ropts[2]="/2"
-        fi
-
-        if [ "$debug" = ".true." ] ; then
-           topts[1]="0:45:00"
-        fi
-
-        scaling[1]=10; scaling[2]=8; scaling[3]=4
-
-    ;;
-
-    global_T62_ozonly)
-
-        if [[ "$machine" = "Hera" ]]; then
-            topts[1]="0:15:00" ; popts[1]="12/1/" ; ropts[1]="/1"
-            topts[2]="0:15:00" ; popts[2]="12/2/" ; ropts[2]="/2"
-        elif [[ "$machine" = "Jet" ]]; then
-            topts[1]="0:15:00" ; popts[1]="12/1/" ; ropts[1]="/1"
-            topts[2]="0:15:00" ; popts[2]="12/2/" ; ropts[2]="/2"
-        elif [[ "$machine" = "Cheyenne" ]]; then
-            topts[1]="0:15:00" ; popts[1]="16/1/" ; ropts[1]="/1"
-            topts[2]="0:15:00" ; popts[2]="16/2/" ; ropts[2]="/2"
-        elif [[ "$machine" = "WCOSS" ]]; then
-            topts[1]="0:15:00" ; popts[1]="16/1/" ; ropts[1]="/1"
-            topts[2]="0:15:00" ; popts[2]="16/2/" ; ropts[2]="/2"
-        elif [[ "$machine" = "WCOSS_C" ]]; then
-            topts[1]="0:15:00" ; popts[1]="16/1/" ; ropts[1]="1024/1"  # sub_wcoss_c popts are "#tasks/#nodes/"
-            topts[2]="0:15:00" ; popts[2]="12/2/" ; ropts[2]="1024/2"
-        elif [[ "$machine" = "WCOSS_D" ]]; then
-           topts[1]="0:15:00" ; popts[1]="28/2/" ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="28/4/" ; ropts[2]="/2"
-        elif [[ "$machine" = "Discover" ]]; then
-           topts[1]="0:30:00" ; popts[1]="16/1"  ; ropts[1]="/1"
-           topts[2]="0:30:00" ; popts[2]="16/2"  ; ropts[2]="/2"
         fi
 
         if [ "$debug" = ".true." ] ; then

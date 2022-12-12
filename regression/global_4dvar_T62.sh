@@ -181,7 +181,7 @@ SETUP="$SETUPmin $SETUPobs $SETUP_update"
 if [ "$minimization" = "lanczos" ]; then
    namelist_name=global_lanczos_T62
 else
-   namelist_name=global_T62
+   namelist_name=global_3dvar
 fi
 
 if [ "$debug" = ".false." ]; then
@@ -419,7 +419,7 @@ SETUP="$SETUPmin $SETUP4dv $SETUP_update"
 if [ "$minimization" = "lanczos" ]; then
    namelist_name=global_lanczos_T62
 else
-   namelist_name=global_T62
+   namelist_name=global_3dvar
 fi
 
 if [ "$debug" = ".false." ]; then
