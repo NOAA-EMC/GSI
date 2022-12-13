@@ -7,7 +7,10 @@ exp=$jobname
 # Set the JCAP resolution which you want.
 export JCAP=48
 export LEVS=127
-export JCAP_B=$JCAP
+export JCAP_B=96
+
+# Set ensemble size
+export NMEM_ENKF=10
 
 # Set runtime directories
 tmpdir=$tmpdir/$tmpregdir/${exp}
@@ -70,23 +73,21 @@ rm -rf core*
 
 # Make gsi namelist
 
-. $scripts/regression_nl_update.sh
-
-SETUP="$SETUP_update"
-GRIDOPTS="$GRIDOPTS_update"
-BKGVERR="$BKGVERR_update"
-ANBKGERR="$ANBKERR_update"
-JCOPTS="$JCOPTS_update"
-STRONGOPTS="$STRONGOPTS_update"
-OBSQC="$OBSQC_update"
-OBSINPUT="$OBSINPUT_update"
-SUPERRAD="$SUPERRAD_update"
-SINGLEOB="$SINGLEOB_update"
+SETUP=""
+GRIDOPTS=""
+BKGVERR=""
+ANBKGERR=""
+JCOPTS=""
+STRONGOPTS=""
+OBSQC=""
+OBSINPUT=""
+SUPERRAD=""
+SINGLEOB=""
 
 if [ "$debug" = ".false." ]; then
-   . $scripts/regression_namelists.sh global_3dvar
+   . $scripts/regression_namelists.sh global_4denvar
 else
-   . $scripts/regression_namelists_db.sh global_3dvar
+   . $scripts/regression_namelists_db.sh global_4denvar
 fi
 
 cat << EOF > gsiparm.anl
@@ -276,25 +277,38 @@ $nln $datges/${prefix_ges}.abias_pc                   ./satbias_pc
 $nln $datges/${prefix_ges}.abias_air                  ./aircftbias_in
 $nln $datges/${prefix_ges}.radstat                    ./radstat.gdas
 
-member=mem001
-$nln $datens/$member/${prefix_ges}.sfcf003.nc         ./sfcf03
-$nln $datens/$member/${prefix_ges}.sfcf006.nc         ./sfcf06
-$nln $datens/$member/${prefix_ges}.sfcf009.nc         ./sfcf09
+$nln $datges/${prefix_ges}.sfcf003.nc         ./sfcf03
+$nln $datges/${prefix_ges}.sfcf004.nc         ./sfcf04
+$nln $datges/${prefix_ges}.sfcf005.nc         ./sfcf05
+$nln $datges/${prefix_ges}.sfcf006.nc         ./sfcf06
+$nln $datges/${prefix_ges}.sfcf007.nc         ./sfcf07
+$nln $datges/${prefix_ges}.sfcf008.nc         ./sfcf08
+$nln $datges/${prefix_ges}.sfcf009.nc         ./sfcf09
 
-$nln $datens/$member/${prefix_ges}.atmf003.nc         ./sigf03
-$nln $datens/$member/${prefix_ges}.atmf006.nc         ./sigf06
-$nln $datens/$member/${prefix_ges}.atmf009.nc         ./sigf09
+$nln $datges/${prefix_ges}.atmf003.nc         ./sigf03
+$nln $datges/${prefix_ges}.atmf004.nc         ./sigf04
+$nln $datges/${prefix_ges}.atmf005.nc         ./sigf05
+$nln $datges/${prefix_ges}.atmf006.nc         ./sigf06
+$nln $datges/${prefix_ges}.atmf007.nc         ./sigf07
+$nln $datges/${prefix_ges}.atmf008.nc         ./sigf08
+$nln $datges/${prefix_ges}.atmf009.nc         ./sigf09
 
 $nln $datens/${prefix_ens}.sfcf006.ensmean.nc         ./sfcf06_anlgrid
 
- 
-# Copy CRTM coefficient files based on entries in satinfo file
-for file in `awk '{if($1!~"!"){print $1}}' ./satinfo | sort | uniq` ;do
-    $ncp $fixcrtm/${file}.SpcCoeff.bin ./
-    $ncp $fixcrtm/${file}.TauCoeff.bin ./
+export ENS_PATH='./ensemble_data/'
+mkdir -p ${ENS_PATH}
+flist="03 04 05 06 07 08 09"
+for fh in $flist; do
+    sigens=${prefix_ens}.atmf0${fh}.nc
+    imem=1
+    while [[ $imem -le $NMEM_ENKF ]]; do
+	member="mem"`printf %03i $imem`
+	$nln $datens/$member/$sigens ${ENS_PATH}sigf${fh}_ens_${member}
+	(( imem = $imem + 1 ))
+    done
 done
 
-
+ 
 listdiag=`tar xvf radstat.gdas | cut -d' ' -f2 | grep _ges`
 for type in $listdiag; do
    diag_file=`echo $type | cut -d',' -f1`
@@ -308,7 +322,7 @@ done
 # Run GSI
 cd $tmpdir
 echo "run gsi now"
-eval "$APRUN $tmpdir/gsi.x > stdout 2>&1"
+eval "$APRUN $tmpdir/gsi.x < gsiparm.anl > stdout 2>&1"
 rc=$?
 
 exit $rc

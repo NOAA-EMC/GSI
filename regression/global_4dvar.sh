@@ -7,7 +7,7 @@ exp=$jobname
 # Set the JCAP resolution which you want.
 export JCAP=48
 export LEVS=127
-export JCAP_B=$JCAP
+export JCAP_B=48
 
 # Set runtime directories
 tmpdir=$tmpdir/$tmpregdir/${exp}
@@ -70,30 +70,17 @@ rm -rf core*
 
 # Make gsi namelist
 
-. $scripts/regression_nl_update.sh
+SETUP=""
+GRIDOPTS=""
+BKGVERR=""
+ANBKGERR=""
+JCOPTS=""
+STRONGOPTS=""
+OBSQC=""
+OBSINPUT=""
+SUPERRAD=""
+SINGLEOB=""
 
-SETUP="$SETUP_update"
-GRIDOPTS="$GRIDOPTS_update"
-BKGVERR="$BKGVERR_update"
-ANBKGERR="$ANBKERR_update"
-JCOPTS="$JCOPTS_update"
-STRONGOPTS="$STRONGOPTS_update"
-OBSQC="$OBSQC_update"
-OBSINPUT="$OBSINPUT_update"
-SUPERRAD="$SUPERRAD_update"
-SINGLEOB="$SINGLEOB_update"
-
-if [ "$debug" = ".false." ]; then
-   . $scripts/regression_namelists.sh global_3dvar
-else
-   . $scripts/regression_namelists_db.sh global_3dvar
-fi
-
-cat << EOF > gsiparm.anl
-
-$gsi_namelist
-
-EOF
 
 # Set fixed files
 #   berror   = forecast model background error statistics
@@ -159,6 +146,7 @@ $ncp $berror   ./berror_stats
 $ncp $locinfo  ./hybens_info
 $ncp $satinfo  ./satinfo
 $ncp $scaninfo ./scaninfo
+##$ncp $satangl  ./satbias_angle
 $ncp $pcpinfo  ./pcpinfo
 $ncp $ozinfo   ./ozinfo
 $ncp $convinfo ./convinfo
@@ -271,29 +259,34 @@ $nln $datobs/${prefix_obs}.esatms.${suffix}        ./atmsbufrears
 ## $nln $datobs/${prefix_obs}.amsr2.tm00.bufr_d    ./amsr2bufr
 
 # Copy bias correction, atmospheric and surface files
-$nln $datges/${prefix_ges}.abias                      ./satbias_in
-$nln $datges/${prefix_ges}.abias_pc                   ./satbias_pc
-$nln $datges/${prefix_ges}.abias_air                  ./aircftbias_in
+##$nln $datges/${prefix_ges}.abias                      ./satbias_in
+##$nln $datges/${prefix_ges}.abias_pc                   ./satbias_pc
+##$nln $datges/${prefix_ges}.abias_air                  ./aircftbias_in
+
+
+#$nln $datges/${prefix_ges}.abias.4dvar               ./satbias_in
+$nln $datges/${prefix_ges}.satang.4dvar               ./satbias_angle
+
 $nln $datges/${prefix_ges}.radstat                    ./radstat.gdas
 
 member=mem001
 $nln $datens/$member/${prefix_ges}.sfcf003.nc         ./sfcf03
+##$nln $datens/$member/${prefix_ges}.sfcf004.nc         ./sfcf04
+##$nln $datens/$member/${prefix_ges}.sfcf005.nc         ./sfcf05
 $nln $datens/$member/${prefix_ges}.sfcf006.nc         ./sfcf06
+##$nln $datens/$member/${prefix_ges}.sfcf007.nc         ./sfcf07
+##$nln $datens/$member/${prefix_ges}.sfcf008.nc         ./sfcf08
 $nln $datens/$member/${prefix_ges}.sfcf009.nc         ./sfcf09
 
 $nln $datens/$member/${prefix_ges}.atmf003.nc         ./sigf03
+##$nln $datens/$member/${prefix_ges}.atmf004.nc         ./sigf04
+##$nln $datens/$member/${prefix_ges}.atmf005.nc         ./sigf05
 $nln $datens/$member/${prefix_ges}.atmf006.nc         ./sigf06
+##$nln $datens/$member/${prefix_ges}.atmf007.nc         ./sigf07
+##$nln $datens/$member/${prefix_ges}.atmf008.nc         ./sigf08
 $nln $datens/$member/${prefix_ges}.atmf009.nc         ./sigf09
 
 $nln $datens/${prefix_ens}.sfcf006.ensmean.nc         ./sfcf06_anlgrid
-
- 
-# Copy CRTM coefficient files based on entries in satinfo file
-for file in `awk '{if($1!~"!"){print $1}}' ./satinfo | sort | uniq` ;do
-    $ncp $fixcrtm/${file}.SpcCoeff.bin ./
-    $ncp $fixcrtm/${file}.TauCoeff.bin ./
-done
-
 
 listdiag=`tar xvf radstat.gdas | cut -d' ' -f2 | grep _ges`
 for type in $listdiag; do
@@ -305,10 +298,42 @@ for type in $listdiag; do
    mv $fname.$date $fnameanl
 done
 
-# Run GSI
-cd $tmpdir
+
+# Run GSI in observer mode
+SETUP="l4dvar=.true.,jiterstart=1,lobserver=.true.,iwrtinc=1,nhr_assimilation=6,nhr_obsbin=1,"
+if [ "$debug" = ".false." ]; then
+   . $scripts/regression_namelists.sh global_lanczos
+else
+   . $scripts/regression_namelists_db.sh global_lanczos
+fi
+rm gsiparm.anl
+cat << EOF > gsiparm.anl
+$gsi_namelist
+EOF
+cp gsiparm.anl gsiparm.anl.obsvr
+
 echo "run gsi now"
-eval "$APRUN $tmpdir/gsi.x > stdout 2>&1"
+eval "$APRUN $tmpdir/gsi.x < gsiparm.anl > stdout.obsvr 2>&1"
+rc=$?
+
+# Run gsi identity model 4dvar under Parallel Operating Environment (poe) on NCEP IBM
+rm -f siganl sfcanl.gsi satbias_out fort.2*
+rm -rf dir.0*
+
+# Create namelist for identity model 4dvar run
+SETUP="l4dvar=.true.,jiterstart=1,nhr_assimilation=6,nhr_obsbin=1,idmodel=.true.,iwrtinc=1,lanczosave=.true.,"
+if [ "$debug" = ".false." ]; then
+   . $scripts/regression_namelists.sh global_lanczos
+else
+   . $scripts/regression_namelists_db.sh global_lanczos
+fi
+rm gsiparm.anl
+cat <<EOF > gsiparm.anl
+$gsi_namelist
+EOF
+
+echo "run gsi now"
+eval "$APRUN $tmpdir/gsi.x < gsiparm.anl > stdout 2>&1"
 rc=$?
 
 exit $rc

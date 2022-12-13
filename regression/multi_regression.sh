@@ -3,7 +3,6 @@
 regtests_all="global_3dvar
               global_4dvar
               global_4denvar
-              global_lanczos_T62
               arw_netcdf
               arw_binary
               nmm_binary
@@ -13,14 +12,13 @@ regtests_all="global_3dvar
               hwrf_nmm_d2
               hwrf_nmm_d3
               rtma
-              global_enkf_T62
+              global_enkf
               global_C96_fv3aero
               global_C96_fv3aerorad"
 
 regtests_debug="global_3dvar
                 global_4dvar
                 global_4denvar
-                global_lanczos_T62
                 arw_netcdf
                 arw_binary
                 nmm_binary
@@ -30,7 +28,7 @@ regtests_debug="global_3dvar
                 hwrf_nmm_d2
                 hwrf_nmm_d3
                 rtma
-                global_enkf_T62
+                global_enkf
                 global_C96_fv3aero
                 global_C96_fv3aerorad"
 
