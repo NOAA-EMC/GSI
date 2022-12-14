@@ -32,13 +32,14 @@ cd $tmpdir
 # Other required constants for regression testing
 maxtime=1200
 maxmem=${maxmem:-3400000} # set in regression_param
+maxmem=$((${memnode:-64}*1024*1024))
 
 # Copy stdout and sanl files 
 # from $savdir to $tmpdir
 list="$exp1 $exp2 $exp3"
 for exp in $list; do
    $ncp $savdir/$exp/stdout ./stdout.$exp
-   nmem=20
+   nmem=10
    imem=1
    while [[ $imem -le $nmem ]]; do
       member="_mem"`printf %03i $imem`
@@ -277,7 +278,7 @@ fi
 } >> $output
    else
 {
-nmem=20
+nmem=10
 imem=1
 while [[ $imem -le $nmem ]]; do
    member="_mem"`printf %03i $imem`
@@ -374,7 +375,7 @@ else
       else
 
 {
-   nmem=20
+   nmem=10
    imem=1
    while [[ $imem -le $nmem ]]; do
       member="_mem"`printf %03i $imem`
