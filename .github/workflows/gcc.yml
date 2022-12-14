@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the GSI
+      # Checkout the GSI to get the ci/spack.yaml file
       - name: checkout-gsi
         if: steps.cache-env.outputs.cache-hit != 'true'
         uses: actions/checkout@v3
@@ -45,11 +45,12 @@ jobs:
       - name: install-dependencies-with-spack
         if: steps.cache-env.outputs.cache-hit != 'true'
         run: |
+          sudo apt-get install cmake
           git clone -c feature.manyFiles=true https://github.com/NOAA-EMC/spack.git
           source spack/share/spack/setup-env.sh
           spack env create gsi-env GSI/ci/spack.yaml
           spack env activate gsi-env
-          sudo apt install cmake
+          spack compiler find
           spack external find
           spack add mpich@3.4.2
           spack concretize
