@@ -44,7 +44,6 @@ list(APPEND GSI_REG_TEST_NAMES
   hwrf_nmm_d2 hwrf_nmm_d3
   rtma
   netcdf_fv3_regional
-  global_C96_fv3aero global_C96_fv3aerorad
 )
 
 # EnKF regression test names
