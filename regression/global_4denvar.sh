@@ -59,7 +59,7 @@ prefix_ens=gdas.t${cycg}z
 suffix=tm00.bufr_d
 
 dumpges=gdas
-COMROOTgfs=/scratch1/NCEPDEV/da/Russ.Treadon/CASES/regtest/gfs/prod
+COMROOTgfs=$casesdir/gfs/prod
 datobs=$COMROOTgfs/$dumpobs.$PDYa/${cyca}/atmos
 datges=$COMROOTgfs/$dumpges.$PDYg/${cycg}/atmos
 datens=$COMROOTgfs/enkfgdas.$PDYg/${cycg}/atmos

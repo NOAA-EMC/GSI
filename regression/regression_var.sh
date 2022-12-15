@@ -42,6 +42,8 @@ elif [[ -d /data/prod ]]; then # S4
   export machine="S4"
 elif [[ -d /work ]]; then # Orion
   export machine="Orion"
+elif [[ -d /lfs/h2 ]]; then # wcoss2
+  export machine="wcoss2"
 fi
 echo "Running Regression Tests on '$machine'";
 
@@ -61,6 +63,34 @@ case $machine in
     export check_resource="no"
     export accnt="p48503002"
   ;;
+  wcoss2)
+      export queue="dev"
+      export noscrub="/lfs/h2/emc/da/noscrub/$LOGNAME"
+      export group="global"
+      if [[ "$cmaketest" = "false" ]]; then
+	  export basedir="/lfs/h2/emc/da/noscrub/$LOGNAME/gsi"
+      fi
+      export ptmp="${ptmp:-/lfs/h2/emc/ptmp/$LOGNAME/$ptmpName}"
+
+      export casesdir="/lfs/h2/emc/da/noscrub/russ.treadon/CASES/regtest"
+
+      export check_resource="no"
+      export accnt="GFS-DEV"
+  ;;      
+  Orion)
+      export queue="debug"
+      export noscrub="/work/noaa/da/$LOGNAME"
+      export group="global"
+      if [[ "$cmaketest" = "false" ]]; then
+	  export basedir="/work/noaa/da/$LOGNAME/gsi"
+      fi
+      export ptmp="${ptmp:-/work/noaa/stmp/$LOGNAME/$ptmpName}"
+
+      export casesdir="/work/noaa/da/russ.treadon/CASES/regtest"
+
+      export check_resource="no"
+      export accnt="da-cpu"
+  ;;      
   Hera)
 
     export local_or_default="${local_or_default:-/scratch1/NCEPDEV/da/$LOGNAME}"
