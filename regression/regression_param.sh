@@ -9,6 +9,11 @@ case $machine in
            memnode=96
            numcore=40
     ;;
+        Orion)
+           sub_cmd="sub_orion"
+           memnode=192
+           numcore=40
+    ;;
 	Jet)
 	   sub_cmd="sub_jet"
            memnode=96
@@ -18,11 +23,6 @@ case $machine in
 	   sub_cmd="sub_wcoss2"
            memnode=512
            numcore=128
-    ;;
-	Orion)
-	   sub_cmd="sub_orion"
-	   memnode=192
-	   numcore=40
     ;;
 	Discover)
 	   sub_cmd="sub_discover"
@@ -47,6 +47,9 @@ case $regtest in
     global_3dvar)
 
         if [[ "$machine" = "Hera" ]]; then
+           topts[1]="0:30:00" ; popts[1]="12/3/" ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="12/9/" ; ropts[2]="/2"
+        elif [[ "$machine" = "Orion" ]]; then
            topts[1]="0:30:00" ; popts[1]="12/3/" ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="12/9/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
@@ -76,6 +79,9 @@ case $regtest in
         if [[ "$machine" = "Hera" ]]; then
             topts[1]="0:15:00" ; popts[1]="12/3/" ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="12/5/" ; ropts[2]="/2"
+        elif [[ "$machine" = "Orion" ]]; then
+            topts[1]="0:15:00" ; popts[1]="12/3/" ; ropts[1]="/1"
+            topts[2]="0:15:00" ; popts[2]="12/5/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
             topts[1]="0:15:00" ; popts[1]="12/3/" ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="12/5/" ; ropts[2]="/2"
@@ -94,6 +100,8 @@ case $regtest in
            topts[1]="0:45:00"
            if [[ "$machine" = "Hera" ]]; then
               popts[1]="12/5/"
+           elif [[ "$machine" = "Orion" ]]; then
+              popts[1]="12/5/"
            elif [[ "$machine" = "Jet" ]]; then
               popts[1]="12/5/"
            elif [[ "$machine" = "wcoss2" ]]; then
@@ -109,6 +117,9 @@ case $regtest in
     global_4denvar)
 
         if [[ "$machine" = "Hera" ]]; then
+           topts[1]="0:30:00" ; popts[1]="6/8/" ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="6/10/" ; ropts[2]="/2"
+        elif [[ "$machine" = "Orion" ]]; then
            topts[1]="0:30:00" ; popts[1]="6/8/" ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="6/10/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
@@ -138,6 +149,9 @@ case $regtest in
         if [[ "$machine" = "Hera" ]]; then
             topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "Orion" ]]; then
+            topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
+            topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Jet" ]]; then
             topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
@@ -165,6 +179,9 @@ case $regtest in
         if [[ "$machine" = "Hera" ]]; then
             topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "Orion" ]]; then
+            topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
+            topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Jet" ]]; then
             topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
@@ -184,6 +201,9 @@ case $regtest in
     nmm_binary )
 
         if [[ "$machine" = "Hera" ]]; then
+            topts[1]="0:30:00" ; popts[1]="6/6/"  ; ropts[1]="/1"
+            topts[2]="0:30:00" ; popts[2]="8/8/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "Orion" ]]; then
             topts[1]="0:30:00" ; popts[1]="6/6/"  ; ropts[1]="/1"
             topts[2]="0:30:00" ; popts[2]="8/8/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Jet" ]]; then
@@ -213,6 +233,9 @@ case $regtest in
         if [[ "$machine" = "Hera" ]]; then
             topts[1]="0:15:00" ; popts[1]="4/2/"  ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="4/4/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "Orion" ]]; then
+            topts[1]="0:15:00" ; popts[1]="4/2/"  ; ropts[1]="/1"
+            topts[2]="0:15:00" ; popts[2]="4/4/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Jet" ]]; then
             topts[1]="0:15:00" ; popts[1]="4/2/"  ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="4/4/"  ; ropts[2]="/1"
@@ -240,6 +263,9 @@ case $regtest in
         if [[ "$machine" = "Hera" ]]; then
             topts[1]="0:30:00" ; popts[1]="7/10/"  ; ropts[1]="/1"
             topts[2]="0:30:00" ; popts[2]="9/10/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "Orion" ]]; then
+            topts[1]="0:30:00" ; popts[1]="7/10/"  ; ropts[1]="/1"
+            topts[2]="0:30:00" ; popts[2]="9/10/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Jet" ]]; then
             topts[1]="0:30:00" ; popts[1]="7/10/"  ; ropts[1]="/1"
             topts[2]="0:30:00" ; popts[2]="9/10/"  ; ropts[2]="/1"
@@ -262,6 +288,9 @@ case $regtest in
     rtma)
 
         if [[ "$machine" = "Hera" ]]; then
+            topts[1]="0:30:00" ; popts[1]="6/12/"  ; ropts[1]="/1"
+            topts[2]="0:30:00" ; popts[2]="8/12/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "Orion" ]]; then
             topts[1]="0:30:00" ; popts[1]="6/12/"  ; ropts[1]="/1"
             topts[2]="0:30:00" ; popts[2]="8/12/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Jet" ]]; then
@@ -288,6 +317,9 @@ case $regtest in
         if [[ "$machine" = "Hera" ]]; then
             topts[1]="0:20:00" ; popts[1]="6/6/"  ; ropts[1]="/1"
             topts[2]="0:20:00" ; popts[2]="8/8/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "Orion" ]]; then
+            topts[1]="0:20:00" ; popts[1]="6/6/"  ; ropts[1]="/1"
+            topts[2]="0:20:00" ; popts[2]="8/8/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Jet" ]]; then
             topts[1]="0:20:00" ; popts[1]="6/6/"  ; ropts[1]="/1"
             topts[2]="0:20:00" ; popts[2]="8/8/"  ; ropts[2]="/1"
@@ -312,6 +344,9 @@ case $regtest in
         if [[ "$machine" = "Hera" ]]; then
             topts[1]="0:30:00" ; popts[1]="12/3/" ; ropts[1]="/1"
             topts[2]="0:30:00" ; popts[2]="12/5/" ; ropts[2]="/2"
+        elif [[ "$machine" = "Orion" ]]; then
+            topts[1]="0:15:00" ; popts[1]="12/3/" ; ropts[1]="/1"
+            topts[2]="0:15:00" ; popts[2]="12/5/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
             topts[1]="0:15:00" ; popts[1]="12/3/" ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="12/5/" ; ropts[2]="/2"
@@ -334,6 +369,9 @@ case $regtest in
     global_C96_fv3aero)
 
         if [[ "$machine" = "Hera" ]]; then
+            topts[1]="0:30:00" ; popts[1]="12/3/" ; ropts[1]="/1"
+            topts[2]="0:30:00" ; popts[2]="12/9/" ; ropts[2]="/2"
+        elif [[ "$machine" = "Orion" ]]; then
             topts[1]="0:30:00" ; popts[1]="12/3/" ; ropts[1]="/1"
             topts[2]="0:30:00" ; popts[2]="12/9/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
@@ -361,6 +399,9 @@ case $regtest in
    global_C96_fv3aerorad)
 
         if [[ "$machine" = "Hera" ]]; then
+            topts[1]="0:20:00" ; popts[1]="16/4/" ; ropts[1]="/1"
+            topts[2]="0:20:00" ; popts[2]="16/8/" ; ropts[2]="/2"
+        elif [[ "$machine" = "Orion" ]]; then
             topts[1]="0:20:00" ; popts[1]="16/4/" ; ropts[1]="/1"
             topts[2]="0:20:00" ; popts[2]="16/8/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
@@ -420,6 +461,9 @@ if [[ "$machine" = "Hera" ]]; then
    export MPI_BUFS_PER_HOST=256
    export MPI_GROUP_MAX=256
    export APRUN="srun"
+elif [[ "$machine" = "Orion" ]]; then
+   export OMP_STACKSIZE=2048M
+   export APRUN="srun -n \$ntasks"
 elif [[ "$machine" = "Jet" ]]; then
    export OMP_STACKSIZE=1024M
    export MPI_BUFS_PER_PROC=256

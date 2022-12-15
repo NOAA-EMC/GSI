@@ -17,7 +17,8 @@ if [ "$#" = 7 ] ; then
   export ush="$gsisrc/ush"
   export cmaketest="true"
   export clean="false"
-  export ptmpName=`echo $builddir | sed -e "s/\//_/g"`
+  dir_root="${builddir%/*}"
+  export ptmpName="${dir_root##*/}"
 else
   # Name of the branch being tested
   updat="XXXXXXXX"
@@ -64,9 +65,15 @@ case $machine in
     export accnt="p48503002"
   ;;
   wcoss2)
-      export queue="dev"
-      export noscrub="/lfs/h2/emc/da/noscrub/$LOGNAME"
-      export group="global"
+      export local_or_default="${local_or_default:-/lfs/h2/emc/da/noscrub/$LOGNAME}"
+      if [ -d $local_or_default ]; then
+          export noscrub="$local_or_default/noscrub"
+      elif [ -d /lfs/h2/emc/global/noscrub/$LOGNAME ]; then
+          export noscrub="/lfs/h2/emc/global/noscrub/$LOGNAME/noscrub"
+      fi
+
+      export queue="${queue:-dev}"
+      export group="${group:-global}"
       if [[ "$cmaketest" = "false" ]]; then
 	  export basedir="/lfs/h2/emc/da/noscrub/$LOGNAME/gsi"
       fi
@@ -75,21 +82,28 @@ case $machine in
       export casesdir="/lfs/h2/emc/da/noscrub/russ.treadon/CASES/regtest"
 
       export check_resource="no"
-      export accnt="GFS-DEV"
+      export accnt="${accnt:-GFS-DEV}"
   ;;      
   Orion)
-      export queue="debug"
-      export noscrub="/work/noaa/da/$LOGNAME"
-      export group="global"
+      export local_or_default="${local_or_default:-/work/noaa/da/$LOGNAME}"
+      if [ -d $local_or_default ]; then
+          export noscrub="$local_or_default/noscrub"
+      elif [ -d /work/noaa/global/$LOGNAME ]; then
+	  export noscrub="/work/noaa/global/$LOGNAME/noscrub"
+      fi
+
+      export queue="${queue:-debug}"
+      export group="${group:-global}"
       if [[ "$cmaketest" = "false" ]]; then
 	  export basedir="/work/noaa/da/$LOGNAME/gsi"
       fi
       export ptmp="${ptmp:-/work/noaa/stmp/$LOGNAME/$ptmpName}"
 
-      export casesdir="/work/noaa/da/russ.treadon/CASES/regtest"
+      export fixcrtm=${CRTM_FIX:-/apps/contrib/NCEPLIBS/orion/fix/crtm_v2.3.0}
+      export casesdir="/work/noaa/da/rtreadon/CASES/regtest"
 
       export check_resource="no"
-      export accnt="da-cpu"
+      export accnt="${accnt:-da-cpu}"
   ;;      
   Hera)
 
@@ -110,11 +124,10 @@ case $machine in
 
     export ptmp="${ptmp:-/scratch1/NCEPDEV/stmp2/$LOGNAME/$ptmpName}"
 
-##  export fixcrtm="${fixcrtm:-/scratch1/NCEPDEV/da/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update}"
+##  export fixcrtm="${CRTM_FIX:-/scratch1/NCEPDEV/da/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update}"
     export casesdir="/scratch1/NCEPDEV/da/Russ.Treadon/CASES/regtest"
 
     export check_resource="no"
-
     export accnt="${accnt:-da-cpu}"
 
     #  On Hera, there are no scrubbers to remove old contents from stmp* directories.

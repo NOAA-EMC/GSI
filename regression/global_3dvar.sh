@@ -288,13 +288,6 @@ $nln $datens/$member/${prefix_ges}.atmf009.nc         ./sigf09
 $nln $datens/${prefix_ens}.sfcf006.ensmean.nc         ./sfcf06_anlgrid
 
  
-# Copy CRTM coefficient files based on entries in satinfo file
-for file in `awk '{if($1!~"!"){print $1}}' ./satinfo | sort | uniq` ;do
-    $ncp $fixcrtm/${file}.SpcCoeff.bin ./
-    $ncp $fixcrtm/${file}.TauCoeff.bin ./
-done
-
-
 listdiag=`tar xvf radstat.gdas | cut -d' ' -f2 | grep _ges`
 for type in $listdiag; do
    diag_file=`echo $type | cut -d',' -f1`
@@ -306,7 +299,6 @@ for type in $listdiag; do
 done
 
 # Run GSI
-cd $tmpdir
 echo "run gsi now"
 eval "$APRUN $tmpdir/gsi.x > stdout 2>&1"
 rc=$?
