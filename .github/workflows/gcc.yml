@@ -8,7 +8,7 @@ defaults:
     shell: bash -leo pipefail {0}
 
 env:
-  compiler_key: gcc
+  cache_key: gcc
   CC: gcc-10
   FC: gfortran-10
   CXX: g++-10
@@ -34,12 +34,12 @@ jobs:
       # Cache spack, compiler and dependencies
       - name: cache-env
         id: cache-env
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             spack
             ~/.spack
-          key: spack-${{ runner.os }}-${{ env.compiler_key }}-${{ hashFiles('GSI/ci/spack.yaml') }}
+          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles('GSI/ci/spack.yaml') }}
 
       # Install dependencies using Spack
       - name: install-dependencies-with-spack
@@ -69,21 +69,22 @@ jobs:
 
       - name: cache-env
         id: cache-env
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             spack
             ~/.spack
-          key: spack-${{ runner.os }}-${{ env.compiler_key }}-${{ hashFiles('GSI/ci/spack.yaml') }}
+          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles('GSI/ci/spack.yaml') }}
 
       - name: build-gsi
         run: |
           source spack/share/spack/setup-env.sh
           spack env activate gsi-env
-          export CC=mpicc
-          export FC=mpif90
           cd GSI
           mkdir -p build && cd build
           cmake -DCMAKE_INSTALL_PREFIX=../install -DGSI_MODE=Regional -DENKF_MODE=GFS -DBUILD_REG_TESTING=OFF ..
           make -j2 VERBOSE=1
           make install
+        env:
+          CC: mpicc
+          FC: mpif90
