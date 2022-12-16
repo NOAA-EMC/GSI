@@ -770,9 +770,17 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
                 mype,nfldsig)
           call tintrp2a11(pm25wc(:,:,:,2,nfldsig),pm25wc_ges(2),dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
-          pm25wc_ges = 0.0_r_kind
-          if (pm25wc_ges(1) >= 1.0_r_kind) pm25wc_ges(1)=1.0_r_kind
-          if (pm25wc_ges(2) >= 1.0_r_kind) pm25wc_ges(2)=1.0_r_kind
+
+          if (pm25wc_ges(1) >= 1.0_r_kind) then
+            pm25wc_ges(1)=1.0_r_kind
+          else
+            pm25wc_ges(2)=0.0_r_kind
+          end if
+          if (pm25wc_ges(2) >= 1.0_r_kind) then
+            pm25wc_ges(2)=1.0_r_kind
+          else
+            pm25wc_ges(2)=0.0_r_kind
+          end if
         else
           pm25wc_ges = 0.0_r_kind
         end if

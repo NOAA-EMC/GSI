@@ -92,8 +92,8 @@ contains
     real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8
 ! real(r_kind) penalty
     real(r_kind) cg_pm2_5,val,p0,grad,wnotgross,wgross,pm2_5_pg
-    real(r_kind),pointer,dimension(:) :: spm2_5
-    real(r_kind),pointer,dimension(:) :: rpm2_5
+    real(r_kind),pointer,dimension(:) :: spm2_5,sdust
+    real(r_kind),pointer,dimension(:) :: rpm2_5,rdust
     type(pm2_5Node), pointer :: pm2_5ptr
 
     character(len=max_varname_length) :: aeroname
@@ -310,6 +310,21 @@ contains
 
    if (laeroana_fv3smoke) then
        !pm2_5ptr => pm2_5head
+       ier=0
+       iaero=1
+       aeroname=aeronames_smoke_fv3(iaero) !'smoke'
+       call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus);ier=istatus+ier
+       call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus);ier=istatus+ier
+       iaero=2
+       aeroname=aeronames_smoke_fv3(iaero) !'dust'
+       call gsi_bundlegetpointer(sval,trim(aeroname),sdust,istatus);ier=istatus+ier
+       call gsi_bundlegetpointer(rval,trim(aeroname),rdust,istatus);ier=istatus+ier
+
+       if (istatus /= 0) then
+          write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',aeronames_smoke_fv3(1:2) 
+          call stop2(454)
+       endif
+
        pm2_5ptr => pm2_5Node_typecast(pm2_5head)
        do while (associated(pm2_5ptr))
           j1=pm2_5ptr%ij(1)
@@ -330,36 +345,15 @@ contains
           w8=pm2_5ptr%wij(8)
 
           iaero=1
-          aeroname=aeronames_smoke_fv3(iaero) !'smoke'
-          call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
-          if (istatus /= 0) then
-             write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ', aeroname
-             call stop2(454)
-          endif
-
-          val= w1* spm2_5(j1)+w2* spm2_5(j2)+ &
-               w3* spm2_5(j3)+w4* spm2_5(j4)+ &
-               w5* spm2_5(j5)+w6* spm2_5(j6)+ &
-               w7* spm2_5(j7)+w8* spm2_5(j8)
-          val= val*pm2_5ptr%pm25wc(iaero)
-
-          nullify(spm2_5)
-
-          do iaero=2, naero_smoke_fv3
-          aeroname=aeronames_smoke_fv3(iaero)
-          call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
-          if (istatus /= 0) then
-             write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',aeroname
-             call stop2(454)
-          endif
-          val=(w1* spm2_5(j1)+w2* spm2_5(j2)+ &
-               w3* spm2_5(j3)+w4* spm2_5(j4)+ &
-               w5* spm2_5(j5)+w6* spm2_5(j6)+ &
-               w7* spm2_5(j7)+w8* spm2_5(j8))*pm2_5ptr%pm25wc(iaero) + val
-
-          nullify(spm2_5)
-          end do !iaero
-
+          val= (w1*spm2_5(j1)+w2*spm2_5(j2)+ &
+                w3*spm2_5(j3)+w4*spm2_5(j4)+ &
+                w5*spm2_5(j5)+w6*spm2_5(j6)+ &
+                w7*spm2_5(j7)+w8*spm2_5(j8))*pm2_5ptr%pm25wc(iaero)
+          iaero=2
+          val= (w1*sdust(j1)+w2*sdust(j2)+ &
+                w3*sdust(j3)+w4*sdust(j4)+ &
+                w5*sdust(j5)+w6*sdust(j6)+ &
+                w7*sdust(j7)+w8*sdust(j8))*pm2_5ptr%pm25wc(iaero)+ val
 
           if(luse_obsdiag)then
              if (lsaveobsens) then
@@ -396,32 +390,36 @@ contains
              endif
 
 !           adjoint
-            do iaero=1, naero_smoke_fv3
-               aeroname = aeronames_smoke_fv3(iaero)
-               call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus)
-               if (istatus /= 0) then
-                 write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',aeroname
-                 call stop2(455)
-               endif
-
-               rpm2_5(j1)=rpm2_5(j1)+w1*grad*pm2_5ptr%pm25wc(iaero)
-               rpm2_5(j2)=rpm2_5(j2)+w2*grad*pm2_5ptr%pm25wc(iaero)
-               rpm2_5(j3)=rpm2_5(j3)+w3*grad*pm2_5ptr%pm25wc(iaero)
-               rpm2_5(j4)=rpm2_5(j4)+w4*grad*pm2_5ptr%pm25wc(iaero)
-               rpm2_5(j5)=rpm2_5(j5)+w5*grad*pm2_5ptr%pm25wc(iaero)
-               rpm2_5(j6)=rpm2_5(j6)+w6*grad*pm2_5ptr%pm25wc(iaero)
-               rpm2_5(j7)=rpm2_5(j7)+w7*grad*pm2_5ptr%pm25wc(iaero)
-               rpm2_5(j8)=rpm2_5(j8)+w8*grad*pm2_5ptr%pm25wc(iaero)
-               nullify(rpm2_5)
-            end do ! iaero
-          endif
+             iaero=1
+             rpm2_5(j1)=rpm2_5(j1)+w1*grad*pm2_5ptr%pm25wc(iaero)
+             rpm2_5(j2)=rpm2_5(j2)+w2*grad*pm2_5ptr%pm25wc(iaero)
+             rpm2_5(j3)=rpm2_5(j3)+w3*grad*pm2_5ptr%pm25wc(iaero)
+             rpm2_5(j4)=rpm2_5(j4)+w4*grad*pm2_5ptr%pm25wc(iaero)
+             rpm2_5(j5)=rpm2_5(j5)+w5*grad*pm2_5ptr%pm25wc(iaero)
+             rpm2_5(j6)=rpm2_5(j6)+w6*grad*pm2_5ptr%pm25wc(iaero)
+             rpm2_5(j7)=rpm2_5(j7)+w7*grad*pm2_5ptr%pm25wc(iaero)
+             rpm2_5(j8)=rpm2_5(j8)+w8*grad*pm2_5ptr%pm25wc(iaero)
+             iaero=2
+             rdust(j1)=rdust(j1)+w1*grad*pm2_5ptr%pm25wc(iaero)
+             rdust(j2)=rdust(j2)+w2*grad*pm2_5ptr%pm25wc(iaero)
+             rdust(j3)=rdust(j3)+w3*grad*pm2_5ptr%pm25wc(iaero)
+             rdust(j4)=rdust(j4)+w4*grad*pm2_5ptr%pm25wc(iaero)
+             rdust(j5)=rdust(j5)+w5*grad*pm2_5ptr%pm25wc(iaero)
+             rdust(j6)=rdust(j6)+w6*grad*pm2_5ptr%pm25wc(iaero)
+             rdust(j7)=rdust(j7)+w7*grad*pm2_5ptr%pm25wc(iaero)
+             rdust(j8)=rdust(j8)+w8*grad*pm2_5ptr%pm25wc(iaero)
+          endif ! l_do_adjoint
 
           pm2_5ptr => pm2_5Node_nextcast(pm2_5ptr)
 
        end do
 
+       nullify(spm2_5)
+       nullify(rpm2_5)
+       nullify(sdust)
+       nullify(rdust)
 
-    end if
+    end if ! laeroana_fv3smoke
 
     if (wrf_mass_regional .and. laeroana_gocart) then
 
