@@ -68,8 +68,6 @@ datens=$COMROOTgfs/enkfgdas.$PDYg/${cycg}/atmos
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
-rm -rf core*
-
 
 # Make enkf namelist
 export USE_CORRELATED_OBERRS=${USE_CORRELATED_OBERRS:-"NO"}

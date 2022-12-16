@@ -69,7 +69,6 @@ datens=$COMROOTgfs/enkfgdas.$PDYg/${cycg}/atmos
 rm -rf $tmpdir
 mkdir -p $tmpdir
 cd $tmpdir
-rm -rf core*
 
 # Make gsi namelist
 
@@ -178,7 +177,7 @@ if grep -q "Rcov" $anavinfo ;
 then
   if ls ${fixgsi}/Rcov* 1> /dev/null 2>&1;
   then
-    $ncp ${fixgsi}/Rcov* $DATA
+    $ncp ${fixgsi}/Rcov* $tmpdir
 
 #   Correlated error utlizes mkl lapack.  Found it necesary to fix the
 #   number of mkl threads to ensure reproducible results independent
@@ -213,7 +212,7 @@ $nln $emiscoef_MWwater  ${CRTM_PATH}FASTEM6.MWwater.EmisCoeff.bin
 $nln $aercoef           ${CRTM_PATH}AerosolCoeff.bin
 $nln $cldcoef           ${CRTM_PATH}CloudCoeff.bin
 
-# Copy observational data to $DATA
+# Copy observational data
 $nln $datobs/${prefix_obs}.prepbufr                ./prepbufr
 $nln $datobs/${prefix_obs}.prepbufr.acft_profiles  ./prepbufr_profl
 $nln $datobs/${prefix_obs}.nsstbufr                ./nsstbufr
