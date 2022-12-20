@@ -4315,8 +4315,6 @@
   ! Need to make sure the analysis value is not negative
   ! Read in background + increment and make sure the minimum is qcmin
   ! Adjust increment accordingly
-  ! ToDo #1: check o3, should do the same
-  ! ToDo #2: add handling for Thompson scheme (imp_physics: 8) 
 
   ! liq wat increment
   ! icmr increment
