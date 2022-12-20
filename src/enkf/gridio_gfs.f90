@@ -292,8 +292,7 @@
      end if
   endif
 
-  ! ToDo: add handling for Thompson Scheme (imp_physcs: 8)
-  ! Raed in hydrometeor fields based on control/state variables listed in anavinfo table 
+  ! Read in hydrometeor fields based on control/state variables listed in anavinfo table 
   if (use_full_hydro) then 
      if(ql_ind > 0) then
         call read_vardata(dset, 'clwmr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
