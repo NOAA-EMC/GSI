@@ -579,8 +579,6 @@
   iunitsig = 77
   filename = trim(adjustl(datapath))//trim(adjustl(fileprefixes(nb)))//trim(charnanal)
   filenamesfc = trim(adjustl(datapath))//trim(adjustl(filesfcprefixes(nb)))//trim(charnanal)
-
-
   if (use_gfs_nemsio) then
      call nemsio_init(iret=iret)
      if(iret/=0) then
