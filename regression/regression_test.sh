@@ -8,10 +8,6 @@ exp1=$1
 exp2=$3
 exp3=$2
 
-#exp1=$global_T62_updat_exp1
-#exp2=$global_T62_contrl_exp1
-#exp3=$global_T62_updat_exp2
-
 input=$5
 
 #input=tmp62
@@ -72,9 +68,6 @@ diff penalty.$exp1.txt penalty.$exp3.txt > penalty.${exp1}-${exp3}.txt
 # Give location of additional output files for scalability testing
 exp1_scale=$2
 exp2_scale=$4
-
-#exp1_scale=$global_T62_updat_exp2
-#exp2_scale=$global_T62_contrl_exp2
 
 # Copy stdout for additional scalability testing
 list="$exp1_scale $exp2_scale"
