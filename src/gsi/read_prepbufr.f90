@@ -1918,9 +1918,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! CSD - temporary hack ( move to prepbufr pre-processing later)
 !             Over-ride QM=9 for sfc obs 
               if (sfctype .and. hofx_2m_sfcfile ) then 
-                if (tob) then!hardwire 187 obs error to 1.2 for now
+                if (tob) then!hardwire 181/183/187 obs error to 1.2 for now
                   tqm(k)=2
-                  obserr(3,k)=1.2
+                  if (kx==187) obserr(3,k)=2.2585
+                  if (kx==181) obserr(3,k)=1.5056
+                  if (kx==183) obserr(3,k)=2.6349
                 endif
                 if (tob .and. qm == 9 ) qm = 2 ! 2=not checked
                 if (qob .and. qm == 9 ) qm = 2 ! 2=not checked
