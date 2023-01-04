@@ -737,10 +737,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     ! may result in lack of obs near coasts) 
           if (int(data(idomsfc,i)) .NE. 1  ) muse(i) = .false. 
 
-          !write(60000+mype,*) 'first tges2m,',tges2m, 'itype',itype !gge.debug
           call tintrp2a11(ges_t2m,tges2m,dlat,dlon,dtime,hrdifsig,&
             mype,nfldsig)
-          !write(60000+mype,*) 'after tges2m',tges2m !gge.debug
 
 ! correct obs to model terrain height - equivalent to gsd_terrain_match, which  uses lapse rate 
 ! calculated from model levels. For now, use standard lapse rate, then look
@@ -902,7 +900,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 
 ! Compute innovation
-     !write(60000+mype,*) 'type=',data(icat,i),'tob=',tob, 'tges2m=',tges2m,'tges=',tges !gge.debug
      !if(i_use_2mt4b>0 .and. sfctype) then
      if(sfctype .and. (( i_use_2mt4b>0) .or. hofx_2m_sfcfile ) ) then
         ddiff = tob-tges2m
@@ -922,7 +919,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        endif
      endif
 
-     !write(60000+mype,*) 'org=',data(ier2,i),'modified=',data(ier,i),'error=',error!gge.debug
      error=one/error
 !    if (dpres > rsig) ratio_errors=zero
      if (dpres > rsig )then
@@ -1038,7 +1034,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      if (nobskeep>0 .and. luse_obsdiag) call obsdiagNode_get(my_diag, jiter=nobskeep, muse=muse(i))
 
 !    Oberror Tuning and Perturb Obs
-     !write(60000+mype,*) 'muse(i)=',muse(i),'ratio_errors=', ratio_errors !gge.debug
      if(muse(i)) then
         if(oberror_tune )then
            if( jiter > jiterstart ) then
@@ -1051,8 +1046,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 !    Compute penalty terms
      val      = error*ddiff
-     !write(60000+mype,*) 'val=',val,'error=',error,'ddiff=',ddiff !gge.debug
-     !stop! gge.debug
      if(nvqc .and. ibeta(ikx) >0  ) ratio_errors=0.8_r_kind*ratio_errors
      if(luse(i))then
         val2     = val*val
