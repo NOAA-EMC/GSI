@@ -468,582 +468,206 @@ OBS_INPUT::
 "
 ;;
 
-arw_binary)
+    rrfs_3denvar_glbens)
 
-# Define namelist for arw binary run
-
-export gsi_namelist="
-
- &SETUP
-   miter=2,niter(1)=2,niter(2)=1,
-   write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
-   gencode=78,qoption=2,
-   factqmin=0.0,factqmax=0.0,deltim=$DELTIM,
-   iguess=-1,
-   oneobtest=.false.,retrieval=.false.,
-   nhr_assimilation=3,l_foto=.false.,
-   use_pbl=.false.,use_compress=.false.,nsig_ext=13,gpstop=30.,
-   lrun_subdirs=.true.,
-   $SETUP
- /
- &GRIDOPTS
-   JCAP=$JCAP,NLAT=$NLAT,NLON=$LONA,nsig=$LEVS,
-   wrf_nmm_regional=.false.,wrf_mass_regional=.true.,diagnostic_reg=.false.,
-   filled_grid=.false.,half_grid=.true.,netcdf=$NETCDF,
- /
- &BKGERR
-   hzscl=0.373,0.746,1.50,
-   vs=1.0,bw=0.,fstat=.true.,
- /
- &ANBKGERR
-   anisotropic=.false.,an_vs=1.0,ngauss=1,
-   an_flen_u=-5.,an_flen_t=3.,an_flen_z=-200.,
-   ifilt_ord=2,npass=3,normal=-200,grid_ratio=4.,nord_f2a=4,
- /
- &JCOPTS
- /
- &STRONGOPTS
-   tlnmc_option=0,nstrong=0,nvmodes_keep=20,period_max=3.,
-   baldiag_full=.true.,baldiag_inc=.true.,
- /
- &OBSQC
-   dfact=0.75,dfact1=3.0,noiqc=.true.,c_varqc=0.02,vadfile='prepbufr',njqc=.false.,vqc=.true.,
- /
- &OBS_INPUT
-   dmesh(1)=1200.0,dmesh(2)=2000.0,dmesh(3)=2500.0,dmesh(4)=1000.0,time_window_max=0.5,
- /
-OBS_INPUT::
-!  dfile        dtype           dplat       dsis                  dval   dthin dsfcalc
-   prepbufr         ps          null        ps                    0.0     0     0
-   prepbufr         t           null        t                     0.0     0     0
-   prepbufr         q           null        q                     0.0     0     0
-   prepbufr         uv          null        uv                    0.0     0     0
-   satwndbufr       uv          null        uv                    0.0     0     0
-   prepbufr         spd         null        spd                   0.0     0     0
-   radarbufr        rw          null        rw                    0.0     0     0
-   prepbufr         dw          null        dw                    0.0     0     0
-   prepbufr         sst         null        sst                   0.0     0     0
-   prepbufr         pw          null        pw                    0.0     0     0
-   gpsrobufr        $gps_dtype  null        gps                   0.0     0     0
-   ssmirrbufr       pcp_ssmi    dmsp        pcp_ssmi              0.0    -1     0
-   tmirrbufr        pcp_tmi     trmm        pcp_tmi               0.0    -1     0
-   sbuvbufr         sbuv2       n16         sbuv8_n16             0.0     0     0
-   sbuvbufr         sbuv2       n17         sbuv8_n17             0.0     0     0
-   sbuvbufr         sbuv2       n18         sbuv8_n18             0.0     0     0
-   omi              omi         aura        omi_aura              0.0     4     0
-   hirs2bufr        hirs2       n14         hirs2_n14             0.0     1     1
-   hirs3bufr        hirs3       n16         hirs3_n16             0.0     1     1
-   hirs3bufr        hirs3       n17         hirs3_n17             0.0     1     1
-   hirs4bufr        hirs4       n18         hirs4_n18             0.0     1     1
-   hirs4bufr        hirs4       metop-a     hirs4_metop-a         0.0     1     1
-   gsndrbufr        sndr        g11         sndr_g11              0.0     1     0
-   gsndrbufr        sndr        g12         sndr_g12              0.0     1     0
-   gimgrbufr        goes_img    g11         imgr_g11              0.0     1     0
-   gimgrbufr        goes_img    g12         imgr_g12              0.0     1     0
-   airsbufr         airs        aqua        airs_aqua             0.0     2     1
-   msubufr          msu         n14         msu_n14               0.0     1     1
-   amsuabufr        amsua       n15         amsua_n15             0.0     1     1
-   amsuabufr        amsua       n16         amsua_n16             0.0     1     1
-   amsuabufr        amsua       n17         amsua_n17             0.0     1     1
-   amsuabufr        amsua       n18         amsua_n18             0.0     1     1
-   amsuabufr        amsua       metop-a     amsua_metop-a         0.0     1     1
-   airsbufr         amsua       aqua        amsua_aqua            0.0     1     1
-   amsubbufr        amsub       n15         amsub_n15             0.0     1     1
-   amsubbufr        amsub       n16         amsub_n16             0.0     1     1
-   amsubbufr        amsub       n17         amsub_n17             0.0     1     1
-   mhsbufr          mhs         n18         mhs_n18               0.0     1     1
-   mhsbufr          mhs         metop-a     mhs_metop-a           0.0     1     1
-   ssmitbufr        ssmi        f13         ssmi_f13              0.0     1     0
-   ssmitbufr        ssmi        f15         ssmi_f15              0.0     1     0
-   amsrebufr        amsre_low   aqua        amsre_aqua            0.0     1     1
-   amsrebufr        amsre_mid   aqua        amsre_aqua            0.0     1     1
-   amsrebufr        amsre_hig   aqua        amsre_aqua            0.0     1     1
-   ssmisbufr        ssmis       f16         ssmis_f16             0.0     1     1
-   gsnd1bufr_skip   sndrd1      g12         sndrD1_g12            0.0     1     0
-   gsnd1bufr        sndrd2      g12         sndrD2_g12            0.0     1     0
-   gsnd1bufr_skip   sndrd3      g12         sndrD3_g12            0.0     1     0
-   gsnd1bufr_skip   sndrd4      g12         sndrD4_g12            0.0     1     0
-   gsnd1bufr_skip   sndrd1      g11         sndrD1_g11            0.0     1     0
-   gsnd1bufr_skip   sndrd2      g11         sndrD2_g11            0.0     1     0
-   gsnd1bufr        sndrd3      g11         sndrD3_g11            0.0     1     0
-   gsnd1bufr_skip   sndrd4      g11         sndrD4_g11            0.0     1     0
-   gsnd1bufr_skip   sndrd1      g13         sndrD1_g13            0.0     1     0
-   gsnd1bufr_skip   sndrd2      g13         sndrD2_g13            0.0     1     0
-   gsnd1bufr_skip   sndrd3      g13         sndrD3_g13            0.0     1     0
-   gsnd1bufr_skip   sndrd4      g13         sndrD4_g13            0.0     1     0
-   iasibufr         iasi        metop-a     iasi_metop-a          0.0     3     1
-   gomebufr         gome        metop-a     gome_metop-a          0.0     4     0
-   mlsbufr          mls30       aura        mls30_aura            1.0     0     0
-   ompsnpbufr       ompsnp      npp       ompsnp_npp          0.0     0     0
-   ompstcbufr       ompstc8     npp       ompstc8_npp         0.0     4     0
-::
- &SUPEROB_RADAR
-   del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000.,
-   l2superob_only=.false.,
- /
- &LAG_DATA
- /
- &HYBRID_ENSEMBLE
-   l_hyb_ens=${HYBENS_REGIONAL},
-   n_ens=${ENSEMBLE_SIZE_REGIONAL},
-   uv_hyb_ens=${HYBENS_UV_REGIONAL},
-   beta_s0=${BETA_S0_REGIONAL},
-   readin_beta=.false.,
-   s_ens_h=${HYBENS_HOR_SCALE_REGIONAL},
-   s_ens_v=${HYBENS_VER_SCALE_REGIONAL},
-   generate_ens=${GENERATE_ENS_REGIONAL},
-   aniso_a_en=${HYBENS_ANISO_REGIONAL},
-   nlon_ens=${NLON_ENS_REGIONAL},
-   nlat_ens=${NLAT_ENS_REGIONAL},
-   jcap_ens=${JCAP_ENS_REGIONAL},
-   jcap_ens_test=${JCAP_ENS_TEST_REGIONAL},
- /
- &RAPIDREFRESH_CLDSURF
-   dfi_radar_latent_heat_time_period=30.0,
- /
- &CHEM
- /
- &SINGLEOB_TEST
-   maginnov=0.1,magoberr=0.1,oneob_type='t',
-   oblat=45.,oblon=270.,obpres=850.,obdattim=${adate},
-   obhourset=0.,
- 
- &NST
- /
-"
-;;
-
-arw_netcdf)
-
-# Define namelist for arw netcdf run
+# Define namelist for rrfs 3d hybrid envar run with global ensembles
 
 export gsi_namelist="
 
  &SETUP
-   miter=2,niter(1)=2,niter(2)=1,
+   miter=1,niter(1)=2,niter(2)=2,
    write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
-   gencode=78,qoption=2,
-   factqmin=0.0,factqmax=0.0,deltim=$DELTIM,
+   qoption=2,print_obs_para=.true.,diag_radardbz=.false.,
+   if_model_dbz=.false., static_gsi_nopcp_dbz=0.0,
+   rmesh_dbz=4.0,rmesh_vr=4.0,zmesh_dbz=1000.0,zmesh_vr=1000.0,
+   missing_to_nopcp=.false.,radar_no_thinning=.true.,
+   gencode=78,factqmin=0.0,factqmax=0.0,
    iguess=-1,
+   lread_obs_save=.false.,lread_obs_skip=.false.,
    oneobtest=.false.,retrieval=.false.,
    nhr_assimilation=3,l_foto=.false.,
-   use_pbl=.false.,use_compress=.false.,nsig_ext=13,gpstop=30.,
-   lrun_subdirs=.true.,
-   $SETUP
+   use_pbl=.false.,use_prepb_satwnd=.false.,
+   newpc4pred=.true.,adp_anglebc=.true.,angord=4,
+   passive_bc=.true.,use_edges=.false.,emiss_bc=.true.,
+   diag_precon=.true.,step_start=1.e-3,
+   l4densvar=.false.,nhr_obsbin=3,
+   use_gfs_nemsio=.false.,use_gfs_ncio=.true.,reset_bad_radbc=.true.,
+   netcdf_diag=.false.,binary_diag=.true.,
+   l_obsprvdiag=.false.,
  /
  &GRIDOPTS
-   JCAP=$JCAP,JCAP_B=$JCAP_B,NLAT=$NLAT,NLON=$LONA,nsig=$LEVS,
-   wrf_nmm_regional=.false.,wrf_mass_regional=.true.,diagnostic_reg=.false.,
-   filled_grid=.false.,half_grid=.true.,netcdf=$NETCDF,
+   fv3_regional=.true.,grid_ratio_fv3_regional=2.0,nvege_type=20,
+   fv3_io_layout_y=1,
  /
  &BKGERR
-   hzscl=0.373,0.746,1.50,
-   vs=1.0,bw=0.,fstat=.true.,
- /
+   vs=1.0,
+   hzscl=0.7,1.4,2.80,
+   bw=0.,fstat=.true.,
+   usenewgfsberror=.true.,
+/
  &ANBKGERR
-   anisotropic=.false.,an_vs=1.0,ngauss=1,
-   an_flen_u=-5.,an_flen_t=3.,an_flen_z=-200.,
-   ifilt_ord=2,npass=3,normal=-200,grid_ratio=4.,nord_f2a=4,
+   anisotropic=.false.,
  /
  &JCOPTS
  /
  &STRONGOPTS
-   tlnmc_option=0,nstrong=0,nvmodes_keep=20,period_max=3.,
-   baldiag_full=.true.,baldiag_inc=.true.,
  /
  &OBSQC
-   dfact=0.75,dfact1=3.0,noiqc=.true.,c_varqc=0.02,vadfile='prepbufr',njqc=.false.,vqc=.true.,
+   dfact=0.75,dfact1=3.0,noiqc=.false.,c_varqc=0.02,vadfile='prepbufr',
+   vadwnd_l2rw_qc=.true.,
  /
  &OBS_INPUT
-   dmesh(1)=1200.0,dmesh(2)=3000.0,dmesh(3)=4000.0,dmesh(4)=1000.0,time_window_max=0.5,
+   dmesh(1)=120.0,dmesh(2)=60.0,dmesh(3)=30,time_window_max=1.5,time_window_rad=1.0,ext_sonde=.true.,
  /
 OBS_INPUT::
-!  dfile        dtype           dplat       dsis                  dval   dthin dsfcalc
-   prepbufr         ps          null        ps                    0.0     0     0
-   prepbufr         t           null        t                     0.0     0     0
-   prepbufr         q           null        q                     0.0     0     0
-   prepbufr         uv          null        uv                    0.0     0     0
-   satwndbufr       uv          null        uv                    0.0     0     0
-   prepbufr         spd         null        spd                   0.0     0     0
-   radarbufr        rw          null        rw                    0.0     0     0
-   prepbufr         dw          null        dw                    0.0     0     0
-   prepbufr         sst         null        sst                   0.0     0     0
-   prepbufr         pw          null        pw                    0.0     0     0
-   gpsrobufr        $gps_dtype  null        gps                   0.0     0     0
-   ssmirrbufr       pcp_ssmi    dmsp        pcp_ssmi              0.0    -1     0
-   tmirrbufr        pcp_tmi     trmm        pcp_tmi               0.0    -1     0
-   sbuvbufr         sbuv2       n16         sbuv8_n16             0.0     0     0
-   sbuvbufr         sbuv2       n17         sbuv8_n17             0.0     0     0
-   sbuvbufr         sbuv2       n18         sbuv8_n18             0.0     0     0
-   omi              omi         aura        omi_aura              0.0     4     0
-   hirs2bufr        hirs2       n14         hirs2_n14             0.0     1     1
-   hirs3bufr        hirs3       n16         hirs3_n16             0.0     1     1
-   hirs3bufr_skip   hirs3       n17         hirs3_n17             0.0     1     1
-   hirs4bufr        hirs4       n18         hirs4_n18             0.0     1     1
-   hirs4bufr        hirs4       metop-a     hirs4_metop-a         0.0     1     1
-   gsndrbufr        sndr        g11         sndr_g11              0.0     1     0
-   gsndrbufr        sndr        g12         sndr_g12              0.0     1     0
-   gimgrbufr        goes_img    g11         imgr_g11              0.0     1     0
-   gimgrbufr        goes_img    g12         imgr_g12              0.0     1     0
-   airsbufr         airs        aqua        airs_aqua             0.0     2     1
-   msubufr          msu         n14         msu_n14               0.0     1     1
-   amsuabufr_skip   amsua       n15         amsua_n15             0.0     1     1
-   amsuabufr        amsua       n16         amsua_n16             0.0     1     1
-   amsuabufr        amsua       n17         amsua_n17             0.0     1     1
-   amsuabufr_skip   amsua       n18         amsua_n18             0.0     1     1
-   amsuabufr        amsua       metop-a     amsua_metop-a         0.0     1     1
-   airsbufr_skip    amsua       aqua        amsua_aqua            0.0     1     1
-   amsubbufr        amsub       n15         amsub_n15             0.0     1     1
-   amsubbufr        amsub       n16         amsub_n16             0.0     1     1
-   amsubbufr        amsub       n17         amsub_n17             0.0     1     1
-   mhsbufr_skip     mhs         n18         mhs_n18               0.0     1     1
-   mhsbufr          mhs         metop-a     mhs_metop-a           0.0     1     1
-   ssmitbufr        ssmi        f13         ssmi_f13              0.0     1     0
-   ssmitbufr        ssmi        f15         ssmi_f15              0.0     1     0
-   amsrebufr        amsre_low   aqua        amsre_aqua            0.0     1     1
-   amsrebufr        amsre_mid   aqua        amsre_aqua            0.0     1     1
-   amsrebufr        amsre_hig   aqua        amsre_aqua            0.0     1     1
-   ssmisbufr        ssmis       f16         ssmis_f16             0.0     1     1
-   gsnd1bufr_skip   sndrd1      g12         sndrD1_g12            0.0     1     0
-   gsnd1bufr        sndrd2      g12         sndrD2_g12            0.0     1     0
-   gsnd1bufr_skip   sndrd3      g12         sndrD3_g12            0.0     1     0
-   gsnd1bufr_skip   sndrd4      g12         sndrD4_g12            0.0     1     0
-   gsnd1bufr_skip   sndrd1      g11         sndrD1_g11            0.0     1     0
-   gsnd1bufr_skip   sndrd2      g11         sndrD2_g11            0.0     1     0
-   gsnd1bufr_skip   sndrd3      g11         sndrD3_g11            0.0     1     0
-   gsnd1bufr_skip   sndrd4      g11         sndrD4_g11            0.0     1     0
-   gsnd1bufr_skip   sndrd1      g13         sndrD1_g13            0.0     1     0
-   gsnd1bufr_skip   sndrd2      g13         sndrD2_g13            0.0     1     0
-   gsnd1bufr_skip   sndrd3      g13         sndrD3_g13            0.0     1     0
-   gsnd1bufr_skip   sndrd4      g13         sndrD4_g13            0.0     1     0
-   iasibufr         iasi        metop-a     iasi_metop-a          0.0     3     1
-   gomebufr         gome        metop-a     gome_metop-a          0.0     4     0
-   mlsbufr          mls30       aura        mls30_aura            1.0     0     0
-   ompsnpbufr       ompsnp      npp         ompsnp_npp            0.0     0     0
-   ompstcbufr       ompstc8     npp         ompstc8_npp           0.0     4     0
+!  dfile          dtype       dplat     dsis                 dval    dthin dsfcalc
+   dbzobs.nc      dbz         null      dbz                  1.0     0     0
+   prepbufr       ps          null      ps                   1.0     0     0
+   prepbufr       t           null      t                    1.0     0     0
+   prepbufr       q           null      q                    1.0     0     0
+   prepbufr       pw          null      pw                   1.0     0     0
+   satwndbufr     uv          null      uv                   1.0     0     0
+   prepbufr       uv          null      uv                   1.0     0     0
+   prepbufr       spd         null      spd                  1.0     0     0
+   prepbufr       dw          null      dw                   1.0     0     0
+   l2rwbufr       rw          null      l2rw                 1.0     0     0
+   prepbufr       sst         null      sst                  1.0     0     0
+   gpsrobufr      gps_ref     null      gps                  1.0     0     0
+   ssmirrbufr     pcp_ssmi    dmsp      pcp_ssmi             1.0    -1     0
+   tmirrbufr      pcp_tmi     trmm      pcp_tmi              1.0    -1     0
+   sbuvbufr       sbuv2       n16       sbuv8_n16            0.0     0     0
+   sbuvbufr       sbuv2       n17       sbuv8_n17            0.0     0     0
+   sbuvbufr       sbuv2       n18       sbuv8_n18            0.0     0     0
+   hirs3bufr      hirs3       n16       hirs3_n16            0.0     1     0
+   hirs3bufr      hirs3       n17       hirs3_n17            0.0     1     0
+   hirs4bufr      hirs4       metop-a   hirs4_metop-a        0.0     2     0
+   hirs4bufr      hirs4       n18       hirs4_n18            0.0     1     0
+   hirs4bufr      hirs4       n19       hirs4_n19            0.0     2     0
+   hirs4bufr      hirs4       metop-b   hirs4_metop-b        0.0     2     0
+   gimgrbufr      goes_img    g11       imgr_g11             0.0     1     0
+   gimgrbufr      goes_img    g12       imgr_g12             0.0     1     0
+   airsbufr       airs        aqua      airs_aqua            0.0     2     0
+   amsuabufr      amsua       n15       amsua_n15            0.0     2     0
+   amsuabufr      amsua       n18       amsua_n18            0.0     2     0
+   amsuabufr      amsua       n19       amsua_n19            0.0     2     0
+   amsuabufr      amsua       metop-a   amsua_metop-a        0.0     2     0
+   amsuabufr      amsua       metop-b   amsua_metop-b        0.0     2     0
+   airsbufr       amsua       aqua      amsua_aqua           0.0     2     0
+   amsubbufr      amsub       n17       amsub_n17            0.0     1     0
+   mhsbufr        mhs         n18       mhs_n18              0.0     2     0
+   mhsbufr        mhs         n19       mhs_n19              0.0     2     0
+   mhsbufr        mhs         metop-a   mhs_metop-a          0.0     2     0
+   mhsbufr        mhs         metop-b   mhs_metop-b          0.0     2     0
+   ssmitbufr      ssmi        f13       ssmi_f13             0.0     2     0
+   ssmitbufr      ssmi        f14       ssmi_f14             0.0     2     0
+   ssmitbufr      ssmi        f15       ssmi_f15             0.0     2     0
+   amsrebufr      amsre_low   aqua      amsre_aqua           0.0     2     0
+   amsrebufr      amsre_mid   aqua      amsre_aqua           0.0     2     0
+   amsrebufr      amsre_hig   aqua      amsre_aqua           0.0     2     0
+   ssmisbufr      ssmis       f16       ssmis_f16            0.0     2     0
+   ssmisbufr      ssmis       f17       ssmis_f17            0.0     2     0
+   ssmisbufr      ssmis       f18       ssmis_f18            0.0     2     0
+   ssmisbufr      ssmis       f19       ssmis_f19            0.0     2     0
+   gsnd1bufr      sndrd1      g12       sndrD1_g12           0.0     1     0
+   gsnd1bufr      sndrd2      g12       sndrD2_g12           0.0     1     0
+   gsnd1bufr      sndrd3      g12       sndrD3_g12           0.0     1     0
+   gsnd1bufr      sndrd4      g12       sndrD4_g12           0.0     1     0
+   gsnd1bufr      sndrd1      g11       sndrD1_g11           0.0     1     0
+   gsnd1bufr      sndrd2      g11       sndrD2_g11           0.0     1     0
+   gsnd1bufr      sndrd3      g11       sndrD3_g11           0.0     1     0
+   gsnd1bufr      sndrd4      g11       sndrD4_g11           0.0     1     0
+   gsnd1bufr      sndrd1      g13       sndrD1_g13           0.0     1     0
+   gsnd1bufr      sndrd2      g13       sndrD2_g13           0.0     1     0
+   gsnd1bufr      sndrd3      g13       sndrD3_g13           0.0     1     0
+   gsnd1bufr      sndrd4      g13       sndrD4_g13           0.0     1     0
+   gsnd1bufr      sndrd1      g15       sndrD1_g15           0.0     2     0
+   gsnd1bufr      sndrd2      g15       sndrD2_g15           0.0     2     0
+   gsnd1bufr      sndrd3      g15       sndrD3_g15           0.0     2     0
+   gsnd1bufr      sndrd4      g15       sndrD4_g15           0.0     2     0
+   iasibufr       iasi        metop-a   iasi_metop-a         0.0     2     0
+   gomebufr       gome        metop-a   gome_metop-a         0.0     2     0
+   atmsbufr       atms        npp       atms_npp             0.0     2     0
+   atmsbufr       atms        n20       atms_n20             0.0     2     0
+   crisbufr       cris        npp       cris_npp             0.0     2     0
+   crisfsbufr     cris-fsr    npp       cris-fsr_npp         0.0     2     0
+   crisfsbufr     cris-fsr    n20       cris-fsr_n20         0.0     2     0
+   abibufr        abi         g16       abi_g16              0.0     2     0
+   mlsbufr        mls30       aura      mls30_aura           0.0     0     0
+   oscatbufr      uv          null      uv                   0.0     0     0
+   prepbufr       mta_cld     null      mta_cld              1.0     0     0
+   prepbufr       gos_ctp     null      gos_ctp              1.0     0     0
+   refInGSI       rad_ref     null      rad_ref              1.0     0     0
+   lghtInGSI      lghtn       null      lghtn                1.0     0     0
+   larcInGSI      larccld     null      larccld              1.0     0     0
 ::
  &SUPEROB_RADAR
-   del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000.,
-   l2superob_only=.false.,
+   del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000., l2superob_only=.false.,
  /
  &LAG_DATA
  /
  &HYBRID_ENSEMBLE
-   l_hyb_ens=${HYBENS_REGIONAL},
-   n_ens=${ENSEMBLE_SIZE_REGIONAL},
-   uv_hyb_ens=${HYBENS_UV_REGIONAL},
-   beta_s0=${BETA_S0_REGIONAL},
-   readin_beta=.false.,
-   s_ens_h=${HYBENS_HOR_SCALE_REGIONAL},
-   s_ens_v=${HYBENS_VER_SCALE_REGIONAL},
-   generate_ens=${GENERATE_ENS_REGIONAL},
-   aniso_a_en=${HYBENS_ANISO_REGIONAL},
-   nlon_ens=${NLON_ENS_REGIONAL},
-   nlat_ens=${NLAT_ENS_REGIONAL},
-   jcap_ens=${JCAP_ENS_REGIONAL},
-   jcap_ens_test=${JCAP_ENS_TEST_REGIONAL},
+   l_hyb_ens=.true.,
+   uv_hyb_ens=.true.,
+   q_hyb_ens=.false.,
+   aniso_a_en=.false.,generate_ens=.false.,
+   n_ens=40,
+   beta_s0=0.15,s_ens_h=110,s_ens_v=3,
+   regional_ensemble_option=1,
+   pseudo_hybens = .false.,
+   grid_ratio_ens = 3,
+   l_ens_in_diff_time=.true.,
+   ensemble_path='',
+   i_en_perts_io=1,
+   jcap_ens=574,
+   fv3sar_bg_opt=0,
+   readin_localization=.true.,
+   ens_fast_read=.false.,
  /
  &RAPIDREFRESH_CLDSURF
-   dfi_radar_latent_heat_time_period=30.0,
+   dfi_radar_latent_heat_time_period=20.0,
+   metar_impact_radius=10.0,
+   metar_impact_radius_lowCloud=4.0,
+   l_gsd_terrain_match_surfTobs=.true.,
+   l_sfcobserror_ramp_t=.true.,
+   l_sfcobserror_ramp_q=.true.,
+   l_PBL_pseudo_SurfobsT=.false.,
+   l_PBL_pseudo_SurfobsQ=.false.,
+   l_PBL_pseudo_SurfobsUV=.false.,
+   pblH_ration=0.4,
+   pps_press_incr=40.0,
+   l_gsd_limit_ocean_q=.true.,
+   l_pw_hgt_adjust=.true.,
+   l_limit_pw_innov=.true.,
+   max_innov_pct=0.1,
+   l_cleanSnow_WarmTs=.true.,
+   r_cleanSnow_WarmTs_threshold=5.0,
+   l_conserve_thetaV=.true.,
+   i_conserve_thetaV_iternum=3,
+   l_gsd_soilTQ_nudge=.false.,
+   l_cld_bld=.true.,
+   l_numconc=.true.,
+   l_closeobs=.true.,
+   cld_bld_hgt=1200.0,
+   build_cloud_frac_p=0.50,
+   clear_cloud_frac_p=0.10,
+   iclean_hydro_withRef_allcol=1,
+   i_use_2mQ4B=2,
+   i_use_2mT4B=1,
+   i_gsdcldanal_type=0,
+   i_gsdsfc_uselist=1,
+   i_lightpcp=1,
+   i_sfct_gross=1,
+   i_coastline=3,
+   i_gsdqc=2,
  /
  &CHEM
  /
- &SINGLEOB_TEST
-   maginnov=0.1,magoberr=0.1,oneob_type='t',
-   oblat=45.,oblon=270.,obpres=850.,obdattim=${adate},
-   obhourset=0.,
- 
  &NST
  /
-"
-;;
-
-nmm_binary)
-
-# Define namelist for nmm binary run
-
-export gsi_namelist="
-
- &SETUP
-   miter=2,niter(1)=1,niter(2)=2,
-   write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
-   gencode=78,qoption=2,
-   factqmin=0.0,factqmax=0.0,deltim=$DELTIM,
-   iguess=-1,
-   oneobtest=.false.,retrieval=.false.,
-   nhr_assimilation=3,l_foto=.false.,
-   use_pbl=.false.,use_compress=.false.,nsig_ext=13,gpstop=30.,
-   lrun_subdirs=.true.,
-   $SETUP
- /
- &GRIDOPTS
-   JCAP=$JCAP,JCAP_B=$JCAP_B,NLAT=$NLAT,NLON=$LONA,nsig=$LEVS,
-   wrf_nmm_regional=.true.,wrf_mass_regional=.false.,diagnostic_reg=.false.,
-   filled_grid=.false.,half_grid=.true.,netcdf=$NETCDF,
- /
- &BKGERR
-   hzscl=0.373,0.746,1.50,
-   vs=1.0,bw=0.,fstat=.true.,
- /
- &ANBKGERR
-   anisotropic=.false.,an_vs=1.0,ngauss=1,
-   an_flen_u=-5.,an_flen_t=3.,an_flen_z=-200.,
-   ifilt_ord=2,npass=3,normal=-200,grid_ratio=4.,nord_f2a=4,
- /
- &JCOPTS
- /
- &STRONGOPTS
-   tlnmc_option=0,nstrong=0,nvmodes_keep=20,period_max=3.,
-   baldiag_full=.true.,baldiag_inc=.true.,
- /
- &OBSQC
-   dfact=0.75,dfact1=3.0,noiqc=.true.,c_varqc=0.02,vadfile='prepbufr',njqc=.false.,vqc=.true.,
- /
- &OBS_INPUT
-   dmesh(1)=1200.0,dmesh(2)=5000.0,dmesh(3)=8000.0,dmesh(4)=1000.0,time_window_max=0.5,
- /
-OBS_INPUT::
-!  dfile        dtype           dplat       dsis                  dval   dthin dsfcalc
-   prepbufr         ps          null        ps                    0.0     0     0
-   prepbufr         t           null        t                     0.0     0     0
-   prepbufr         q           null        q                     0.0     0     0
-   prepbufr         uv          null        uv                    0.0     0     0
-   satwndbufr       uv          null        uv                    0.0     0     0
-   prepbufr         spd         null        spd                   0.0     0     0
-   radarbufr        rw          null        rw                    0.0     0     0
-   prepbufr         dw          null        dw                    0.0     0     0
-   prepbufr         sst         null        sst                   0.0     0     0
-   prepbufr         pw          null        pw                    0.0     0     0
-   gpsrobufr        $gps_dtype  null        gps                   0.0     0     0
-   ssmirrbufr       pcp_ssmi    dmsp        pcp_ssmi              0.0    -1     0
-   tmirrbufr        pcp_tmi     trmm        pcp_tmi               0.0    -1     0
-   sbuvbufr         sbuv2       n16         sbuv8_n16             0.0     0     0
-   sbuvbufr         sbuv2       n17         sbuv8_n17             0.0     0     0
-   sbuvbufr         sbuv2       n18         sbuv8_n18             0.0     0     0
-   omi              omi         aura        omi_aura              0.0     4     0
-   hirs2bufr        hirs2       n14         hirs2_n14             0.0     1     1
-   hirs3bufr        hirs3       n16         hirs3_n16             0.0     1     1
-   hirs3bufr_skip   hirs3       n17         hirs3_n17             0.0     1     1
-   hirs4bufr        hirs4       n18         hirs4_n18             0.0     1     1
-   hirs4bufr        hirs4       metop-a     hirs4_metop-a         0.0     1     1
-   gsndrbufr        sndr        g11         sndr_g11              0.0     1     0
-   gsndrbufr        sndr        g12         sndr_g12              0.0     1     0
-   gimgrbufr        goes_img    g11         imgr_g11              0.0     1     0
-   gimgrbufr        goes_img    g12         imgr_g12              0.0     1     0
-   airsbufr         airs        aqua        airs_aqua             0.0     2     1
-   msubufr          msu         n14         msu_n14               0.0     1     1
-   amsuabufr_skip   amsua       n15         amsua_n15             0.0     1     1
-   amsuabufr        amsua       n16         amsua_n16             0.0     1     1
-   amsuabufr        amsua       n17         amsua_n17             0.0     1     1
-   amsuabufr_skip   amsua       n18         amsua_n18             0.0     1     1
-   amsuabufr        amsua       metop-a     amsua_metop-a         0.0     1     1
-   airsbufr_skip    amsua       aqua        amsua_aqua            0.0     1     1
-   amsubbufr        amsub       n15         amsub_n15             0.0     1     1
-   amsubbufr        amsub       n16         amsub_n16             0.0     1     1
-   amsubbufr        amsub       n17         amsub_n17             0.0     1     1
-   mhsbufr_skip     mhs         n18         mhs_n18               0.0     1     1
-   mhsbufr          mhs         metop-a     mhs_metop-a           0.0     1     1
-   ssmitbufr        ssmi        f13         ssmi_f13              0.0     1     0
-   ssmitbufr        ssmi        f15         ssmi_f15              0.0     1     0
-   amsrebufr        amsre_low   aqua        amsre_aqua            0.0     1     1
-   amsrebufr        amsre_mid   aqua        amsre_aqua            0.0     1     1
-   amsrebufr        amsre_hig   aqua        amsre_aqua            0.0     1     1
-   ssmisbufr        ssmis       f16         ssmis_f16             0.0     1     1
-   gsnd1bufr_skip   sndrd1      g12         sndrD1_g12            0.0     1     0
-   gsnd1bufr        sndrd2      g12         sndrD2_g12            0.0     1     0
-   gsnd1bufr_skip   sndrd3      g12         sndrD3_g12            0.0     1     0
-   gsnd1bufr_skip   sndrd4      g12         sndrD4_g12            0.0     1     0
-   gsnd1bufr_skip   sndrd1      g11         sndrD1_g11            0.0     1     0
-   gsnd1bufr_skip   sndrd2      g11         sndrD2_g11            0.0     1     0
-   gsnd1bufr_skip   sndrd3      g11         sndrD3_g11            0.0     1     0
-   gsnd1bufr_skip   sndrd4      g11         sndrD4_g11            0.0     1     0
-   gsnd1bufr_skip   sndrd1      g13         sndrD1_g13            0.0     1     0
-   gsnd1bufr_skip   sndrd2      g13         sndrD2_g13            0.0     1     0
-   gsnd1bufr_skip   sndrd3      g13         sndrD3_g13            0.0     1     0
-   gsnd1bufr_skip   sndrd4      g13         sndrD4_g13            0.0     1     0
-   iasibufr         iasi        metop-a     iasi_metop-a          0.0     3     1
-   gomebufr         gome        metop-a     gome_metop-a          0.0     4     0
-   mlsbufr          mls30       aura        mls30_aura            1.0     0     0
-   ompsnpbufr       ompsnp      npp         ompsnp_npp            0.0     0     0
-   ompstcbufr       ompstc8     npp         ompstc8_npp           0.0     4     0
-::
- &SUPEROB_RADAR
-   del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000.,
-   l2superob_only=.false.,
- /
- &LAG_DATA
- /
- &HYBRID_ENSEMBLE
-   l_hyb_ens=${HYBENS_REGIONAL},
-   n_ens=${ENSEMBLE_SIZE_REGIONAL},
-   uv_hyb_ens=${HYBENS_UV_REGIONAL},
-   beta_s0=${BETA_S0_REGIONAL},
-   readin_beta=.false.,
-   s_ens_h=${HYBENS_HOR_SCALE_REGIONAL},
-   s_ens_v=${HYBENS_VER_SCALE_REGIONAL},
-   generate_ens=${GENERATE_ENS_REGIONAL},
-   aniso_a_en=${HYBENS_ANISO_REGIONAL},
-   nlon_ens=${NLON_ENS_REGIONAL},
-   nlat_ens=${NLAT_ENS_REGIONAL},
-   jcap_ens=${JCAP_ENS_REGIONAL},
-   jcap_ens_test=${JCAP_ENS_TEST_REGIONAL},
- /
- &RAPIDREFRESH_CLDSURF
-   dfi_radar_latent_heat_time_period=30.0,
- /
- &CHEM
- /
  &SINGLEOB_TEST
-   maginnov=0.1,magoberr=0.1,oneob_type='t',
-   oblat=45.,oblon=270.,obpres=850.,obdattim=${adate},
+   maginnov=1.0,magoberr=0.8,oneob_type='t',
+   oblat=38.,oblon=279.,obpres=500.,obdattim=2020040500,
    obhourset=0.,
- 
- &NST
- /
-"
-;;
-
-nmm_netcdf)
-
-# Define namelist for nmm netcdf run
-
-export gsi_namelist="
-
- &SETUP
-   miter=2,niter(1)=1,niter(2)=2,
-   write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
-   gencode=78,qoption=2,
-   factqmin=0.0,factqmax=0.0,deltim=$DELTIM,
-   iguess=-1,
-   oneobtest=.false.,retrieval=.false.,
-   nhr_assimilation=3,l_foto=.false.,
-   use_pbl=.false.,use_compress=.false.,nsig_ext=13,gpstop=30.,
-   lrun_subdirs=.true.,
-   $SETUP
- /
- &GRIDOPTS
-   JCAP=$JCAP,JCAP_B=$JCAP_B,NLAT=$NLAT,NLON=$LONA,nsig=$LEVS,
-   wrf_nmm_regional=.true.,wrf_mass_regional=.false.,diagnostic_reg=.false.,
-   filled_grid=.false.,half_grid=.true.,netcdf=$NETCDF,
- /
- &BKGERR
-   hzscl=0.373,0.746,1.50,
-   vs=1.0,bw=0.,fstat=.true.,
- /
- &ANBKGERR
-   anisotropic=.false.,an_vs=1.0,ngauss=1,
-   an_flen_u=-5.,an_flen_t=3.,an_flen_z=-200.,
-   ifilt_ord=2,npass=3,normal=-200,grid_ratio=4.,nord_f2a=4,
- /
- &JCOPTS
- /
- &STRONGOPTS
-   tlnmc_option=0,nstrong=0,nvmodes_keep=20,period_max=3.,
-   baldiag_full=.true.,baldiag_inc=.true.,
- /
- &OBSQC
-   dfact=0.75,dfact1=3.0,noiqc=.true.,c_varqc=0.02,vadfile='prepbufr',njqc=.false.,vqc=.true.,
- /
- &OBS_INPUT
-   dmesh(1)=1200.0,dmesh(2)=2000.0,dmesh(3)=2500.0,dmesh(4)=1000.0,time_window_max=0.5,
- /
-OBS_INPUT::
-!  dfile        dtype           dplat       dsis                  dval   dthin dsfcalc
-   prepbufr         ps          null        ps                    0.0     0     0
-   prepbufr         t           null        t                     0.0     0     0
-   prepbufr         q           null        q                     0.0     0     0
-   prepbufr         uv          null        uv                    0.0     0     0
-   satwndbufr       uv          null        uv                    0.0     0     0
-   prepbufr         spd         null        spd                   0.0     0     0
-   radarbufr        rw          null        rw                    0.0     0     0
-   prepbufr         dw          null        dw                    0.0     0     0
-   prepbufr         sst         null        sst                   0.0     0     0
-   prepbufr         pw          null        pw                    0.0     0     0
-   gpsrobufr        $gps_dtype  null        gps                   0.0     0     0
-   ssmirrbufr       pcp_ssmi    dmsp        pcp_ssmi              0.0    -1     0
-   tmirrbufr        pcp_tmi     trmm        pcp_tmi               0.0    -1     0
-   sbuvbufr         sbuv2       n16         sbuv8_n16             0.0     0     0
-   sbuvbufr         sbuv2       n17         sbuv8_n17             0.0     0     0
-   sbuvbufr         sbuv2       n18         sbuv8_n18             0.0     0     0
-   omi              omi         aura        omi_aura              0.0     4     0
-   hirs2bufr        hirs2       n14         hirs2_n14             0.0     1     1
-   hirs3bufr        hirs3       n16         hirs3_n16             0.0     1     1
-   hirs3bufr        hirs3       n17         hirs3_n17             0.0     1     1
-   hirs4bufr        hirs4       n18         hirs4_n18             0.0     1     1
-   hirs4bufr        hirs4       metop-a     hirs4_metop-a         0.0     1     1
-   gsndrbufr        sndr        g11         sndr_g11              0.0     1     0
-   gsndrbufr        sndr        g12         sndr_g12              0.0     1     0
-   gimgrbufr        goes_img    g11         imgr_g11              0.0     1     0
-   gimgrbufr        goes_img    g12         imgr_g12              0.0     1     0
-   airsbufr         airs        aqua        airs_aqua             0.0     2     1
-   msubufr          msu         n14         msu_n14               0.0     1     1
-   amsuabufr        amsua       n15         amsua_n15             0.0     1     1
-   amsuabufr        amsua       n16         amsua_n16             0.0     1     1
-   amsuabufr        amsua       n17         amsua_n17             0.0     1     1
-   amsuabufr        amsua       n18         amsua_n18             0.0     1     1
-   amsuabufr        amsua       metop-a     amsua_metop-a         0.0     1     1
-   airsbufr         amsua       aqua        amsua_aqua            0.0     1     1
-   amsubbufr        amsub       n15         amsub_n15             0.0     1     1
-   amsubbufr        amsub       n16         amsub_n16             0.0     1     1
-   amsubbufr        amsub       n17         amsub_n17             0.0     1     1
-   mhsbufr          mhs         n18         mhs_n18               0.0     1     1
-   mhsbufr          mhs         metop-a     mhs_metop-a           0.0     1     1
-   ssmitbufr        ssmi        f13         ssmi_f13              0.0     1     0
-   ssmitbufr        ssmi        f15         ssmi_f15              0.0     1     0
-   amsrebufr        amsre_low   aqua        amsre_aqua            0.0     1     1
-   amsrebufr        amsre_mid   aqua        amsre_aqua            0.0     1     1
-   amsrebufr        amsre_hig   aqua        amsre_aqua            0.0     1     1
-   ssmisbufr        ssmis       f16         ssmis_f16             0.0     1     1
-   gsnd1bufr_skip   sndrd1      g12         sndrD1_g12            0.0     1     0
-   gsnd1bufr        sndrd2      g12         sndrD2_g12            0.0     1     0
-   gsnd1bufr_skip   sndrd3      g12         sndrD3_g12            0.0     1     0
-   gsnd1bufr_skip   sndrd4      g12         sndrD4_g12            0.0     1     0
-   gsnd1bufr_skip   sndrd1      g11         sndrD1_g11            0.0     1     0
-   gsnd1bufr_skip   sndrd2      g11         sndrD2_g11            0.0     1     0
-   gsnd1bufr_skip   sndrd3      g11         sndrD3_g11            0.0     1     0
-   gsnd1bufr_skip   sndrd4      g11         sndrD4_g11            0.0     1     0
-   gsnd1bufr_skip   sndrd1      g13         sndrD1_g13            0.0     1     0
-   gsnd1bufr_skip   sndrd2      g13         sndrD2_g13            0.0     1     0
-   gsnd1bufr_skip   sndrd3      g13         sndrD3_g13            0.0     1     0
-   gsnd1bufr_skip   sndrd4      g13         sndrD4_g13            0.0     1     0
-   iasibufr         iasi        metop-a     iasi_metop-a          0.0     3     1
-   gomebufr         gome        metop-a     gome_metop-a          0.0     4     0
-   mlsbufr          mls30       aura        mls30_aura            1.0     0     0
-   ompsnpbufr       ompsnp      npp         ompsnp_npp            0.0     0     0
-   ompstcbufr       ompstc8     npp         ompstc8_npp           0.0     4     0
-::
- &SUPEROB_RADAR
-   del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000.,
-   l2superob_only=.false.,
- /
- &LAG_DATA
- /
- &HYBRID_ENSEMBLE
-   l_hyb_ens=${HYBENS_REGIONAL},
-   n_ens=${ENSEMBLE_SIZE_REGIONAL},
-   uv_hyb_ens=${HYBENS_UV_REGIONAL},
-   beta_s0=${BETA_S0_REGIONAL},
-   readin_beta=.false.,
-   s_ens_h=${HYBENS_HOR_SCALE_REGIONAL},
-   s_ens_v=${HYBENS_VER_SCALE_REGIONAL},
-   generate_ens=${GENERATE_ENS_REGIONAL},
-   aniso_a_en=${HYBENS_ANISO_REGIONAL},
-   nlon_ens=${NLON_ENS_REGIONAL},
-   nlat_ens=${NLAT_ENS_REGIONAL},
-   jcap_ens=${JCAP_ENS_REGIONAL},
-   jcap_ens_test=${JCAP_ENS_TEST_REGIONAL},
- /
- &RAPIDREFRESH_CLDSURF
-   dfi_radar_latent_heat_time_period=30.0,
- /
- &CHEM
- /
- &SINGLEOB_TEST
-   maginnov=0.1,magoberr=0.1,oneob_type='t',
-   oblat=45.,oblon=270.,obpres=850.,obdattim=${adate},
-   obhourset=0.,
- 
- &NST
  /
 "
 ;;
@@ -1176,329 +800,6 @@ OBS_INPUT::
  &CHEM
  /
  &SINGLEOB_TEST
- /
- &NST
- /
-"
-;;
-
-nems_nmmb)
-
-# Define namelist for nems nmmb run
-
-export gsi_namelist="
-
- &SETUP
-   miter=2,niter(1)=2,niter(2)=1,niter_no_qc(1)=1,
-   write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
-   gencode=78,qoption=2,
-   factqmin=0.0,factqmax=0.0,deltim=$DELTIM,
-   iguess=-1,
-   oneobtest=.false.,retrieval=.false.,
-   nhr_assimilation=3,l_foto=.false.,
-   use_pbl=.false.,use_compress=.false.,nsig_ext=13,preserve_restart_date=.true.,
-   use_gfs_ozone=.true.,check_gfs_ozone_date=.true.,regional_ozone=.true.,gpstop=30.
-   lrun_subdirs=.true.,
-   $SETUP
- /
- &GRIDOPTS
-   JCAP=$JCAP,JCAP_B=$JCAP_B,NLAT=$NLAT,NLON=$LONA,nsig=$LEVS,
-   wrf_nmm_regional=.false.,wrf_mass_regional=.false.,nems_nmmb_regional=.true.,diagnostic_reg=.false.,
-   nmmb_reference_grid='H',grid_ratio_nmmb=1.412,
-   filled_grid=.false.,half_grid=.true.,netcdf=.false.,
- /
- &BKGERR
-   hzscl=0.373,0.746,1.50,
-   vs=0.6,bw=0.,fstat=.false.,
- /
- &ANBKGERR
-   anisotropic=.false.,
- /
- &JCOPTS
- /
- &STRONGOPTS
-   tlnmc_option=0,nstrong=0,nvmodes_keep=8,period_max=3.,
-    baldiag_full=.true.,baldiag_inc=.true.,
- /
- &OBSQC
-   dfact=0.75,dfact1=3.0,noiqc=.true.,c_varqc=0.02,
-   vadfile='prepbufr',njqc=.false.,vqc=.true.,
- /
- &OBS_INPUT
-   dmesh(1)=1200.0,dmesh(2)=2000.0,dmesh(3)=2500.0,dmesh(4)=1000.0,time_window_max=0.5,ext_sonde=.true.,
- /
-OBS_INPUT::
-!  dfile        dtype           dplat       dsis              dval   dthin dsfcalc
-   prepbufr         ps          null      ps                  0.0     0     0
-   prepbufr         t           null      t                   0.0     0     0
-   prepbufr         q           null      q                   0.0     0     0
-   prepbufr         pw          null      pw                  0.0     0     0
-   prepbufr         uv          null      uv                  0.0     0     0
-   satwndbufr       uv          null      uv                  0.0     0     0
-   prepbufr         spd         null      spd                 0.0     0     0
-   prepbufr         dw          null      dw                  0.0     0     0
-   radarbufr        rw          null      rw                  0.0     0     0
-   prepbufr         sst         null      sst                 0.0     0     0
-   gpsrobufr        $gps_dtype  null      gps                 0.0     0     0
-   ssmirrbufr       pcp_ssmi    dmsp      pcp_ssmi            0.0    -1     0
-   tmirrbufr        pcp_tmi     trmm      pcp_tmi             0.0    -1     0
-   sbuvbufr         sbuv2       n16       sbuv8_n16           0.0     0     0
-   sbuvbufr         sbuv2       n17       sbuv8_n17           0.0     0     0
-   sbuvbufr         sbuv2       n18       sbuv8_n18           0.0     0     0
-   hirs2bufr        hirs2       n14       hirs2_n14           0.0     1     1
-   hirs3bufr_skip   hirs3       n16       hirs3_n16           0.0     1     1
-   hirs3bufr        hirs3       n17       hirs3_n17           0.0     1     1
-   hirs4bufr_skip   hirs4       n18       hirs4_n18           0.0     1     1
-   hirs4bufr        hirs4       metop-a   hirs4_metop-a       0.0     1     1
-   gsndrbufr        sndr        g11       sndr_g11            0.0     1     0
-   gsndrbufr        sndr        g12       sndr_g12            0.0     1     0
-   gimgrbufr        goes_img    g11       imgr_g11            0.0     1     0
-   gimgrbufr        goes_img    g12       imgr_g12            0.0     1     0
-   airsbufr         airs        aqua      airs_aqua           0.0     2     1
-   msubufr          msu         n14       msu_n14             0.0     1     1
-   amsuabufr_skip   amsua       n15       amsua_n15           0.0     1     1
-   amsuabufr_skip   amsua       n16       amsua_n16           0.0     1     1
-   amsuabufr_skip   amsua       n17       amsua_n17           0.0     1     1
-   amsuabufr_skip   amsua       n18       amsua_n18           0.0     1     1
-   amsuabufr        amsua       metop-a   amsua_metop-a       0.0     1     1
-   airsbufr_skip    amsua       aqua      amsua_aqua          0.0     1     1
-   amsubbufr_skip   amsub       n15       amsub_n15           0.0     1     1
-   amsubbufr_skip   amsub       n16       amsub_n16           0.0     1     1
-   amsubbufr        amsub       n17       amsub_n17           0.0     1     1
-   mhsbufr_skip     mhs         n18       mhs_n18             0.0     1     1
-   mhsbufr          mhs         metop-a   mhs_metop-a         0.0     1     1
-   ssmitbufr        ssmi        f13       ssmi_f13            0.0     1     0
-   ssmitbufr        ssmi        f15       ssmi_f15            0.0     1     0
-   amsrebufr        amsre_low   aqua      amsre_aqua          0.0     1     1
-   amsrebufr        amsre_mid   aqua      amsre_aqua          0.0     1     1
-   amsrebufr        amsre_hig   aqua      amsre_aqua          0.0     1     1
-   ssmisbufr        ssmis       f16       ssmis_f16           0.0     1     1
-   gsnd1bufr_skip   sndrd1      g12       sndrD1_g12          0.0     1     0
-   gsnd1bufr_skip   sndrd2      g12       sndrD2_g12          0.0     1     0
-   gsnd1bufr_skip   sndrd3      g12       sndrD3_g12          0.0     1     0
-   gsnd1bufr_skip   sndrd4      g12       sndrD4_g12          0.0     1     0
-   gsnd1bufr_skip   sndrd1      g11       sndrD1_g11          0.0     1     0
-   gsnd1bufr_skip   sndrd2      g11       sndrD2_g11          0.0     1     0
-   gsnd1bufr        sndrd3      g11       sndrD3_g11          0.0     1     0
-   gsnd1bufr_skip   sndrd4      g11       sndrD4_g11          0.0     1     0
-   gsnd1bufr_skip   sndrd1      g13       sndrD1_g13          0.0     1     0
-   gsnd1bufr_skip   sndrd2      g13       sndrD2_g13          0.0     1     0
-   gsnd1bufr_skip   sndrd3      g13       sndrD3_g13          0.0     1     0
-   gsnd1bufr_skip   sndrd4      g13       sndrD4_g13          0.0     1     0
-   iasibufr         iasi        metop-a   iasi_metop-a        0.0     3     1
-   gomebufr         gome        metop-a   gome_metop-a        0.0     4     0
-   omibufr          omi         aura      omi_aura            0.0     4     0
-   sbuvbufr         sbuv2       n19       sbuv8_n19           0.0     0     0
-   hirs4bufr        hirs4       n19       hirs4_n19           0.0     1     1
-   amsuabufr        amsua       n19       amsua_n19           0.0     1     1
-   mhsbufr          mhs         n19       mhs_n19             0.0     1     1
-   tcvitl           tcp         null      tcp                 0.0     0     0
-   mlsbufr          mls30       aura      mls30_aura          1.0     0     0
-   ompsnpbufr       ompsnp      npp       ompsnp_npp          0.0     0     0
-   ompstcbufr       ompstc8     npp       ompstc8_npp         0.0     4     0
-::
- &SUPEROB_RADAR
-   del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000.,
-   l2superob_only=.false.,
- /
- &LAG_DATA
- /
- &HYBRID_ENSEMBLE
-   l_hyb_ens=${HYBENS_REGIONAL},
-   n_ens=${ENSEMBLE_SIZE_REGIONAL},
-   uv_hyb_ens=${HYBENS_UV_REGIONAL},
-   beta_s0=${BETA_S0_REGIONAL},
-   readin_beta=.false.,
-   s_ens_h=${HYBENS_HOR_SCALE_REGIONAL},
-   s_ens_v=${HYBENS_VER_SCALE_REGIONAL},
-   generate_ens=${GENERATE_ENS_REGIONAL},
-   aniso_a_en=${HYBENS_ANISO_REGIONAL},
-   nlon_ens=${NLON_ENS_REGIONAL},
-   nlat_ens=${NLAT_ENS_REGIONAL},
-   jcap_ens=${JCAP_ENS_REGIONAL},
-   jcap_ens_test=${JCAP_ENS_TEST_REGIONAL},
-   full_ensemble=.true.,pwgtflg=.true.,
- /
- &RAPIDREFRESH_CLDSURF
-   dfi_radar_latent_heat_time_period=30.0,
- /
- &CHEM
- /
- &SINGLEOB_TEST
-   maginnov=0.1,magoberr=0.1,oneob_type='t',
-   oblat=45.,oblon=270.,obpres=850.,obdattim=${adate},
-   obhourset=0.,
- 
- &NST
- /
-"
-;;
-
-nems_nmmb_4denvar)
-
-# Define namelist for 4DEnVar nems nmmb run
-
-export gsi_namelist="
-
- &SETUP
-   miter=2,niter(1)=2,niter(2)=1,niter_no_qc(1)=1,
-   write_diag(1)=.true.,write_diag(2)=.false.,write_diag(3)=.true.,
-   gencode=78,qoption=2,
-   factqmin=0.0,factqmax=0.0,
-   iguess=-1,use_gfs_ozone=.true.,
-   oneobtest=.false.,retrieval=.false.,
-   nhr_assimilation=6,l_foto=.false.,
-   use_pbl=.false.,gpstop=30.,
-   print_diag_pcg=.true.,
-   newpc4pred=.true., adp_anglebc=.true., angord=4,
-   passive_bc=.false., use_edges=.false., emiss_bc=.true.,
-   diag_precon=.true., step_start=1.e-3,
-   l4densvar=.true.,nhr_obsbin=3,
-   $SETUP
- /
- &GRIDOPTS
-   wrf_nmm_regional=.false.,wrf_mass_regional=.false.,nems_nmmb_regional=.true.,diagnostic_reg=.false.,
-   nmmb_reference_grid='H',grid_ratio_nmmb=3.0,
-   filled_grid=.false.,half_grid=.false.,netcdf=.false.,
-   $GRIDOPTS
- /
- &BKGERR
-   hzscl=0.373,0.746,1.50,
-   vs=1.0,bw=0.,fstat=.true.,
-   $BKGERR
- /
- &ANBKGERR
-   anisotropic=.false.,
-   $ANBKGERR
- /
- &JCOPTS
-   $JCOPTS
- /
- &STRONGOPTS
-   nstrong=0,nvmodes_keep=20,period_max=3.,
-    baldiag_full=.true.,baldiag_inc=.true.,
-   $STRONGOPTS
- /
- &OBSQC
-   dfact=0.75,dfact1=3.0,noiqc=.true.,c_varqc=0.02,
-   vadfile='prepbufr',njqc=.false.,vqc=.true.,
-   $OBSQC
- /
- &OBS_INPUT
-   dmesh(1)=120.0,time_window_max=3.0,ext_sonde=.true.,
-   $OBS_INPUT
- /
-OBS_INPUT::
-!  dfile          dtype       dplat       dsis                  dval    dthin  dsfcalc
-   prepbufr       ps          null        ps                    0.0      0      0
-   prepbufr       t           null        t                     0.0      0      0
-   prepbufr       q           null        q                     0.0      0      0
-   prepbufr       pw          null        pw                    0.0      0      0
-   prepbufr       uv          null        uv                    0.0      0      0
-   prepbufr       spd         null        spd                   0.0      0      0
-   prepbufr       dw          null        dw                    0.0      0      0
-   radarbufr      rw          null        rw                    0.0      0      0
-   prepbufr       sst         null        sst                   0.0      0      0
-   gpsrobufr      gps_bnd     null        gps_bnd               0.0      0      0
-   ssmirrbufr     pcp_ssmi    dmsp        pcp_ssmi              0.0     -1      0
-   tmirrbufr      pcp_tmi     trmm        pcp_tmi               0.0     -1      0
-   sbuvbufr       sbuv2       n16         sbuv8_n16             0.0      0      0
-   sbuvbufr       sbuv2       n17         sbuv8_n17             0.0      0      0
-   sbuvbufr       sbuv2       n18         sbuv8_n18             0.0      0      0
-   hirs2bufr      hirs2       n14         hirs2_n14             0.0      1      0
-   hirs3bufr_skip hirs3       n16         hirs3_n16             0.0      1      0
-   hirs3bufr      hirs3       n17         hirs3_n17             0.0      1      0
-   hirs4bufr_skip hirs4       n18         hirs4_n18             0.0      1      0
-   hirs4bufr      hirs4       metop-a     hirs4_metop-a         0.0      1      0
-   gsndrbufr      sndr        g11         sndr_g11              0.0      1      0
-   gsndrbufr      sndr        g12         sndr_g12              0.0      1      0
-   gimgrbufr      goes_img    g11         imgr_g11              0.0      1      0
-   gimgrbufr      goes_img    g12         imgr_g12              0.0      1      0
-   airsbufr       airs        aqua        airs_aqua             0.0      1      0
-   msubufr        msu         n14         msu_n14               0.0      1      0
-   amsuabufr_skip amsua       n15         amsua_n15             0.0      1      0
-   amsuabufr_skip amsua       n16         amsua_n16             0.0      1      0
-   amsuabufr_skip amsua       n17         amsua_n17             0.0      1      0
-   amsuabufr_skip amsua       n18         amsua_n18             0.0      1      0
-   amsuabufr      amsua       metop-a     amsua_metop-a         0.0      1      0
-   airsbufr_skip  amsua       aqua        amsua_aqua            0.0      1      0
-   amsubbufr_skip amsub       n15         amsub_n15             0.0      1      0
-   amsubbufr_skip amsub       n16         amsub_n16             0.0      1      0
-   amsubbufr      amsub       n17         amsub_n17             0.0      1      0
-   mhsbufr_skip   mhs         n18         mhs_n18               0.0      1      0
-   mhsbufr        mhs         metop-a     mhs_metop-a           0.0      1      0
-   ssmitbufr      ssmi        f13         ssmi_f13              0.0      1      0
-   ssmitbufr      ssmi        f15         ssmi_f15              0.0      1      0
-   amsrebufr      amsre_low   aqua        amsre_aqua            0.0      1      0
-   amsrebufr      amsre_mid   aqua        amsre_aqua            0.0      1      0
-   amsrebufr      amsre_hig   aqua        amsre_aqua            0.0      1      0
-   ssmisbufr      ssmis       f16         ssmis_f16             0.0      1      0
-   gsnd1bufr_skip sndrd1      g12         sndrD1_g12            0.0      1      0
-   gsnd1bufr_skip sndrd2      g12         sndrD2_g12            0.0      1      0
-   gsnd1bufr_skip sndrd3      g12         sndrD3_g12            0.0      1      0
-   gsnd1bufr_skip sndrd4      g12         sndrD4_g12            0.0      1      0
-   gsnd1bufr_skip sndrd1      g11         sndrD1_g11            0.0      1      0
-   gsnd1bufr_skip sndrd2      g11         sndrD2_g11            0.0      1      0
-   gsnd1bufr      sndrd3      g11         sndrD3_g11            0.0      1      0
-   gsnd1bufr_skip sndrd4      g11         sndrD4_g11            0.0      1      0
-   gsnd1bufr_skip sndrd1      g13         sndrD1_g13            0.0      1      0
-   gsnd1bufr_skip sndrd2      g13         sndrD2_g13            0.0      1      0
-   gsnd1bufr_skip sndrd3      g13         sndrD3_g13            0.0      1      0
-   gsnd1bufr_skip sndrd4      g13         sndrD4_g13            0.0      1      0
-   iasibufr       iasi        metop-a     iasi_metop-a          0.0      1      0
-   gomebufr       gome        metop-a     gome_metop-a          0.0      1      0
-   omibufr        omi         aura        omi_aura              0.0      1      0
-   sbuvbufr       sbuv2       n19         sbuv8_n19             0.0      1      0
-   hirs4bufr      hirs4       n19         hirs4_n19             0.0      1      0
-   amsuabufr      amsua       n19         amsua_n19             0.0      1      0
-   mhsbufr        mhs         n19         mhs_n19               0.0      1      0
-   tcvitl         tcp         null        tcp                   0.0      0      0
-   satwndbufr     uv          null        uv                    0.0      0      0
-   gsnd1bufr      sndrd1      g15         sndrD1_g15            0.0      1      0
-   gsnd1bufr      sndrd2      g15         sndrD2_g15            0.0      1      0
-   gsnd1bufr      sndrd3      g15         sndrD3_g15            0.0      1      0
-   gsnd1bufr      sndrd4      g15         sndrD4_g15            0.0      1      0
-   ompsnpbufr     ompsnp      npp         ompsnp_npp          0.0     0     0
-   ompstcbufr     ompstc8     npp         ompstc8_npp         0.0     1     0
-::
- &SUPEROB_RADAR
-   del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000.,
-   l2superob_only=.false.,
-   $SUPEROB_RADAR
- /
- &LAG_DATA
-   $LAG_DATA
- /
- &HYBRID_ENSEMBLE
-   l_hyb_ens=.true.,
-   n_ens=10,
-   uv_hyb_ens=.true.,
-   beta_s0=0.25,
-   readin_beta=.false.,
-   readin_beta=.true.,
-   s_ens_h=800,
-   s_ens_v=5,
-   generate_ens=.false.,
-   regional_ensemble_option=1,
-   aniso_a_en=.false.,
-   nlon_ens=0,
-   nlat_ens=0,
-   jcap_ens=0,
-   jcap_ens_test=0,
-   full_ensemble=.true.,pwgtflg=.true.,
-   $HYBRID_ENSEMBLE
- /
- &RAPIDREFRESH_CLDSURF
-   $RAPIDREFRESH_CLDSURF
- /
- &CHEM
-   $CHEM
- /
- &SINGLEOB_TEST
-   maginnov=0.1,magoberr=0.1,oneob_type='t',
-   oblat=45.,oblon=270.,obpres=850.,obdattim=2015031300,
-   obhourset=0.,
-   $SINGLEOB_TEST
  /
  &NST
  /

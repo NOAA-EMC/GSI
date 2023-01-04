@@ -144,33 +144,27 @@ case $regtest in
 
     ;;
 
-    arw_binary | arw_netcdf)
+    rrfs_3denvar_glbens)
 
         if [[ "$machine" = "Hera" ]]; then
-            topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
-            topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
+            topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
+            topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Orion" ]]; then
             topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Jet" ]]; then
             topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "Cheyenne" ]]; then
-            topts[1]="0:15:00" ; popts[1]="16/1/" ; ropts[1]="/1"
-            topts[2]="0:15:00" ; popts[2]="16/2/" ; ropts[2]="/1"
         elif [[ "$machine" = "wcoss2" ]]; then
            topts[1]="0:15:00" ; popts[1]="28/1/" ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="28/2/" ; ropts[2]="/2"
-        elif [[ "$machine" = "Discover" ]]; then
-           topts[1]="0:30:00" ; popts[1]="16/1"  ; ropts[1]="/1"
-           topts[2]="0:30:00" ; popts[2]="20/2"  ; ropts[2]="/2"
+           topts[2]="0:15:00" ; popts[2]="28/2/" ; ropts[2]="/1"
         fi
 
         if [ "$debug" = ".true." ] ; then
            topts[1]="0:30:00"
         fi
 
-        scaling[1]=4; scaling[2]=10; scaling[3]=4
+        scaling[1]=2; scaling[2]=10; scaling[3]=4
 
     ;;
 
@@ -197,93 +191,6 @@ case $regtest in
         scaling[1]=4; scaling[2]=10; scaling[3]=4
 
     ;;
-
-    nmm_binary )
-
-        if [[ "$machine" = "Hera" ]]; then
-            topts[1]="0:30:00" ; popts[1]="6/6/"  ; ropts[1]="/1"
-            topts[2]="0:30:00" ; popts[2]="8/8/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "Orion" ]]; then
-            topts[1]="0:30:00" ; popts[1]="6/6/"  ; ropts[1]="/1"
-            topts[2]="0:30:00" ; popts[2]="8/8/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "Jet" ]]; then
-            topts[1]="0:30:00" ; popts[1]="6/6/"  ; ropts[1]="/1"
-            topts[2]="0:30:00" ; popts[2]="8/8/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "Cheyenne" ]]; then
-            topts[1]="0:30:00" ; popts[1]="7/12/" ; ropts[1]="/1"
-            topts[2]="0:30:00" ; popts[2]="9/12/" ; ropts[2]="/2"
-        elif [[ "$machine" = "wcoss2" ]]; then
-           topts[1]="0:30:00" ; popts[1]="7/24/" ; ropts[1]="/1"
-           topts[2]="0:30:00" ; popts[2]="9/24/" ; ropts[2]="/2"
-        elif [[ "$machine" = "Discover" ]]; then
-            topts[1]="0:30:00" ; popts[1]="48/2"  ; ropts[1]="/1"
-            topts[2]="0:30:00" ; popts[2]="60/3"  ; ropts[2]="/2"
-        fi
-
-        if [ "$debug" = ".true." ] ; then
-           topts[1]="1:00:00"
-        fi
-
-        scaling[1]=8; scaling[2]=10; scaling[3]=8
-
-    ;;
-
-    nmm_netcdf)
-
-        if [[ "$machine" = "Hera" ]]; then
-            topts[1]="0:15:00" ; popts[1]="4/2/"  ; ropts[1]="/1"
-            topts[2]="0:15:00" ; popts[2]="4/4/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "Orion" ]]; then
-            topts[1]="0:15:00" ; popts[1]="4/2/"  ; ropts[1]="/1"
-            topts[2]="0:15:00" ; popts[2]="4/4/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "Jet" ]]; then
-            topts[1]="0:15:00" ; popts[1]="4/2/"  ; ropts[1]="/1"
-            topts[2]="0:15:00" ; popts[2]="4/4/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "Cheyenne" ]]; then
-            topts[1]="0:15:00" ; popts[1]="8/1/"  ; ropts[1]="/1"
-            topts[2]="0:15:00" ; popts[2]="16/1/" ; ropts[2]="/2"
-        elif [[ "$machine" = "wcoss2" ]]; then
-           topts[1]="0:15:00" ; popts[1]="14/1/" ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="28/2/" ; ropts[2]="/2"
-        elif [[ "$machine" = "Discover" ]]; then
-            topts[1]="0:30:00" ; popts[1]="8/1"  ; ropts[1]="/1"
-            topts[2]="0:30:00" ; popts[2]="16/1"  ; ropts[2]="/2"
-        fi
-
-        if [ "$debug" = ".true." ] ; then
-           topts[1]="0:30:00"
-        fi
-
-        scaling[1]=5; scaling[2]=10; scaling[3]=2
-
-;;
-
-    nmmb_nems_4denvar)
-
-        if [[ "$machine" = "Hera" ]]; then
-            topts[1]="0:30:00" ; popts[1]="7/10/"  ; ropts[1]="/1"
-            topts[2]="0:30:00" ; popts[2]="9/10/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "Orion" ]]; then
-            topts[1]="0:30:00" ; popts[1]="7/10/"  ; ropts[1]="/1"
-            topts[2]="0:30:00" ; popts[2]="9/10/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "Jet" ]]; then
-            topts[1]="0:30:00" ; popts[1]="7/10/"  ; ropts[1]="/1"
-            topts[2]="0:30:00" ; popts[2]="9/10/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "Cheyenne" ]]; then
-            topts[1]="0:30:00" ; popts[1]="7/10/" ; ropts[1]="/1"
-            topts[2]="0:30:00" ; popts[2]="9/10/" ; ropts[2]="/2"
-        elif [[ "$machine" = "wcoss2" ]]; then
-           topts[1]="0:15:00" ; popts[1]="7/14/" ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="9/14/" ; ropts[2]="/2"
-        fi
-
-        if [ "$debug" = ".true." ] ; then
-           topts[1]="1:00:00"
-        fi
-
-        scaling[1]=8; scaling[2]=10; scaling[3]=8
-
-;;
 
     rtma)
 
