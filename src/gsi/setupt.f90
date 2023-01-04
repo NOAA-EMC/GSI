@@ -447,11 +447,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      ikx=nint(data(ikxx,k))
      itype=ictype(ikx)
      sfctype=(itype>179.and.itype<190).or.(itype>=192.and.itype<=199)
-     ! landsfctype below is used to restrict hofx_2m_sfcfile to land obs only.
-     ! GDAS assmilates 180 and 182 over ocean. Would probably be better to read h(x) from 
-     ! the surface file for these, but have left as is (default is LML) for zero-diff 
-     ! changes. 
-     landsfctype =( itype==181 .or. itype==183 .or. itype==187 ) 
      do l=k+1,nobs
         if (twodvar_regional .or. (hofx_2m_sfcfile .and. sfctype) ) then
            duplogic=data(ilat,k) == data(ilat,l) .and.  &
@@ -549,6 +544,11 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         rstation_id     = data(id,i)
         prest=r10*exp(dpres)     ! in mb
         sfctype=(itype>179.and.itype<190).or.(itype>=192.and.itype<=199)
+        ! landsfctype below is used to restrict hofx_2m_sfcfile to land obs only.
+        ! GDAS assmilates 180 and 182 over ocean. Would probably be better to read h(x) from 
+        ! the surface file for these, but have left as is (default is LML) for zero-diff 
+        ! changes. 
+        landsfctype =( itype==181 .or. itype==183 .or. itype==187 ) 
   
         iqtflg=nint(data(iqt,i)) == 0
         var_jb=data(ijb,i)
@@ -737,8 +737,10 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     ! may result in lack of obs near coasts) 
           if (int(data(idomsfc,i)) .NE. 1  ) muse(i) = .false. 
 
+          !write(60000+mype,*) 'first tges2m,',tges2m, 'itype',itype !gge.debug
           call tintrp2a11(ges_t2m,tges2m,dlat,dlon,dtime,hrdifsig,&
             mype,nfldsig)
+          !write(60000+mype,*) 'after tges2m',tges2m !gge.debug
 
 ! correct obs to model terrain height - equivalent to gsd_terrain_match, which  uses lapse rate 
 ! calculated from model levels. For now, use standard lapse rate, then look
@@ -900,6 +902,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 
 ! Compute innovation
+     !write(60000+mype,*) 'type=',data(icat,i),'tob=',tob, 'tges2m=',tges2m,'tges=',tges !gge.debug
      !if(i_use_2mt4b>0 .and. sfctype) then
      if(sfctype .and. (( i_use_2mt4b>0) .or. hofx_2m_sfcfile ) ) then
         ddiff = tob-tges2m
@@ -919,6 +922,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        endif
      endif
 
+     !write(60000+mype,*) 'org=',data(ier2,i),'modified=',data(ier,i),'error=',error!gge.debug
      error=one/error
 !    if (dpres > rsig) ratio_errors=zero
      if (dpres > rsig )then
@@ -996,7 +1000,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         end if  
      endif
 
-
      if (sfctype .and. i_sfct_gross==1) then
 ! extend the threshold for surface T
         if(i_use_2mt4b<=0) tges2m=tges
@@ -1035,6 +1038,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      if (nobskeep>0 .and. luse_obsdiag) call obsdiagNode_get(my_diag, jiter=nobskeep, muse=muse(i))
 
 !    Oberror Tuning and Perturb Obs
+     !write(60000+mype,*) 'muse(i)=',muse(i),'ratio_errors=', ratio_errors !gge.debug
      if(muse(i)) then
         if(oberror_tune )then
            if( jiter > jiterstart ) then
@@ -1047,6 +1051,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 !    Compute penalty terms
      val      = error*ddiff
+     !write(60000+mype,*) 'val=',val,'error=',error,'ddiff=',ddiff !gge.debug
+     !stop! gge.debug
      if(nvqc .and. ibeta(ikx) >0  ) ratio_errors=0.8_r_kind*ratio_errors
      if(luse(i))then
         val2     = val*val
