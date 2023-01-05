@@ -75,15 +75,16 @@ echo "$VERBOSE" "fixgriddir is $fixgriddir"
 echo "$VERBOSE" "default bkpath is $bkpath"
 echo "$VERBOSE" "background type is is $BKTYPE"
 
+ifhyb=.false.
 if  [[ ${regional_ensemble_option:-1} -eq 1 ]]; then #using GDAS
   #-----------------------------------------------------------------------
   # Make a list of the latest GFS EnKF ensemble
   #-----------------------------------------------------------------------
-  ls ${rrfs_3denvar_glbens_ens}/*.mem0??.nc >> filelist03
+  ls ${rrfs_3denvar_glbens_ens}/*gdas.t??z.atmf009.mem0??.nc >> filelist03
 
   nummem=$(more filelist03 | wc -l)
   nummem=$((nummem - 3 ))
-  if [[ ${nummem} -ge 40 ]]; then
+  if [[ ${nummem} -ge 10 ]]; then
     echo "$VERBOSE" "Do hybrid with ${memname}"
     ifhyb=.true.
     echo "$VERBOSE" " Cycle ${YYYYMMDDHH}: GSI hybrid uses ${memname} with n_ens=${nummem}"

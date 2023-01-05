@@ -1526,11 +1526,11 @@ OBS_INPUT::
  &LAG_DATA
  /
  &HYBRID_ENSEMBLE
-   l_hyb_ens=.true.,
+   l_hyb_ens=${ifhyb},
    uv_hyb_ens=.true.,
    q_hyb_ens=.false.,
    aniso_a_en=.false.,generate_ens=.false.,
-   n_ens=40,
+   n_ens=${nummem},
    beta_s0=0.15,s_ens_h=110,s_ens_v=3,
    regional_ensemble_option=1,
    pseudo_hybens = .false.,
@@ -1954,7 +1954,7 @@ OBS_INPUT::
  &LAG_DATA
  /
  &HYBRID_ENSEMBLE
-   l_hyb_ens=.true.,n_ens=80,uv_hyb_ens=.true.,beta_s0=0.2,
+   l_hyb_ens=.true.,n_ens=10,uv_hyb_ens=.true.,beta_s0=0.2,
    readin_beta=.true.,
    s_ens_h=300,s_ens_v=-0.5,readin_localization=.false.,
    generate_ens=.false.,regional_ensemble_option=1,grid_ratio_ens=1,
@@ -2123,7 +2123,7 @@ OBS_INPUT::
  &LAG_DATA
  /
  &HYBRID_ENSEMBLE
-   l_hyb_ens=.true.,n_ens=80,uv_hyb_ens=.true.,beta_s0=0.2,
+   l_hyb_ens=.true.,n_ens=10,uv_hyb_ens=.true.,beta_s0=0.2,
    readin_beta=.true.,
    s_ens_h=150,s_ens_v=-0.5,readin_localization=.false.,
    generate_ens=.false.,regional_ensemble_option=1,grid_ratio_ens=1,
