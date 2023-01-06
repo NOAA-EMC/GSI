@@ -92,7 +92,7 @@ case $machine in
 	  export noscrub="/work/noaa/global/$LOGNAME/noscrub"
       fi
 
-      export queue="${queue:-debug}"
+      export queue="${queue:-batch}"
       export group="${group:-global}"
       if [[ "$cmaketest" = "false" ]]; then
 	  export basedir="/work/noaa/da/$LOGNAME/gsi"
@@ -117,7 +117,7 @@ case $machine in
     fi
 
     export group="${group:-global}"
-    export queue="${queue:-debug}"
+    export queue="${queue:-batch}"
     if [[ "$cmaketest" = "false" ]]; then
       export basedir="/scratch1/NCEPDEV/da/$LOGNAME/git/gsi"
     fi
