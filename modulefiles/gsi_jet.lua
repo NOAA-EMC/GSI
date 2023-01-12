@@ -21,4 +21,6 @@ load(pathJoin("prod_util", prod_util_ver))
 pushenv("CFLAGS", "-axSSE4.2,AVX,CORE-AVX2")
 pushenv("FFLAGS", "-axSSE4.2,AVX,CORE-AVX2")
 
+pushenv("GSI_BINARY_SOURCE_DIR", "/lfs4/HFIP/hfv3gfs/glopara/git/fv3gfs/fix/gsi/20221128")
+
 whatis("Description: GSI environment on Jet with Intel Compilers")

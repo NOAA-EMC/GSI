@@ -44,6 +44,9 @@ message(STATUS "BUILD_REG_TESTING ...... ${BUILD_REG_TESTING}")
 # Build components
 add_subdirectory(src)
 
+# Download and copy binary fix files
+add_subdirectory(fix)
+
 if(BUILD_REG_TESTING)
   add_subdirectory(regression)
 endif()
