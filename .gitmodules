@@ -1,3 +1,0 @@
-[submodule "fix"]
-	path = fix
-	url = gerrit:GSI-fix
