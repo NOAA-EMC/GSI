@@ -44,8 +44,10 @@ message(STATUS "BUILD_REG_TESTING ...... ${BUILD_REG_TESTING}")
 # Build components
 add_subdirectory(src)
 
-# Download and copy binary fix files
-add_subdirectory(fix)
+# Download and copy binary fix files if submodule has been cloned
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/fix/CMakeLists.txt)
+  add_subdirectory(fix)
+endif()
 
 if(BUILD_REG_TESTING)
   add_subdirectory(regression)
