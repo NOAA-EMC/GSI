@@ -447,11 +447,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      ikx=nint(data(ikxx,k))
      itype=ictype(ikx)
      sfctype=(itype>179.and.itype<190).or.(itype>=192.and.itype<=199)
-     ! landsfctype below is used to restrict hofx_2m_sfcfile to land obs only.
-     ! GDAS assmilates 180 and 182 over ocean. Would probably be better to read h(x) from 
-     ! the surface file for these, but have left as is (default is LML) for zero-diff 
-     ! changes. 
-     landsfctype =( itype==181 .or. itype==183 .or. itype==187 ) 
      do l=k+1,nobs
         if (twodvar_regional .or. (hofx_2m_sfcfile .and. sfctype) ) then
            duplogic=data(ilat,k) == data(ilat,l) .and.  &
@@ -549,6 +544,11 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         rstation_id     = data(id,i)
         prest=r10*exp(dpres)     ! in mb
         sfctype=(itype>179.and.itype<190).or.(itype>=192.and.itype<=199)
+        ! landsfctype below is used to restrict hofx_2m_sfcfile to land obs only.
+        ! GDAS assmilates 180 and 182 over ocean. Would probably be better to read h(x) from 
+        ! the surface file for these, but have left as is (default is LML) for zero-diff 
+        ! changes. 
+        landsfctype =( itype==181 .or. itype==183 .or. itype==187 ) 
   
         iqtflg=nint(data(iqt,i)) == 0
         var_jb=data(ijb,i)
@@ -995,7 +995,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
                                               ! to gross error check       
         end if  
      endif
-
 
      if (sfctype .and. i_sfct_gross==1) then
 ! extend the threshold for surface T
