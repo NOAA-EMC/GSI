@@ -23,4 +23,6 @@ load(pathJoin("prod_util", prod_util_ver))
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
 
+pushenv("GSI_BINARY_SOURCE_DIR", "/work/noaa/global/glopara/fix/gsi/20221128")
+
 whatis("Description: GSI environment on Orion with Intel Compilers")

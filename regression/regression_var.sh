@@ -17,7 +17,8 @@ if [ "$#" = 7 ] ; then
   export ush="$gsisrc/ush"
   export cmaketest="true"
   export clean="false"
-  export ptmpName=`echo $builddir | sed -e "s/\//_/g"`
+  dir_root="${builddir%/*}"
+  export ptmpName="${dir_root##*/}"
 else
   # Name of the branch being tested
   updat="XXXXXXXX"
@@ -42,6 +43,8 @@ elif [[ -d /data/prod ]]; then # S4
   export machine="S4"
 elif [[ -d /work ]]; then # Orion
   export machine="Orion"
+elif [[ -d /lfs/h2 ]]; then # wcoss2
+  export machine="wcoss2"
 fi
 echo "Running Regression Tests on '$machine'";
 
@@ -61,6 +64,47 @@ case $machine in
     export check_resource="no"
     export accnt="p48503002"
   ;;
+  wcoss2)
+      export local_or_default="${local_or_default:-/lfs/h2/emc/da/noscrub/$LOGNAME}"
+      if [ -d $local_or_default ]; then
+          export noscrub="$local_or_default/noscrub"
+      elif [ -d /lfs/h2/emc/global/noscrub/$LOGNAME ]; then
+          export noscrub="/lfs/h2/emc/global/noscrub/$LOGNAME/noscrub"
+      fi
+
+      export queue="${queue:-dev}"
+      export group="${group:-global}"
+      if [[ "$cmaketest" = "false" ]]; then
+	  export basedir="/lfs/h2/emc/da/noscrub/$LOGNAME/gsi"
+      fi
+      export ptmp="${ptmp:-/lfs/h2/emc/ptmp/$LOGNAME/$ptmpName}"
+
+      export casesdir="/lfs/h2/emc/da/noscrub/russ.treadon/CASES/regtest"
+
+      export check_resource="no"
+      export accnt="${accnt:-GFS-DEV}"
+  ;;      
+  Orion)
+      export local_or_default="${local_or_default:-/work/noaa/da/$LOGNAME}"
+      if [ -d $local_or_default ]; then
+          export noscrub="$local_or_default/noscrub"
+      elif [ -d /work/noaa/global/$LOGNAME ]; then
+	  export noscrub="/work/noaa/global/$LOGNAME/noscrub"
+      fi
+
+      export queue="${queue:-batch}"
+      export group="${group:-global}"
+      if [[ "$cmaketest" = "false" ]]; then
+	  export basedir="/work/noaa/da/$LOGNAME/gsi"
+      fi
+      export ptmp="${ptmp:-/work/noaa/stmp/$LOGNAME/$ptmpName}"
+
+      export fixcrtm=${CRTM_FIX:-/apps/contrib/NCEPLIBS/orion/fix/crtm_v2.3.0}
+      export casesdir="/work/noaa/da/rtreadon/CASES/regtest"
+
+      export check_resource="no"
+      export accnt="${accnt:-da-cpu}"
+  ;;      
   Hera)
 
     export local_or_default="${local_or_default:-/scratch1/NCEPDEV/da/$LOGNAME}"
@@ -80,16 +124,15 @@ case $machine in
 
     export ptmp="${ptmp:-/scratch1/NCEPDEV/stmp2/$LOGNAME/$ptmpName}"
 
-    export fixcrtm="${fixcrtm:-/scratch1/NCEPDEV/da/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update}"
-    export casesdir="/scratch1/NCEPDEV/da/Michael.Lueken/noscrub/CASES"
+##  export fixcrtm="${CRTM_FIX:-/scratch1/NCEPDEV/da/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update}"
+    export casesdir="/scratch1/NCEPDEV/da/Russ.Treadon/CASES/regtest"
 
     export check_resource="no"
-
     export accnt="${accnt:-da-cpu}"
 
     #  On Hera, there are no scrubbers to remove old contents from stmp* directories.
     #  After completion of regression tests, will remove the regression test subdirecories
-    export clean=".true."
+    export clean=".false."
   ;;
   Jet)
 
@@ -158,65 +201,23 @@ export savdir="$ptmp"
 export JCAP="62"
 
 # Case Study analysis dates
-export global_T62_adate="2016120300"
-export global_4dvar_T62_adate="2014080400"
-export global_hybrid_T126_adate="2014092912"
-export global_4denvar_T126_adate="2019041500"
-export global_fv3_4denvar_T126_adate="2018110500"
-export global_fv3_4denvar_C192_adate="2019061006"
-export global_enkf_T62_adate="2014092912"
-export global_lanczos_T62_adate="2014080400"
-export global_nemsio_T62_adate="2013011400"
-export nmmb_nems_adate="2015061000"
-export arw_binary_adate="2010072412"
-export arw_netcdf_adate="2008051112"
-export nmm_binary_adate="2010021600"
-export nmm_netcdf_adate="2007122000"
+export global_adate="2022110900"
 export rtma_adate="2020022420"
 export hwrf_nmm_adate="2012102812"
 export fv3_netcdf_adate="2017030100"
-export global_C96_fv3aero_adate="2019062200"
-export global_C96_fv3aerorad_adate="2019062200"
+export rrfs_3denvar_glbens_adate="2021072518"
 
 # Paths for canned case data.
-export global_T62_obs="$casesdir/global/sigmap/$global_T62_adate"
-export global_T62_ges="$casesdir/global/sigmap/$global_T62_adate"
-export global_4dvar_T62_obs="$casesdir/global/sigmap/$global_4dvar_T62_adate"
-export global_4dvar_T62_ges="$casesdir/global/sigmap/$global_4dvar_T62_adate"
-export global_hybrid_T126_datobs="$casesdir/global/sigmap/$global_hybrid_T126_adate/obs"
-export global_4denvar_T126_datges="$casesdir/global/sigmap/$global_4denvar_T126_adate"
-export global_4denvar_T126_datobs="$casesdir/global/sigmap/$global_4denvar_T126_adate"
-export global_fv3_4denvar_T126_datges="$casesdir/global/fv3/$global_fv3_4denvar_T126_adate"
-export global_fv3_4denvar_T126_datobs=$global_fv3_4denvar_T126_datges
-export global_fv3_4denvar_C192_datges="$casesdir/global/fv3/$global_fv3_4denvar_C192_adate"
-export global_fv3_4denvar_C192_datobs=$global_fv3_4denvar_C192_datges
-export global_hybrid_T126_datges="$casesdir/global/sigmap/$global_hybrid_T126_adate/ges"
-export global_enkf_T62_datobs="$casesdir/global/sigmap/$global_enkf_T62_adate/new_obs"
-export global_enkf_T62_datges="$casesdir/global/sigmap/$global_enkf_T62_adate/ges"
-export global_lanczos_T62_obs="$casesdir/global/sigmap/$global_lanczos_T62_adate"
-export global_lanczos_T62_ges="$casesdir/global/sigmap/$global_lanczos_T62_adate"
-export global_nemsio_T62_obs="$casesdir/global/sigmap/$global_nemsio_T62_adate"
-export global_nemsio_T62_ges="$casesdir/global/sigmap_nemsio/$global_nemsio_T62_adate"
-export nmmb_nems_4denvar_obs="$casesdir/regional/nmmb_nems/$nmmb_nems_adate"
-export nmmb_nems_4denvar_ges="$casesdir/regional/nmmb_nems/$nmmb_nems_adate"
-export arw_binary_obs="$casesdir/regional/arw_binary/$arw_binary_adate"
-export arw_binary_ges="$casesdir/regional/arw_binary/$arw_binary_adate"
-export arw_netcdf_obs="$casesdir/regional/arw_netcdf/$arw_netcdf_adate"
-export arw_netcdf_ges="$casesdir/regional/arw_netcdf/$arw_netcdf_adate"
-export nmm_binary_obs="$casesdir/regional/ndas_binary/$nmm_binary_adate"
-export nmm_binary_ges="$casesdir/regional/ndas_binary/$nmm_binary_adate"
-export nmm_netcdf_obs="$casesdir/regional/ndas_binary/$nmm_netcdf_adate"
-export nmm_netcdf_ges="$casesdir/regional/nmm_netcdf/$nmm_netcdf_adate"
+export global_data="$casesdir/gfs/prod"
 export rtma_obs="$casesdir/regional/rtma_binary/$rtma_adate"
 export rtma_ges="$casesdir/regional/rtma_binary/$rtma_adate"
 export hwrf_nmm_obs="$casesdir/regional/hwrf_nmm/$hwrf_nmm_adate"
 export hwrf_nmm_ges="$casesdir/regional/hwrf_nmm/$hwrf_nmm_adate"
 export fv3_netcdf_obs="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
 export fv3_netcdf_ges="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
-export global_C96_fv3aero_obs="$casesdir/global/fv3/$global_C96_fv3aero_adate"
-export global_C96_fv3aero_ges="$casesdir/global/fv3/$global_C96_fv3aero_adate"
-export global_C96_fv3aerorad_obs="$casesdir/global/fv3/$global_C96_fv3aerorad_adate"
-export global_C96_fv3aerorad_ges="$casesdir/global/fv3/$global_C96_fv3aerorad_adate"
+export rrfs_3denvar_glbens_obs="$casesdir/regional/rrfs/$rrfs_3denvar_glbens_adate/obs"
+export rrfs_3denvar_glbens_ges="$casesdir/regional/rrfs/$rrfs_3denvar_glbens_adate/ges"
+export rrfs_3denvar_glbens_ens="$casesdir/regional/rrfs/$rrfs_3denvar_glbens_adate/ens"
 
 # Define type of GPSRO data to be assimilated (refractivity or bending angle)
 export gps_dtype="gps_bnd"
@@ -227,7 +228,7 @@ export regression_vfydir="$noscrub/regression"
 # Define debug variable - If you want to run the debug tests, set this variable to .true.  Default is .false.
 export debug=".false."
 
-# Define parameters for global_T62_3d4dvar and global_T62_4dvar
+# Define parameters for global_3dvar, global_4dvar, global_4denvar
 export minimization="lanczos"  # If "lanczos", use sqrtb lanczos minimization algorithm.  Otherwise use "pcgsoi".
 export nhr_obsbin="6"          # Time window for observation binning.  Use "6" for 3d4dvar test.  Otherwise use "1"
 
