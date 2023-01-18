@@ -1806,8 +1806,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     endif
     call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)      )
     call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(tob-tges)   )
-    call nc_diag_metadata("Forecast_unadjusted",     sngl(tges))
-    call nc_diag_metadata("Forecast_adjusted",       sngl(data(itob,i)-ddiff))
 
     if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) then
        call nc_diag_metadata("Data_Pof",             sngl(data(ipof,i))     )
@@ -1863,9 +1861,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
     endif
 
-    ! need additional arrays for GeoVaLs for T2
-    call nc_diag_data2d("atmosphere_pressure_coordinate", sngl(exp(prsltmp)*r1000))
-
   end subroutine contents_netcdf_diag_
 
   subroutine contents_netcdf_diagp_(odiag)
@@ -1902,8 +1897,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("Observation",             sngl(data(itob,i))     )
     call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)      )
     call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(ddiff)      )
-    call nc_diag_metadata("Forecast_unadjusted",     sngl(data(itob,i)-ddiff))
-    call nc_diag_metadata("Forecast_adjusted",       sngl(data(itob,i)-ddiff))
 
 !----
     if (lobsdiagsave) then
@@ -1934,9 +1927,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
        call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
     endif
-
-    ! need additional arrays for GeoVaLs for T2
-    call nc_diag_data2d("atmosphere_pressure_coordinate", sngl(exp(prsltmp)*r1000))
 
   end subroutine contents_netcdf_diagp_
 

@@ -2504,6 +2504,7 @@ contains
        jdate(5) = 0          ! analysis minute
        jdate(6) = 0          ! analysis scaled seconds
 
+       allocate(fhour(1))
        fhour    = zero
        odate(1) = jdate(4)  !hour
        odate(2) = jdate(2)  !month
@@ -2774,6 +2775,7 @@ contains
        jdate(5) = 0          ! analysis minute
        jdate(6) = 0          ! analysis scaled seconds
 
+       allocate(fhour(1))
        fhour    = zero
        odate(1) = jdate(4)  !hour
        odate(2) = jdate(2)  !month

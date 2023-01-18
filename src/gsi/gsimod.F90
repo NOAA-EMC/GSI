@@ -149,7 +149,9 @@
                          beta_s0,beta_e0,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
                          readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,&
                          readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens,i_en_perts_io, &
-                         l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens
+                         l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens, &
+                         ntotensgrp,nsclgrp,naensgrp,ngvarloc,ntlevs_ens,naensloc, &
+                         i_ensloccov4tim,i_ensloccov4var,i_ensloccov4scl,l_timloc_opt
   use hybrid_ensemble_parameters,only : l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
@@ -497,6 +499,7 @@
 !                           2. fv3_regional =      .true.  
 !                           3. fv3_cmaq_regional = .true. 
 !                           4. berror_fv3_cmaq_regional = .true. 
+!  09-15-2022 yokota  - add scale/variable/time-dependent localization
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1309,9 +1312,19 @@
 !     beta_e0 - default weight given to ensemble background error covariance
 !               (if .not. readin_beta). if beta_e0<0, then it is set to
 !               1.-beta_s0 (this is the default)
-!     s_ens_h             - homogeneous isotropic horizontal ensemble localization scale (km)
-!     s_ens_v             - vertical localization scale (grid units for now)
-!                              s_ens_h, s_ens_v, and beta_s0 are tunable parameters.
+!     s_ens_h - horizontal localization correlation length of Gaussian exp(-0.5*(r/L)**2)
+!               (units of km), default = 2828.0
+!     s_ens_v - vertical localization correlation length of Gaussian exp(-0.5*(r/L)**2)
+!               (grid units if s_ens_v>=0, or units of ln(p) if s_ens_v<0), default = 30.0
+!                  in scale/variable/time-dependent localization (SDL/VDL/TDL),
+!                  localization length for i-th scale, j-th variable, and k-th time is
+!                     s_ens_[hv]( i + nsclgrp*(j-1) + nsclgrp*ngvarloc*(k-1) )
+!                        in SDL(nsclgrp>1),         i = 1(largest scale)  .. nsclgrp(smallest scale)
+!                        in VDL(ngvarloc=2),        j = 1(itracer<=10)    .. 2(itracer>=11)
+!                        in TDL(l_timloc_opt=true), k = 1(first time bin) .. ntlevs_ens(last time bin)
+!                  in SDL, scale separation length for i-th scale is also set here as
+!                     s_ens_[hv]( naensgrp+i ) - naensgrp is the total number of localization lengths for SDL/VDL/TDL
+!                        in applying SDL only horizontally, set s_ens_v(naensgrp+i)=0.0
 !     use_gfs_ens  - controls use of global ensemble: .t. use GFS (default); .f. uses user-defined ens
 !     readin_localization - flag to read (.true.)external localization information file
 !     readin_beta         - flag to read (.true.) the vertically varying beta parameters beta_s and beta_e
@@ -1349,14 +1362,27 @@
 !     ensemble_path - path to ensemble members; default './'
 !     ens_fast_read - read ensemble in parallel; default '.false.'
 !     sst_staticB - use only static background error covariance for SST statistic
-!              
-!                         
+!     nsclgrp - number of scale-dependent localization lengths
+!     l_timloc_opt - if true, then turn on time-dependent localization
+!     ngvarloc - number of variable-dependent localization lengths
+!     naensloc - total number of spatial localization lengths and scale separation lengths (should be naensgrp+nsclgrp-1)
+!     i_ensloccov4tim - flag of cross-temporal localization
+!                         =0: cross-temporal covariance is retained
+!                         =1: cross-temporal covariance is zero
+!     i_ensloccov4var - flag of cross-variable localization
+!                         =0: cross-variable covariance is retained
+!                         =1: cross-variable covariance is zero
+!     i_ensloccov4scl - flag of cross-scale localization
+!                         =0: cross-scale covariance is retained
+!                         =1: cross-scale covariance is zero
+!
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,fv3sar_bg_opt,fv3sar_ensemble_opt,full_ensemble,pwgtflg,&
                 jcap_ens_test,beta_s0,beta_e0,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
                 grid_ratio_ens, &
                 oz_univ_static,write_ens_sprd,use_localization_grid,use_gfs_ens, &
-                i_en_perts_io,l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens
+                i_en_perts_io,l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens, &
+                nsclgrp,l_timloc_opt,ngvarloc,naensloc,i_ensloccov4tim,i_ensloccov4var,i_ensloccov4scl
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
 !                             enhancement for RR appilcation  ):
@@ -1807,6 +1833,16 @@
      call stop2(137)
   endif
 
+  ntotensgrp=nsclgrp*ngvarloc
+  if(l_timloc_opt) then
+     naensgrp=ntotensgrp*ntlevs_ens
+  else
+     naensgrp=ntotensgrp
+  endif
+  if(naensloc<naensgrp+nsclgrp-1) naensloc=naensgrp+nsclgrp-1
+  if(mype==0) write(6,*) 'in gsimod: naensgrp,ntotensgrp,nsclgrp,ngvarloc,ntlevs_ens= ', &
+                          naensgrp,ntotensgrp,nsclgrp,ngvarloc,ntlevs_ens
+
   call gsi_4dcoupler_setservices(rc=ier)
   if(ier/=0) call die(myname_,'gsi_4dcoupler_setServices(), rc =',ier)
 
@@ -1969,7 +2005,7 @@
 ! If reflectivity is intended to be assimilated, beta_s0 should be zero.
   if ( beta_s0 > 0.0_r_kind )then
     ! skipped in case of direct reflectivity DA because it works in Envar and hybrid
-    if ( .not.l_use_rw_columntilt .or. .not.l_use_dbz_directDA) then
+    if ( l_use_rw_columntilt .or. l_use_dbz_directDA) then
        do i=1,ndat
           if ( index(dtype(i), 'dbz') /= 0 )then
              write(6,*)'beta_s0 needs to be set to zero in this GSI version, when reflectivity is directly assimilated. &
