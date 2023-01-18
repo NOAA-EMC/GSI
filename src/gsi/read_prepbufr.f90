@@ -1917,15 +1917,16 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! CSD - temporary hack ( move to prepbufr pre-processing later)
 !             Over-ride QM=9 for sfc obs 
+!NOTE: 187, 181, and 183 are the screen-level obs over land
               if (sfctype .and. hofx_2m_sfcfile ) then 
                 if (tob .and. (kx==187 .or. kx==181 .or. kx==183) ) then!hardwire 181/183/187 obs error
                   tqm(k)=2
-                  qm=2 ! 2=not checked
+                  qm=2
                   if (kx==187) obserr(3,k)=2.2585
                   if (kx==181) obserr(3,k)=1.5056
                   if (kx==183) obserr(3,k)=2.6349
                 endif
-                if (qob .and. qm == 9 ) qm = 2 ! 2=not checked
+                if (qob .and. qm == 9 ) qm = 2
               endif
 !             Set usage variable              
               usage = zero
