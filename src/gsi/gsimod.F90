@@ -2005,7 +2005,7 @@
 ! If reflectivity is intended to be assimilated, beta_s0 should be zero.
   if ( beta_s0 > 0.0_r_kind )then
     ! skipped in case of direct reflectivity DA because it works in Envar and hybrid
-    if ( .not.l_use_rw_columntilt .or. .not.l_use_dbz_directDA) then
+    if ( l_use_rw_columntilt .or. l_use_dbz_directDA) then
        do i=1,ndat
           if ( index(dtype(i), 'dbz') /= 0 )then
              write(6,*)'beta_s0 needs to be set to zero in this GSI version, when reflectivity is directly assimilated. &
