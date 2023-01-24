@@ -1740,7 +1740,7 @@ contains
    if (.not. (any(inew_rad) .or. any(update_tlapmean))) return
    if (ndat==0) return
 
-   if (mype==0) write(6,*) 'INIT_PREDX:  enter routine'
+!  if (mype==0) write(6,*) 'INIT_PREDX:  enter routine'
 
 !  Allocate and initialize data arrays
    if (any(update_tlapmean)) then

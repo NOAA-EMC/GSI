@@ -240,7 +240,6 @@ contains
 !
 !$$$
     use mpimod, only: mype
-    use obsmod, only: iout_aero
     implicit none
 
     character(len=1)   :: cflg
@@ -285,11 +284,6 @@ contains
 !      All mpi tasks open and read aerosol information file.
 !      Task mype_aero writes information to aerosol runtime file
   
-       if (mype==mype_aero) then
-          open(iout_aero)
-          write(iout_aero,110) jpch_aero
-110       format('AEROINFO_READ:  jpch_aero=',1x,i6)
-       endif
        rewind(lunin)
        j=0
        do k=1,nlines
@@ -299,12 +293,8 @@ contains
           read(crecord,*) nusis_aero(j),&
                nuchan_aero(j),iuse_aero(j),pob_aero(j),gross_aero(j),error_aero(j), &
                b_aero(j),pg_aero(j)
-          if (mype==mype_aero) write(iout_aero,130) j,nusis_aero(j),nuchan_aero(j),&
-                  iuse_aero(j),pob_aero(j),gross_aero(j),error_aero(j),b_aero(j), &
-                  pg_aero(j)
        end do
        close(lunin)
-       if (mype==mype_aero) close(iout_aero)
 
 100 format(a1,a120)
 130 format(i3,1x,a20,' lev = ',i4,' use = ',i2,' pob = ',f9.3,&
@@ -315,10 +305,8 @@ contains
      else
 !       File does not exist, write warning message to alert users
         if (mype==mype_aero) then
-           open(iout_aero)
-           write(iout_aero,*)'AEROINFO_READ:  ***WARNING*** FILE ',trim(fname),' does not exist'
-           write(iout_aero,*)'AEROINFO_READ:  jpch_aero=',jpch_aero
-           close(iout_aero)
+           write(6,*)'AEROINFO_READ:  ***WARNING*** FILE ',trim(fname),' does not exist'
+           write(6,*)'AEROINFO_READ:  jpch_aero=',jpch_aero
         endif
      end if
 

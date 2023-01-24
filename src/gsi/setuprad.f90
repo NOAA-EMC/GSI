@@ -403,7 +403,6 @@ contains
   real(r_kind),dimension(nchanl):: tcc         
   real(r_kind) :: ptau5deriv, ptau5derivmax
   real(r_kind) :: clw_guess,clw_guess_retrieval,ciw_guess,rain_guess,snow_guess,clw_avg
-  real(r_kind) :: tnoise_save
   real(r_kind),dimension(:), allocatable :: rsqrtinv
   real(r_kind),dimension(:), allocatable :: rinvdiag
 
@@ -420,10 +419,10 @@ contains
   integer(i_kind),allocatable,dimension(:) :: sc_index
   integer(i_kind)  :: state_ind, nind, nnz
 
-  logical channel_passive
+  logical,dimension(jpch_rad) :: channel_passive
   logical,dimension(nobs):: luse
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
-  integer(i_kind):: nperobs
+  integer(i_kind):: nperobs,ncr
 
   character(10) filex
   character(12) string
@@ -540,6 +539,7 @@ contains
   jc=0
 
   do j=1,jpch_rad
+     channel_passive(j)=iuse_rad(j)==-1 .or. iuse_rad(j)==0
      if(isis == nusis(j))then 
         jc=jc+1
         if(jc > nchanl)then
@@ -558,10 +558,9 @@ contains
 !
 !       Set error instrument channels
         tnoise(jc)=varch(j)
-        channel_passive=iuse_rad(j)==-1 .or. iuse_rad(j)==0
-        if (iuse_rad(j)< -1 .or. (channel_passive .and.  &
+        if (iuse_rad(j)< -1 .or. (channel_passive(j) .and.  &
            .not.rad_diagsave)) tnoise(jc)=r1e10
-        if (passive_bc .and. channel_passive) tnoise(jc)=varch(j)
+        if (passive_bc .and. channel_passive(j)) tnoise(jc)=varch(j)
         if (iuse_rad(j)>0) l_may_be_passive=.true.
         if (tnoise(jc) < 1.e4_r_kind) toss = .false.
 
@@ -845,31 +844,6 @@ contains
              iinstr=getindex(idnames,trim(covtype))
           endif
         endif
-        do jc=1,nchanl
-           j=ich(jc)
-
-           tnoise(jc)=varch(j)
-
-           if(mixed .and. (varch_mixed(j)>zero)) then
-              tnoise(jc)=varch_mixed(j)
-           else if(snow  .and. (varch_snow(j)>zero))  then
-              tnoise(jc)=varch_snow(j)
-           else if(ice   .and. (varch_ice(j)>zero))   then
-              tnoise(jc)=varch_ice(j)
-           else if(land  .and. (varch_land(j)>zero))  then
-              tnoise(jc)=varch_land(j)
-           else if(sea   .and. (varch_sea(j)>zero))   then
-              tnoise(jc)=varch_sea(j)
-           end if
-           tnoise_save = tnoise(jc)
-
-           channel_passive=iuse_rad(j)==-1 .or. iuse_rad(j)==0
-           if (iuse_rad(j)< -1 .or. (channel_passive .and.  &
-                .not.rad_diagsave)) tnoise(jc)=r1e10
-           if (passive_bc .and. channel_passive) tnoise(jc)=tnoise_save
-           if (tnoise(jc) < 1.e4_r_kind) toss = .false.
-        end do
-
 !       Count data of different surface types
         if(luse(n))then
            if (mixed) then
@@ -890,9 +864,30 @@ contains
            endif
         endif
 
+        do jc=1,nchanl
+           j=ich(jc)
+
+           tnoise(jc)=varch(j)
+
+           if(mixed .and. (varch_mixed(j)>zero)) then
+              tnoise(jc)=varch_mixed(j)
+           else if(snow  .and. (varch_snow(j)>zero))  then
+              tnoise(jc)=varch_snow(j)
+           else if(ice   .and. (varch_ice(j)>zero))   then
+              tnoise(jc)=varch_ice(j)
+           else if(land  .and. (varch_land(j)>zero))  then
+              tnoise(jc)=varch_land(j)
+           else if(sea   .and. (varch_sea(j)>zero))   then
+              tnoise(jc)=varch_sea(j)
+           end if
+
+           if (.not. (passive_bc .and. channel_passive(j))) then
+              if (iuse_rad(j)< -1 .or. (channel_passive(j) .and.  &
+                  .not.rad_diagsave)) tnoise(jc)=r1e10
+           end if
+     
 !       Load channel data into work array.
-        do i = 1,nchanl
-           tb_obs(i) = data_s(i+nreal,n)
+           tb_obs(jc) = data_s(jc+nreal,n)
         end do
  
 
@@ -1314,9 +1309,8 @@ contains
 
         do i=1,nchanl
            mm=ich(i)
-           channel_passive=iuse_rad(ich(i))==-1 .or. iuse_rad(ich(i))==0
-           if(tnoise(i) < 1.e4_r_kind .or. (channel_passive .and. rad_diagsave) &
-                  .or. (passive_bc .and. channel_passive))then
+           if(tnoise(i) < 1.e4_r_kind .or. (channel_passive(mm) .and. rad_diagsave) &
+                  .or. (passive_bc .and. channel_passive(mm)))then
               varinv(i)     = varinv(i)/error0(i)**2
               errf(i)       = error0(i)
            else
@@ -1653,9 +1647,9 @@ contains
            kval=0
            do i=2,nlev
 !          do i=1,nlev
-              channel_passive=iuse_rad(ich(i))==-1 .or. iuse_rad(ich(i))==0
-              if (varinv(i)<tiny_r_kind .and. ((iuse_rad(ich(i))>=1) .or. &
-                  (passive_bc .and. channel_passive))) then
+              mm=ich(i)
+              if (varinv(i)<tiny_r_kind .and. ((iuse_rad(mm)>=1) .or. &
+                  (passive_bc .and. channel_passive(mm)))) then
                  kval=max(i-1,kval)
                  if(amsub .or. hsb .or. mhs)then
                     kval=nlev
@@ -1867,8 +1861,7 @@ contains
 
 !             At the end of analysis, prepare for bias correction for monitored channels
 !             Only "good monitoring" obs are included in J_passive calculation.
-              channel_passive=iuse_rad(m)==-1 .or. iuse_rad(m)==0
-              if (passive_bc .and. (jiter>miter) .and. channel_passive) then
+              if (passive_bc .and. (jiter>miter) .and. channel_passive(m)) then
 !                summation of observation number,
 !                skip ostats accumulation for channels without coef. initialization 
                  if (newpc4pred .and. luse(n) .and. any(predx(:,m)/=zero)) then
@@ -1918,7 +1911,7 @@ contains
                        my_head%raterr2(icc),my_head%pred(npred,icc), &
                        my_head%dtb_dvar(nsigradjac,icc), &
                        my_head%ich(icc),&
-                       my_head%icx(icc))
+                       my_head%icx(icc),my_head%iccerr(icc))
               if(luse_obsdiag)allocate(my_head%diags(icc))
 
               call get_ij(mm1,slats,slons,my_head%ij,my_head%wij)
@@ -1985,6 +1978,13 @@ contains
                       end if
                     end if  ! end of newpc4pred loop
                  end if
+              end do
+              ncr=0
+              do ii=1,iii
+                 my_head%iccerr(ii) = ncr
+                 do mm=1,ii
+                   ncr=ncr+1
+                 end do
               end do
               my_head%nchan  = iii         ! profile observation count
 
@@ -2080,23 +2080,28 @@ contains
               allocate(my_headm%res(iccm),my_headm%err2(iccm), &
                        my_headm%raterr2(iccm),my_headm%pred(npred,iccm), &
                        my_headm%ich(iccm), &
-                       my_headm%icx(iccm))
+                       my_headm%icx(iccm),my_headm%iccerr(iccm))
 
               my_headm%nchan  = iccm        ! profile observation count
               my_headm%time=dtime
               my_headm%luse=luse(n)
               my_headm%ich(:)=-1
               iii=0
+              ncr=0
               do ii=1,nchanl
                  m=ich(ii)
-                 channel_passive=iuse_rad(m)==-1 .or. iuse_rad(m)==0
-                 if (varinv(ii)>tiny_r_kind .and. channel_passive) then
+                 if (varinv(ii)>tiny_r_kind .and. channel_passive(m)) then
 
                     iii=iii+1
                     my_headm%res(iii)=tbc(ii)                 ! obs-ges innovation
                     my_headm%err2(iii)=one/error0(ii)**2      ! 1/(obs error)**2  (original uninflated error)
                     my_headm%raterr2(iii)=error0(ii)**2*varinv(ii) ! (original error)/(inflated error)
                     my_headm%icx(iii)=m                       ! channel index
+                    do mm=1,ii
+                      ncr=ncr+1
+                    end do
+                   
+                    my_headm%iccerr(iii)=ncr                     ! channel index
                     do k=1,npred
                        my_headm%pred(k,iii)=pred(k,ii)*upd_pred(k)*max(cld_rbc_idx(ii),cld_rbc_idx2(ii))
                     end do

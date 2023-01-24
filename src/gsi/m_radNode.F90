@@ -57,6 +57,7 @@ module m_radNode
                                       !  square root of inverse of R, only used
                                       !  if using correlated obs
 
+     integer(i_kind),dimension(:),pointer :: iccerr => NULL()
      integer(i_kind),dimension(:),pointer :: icx => NULL()
      integer(i_kind),dimension(:),pointer :: ich => NULL()
      integer(i_kind) :: nchan         !  number of channels for this profile
@@ -214,6 +215,7 @@ _ENTRY_(myname_)
   if(associated(aNode%Rpred   )) deallocate(aNode%Rpred   )
   if(associated(aNode%rsqrtinv)) deallocate(aNode%rsqrtinv)
   if(associated(aNode%icx     )) deallocate(aNode%icx     )
+  if(associated(aNode%iccerr  )) deallocate(aNode%iccerr   )
 _EXIT_(myname_)
 return
 end subroutine obsNode_clean_
@@ -276,6 +278,7 @@ _ENTRY_(myname_)
         if(associated(aNode%Rpred   )) deallocate(aNode%Rpred)
         if(associated(aNode%rsqrtinv)) deallocate(aNode%rsqrtinv)
         if(associated(aNode%icx     )) deallocate(aNode%icx     )
+        if(associated(aNode%iccerr  )) deallocate(aNode%iccerr  )
 
         nchan=aNode%nchan
         allocate( aNode%diags(nchan), &
@@ -285,7 +288,7 @@ _ENTRY_(myname_)
                   aNode%pred         (npred,nchan), &
                   aNode%dtb_dvar(nsigradjac,nchan), &
                   aNode%ich  (nchan), &
-                  aNode%icx  (nchan)  )
+                  aNode%icx  (nchan), aNode%iccerr(nchan)  )
 
         read(iunit,iostat=istat)    aNode%ich     , &
                                     aNode%res     , &
@@ -293,6 +296,7 @@ _ENTRY_(myname_)
                                     aNode%raterr2 , &
                                     aNode%pred    , &
                                     aNode%icx     , &
+                                    aNode%iccerr  , &
                                     aNode%dtb_dvar, &
                                     aNode%wij     , &
                                     aNode%ij
@@ -368,6 +372,7 @@ _ENTRY_(myname_)
                                 aNode%raterr2 , &
                                 aNode%pred    , &
                                 aNode%icx     , &
+                                aNode%iccerr  , &
                                 aNode%dtb_dvar, &
                                 aNode%wij     , &
                                 aNode%ij

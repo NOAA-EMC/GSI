@@ -507,7 +507,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
      end do
 
 
-
 !  For all other configurations
 !  begin channel specific calculations
      allocate(val(radptr%nchan))
@@ -526,10 +525,8 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         end do
      end if
 
-!$omp parallel do schedule(dynamic,1) private(nn,ic,ix,k)
+!$omp parallel do schedule(dynamic,1) private(nn,k,ncr1)
      do nn=1,radptr%nchan
-        ic=radptr%icx(nn)
-        ix=(ic-1)*npred
 
 !       include observation increment and lapse rate contributions to bias correction
         val(nn)=zero
@@ -538,25 +535,24 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         do k=1,nsigradjac
            val(nn)=val(nn)+tdir(k)*radptr%dtb_dvar(k,nn)
         end do
-     end do
 
-     ncr1=0
 !       Include contributions from remaining bias correction terms
-     do nn=1,radptr%nchan
         if( .not. ladtest_obs) then
            if(radptr%use_corr_obs)then
               val_quad = zero_quad
               do mm=1,nn
-                 ncr1=ncr1+1
+                 ncr1=radptr%iccerr(nn)+mm
                  val_quad=val_quad+radptr%rsqrtinv(ncr1)*biasvect(mm)
               enddo
               val(nn)=val(nn) + val_quad
            else
-              val(nn)=val(nn)+biasvect(nn)
+              val(nn)=val(nn) + biasvect(nn)
            endif
         end if
+     end do
 
-        if(luse_obsdiag)then
+     if(luse_obsdiag)then
+        do nn=1,radptr%nchan
            if (lsaveobsens) then
               val(nn)=val(nn)*radptr%err2(nn)*radptr%raterr2(nn)
               !-- radptr%diags(nn)%ptr%obssen(jiter) = val(nn)
@@ -565,11 +561,12 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
               !-- if (radptr%luse) radptr%diags(nn)%ptr%tldepart(jiter) = val(nn)
               if (radptr%luse) call obsdiagNode_set(radptr%diags(nn)%ptr,jiter=jiter,tldepart=val(nn))
            endif
-        endif
-     end do
+        end do
+     end if
 
      if (l_do_adjoint) then
         if (.not. lsaveobsens) then
+!$omp parallel do schedule(dynamic,1) private(nn,ic,cg_rad,wnotgross,wgross,p0)
            do nn=1,radptr%nchan
               ic=radptr%icx(nn)
               if( .not. ladtest_obs)   val(nn)=val(nn)-radptr%res(nn)
@@ -589,47 +586,41 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         endif
 
 !          Extract contributions from bias correction terms
-!          use compensated summation
 
         if( .not. ladtest_obs) then
-           if (radptr%use_corr_obs) then
-             ncr1 = 0
-             do mm=1,radptr%nchan
-               ncr1 = ncr1 + mm
-               ncr2 = ncr1
-               biasvect(mm) = zero
-               do nn=mm,radptr%nchan
-                 biasvect(mm)=biasvect(mm)+radptr%rsqrtinv(ncr2)*val(nn)
-                 ncr2 = ncr2 + nn
-               enddo
-             end do
-           endif
-
-           if(radptr%luse)then
-             if(radptr%use_corr_obs)then
-                do nn=1,radptr%nchan
-                   ix=(radptr%icx(nn)-1)*npred
-                   do n=1,npred
-                      rpred(ix+n)=rpred(ix+n)+biasvect(nn)*radptr%pred(n,nn)
-                   enddo
+          if(radptr%luse)then
+            if (radptr%use_corr_obs) then
+!$omp parallel do schedule(dynamic,1) private(n,nn,ix,ncr1,ncr2,mm)
+              do nn=1,radptr%nchan
+                ncr1 = radptr%iccerr(nn)+nn
+                ncr2 = ncr1
+                biasvect(nn) = zero
+                do mm=nn,radptr%nchan
+                  biasvect(nn)=biasvect(nn)+radptr%rsqrtinv(ncr2)*val(mm)
+                  ncr2 = ncr2 + mm
                 enddo
-             else
-                do nn=1,radptr%nchan
-                   ix=(radptr%icx(nn)-1)*npred
-                   do n=1,npred
-                      rpred(ix+n)=rpred(ix+n)+radptr%pred(n,nn)*val(nn)
-                   end do
-                end do
-             end if
-           end if
 
-           deallocate(biasvect)
+                ix=(radptr%icx(nn)-1)*npred
+                do n=1,npred
+                   rpred(ix+n)=rpred(ix+n)+biasvect(nn)*radptr%pred(n,nn)
+                enddo
+              enddo
+            else
+!$omp parallel do schedule(dynamic,1) private(n,nn,ix)
+              do nn=1,radptr%nchan
+                 ix=(radptr%icx(nn)-1)*npred
+                 do n=1,npred
+                    rpred(ix+n)=rpred(ix+n)+radptr%pred(n,nn)*val(nn)
+                 end do
+              end do
+            end if
+          end if
+
+          deallocate(biasvect)
         end if ! not ladtest_obs
 
-     endif
 
 !          Begin adjoint
-     if (l_do_adjoint) then
 !$omp parallel do schedule(dynamic,1) private(k,nn)
         do k=1,nsigradjac
            tval(k)=zero

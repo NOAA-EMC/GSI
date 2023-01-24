@@ -435,8 +435,8 @@ module obsmod
   public :: iout_pcp,iout_rad,iadate,iadatemn,write_diag,reduce_diag,oberrflg,bflag,ndat,dthin,dmesh,l_do_adjoint
   public :: diag_radardbz
   public :: lsaveobsens
-  public ::                  iout_cldch, mype_cldch
-  public ::          nprof_gps,time_offset,ianldate,tcp_box
+  public :: iout_cldch, mype_cldch
+  public :: nprof_gps,time_offset,ianldate,tcp_box
   public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,tcp_posmatch,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
   public :: lobsdiagsave,lobsdiag_forenkf,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
@@ -831,7 +831,7 @@ contains
     iout_tcp=214   ! synthetic tc-mslp
     iout_lag=215   ! lagrangian tracers
     iout_co=216    ! co tracers
-    iout_aero=217  ! aerosol product (aod)
+    iout_aero=217  ! aerosol product (aod) CURRENTLY NOT USED
     iout_gust=218  ! wind gust
     iout_vis=219   ! visibility
     iout_pblh=221  ! pbl height

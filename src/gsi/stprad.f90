@@ -134,8 +134,9 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   real(r_kind),dimension(nsigradjac):: tdir,rdir
   real(r_kind) cg_rad,wgross,wnotgross
   integer(i_kind),dimension(nsig) :: j1n,j2n,j3n,j4n
-  real(r_kind),dimension(max(1,nstep)) :: term,rad
+  real(r_kind),dimension(max(1,nstep)) :: rad
   type(radNode), pointer :: radptr
+  real(r_kind),allocatable,dimension(:,:) :: term
   real(r_kind),allocatable,dimension(:) :: biasvects 
   real(r_kind),allocatable,dimension(:) :: biasvectr
   real(r_kind),pointer,dimension(:) :: rt,rq,rcw,roz,ru,rv,rqg,rqh,rqi,rql,rqr,rqs
@@ -229,6 +230,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
            enddo
            allocate(biasvects(radptr%nchan))
            allocate(biasvectr(radptr%nchan))
+           allocate(term(max(1,nstep),radptr%nchan))
 
 !$omp parallel do schedule(dynamic,1) private(n,j1,j2,j3,j4,icx,vals_quad,valr_quad,nx)
            do n=1,max(nsig,radptr%nchan)
@@ -311,7 +313,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 
         endif
 
-        ncr=0
+!$omp parallel do schedule(dynamic,1) private(nn,ic,mm,ncr,k,kk,rad,val,val2,cg_rad,wnotgross,wgross)
         do nn=1,radptr%nchan
 
            if(nstep > 0)then
@@ -321,7 +323,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
               ic=radptr%icx(nn)
               if(radptr%use_corr_obs) then
                  do mm=1,nn
-                    ncr=ncr+1
+                    ncr=radptr%iccerr(nn)+mm
                     val2=val2+radptr%rsqrtinv(ncr)*biasvects(mm)
                     val =val +radptr%rsqrtinv(ncr)*biasvectr(mm)
                  end do
@@ -346,7 +348,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
         
 !          calculate contribution to J
            do kk=1,max(1,nstep)
-              term(kk)  = radptr%err2(nn)*rad(kk)*rad(kk)
+              term(kk,nn)  = radptr%err2(nn)*rad(kk)*rad(kk)
            end do
 
 !          Modify penalty term if nonlinear QC
@@ -356,18 +358,23 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
               wnotgross= one-pg_rad(ic)*varqc_iter
               wgross = varqc_iter*pg_rad(ic)*cg_rad/wnotgross
               do kk=1,max(1,nstep)
-                 term(kk)  = -two*log((exp(-half*term(kk) ) + wgross)/(one+wgross))
+                 term(kk,nn)  = -two*log((exp(-half*term(kk,nn) ) + wgross)/(one+wgross))
               end do
            endif
 
-           out(1) = out(1) + term(1)*radptr%raterr2(nn)
+        end do
+
+        deallocate(biasvects, biasvectr)
+
+        do nn=1,radptr%nchan
+           out(1) = out(1) + term(1,nn)*radptr%raterr2(nn)
            do kk=2,nstep
-              out(kk) = out(kk) + (term(kk)-term(1))*radptr%raterr2(nn)
+              out(kk) = out(kk) + (term(kk,nn)-term(1,nn))*radptr%raterr2(nn)
            end do
 
         end do
 
-        if(nstep > 0) deallocate(biasvects, biasvectr)
+        deallocate(term)
 
      end if
 

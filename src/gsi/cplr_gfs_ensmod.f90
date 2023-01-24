@@ -162,10 +162,10 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
 !
 !   input argument list:
 !     ntindex  - time index for ensemble
-!     ens_atm_bundle - atm bundle w/ fields for ensemble
+!     atm_bundle - atm bundle w/ fields for ensemble
 !
 !   output argument list:
-!     ens_atm_bundle - atm bundle w/ fields for ensemble
+!     atm_bundle - atm bundle w/ fields for ensemble
 !     iret           - return code, 0 for successful read.
 !
 ! attributes:
@@ -179,7 +179,8 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_destroy_info
     use gsi_4dvar, only: ens_fhrlevs
     use gsi_bundlemod, only: gsi_bundle
-    use hybrid_ensemble_parameters, only: n_ens,grd_ens
+    use gsi_bundlemod, only : assignment(=)
+    use hybrid_ensemble_parameters, only: n_ens,grd_ens,ntlevs_ens
     use hybrid_ensemble_parameters, only: ensemble_path
     use control_vectors, only: nc2d,nc3d
     !use control_vectors, only: cvars2d,cvars3d
@@ -207,7 +208,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     integer(i_kind) :: nlon,nlat,nsig
     integer(i_kind),dimension(n_ens) :: io_pe0
     real(r_single),allocatable,dimension(:,:,:,:) :: en_full,en_loc
-    real(r_kind),allocatable,dimension(:,:,:) :: en_loc3
+    real(r_kind),allocatable,dimension(:) :: sloc
     integer(i_kind),allocatable,dimension(:) :: m_cvars2dw,m_cvars3dw
     integer(i_kind) :: m_cvars2d(nc2d),m_cvars3d(nc3d)
     type(sub2grid_info) :: grd3d
@@ -268,10 +269,10 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
 
     end if
     if(mype==0) write(6,*) ' reading time level ',ntindex 
-
     allocate(m_cvars2dw(nc2din),m_cvars3dw(nc3din))
     m_cvars2dw=-999
     m_cvars3dw=-999
+
 
 
 !!  read ensembles
@@ -306,42 +307,41 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     call mpi_allreduce(m_cvars3dw,m_cvars3d,nc3d,mpi_integer4,mpi_max,mpi_comm_world,ierror)
 
     deallocate(m_cvars2dw,m_cvars3dw)
+
 ! scatter to subdomains:
 
+!   en_loc=zero
     allocate(en_loc(ibsm:ibemz,jbsm:jbemz,kbsm:kbemz,mbsm:mbemz))
-
-    en_loc=zero
     call genex(s_a2b,en_full,en_loc)
 
-    if(allocated(en_full))deallocate(en_full)
+    if(mas == mae)deallocate(en_full)
+
+
 !   call genex_destroy_info(s_a2b)  ! check on actual routine name
 
-! transfer en_loc to en_loc3 then to atm_bundle
 
-    allocate(en_loc3(lat2in,lon2in,nc2d+nc3d*nsig))
-
+    allocate(sloc(lat2in*lon2in*(nc2d+nc3d*nsig)))
     call create_grd23d_(grd3d,nc2d+nc3d*grd%nsig)
+
     iret=0
     do n=1,n_ens
+       ii=0
        do k=1,nc2d+nc3d*nsig
-          jj=0
           do j=jbsm,jbem
-             jj=jj+1
-             ii=0
              do i=ibsm,ibem
                 ii=ii+1
-                en_loc3(ii,jj,k)=en_loc(i,j,k,n)
+                sloc(ii)=en_loc(i,j,k,n)
              enddo
           enddo
        enddo
-       call move2bundle_(grd3d,en_loc3,atm_bundle(n),m_cvars2d,m_cvars3d,iret)
+       call move2bundle_(grd3d,sloc,atm_bundle(n),m_cvars2d,m_cvars3d,iret)
     enddo
+    deallocate(en_loc,sloc)
     call general_sub2grid_destroy_info(grd3d,grd)
-    deallocate(en_loc,en_loc3)
 
 end subroutine get_user_ens_gfs_fastread_
 
-subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
+subroutine move2bundle_(grd3d,sloc,atm_bundle,m_cvars2d,m_cvars3d,iret)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -357,7 +357,7 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
 !
 !   input argument list:
 !     grd        - grd info for ensemble
-!     en_loc3    - ensemble member
+!     sloc    - ensemble member
 !     atm_bundle - empty atm bundle
 !     m_cvars2d  - maps 3rd index in en_loc3 for start of each 2d variable
 !     m_cvars3d  - maps 3rd index in en_loc3 for start of each 3d variable
@@ -376,7 +376,6 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
     use hybrid_ensemble_parameters, only: en_perts
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
-    use gsi_bundlemod, only : assignment(=)
     use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
     use mpeu_util, only: getindex  
 
@@ -384,8 +383,8 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
 
     ! Declare passed variables
     type(sub2grid_info), intent(in   ) :: grd3d
-    real(r_kind),        intent(inout) :: en_loc3(grd3d%lat2,grd3d%lon2,nc2d+nc3d*grd3d%nsig)
     type(gsi_bundle),    intent(inout) :: atm_bundle
+    real(r_kind),        intent(inout) :: sloc(grd3d%lat2*grd3d%lon2*(nc2d+nc3d*grd3d%nsig))
     integer(i_kind),     intent(in   ) :: m_cvars2d(nc2d),m_cvars3d(nc3d)
     integer(i_kind),     intent(inout) :: iret
 
@@ -398,13 +397,14 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
     integer(i_kind) :: icw,iql,iqi,iqr,iqs,iqg  
     real(r_kind),pointer,dimension(:,:) :: ps
     !real(r_kind),pointer,dimension(:,:) :: sst
+    real(r_kind),dimension(grd3d%lat2,grd3d%lon2,nc2d+nc3d*grd3d%nsig)::en_loc3
     real(r_kind),pointer,dimension(:,:,:) :: u,v,tv,q,oz,cwmr
     real(r_kind),pointer,dimension(:,:,:) :: qlmr,qimr,qrmr,qsmr,qgmr   
     real(r_kind),parameter :: r0_001 = 0.001_r_kind
 
 
 !--- now update halo values of all variables using general_sub2grid
-    call update_halos_(grd3d,en_loc3)
+    call update_halos_(grd3d,sloc,en_loc3)
 
     ! Check hydrometeors in control variables 
     icw=getindex(cvars3d,'cw')
@@ -414,9 +414,7 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
     iqs=getindex(cvars3d,'qs')
     iqg=getindex(cvars3d,'qg')
 
-!   initialize atm_bundle to zero
-
-    atm_bundle=zero
+!   atm_bundle to zero done earlier
 
     call gsi_bundlegetpointer(atm_bundle,'ps',ps,  ierr); iret = iret+ierr
     !call gsi_bundlegetpointer(atm_bundle,'sst',sst, ierr); iret = iret+ierr
@@ -505,7 +503,7 @@ subroutine create_grd23d_(grd23d,nvert)
 
 end subroutine create_grd23d_
 
-subroutine update_halos_(grd,s)
+subroutine update_halos_(grd,sloc,s)
 
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid,general_grid2sub
 
@@ -513,12 +511,12 @@ subroutine update_halos_(grd,s)
 
     ! Declare passed variables
     type(sub2grid_info), intent(in   ) :: grd
-    real(r_kind),        intent(inout) :: s(grd%lat2,grd%lon2,grd%num_fields)
+    real(r_kind),        intent(  out) :: s(grd%lat2,grd%lon2,grd%num_fields)
+    real(r_kind),        intent(inout) :: sloc(grd%lat2*grd%lon2*grd%num_fields)
 
     ! Declare local variables
     integer(i_kind) inner_vars,lat2,lon2,nlat,nlon,nvert,kbegin_loc,kend_alloc
     integer(i_kind) ii,i,j,k
-    real(r_kind),allocatable,dimension(:) :: sloc
     real(r_kind),allocatable,dimension(:,:,:,:) :: work
 
     lat2=grd%lat2
@@ -530,17 +528,7 @@ subroutine update_halos_(grd,s)
     kbegin_loc=grd%kbegin_loc
     kend_alloc=grd%kend_alloc
 
-    allocate(sloc(lat2*lon2*nvert))
 
-    ii=0
-    do k=1,nvert
-       do j=1,lon2
-          do i=1,lat2
-             ii=ii+1
-             sloc(ii)=s(i,j,k)
-          enddo
-       enddo
-    enddo
 
     allocate(work(inner_vars,nlat,nlon,kbegin_loc:kend_alloc))
     call general_sub2grid(grd,sloc,work)
@@ -557,8 +545,6 @@ subroutine update_halos_(grd,s)
           enddo
        enddo
     enddo
-
-    deallocate(sloc)
 
 end subroutine update_halos_
 
@@ -964,37 +950,15 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
       if(trim(cvars3d(k3))=='t') then
          k3t=k3
          call read_vardata(atmges, 'tmp', rwork3d1)
-!$omp parallel do  schedule(dynamic,1) private(k,kr) 
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         end do
       else if(trim(cvars3d(k3))=='sf') then
          k3u=k3
          call read_vardata(atmges, 'ugrd', rwork3d1)
-!$omp parallel do  schedule(dynamic,1) private(k,kr) 
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-         end do
       else if(trim(cvars3d(k3))=='vp') then
          k3v=k3
          call read_vardata(atmges, 'vgrd', rwork3d1)
-!$omp parallel do  schedule(dynamic,1) private(k,kr) 
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-         end do
       else if(trim(cvars3d(k3))=='q') then
          k3q=k3
          call read_vardata(atmges, 'spfh', rwork3d1)
-!$omp parallel do  schedule(dynamic,1) private(k,kr) 
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         end do
       else if (trim(cvars3d(k3))=='cw') then
          k3cw=k3
          call read_vardata(atmges, 'clwmr', rwork3d1)
@@ -1003,62 +967,25 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
          call read_vardata(atmges, 'icmr', rwork3d2) 
          rwork3d1 = rwork3d1 + rwork3d2
          deallocate(rwork3d2)
-!$omp parallel do  schedule(dynamic,1) private(k,kr) 
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         end do
       else if(trim(cvars3d(k3))=='oz') then
          k3oz=k3
          call read_vardata(atmges, 'o3mr', rwork3d1)
-!$omp parallel do  schedule(dynamic,1) private(k,kr) 
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         end do
       else if(trim(cvars3d(k3))=='ql') then
          call read_vardata(atmges, 'clwmr', rwork3d1)
-!$omp parallel do  schedule(dynamic,1) private(k,kr) 
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         end do
       else if(trim(cvars3d(k3))=='qi') then
          call read_vardata(atmges, 'icmr', rwork3d1)
-!$omp parallel do  schedule(dynamic,1) private(k,kr) 
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         end do
       else if(trim(cvars3d(k3))=='qr') then
          call read_vardata(atmges, 'rwmr', rwork3d1)
-!$omp parallel do  schedule(dynamic,1) private(k,kr) 
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         end do
       else if(trim(cvars3d(k3))=='qs') then
          call read_vardata(atmges, 'snmr', rwork3d1)
-!$omp parallel do  schedule(dynamic,1) private(k,kr) 
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         end do
       else if(trim(cvars3d(k3))=='qg') then
          call read_vardata(atmges, 'grle', rwork3d1)
-!$omp parallel do  schedule(dynamic,1) private(k,kr) 
-         do k=1,nsig
-            kr = levs+1-k
-            call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
-            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
-         end do
       end if
+!$omp parallel do  schedule(dynamic,1) private(k,kr)
+      do k=1,nsig
+         kr = levs+1-k
+         call move1_(rwork3d1(:,:,kr),temp3(:,:,k,k3),nlon,nlat)
+      end do
    enddo
    deallocate(rwork3d1)
 
@@ -1066,7 +993,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
    if (k3u==0.or.k3v==0.or.k3t==0.or.k3q==0.or.k3oz==0) &
       write(6,'(" WARNING, problem with one of k3-")')
 
-!$omp parallel do  schedule(dynamic,1) private(k) 
+!$omp parallel do  schedule(dynamic,1) private(k,k3) 
    do k=1,nsig
       call fillpoles_sv_(temp3(:,:,k,k3u),temp3(:,:,k,k3v),nlon,nlat,clons,slons)
    end do
@@ -1074,6 +1001,11 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
 !  move temp3 to en_full
 !$omp parallel do  schedule(dynamic,1) private(k3,k,kf,j,jj,i,ii) 
    do k3=1,nc3d
+      if(k3 /= k3u .and. k3 /= k3v)then
+         do k=1,nsig
+            call fillpoles_ss_(temp3(:,:,k,k3),nlon,nlat)
+         end do
+      end if
       kf=(k3-1)*nsig
       m_cvars3d(k3)=kf+1
       do k=1,nsig
@@ -1116,6 +1048,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
          enddo
       enddo
    enddo
+!  call close_dataset(atmges)
 
    deallocate(rwork2d)
    deallocate(temp2)

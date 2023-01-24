@@ -449,15 +449,13 @@ subroutine pcgsoi()
            write(6,888)'Initial cost function =',zfini
            write(6,888)'Initial gradient norm =',sqrt(zgini)
         endif
-        if(print_verbose)then
-           write(iout_iter,888)'pcgsoi: gnorm(1:2)',gnorm
-           write(iout_iter,999)'costterms Jb,Jo,Jc,Jl  =',jiter,iter,fjcost
-        end if
         istep=1
         if (stp<small_step) istep=2
         write(6,9992)'cost,grad,step,b,step? =',jiter,iter,penalty,sqrt(gnorm(1)),stp,b,step(istep)
         write(iout_iter,9992)'cost,grad,step,b,step? =',jiter,iter,penalty,sqrt(gnorm(1)),stp,b,step(istep)
         if(print_verbose)then
+           write(iout_iter,888)'pcgsoi: gnorm(1:2)',gnorm
+           write(iout_iter,999)'costterms Jb,Jo,Jc,Jl  =',jiter,iter,fjcost
            if (zgini>tiny_r_kind .and. zfini>tiny_r_kind) then
               write(iout_iter,9993) 'estimated penalty reduction this iteration',&
                     jiter,iter,(penalty-penaltynew),(penalty-penaltynew)/penorig,'%'
@@ -582,16 +580,16 @@ subroutine pcgsoi()
 !       fjcost(1) = dot_product(xhatsave,yhatsave,r_quad)
      end if
 !    fjcost(2) = zjo
-     zfend=penaltynew
-!    if(l_hyb_ens) zfend=zfend+fjcost_e
 
      if (mype==minmype) then
+        zfend=penaltynew
         if(l_hyb_ens) then
 
 !          If hybrid ensemble run, print out contribution to Jb and Je separately
 
            write(iout_iter,999)'costterms Jb,Je,Jo,Jc,Jl =',jiter,iter,fjcostnew(1)- fjcost_e, &
                fjcost_e,fjcostnew(2:4)
+!          zfend=zfend+fjcost_e
 
         else
            write(iout_iter,999)'costterms Jb,Jo,Jc,Jl =',jiter,iter,fjcostnew

@@ -56,31 +56,14 @@ subroutine statslight(mype,i_light,bwork,awork,i_ref,ndata)
 
   real(r_kind) grsmlt,tlight
   real(r_kind) tlight3
-  real(r_kind),dimension(1):: pbotall,ptopall
   
   logical,dimension(nlighttype):: pflag
 
 !*********************************************************************************
-! Initialize constants and variables.
 
-  ptopall(1)=zero; pbotall(1)=2000.0_r_kind
-  
-
-! Generate summary statistics
-
-  pflag=.FALSE.
-
-! Summary report for lightning flash rate
+! Generate statistics Summary report for lightning flash rate
 
   if(mype==mype_light) then
-     if(first)then
-        open(iout_light)
-     else
-        open(iout_light,position='append')
-     end if
-
-     nsuperl=nint(awork(4,i_light))
-     tlight=zero ; tlight3=zero
      nread=0
      nkeep=0
      do i=1,ndat
@@ -89,29 +72,40 @@ subroutine statslight(mype,i_light,bwork,awork,i_ref,ndata)
            nkeep=nkeep+ndata(i,3)
         end if
      end do
-     if(nkeep > 0)then
-        mesage='current fit of lightning  data, range in #hits km-2 hr-1$'
-        do j=1,nlighttype
-           pflag(j)=trim(nulight(j)) == 'light'
-        enddo  
-        
-        call dtast(bwork,1,pbot,ptop,mesage,jiter,iout_light,pflag)
-
-        numgrslight=nint(awork(6,i_light))
-        numfailqc=nint(awork(21,i_light))
-        grsmlt=three
-        tlight=zero
-        if(nsuperl > 0)then
-           tlight=awork(5,i_light)/nsuperl
-           tlight3=awork(22,i_light)/nsuperl
+     if(nread > 0)then
+        pflag=.FALSE.
+        if(first)then
+           open(iout_light)
+        else
+           open(iout_light,position='append')
         end if
-        write(iout_light,925) 'light',numgrslight,numfailqc
-        write(iout_light,975) grsmlt,'light',awork(7,i_light)
-     end if
-     write(iout_light,950) 'light',jiter,nread,nkeep,nsuperl
-     write(iout_light,951) 'light',awork(5,i_light),awork(22,i_light),tlight,tlight3
 
-     close(iout_light)
+        nsuperl=nint(awork(4,i_light))
+        tlight=zero ; tlight3=zero
+        if(nkeep > 0)then
+           mesage='current fit of lightning  data, range in #hits km-2 hr-1$'
+           do j=1,nlighttype
+              pflag(j)=trim(nulight(j)) == 'light'
+           enddo  
+        
+           call dtast(bwork,1,pbot,ptop,mesage,jiter,iout_light,pflag)
+
+           numgrslight=nint(awork(6,i_light))
+           numfailqc=nint(awork(21,i_light))
+           grsmlt=three
+           tlight=zero
+           if(nsuperl > 0)then
+              tlight=awork(5,i_light)/nsuperl
+              tlight3=awork(22,i_light)/nsuperl
+           end if
+           write(iout_light,925) 'light',numgrslight,numfailqc
+           write(iout_light,975) grsmlt,'light',awork(7,i_light)
+        end if
+        write(iout_light,950) 'light',jiter,nread,nkeep,nsuperl
+        write(iout_light,951) 'light',awork(5,i_light),awork(22,i_light),tlight,tlight3
+
+        close(iout_light)
+     end if
   end if
 
 

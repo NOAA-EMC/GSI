@@ -64,6 +64,7 @@ subroutine get_gefs_ensperts_dualres
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: gsi_bundledestroy
   use gsi_bundlemod, only: gsi_gridcreate
+  use gsi_bundlemod, only : assignment(=)
   use gsi_enscouplermod, only: gsi_enscoupler_get_user_nens
   use gsi_enscouplermod, only: gsi_enscoupler_create_sub2grid_info
   use gsi_enscouplermod, only: gsi_enscoupler_destroy_sub2grid_info
@@ -136,6 +137,7 @@ subroutine get_gefs_ensperts_dualres
      call gsi_bundlecreate(en_read(n),en_perts(1,1)%grid,'ensemble member',istatus,names2d=cvars2d,names3d=cvars3d)
      if ( istatus /= 0 ) &
         call die('get_gefs_ensperts_dualres',': trouble creating en_read bundle, istatus =',istatus)
+     en_read(n) = zero
   end do
 
 ! allocate(z(im,jm))
