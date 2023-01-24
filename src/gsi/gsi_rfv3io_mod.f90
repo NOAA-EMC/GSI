@@ -891,7 +891,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     integer(i_kind),dimension(:,:),allocatable:: uvlnames
     integer(i_kind):: inner_vars,numfields
     integer(i_kind):: ndynvario2d,ntracerio2d,ilev,jdynvar,jtracer
-    integer(r_kind):: iuv,ndynvario3d,ntracerio3d
+    integer(i_kind):: iuv,ndynvario3d,ntracerio3d
     integer(i_kind):: ntracerchemio3d,ntracersmokeio3d
     integer(i_kind):: loc_id,ncfmt
 
