@@ -78,6 +78,7 @@ contains
     use gridmod, only: cmaq_regional,wrf_mass_regional,fv3_cmaq_regional
     use chemmod, only: s_2_5,d_2_5,nh4_mfac,oc_mfac,laeroana_gocart
     use chemmod, only: naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,laeroana_fv3cmaq
+    use chemmod, only: naero_smoke_fv3,aeronames_smoke_fv3,laeroana_fv3smoke
 
     implicit none
     
@@ -89,10 +90,9 @@ contains
 ! declare local variables  
     integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,ier,istatus
     real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8
-! real(r_kind) penalty
     real(r_kind) cg_pm2_5,val,p0,grad,wnotgross,wgross,pm2_5_pg
-    real(r_kind),pointer,dimension(:) :: spm2_5
-    real(r_kind),pointer,dimension(:) :: rpm2_5
+    real(r_kind),pointer,dimension(:) :: spm2_5,sdust
+    real(r_kind),pointer,dimension(:) :: rpm2_5,rdust
     type(pm2_5Node), pointer :: pm2_5ptr
 
     character(len=max_varname_length) :: aeroname
@@ -168,7 +168,7 @@ contains
                 if( ladtest_obs ) then
                    grad = val
                 else
-                   grad     = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+                   grad = val*pm2_5ptr%raterr2*pm2_5ptr%err2
                 end if
              endif
 !       adjoint
@@ -226,7 +226,7 @@ contains
                w7* spm2_5(j7)+w8* spm2_5(j8)
           val=val *pm2_5ptr%pm25wc(imodes_cmaq_fv3(iaero))
           nullify(spm2_5)
-!
+
           do iaero=2, naero_cmaq_fv3
             aeroname=aeronames_cmaq_fv3(iaero) 
             call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus)
@@ -275,7 +275,7 @@ contains
                 if( ladtest_obs ) then
                    grad = val
                 else
-                   grad     = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+                   grad = val*pm2_5ptr%raterr2*pm2_5ptr%err2
                 end if
              endif
 
@@ -306,6 +306,119 @@ contains
        end do
 
     end if
+
+   if (laeroana_fv3smoke) then
+       !pm2_5ptr => pm2_5head
+       ier=0
+       iaero=1
+       aeroname=aeronames_smoke_fv3(iaero) !'smoke'
+       call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus);ier=istatus+ier
+       call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus);ier=istatus+ier
+       iaero=2
+       aeroname=aeronames_smoke_fv3(iaero) !'dust'
+       call gsi_bundlegetpointer(sval,trim(aeroname),sdust,istatus);ier=istatus+ier
+       call gsi_bundlegetpointer(rval,trim(aeroname),rdust,istatus);ier=istatus+ier
+
+       if (istatus /= 0) then
+          write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',aeronames_smoke_fv3(1:2) 
+          call stop2(454)
+       endif
+
+       pm2_5ptr => pm2_5Node_typecast(pm2_5head)
+       do while (associated(pm2_5ptr))
+          j1=pm2_5ptr%ij(1)
+          j2=pm2_5ptr%ij(2)
+          j3=pm2_5ptr%ij(3)
+          j4=pm2_5ptr%ij(4)
+          j5=pm2_5ptr%ij(5)
+          j6=pm2_5ptr%ij(6)
+          j7=pm2_5ptr%ij(7)
+          j8=pm2_5ptr%ij(8)
+          w1=pm2_5ptr%wij(1)
+          w2=pm2_5ptr%wij(2)
+          w3=pm2_5ptr%wij(3)
+          w4=pm2_5ptr%wij(4)
+          w5=pm2_5ptr%wij(5)
+          w6=pm2_5ptr%wij(6)
+          w7=pm2_5ptr%wij(7)
+          w8=pm2_5ptr%wij(8)
+
+          iaero=1
+          val= (w1*spm2_5(j1)+w2*spm2_5(j2)+ &
+                w3*spm2_5(j3)+w4*spm2_5(j4)+ &
+                w5*spm2_5(j5)+w6*spm2_5(j6)+ &
+                w7*spm2_5(j7)+w8*spm2_5(j8))*pm2_5ptr%pm25wc(iaero)
+          iaero=2
+          val= (w1*sdust(j1)+w2*sdust(j2)+ &
+                w3*sdust(j3)+w4*sdust(j4)+ &
+                w5*sdust(j5)+w6*sdust(j6)+ &
+                w7*sdust(j7)+w8*sdust(j8))*pm2_5ptr%pm25wc(iaero)+ val
+
+          if(luse_obsdiag)then
+             if (lsaveobsens) then
+                call obsdiagNode_set(pm2_5ptr%diags,jiter=jiter,obssen=val*pm2_5ptr%raterr2*pm2_5ptr%err2)
+             else
+                if (pm2_5ptr%luse) call obsdiagNode_set(pm2_5ptr%diags,jiter=jiter,tldepart=val)
+             endif
+          endif
+
+          if (l_do_adjoint) then
+             if (lsaveobsens) then
+                call obsdiagNode_get(pm2_5ptr%diags,jiter=jiter,obssen=grad)
+
+             else
+                if( .not. ladtest_obs ) val=val-pm2_5ptr%res
+
+!          gradient of nonlinear operator
+
+                if (nlnqc_iter .and. pm2_5ptr%pg > tiny_r_kind .and.  &
+                     pm2_5ptr%b  > tiny_r_kind) then
+                   pm2_5_pg=pm2_5ptr%pg*varqc_iter
+                   cg_pm2_5=cg_term/pm2_5ptr%b
+                   wnotgross= one-pm2_5_pg
+                   wgross=pm2_5_pg*cg_pm2_5/wnotgross                  ! wgross isi gama in the reference by enderson
+                   p0=wgross/(wgross+exp(-half*pm2_5ptr%err2*val**2))  ! p0 is p in the reference by enderson
+                   val=val*(one-p0)                                    ! term is wqc in the referenc by enderson
+                endif
+
+                if ( ladtest_obs ) then
+                   grad = val
+                else
+                   grad = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+                end if
+             endif
+
+!           adjoint
+             iaero=1
+             rpm2_5(j1)=rpm2_5(j1)+w1*grad*pm2_5ptr%pm25wc(iaero)
+             rpm2_5(j2)=rpm2_5(j2)+w2*grad*pm2_5ptr%pm25wc(iaero)
+             rpm2_5(j3)=rpm2_5(j3)+w3*grad*pm2_5ptr%pm25wc(iaero)
+             rpm2_5(j4)=rpm2_5(j4)+w4*grad*pm2_5ptr%pm25wc(iaero)
+             rpm2_5(j5)=rpm2_5(j5)+w5*grad*pm2_5ptr%pm25wc(iaero)
+             rpm2_5(j6)=rpm2_5(j6)+w6*grad*pm2_5ptr%pm25wc(iaero)
+             rpm2_5(j7)=rpm2_5(j7)+w7*grad*pm2_5ptr%pm25wc(iaero)
+             rpm2_5(j8)=rpm2_5(j8)+w8*grad*pm2_5ptr%pm25wc(iaero)
+             iaero=2
+             rdust(j1)=rdust(j1)+w1*grad*pm2_5ptr%pm25wc(iaero)
+             rdust(j2)=rdust(j2)+w2*grad*pm2_5ptr%pm25wc(iaero)
+             rdust(j3)=rdust(j3)+w3*grad*pm2_5ptr%pm25wc(iaero)
+             rdust(j4)=rdust(j4)+w4*grad*pm2_5ptr%pm25wc(iaero)
+             rdust(j5)=rdust(j5)+w5*grad*pm2_5ptr%pm25wc(iaero)
+             rdust(j6)=rdust(j6)+w6*grad*pm2_5ptr%pm25wc(iaero)
+             rdust(j7)=rdust(j7)+w7*grad*pm2_5ptr%pm25wc(iaero)
+             rdust(j8)=rdust(j8)+w8*grad*pm2_5ptr%pm25wc(iaero)
+          endif ! l_do_adjoint
+
+          pm2_5ptr => pm2_5Node_nextcast(pm2_5ptr)
+
+       end do
+
+       nullify(spm2_5)
+       nullify(rpm2_5)
+       nullify(sdust)
+       nullify(rdust)
+
+    end if ! laeroana_fv3smoke
 
     if (wrf_mass_regional .and. laeroana_gocart) then
 
@@ -513,15 +626,15 @@ contains
                    pm2_5_pg=pm2_5ptr%pg*varqc_iter
                    cg_pm2_5=cg_term/pm2_5ptr%b
                    wnotgross= one-pm2_5_pg
-                   wgross =pm2_5_pg*cg_pm2_5/wnotgross              ! wgross is gama in the reference by enderson
+                   wgross=pm2_5_pg*cg_pm2_5/wnotgross                  ! wgross is gama in the reference by enderson
                    p0=wgross/(wgross+exp(-half*pm2_5ptr%err2*val**2))  ! p0 is p in the reference by enderson
-                   val=val*(one-p0)                         ! term is wqc in the referenc by enderson
+                   val=val*(one-p0)                                    ! term is wqc in the referenc by enderson
                 endif
 
                 if( ladtest_obs ) then
                    grad = val
                 else
-                   grad     = val*pm2_5ptr%raterr2*pm2_5ptr%err2
+                   grad = val*pm2_5ptr%raterr2*pm2_5ptr%err2
                 end if
              endif
 
