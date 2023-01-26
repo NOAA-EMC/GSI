@@ -2,7 +2,9 @@
 spack:
   packages:
     all:
-      compiler: [intel, gcc]
+      compiler:
+        - intel
+        - gcc@10:10
   specs:
   - netcdf-c@4.7.4
   - netcdf-fortran@4.5.3

@@ -29,4 +29,6 @@ prepend_path("MODULEPATH", "/apps/ops/para/libs/modulefiles/mpi/intel/19.1.3.304
 load("ncio/1.1.2")
 load("ncdiag/1.0.0")
 
+pushenv("GSI_BINARY_SOURCE_DIR", "/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/gsi/20221128")
+
 whatis("Description: GSI environment on WCOSS2")

@@ -260,9 +260,9 @@ do jj=1,ntlevs_ens
 !$omp end parallel sections
 
    if(dual_res) then
-      call ensemble_forward_model_ad_dual_res(wbundle_c,grad%aens(1,:),jj)
+      call ensemble_forward_model_ad_dual_res(wbundle_c,grad%aens(1,:,:),jj)
    else
-      call ensemble_forward_model_ad(wbundle_c,grad%aens(1,:),jj)
+      call ensemble_forward_model_ad(wbundle_c,grad%aens(1,:,:),jj)
    end if
 
 end do

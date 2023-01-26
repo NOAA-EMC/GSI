@@ -616,7 +616,7 @@ real(r_kind),pointer,dimension(:,:,:) :: cv_vpwter=>NULL()
 ! Declare required local state variables
 real(r_kind),pointer,dimension(:,:)   :: rv_ps=>NULL(),rv_sst=>NULL()
 real(r_kind),pointer,dimension(:,:)   :: rv_gust=>NULL(),rv_vis=>NULL(),rv_pblh=>NULL()
-real(r_kind),pointer,dimension(:,:)   :: rv_wspd10m=>NULL(),rv_tcamt,rv_lcbas=>NULL()
+real(r_kind),pointer,dimension(:,:)   :: rv_wspd10m=>NULL(),rv_tcamt=>NULL(),rv_lcbas=>NULL()
 real(r_kind),pointer,dimension(:,:)   :: rv_td2m=>NULL(),rv_mxtm=>NULL(),rv_mitm=>NULL()
 real(r_kind),pointer,dimension(:,:)   :: rv_pmsl=>NULL(),rv_howv=>NULL(),rv_cldch=>NULL()
 real(r_kind),pointer,dimension(:,:)   :: rv_uwnd10m=>NULL(),rv_vwnd10m=>NULL()
