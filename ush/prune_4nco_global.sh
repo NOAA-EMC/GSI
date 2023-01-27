@@ -113,37 +113,6 @@ for type in $rlist; do
 done
 
 
-# Process jobs directories and files
-cd $topdir/jobs
-rlist="JGDAS_EFSOI"
-for type in $rlist; do
-    if [[ "$mode" = "prune" ]]; then
-	if [ -e $type ]; then
-	    git $string ${type}*
-	    rc=$?
-	    if [[ $rc -ne 0 ]]; then
-		echo "***ERROR*** git $string ${type}"
-		exit
-	    fi
-	fi
-    elif [[ "$mode" = "restore" ]]; then
-        if [[ "$use_checkout" = "YES" ]]; then
-            git reset HEAD ${type}*
-            git checkout ${type}*
-            rc=$?
-        else
-            git restore --staged ${type}*
-            git restore ${type}*
-            rc=$?
-        fi
-        if [[ $rc -ne 0 ]]; then
-            echo "***ERROR*** restore failed for ${type}"
-            exit
-        fi
-    fi
-done
-
-
 # Process ush directories and files
 cd $topdir/ush
 rlist="sub"
