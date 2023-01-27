@@ -75,6 +75,7 @@ subroutine read_guess(iyear,month,idd,mype)
 !   2017-10-10  Wu W    - add code for FV3 netcdf guess input 
 !   2019-09-18  martin  - added new fields to save guess tsen, q, geop_hgt for writing increment
 !   2019-09-23  martin  - add code for FV3 GFS netcdf guess input
+!   2020-11-19  Lu & Wang - modify file read for fgat, POC: xuguang.wang@ou.edu
 !   2021-01-05  x.zhang/lei  - add code for updating delz analysis in regional da 
 !
 !   input argument list:
@@ -91,7 +92,7 @@ subroutine read_guess(iyear,month,idd,mype)
   use kinds, only: r_kind,i_kind
   use jfunc, only: bcoption,clip_supersaturation,superfact
   use guess_grids, only: nfldsig,ges_tsen,load_prsges,load_geop_hgt,ges_prsl,&
-                         ges_tsen1, geop_hgti, ges_geopi, ges_q1
+                         ges_tsen1,geop_hgti,ges_geopi,ges_q1
   use m_gsiBiases,only : bkg_bias_correction,nbc
   use m_gsiBiases, only: gsi_bkgbias_bundle
   use gsi_bias, only: read_bias
@@ -169,8 +170,11 @@ subroutine read_guess(iyear,month,idd,mype)
         else if (nems_nmmb_regional) then
            call nmm_binary_guess%read_nems_nmmb_guess(mype)
         else if (fv3_regional      ) then
-           call bg_fv3regfilenameg%init
-           call  read_fv3_netcdf_guess(bg_fv3regfilenameg)
+           allocate(bg_fv3regfilenameg(nfldsig))
+           do it=1,nfldsig   
+              call bg_fv3regfilenameg(it)%init(it)
+           end do
+           call read_fv3_netcdf_guess(bg_fv3regfilenameg)
         else if (cmaq_regional) then
            call read_cmaq_guess(mype)
         end if

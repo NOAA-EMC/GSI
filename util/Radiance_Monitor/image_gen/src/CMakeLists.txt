@@ -1,5 +1,0 @@
-add_subdirectory(radmon_ig_angle.fd)
-add_subdirectory(radmon_ig_bcoef.fd)
-add_subdirectory(radmon_ig_horiz.fd)
-add_subdirectory(radmon_ig_summary.fd)
-add_subdirectory(radmon_ig_time.fd)

@@ -32,17 +32,18 @@ cd $tmpdir
 # Other required constants for regression testing
 maxtime=1200
 maxmem=${maxmem:-3400000} # set in regression_param
+maxmem=$((${memnode:-64}*1024*1024))
 
 # Copy stdout and sanl files 
 # from $savdir to $tmpdir
 list="$exp1 $exp2 $exp3"
 for exp in $list; do
    $ncp $savdir/$exp/stdout ./stdout.$exp
-   nmem=20
+   nmem=10
    imem=1
    while [[ $imem -le $nmem ]]; do
       member="_mem"`printf %03i $imem`
-      $ncp $savdir/$exp/sanl_${global_enkf_T62_adate}_fhr06$member $tmpdir/sanl$member.$exp
+      $ncp $savdir/$exp/sanl_${global_adate}_fhr06$member $tmpdir/sanl$member.$exp
       (( imem = $imem + 1 ))
    done
 done
@@ -62,9 +63,6 @@ diff increment.$exp1.txt increment.$exp3.txt > increment.${exp1}-${exp3}.txt
 # Give location of additional output files for scalability testing
 exp1_scale=$2
 exp2_scale=$4
-
-#exp1_scale=$global_T62_updat_exp2
-#exp2_scale=$global_T62_contrl_exp2
 
 # Copy stdout for additional scalability testing
 list="$exp1_scale $exp2_scale"
@@ -280,7 +278,7 @@ fi
 } >> $output
    else
 {
-nmem=20
+nmem=10
 imem=1
 while [[ $imem -le $nmem ]]; do
    member="_mem"`printf %03i $imem`
@@ -377,7 +375,7 @@ else
       else
 
 {
-   nmem=20
+   nmem=10
    imem=1
    while [[ $imem -le $nmem ]]; do
       member="_mem"`printf %03i $imem`

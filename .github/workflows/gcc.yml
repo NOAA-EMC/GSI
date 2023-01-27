@@ -1,0 +1,90 @@
+name: GCC Linux Build
+on: [push, pull_request, workflow_dispatch]
+
+# Use custom shell with -l so .bash_profile is sourced
+# without having to do it in manually every step
+defaults:
+  run:
+    shell: bash -leo pipefail {0}
+
+env:
+  cache_key: gcc
+  CC: gcc-10
+  FC: gfortran-10
+  CXX: g++-10
+
+# The jobs are split into:
+# 1. a dependency build step (setup), and
+# 2. a GSI build step (build)
+# The setup is run once and the environment is cached,
+# so each build of GSI can reuse the cached dependencies to save time (and compute).
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the GSI to get the ci/spack.yaml file
+      - name: checkout-gsi
+        if: steps.cache-env.outputs.cache-hit != 'true'
+        uses: actions/checkout@v3
+        with:
+            path: GSI
+
+      # Cache spack, compiler and dependencies
+      - name: cache-env
+        id: cache-env
+        uses: actions/cache@v3
+        with:
+          path: |
+            spack
+            ~/.spack
+          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles('GSI/ci/spack.yaml') }}
+
+      # Install dependencies using Spack
+      - name: install-dependencies-with-spack
+        if: steps.cache-env.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get install cmake
+          git clone -c feature.manyFiles=true https://github.com/NOAA-EMC/spack.git
+          source spack/share/spack/setup-env.sh
+          spack env create gsi-env GSI/ci/spack.yaml
+          spack env activate gsi-env
+          spack compiler find
+          spack external find
+          spack add mpich@3.4.2
+          spack concretize
+          spack install -v --fail-fast --dirty
+          spack clean -a
+
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout-gsi
+        uses: actions/checkout@v3
+        with:
+            path: GSI
+
+      - name: cache-env
+        id: cache-env
+        uses: actions/cache@v3
+        with:
+          path: |
+            spack
+            ~/.spack
+          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles('GSI/ci/spack.yaml') }}
+
+      - name: build-gsi
+        run: |
+          source spack/share/spack/setup-env.sh
+          spack env activate gsi-env
+          cd GSI
+          mkdir -p build && cd build
+          cmake -DCMAKE_INSTALL_PREFIX=../install -DGSI_MODE=Regional -DENKF_MODE=GFS -DBUILD_REG_TESTING=OFF ..
+          make -j2 VERBOSE=1
+          make install
+        env:
+          CC: mpicc
+          FC: mpif90

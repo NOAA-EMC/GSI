@@ -1317,7 +1317,7 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   real(r_kind),dimension(miter) :: obsdiag_iuse
            call nc_diag_metadata("Station_ID",              station_id             )
            call nc_diag_metadata("Observation_Class",       obsclass               )
-           call nc_diag_metadata("Observation_Type",        data(iobs_type,i)      )
+           call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
            call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
            call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
