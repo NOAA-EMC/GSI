@@ -78,8 +78,8 @@ use sigio_module, only: sigio_head, sigio_data, sigio_sclose, sigio_sropen, &
 use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_close,&
                          nemsio_getfilehead,nemsio_getheadvar,&
                          nemsio_readrecv,nemsio_init, nemsio_realkind
-use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                        read_attribute, close_dataset, get_dim, read_vardata 
+use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                       read_attribute, close_dataset, get_dim, read_vardata 
 implicit none
 
 type(Dataset) :: dset

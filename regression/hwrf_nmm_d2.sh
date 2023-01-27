@@ -56,7 +56,7 @@ export NLON=$(( NX2 - 1 ))
 # Given the analysis date, compute the date from which the
 # first guess comes.  Extract cycle and set prefix and suffix
 # for guess and observation data files
-gdate=`$ndate -06 $adate`
+gdate=`date +%Y%m%d%H -d "${adate:0:8} ${adate:8:2} - 6 hours"`
 hha=`echo $adate | cut -c9-10`
 hhg=`echo $gdate | cut -c9-10`
 prefixa=gfs.t${hha}z
@@ -266,7 +266,7 @@ $ncp $hwrf_nmm_ges/gdas1.t${hhg}z.sf06  ./gfs_sigf06
 $ncp $hwrf_nmm_ges/gdas1.t${hhg}z.sf09  ./gfs_sigf09
 
 # Copy ensemble forecast files for hybrid analysis
-export ENSEMBLE_SIZE_REGIONAL=80
+export ENSEMBLE_SIZE_REGIONAL=10
 >filelist06
 n=1
 while [[ $n -le ${ENSEMBLE_SIZE_REGIONAL} ]]; do
@@ -314,9 +314,9 @@ esac
    for type in $listall; do
       count=`ls dir.*/${type}_${loop}* | wc -l`
       if [[ $count -gt 0 ]]; then
-         cat dir.*/${type}_${loop}* > diag_${type}_${string}.${global_T62_adate}
-         compress diag_${type}_${string}.${global_T62_adate}
-         $ncp diag_${type}_${string}.${global_T62_adate}.Z $savdir/
+         cat dir.*/${type}_${loop}* > diag_${type}_${string}.${hwrf_nmm_adate}
+         compress diag_${type}_${string}.${hwrf_nmm_adate}
+         $ncp diag_${type}_${string}.${hwrf_nmm_adate}.Z $savdir/
       fi
    done
 done

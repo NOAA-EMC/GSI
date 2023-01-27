@@ -77,7 +77,7 @@ subroutine stplimq(rval,sval,sges,outmin,outmax,nstep,itbin)
 !
 !$$$
   use gridmod, only: lat1,lon1,nsig,istart,wgtfactlats
-  use jfunc, only: factqmin,factqmax
+  use jfunc, only: factqmin,factqmax,superfact
   use guess_grids, only: ges_qsat
   use mpimod, only: mype
   implicit none
@@ -125,8 +125,8 @@ subroutine stplimq(rval,sval,sges,outmin,outmax,nstep,itbin)
                                /(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
                  else
                     if(qx > ges_qsat(i,j,k,itbin))then
-                       outmax(kk)=outmax(kk)+(factqmax*wgtfactlats(ii))*(qx-ges_qsat(i,j,k,itbin))* &
-                            (qx-ges_qsat(i,j,k,itbin))/(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
+                       outmax(kk)=outmax(kk)+(factqmax*wgtfactlats(ii))*(qx-superfact*ges_qsat(i,j,k,itbin))**2 &
+                            /ges_qsat(i,j,k,itbin)**2
                     end if
                  end if
               end do
@@ -143,9 +143,9 @@ subroutine stplimq(rval,sval,sges,outmin,outmax,nstep,itbin)
               if(q < zero)then
                  outmin(1)=outmin(1)+(factqmin*wgtfactlats(ii))*q*q/(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
               else
-                 if(q > ges_qsat(i,j,k,itbin))then
-                    outmax(1)=outmax(1)+(factqmax*wgtfactlats(ii))*(q-ges_qsat(i,j,k,itbin))*&
-                                (q-ges_qsat(i,j,k,itbin))/(ges_qsat(i,j,k,itbin)*ges_qsat(i,j,k,itbin))
+                 if(q > superfact*ges_qsat(i,j,k,itbin))then
+                    outmax(1)=outmax(1)+(factqmax*wgtfactlats(ii))*(q-superfact*ges_qsat(i,j,k,itbin))**2 &
+                                /ges_qsat(i,j,k,itbin)**2
                  end if
               end if
            end do
@@ -242,7 +242,7 @@ subroutine stplimqc(rval,sval,sges,out,nstep,itbin,cldtype)
   endif
   if (mype==0) write(6,*)'stplimqc: factqc   = ', factqc
   if (mype==0) write(6,*)'stplimqc: ier ier1 = ', ier, ier1 
-  if ( factqc==0 ) return
+  if ( factqc <= zero) return
   if ( ier/=0 .or. ier1/=0 ) return
 
 ! Loop over interior of subdomain

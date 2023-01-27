@@ -5,13 +5,18 @@ set -x
 # regression test to launch
 export regtest=$1
 
+# option to set local values with a config file
+if [ -d "$config_path" ]; then
+    source $config_path/local_vars.sh
+fi
+
 # source the necessary files to setup
 if [ "$#" -eq 2 ]; then
   export regdir=$2
-  . $(awk '{ print $1, $2, $3, $4, $5, $6, $7, $8, $9 }' $regdir/regression_var.out)
+  . $(awk '{ print $1, $2, $3, $4, $5, $6, $7, $8 }' $regdir/regression_var.out)
 else
   export regdir=$(pwd)
-  . $(awk '{ print $1, $2, $3, $4, $5, $6, $7, $8, $9 }' regression_var.out)
+  . $(awk '{ print $1, $2, $3, $4, $5, $6, $7, $8 }' regression_var.out)
 fi
 
 export scripts=${scripts_updat:-$scripts}
@@ -20,10 +25,10 @@ export scripts=${scripts_updat:-$scripts}
 # allow regression tests to be set by environment variable
 if [ -z "$RSTART" ]; then
     export RSTART=1
-fi  
+fi
 if [ -z "$REND" ]; then
     export REND=4
-fi  
+fi
 # Launch the individual control and update runs, one-after-another
 for jn in `seq ${RSTART} ${REND}`; do
 
@@ -51,7 +56,7 @@ if [ "$debug" == ".false." ]; then
 
    export scripts=${scripts_updat:-$scripts}
 
-   if [ $regtest = 'global_enkf_T62' ]; then
+   if [ $regtest = 'global_enkf' ]; then
       /bin/sh $scripts/regression_test_enkf.sh ${job[1]} ${job[2]} ${job[3]} ${job[4]} ${tmpregdir} ${result} ${scaling[1]} ${scaling[2]} ${scaling[3]}
    else
       /bin/sh $scripts/regression_test.sh ${job[1]} ${job[2]} ${job[3]} ${job[4]} ${tmpregdir} ${result} ${scaling[1]} ${scaling[2]} ${scaling[3]}

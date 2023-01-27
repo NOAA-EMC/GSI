@@ -90,7 +90,7 @@ module constants
 
 ! Declare derived constants
   integer(i_kind):: huge_i_kind
-  integer(i_kind), parameter :: max_varname_length=32
+  integer(i_kind), parameter :: max_varname_length=64
   real(r_single):: tiny_single, huge_single
   real(r_kind):: xai, xa, xbi, xb, dldt, rozcon,ozcon,fv, tpwcon,eps, rd_over_g
   real(r_kind):: el2orc, g_over_rd, rd_over_cp, cpr, omeps, epsm1, factor2
@@ -238,7 +238,6 @@ module constants
   real(r_kind),parameter::  ke2 = 0.00002_r_kind
   real(r_kind),parameter::  row = r1000
   real(r_kind),parameter::  rrow = one/row
-! real(r_kind),parameter::  qmin = 1.e-7_r_kind  !lower bound on ges_q
 
 ! Constant used to process ozone
   real(r_kind),parameter::  constoz = 604229.0_r_kind

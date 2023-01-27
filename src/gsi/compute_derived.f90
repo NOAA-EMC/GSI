@@ -89,7 +89,7 @@ subroutine compute_derived(mype,init_pass)
   use kinds, only: r_kind,i_kind
   use jfunc, only: jiter,jiterstart,&
        qoption,switch_on_derivatives,&
-       tendsflag,clip_supersaturation
+       tendsflag,superfact,clip_supersaturation
   use control_vectors, only: cvars3d
   use control_vectors, only: nrf_var
   use control_vectors, only: an_amp0
@@ -178,7 +178,6 @@ subroutine compute_derived(mype,init_pass)
   if(init_pass .and. (ntguessig<1 .or. ntguessig>nfldsig)) &
      call die(myname,'invalid init_pass, ntguessig =',ntguessig)
 
-
 ! Get required indexes from control vector names
   nrf3_q=getindex(cvars3d,'q')
   iq_loc=getindex(nrf_var,'q')
@@ -202,12 +201,12 @@ subroutine compute_derived(mype,init_pass)
 ! Limit q to be >= qmin
               ges_q(i,j,k)=max(ges_q(i,j,k),qmin)
 ! limit q to be <= ges_qsat
-              if(clip_supersaturation) ges_q(i,j,k) = min(ges_q(i,j,k),ges_qsat(i,j,k,ii))
+              if(clip_supersaturation) ges_q(i,j,k) = min(ges_q(i,j,k),superfact*ges_qsat(i,j,k,ii))
            end do
         end do
      end do
   end do
-
+ 
 ! Load guess cw for use in inner loop
 ! Get pointer to cloud water mixing ratio
   it=ntguessig

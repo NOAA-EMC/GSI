@@ -131,7 +131,10 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   integer(i_kind),parameter   :: maxchanl=13, ngs=2
 
   integer(i_kind),dimension(maxchanl)    :: tbmin                 ! different tbmin for the channels.
-  real(r_double),dimension(maxchanl)     :: mirad,gmichq,gmirfi   ! TBB from strtmbr
+  !real(r_double),dimension(maxchanl)     :: mirad,gmichq,gmirfi   ! TBB from strtmbr
+  real(r_double),dimension(maxchanl)     :: mirad,var_check1,var_check2   ! TBB from strtmbr
+  logical                   :: use_gmichq
+
   real(r_double)            :: fovn,slnm      ! FOVN 
   real(r_kind),parameter    :: r360=360.0_r_kind
   character(80),parameter   :: satinfo='SAID SIID OGCE GSES SACV'          !use for ufbint()
@@ -408,11 +411,20 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 
 ! ----- Read header record to extract obs location information  
           call ufbint(lnbufr,midat,nloc,1,iret,'SCLAT SCLON HMSL')
-          call ufbrep(lnbufr,gmichq,1,nchanl,iret,'GMICHQ')
-          call ufbrep(lnbufr,gmirfi,1,nchanl,iret,'GMIRFI')
+          call ufbrep(lnbufr,var_check1,1,nchanl,iret,'GMICHQ')
+          !call ufbrep(lnbufr,gmirfi,1,nchanl,iret,'GMIRFI')
           call ufbrep(lnbufr,pixelsaza,1,ngs,iret,'SAZA')
           call ufbrep(lnbufr,val_angls,n_angls,ngs,iret,'SAMA SZA SMA SGA')
           call ufbint(lnbufr,pixelloc,2, 1,iret,'CLATH CLONH')
+
+        if (any(var_check1 < 99999999999_r_double)) then   ! 100000000000 seems to be the missing value
+           use_gmichq = .true.
+           call ufbrep(lnbufr,var_check2,1,nchanl,iret,'GMIRFI')
+        else
+           use_gmichq = .false.
+           call ufbrep(lnbufr,var_check1,1,nchanl,iret,'VIIRSQ')
+           call ufbrep(lnbufr,var_check2,1,nchanl,iret,'TPQC2')
+        endif
 
 !---    Extract brightness temperature data.  Apply gross check to data. 
 !       If obs fails gross check, reset to missing obs value.
@@ -479,13 +491,32 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 
         iskip=0
         do jc=1, nchanla    ! only does such check the first 9 channels for GMI 1C-R data
-           if( mirad(jc)<tbmin(jc) .or. mirad(jc)>tbmax .or. &
-              gmichq(jc) < -0.5_r_kind .or. gmichq(jc) > 1.5_r_kind .or. & 
-              gmirfi(jc)>0.0_r_kind) then ! &
-              iskip = iskip + 1
+           if( mirad(jc)<tbmin(jc) .or. mirad(jc)>tbmax ) then
+              iskip = iskip+1
+           !endif
+           !if(use_gmichq) then
+           elseif (use_gmichq) then
+              if (var_check1(jc) < -0.5_r_kind .or. var_check1(jc) > 1.5_r_kind .or. &
+                  var_check2(jc) > 0.0_r_kind) then
+                 iskip = iskip+1
+              else
+                 nread=nread+1
+              endif
            else
-              nread=nread+1
-           end if
+              if (var_check1(jc) < -0.5_r_kind .or. var_check1(jc) > 0.5_r_kind .or. &
+                  var_check2(jc) > 0.0_r_kind) then
+                 iskip = iskip+1
+              else
+                 nread=nread+1
+              endif
+           endif
+           !if( mirad(jc)<tbmin(jc) .or. mirad(jc)>tbmax .or. &
+           !   gmichq(jc) < -0.5_r_kind .or. gmichq(jc) > 1.5_r_kind .or. & 
+           !   gmirfi(jc)>0.0_r_kind) then ! &
+           !   iskip = iskip + 1
+           !else
+           !   nread=nread+1
+           !end if
         enddo
 
         if(iskip == nchanla) then 
@@ -564,6 +595,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   allocate(data_all(nele,itxmax),nrec(itxmax))
 
   nrec=999999
+  if (mype==0) write(*,*) 'read_gmi num_obs before thinning: ', num_obs
   obsloop: do iobs = 1, num_obs
 
      t4dv        => t4dv_save(iobs)

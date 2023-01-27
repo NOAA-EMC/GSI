@@ -234,8 +234,16 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
   close(lnbufr)
   open(lnbufr,file=infile,form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
-  if(jsatid == 'gr' .or. jsatid == 'g16') kidsat = 270
-  if(jsatid == 'g17') kidsat = 271
+  if(jsatid == 'gr' .or. jsatid == 'g16') then
+     kidsat = 270
+  elseif (jsatid == 'g17') then
+     kidsat = 271
+  elseif (jsatid == 'g18') then 
+     kidsat = 272
+  else
+     write(6,*) 'READ_ABI: Unrecognized value for jsatid '//jsatid//': RETURNING'
+     return
+  end if
 
 
   nrec=999999

@@ -150,7 +150,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use lag_fields, only: lag_presetup,lag_state_write,lag_state_read,lag_destroy_uv
   use mpeu_util, only: getindex
   use mpl_allreducemod, only: mpl_allreduce
-  use berror, only: reset_predictors_var
   use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsT,l_PBL_pseudo_SurfobsQ,&
                                       l_PBL_pseudo_SurfobsUV,i_gsdcldanal_type,&
                                       i_cloud_q_innovation
@@ -577,10 +576,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !    call mpl_allreduce(npredt,max_tail,rstats_t)
      call mpl_allreduce(npredt,ntail,ostats_t)
      call mpl_allreduce(npredt,ntail,rstats_t)
-  end if
-
-  if (newpc4pred .or. aircraft_t_bc_pof .or. aircraft_t_bc) then
-     call reset_predictors_var
   end if
 
 ! Collect satellite and precip. statistics

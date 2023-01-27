@@ -78,6 +78,7 @@ module qcmod
 !   2019-06-10  h. liu - add Geostationary satellites CSR data QC to replace qc_abi,qc_seviri
 !   2019-09-29  X.Su   - add troflg and lat_c for hilbert curve tunning
 !   2019-04-19  eliu    - add QC flag for cold-air outbreak 
+!   2021-04-29  Jung/Collard - Fix numerics for emissivity check
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -184,7 +185,7 @@ module qcmod
   public :: qc_saphir
 ! set passed variables to public
   public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc,njqc,vqc,nvqc,hub_norm
-  public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate
+  public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate,gps_jacqc
   public :: pboto3,ptopo3,pbotq,ptopq,newvad,tdrerr_inflate
   public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,&
             ifail_gross_qc,ifail_cloud_qc,ifail_outside_range,&
@@ -205,6 +206,7 @@ module qcmod
   logical use_poq7
   logical qc_noirjaco3
   logical qc_noirjaco3_pole
+  logical gps_jacqc
   logical newvad
   logical tdrerr_inflate
   logical qc_satwnds
@@ -429,6 +431,8 @@ contains
     use_poq7 = .false.
     cao_check = .false.
 
+    gps_jacqc = .false.     ! Jacobian QC for GNSS RO is off by default
+
     qc_noirjaco3 = .false.  ! when .f., use O3 Jac from IR instruments
     qc_noirjaco3_pole = .false. ! true=do not use O3 Jac from IR instruments near poles
 
@@ -580,7 +584,7 @@ contains
       tzchk = 0.50_r_kind
     elseif ( obstype == 'amsua' .or. obstype == 'ssmis' .or. obstype == 'ssmi' ) then
       tzchk = 0.12_r_kind
-    elseif (  obstype == 'avhrr' .or. obstype == 'avhrr_navy' ) then 
+    elseif (  obstype == 'avhrr' .or. obstype == 'avhrr_navy' .or. obstype == 'viirs') then 
       tzchk = 0.85_r_kind
     elseif (  obstype == 'hirs2' .or. obstype == 'hirs3' .or. obstype == 'hirs4' .or. & 
               obstype == 'sndr' .or. obstype == 'sndrd1' .or. obstype == 'sndrd2'.or. &
@@ -2332,8 +2336,10 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
      sum=zero
      sum2=zero
      do i=1,nchanl
-        sum=sum+tbc(i)*ts(i)*varinv_use(i)
-        sum2=sum2+ts(i)*ts(i)*varinv_use(i)
+        if ( varinv_use(i) > tiny_r_kind .and. ts(i) > 0.0001_r_kind) then
+           sum=sum+tbc(i)*ts(i)*varinv_use(i)
+           sum2=sum2+ts(i)*ts(i)*varinv_use(i)
+        endif
      end do
      if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
      dts=abs(sum/sum2)
@@ -2807,7 +2813,7 @@ subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 end subroutine qc_avhrr
 
 subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
-     zsges,cenlat,tb_obsbc1,si_mean,cosza,clw,tbc,ptau5,emissivity_k,ts, &                    
+     zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts, &                    
      pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs,cldeff_fg,factch6, &
      cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp,radmod)                     
 
@@ -2890,7 +2896,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
   logical,                             intent(in   ) :: sea,land,ice,snow,mixed,luse
   integer(i_kind),                     intent(in   ) :: ndat,nsig,npred,nchanl,is
   integer(i_kind),dimension(nchanl),   intent(inout) :: id_qc
-  real(r_kind),                        intent(in   ) :: zsges,cenlat,tb_obsbc1,si_mean
+  real(r_kind),                        intent(in   ) :: zsges,cenlat,tb_obsbc1
   real(r_kind),dimension(nchanl),      intent(in   ) :: cldeff_obs,cldeff_fg
   real(r_kind),                        intent(in   ) :: cosza,clw,clwp_amsua,clw_guess_retrieval
   real(r_kind),                        intent(in   ) :: sfc_speed,scatp
@@ -3121,9 +3127,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
                     enddo
                  endif
               else if (latms) then
-                 if (si_mean >= 20.0_r_kind) then
-                    efactmc=zero
-                    vfactmc=zero
+                 if (abs(cldeff_obs(16)-cldeff_obs(17))>10.0_r_kind) then
                     if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch1617_qc
                     errf(ich890) = zero
                     varinv(ich890) = zero
@@ -3132,12 +3136,34 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
                        errf(i) = zero
                        varinv(i) = zero
                     enddo
-                    errf(1:ich544)=zero
-                    varinv(1:ich544)=zero
-                    do i=1,ich544
-                       if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch1617_qc
-                    end do
+                    if (abs(cldeff_obs(16)-cldeff_obs(17))>15.0_r_kind) then
+                       efactmc=zero
+                       vfactmc=zero
+                       errf(1:ich544)=zero
+                       varinv(1:ich544)=zero
+                       do i=1,ich544
+                          if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch1617_qc
+                       end do
+                    end if
                  end if
+                ! test in the future
+                ! if (si_mean >= 20.0_r_kind) then
+                !    efactmc=zero
+                !    vfactmc=zero
+                !    if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch1617_qc
+                !    errf(ich890) = zero
+                !    varinv(ich890) = zero
+                !    do i=17,22   !  AMSU-B/MHS like channels
+                !       if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch1617_qc
+                !       errf(i) = zero
+                !       varinv(i) = zero
+                !    enddo
+                !    errf(1:ich544)=zero
+                !    varinv(1:ich544)=zero
+                !    do i=1,ich544
+                !       if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch1617_qc
+                !    end do
+                ! end if
               else ! QC based on the sensitivity of Tb to the surface emissivity
 !             de1,de2,de3,de15 become smaller as the observation is more cloudy --
 !             i.e., less affected by the surface emissivity quality control check 
@@ -3594,7 +3620,7 @@ subroutine qc_mhs(nchanl,ndat,nsig,is,sea,land,ice,snow,mhs,luse,   &
 
 end subroutine qc_mhs
 subroutine qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
-                 zsges,cenlat,tb_obsbc1,si_mean,cosza,clw,tbc,ptau5,emissivity_k,ts, &                    
+                 zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts, &                    
                  pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs,cldeff_fg,factch6, &
                  cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp,radmod)                     
 
@@ -3667,7 +3693,7 @@ subroutine qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
   logical,                             intent(in   ) :: sea,land,ice,snow,mixed,luse
   integer(i_kind),                     intent(in   ) :: nchanl,is,ndat,nsig,npred
   integer(i_kind),dimension(nchanl),   intent(inout) :: id_qc
-  real(r_kind),                        intent(in   ) :: zsges,cenlat,tb_obsbc1,si_mean 
+  real(r_kind),                        intent(in   ) :: zsges,cenlat,tb_obsbc1
   real(r_kind),dimension(nchanl),      intent(in   ) :: cldeff_obs, cldeff_fg  
   real(r_kind),                        intent(in   ) :: cosza,clw,clwp_amsua,clw_guess_retrieval
   real(r_kind),                        intent(in   ) :: sfc_speed,scatp
@@ -3683,7 +3709,7 @@ subroutine qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 
 ! For now, just pass all channels to qc_amsua
   call qc_amsua (nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
-                 zsges,cenlat,tb_obsbc1,si_mean,cosza,clw,tbc,ptau5,emissivity_k,ts, &                   
+                 zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts, &                   
                  pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs,cldeff_fg,factch6, & 
                  cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp,radmod)                    
 

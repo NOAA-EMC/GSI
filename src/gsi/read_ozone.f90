@@ -103,7 +103,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   use satthin, only: radthin_time_info,tdiff2crit
   use gridmod, only: nlat,nlon,regional,tll2xy,rlats,rlons
   use constants, only: deg2rad,zero,one_tenth,r60inv,two
-  use obsmod, only: nloz_v6,nloz_v8
+  use obsmod, only: nloz_v6,nloz_v8, ompslp_mult_fact
   use obsmod, only: time_window_max
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use radinfo, only: dec2bin
@@ -1219,7 +1219,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
          ozout(8,ndata)=usage1(k)          ! 
          ozout(9,ndata)=log(press(k))      ! ompslp pressure in log(cb)
-         ozout(10,ndata)=omrstd(k)         ! ozone mixing ratio precision in ppmv
+         ozout(10,ndata)=omrstd(k)*ompslp_mult_fact   ! ozone mixing ratio precision in ppmv
          ozout(11,ndata)=float(ipos(k))    ! pointer of obs level index in 
                                            ! ozinfo.txt
          ozout(12,ndata)=j !nloz              ! # of ompslp vertical levels

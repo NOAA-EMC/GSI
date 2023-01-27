@@ -1,6 +1,0 @@
-#!/bin/bash
-
-GSI=/glade/work/geguo/MPMC/ProdGSI
-while read line; do
-  ls -l $GSI/fix/$line
-done < fix.list

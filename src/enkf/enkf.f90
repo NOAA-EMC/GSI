@@ -123,7 +123,7 @@ use enkf_obsmod, only: oberrvar, ob, ensmean_ob, obloc, oblnp, &
                   obtype, oberrvarmean, numobspersat, deltapredx, biaspreds,&
                   oberrvar_orig, probgrosserr, prpgerr,&
                   corrlengthsq,lnsigl,obtimel,obloclat,obloclon,obpress,stattype,&
-                  anal_ob,anal_ob_post
+                  anal_ob,anal_ob_post,assimltd_flag
 use constants, only: pi, one, zero
 use params, only: sprd_tol, paoverpb_thresh, datapath, nanals,&
                   iassim_order,sortinc,deterministic,numiter,nlevs,&
@@ -153,7 +153,8 @@ use random_normal, only : rnorm, set_random_seed
 
 ! local variables.
 integer(i_kind) nob,nob1,nob2,nob3,npob,nf,nf2,ii,nobx,nskip,&
-                niter,i,nrej,npt,nuse,ncount,ncount_check,nb,np
+                niter,i,nrej,npt,nuse,ncount,ncount_check,nb,np,&
+                nuseconvoz,nusesat,nobs_convoz
 integer(i_kind) indxens1(nanals),indxens2(nanals)
 integer(i_kind) indxens1_modens(nanals*neigv),indxens2_modens(nanals*neigv)
 real(r_single) hxpost(nanals),hxprior(nanals),hxinc(nanals),&
@@ -757,17 +758,31 @@ do niter=1,numiter
   tend = mpi_wtime()
   if (nproc .eq. 0) then
       write(6,8003) niter,'timing on proc',nproc,' = ',tend-tbegin,t2,t3,t4,t5,t6,nrej
+      allocate(assimltd_flag(nobstot))
+      assimltd_flag = 99999
       if (iassim_order == 2) then
           ncount_check = ncount
       else
           ncount_check = nobstot
       endif
       nuse = 0; covl_fact = 0.
+      nuseconvoz=0; nusesat = 0
+      nobs_convoz = nobs_conv + nobs_oz
       do nob1=1,ncount_check
          nob = indxassim(nob1)
          if (iskip(nob) .ne. 1) then
             covl_fact = covl_fact + sqrt(corrlengthsq(nob)/corrlengthsq_orig(nob))
             nuse = nuse + 1
+            assimltd_flag(nob) = 1
+            if (nob .le. nobs_convoz) then
+               nuseconvoz = nuseconvoz +1
+            else if (nob .gt. nobs_convoz) then
+               nusesat = nusesat + 1
+            else
+               print *,'nob ', nob ,' falling through'
+            endif
+         else
+            assimltd_flag(nob) = 0
          endif
       enddo
       nskip = nobstot-nuse
@@ -776,6 +791,8 @@ do niter=1,numiter
       if (covl_fact < 0.99) print *,'mean covl_fact = ',covl_fact
       if (nskip > 0) print *,nskip,' out of',nobstot,'obs skipped,',nuse,' used'
       if (nsame > 0) print *,nsame,' out of', nobstot-nskip,' same lat/long'
+      if (nuseconvoz > 0 ) print *,nuseconvoz,' out of',nobs_conv + nobs_oz ,'convobs used'
+      if (nusesat > 0 ) print *,nusesat ,' out of',nobs_sat ,'satobs used'
       if (nrej >  0) print *,nrej,' obs rejected by varqc'
   endif
   8003  format(i2,1x,a14,1x,i5,1x,a3,6(f7.2,1x),i4)

@@ -76,7 +76,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   use satthin, only: super_val,itxmax,makegrids,destroygrids,checkob, &
       finalcheck,map2tgrid,score_crit
   use satthin, only: radthin_time_info,tdiff2crit
-  use obsmod,  only: time_window_max
+  use obsmod,  only: time_window_max, ta2tb
   use radinfo, only: iuse_rad,newchn,cbias,nusis,jpch_rad,air_rad,ang_rad, &
       use_edges,radedge1,radedge2,nusis,radstart,radstep,newpc4pred,maxscan
   use radinfo, only: adp_anglebc
@@ -482,7 +482,11 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !          TMBR is actually the antenna temperature for most microwave sounders but for
 !          ATMS it is stored in TMANT.
 !          ATMS is assumed not to come via EARS
-           call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMANT')
+           if (ta2tb) then
+              call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBR')
+           else
+              call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMANT')
+           endif
 
            bt_save(1:nchanl,iob) = data1b8(1:nchanl)
 

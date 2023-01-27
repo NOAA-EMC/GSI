@@ -61,6 +61,8 @@ subroutine setupsst(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
 !   2017-02-09  guo     - Remove m_alloc, n_alloc.
 !                       . Remove my_node with corrected typecast().
 !   2019-11-12  li      - add 4 nsst variables to netcdf sst diag file
+!   2022-04-04  li      - modify to use mixed surface in situ observations
+!                         if ( isli == 0 ) then =>  if ( owpct > 0.05_r_kind ) then
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -309,7 +311,7 @@ subroutine setupsst(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
      if(.not.in_curbin) cycle
 
 ! Interpolate to get sst at obs location/time
-     if ( isli == 0 ) then
+     if ( owpct > 0.05_r_kind ) then
        nobs_qc = nobs_qc + 1
        call intrp2a11(dsfct(1,1,ntguessfc),dsfct_obx,dlat,dlon,mype)
      else

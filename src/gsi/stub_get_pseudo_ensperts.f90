@@ -32,7 +32,7 @@ contains
     use kinds, only: i_kind
     implicit none
     class(get_pseudo_ensperts_class), intent(inout) :: this
-    type(gsi_bundle),allocatable, intent(in   ) :: en_perts(:,:)
+    type(gsi_bundle),allocatable, intent(in   ) :: en_perts(:,:,:)
     integer(i_kind),                   intent(in   ) :: nelen
   
     write(6,*)'get_pseudo_ensperts:  ***WARNING*** dummy call ... does nothing!'

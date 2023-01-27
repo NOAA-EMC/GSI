@@ -105,7 +105,7 @@ use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc,&
 use kinds, only : r_kind, r_double, i_kind, r_single
 use constants, only: zero, one, deg2rad, rad2deg, rd, cp, pi
 use params, only: & 
-      datestring,datapath,sprd_tol,nanals,saterrfact, &
+      letkf_flag,nobsl_max,datestring,datapath,sprd_tol,nanals,saterrfact, &
       lnsigcutoffnh, lnsigcutoffsh, lnsigcutofftr, corrlengthnh,&
       corrlengthtr, corrlengthsh, obtimelnh, obtimeltr, obtimelsh,&
       lnsigcutoffsatnh, lnsigcutoffsatsh, lnsigcutoffsattr,&
@@ -152,6 +152,9 @@ integer :: shm_win, shm_win2
 
 ! ob-space posterior ensemble, needed for EFSOI
 real(r_single),public,allocatable, dimension(:,:) :: anal_ob_post   ! Fortran pointer
+! is the observation assimilated? logical would be preferable, but that confuses
+! Python
+integer(i_kind),public,allocatable, dimension(:) :: assimltd_flag ! Fortran pointer
 
 contains
 
@@ -204,6 +207,13 @@ call mpi_reduce(tdiff,tdiffmax,1,mpi_real4,mpi_max,0,mpi_comm_world,ierr)
 if (nproc == 0) then
  print *,'max time in mpireadobs  = ',tdiffmax
  print *,'total number of obs ',nobstot
+ print *,'min/max obtime ',minval(obtime),maxval(obtime)
+endif
+! if nobsl_max set for LETKF, and the total number of obs < nobsl_max,
+! reset nobsl_max to -1
+if (letkf_flag .and. nobsl_max > 0 .and. nobstot < nobsl_max) then
+   if (nproc == 0) print *,'resetting nobsl_max to -1'
+   nobsl_max=-1
 endif
 allocate(obfit_prior(nobstot))
 ! screen out some obs by setting ob error to a very large number
@@ -466,6 +476,7 @@ if (allocated(probgrosserr)) deallocate(probgrosserr)
 if (allocated(prpgerr)) deallocate(prpgerr)
 if (allocated(diagused)) deallocate(diagused)
 if (allocated(anal_ob_post)) deallocate(anal_ob_post)
+if (allocated(assimltd_flag)) deallocate(assimltd_flag)
 ! free shared memory segement, fortran pointer to that memory.
 nullify(anal_ob)
 call MPI_Barrier(mpi_comm_world,ierr)

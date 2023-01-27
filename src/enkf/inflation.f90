@@ -315,10 +315,19 @@ call mpi_reduce(sumcoslat,sumcoslattot,ndiag,mpi_real4,mpi_sum,0,mpi_comm_world,
 if (nproc == 0 .and. ps_ind > 0) then
    print *,'inflation stats, time level: ',nb
    print *,'---------------------------------'
-   sumftot = sqrt(sumftot/sumcoslattot)
-   sumatot = sqrt(sumatot/sumcoslattot)
-   suma2tot = sqrt(suma2tot/sumcoslattot)
-   sumitot = sumitot/sumcoslattot
+   do i=1,size (sumcoslattot) 
+     if (sumcoslattot(i) .gt. tiny(sumcoslattot(i))) then
+        sumftot(i) = sqrt(sumftot(i)/sumcoslattot(i))
+        sumatot(i) = sqrt(sumatot(i)/sumcoslattot(i))
+        suma2tot(i) = sqrt(suma2tot(i)/sumcoslattot(i))
+        sumitot(i) = sumitot(i)/sumcoslattot(i)
+     else
+        sumftot(i) =0_r_single
+        sumatot(i) =0_r_single
+        suma2tot(i)=0_r_single
+        sumitot(i) =0_r_single 
+     endif
+   enddo
    print *,'global ps prior std. dev min/max = ',sqrt(sprdminall),sqrt(sprdmaxall)
 ! NH first.
    if (sumcoslattot(1) .gt. tiny(sumcoslattot(1))) then

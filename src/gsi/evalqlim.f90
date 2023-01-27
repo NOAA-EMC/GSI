@@ -33,7 +33,7 @@ subroutine evalqlim(sval,pbc,rval)
   use kinds, only: r_kind,i_kind,r_quad
   use constants, only: zero,one,zero_quad
   use gridmod, only: lat1,lon1,nsig,istart,wgtfactlats
-  use jfunc, only: factqmin,factqmax
+  use jfunc, only: factqmin,factqmax,superfact
   use derivsmod, only: qgues,qsatg
   use mpl_allreducemod, only: mpl_allreduce
   use gsi_bundlemod, only: gsi_bundle
@@ -83,9 +83,9 @@ subroutine evalqlim(sval,pbc,rval)
            endif
 !          Compute penalty for excess q
            if (q>qsatg(i,j,k)) then
-              term=(factqmax*wgtfactlats(ii))*(q-qsatg(i,j,k))&
-                   /(qsatg(i,j,k)*qsatg(i,j,k))
-              zbc(2) = zbc(2) + term*(q-qsatg(i,j,k))
+              term=(factqmax*wgtfactlats(ii))*((q-superfact*qsatg(i,j,k))&
+                   /qsatg(i,j,k))**2
+              zbc(2) = zbc(2) + term
 !             Adjoint
               rq(i,j,k) = rq(i,j,k) + term
            endif

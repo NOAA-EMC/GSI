@@ -42,8 +42,12 @@ subroutine reorg_metar_cloud(cdata,nreal,ndata,cdata_all,maxobs,ngrid)
 
   use kinds, only: r_kind,i_kind,r_double
   use gridmod, only: nlon,nlat
-  use constants, only: one,half
+  use gridmod, only: region_dx
+  use constants, only: one,half,zero
   use rapidrefresh_cldsurf_mod, only: metar_impact_radius
+  use rapidrefresh_cldsurf_mod, only: l_metar_impact_radius_change, &
+                            metar_impact_radius_max,metar_impact_radius_min,&
+                            metar_impact_radius_max_height,metar_impact_radius_min_height
 
   implicit none
 
@@ -59,6 +63,8 @@ subroutine reorg_metar_cloud(cdata,nreal,ndata,cdata_all,maxobs,ngrid)
 !
   integer(i_kind) :: ista_prev,ista_prev2,ista_save
 
+  real(r_kind),dimension(nreal)   :: cdata_temp
+  real(r_kind),dimension(12)     :: cloudlevel_temp
   INTEGER(i_kind),allocatable :: first_sta(:,:)
   INTEGER(i_kind),allocatable :: next_sta(:)
   INTEGER(i_kind) ::    null_p
@@ -84,10 +90,18 @@ subroutine reorg_metar_cloud(cdata,nreal,ndata,cdata_all,maxobs,ngrid)
   real(r_kind)    ::     spval_p
   parameter (spval_p = 99999._r_kind)
 
+  real(r_kind)    ::     mindx,dxij,delat_radius,delta_height,radiusij
+  integer(i_kind) ::     isprdij
 
 !
 ! 
   isprd=int(metar_impact_radius + half)
+  if(l_metar_impact_radius_change) then
+     mindx=minval(region_dx)
+     isprd=int(metar_impact_radius_max/mindx + half)
+     delat_radius=metar_impact_radius_max-metar_impact_radius_min
+     delta_height=metar_impact_radius_max_height-metar_impact_radius_min_height
+  endif
   if(isprd <= 0) return
   if(ndata <= 0) return
   ngrid = 0
@@ -260,19 +274,54 @@ subroutine reorg_metar_cloud(cdata,nreal,ndata,cdata_all,maxobs,ngrid)
 
              if (min_dist < 1.e9_r_kind) then
                 if (i1 > 1 .and. i1  < nlon .and. j1 > 1 .and. j1 < nlat) then
-                   iout = iout + 1
-                   if(iout > maxobs) then
-                      write(6,*)'reorg_metar_cloud:  ***Error*** ndata > maxobs '
-                      call stop2(50)
-                   end if
+                   min_dist=sqrt(min_dist) 
                    do k=1,nreal
-                      cdata_all(k,iout) = cdata(k,ista_min)
+                      cdata_temp(k)=cdata(k,ista_min)
                    enddo
-                   cdata_all(24,iout) = cdata_all(2,iout)   ! save observaion station i
-                   cdata_all(25,iout) = cdata_all(3,iout)   ! save observaion station j
-                   cdata_all(2,iout) = float(i1)        ! grid index i
-                   cdata_all(3,iout) = float(j1)        ! grid index j
-                   cdata_all(23,iout)=sqrt(min_dist) ! distance from station
+                   if(l_metar_impact_radius_change) then
+                      dxij=region_dx(j1,i1)
+
+                      cloudlevel_temp=-99999.0_r_kind
+                      ic=0
+                      do k=1,6
+                         if(cdata_temp(5+k) > zero .and. cdata_temp(11+k) > zero ) then 
+                            radiusij=metar_impact_radius_min + delat_radius* &
+                                     max(min((cdata_temp(11+k)-metar_impact_radius_min_height)/delta_height,one),zero)
+                            isprdij=int(radiusij/dxij+half)
+                            if(min_dist <= isprdij) then
+                                ic=ic+1
+                                cloudlevel_temp(0+ic)=cdata_temp(5+k)
+                                cloudlevel_temp(6+ic)=cdata_temp(11+k)
+                            endif
+                         endif
+                      enddo
+                      if(ic==0) then
+                         if(abs(cdata_temp(6)) < 0.0001_r_kind) ic=1  ! clear
+                      else
+                         do k=1,6
+                            cdata_temp(5+k)=cloudlevel_temp(0+k)
+                            cdata_temp(11+k)=cloudlevel_temp(6+k)
+                         enddo
+                      endif
+                   else
+                      ic=1
+                   endif
+
+                   if(ic > 0)  then
+                      iout = iout + 1
+                      if(iout > maxobs) then
+                         write(6,*)'reorg_metar_cloud:  ***Error*** ndata > maxobs '
+                         call stop2(50)
+                      end if
+                      do k=1,nreal
+                         cdata_all(k,iout) = cdata_temp(k)
+                      enddo
+                      cdata_all(24,iout) = cdata_all(2,iout)   ! save observaion station i
+                      cdata_all(25,iout) = cdata_all(3,iout)   ! save observaion station j
+                      cdata_all(2,iout) = float(i1)        ! grid index i
+                      cdata_all(3,iout) = float(j1)        ! grid index j
+                      cdata_all(23,iout)= min_dist ! distance from station
+                   endif
                 endif
              endif
            enddo   ! j1

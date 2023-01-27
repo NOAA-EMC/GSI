@@ -140,6 +140,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
 !   2019-09-20  X.Su     -add read new variational qc table
 !   2019-08-21  H. Shao  - add METOPC-C, COSMIC-2 and PAZ to the GPS check list                           
 !   2020-05-21  H. Shao  - add commercial GNSSRO (Spire, PlanetIQ, GeoOptics) and other existing missions to the check list                           
+!   2021-02-20  X.Li      - add viirs-m and get_hsst
 !
 !   input argument list:
 !    lexist    - file status
@@ -260,9 +261,9 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
          kidsat=223
        else if(jsatid == 'npp')then
          kidsat=224
-       else if(jsatid == 'n20')then
+       else if(jsatid == 'n20' .or. jsatid == 'j1')then
          kidsat=225
-       else if(jsatid == 'n21')then
+       else if(jsatid == 'n21' .or. jsatid == 'j2')then
          kidsat=226
        else if(jsatid == 'f08')then
          kidsat=241
@@ -306,6 +307,12 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
          kidsat=270
        else if(jsatid == 'g17' .or. jsatid == 'g17_prep')then
          kidsat=271
+       else if(jsatid == 'g18' .or. jsatid == 'g18_prep')then
+         kidsat=272
+       else if(jsatid == 'himawari8')then
+         kidsat=173
+       else if(jsatid == 'himawari9')then
+         kidsat=174
        else if(jsatid == 'n05')then
          kidsat=705
        else if(jsatid == 'n06')then
@@ -447,6 +454,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
                trim(subset) == 'NC005039' .or. &
                trim(subset) == 'NC005090' .or. trim(subset) == 'NC005091' .or.&
                trim(subset) == 'NC005067' .or. trim(subset) == 'NC005068' .or. trim(subset) == 'NC005069' .or.&
+               trim(subset) == 'NC005047' .or. trim(subset) == 'NC005048' .or. trim(subset) == 'NC005049' .or.&
                trim(subset) == 'NC005081' .or. &
                trim(subset) == 'NC005072' ) then
                lexist = .true.
@@ -718,6 +726,7 @@ subroutine read_obs(ndata,mype)
     use qcmod, only: njqc,vadwnd_l2rw_qc,nvqc
     use gsi_4dvar, only: l4dvar
     use satthin, only: super_val,super_val1,superp,makegvals,getsfc,destroy_sfc
+    use satthin, only: get_hsst
     use mpimod, only: ierror,mpi_comm_world,mpi_sum,mpi_max,mpi_rtype,mpi_integer,npe,&
          setcomm
     use constants, only: one,zero,izero
@@ -753,6 +762,7 @@ subroutine read_obs(ndata,mype)
 
     use mrmsmod,only: l_mrms_sparse_netcdf
     use directDA_radaruse_mod, only: l_use_dbz_directDA
+    use gridmod, only: regional
 
     implicit none
 
@@ -765,7 +775,7 @@ subroutine read_obs(ndata,mype)
 
 !   Declare local variables
     logical :: lexist,ssmis,amsre,sndr,hirs,avhrr,lexistears,lexistdb,use_prsl_full,use_hgtl_full
-    logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri,mls,abi
+    logical :: use_sfc,nuse,use_prsl_full_proc,use_hgtl_full_proc,seviri,mls,abi,ahi
     logical,dimension(ndat):: belong,parallel_read,ears_possible,db_possible
     logical :: modis,use_sfc_any
     logical :: acft_profl_file
@@ -879,6 +889,7 @@ subroutine read_obs(ndata,mype)
        modis = index(obstype,'modis') /= 0
        seviri = index(obstype,'seviri') /= 0
        abi = index(obstype,'abi') /= 0
+       ahi = index(obstype,'ahi') /= 0
        mls = index(obstype,'mls') /= 0
        if(obstype == 'mls20' ) nmls_type=nmls_type+1
        if(obstype == 'mls22' ) nmls_type=nmls_type+1
@@ -915,7 +926,7 @@ subroutine read_obs(ndata,mype)
                amsre  .or. ssmis      .or. obstype == 'ssmi'      .or.  &
                obstype == 'ssu'       .or. obstype == 'atms'      .or.  &
                obstype == 'cris'      .or. obstype == 'cris-fsr'  .or.  &
-               obstype == 'amsr2'     .or.  &
+               obstype == 'amsr2'     .or. obstype == 'viirs-m'   .or.  &
                obstype == 'gmi'       .or. obstype == 'saphir'   ) then
           ditype(i) = 'rad'
        else if (is_extOzone(dfile(i),obstype,dplat(i))) then
@@ -1018,6 +1029,8 @@ subroutine read_obs(ndata,mype)
              else if(obstype == 'cris' .or. obstype == 'cris-fsr')then
                 parallel_read(i)= .true.
              else if(avhrr)then
+                parallel_read(i)= .true.
+             else if(obstype == 'viirs-m' )then
                 parallel_read(i)= .true.
              else if(amsre)then
                 parallel_read(i)= .true.
@@ -1305,6 +1318,8 @@ subroutine read_obs(ndata,mype)
 
 !   Create full horizontal surface fields from local fields in guess_grids
     call getsfc(mype,mype_io_sfc,use_sfc,use_sfc_any)
+    if ( .not. regional )  call get_hsst(mype_io_sfc)
+   
 
     if(mype == mype_io) call prt_guessfc2('sfcges2',use_sfc)
 
@@ -1555,7 +1570,7 @@ subroutine read_obs(ndata,mype)
                 if(i_gsdcldanal_type==2) then
                    call read_NASA_LaRC_cloud(nread,npuse,nouse,infile,obstype,lunout,sis,nobs_sub1(1,i))
                 else if(i_gsdcldanal_type==1 .or. i_gsdcldanal_type==6 &
-                        .or. i_gsdcldanal_type==3 .or. i_gsdcldanal_type==7) then
+                        .or. i_gsdcldanal_type==3 .or. i_gsdcldanal_type==7 .or. i_gsdcldanal_type==99) then
                    call read_nasa_larc(nread,npuse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
                 end if
                 string='READ_NASA_LaRC'
@@ -1823,6 +1838,13 @@ subroutine read_obs(ndata,mype)
                        mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
                        nobs_sub1(1,i),read_rec(i),dval_use)
                   string='READ_AVHRR'
+  !            Process SST VIIRS RADIANCE  data
+               else if(obstype == 'viirs-m') then
+                  call read_sst_viirs(mype,val_dat,ithin,rmesh,platid,gstime,&
+                       infile,lunout,obstype,nread,npuse,nouse,twind,sis, &
+                       mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i), &
+                       nobs_sub1(1,i),read_rec(i),dval_use)
+                  string='READ_VIIRS'
                end if rad_obstype_select
 
 !         Process ozone data
@@ -1979,7 +2001,7 @@ subroutine read_obs(ndata,mype)
 !   Write collective obs selection information to scratch file.
     if (lread_obs_save .and. mype==0) then
        write(6,*)'READ_OBS:  write collective obs selection info to ',trim(obs_input_common)
-       call unformatted_open(lunsave,file=obs_input_common,class=".obs_input.")
+       call unformatted_open(lunsave,file=obs_input_common,class=".obs_input.",silent=.true.)
        write(lunsave) ndata,ndat,npe,superp,nprof_gps,ditype
        write(lunsave) super_val1
        write(lunsave) nobs_sub

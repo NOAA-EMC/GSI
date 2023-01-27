@@ -113,7 +113,7 @@ subroutine update_guess(sval,sbias)
   use mpimod, only: mype
   use constants, only: zero,one,fv,max_varname_length,qmin,qcmin,tgmin,&
                        r100,one_tenth,tiny_r_kind
-  use jfunc, only: iout_iter,bcoption,tsensible,clip_supersaturation
+  use jfunc, only: iout_iter,bcoption,tsensible,clip_supersaturation,superfact
   use gridmod, only: lat2,lon2,nsig,&
        regional,twodvar_regional,regional_ozone,&
        l_reg_update_hydro_delz
@@ -136,7 +136,7 @@ subroutine update_guess(sval,sbias)
   use rapidrefresh_cldsurf_mod, only: l_gsd_limit_ocean_q,l_gsd_soilTQ_nudge
   use rapidrefresh_cldsurf_mod, only: i_use_2mq4b,i_use_2mt4b
   use gsd_update_mod, only: gsd_limit_ocean_q,gsd_update_soil_tq,&
-       gsd_update_th2,gsd_update_q2
+       gsd_update_t2m,gsd_update_q2
   use qcmod, only: pvis,pcldch,vis_thres,cldch_thres 
   use obsmod, only: l_wcp_cwm
   use directDA_radaruse_mod, only: l_use_cvpqx, l_use_dbz_directDA
@@ -269,7 +269,7 @@ subroutine update_guess(sval,sbias)
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr3dges,istatus)
            if (trim(guess(ic))=='q') then
                call upd_positive_fldr3_(ptr3dges,ptr3dinc, qmin)
-               if(clip_supersaturation) ptr3dges(:,:,:) = min(ptr3dges(:,:,:),ges_qsat(:,:,:,it))
+               if(clip_supersaturation) ptr3dges(:,:,:) = min(ptr3dges(:,:,:),superfact*ges_qsat(:,:,:,it))
                cycle
            endif
            if (trim(guess(ic))=='oz') then
@@ -460,8 +460,8 @@ subroutine update_guess(sval,sbias)
               tinc_1st(i,j)=p_tv(i,j,1)
            end do
         end do
-        call  gsd_update_th2(tinc_1st,it)
-     endif ! l_gsd_th2_adjust
+        call  gsd_update_t2m(tinc_1st,it)
+     endif ! l_gsd_t2m_adjust
      if (i_use_2mq4b > 0 .and. is_q>0) then
         do j=1,lon2
            do i=1,lat2
