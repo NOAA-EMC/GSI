@@ -284,12 +284,11 @@ while [[ $imem -le $nmem ]]; do
    member="_mem"`printf %03i $imem`
    ncdump incr$member.${exp1} > incr$member.${exp1}.out
    ncdump incr$member.${exp2} > incr$member.${exp2}.out
-   if ! diff incr$member.${exp1}.out incr$member.${exp2}.out
-then
-   echo 'incr'$member'.'${exp1}' incr'$member'.'${exp2}' are NOT identical'
-else
+   if [[ ! diff incr$member.${exp1}.out incr$member.${exp2}.out ]]; then
+       echo 'incr'$member'.'${exp1}' incr'$member'.'${exp2}' are NOT identical'
+   else
        rm -f incr$member.${exp1}.out incr$member.${exp2}.out
-fi
+   fi
    (( imem = $imem + 1 ))
 done
 echo
@@ -385,13 +384,12 @@ else
       member="_mem"`printf %03i $imem`
       ncdump incr$member.${exp1} > incr$member.${exp1}.out
       ncdump incr$member.${exp3} > incr$member.${exp3}.out
-      if ! diff incr$member.${exp1}.out incr$member.${exp3}.out
-      then
-      echo 'incr'$member'.'${exp1}' incr'$member'.'${exp3}' are NOT identical'
+      if [[ ! diff incr$member.${exp1}.out incr$member.${exp3}.out ]]; then
+          echo 'incr'$member'.'${exp1}' incr'$member'.'${exp3}' are NOT identical'
       else
           rm -f incr$member.${exp1}.out incr$member.${exp3}.out
       fi
-   (( imem = $imem + 1 ))
+      (( imem = $imem + 1 ))
    done
    echo
 } >> $output
