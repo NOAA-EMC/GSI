@@ -12,6 +12,8 @@ load("stack-intel/2022.0.2")
 load("stack-intel-oneapi-mpi/2021.5.1")
 load("stack-python/3.9.7")
 load("cmake/3.22.1")
+load("global-workflow-env/unified-dev")
+load("gsi-ncdiag/1.0.0")
 load("sfcio/1.4.1")
 load("crtm/2.4.0")
  
