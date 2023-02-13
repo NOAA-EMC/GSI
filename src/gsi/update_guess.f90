@@ -287,7 +287,11 @@ subroutine update_guess(sval,sbias)
                     ! since we don't know which comes first in met-guess, we
                     ! must postpone updating tv after all other met-guess fields
            endif
-           icloud=getindex(cloud,guess(ic))
+           if( allocated(cloud) )then
+              icloud=getindex(cloud,guess(ic))
+           else
+              icloud=-999
+           end if
            if ( .not. l_use_dbz_directDA ) then ! original code
               if(icloud>0) then
                  ptr3dges = max(ptr3dges+ptr3dinc,zero)
