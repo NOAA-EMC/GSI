@@ -1,7 +1,8 @@
 module rad_setup
 ! GSI fails to run using newer Intel compilers (i.e, Intel 2022)
 ! with optimization: https://github.com/NOAA-EMC/GSI/issues/447
-!DIR$ OPTIMIZE:0
+! TODO:  Temporary until the root cause is identified and the issue mentioned above is resolved.
+!DIR$ OPTIMIZE:0 
   implicit none
   private
   public:: setup
