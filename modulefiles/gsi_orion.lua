@@ -1,25 +1,20 @@
 help([[
 ]])
 
-prepend_path("MODULEPATH", "/apps/contrib/NCEP/libs/hpc-stack/modulefiles/stack")
+prepend_path("MODULEPATH", "/work/noaa/da/role-da/spack-stack/modulefiles")
 
-local hpc_ver=os.getenv("hpc_ver") or "1.1.0"
-local hpc_intel_ver=os.getenv("hpc_intel_ver") or "2018.4"
-local hpc_impi_ver=os.getenv("hpc_impi_ver") or "2018.4"
-local cmake_ver=os.getenv("cmake_ver") or "3.22.1"
-local python_ver=os.getenv("python_ver") or "3.7.5"
-local prod_util_ver=os.getenv("prod_util_ver") or "1.2.2"
+load("miniconda/3.9.7")
+load("ecflow/5.8.4")
 
-load(pathJoin("hpc", hpc_ver))
-load(pathJoin("hpc-intel", hpc_intel_ver))
-load(pathJoin("hpc-impi", hpc_impi_ver))
-load(pathJoin("cmake", cmake_ver))
-load(pathJoin("python", python_ver))
+prepend_path("MODULEPATH", "/work2/noaa/da/dheinzel-new/spack-stack-unified-env-io-updates/envs/unified-dev-test2/install/modulefiles/Core")
 
-load("gsi_common")
-
-load(pathJoin("prod_util", prod_util_ver))
-
+load("stack-intel/2022.0.2")
+load("stack-intel-oneapi-mpi/2021.5.1")
+load("stack-python/3.9.7")
+load("cmake/3.22.1")
+load("sfcio/1.4.1")
+load("crtm/2.4.0")
+ 
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
 
