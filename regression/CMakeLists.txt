@@ -39,11 +39,8 @@ endif()
 # GSI regression test names
 list(APPEND GSI_REG_TEST_NAMES
   global_3dvar global_4dvar global_4denvar
-  arw_netcdf arw_binary nmm_binary nmm_netcdf
-  nmmb_nems_4denvar
-  hwrf_nmm_d2 hwrf_nmm_d3
-  rtma
-  netcdf_fv3_regional
+  hwrf_nmm_d2 hwrf_nmm_d3 rtma
+  rrfs_3denvar_glbens netcdf_fv3_regional
 )
 
 # EnKF regression test names

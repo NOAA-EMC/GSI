@@ -22,10 +22,12 @@ REGRESSION_TESTS=${REGRESSION_TESTS:-"YES"} # Build regression test suite
 source $DIR_ROOT/ush/detect_machine.sh
 
 # Load modules
+set +x
 source $DIR_ROOT/ush/module-setup.sh
 module use $DIR_ROOT/modulefiles
 module load gsi_$MACHINE_ID
 module list
+set -x
 
 # Set CONTROLPATH variable to user develop installation
 CONTROLPATH="$DIR_ROOT/../develop/install/bin"
@@ -47,10 +49,8 @@ CMAKE_OPTS+=" -DGSI_MODE=$GSI_MODE -DENKF_MODE=${ENKF_MODE}"
 mkdir -p $BUILD_DIR && cd $BUILD_DIR
 
 # Configure, build, install
-set -x
 cmake $CMAKE_OPTS $DIR_ROOT
 make -j ${BUILD_JOBS:-8} VERBOSE=${BUILD_VERBOSE:-}
 make install
-set +x
 
 exit

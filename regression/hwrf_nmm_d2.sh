@@ -266,7 +266,7 @@ $ncp $hwrf_nmm_ges/gdas1.t${hhg}z.sf06  ./gfs_sigf06
 $ncp $hwrf_nmm_ges/gdas1.t${hhg}z.sf09  ./gfs_sigf09
 
 # Copy ensemble forecast files for hybrid analysis
-export ENSEMBLE_SIZE_REGIONAL=80
+export ENSEMBLE_SIZE_REGIONAL=10
 >filelist06
 n=1
 while [[ $n -le ${ENSEMBLE_SIZE_REGIONAL} ]]; do
