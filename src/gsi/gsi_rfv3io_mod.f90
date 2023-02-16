@@ -2031,7 +2031,8 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m)
           end do
        end do
 
-       if(allocated(sfc1) .and. allocated(sfc))deallocate (dim_id,sfc,sfc1,dim)
+       if(allocated(sfc1) .and. allocated(sfc)) deallocate (sfc,sfc1)
+       if(allocated(dim)) deallocate (dim)
        if(allocated(sfc_fulldomain)) deallocate (sfc_fulldomain)
     endif  ! mype
 

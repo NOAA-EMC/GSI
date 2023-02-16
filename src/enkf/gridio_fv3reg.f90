@@ -507,7 +507,7 @@ contains
                enddo
                do k = levels(dbz_ind-1)+1, levels(dbz_ind)
                    if (nproc .eq. 0)                                               &
-                      write(6,*) 'READFVregional : qnr ',                           &
+                      write(6,*) 'READFVregional : dbz ',                           &
                           & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
                enddo
 
