@@ -109,11 +109,6 @@ contains
 
     if(nobs == 0) then
 
-       if(mype == 0) then
-          write(6,*) 'init_pass = ', init_pass
-          write(6,*) 'l_use_dbz_directDA = ', l_use_dbz_directDA
-       endif
-
        if( (mype == 0) .and. init_pass .and. (.not. l_use_dbz_directDA) ) then
           write(string,600) jiter
 600       format('radardbz_',i2.2)
