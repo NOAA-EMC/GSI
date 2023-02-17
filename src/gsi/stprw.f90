@@ -83,6 +83,7 @@ subroutine stprw(rwhead,rval,sval,out,sges,nstep)
 !
 !$$$
   use kinds, only: r_kind,i_kind,r_quad
+  use obsmod, only: if_use_w_vr
   use qcmod, only: nlnqc_iter,varqc_iter
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gsi_bundlemod, only: gsi_bundle
@@ -124,7 +125,7 @@ subroutine stprw(rwhead,rval,sval,out,sges,nstep)
   call gsi_bundlegetpointer(sval,'u',su,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval,'v',sv,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval,'w',sw,istatus)
-  if (istatus==0) then
+  if (if_use_w_vr.and.istatus==0) then
      include_w=.true.
   else
      include_w=.false.
@@ -132,7 +133,7 @@ subroutine stprw(rwhead,rval,sval,out,sges,nstep)
   call gsi_bundlegetpointer(rval,'u',ru,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'v',rv,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'w',rw,istatus)
-  if (istatus==0) then
+  if (if_use_w_vr.and.istatus==0) then
      include_w=.true.
   else
      include_w=.false.
