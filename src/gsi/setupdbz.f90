@@ -1451,31 +1451,37 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
 ! Write information to diagnostic file
   if(radardbz_diagsave  .and. ii>0 )then
 
-     write(string,600) jiter
-600  format('radardbz_',i2.2)
-     diag_file=trim(dirname) // trim(string)
-     if(init_pass) then
-        open(newunit=lu_diag,file=trim(diag_file),form='unformatted',status='unknown',position='rewind')
+     if( .not. l_use_dbz_directDA )then
+        write(7)'dbz',nchar,nreal,ii,mype,ioff0
+        write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
+        deallocate(cdiagbuf,rdiagbuf)
      else
-        inquire(file=trim(diag_file),exist=diagexist)
-        if (diagexist) then
-           open(lu_diag,file=trim(diag_file),form='unformatted',status='old',position='append')
+        write(string,600) jiter
+600     format('radardbz_',i2.2)
+        diag_file=trim(dirname) // trim(string)
+        if(init_pass) then
+           open(newunit=lu_diag,file=trim(diag_file),form='unformatted',status='unknown',position='rewind')
         else
-           open(lu_diag,file=trim(diag_file),form='unformatted',status='unknown',position='rewind')
+           inquire(file=trim(diag_file),exist=diagexist)
+           if (diagexist) then
+              open(lu_diag,file=trim(diag_file),form='unformatted',status='old',position='append')
+           else
+              open(lu_diag,file=trim(diag_file),form='unformatted',status='unknown',position='rewind')
+           endif
         endif
-     endif
-     if(init_pass .and. mype == 0) then
-        if ( .not. l_use_dbz_directDA ) then    ! EnKF uses these diagnostics and EnKF uses single OBS file for now.
-           write(lu_diag) ianldate          ! So do not write analysis date for binary in case of using direct reflectivity DA.
-        end if
-        write(6,*)'SETUPDBZ:   write time record to file ',&
-                trim(diag_file), ' ',ianldate
-     endif
+        if(init_pass .and. mype == 0) then
+           if ( .not. l_use_dbz_directDA ) then    ! EnKF uses these diagnostics and EnKF uses single OBS file for now.
+              write(lu_diag) ianldate          ! So do not write analysis date for binary in case of using direct reflectivity DA.
+           end if
+           write(6,*)'SETUPDBZ:   write time record to file ',&
+                   trim(diag_file), ' ',ianldate
+        endif
 
-     write(lu_diag)'dbz',nchar,nreal,ii,mype,ioff0
-     write(lu_diag)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
-     deallocate(cdiagbuf,rdiagbuf)
-     close(lu_diag)
+        write(lu_diag)'dbz',nchar,nreal,ii,mype,ioff0
+        write(lu_diag)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
+        deallocate(cdiagbuf,rdiagbuf)
+        close(lu_diag)
+     end if
   end if
   write(6,*)'mype, irefsmlobs,irejrefsmlobs are ',mype,' ',irefsmlobs, ' ',irejrefsmlobs
 ! close(52) !simulated obs

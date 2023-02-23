@@ -47,7 +47,6 @@ for jn in `seq ${RSTART} ${REND}`; do
    $scripts/regression_wait.sh ${job[$jn]} ${rcname} $check_resource
    rc=$?
    if [ $rc -ne 0 ]; then
-     rm -f ${rcname}
      exit 1
    fi
    done
