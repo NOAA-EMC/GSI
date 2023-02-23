@@ -33,7 +33,7 @@ if [[ -d /glade ]]; then # Cheyenne
   export machine="Cheyenne"
 elif [[ -d /scratch1 ]]; then # Hera
   export machine="Hera"
-elif [[ -d /jetmon ]]; then # Jet
+elif [[ -d /mnt/lfs4 || -d /jetmon || -d /mnt/lfs1 ]]; then # Jet
   export machine="Jet"
 elif [[ -d /discover ]]; then # NCCS Discover
   export machine="Discover"
@@ -138,18 +138,15 @@ case $machine in
 
     export noscrub=/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/noscrub
     export ptmp=/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/ptmp
-    export fixcrtm="/lfs1/NESDIS/nesdis-rdo2/David.Huber/save/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
-    export casesdir="/lfs1/NESDIS/nesdis-rdo2/David.Huber/save/CASES"
+    export casesdir="/lfs1/NESDIS/nesdis-rdo2/David.Huber/save/CASES/regtest"
     export check_resource="no"
     export accnt="nesdis-rdo2"
 
     export group="global"
     export queue="batch"
     if [[ "$cmaketest" = "false" ]]; then
-      export basedir="/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/gsi"
+      export basedir="/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/save/git/gsi"
     fi
-
-    export ptmp="/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/ptmp/$ptmpName"
 
     #  On Jet, there are no scrubbers to remove old contents from stmp* directories.
     #  After completion of regression tests, will remove the regression test subdirecories
