@@ -151,7 +151,9 @@
                          readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens,i_en_perts_io, &
                          l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens, &
                          ntotensgrp,nsclgrp,naensgrp,ngvarloc,ntlevs_ens,naensloc, &
-                         i_ensloccov4tim,i_ensloccov4var,i_ensloccov4scl,l_timloc_opt
+                         i_ensloccov4tim,i_ensloccov4var,i_ensloccov4scl,l_timloc_opt,&
+                         vdl_scale,vloc_varlist,&
+                         global_spectral_filter_sd,assign_vdl_nml,parallelization_over_ensmembers
   use hybrid_ensemble_parameters,only : l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
@@ -1376,13 +1378,45 @@
 !                         =0: cross-scale covariance is retained
 !                         =1: cross-scale covariance is zero
 !
+!     global_spectral_filter_sd - if true, use spectral filter function for
+!                                 scale decomposition in the global application (Huang et al. 2021)
+!     assign_vdl_nml - if true, vdl_scale, and vloc_varlist will be used for
+!                      assigning variable-dependent localization upon SDL in gsiparm.anl.
+!                      This method described in (Wang and Wang 2022, JAMES) is
+!                      equivalent to, but different from the method associated
+!                      with the parameter i_ensloccov4var.
+!     vloc_varlist - list of control variables using the same localization length,
+!                     effective only with assign_vdl_nml=.true. For example,
+!                     vloc_varlist(1,:) = 'sf','vp','ps','t',
+!                     vloc_varlist(2,:) = 'q',
+!                     vloc_varlist(3,:) = 'qr','qs','qg','dbz','w','ql','qi',
+!                     vloc_varlist(4,:) = 'sf','vp','ps','t','q',
+!                     vloc_varlist(5,:) = 'qr','qs','qg','dbz','w','ql','qi',
+!                     This example indicates that 3 variable-groups will be adopted for VDL. 
+!                     'sf','vp','ps','t' will share the same localization length of v1L1; 
+!                     'q' will have the localization lenth of v2L1
+!                     'qr','qs','qg','dbz','w','ql','qi', use the same localization length of v3L1
+!
+!                     For L2, a different configuration of VDL can be applied:
+!                               ~~~~~~~~~
+!                     'sf','vp','ps','t','q' will share the same localization length of v2L2; 
+!                     'qr','qs','qg','dbz','w','ql','qi', use the same localization length of v2L2
+!     vdl_scale - number of variables in each variable-group, effective only with assign_vdl_nml=.true.
+!                 if 3 variable-groups with 2 separated scale is set, 
+!                 vdl_scale = 3,    3,    3,   2,    2
+!                             ^     ^     ^    ^     ^ 
+!                 s_ens_h  = v1L1  v2L1  v3L1  v1L2 v2L2
+!                 Then localization lengths will be assigned as above.
+!
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,fv3sar_bg_opt,fv3sar_ensemble_opt,full_ensemble,pwgtflg,&
                 jcap_ens_test,beta_s0,beta_e0,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
                 grid_ratio_ens, &
                 oz_univ_static,write_ens_sprd,use_localization_grid,use_gfs_ens, &
                 i_en_perts_io,l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens, &
-                nsclgrp,l_timloc_opt,ngvarloc,naensloc,i_ensloccov4tim,i_ensloccov4var,i_ensloccov4scl
+                nsclgrp,l_timloc_opt,ngvarloc,naensloc,i_ensloccov4tim,i_ensloccov4var,i_ensloccov4scl,&
+                vdl_scale,vloc_varlist,&
+                global_spectral_filter_sd,assign_vdl_nml,parallelization_over_ensmembers
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
 !                             enhancement for RR appilcation  ):
@@ -1839,7 +1873,9 @@
   else
      naensgrp=ntotensgrp
   endif
-  if(naensloc<naensgrp+nsclgrp-1) naensloc=naensgrp+nsclgrp-1
+  if( (.not. global_spectral_filter_sd) .and. (.not. assign_vdl_nml) .and. naensloc<naensgrp+nsclgrp-1) then
+     naensloc=naensgrp+nsclgrp-1
+  end if
   if(mype==0) write(6,*) 'in gsimod: naensgrp,ntotensgrp,nsclgrp,ngvarloc,ntlevs_ens= ', &
                           naensgrp,ntotensgrp,nsclgrp,ngvarloc,ntlevs_ens
 
@@ -2007,7 +2043,7 @@
     ! skipped in case of direct reflectivity DA because it works in Envar and hybrid
     if ( l_use_rw_columntilt .or. l_use_dbz_directDA) then
        do i=1,ndat
-          if ( index(dtype(i), 'dbz') /= 0 )then
+          if ( if_model_dbz .and. (index(dtype(i), 'dbz') /= 0) )then
              write(6,*)'beta_s0 needs to be set to zero in this GSI version, when reflectivity is directly assimilated. &
                         Static B extended for radar reflectivity assimilation will be included in future version.'
              call stop2(8888)
