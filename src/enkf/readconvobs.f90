@@ -789,6 +789,9 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
               x_obs(nob)   = x_obs(nob) /Forecast_Saturation_Spec_Hum(i)
               hx_mean(nob)     = hx_mean(nob) /Forecast_Saturation_Spec_Hum(i)
               hx_mean_nobc(nob) = hx_mean_nobc(nob) /Forecast_Saturation_Spec_Hum(i)
+              if (neigv>0) then
+              hx_modens(:,nob) = hx_modens(:,nob)/ Forecast_Saturation_Spec_Hum(i)
+              endif
            endif
 
            ! for wind, also read v-component
