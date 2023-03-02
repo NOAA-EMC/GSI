@@ -99,7 +99,7 @@
       ntest=0
       nrtmax=0                       ! # rpts to print per msg type (0=all)
 
-      call closbf(lunin)
+!     call closbf(lunin)
       open(lunin,file=trim(infile),form='unformatted')
       call mesgbc(lunin,msgt,icomp)
       call openbf(lunin,'IN',lunin)
@@ -157,6 +157,7 @@
       ilon=2
       ilat=3
       call closbf(lunin)
+      close(lunin)
       open(lunin,file=trim(infile),form='unformatted')
       call mesgbc(lunin,msgt,icomp)
       call openbf(lunin,'IN',lunin)
@@ -477,6 +478,7 @@
       write(*,*) ! closing linefeed, debug?
 
       call closbf(lunin)
+      close(lunin)
 !   Normal exit
 
 !   Write observation to scratch file
@@ -486,9 +488,7 @@
      deallocate(cdata_all)
  
      if (ndata == 0) then
-        call closbf(lunin)
-        write(6,*)'READ_PREPFITS:  closbf(',lunin,')'
+        write(6,*)'READ_PREPFITS no data'
      endif
 
-     close(lunin)
      end subroutine read_pblh

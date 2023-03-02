@@ -37,7 +37,7 @@ ncp=/bin/cp
 # Given the analysis date, compute the date from which the
 # first guess comes.  Extract cycle and set prefix and suffix
 # for guess and observation data files
-gdate=`$ndate -12 $rtma_adate`
+gdate=`date +%Y%m%d%H -d "${rtma_adate:0:8} ${rtma_adate:8:2} - 12 hours"`
 cya=`echo $rtma_adate | cut -c9-10`
 cyg=`echo $rtma_adate | cut -c9-10`
 cymd=`echo $rtma_adate | cut -c1-8`

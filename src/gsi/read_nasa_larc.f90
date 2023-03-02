@@ -199,6 +199,7 @@ subroutine read_nasa_larc(nread,ndata,infile,obstype,lunout,twind,sis,nobs)
     endif
 !
     call closbf(lunin)
+    close(lunin)
     return
 200 continue
     write(6,*) 'read_nasa_larc, Warning : cannot find LaRC data file'

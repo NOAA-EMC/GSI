@@ -128,7 +128,6 @@ subroutine read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twindin,sis)
 ! Open, then read date from BUFR file
 
 
-  call closbf(lunin) 
   open(lunin,file=infile,form='unformatted') 
   call openbf(lunin,'IN',lunin) 
   call datelen(10) 
@@ -401,14 +400,11 @@ subroutine read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twindin,sis)
      'nvtest,vdisterrmax=',ntest,vdisterrmax
 
   if (ndata == 0) then 
-     call closbf(lunin)
-     write(6,*)'READ_GOESGLM:  closbf(',lunin,')'
+     write(6,*)'READ_GOESGLM:  closbf(',lunin,') no data'
   endif
 
 
   close(lunin)
-
-  close(55)
 
 ! End of routine
   return

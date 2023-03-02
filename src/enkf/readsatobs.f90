@@ -1260,7 +1260,7 @@ subroutine write_satobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, x_
 subroutine write_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, &
                                  x_fit, x_sprd, x_used, id, gesid)
   use netcdf, only: nf90_inq_dimid, nf90_open, nf90_close, NF90_NETCDF4, &
-                    nf90_inquire_dimension, NF90_WRITE, nf90_create, nf90_def_dim
+                    nf90_inquire_dimension, NF90_WRITE, NF90_NOWRITE, nf90_create, nf90_def_dim
   use ncdw_climsg, only: nclayer_check
 
   use radinfo, only: iuse_rad,nusis,jpch_rad
@@ -1326,7 +1326,7 @@ subroutine write_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, &
      if (.not. fexist) cycle peloop
 
 
-     call nclayer_check(nf90_open(obsfile, NF90_WRITE, iunit))
+     call nclayer_check(nf90_open(obsfile, NF90_NOWRITE, iunit))
      call nclayer_check(nf90_inq_dimid(iunit, "nobs", nobsid))
      call nclayer_check(nf90_inquire_dimension(iunit, nobsid, len = nobs))
      call nclayer_check(nf90_close(iunit))

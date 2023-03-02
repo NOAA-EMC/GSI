@@ -55,11 +55,11 @@ usually embedded in the {\it anavinfo} file. An example of such table follows:
 \begin{verbatim}
 correlated_observations::
 ! isis       method   kreq   kmut  type    cov_file
-  airs281_aqua  1      60.   1.0   ice     airs_rcov.bin
-  airs281_aqua  1      60.   1.0   land    airs_rcov.bin
-  airs281_aqua  1      60.   1.0   sea     airs_rcov.bin
-  airs281_aqua  1      60.   1.0   snow    airs_rcov.bin
-  airs281_aqua  1      60.   1.0   mixed   airs_rcov.bin
+  airs_aqua  1      60.   1.0   ice     airs_rcov.bin
+  airs_aqua  1      60.   1.0   land    airs_rcov.bin
+  airs_aqua  1      60.   1.0   sea     airs_rcov.bin
+  airs_aqua  1      60.   1.0   snow    airs_rcov.bin
+  airs_aqua  1      60.   1.0   mixed   airs_rcov.bin
 # cris_npp      1     -99.   1.0   snow    cris_rcov.bin
 # cris_npp      1     -99.   1.0   land    cris_rcov.bin
 # cris_npp      1     -99.   1.0   sea     cris_rcov.bin
@@ -201,13 +201,13 @@ logical :: GMAO_ObsErrorCov=.false.
 type ObsErrorCov
      character(len=40) :: name                        ! R covariance name
      character(len=20) :: instrument                  ! instrument
-     integer(i_kind)   :: nch_active=-1               ! active channels
-     integer(i_kind)   :: nctot=-1                    ! total number of channels (active+passive)
+     integer(i_kind)   :: nch_active=-1               ! number of channels actively assimilated, according to the satinfo
+     integer(i_kind)   :: nctot=-1                    ! total number of channels (active+passive), according to the covariance file
      integer(i_kind)   :: method    =-1               ! define method of computation
      real(r_kind)      :: kreq      =-99._r_kind      ! Weston et al-like spectrum adjustment factor
      real(r_kind)      :: kmut      =-99._r_kind      ! multiplicative inflation factor
      character(len=20) :: mask      ='global'         ! Apply covariance for profiles over all globe
-     integer(i_kind),pointer :: indxR(:)   =>NULL()   ! indexes of active channels in between 1 and nchanl
+     integer(i_kind),pointer :: indxR(:)   =>NULL()   ! indexes of active channels in between 1 and nchanl, according to the satinfo
      real(r_kind),   pointer :: R(:,:)     =>NULL()   ! nch_active x nch_active
      real(r_kind),   pointer :: Revals(:)  =>NULL()   ! eigenvalues of R
 end type
@@ -333,7 +333,8 @@ end subroutine ini_
 ! !INTERFACE:
 !
 subroutine set_(instrument,fname,mask,method,kreq,kmut,ErrorCov)
-use radinfo, only: nusis,iuse_rad,jpch_rad
+use radinfo, only: nusis,iuse_rad,jpch_rad,varch,nuchan
+use constants, only: zero
 implicit none
 
 ! !INPUT PARAMETERS:
@@ -368,10 +369,13 @@ type(ObsErrorCov),intent(inout) :: ErrorCov ! cov(R) for this instrument
 !BOC
 
 character(len=*),parameter :: myname_=myname//'*set'
-integer(i_kind) nch_active,lu,ii,ioflag,iprec,nctot,coun
-
-real(r_single),allocatable, dimension(:,:) :: readR4  ! nch_active x nch_active x ninstruments
-real(r_double),allocatable, dimension(:,:) :: readR8  ! nch_active x nch_active x ninstruments
+integer(i_kind) nch_active   !number of channels accounted for in the covariance file
+integer(i_kind) nctot        !the total number of channels (active+passive), according to the covariance file
+integer(i_kind) lu,ii,jj,ioflag,iprec,coun,couns,istart,indR,nctotf
+integer(i_kind),dimension(:),allocatable:: indxR,indxRf !channel indices read in from the covariance file
+real(r_kind),dimension(:,:),allocatable:: Rcov   !covariance matrix read in from the covariance file
+real(r_single),allocatable, dimension(:,:) :: readR4  ! nch_active x nch_active 
+real(r_double),allocatable, dimension(:,:) :: readR8  ! nch_active x nch_active 
 real(r_kind),allocatable, dimension(:) :: diag
 logical :: corr_obs
 
@@ -393,56 +397,120 @@ logical :: corr_obs
          read(lu,IOSTAT=ioflag) nch_active, nctot, iprec
       endif
       if(ioflag/=0) call die(myname_,' failed to read nch from '//trim(fname))
-!     if no data available, turn off Correlated Error
       coun=0
+      couns=0
+      istart=0 
+      nctotf=0
       do ii=1,jpch_rad
         if (nusis(ii)==ErrorCov%instrument) then
-           if (iuse_rad(ii)>0) coun=coun+1
+           if (couns==0) then 
+              istart=ii-1
+              couns=1
+           endif
+           if (iuse_rad(ii)>0) then
+              coun=coun+1
+           endif
+           nctotf=nctotf+1
         endif
       enddo
-      if (coun<nch_active) then
+!     if no data available, turn off Correlated Error
+      if (coun==0) then
          if (iamroot_) write(6,*) 'WARNING: ',trim(ErrorCov%instrument), &
                        ' is not initiallized. Turning off Correlated Error'
          return
       endif
-      ErrorCov%nch_active = nch_active
+      ErrorCov%nch_active = coun
       if (.not.GMAO_ObsErrorCov) ErrorCov%nctot = nctot
-      call create_(nch_active,ErrorCov)
+      call create_(coun,ErrorCov)
+      allocate(indxRf(nch_active),indxR(nch_active),Rcov(nctot,nctot))
 
 !     Read GSI-like channel numbers used in estimating R for this instrument
-      read(lu,IOSTAT=ioflag) ErrorCov%indxR
+      read(lu,IOSTAT=ioflag) indxR
       if(ioflag/=0) call die(myname_,' failed to read indx from '//trim(fname))
 
 !     Read estimate of observation error covariance
+      Rcov=0.0_r_kind
       if(iprec==4) then
         allocate(readR4(nch_active,nch_active))
         read(lu,IOSTAT=ioflag) readR4
         if(ioflag/=0) call die(myname_,' failed to read R from '//trim(fname))
-        ErrorCov%R = readR4
+        Rcov(1:nch_active,1:nch_active)=readR4
         deallocate(readR4)
       endif
       if(iprec==8) then
         allocate(readR8(nch_active,nch_active))
         read(lu,IOSTAT=ioflag) readR8
         if(ioflag/=0) call die(myname_,' failed to read R from '//trim(fname))
-        ErrorCov%R = readR8
+        Rcov(1:nch_active,1:nch_active)=readR8
         deallocate(readR8)
       endif
-
+      if (GMAO_ObsErrorCov) then
+         ErrorCov%indxR(1:nch_active)=indxR(1:nch_active)
+         ErrorCov%nch_active=nch_active
+      else
+         coun=0
+         ErrorCov%R=zero
+         do ii=1,nctotf 
+            if (iuse_rad(ii+istart)>0) then
+               coun=coun+1
+               ErrorCov%indxR(coun)=ii
+               indxRf(coun)=nuchan(ii+istart)
+            endif
+         enddo
+!Add rows and columns for active channels in the satinfo that are not in the covariance file
+        couns=1
+        do ii=1,ErrorCov%nch_active
+           indR=0
+           do jj=couns,nch_active 
+              if (indxR(jj)==indxRf(ii)) then
+                 indR=jj
+                 couns=jj+1
+                 exit
+              endif
+           enddo
+           if (indR==0) then
+              do jj=nctot-1,ii,-1
+                 Rcov(jj+1,:)=Rcov(jj,:)
+                 Rcov(:,jj+1)=Rcov(:,jj)
+              enddo
+              Rcov(ii,:)=zero
+              Rcov(:,ii)=zero
+              Rcov(ii,ii)=varch(istart+ErrorCov%indxR(ii))*varch(istart+ErrorCov%indxR(ii))
+           endif
+        enddo
+!Remove rows and columns that are in the covariance file, but not in the satinfo
+         couns=1
+         do ii=1,nch_active
+           indR=0
+           do jj=couns,ErrorCov%nch_active
+              if (indxRf(jj)==indxR(ii)) then
+                 indR=jj
+                 couns=jj+1
+                 exit
+              endif
+           enddo
+           if (indR==0) then
+              do jj=ii,nctot-1
+                 Rcov(jj,:)=Rcov(jj+1,:)
+                 Rcov(:,jj)=Rcov(:,jj+1) 
+              enddo
+            endif
+         enddo
+      endif
+      ErrorCov%R(1:ErrorCov%nch_active,1:ErrorCov%nch_active)=Rcov(1:ErrorCov%nch_active,1:ErrorCov%nch_active)
 !     Done reading file
       close(lu)
    else
       if (iamroot_) write(6,*) 'No Rcov files found.  Turning off Correlated Error'
       return
    end if
-
 !  If method<0 there is really nothing else to do
 !  ----------------------------------------------
    if (method<0) then
       initialized_=.true.
       return
    endif
-
+   nch_active=ErrorCov%nch_active
    if (VERBOSE_) then
        allocate(diag(nch_active))
        do ii=1,nch_active
@@ -471,7 +539,7 @@ logical :: corr_obs
        endif
        deallocate(diag)
    endif
-
+   deallocate(indxR,Rcov,indxRf)
    initialized_=.true.
 end subroutine set_
 !EOC
@@ -906,9 +974,6 @@ subroutine upd_varch_
                do jj=1,nch_active
                   nn=GSI_BundleErrorCov(itbl)%indxR(jj)
                   mm=ich1(nn)
-                  if( iuse_rad(mm)<1 ) then
-                    call die(myname_,' active channels used in R do not match those used in GSI, aborting')
-                  endif
                   if(isurf==1) then 
                     if(iamroot_)write(6,'(1x,a6,a20,2i6,2f20.15)')'>>>',idnames(itbl),jj,nn,varch(mm),sqrt(GSI_BundleErrorCov(itbl)%R(jj,jj))
                     varch_sea(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(jj,jj))
@@ -945,9 +1010,6 @@ subroutine upd_varch_
                   endif 
                enddo
                ncp=count(ircv>0) ! number of active channels in profile
-               if(ncp/=nch_active) then
-                  call die(myname_,'serious inconsistency in handling correlated obs')
-               endif
                allocate(IRsubset(ncp)) ! these indexes apply to the matrices/vec in ErrorCov
                allocate(IJsubset(ncp)) ! these indexes in 1 to nchanl
                iii=0;jjj=0
@@ -997,7 +1059,7 @@ subroutine upd_varch_
 
 end subroutine upd_varch_
 !EOC
-logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,depart,obs, &
+logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,diagadd,depart,obs, &
                   err2,raterr2,wgtjo,jacobian,method,nchasm,rsqrtinv,rinvdiag)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -1031,7 +1093,7 @@ logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,depart,obs, &
    integer(i_kind), intent(in) :: nsigradjac
    integer(i_kind), intent(in) :: ich(nchanl)
    integer(i_kind), intent(out) :: method
-   real(r_kind), intent(in)    :: varinv(nchanl)
+   real(r_kind), intent(in)    :: varinv(nchanl),diagadd(nchanl)
    real(r_kind), intent(inout) :: depart(nchanl),obs(nchanl)
    real(r_kind), intent(inout) :: err2(nchanl)
    real(r_kind), intent(inout) :: raterr2(nchanl)
@@ -1052,7 +1114,7 @@ logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,depart,obs, &
 
    if( GSI_BundleErrorCov(iinstr)%nch_active < 0) return
 
-   adjust_jac_ = scale_jac_ (depart,obs,err2,raterr2,jacobian,nchanl,varinv,wgtjo, &
+   adjust_jac_ = scale_jac_ (depart,obs,err2,raterr2,jacobian,nchanl,varinv,diagadd,wgtjo, &
                              ich,nchasm,rsqrtinv,rinvdiag,GSI_BundleErrorCov(iinstr))
 
    method = GSI_BundleErrorCov(iinstr)%method
@@ -1066,7 +1128,7 @@ logical function adjust_jac_ (iinstr,nchanl,nsigradjac,ich,varinv,depart,obs, &
 !
 ! !INTERFACE:
 !
-logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,wgtjo, &
+logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,diagadd,wgtjo, &
                             ich,nchasm,rsqrtinv,rinvdiag,ErrorCov)
 ! !USES:
    use constants, only: tiny_r_kind
@@ -1078,6 +1140,7 @@ logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,wgtjo
    integer(i_kind),intent(in) :: nchanl   ! total number of channels in instrument
    integer(i_kind),intent(in) :: ich(:)   ! true channel numeber
    real(r_kind),   intent(in) :: varinv(:)    ! inverse of specified ob-error-variance 
+   real(r_kind),   intent(in) :: diagadd(:)    ! addition to diagonal before cholesky factorization
 ! !INPUT/OUTPUT PARAMETERS:
    real(r_kind),intent(inout) :: depart(:)    ! observation-minus-guess departures
    real(r_kind),intent(inout) :: obs(:)       ! observations
@@ -1215,8 +1278,6 @@ logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,wgtjo
 !  Do as GSI would do otherwise
      do jj=1,ncp
        mm=IJsubset(jj)
-       raterr2(mm) = raterr2(mm)
-       err2(mm) = err2(mm)
        wgtjo(mm)    = varinv(mm)
      enddo
    else
@@ -1256,16 +1317,16 @@ logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,wgtjo
              jjj=IJsubset(jj)
              qcaj(jj) = raterr2(jjj)
            enddo
-           subset = choleskydecom_inv_ (IRsubset,ErrorCov,UT,qcaj)
+           subset = choleskydecom_inv_ (IRsubset,IJsubset,ErrorCov,UT,diagadd,qcaj)
          else
-         subset = choleskydecom_inv_ (IRsubset,ErrorCov,UT) 
+           subset = choleskydecom_inv_ (IRsubset,IJsubset,ErrorCov,UT,diagadd) 
          endif
        else if( ErrorCov%method==1 ) then
          do jj=1,ncp
            jjj=IJsubset(jj)
            qcaj(jj) = varinv(jjj)
          enddo
-         subset = choleskydecom_inv_ (IRsubset,ErrorCov,UT,qcaj)
+         subset = choleskydecom_inv_ (IRsubset,IJsubset,ErrorCov,UT,diagadd,qcaj)
 
        endif
        if(.not.subset) then
@@ -1346,11 +1407,12 @@ end function scale_jac_
 !
 ! !INTERFACE:
 !
-logical function choleskydecom_inv_(Isubset,ErrorCov,UT,qcaj)
+logical function choleskydecom_inv_(Isubset,IJsubset,ErrorCov,UT,diagadd,qcaj)
 ! !USES:
   implicit none
-  integer(i_kind),intent(in) :: Isubset(:)
+  integer(i_kind),intent(in) :: Isubset(:),IJsubset(:)
   real(r_kind),intent(inout) :: UT(:,:)
+  real(r_kind),intent(in   ) :: diagadd(:)
   real(r_kind),optional,intent(in) :: qcaj(:)
   type(ObsErrorCov),intent(in) :: ErrorCov
 ! !DESCRIPTION: This routine makes a LAPACK call to Cholesky factorization of cov(R),
@@ -1391,6 +1453,9 @@ logical function choleskydecom_inv_(Isubset,ErrorCov,UT,qcaj)
       enddo
     enddo
   endif
+  do jj=1,ncp
+      UT(jj,jj) = UT(jj,jj)+diagadd(IJsubset(jj))
+  enddo
   if(r_kind==r_single) then ! this trick only works because this uses the f77 lapack interfaces
      call SPOTRF('U', ncp, UT, ncp, info )
   else if(r_kind==r_double) then

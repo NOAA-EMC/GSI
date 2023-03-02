@@ -40,6 +40,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
 
   use obsmod, only: netcdf_diag, binary_diag, dirname
+  use obsmod, only: l_obsprvdiag
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
@@ -69,7 +70,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use converr, only: ptabl
   use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surftobs,l_sfcobserror_ramp_t
   use rapidrefresh_cldsurf_mod, only: l_pbl_pseudo_surfobst, pblh_ration,pps_press_incr
-  use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_sfct_gross,l_closeobs,i_coastline       
+  use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_sfct_gross,l_closeobs,i_coastline    
 
   use aircraftinfo, only: npredt,predt,aircraft_t_bc_pof,aircraft_t_bc, &
        aircraft_t_bc_ext,ostats_t,rstats_t,upd_pred_t
@@ -79,6 +80,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use buddycheck_mod, only: buddy_check_t
+  use hdraobmod, only: nhdt,hdtlist
 
   use sparsearr, only: sparr2, new, size, writearray, fullarray
 
@@ -220,6 +222,12 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !                              observation error (DOE) calculation to
 !                              the namelist level; they are now
 !                              loaded by obsmod.
+!   2021-10-xx  pondeca/morris/zhao - added observation provider/subprovider
+!                         information in diagonostic file, which is used
+!                         in offline observation quality control program (AutoObsQC) 
+!                         for 3D-RTMA (if l_obsprvdiag is true).
+!   2022-03-15  Hu  change all th2 to t2m to indicate that 2m temperature 
+!                   is sensible instead of potentionl temperature
 !
 ! !REMARKS:
 !   language: f90
@@ -285,16 +293,17 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   integer(i_kind) ier2,iuse,ilate,ilone,ikxx,istnelv,iobshgt,izz,iprvd,isprvd
   integer(i_kind) regime
   integer(i_kind) idomsfc,iskint,iff10,isfcr
-  integer(i_kind) ibb,ikk
+  integer(i_kind) ibb,ikk,idddd
 
   integer(i_kind),dimension(nobs):: buddyuse
 
   type(sparr2) :: dhx_dx
 
-  integer(i_kind) :: iz, t_ind, nind, nnz
+  integer(i_kind) :: iz, t_ind, nind, nnz, iprev_station
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf,cdiagbufp
   character(8),allocatable,dimension(:):: cprvstg,csprvstg
+  character(8),allocatable,dimension(:):: cprvstgp,csprvstgp ! <-- provider info array for pseudo obs
   character(8) c_prvstg,c_sprvstg
   real(r_double) r_prvstg,r_sprvstg
 
@@ -327,7 +336,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_q2
-  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_th2
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_t2m
 
   logical:: l_pbl_pseudo_itype
   integer(i_kind):: ich0
@@ -391,6 +400,32 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
+!  If HD raobs available move prepbufr version to monitor
+  if(nhdt > 0)then
+     iprev_station=0
+     do i=1,nobs
+        ikx=nint(data(ikxx,i))
+        itype=ictype(ikx)
+        if(itype == 120) then
+           rstation_id     = data(id,i)
+           read(station_id,'(i5,3x)',err=1200) idddd
+           if(idddd == iprev_station)then
+             data(iuse,i)=108._r_kind
+             muse(i) = .false.
+           else 
+              stn_loop:do j=1,nhdt
+                if(idddd == hdtlist(j))then
+                   iprev_station=idddd
+                   data(iuse,i)=108._r_kind
+                   muse(i) = .false.
+                   exit stn_loop
+                end if
+              end do stn_loop
+           end if
+        end if
+1200    continue
+     end do
+  end if
   var_jb=zero
 
 !  handle multiple reported data at a station
@@ -442,7 +477,11 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
           nreal=nreal+npredt+2
      idia0=nreal
      if (lobsdiagsave) nreal=nreal+4*miter+1
-     if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
+     if (twodvar_regional .or. l_obsprvdiag) then
+       nreal=nreal+2    ! account for idomsfc, izz used in diag for RTMA
+       allocate(cprvstg(nobs),csprvstg(nobs))      ! provider/subprovider info
+       if(l_pbl_pseudo_surfobst) allocate(cprvstgp(nobs*3),csprvstgp(nobs*3))  ! provider of pseudo obs 
+     endif
      if (save_jacobian) then
        nnz   = 2                   ! number of non-zero elements in dH(x)/dx profile
        nind   = 1
@@ -705,10 +744,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            if(i_coastline==1 .or. i_coastline==3) then
 
 !          Interpolate guess th 2m to observation location and time
-              call tintrp2a11_csln(ges_th2,tges2m,tges2m_water,dlat,dlon,dtime,hrdifsig,&
+              call tintrp2a11_csln(ges_t2m,tges2m,tges2m_water,dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
-              tges2m=tges2m*(r10*psges/r1000)**rd_over_cp_mass  ! convert to sensible T         
-              tges2m_water=tges2m_water*(r10*psges/r1000)**rd_over_cp_mass  ! convert to sensible T         
               if(iqtflg)then
                  call tintrp2a11_csln(ges_q2,qges2m,qges2m_water,dlat,dlon,dtime,hrdifsig,&
                      mype,nfldsig)
@@ -718,9 +755,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               if( abs(tob-tges2m) > abs(tob-tges2m_water)) tges2m=tges2m_water
            else
 !          Interpolate guess th 2m to observation location and time
-              call tintrp2a11(ges_th2,tges2m,dlat,dlon,dtime,hrdifsig,&
+              call tintrp2a11(ges_t2m,tges2m,dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
-              tges2m=tges2m*(r10*psges/r1000)**rd_over_cp_mass  ! convert to sensible T         
               if(iqtflg)then
                  call tintrp2a11(ges_q2,qges2m,dlat,dlon,dtime,hrdifsig,&
                      mype,nfldsig)
@@ -1007,6 +1043,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         endif
         my_head%luse    = luse(i)
         my_head%tv_ob   = iqtflg
+        my_head%idx = 0
 
         if (aircraft_t_bc_pof .or. aircraft_t_bc) then
            effective=upd_pred_t*pof_idx
@@ -1205,12 +1242,12 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
                  if (err_adjst>tiny_r_kind) errinv_adjst=one/err_adjst
                  if (err_final>tiny_r_kind) errinv_final=one/err_final
 
-                 if(binary_diag) call contents_binary_diagp_
+                 if(binary_diag) call contents_binary_diagp_(my_diag_pbl)
 
               else
                  iip=nobs
               endif
-              if(netcdf_diag) call contents_netcdf_diagp_
+              if(netcdf_diag) call contents_netcdf_diagp_(my_diag_pbl)
            end if
 
            prest = prest - pps_press_incr
@@ -1232,20 +1269,25 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   if(conv_diagsave)then
     if(netcdf_diag) call nc_diag_write
     if(binary_diag .and. ii>0)then
-       write(7)'  t',nchar,nreal,ii+iip,mype,idia0
+       write(7)'  t',nchar,nreal,ii+iip,mype,idia0,iip
        if(l_pbl_pseudo_surfobst .and. iip>0) then
           write(7)cdiagbuf(1:ii),cdiagbufp(1:iip),rdiagbuf(:,1:ii),rdiagbufp(:,1:iip)
-          deallocate(cdiagbufp,rdiagbufp)
        else
           write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
        endif
-       deallocate(cdiagbuf,rdiagbuf)
 
-       if (twodvar_regional) then
-          write(7)cprvstg(1:ii),csprvstg(1:ii)
+       if (twodvar_regional .or. l_obsprvdiag) then
+          if(l_pbl_pseudo_surfobst .and. iip>0) then
+             write(7)cprvstg(1:ii),cprvstgp(1:iip),csprvstg(1:ii),csprvstgp(1:iip)
+          else
+             write(7)cprvstg(1:ii),csprvstg(1:ii)
+          endif
           deallocate(cprvstg,csprvstg)
+          if(l_pbl_pseudo_surfobst) deallocate(cprvstgp,csprvstgp)
        endif
     end if
+    deallocate(cdiagbuf,rdiagbuf)
+    if(l_pbl_pseudo_surfobst) deallocate(cdiagbufp,rdiagbufp)
   end if
 
 
@@ -1370,19 +1412,19 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
          call stop2(999)
      endif
      if(i_use_2mt4b>0) then
-!    get th2m ...
-        varname='th2m'
+!    get t2m ...
+        varname='t2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
         if (istatus==0) then
-            if(allocated(ges_th2))then
+            if(allocated(ges_t2m))then
                write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
                call stop2(999)
             endif
-            allocate(ges_th2(size(rank2,1),size(rank2,2),nfldsig))
-            ges_th2(:,:,1)=rank2
+            allocate(ges_t2m(size(rank2,1),size(rank2,2),nfldsig))
+            ges_t2m(:,:,1)=rank2
             do ifld=2,nfldsig
                call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
-               ges_th2(:,:,ifld)=rank2
+               ges_t2m(:,:,ifld)=rank2
             enddo
         else
             write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
@@ -1522,7 +1564,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        enddo
     endif
 
-    if (twodvar_regional) then
+    if (twodvar_regional .or. l_obsprvdiag) then
        idia = idia + 1
        rdiagbuf(idia,ii) = data(idomsfc,i) ! dominate surface type
        idia = idia + 1
@@ -1540,12 +1582,13 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   end subroutine contents_binary_diag_
 
-  subroutine contents_binary_diagp_
+  subroutine contents_binary_diagp_(odiag)
+    type(obs_diag),pointer,intent(in):: odiag
 
       cdiagbufp(iip)    = station_id         ! station id
 
       rdiagbufp(1,iip)  = ictype(ikx)        ! observation type
-      rdiagbufp(2,iip)  = icsubtype(ikx)     ! observation subtype
+      rdiagbufp(2,iip)  = -1                 ! observation subtype (-1 for pseudo obs sub-type)
             
       rdiagbufp(3,iip)  = data(ilate,i)      ! observation latitude (degrees)
       rdiagbufp(4,iip)  = data(ilone,i)      ! observation longitude (degrees)
@@ -1576,8 +1619,44 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      rdiagbufp(20,iip) = 1.e10_r_single     ! spread (filled in by EnKF)
 
      idia=idia0
+!----
+     if (lobsdiagsave) then
+        do jj=1,miter
+           idia=idia+1
+           if (odiag%muse(jj)) then
+              rdiagbufp(idia,iip) = one
+           else
+              rdiagbufp(idia,iip) = -one
+           endif
+        enddo
+        do jj=1,miter+1
+           idia=idia+1
+           rdiagbufp(idia,iip) = odiag%nldepart(jj)
+        enddo
+        do jj=1,miter
+           idia=idia+1
+           rdiagbufp(idia,iip) = odiag%tldepart(jj)
+        enddo
+        do jj=1,miter
+           idia=idia+1
+           rdiagbufp(idia,iip) = odiag%obssen(jj)
+        enddo
+     endif
+
+    if (twodvar_regional .or. l_obsprvdiag) then
+       idia = idia + 1
+       rdiagbufp(idia,iip) = -9999._r_single ! data(idomsfc,i) ! dominate surface type
+       idia = idia + 1
+       rdiagbufp(idia,iip) = -9999._r_single ! data(izz,i)     ! model terrain at observation location
+!      r_prvstg            = data(iprvd,i)
+       cprvstgp(iip)         = '88888888'    !c_prvstg        ! provider name
+!      r_sprvstg           = data(isprvd,i)
+       csprvstgp(iip)        = '88888888'    !c_sprvstg       ! subprovider name
+    endif
+!----
+
      if (save_jacobian) then
-        call writearray(dhx_dx, rdiagbuf(idia+1:nreal,ii))
+        call writearray(dhx_dx, rdiagbufp(idia+1:nreal,iip))
         idia = idia + size(dhx_dx)
      endif
 
@@ -1617,6 +1696,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("Observation",             sngl(data(itob,i))     )
     call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)      )
     call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(tob-tges)   )
+
     if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) then
        call nc_diag_metadata("Data_Pof",             sngl(data(ipof,i))     )
        call nc_diag_metadata("Data_Vertical_Velocity", sngl(data(ivvlc,i))  )
@@ -1653,7 +1733,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )              
     endif
 
-    if (twodvar_regional) then
+    if (twodvar_regional .or. l_obsprvdiag) then
        call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i)              )
        call nc_diag_metadata("Model_Terrain",     data(izz,i)                  )
        r_prvstg            = data(iprvd,i)
@@ -1670,15 +1750,18 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   end subroutine contents_netcdf_diag_
 
-  subroutine contents_netcdf_diagp_
+  subroutine contents_netcdf_diagp_(odiag)
+    type(obs_diag),pointer,intent(in):: odiag
 ! Observation class
   character(7),parameter     :: obsclass = '      t'
   real(r_single),parameter::     missing = -9.99e9_r_single
 
+  real(r_kind),dimension(miter) :: obsdiag_iuse
+
     call nc_diag_metadata("Station_ID",              station_id             )
     call nc_diag_metadata("Observation_Class",       obsclass               )
     call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
-    call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
+    call nc_diag_metadata("Observation_Subtype",     -1                     ) ! (-1 for pseudo obs sub-type)
     call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
     call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
     call nc_diag_metadata("Station_Elevation",       sngl(data(istnelv,i))  )
@@ -1702,6 +1785,30 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)      )
     call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(ddiff)      )
 
+!----
+    if (lobsdiagsave) then
+       do jj=1,miter
+          if (odiag%muse(jj)) then
+             obsdiag_iuse(jj) =  one
+          else
+             obsdiag_iuse(jj) = -one
+          endif
+       enddo
+
+       call nc_diag_data2d("ObsDiagSave_iuse",     obsdiag_iuse                             )
+       call nc_diag_data2d("ObsDiagSave_nldepart", odiag%nldepart )
+       call nc_diag_data2d("ObsDiagSave_tldepart", odiag%tldepart )
+       call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )              
+    endif
+
+    if (twodvar_regional .or. l_obsprvdiag) then
+       call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i)              )
+       call nc_diag_metadata("Model_Terrain",     data(izz,i)                  )
+       call nc_diag_metadata("Provider_Name",     "88888888"                   )
+       call nc_diag_metadata("Subprovider_Name",  "88888888"                   )
+    endif
+
+!----
     if (save_jacobian) then
        call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)
        call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
@@ -1717,7 +1824,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     if(allocated(ges_u )) deallocate(ges_u )
     if(allocated(ges_ps)) deallocate(ges_ps)
     if(allocated(ges_q2)) deallocate(ges_q2)
-    if(allocated(ges_th2)) deallocate(ges_th2)
+    if(allocated(ges_t2m)) deallocate(ges_t2m)
   end subroutine final_vars_
 
 end subroutine setupt

@@ -12,7 +12,7 @@ subroutine setupcldtot(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_di
 !!                .      .    .                                       .
 ! subprogram:    setupcldtot      compute rhs of oi for pseudo moisture observations from
 !                                 METAR and Satellite cloud observations
-!   prgmmr: Ladwag          org: GSD                date: 2019-06-01
+!   prgmmr: Ladwig          org: GSD                date: 2019-06-01
 !
 ! abstract:  For moisture observations, this routine
 !              a) reads obs assigned to given mpi task (geographic region),
@@ -109,7 +109,6 @@ subroutine setupcldtot(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_di
   external:: tintrp2a1,tintrp2a11
   external:: tintrp31,tintrp3
   external:: grdcrd1
-  external:: genqsat
   external:: stop2
 
 ! Declare local variables  
@@ -273,7 +272,7 @@ subroutine setupcldtot(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_di
          allocate(cdiagbuf(nobs*nsig),rdiagbuf(nreal,nobs*nsig))
          rdiagbuf=zero
      endif
-     if (i_cloud_q_innovation == 2 .or. i_cloud_q_innovation == 3) then
+     if (i_cloud_q_innovation >= 20 .or. i_cloud_q_innovation == 3) then
          iip=0
          allocate(cdiagbufp(nobs*nsig),rdiagbufp(nreal,nobs*nsig))
          cdiagbufp="EMPTY"
@@ -461,7 +460,7 @@ subroutine setupcldtot(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_di
              cycle
          endif
    
-         call cloudCover_surface_col(mype,nsig,cld_bld_hgt,h_bk,z_bk, &
+         call cloudCover_surface_col(mype,nsig,i_cloud_q_innovation,cld_bld_hgt,h_bk,z_bk, &
                  nvarcld_p,ocld,oelvtn,wthr_type,pcp_type_obs,vis2qc,cld_cover_obs)
    
    
@@ -516,8 +515,8 @@ subroutine setupcldtot(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_di
                 muse(i)=.true.
    
            !*******************************************************************************
-               if (i_cloud_q_innovation /= 2) then
-                   write(*,*) "Warning - setupcldtot: this code version is only designed for i_cloud_q_innovation == 2"
+               if (i_cloud_q_innovation < 20 .or. i_cloud_q_innovation > 22 ) then
+                   write(*,*) "Warning - setupcldtot: this code version is only designed for i_cloud_q_innovation == 20,21,22"
                    return
                else
    
@@ -566,6 +565,8 @@ subroutine setupcldtot(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_di
                            ddiff=qv_ob-q_bk(k)
                            q_build0_count=q_build0_count+1
                        endif
+                       ! build error = 80%
+                       error=one/(cloudqvis*8.E-01_r_kind)
        
                    elseif (qob > -0.000001_r_single) then
                        
@@ -578,13 +579,15 @@ subroutine setupcldtot(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_di
                            ddiff=qv_ob-q_bk(k) 
                            q_clear0_count=q_clear0_count+1
                        endif
+                       ! clear error = 30%
+                       error=one/(cloudqvis*3.E-01_r_kind)
                    else
                        cycle
                    endif
        
                    q_obcount=q_obcount+1
        
-                   error=one/(cloudqvis*3.E-01_r_kind)
+                   ! all obs errors = 30%
                    ratio_errors=1.0_r_kind
                    val = error*ddiff
        
@@ -712,7 +715,7 @@ subroutine setupcldtot(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_di
 
   !! Write information to diagnostic file
   if(conv_diagsave)then
-     if (i_cloud_q_innovation == 2 .and. iip>0) then
+     if (i_cloud_q_innovation >= 20 .and. iip>0) then
         if(netcdf_diag) call nc_diag_write
         if(binary_diag)then
            write(7)'  q',nchar,nreal,iip,mype,ioff0
@@ -922,7 +925,7 @@ subroutine setupcldtot(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_di
         endif
      end if
 
-     call nc_diag_init(diag_conv_file)
+     call nc_diag_init(diag_conv_file, append=append_diag)
 
      if (.not. append_diag) then ! don't write headers on append - the module will break?
         call nc_diag_header("date_time",ianldate )

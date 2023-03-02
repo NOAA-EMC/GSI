@@ -31,8 +31,7 @@ subroutine bicg()
 use kinds,     only: r_kind,i_kind,r_quad
 use gsi_4dvar, only: l4dvar, &
                      ladtest, lgrtest, lanczosave, ltcost, nwrvecs
-use jfunc,     only: jiter,miter,niter,xhatsave,yhatsave,jiterstart, &
-                     diag_precon
+use jfunc,     only: jiter,miter,niter,xhatsave,yhatsave,jiterstart
 use constants, only: zero,tiny_r_kind
 use mpimod,    only: mype
 use obs_sensitivity, only: lobsensmin, lobsensfc, lobsensincr, &
@@ -99,23 +98,24 @@ call jgrad(xhat,yhat,zf0,gradx,lsavinc,nprt,myname)
 if(LMPCGL) then 
    call pcgprecond(gradx,grady)
 else 
-   call bkerror(gradx,grady)
+   grady=gradx
+   call bkerror(grady)
 
    ! If hybrid ensemble run, then multiply ensemble control variable a_en 
    !                                 by its localization correlation
    if(l_hyb_ens) then
 
      if(aniso_a_en) then
-   !   call anbkerror_a_en(gradx,grady)    !  not available yet
+   !   call anbkerror_a_en(grady)    !  not available yet
        write(6,*)' ANBKERROR_A_EN not written yet, program stops'
        call stop2 (999)
      else
-       call bkerror_a_en(gradx,grady)
+       call bkerror_a_en(grady)
      end if
 
    end if
    ! Add potential additional preconditioner
-   if(diag_precon) call precond(grady)
+   call precond(grady)
 endif
 
 zg0=dot_product(gradx,grady,r_quad)
@@ -188,24 +188,25 @@ if (lobsensfc) then
 
 else ! not sensitivity run
 
-   call bkerror(gradf,grads)
+   grads=gradf
+   call bkerror(grads)
 
 ! If hybrid ensemble run, then multiply ensemble control variable a_en 
 !                                 by its localization correlation
    if(l_hyb_ens) then
 
      if(aniso_a_en) then
-!      call anbkerror_a_en(gradf,grads)    !  not available yet
+!      call anbkerror_a_en(grads)    !  not available yet
        write(6,*)' ANBKERROR_A_EN not written yet, program stops'
        stop
      else
-       call bkerror_a_en(gradf,grads)
+       call bkerror_a_en(grads)
      end if
 
    end if
 
 !  Add potential additional preconditioner 
-   if(diag_precon) call precond(grads)
+   call precond(grads)
 
 !  Update xhatsave
    do ii=1,xhat%lencv

@@ -28,8 +28,6 @@ module jfunc
 !                      - defer GMAO diurnal bias correction changes.
 !   2008-12-01  todling - bring in Tremolet's changes
 !   2009-06-01  pondeca,sato - add tsensible initialization. used in 2dvar mode only
-!   2009-06-01  pondeca - add lgschmidt initalization. this variable controls the B-norm
-!                         re-orthogonalization of the gradx vectors in 2dvar mode
 !   2010-02-20  parrish - add change to get correct nval_len when using hybrid ensemble with dual resolution.
 !   2010-02-20  zhu     - add nrf_levb and nrf_leve
 !   2010-03-23  derber  - remove rhgues (not used)
@@ -56,6 +54,7 @@ module jfunc
 !   anav_info                - control variables information
 !   sub read_guess_solution  - read guess solution
 !   sub write_guess_solution - write guess solution
+!   sub strip1               - strip off halo from subdomain arrays for 1 field
 !   sub strip2               - strip off halo from subdomain arrays
 !   sub set_pointer          - set location indices for components of vectors
 !
@@ -82,14 +81,12 @@ module jfunc
 !   def nvals_levs - number of 2d (x/y) state-vector variables
 !   def nvals_len  - number of 2d state-vector variables * subdomain size (with buffer)
 !   def nval_levs  - number of 2d (x/y) control-vector variables
+!   def nval_levs_ens  - number of 2d (x/y) control-vector variables including
+!   ensembles
 !   def nval_len   - number of 2d control-vector variables * subdomain size (with buffer)
 !   def print_diag_pcg - option for turning on GMAO diagnostics in pcgsoi
 !   def tsensible  - option to use sensible temperature as the control variable. applicable
 !                    to the 2dvar mode only
-!   def lgschmidt  - option to re-biorthogonalyze the gradx and grady vectors during the
-!                    inner iteration using the modified gram-schmidt method. useful for
-!                    estimating the analysis error via the projection method. 
-!
 !   def ntracer    - total number of tracer variables
 !   def nrft       - total number of time tendencies for upper level control variables
 !   def nrft_      - order of time tendencies for 3d control variables
@@ -124,6 +121,7 @@ module jfunc
   public :: destroy_jfunc
   public :: read_guess_solution
   public :: write_guess_solution
+  public :: strip1
   public :: strip2
   public :: set_pointer
   public :: set_sqrt_2dsize
@@ -131,28 +129,28 @@ module jfunc
   public :: nrclen,npclen,nsclen,ntclen,qoption,nval_lenz,tendsflag,tsensible,cwoption,varcw
   public :: switch_on_derivatives,jiterend,jiterstart,jiter,iter,niter,miter
   public :: diurnalbc,bcoption,biascor,nval2d,xhatsave,first
-  public :: factqmax,factqmin,clip_supersaturation,last,yhatsave,nvals_len,nval_levs,iout_iter,nclen
-  public :: factql,factqi,factqr,factqs,factqg  
-  public :: niter_no_qc,print_diag_pcg,lgschmidt,penorig,gnormorig,iguess
+  public :: factqmax,factqmin,clip_supersaturation,last,yhatsave,nvals_len,nval_levs,nval_levs_ens,iout_iter,nclen
+  public :: factql,factqi,factqr,factqs,factqg,superfact,limitqobs
+  public :: niter_no_qc,print_diag_pcg,penorig,gnormorig,iguess
   public :: factg,factv,factp,factl,R_option,factw10m,facthowv,factcldch,diag_precon,step_start
   public :: pseudo_q2
   public :: varq
   public :: cnvw_option
 
-  logical first,last,switch_on_derivatives,tendsflag,print_diag_pcg,tsensible,lgschmidt,diag_precon
+  logical first,last,switch_on_derivatives,tendsflag,print_diag_pcg,tsensible,diag_precon
   logical clip_supersaturation,R_option
-  logical pseudo_q2
+  logical pseudo_q2,limitqobs
   logical cnvw_option
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption,cwoption
   integer(i_kind) jiter,jiterstart,jiterend,iter
   integer(i_kind) nvals_len,nvals_levs
-  integer(i_kind) nval_len,nval_lenz,nval_levs
+  integer(i_kind) nval_len,nval_lenz,nval_levs,nval_levs_ens
   integer(i_kind) nclen1,nclen2,nrclen,nsclen,npclen,ntclen
   integer(i_kind) nval2d,nclenz
 
   integer(i_kind),dimension(0:50):: niter,niter_no_qc
   real(r_kind) factqmax,factqmin,gnormorig,penorig,biascor(2),diurnalbc,factg,factv,factp,factl,&
-               factw10m,facthowv,factcldch,step_start
+               factw10m,facthowv,factcldch,step_start,superfact
   real(r_kind) factql,factqi,factqr,factqs,factqg  
   integer(i_kind) bcoption
   real(r_kind),allocatable,dimension(:,:):: varq
@@ -198,13 +196,14 @@ contains
     tendsflag=.false.
     print_diag_pcg=.false.
     tsensible=.false.
-    lgschmidt=.false.
     diag_precon=.false.
     step_start=1.e-4_r_kind
     R_option=.false.
 
     factqmin=zero
     factqmax=zero
+    superfact=1.00_r_kind
+    limitqobs=.false.
     factql=zero
     factqi=zero
     factqr=zero
@@ -358,7 +357,7 @@ contains
     return
   end subroutine destroy_jfunc
 
-  subroutine read_guess_solution(dirx,diry,mype)
+  subroutine read_guess_solution(diry,mype,success)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_guess_solution
@@ -376,10 +375,11 @@ contains
 !
 !   input argument list:
 !     mype   - mpi task id
-!     dirx,diry - dynamic components, e.g. %values(:), must be already allocated
+!     diry - dynamic components, e.g. %values(:), must be already allocated
 !
 !   output argument list:
-!     dirx,diry
+!     diry
+!     success - logical flag determining if input file was successfully read
 !
 ! attributes:
 !   language: f90
@@ -395,16 +395,17 @@ contains
     implicit none
 
     integer(i_kind)     ,intent(in   ) :: mype
-    type(control_vector),intent(inout) :: dirx,diry
+    type(control_vector),intent(inout) :: diry
+    logical             ,intent(inout) :: success
 
     integer(i_kind) i,k,mm1,myper,kk,i1,i2
-    integer(i_kind) nlatg,nlong,nsigg,nrcleng
+    integer(i_kind) nlatg,nlong,nsigg
+    integer(i_kind) nxval,nxrclen,nxsclen,nxpclen
     integer(i_kind),dimension(5):: iadateg
-    real(r_single),dimension(max(iglobal,itotsub)):: fieldx,fieldy
-    real(r_single),dimension(nlat,nlon):: xhatsave_g,yhatsave_g
-    real(r_single),dimension(nclen):: xhatsave_r4,yhatsave_r4
+    real(r_single),dimension(max(iglobal,itotsub)):: fieldy
+    real(r_single),dimension(nlat,nlon):: yhatsave_g
+    real(r_single),dimension(nclen):: yhatsave_r4
     
-    jiterstart = 1
     mm1=mype+1
     myper=0
 
@@ -415,60 +416,62 @@ contains
     nlatg=0
     nlong=0
     nsigg=0
-    nrcleng=0
-    read(12,end=1234)iadateg,nlatg,nlong,nsigg,nrcleng
+    read(12,end=1234)iadateg,nlatg,nlong,nsigg,nxval,nxrclen,nxsclen,nxpclen
     if(iadate(1) == iadateg(1) .and. iadate(2) == iadate(2) .and. &
        iadate(3) == iadateg(3) .and. iadate(4) == iadateg(4) .and. &
        iadate(5) == iadateg(5) .and. nlat == nlatg .and. &
+       nxval == nval_levs_ens .and. &
        nlon == nlong .and. nsig == nsigg) then
        if(mype == 0) write(6,*)'READ_GUESS_SOLUTION:  read guess solution for ',&
-                     iadateg,nlatg,nlong,nsigg,nrcleng
-       jiterstart=0
+                     iadateg,nlatg,nlong,nsigg,nxval,nxrclen,nxsclen,nxpclen
          
 ! Let all tasks read gesfile_in to pick up bias correction (second read)
+       if(nxsclen+nxpclen > 0)then
+          if ( nxsclen==nsclen  .and. nxpclen == npclen) then
+             read(12,end=1236) (yhatsave_r4(i),i=nclen1+1,nclen-ntclen)
+             do i=nclen+1,nclen-ntclen
+                diry%values(i)=real(yhatsave_r4(i),r_kind)
+             end do
+          else
+             read(12)
+             if(mype == 0) then
+                write(6,*) 'READ_GUESS_SOLUTION:  INCOMPATABLE RADIANCE COMPONENT in GESFILE, gesfile_in'
+                write(6,*) 'READ_GUESS_SOLUTION:  nrclen: input,current=',nxsclen,nsclen,nxpclen,npclen
+                write(6,*) 'READ_GUESS_SOLUTION:  ignoring previous radiance guess'
+             endif
+          endif
+       else
+          if(mype == 0) write(6,*) ' No bias correction in restart file '
+       endif
 
 ! Loop to read input guess fields.  After reading in each field & level,
 ! scatter the grid to the appropriate location in the xhat and yhatsave
 ! arrays.
-       do k=1,nval_levs
-          read(12,end=1236) xhatsave_g,yhatsave_g
-          do kk=1,itotsub
-             i1=ltosi_s(kk); i2=ltosj_s(kk)
-             fieldx(kk)=xhatsave_g(i1,i2)
-             fieldy(kk)=yhatsave_g(i1,i2)
-          end do
+       do k=1,nval_levs_ens
+          if(mype == myper)then
+             read(12,end=1236) yhatsave_g
+             do kk=1,itotsub
+                i1=ltosi_s(kk); i2=ltosj_s(kk)
+                fieldy(kk)=yhatsave_g(i1,i2)
+             end do
+          end if
           i=(k-1)*latlon11 + 1
-          call mpi_scatterv(fieldx,ijn_s,displs_s,mpi_real4,&
-                   xhatsave_r4(i),ijn_s(mm1),mpi_real4,myper,mpi_comm_world,ierror)
           call mpi_scatterv(fieldy,ijn_s,displs_s,mpi_real4,&
                    yhatsave_r4(i),ijn_s(mm1),mpi_real4,myper,mpi_comm_world,ierror)
-       end do  !end do over nval_levs
+       end do  !end do over val_levs_ens`
 
-!      Read radiance and precipitation bias correction terms
-       if ( nrcleng==nrclen ) then
-          read(12,end=1236) (xhatsave_r4(i),i=nclen1+1,nclen),(yhatsave_r4(i),i=nclen1+1,nclen)
-       else
-          if(mype == 0) then
-             write(6,*) 'READ_GUESS_SOLUTION:  INCOMPATABLE RADIANCE COMPONENT in GESFILE, gesfile_in'
-             write(6,*) 'READ_GUESS_SOLUTION:  nrclen: input,current=',nrcleng,nrclen
-             write(6,*) 'READ_GUESS_SOLUTION:  ignoring previous radiance guess' 
-          endif
-          do i=nclen1+1,nclen
-             xhatsave_r4(i)=zero
-             yhatsave_r4(i)=zero
-          end do
-       endif
-       do i=1,nclen
-          dirx%values(i)=real(xhatsave_r4(i),r_kind)
+       do i=1,nclen1
           diry%values(i)=real(yhatsave_r4(i),r_kind)
        end do
+       success = .true.
 
     else
+       read(12)
        if(mype == 0) then
           write(6,*) 'READ_GUESS_SOLUTION:  INCOMPATABLE GUESS FILE, gesfile_in'
           write(6,*) 'READ_GUESS_SOLUTION:  iguess,iadate,iadateg=',iguess,iadate,iadateg
           write(6,*) 'READ_GUESS_SOLUTION:  nlat,nlatg,nlon,nlong,nsig,nsigg=',&
-                      nlat,nlatg,nlon,nlong,nsig,nsigg
+                      nlat,nlatg,nlon,nlong,nsig,nsigg,nval_levs_ens,nxval
        end if
     endif
     close(12)
@@ -535,63 +538,118 @@ contains
     integer(i_kind),intent(in   ) :: mype
 
     integer(i_kind) i,j,k,mm1,mypew,kk,i1,i2,ie,is
-    real(r_single),dimension(lat1,lon1,2):: field
-    real(r_single),dimension(max(iglobal,itotsub)):: fieldx,fieldy
-    real(r_single),dimension(nlat,nlon):: xhatsave_g,yhatsave_g
-    real(r_single),dimension(nrclen):: xhatsave4,yhatsave4
+    real(r_single),dimension(lat1,lon1):: field
+    real(r_single),dimension(max(iglobal,itotsub)):: fieldy
+    real(r_single),dimension(nlat,nlon):: yhatsave_g
+    real(r_single),dimension(nrclen):: yhatsave4
+    integer :: nxr,nxs,nxp
+    logical :: writebias
 
     mm1=mype+1
     mypew=0
+    writebias=.false.
+    if(writebias)then
+       nxr=nrclen
+       nxs=nsclen
+       nxp=npclen
+    else
+      nxr=0
+      nxs=0
+      nxp=0
+    end if
     
 ! Write header record to output file
     if (mype==mypew) then
        open(51,file='gesfile_out',form='unformatted')
-       write(51) iadate,nlat,nlon,nsig,nrclen
+       write(51) iadate,nlat,nlon,nsig,nval_levs_ens,nxr,nxs,nxp
     endif
 
+! Write radiance and precipitation bias correction terms to output file
+    if (mype==mypew .and. nsclen+npclen > 0 .and. writebias) then
+       do i=1,nsclen+npclen
+          yhatsave4(i)=yhatsave%values(nclen1+i)
+       end do
+       write(51) (yhatsave4(i),i=1,nsclen+npclen)
+    end if
+
 ! Loop over levels.  Gather guess solution and write to output
-    do k=1,nval_levs
+    do k=1,nval_levs_ens
        ie=(k-1)*latlon11 + 1
        is=ie+latlon11
-       call strip2(xhatsave%values(ie:is),yhatsave%values(ie:is),field)
-       call mpi_gatherv(field(1,1,1),ijn(mm1),mpi_real4,&
-            fieldx,ijn,displs_g,mpi_real4,mypew,&
-            mpi_comm_world,ierror)
-       call mpi_gatherv(field(1,1,2),ijn(mm1),mpi_real4,&
+       call strip1(yhatsave%values(ie:is),field)
+       call mpi_gatherv(field,ijn(mm1),mpi_real4,&
             fieldy,ijn,displs_g,mpi_real4,mypew,&
             mpi_comm_world,ierror)
 
+       if(mype == mypew)then
 ! Transfer to global arrays
-       do j=1,nlon
-          do i=1,nlat
-             xhatsave_g(i,j)=zero
-             yhatsave_g(i,j)=zero
+          do j=1,nlon
+             do i=1,nlat
+                yhatsave_g(i,j)=zero
+             end do
           end do
-       end do
-       do kk=1,iglobal
-          i1=ltosi(kk); i2=ltosj(kk)
-          xhatsave_g(i1,i2)=fieldx(kk)
-          yhatsave_g(i1,i2)=fieldy(kk)
-       end do
+          do kk=1,iglobal
+             i1=ltosi(kk); i2=ltosj(kk)
+             yhatsave_g(i1,i2)=fieldy(kk)
+          end do
 
 ! Write level record
-       if (mype==mypew) write(51) xhatsave_g,yhatsave_g
-    end do  !end do over nval_levs
+          write(51) yhatsave_g
+       end if
+    end do  !end do over nval_levs_ens
 
-! Write radiance and precipitation bias correction terms to output file
-    if (mype==mypew) then
-       do i=1,nrclen
-          xhatsave4(i)=xhatsave%values(nclen1+i)
-          yhatsave4(i)=yhatsave%values(nclen1+i)
-       end do
-       write(51) (xhatsave4(i),i=1,nrclen),(yhatsave4(i),i=1,nrclen)
+    if(mype==mypew)then
        close(51)
        write(6,*)'WRITE_GUESS_SOLUTION:  write guess solution for ',&
-                  iadate,nlat,nlon,nsig,nrclen
+                  iadate,nlat,nlon,nsig,nxr,nxs,nxp
     endif
 
     return
   end subroutine write_guess_solution
+    subroutine strip1(field_in1,field_out)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    strip1
+!   prgmmr: treadon          org: np23                date: 2003-11-24
+!
+! abstract: strip off halo from two subdomain arrays & combine into
+!           single output array
+!
+! program history log:
+!   2003-11-24  treadon
+!   2004-05-18  kleist, documentation
+!   2008-05-12  safford - rm unused uses
+!
+!   input argument list:
+!     field_in1 - subdomain field with halo
+!
+!   output argument list:
+!     field_out - combined subdomain fields with halo stripped
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    use kinds, only: r_single
+    use gridmod, only: lat1,lon1,lat2,lon2
+    implicit none
+
+    real(r_single),dimension(lat1,lon1),intent(  out) :: field_out
+    real(r_kind)  ,dimension(lat2,lon2),intent(in   ) :: field_in1
+
+    integer(i_kind) i,j,jp1
+
+
+    do j=1,lon1
+       jp1 = j+1
+       do i=1,lat1
+          field_out(i,j)=field_in1(i+1,jp1)
+       end do
+    end do
+
+    return
+  end subroutine strip1
 
     subroutine strip2(field_in1,field_in2,field_out)
 !$$$  subprogram documentation block
@@ -680,6 +738,7 @@ contains
     use gsi_4dvar, only: nsubwin, lsqrtb
     use bias_predictors, only: setup_predictors
     use hybrid_ensemble_parameters, only: l_hyb_ens,n_ens,generate_ens,grd_ens,nval_lenz_en
+    use hybrid_ensemble_parameters, only: naensgrp
     implicit none
 
     integer(i_kind) n_ensz,nval_lenz_tot,nval_lenz_enz
@@ -690,7 +749,8 @@ contains
     nval_levs=max(0,nc3d)*nsig+max(0,nc2d)
     nval_len=nval_levs*latlon11
     if(l_hyb_ens) then
-       nval_len=nval_len+n_ens*nsig*grd_ens%latlon11
+       nval_len=nval_len+naensgrp*n_ens*nsig*grd_ens%latlon11
+       nval_levs_ens=nval_levs+naensgrp*n_ens*nsig
     end if
     nsclen=npred*jpch_rad
     npclen=npredp*npcptype

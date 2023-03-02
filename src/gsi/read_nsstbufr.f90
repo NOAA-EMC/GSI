@@ -18,6 +18,13 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !   2015-06-01  Li      - Modify to make it work when nst_gsi = 0 and nsstbufr data file exists
 !   2016-03-11  j. guo  - Fixed {dlat,dlon}_earth_deg in the obs data stream
 !   2019-01-15  Li      - modify to handle dbuoyb (NC001102) and mbuoyb (NC001103)
+!   2021-02-15  Li      - modify to handle bufr ships, restricted (nc001101,shipsb) and
+!                         unrestricted (NC001113, shipub), and bufr land based lcman (nc001104)
+!   2021-09-09  Li      - modify to handle bufr ships, restricted (nc001013,shipsu)
+!   2021-12-14  Li      - modify to handle bufr Saildrone sea water temperature Obs. (001120)
+!   2022-01-12  Li      - modify to handle bufr subpfl sea water temperature (Argo & Glider) Obs. (031005)
+!   2022-01-12  Li      - Modify the maxmum depth to be 20 m for the shallowest T of the T-Profile Obs. 
+!  
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -99,20 +106,22 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   real(r_double), dimension(4) :: loc
   real(r_double), dimension(2,255) :: tpf
   real(r_double), dimension(2,65535) :: tpf2
+  real(r_double), dimension(3,65535) :: tpf3
   real(r_double)  :: msst,sst
   equivalence (crpid,hdr(7))
 
   real(r_kind),dimension(0:3):: ts
   real(r_kind),dimension(0:3):: sfcpct
 
+  real(r_single), dimension(65535) :: apres
   real(r_kind) :: tdiff,sstime,usage,sfcr,t4dv,rsc
   real(r_kind) :: tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10
   real(r_kind) :: dlat,dlon,sstoe,dlat_earth,dlon_earth
   real(r_kind) :: dlat_earth_deg,dlon_earth_deg
-  real(r_kind) :: zob,tz,tref,dtw,dtc,tz_tr
+  real(r_kind) :: pres1,zob,tz,tref,dtw,dtc,tz_tr
 
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
-  real(r_double) :: clath,clonh
+  real(r_double) :: clath,clonh,r_rpid
   integer(i_kind) ntest
 
   real(r_kind),allocatable,dimension(:,:):: data_all
@@ -182,17 +191,22 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   do while (ireadmg(lunin,subset,idate) == 0)
      msub = nmsub(lunin)
 
-!           case ( 'NC001001' ) ; ctyp='ships   '
-!           case ( 'NC001002' ) ; ctyp='dbuoy   '
-!           case ( 'NC001003' ) ; ctyp='dbuoyb  '
-!           case ( 'NC001003' ) ; ctyp='mbuoy   '
-!           case ( 'NC001103' ) ; ctyp='mbuoyb  '
-!           case ( 'NC001004' ) ; ctyp='lcman   '
-!           case ( 'NC001005' ) ; ctyp='tideg   '
-!           case ( 'NC001007' ) ; ctyp='cstgd   '
-!           case ( 'NC031001' ) ; ctyp='bathy   '
-!           case ( 'NC031002' ) ; ctyp='tesac   '
-!           case ( 'NC031003' ) ; ctyp='trkob   '
+!           case ( 'NC001001' ) ; ctyp='ships       '
+!           case ( 'NC001101' ) ; ctyp='shipsb      '
+!           case ( 'NC001113' ) ; ctyp='shipub      '
+!           case ( 'NC001104' ) ; ctyp='Land_lcman  '
+!           case ( 'NC001002' ) ; ctyp='dbuoy       '
+!           case ( 'NC001003' ) ; ctyp='dbuoyb      '
+!           case ( 'NC001003' ) ; ctyp='mbuoy       '
+!           case ( 'NC001103' ) ; ctyp='mbuoyb      '
+!           case ( 'NC001120' ) ; ctyp='saildron    '
+!           case ( 'NC001004' ) ; ctyp='lcman       '
+!           case ( 'NC001005' ) ; ctyp='tideg       '
+!           case ( 'NC001007' ) ; ctyp='cstgd       '
+!           case ( 'NC031001' ) ; ctyp='bathy       '
+!           case ( 'NC031002' ) ; ctyp='tesac       '
+!           case ( 'NC031003' ) ; ctyp='trkob       '
+!           case ( 'NC031005' ) ; ctyp='argo_glider '
 
      read_loop: do while (ireadsb(lunin) == 0)
         call ufbint(lunin,hdr,7,1,iret,headr)
@@ -216,7 +230,11 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !
         if ( ( trim(subset) == 'NC001003' ) .or. &            ! MBUOY
              ( trim(subset) == 'NC001004' ) .or. &            ! LCMAN
-             ( trim(subset) == 'NC001001' ) ) then            ! SHIPS
+             ( trim(subset) == 'NC001104' ) .or. &            ! bufr land based LCMAN
+             ( trim(subset) == 'NC001001' ) .or. &            ! SHIPS
+             ( trim(subset) == 'NC001101' ) .or. &            ! bufr SHIPS, restricted
+             ( trim(subset) == 'NC001013' ) .or. &            ! bufr SHIPS, unrestricted
+             ( trim(subset) == 'NC001113' ) ) then            ! bufr SHIPS, unrestricted
            call ufbint(lunin,msst,1,1,iret,'MSST')            ! for ships, fixed buoy and lcman
            call ufbint(lunin,sst,1,1,iret,'SST1')             ! read SST
         elseif ( trim(subset) == 'NC001103' ) then            ! MBUOYB
@@ -228,10 +246,18 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
         elseif ( trim(subset) == 'NC001102' ) then            ! DBUOYB
            msst = 11.0_r_kind                                 ! for drifting buoyb, assign to be 11
            call ufbint(lunin,sst,1,1,iret,'SST0')
+        elseif ( trim(subset) == 'NC001120' ) then            ! SailDrone
+           msst = 11.0_r_kind                                 ! for SailDrone obs, assign to be 11
+           call ufbint(lunin,sst,1,1,iret,'SST0')
+!
+!          get station ID of SailDrone Obs. 
+!
+           call ufbint(lunin,r_rpid,1,1,iret,'WMOP')
+           write(crpid,'(I7)') int(r_rpid)
         elseif ( trim(subset) == 'NC031002' ) then            ! TESAC
            msst = 12.0_r_kind                                 ! for ARGO, assign to be 12
            call ufbint(lunin,tpf2,2,65535,klev,'DBSS STMP')   ! read T_Profile
-           if ( tpf2(1,1) < 5.0_r_kind ) then
+           if ( tpf2(1,1) < 20.0_r_kind ) then
               sst = tpf2(2,1)
            else
               sst = bmiss
@@ -240,7 +266,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            msst = 13.0_r_kind                                 ! for BATHY, assign to be 13
            call ufbint(lunin,tpf2,2,65535,klev,'DBSS STMP')   ! read T_Profile
 
-           if ( tpf2(1,1) < 5.0_r_kind ) then
+           if ( tpf2(1,1) <= 20.0_r_kind ) then
               sst = tpf2(2,1)
            else
               sst = bmiss
@@ -253,12 +279,40 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            else
               sst = bmiss
            endif
+        elseif ( trim(subset) == 'NC031005' ) then            ! Argo or Glider
+           msst = 12.0_r_kind                                 ! for ARGO, assign to be 12
+           call ufbint(lunin,tpf3,3,65535,klev,'SSTH SALNH WPRES') ! get klev,T,water pres & salinity
+
+           call ufbint(lunin,r_rpid,1,1,iret,'WMOP')
+           write(crpid,'(I7)') int(r_rpid)
+
+           apres(:) = real(tpf3(3,:))
+
+           pres1 = minval(apres)/10000.0_r_kind   ! converting wpres from Pa to dbar for minmum depth 
+                                                  ! Not always layer 1 
+!
+!          get zob in meters
+!
+           zob = ((-3.434e-12_r_kind*pres1+1.113e-7_r_kind)*pres1+0.712953_r_kind)*pres1 & 
+                 + 14190.7_r_kind*log(one+1.83e-5_r_kind*pres1)
+           zob = (zob/(980.0_r_kind+1.113e-4*pres1))*1000.0_r_kind
+!
+!          assign sst if z1 <= 20 m
+!
+           if ( zob <= 20.0_r_kind ) then
+              sst = tpf3(1,minloc(apres,dim=1))
+           else
+              sst = bmiss
+           endif
+
         elseif ( trim(subset) == 'NC001005' ) then            ! TIDEG
            msst = 15.0_r_kind                                 ! for TIDEG, assign to be 15
            call ufbint(lunin,sst,1,1,iret,'SST1')             ! read SST
         elseif ( trim(subset) == 'NC001007' ) then            ! CSTGD
            msst = 16.0_r_kind                                 ! for CSTGD, assign to be 16
            call ufbint(lunin,sst,1,1,iret,'SST1')             ! read SST
+        else
+           cycle read_loop
         endif
 
           call ufbint(lunin,loc,4,1,iret,'CLAT CLATH CLON CLONH')
@@ -320,7 +374,8 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !      
 !          determine platform (ships, dbuoy, fbuoy or lcman and so on) dependent zob and obs. error
 !
-           if ( trim(subset) == 'NC001001' ) then                                            ! SHIPS
+           if ( trim(subset) == 'NC001001' .or. trim(subset) == 'NC001101' .or. &
+                trim(subset) == 'NC001013' .or. trim(subset) == 'NC001113' ) then            ! SHIPS
               ship_mod = 0
               do n = 1, n_ship
                  if ( crpid == trim(ship%id(n)) ) then
@@ -476,28 +531,38 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
                  kx = 196
                  sstoe = 0.75_r_kind
               endif
-
-           elseif ( trim(subset) == 'NC001004' .or. trim(subset) == 'NC031003' .or. &    ! LCMAN, TRKOB
+           elseif ( trim(subset) == 'NC001120' ) then            ! SailDrone
+             zob = r0_6
+             kx = 190                         ! classify saildrone to be drifting buoy type
+             sstoe = half
+           elseif ( trim(subset) == 'NC001004' .or. trim(subset) == 'NC001104' .or. &    ! LCMAN
+                    trim(subset) == 'NC031003' .or. &                                    ! TRKOB
                     trim(subset) == 'NC001005' .or. trim(subset) == 'NC001007' ) then    ! TIDEG, CSTGD
               zob = one
               kx = 197
               sstoe = one
-           elseif ( trim(subset) == 'NC031002' ) then                            ! TESAC/ARGO
-              if (  tpf(1,1) >= one .and.  tpf(1,1) < 5.0_r_kind ) then
+           elseif ( trim(subset) == 'NC031002' ) then                            ! TESAC
+              if (  tpf(1,1) >= one .and.  tpf(1,1) < 20.0_r_kind ) then
                  zob = tpf(1,1)
               elseif (  tpf(1,1) >= zero .and. tpf(1,1) < one ) then
                  zob = one
               endif
-              kx = 198
+              kx = 198   
               sstoe = one
+           elseif ( trim(subset) == 'NC031005' ) then                            ! ARGO/Glider
+              kx = 199                                                           ! classify argo & glider to be bathy type
+              sstoe = r0_6
            elseif ( trim(subset) == 'NC031001' ) then                            ! BATHY
-              if (  tpf(1,1) >= one .and.  tpf(1,1) < 5.0_r_kind ) then
+              if (  tpf(1,1) >= one .and.  tpf(1,1) <= 20.0_r_kind ) then
                  zob = tpf(1,1)
               elseif (  tpf(1,1) >= zero .and. tpf(1,1) < one ) then
                  zob = one
               endif
               kx = 199
               sstoe = half
+           else
+              write(*,*) 'unrecognized data type, set kx = 0'
+              kx = 0
            endif
 !
 !          Determine usage
@@ -604,6 +669,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 1020 continue
   if (oberrflg) deallocate(etabl)
   call closbf(lunin)
+  close(lunin)
 
   if(diagnostic_reg.and.ntest > 0) write(6,*)'READ_NSSTBUFR:  ',&
      'ntest,disterrmax=',ntest,disterrmax

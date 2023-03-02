@@ -161,6 +161,7 @@ subroutine glbsoi
   use m_prad, only: prad_updatePredx    ! was -- prad_bias()
   use m_obsdiags, only: obsdiags_write
   use gsi_io,only: verbose
+  use m_berror_stats,only: inquire_berror
 
   implicit none
 
@@ -169,7 +170,7 @@ subroutine glbsoi
 ! Declare local variables
   logical laltmin
 
-  integer(i_kind) jiterlast
+  integer(i_kind) jiterlast,lunix,lunit
   real(r_kind) :: zgg,zxy
   character(len=12) :: clfile
   logical print_verbose
@@ -210,8 +211,17 @@ subroutine glbsoi
 ! Set cost function
   call create_jfunc
 
+  lunit=0
+  lunix=0
+  call isetprm('MXMSGL',400000)
+  call isetprm('MAXSS',250000)
+!  Initialize bufr read on all processors (so that exitbufr works, lunit and
+!  lunix are dummys)
+  call openbf(lunit,'FIRST',lunix)
 ! Read observations and scatter
   call observer_set
+!  release bufr memory
+  call exitbufr
 
 ! cloud analysis
   if(i_gsdcldanal_type==6 .or. i_gsdcldanal_type==3) then
@@ -247,6 +257,8 @@ subroutine glbsoi
         end if
      end if
   else
+     lunit=22
+     call inquire_berror(lunit,mype)
      call create_balance_vars
      if(anisotropic) then
         call create_anberror_vars(mype)

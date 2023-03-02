@@ -123,6 +123,7 @@ echo "#SBATCH --time=$timew"                                                    
 echo "#SBATCH --nodes=$nodes --ntasks-per-node=$procs --cpus-per-task=$threads"    >> $cfile
 #echo "#SBATCH -j oe"                                       >> $cfile
 echo "#SBATCH --account=$accnt"                                                    >> $cfile
+echo "#SBATCH --mem=0"                                                             >> $cfile
 #echo "#SBATCH -V"                                          >> $cfile
 #echo "#PBS -d"                             >> $cfile
 #. $exec                                    >> $cfile
@@ -136,7 +137,8 @@ echo "" >>$cfile
 
 echo ". /apps/lmod/lmod/init/sh"                           >> $cfile
 echo "module purge"                                        >> $cfile
-echo "source $gsisrc/modulefiles/modulefile.ProdGSI.hera" >> $cfile
+echo "module use $gsisrc/modulefiles"                      >> $cfile
+echo "module load gsi_hera.intel" >> $cfile
 echo "module list"                                         >> $cfile
 echo "" >>$cfile
 

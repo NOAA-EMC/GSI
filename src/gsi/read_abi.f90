@@ -169,7 +169,6 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
   if (.not.assim) val_abi=zero
 
 ! Open bufr file.
-  call closbf(lnbufr)
   open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
@@ -232,10 +231,19 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
 
 !  Reopen unit to bufr file
   call closbf(lnbufr)
+  close(lnbufr)
   open(lnbufr,file=infile,form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
-  if(jsatid == 'gr' .or. jsatid == 'g16') kidsat = 270
-  if(jsatid == 'g17') kidsat = 271
+  if(jsatid == 'gr' .or. jsatid == 'g16') then
+     kidsat = 270
+  elseif (jsatid == 'g17') then
+     kidsat = 271
+  elseif (jsatid == 'g18') then 
+     kidsat = 272
+  else
+     write(6,*) 'READ_ABI: Unrecognized value for jsatid '//jsatid//': RETURNING'
+     return
+  end if
 
 
   nrec=999999
@@ -494,6 +502,7 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
   enddo read_msg
 
   call closbf(lnbufr)
+  close(lnbufr)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
      nele,itxmax,nread,ndata,data_all,score_crit,nrec)

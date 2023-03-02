@@ -39,7 +39,7 @@ implicit none
 
 PRIVATE
 PUBLIC intrad,setrad
-PUBLIC itv,iqv,ioz,icw,ius,ivs,isst,iqg,iqh,iqi,iql,iqr,iqs,lgoback
+PUBLIC itsen,iqv,ioz,icw,ius,ivs,isst,iqg,iqh,iqi,iql,iqr,iqs,lgoback
 PUBLIC luseu,lusev,luset,luseq,lusecw,luseoz,luseqg,luseqh,luseqi,luseql, &
        luseqr,luseqs,lusesst
 
@@ -47,7 +47,7 @@ interface intrad; module procedure &
           intrad_
 end interface
 
-integer(i_kind) :: itv,iqv,ioz,icw,ius,ivs,isst
+integer(i_kind) :: itsen,iqv,ioz,icw,ius,ivs,isst
 integer(i_kind) :: iqg,iqh,iqi,iql,iqr,iqs
 logical :: done_setting = .false.
 logical :: lgoback
@@ -98,11 +98,11 @@ subroutine setrad(sval)
   if(done_setting) return
 
 ! Retrieve pointers; return when not found (except in case of non-essentials)
-  ier=0; itv=0; iqv=0; ius=0; ivs=0; isst=0; ioz=0; icw=0
+  ier=0; itsen=0; iqv=0; ius=0; ivs=0; isst=0; ioz=0; icw=0
   iqg=0; iqh=0; iqi=0; iql=0; iqr=0; iqs=0
   call gsi_bundlegetpointer(sval,'u',  su, istatus);ius=istatus+ius
   call gsi_bundlegetpointer(sval,'v',  sv, istatus);ivs=istatus+ivs
-  call gsi_bundlegetpointer(sval,'tv' ,st, istatus);itv=istatus+itv
+  call gsi_bundlegetpointer(sval,'tsen' ,st, istatus);itsen=istatus+itsen
   call gsi_bundlegetpointer(sval,'q',  sq, istatus);iqv=istatus+iqv
   call gsi_bundlegetpointer(sval,'cw' ,scw,istatus);icw=istatus+icw
   call gsi_bundlegetpointer(sval,'oz' ,soz,istatus);ioz=istatus+ioz
@@ -113,16 +113,16 @@ subroutine setrad(sval)
   call gsi_bundlegetpointer(sval,'ql' ,sql,istatus);iql=istatus+iql
   call gsi_bundlegetpointer(sval,'qr' ,sqr,istatus);iqr=istatus+iqr
   call gsi_bundlegetpointer(sval,'qs' ,sqs,istatus);iqs=istatus+iqs
-  lgoback=(ius/=0).and.(ivs/=0).and.(itv/=0).and.(iqv/=0).and.(ioz/=0).and.(icw/=0).and.(isst/=0)
+  lgoback=(ius/=0).and.(ivs/=0).and.(itsen/=0).and.(iqv/=0).and.(ioz/=0).and.(icw/=0).and.(isst/=0)
   lgoback=lgoback .and.(iqg/=0).and.(iqh/=0).and.(iqi/=0).and.(iql/=0).and.(iqr/=0).and.(iqs/=0)
   if(lgoback)return
 
 ! check to see if variable participates in forward operator
-! tv
-  indx=getindex(radjacnames,'tv')
-  look=(itv==0.and.indx>0)
-  itv=-1
-  if(look) itv=radjacindxs(indx)
+! tsen
+  indx=getindex(radjacnames,'tsen')
+  look=(itsen==0.and.indx>0)
+  itsen=-1
+  if(look) itsen=radjacindxs(indx)
 ! q
   indx=getindex(radjacnames,'q')
   look=(iqv==0.and.indx>0)
@@ -185,7 +185,7 @@ subroutine setrad(sval)
 
   luseu=ius>=0
   lusev=ivs>=0
-  luset=itv>=0
+  luset=itsen>=0
   luseq=iqv>=0
   luseoz=ioz>=0
   lusecw=icw>=0
@@ -307,7 +307,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   real(r_quad),dimension(npred*jpch_rad),intent(inout) :: rpred
 
 ! Declare local variables
-  integer(i_kind) j1,j2,j3,j4,i1,i2,i3,i4,n,k,ic,ix,nn,mm,ncr1,ncr2
+  integer(i_kind) i1,i2,i3,i4,n,k,ic,ix,nn,mm,ncr1,ncr2
   integer(i_kind) ier,istatus
   integer(i_kind),dimension(nsig) :: i1n,i2n,i3n,i4n
   real(r_kind),allocatable,dimension(:):: val
@@ -341,8 +341,8 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
     call gsi_bundlegetpointer(rval,'v',  rv, istatus)
   end if
   if(luset)then
-    call gsi_bundlegetpointer(sval,'tv' ,st, istatus)
-    call gsi_bundlegetpointer(rval,'tv' ,rt, istatus)
+    call gsi_bundlegetpointer(sval,'tsen' ,st, istatus)
+    call gsi_bundlegetpointer(rval,'tsen' ,rt, istatus)
   end if
   if(luseq)then
     call gsi_bundlegetpointer(sval,'q',  sq, istatus)
@@ -388,20 +388,16 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   !radptr => radhead
   radptr => radNode_typecast(radhead)
   do while (associated(radptr))
-     j1=radptr%ij(1)
-     j2=radptr%ij(2)
-     j3=radptr%ij(3)
-     j4=radptr%ij(4)
+     i1n(1) = radptr%ij(1)
+     i2n(1) = radptr%ij(2)
+     i3n(1) = radptr%ij(3)
+     i4n(1) = radptr%ij(4)
      w1=radptr%wij(1)
      w2=radptr%wij(2)
      w3=radptr%wij(3)
      w4=radptr%wij(4)
 !  Begin Forward model
 !  calculate temperature, q, ozone, sst vector at observation location
-     i1n(1) = j1
-     i2n(1) = j2
-     i3n(1) = j3
-     i4n(1) = j4
      do k=2,nsig
         i1n(k) = i1n(k-1)+latlon11
         i2n(k) = i2n(k-1)+latlon11
@@ -409,21 +405,22 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         i4n(k) = i4n(k-1)+latlon11
      enddo
 
+!$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4,mm)
      do k=1,nsig
         i1 = i1n(k)
         i2 = i2n(k)
         i3 = i3n(k)
         i4 = i4n(k)
         if(luset)then
-           tdir(itv+k)=  w1*  st(i1)+w2*  st(i2)+ &
-                         w3*  st(i3)+w4*  st(i4)
+           tdir(itsen+k)=  w1*  st(i1)+w2*  st(i2)+ &
+                           w3*  st(i3)+w4*  st(i4)
         endif
         if(luseq)then
            tdir(iqv+k)= w1*  sq(i1)+w2*  sq(i2)+ &
                         w3*  sq(i3)+w4*  sq(i4)
         endif
         if(luseoz)then
-          tdir(ioz+k)=w1* soz(i1)+w2* soz(i2)+ &
+           tdir(ioz+k)=w1* soz(i1)+w2* soz(i2)+ &
                       w3* soz(i3)+w4* soz(i4)
         end if
         if(lusecw)then
@@ -454,19 +451,21 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
            tdir(iqs+k)=w1* sqs(i1)+w2* sqs(i2)+ &
                        w3* sqs(i3)+w4* sqs(i4)
         end if
+        if(k == 1)then
+          if(luseu)then
+             tdir(ius+1)= w1* su(i1) +w2* su(i2)+ &
+                          w3* su(i3) +w4* su(i4)
+          endif
+          if(lusev)then
+             tdir(ivs+1)= w1* sv(i1) +w2* sv(i2)+ &
+                          w3* sv(i3) +w4* sv(i4)
+          endif
+          if(lusesst)then
+             tdir(isst+1)=w1*sst(i1) +w2*sst(i2)+ &
+                          w3*sst(i3) +w4*sst(i4)
+          end if
+        end if
      end do
-     if(luseu)then
-        tdir(ius+1)=   w1* su(j1) +w2* su(j2)+ &
-                       w3* su(j3) +w4* su(j4)
-     endif
-     if(lusev)then
-        tdir(ivs+1)=   w1* sv(j1) +w2* sv(j2)+ &
-                       w3* sv(j3) +w4* sv(j4)
-     endif
-     if(lusesst)then
-        tdir(isst+1)=w1*sst(j1) +w2*sst(j2)+ &
-                           w3*sst(j3) +w4*sst(j4)
-     end if
 
 
 
@@ -476,6 +475,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 
      if (.not. ladtest_obs) then
         allocate(biasvect(radptr%nchan))
+!$omp parallel do schedule(dynamic,1) private(nn,n,ic1,ix1,val_quad)
         do nn=1,radptr%nchan
           ic1=radptr%icx(nn)
           ix1=(ic1-1)*npred
@@ -486,8 +486,8 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
           biasvect(nn) = val_quad
         end do
      end if
-     ncr1=0
 
+!$omp parallel do schedule(dynamic,1) private(nn,ic,ix,k)
      do nn=1,radptr%nchan
         ic=radptr%icx(nn)
         ix=(ic-1)*npred
@@ -499,8 +499,11 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         do k=1,nsigradjac
            val(nn)=val(nn)+tdir(k)*radptr%dtb_dvar(k,nn)
         end do
+     end do
 
+     ncr1=0
 !       Include contributions from remaining bias correction terms
+     do nn=1,radptr%nchan
         if( .not. ladtest_obs) then
            if(radptr%use_corr_obs)then
               val_quad = zero_quad
@@ -551,7 +554,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 
         if( .not. ladtest_obs) then
            if (radptr%use_corr_obs) then
-             ncr2 = 0 
              ncr1 = 0
              do mm=1,radptr%nchan
                ncr1 = ncr1 + mm
@@ -566,17 +568,15 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 
            if(radptr%luse)then
              if(radptr%use_corr_obs)then
-                do mm=1,radptr%nchan
-                   ic1=radptr%icx(mm)
-                   ix1=(ic1-1)*npred
+                do nn=1,radptr%nchan
+                   ix=(radptr%icx(nn)-1)*npred
                    do n=1,npred
-                      rpred(ix1+n)=rpred(ix1+n)+biasvect(mm)*radptr%pred(n,mm)
+                      rpred(ix+n)=rpred(ix+n)+biasvect(nn)*radptr%pred(n,nn)
                    enddo
                 enddo
              else
                 do nn=1,radptr%nchan
-                   ic=radptr%icx(nn)
-                   ix=(ic-1)*npred
+                   ix=(radptr%icx(nn)-1)*npred
                    do n=1,npred
                       rpred(ix+n)=rpred(ix+n)+radptr%pred(n,nn)*val(nn)
                    end do
@@ -591,6 +591,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 
 !          Begin adjoint
      if (l_do_adjoint) then
+!$omp parallel do schedule(dynamic,1) private(k,nn)
         do k=1,nsigradjac
            tval(k)=zero
 
@@ -603,34 +604,37 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 
 !    Distribute adjoint contributions over surrounding grid points
  
-        if(luseu) then
-           ru(j1)=ru(j1)+w1*tval(ius+1)
-           ru(j2)=ru(j2)+w2*tval(ius+1)
-           ru(j3)=ru(j3)+w3*tval(ius+1)
-           ru(j4)=ru(j4)+w4*tval(ius+1)
-        endif
-        if(lusev) then
-           rv(j1)=rv(j1)+w1*tval(ivs+1)
-           rv(j2)=rv(j2)+w2*tval(ivs+1)
-           rv(j3)=rv(j3)+w3*tval(ivs+1)
-           rv(j4)=rv(j4)+w4*tval(ivs+1)
-        endif
-
-        if (lusesst) then
-           rst(j1)=rst(j1)+w1*tval(isst+1)
-           rst(j2)=rst(j2)+w2*tval(isst+1)
-           rst(j3)=rst(j3)+w3*tval(isst+1)
-           rst(j4)=rst(j4)+w4*tval(isst+1)
-        end if
+!$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4,mm)
         do k=1,nsig
            i1 = i1n(k)
            i2 = i2n(k)
            i3 = i3n(k)
            i4 = i4n(k)
 
+           if(k == 1)then
+             if(luseu) then
+                ru(i1)=ru(i1)+w1*tval(ius+1)
+                ru(i2)=ru(i2)+w2*tval(ius+1)
+                ru(i3)=ru(i3)+w3*tval(ius+1)
+                ru(i4)=ru(i4)+w4*tval(ius+1)
+             endif
+             if(lusev) then
+                rv(i1)=rv(i1)+w1*tval(ivs+1)
+                rv(i2)=rv(i2)+w2*tval(ivs+1)
+                rv(i3)=rv(i3)+w3*tval(ivs+1)
+                rv(i4)=rv(i4)+w4*tval(ivs+1)
+             endif
+
+             if (lusesst) then
+                rst(i1)=rst(i1)+w1*tval(isst+1)
+                rst(i2)=rst(i2)+w2*tval(isst+1)
+                rst(i3)=rst(i3)+w3*tval(isst+1)
+                rst(i4)=rst(i4)+w4*tval(isst+1)
+             end if
+           end if
  
            if(luset)then
-              mm=itv+k
+              mm=itsen+k
               rt(i1)=rt(i1)+w1*tval(mm)
               rt(i2)=rt(i2)+w2*tval(mm)
               rt(i3)=rt(i3)+w3*tval(mm)

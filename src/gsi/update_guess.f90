@@ -86,8 +86,13 @@ subroutine update_guess(sval,sbias)
 !   2015-07-10  pondeca  - add cldch
 !   2016-04-28  eliu    - revise update for cloud water 
 !   2016-06-23  lippi   - Add update for vertical velocity (w).
+!   2016-10-xx  CAPS(G. Zhao)  - remove minimum limit when updating cloud variables
+!                                (when do log transformation of qr/qs/qg)
 !   2018-05-01  yang    - modify the constrains to C and V in g-space, or using NLTF transfermation to C/V
 !   2019-06-17  mmorris - Enforce consistency b/w ceiling and sky cover fields
+!   2020-09-08  CAPS(C. Liu, L. Chen, and H. Li)
+!                        - modified codes to update CVtransformed hydrometers
+!   2021-01-05  x.zhang/lei  - add code for updating delz analysis in regional da
 !
 !   input argument list:
 !    sval
@@ -108,11 +113,13 @@ subroutine update_guess(sval,sbias)
   use mpimod, only: mype
   use constants, only: zero,one,fv,max_varname_length,qmin,qcmin,tgmin,&
                        r100,one_tenth,tiny_r_kind
-  use jfunc, only: iout_iter,bcoption,tsensible,clip_supersaturation
+  use jfunc, only: iout_iter,bcoption,tsensible,clip_supersaturation,superfact
   use gridmod, only: lat2,lon2,nsig,&
-       regional,twodvar_regional,regional_ozone
+       regional,twodvar_regional,regional_ozone,&
+       l_reg_update_hydro_delz
   use guess_grids, only: ges_tsen,ges_qsat,&
-       nfldsig,hrdifsig,hrdifsfc,nfldsfc,dsfct
+       nfldsig,hrdifsig,hrdifsfc,nfldsfc,dsfct,&
+       load_geop_hgt
   use state_vectors, only: svars3d,svars2d
   use xhat_vordivmod, only: xhat_vor,xhat_div
   use gsi_4dvar, only: nobs_bins, hr_obsbin
@@ -129,9 +136,11 @@ subroutine update_guess(sval,sbias)
   use rapidrefresh_cldsurf_mod, only: l_gsd_limit_ocean_q,l_gsd_soilTQ_nudge
   use rapidrefresh_cldsurf_mod, only: i_use_2mq4b,i_use_2mt4b
   use gsd_update_mod, only: gsd_limit_ocean_q,gsd_update_soil_tq,&
-       gsd_update_th2,gsd_update_q2
+       gsd_update_t2m,gsd_update_q2
   use qcmod, only: pvis,pcldch,vis_thres,cldch_thres 
   use obsmod, only: l_wcp_cwm
+  use directDA_radaruse_mod, only: l_use_cvpqx, l_use_dbz_directDA
+
 
   implicit none
 
@@ -168,6 +177,8 @@ subroutine update_guess(sval,sbias)
   real(r_kind),pointer,dimension(:,:  ) :: ptr2dtcamt =>NULL()
 
   real(r_kind),dimension(lat2,lon2)     :: tinc_1st,qinc_1st
+
+
 
 !*******************************************************************************
 ! In 3dvar, nobs_bins=1 is smaller than nfldsig. This subroutine is
@@ -258,7 +269,7 @@ subroutine update_guess(sval,sbias)
            call gsi_bundlegetpointer (gsi_metguess_bundle(it),guess(ic),ptr3dges,istatus)
            if (trim(guess(ic))=='q') then
                call upd_positive_fldr3_(ptr3dges,ptr3dinc, qmin)
-               if(clip_supersaturation) ptr3dges(:,:,:) = min(ptr3dges(:,:,:),ges_qsat(:,:,:,it))
+               if(clip_supersaturation) ptr3dges(:,:,:) = min(ptr3dges(:,:,:),superfact*ges_qsat(:,:,:,it))
                cycle
            endif
            if (trim(guess(ic))=='oz') then
@@ -276,13 +287,39 @@ subroutine update_guess(sval,sbias)
                     ! since we don't know which comes first in met-guess, we
                     ! must postpone updating tv after all other met-guess fields
            endif
-           icloud=getindex(cloud,guess(ic))
-           if(icloud>0) then
+           if( allocated(cloud) )then
+              icloud=getindex(cloud,guess(ic))
+           else
+              icloud=-999
+           end if
+           if ( .not. l_use_dbz_directDA ) then ! original code
+              if(icloud>0) then
                  ptr3dges = max(ptr3dges+ptr3dinc,zero)
-              cycle
-           else  
-              ptr3dges = ptr3dges + ptr3dinc
-              cycle
+                 cycle
+              else
+                 ptr3dges = ptr3dges + ptr3dinc
+                 cycle
+              endif
+           else ! l_use_dbz_directDA
+              if(icloud>0) then
+                 if (trim(guess(ic))=='qr' .or. &
+                     trim(guess(ic))=='qs' .or. &
+                     trim(guess(ic))=='qg') then
+                     if ( l_use_cvpqx ) then ! CVlogq and CVpq
+                        ptr3dges = ptr3dges + ptr3dinc
+                        cycle
+                     else ! no CV transform
+                        ptr3dges = max(ptr3dges+ptr3dinc,qcmin)
+                        cycle  ! re-set qx on obs point to be non-zero tiny value in setupdbz
+                     end if
+                 else ! other hydrometers including qnr (icoud>0)
+                     ptr3dges = max(ptr3dges+ptr3dinc,qcmin)
+                     cycle
+                 end if
+              else   ! icloud =<0
+                 ptr3dges = ptr3dges + ptr3dinc
+                 cycle
+              endif
            endif
         else  ! Case when met_guess and state vars do not map one-to-one 
            if (trim(guess(ic))=='div') then
@@ -427,8 +464,8 @@ subroutine update_guess(sval,sbias)
               tinc_1st(i,j)=p_tv(i,j,1)
            end do
         end do
-        call  gsd_update_th2(tinc_1st,it)
-     endif ! l_gsd_th2_adjust
+        call  gsd_update_t2m(tinc_1st,it)
+     endif ! l_gsd_t2m_adjust
      if (i_use_2mq4b > 0 .and. is_q>0) then
         do j=1,lon2
            do i=1,lat2
@@ -476,6 +513,10 @@ subroutine update_guess(sval,sbias)
            enddo
         enddo
      endif
+  endif
+
+  if(l_reg_update_hydro_delz) then
+     call load_geop_hgt
   endif
 
 ! If requested, update background bias correction

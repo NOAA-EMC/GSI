@@ -92,6 +92,7 @@ module enkf_obsmod
 !        for oz and it crashes EnKF compiled by GNU Fortran
 !     NOTE: this requires anavinfo file to be present at running directory
 !   2016-11-29  shlyaeva: Added the option of writing out ensemble spread in diag files
+!   2019-03-21  CAPS(C. Tong) - added the code for direct reflecitivity DA capability
 !
 ! attributes:
 !   language: f95
@@ -104,12 +105,15 @@ use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc,&
 use kinds, only : r_kind, r_double, i_kind, r_single
 use constants, only: zero, one, deg2rad, rad2deg, rd, cp, pi
 use params, only: & 
-      datestring,datapath,sprd_tol,nanals,saterrfact, &
+      letkf_flag,nobsl_max,datestring,datapath,sprd_tol,nanals,saterrfact, &
       lnsigcutoffnh, lnsigcutoffsh, lnsigcutofftr, corrlengthnh,&
       corrlengthtr, corrlengthsh, obtimelnh, obtimeltr, obtimelsh,&
       lnsigcutoffsatnh, lnsigcutoffsatsh, lnsigcutoffsattr,&
       varqc, huber, zhuberleft, zhuberright, modelspace_vloc, &
-      lnsigcutoffpsnh, lnsigcutoffpssh, lnsigcutoffpstr, neigv
+      lnsigcutoffpsnh, lnsigcutoffpssh, lnsigcutoffpstr, neigv, &
+      lnsigcutoffrdrnh, lnsigcutoffrdrsh, lnsigcutoffrdrtr,&
+      corrlengthrdrnh, corrlengthrdrtr, corrlengthrdrsh,   &
+      l_use_enkf_directZDA
 
 use state_vectors, only: init_anasv
 use mpi_readobs, only:  mpi_getobs
@@ -145,6 +149,12 @@ type(c_ptr)                             :: anal_ob_cp           ! C pointer
 real(r_single),public,pointer, dimension(:,:) :: anal_ob_modens ! Fortran pointer
 type(c_ptr)                             :: anal_ob_modens_cp    ! C pointer
 integer :: shm_win, shm_win2
+
+! ob-space posterior ensemble, needed for EFSOI
+real(r_single),public,allocatable, dimension(:,:) :: anal_ob_post   ! Fortran pointer
+! is the observation assimilated? logical would be preferable, but that confuses
+! Python
+integer(i_kind),public,allocatable, dimension(:) :: assimltd_flag ! Fortran pointer
 
 contains
 
@@ -197,6 +207,13 @@ call mpi_reduce(tdiff,tdiffmax,1,mpi_real4,mpi_max,0,mpi_comm_world,ierr)
 if (nproc == 0) then
  print *,'max time in mpireadobs  = ',tdiffmax
  print *,'total number of obs ',nobstot
+ print *,'min/max obtime ',minval(obtime),maxval(obtime)
+endif
+! if nobsl_max set for LETKF, and the total number of obs < nobsl_max,
+! reset nobsl_max to -1
+if (letkf_flag .and. nobsl_max > 0 .and. nobstot < nobsl_max) then
+   if (nproc == 0) print *,'resetting nobsl_max to -1'
+   nobsl_max=-1
 endif
 allocate(obfit_prior(nobstot))
 ! screen out some obs by setting ob error to a very large number
@@ -260,11 +277,16 @@ do nob=1,nobstot
       lnsigl(nob) = latval(deglat,lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh)
    else if (obtype(nob)(1:3) == ' ps') then
       lnsigl(nob) = latval(deglat,lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh)
+   else if ( (obtype(nob)(1:3) == 'dbz' .or. obtype(nob)(1:3) == ' rw') .and. l_use_enkf_directZDA ) then
+      lnsigl(nob) = latval(deglat,lnsigcutoffrdrnh,lnsigcutoffrdrtr,lnsigcutoffrdrsh)
    else
       lnsigl(nob)=latval(deglat,lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh)
    end if
    endif
    corrlengthsq(nob)=latval(deglat,corrlengthnh,corrlengthtr,corrlengthsh)**2
+   if ( (obtype(nob)(1:3) == 'dbz' .or. obtype(nob)(1:3) == ' rw') .and. l_use_enkf_directZDA ) then
+       corrlengthsq(nob)=latval(deglat,corrlengthrdrnh,corrlengthrdrtr,corrlengthrdrsh)**2
+   end if
    obtimel(nob)=latval(deglat,obtimelnh,obtimeltr,obtimelsh)
 end do
 
@@ -453,6 +475,8 @@ if (allocated(obtype)) deallocate(obtype)
 if (allocated(probgrosserr)) deallocate(probgrosserr)
 if (allocated(prpgerr)) deallocate(prpgerr)
 if (allocated(diagused)) deallocate(diagused)
+if (allocated(anal_ob_post)) deallocate(anal_ob_post)
+if (allocated(assimltd_flag)) deallocate(assimltd_flag)
 ! free shared memory segement, fortran pointer to that memory.
 nullify(anal_ob)
 call MPI_Barrier(mpi_comm_world,ierr)

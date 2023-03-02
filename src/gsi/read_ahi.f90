@@ -193,7 +193,6 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
 
 ! Open bufr file.
-  call closbf(lnbufr)
   open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
@@ -219,9 +218,18 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
   allocate(data_all(nele,itxmax),nrec(itxmax))
 
   call closbf(lnbufr)
+  close(lnbufr)
   open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
-  if(jsatid == 'himawari8') kidsat = 173
+  if(jsatid == 'himawari8') then
+     kidsat = 173
+  elseif (jsatid == 'himawari9') then
+     kidsat = 174
+  else
+     write(6,*) 'READ_AHI: Unrecognized value for jsatid '//jsatid//': RETURNING'
+     return
+  end if
+
 
   next=0
   nrec=999999
@@ -504,6 +512,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
      enddo read_loop
   enddo read_msg
   call closbf(lnbufr)
+  close(lnbufr)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
      nele,itxmax,nread,ndata,data_all,score_crit,nrec)

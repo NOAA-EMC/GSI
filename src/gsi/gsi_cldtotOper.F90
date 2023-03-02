@@ -107,7 +107,7 @@ contains
     diagsave  = write_diag(jiter) .and. diag_conv
 
     select case(i_cloud_q_innovation)
-    case(2)
+    case(20, 21, 22)
       call setup(self%obsLL(:), self%odiagLL(:), &
         lunin,mype,bwork,awork(:,iwork),nele,nobs,is,diagsave)
 

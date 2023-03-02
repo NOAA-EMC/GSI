@@ -132,6 +132,7 @@ module ncepnems_io
   public read_nemsatm
   public read_nemssfc
   public read_nemssfc_anl
+  public berror_read_hsst
   public write_fv3atm_nems  
   public write_nemsatm
   public write_nemssfc
@@ -166,6 +167,10 @@ module ncepnems_io
 
   interface read_nemssfc_anl
      module procedure read_nemssfc_anl_
+  end interface
+
+  interface berror_read_hsst
+     module procedure berror_read_hsst_
   end interface
 
   interface read_nemsnst
@@ -1788,6 +1793,152 @@ contains
 
   end subroutine read_nemssfc_anl_
 
+  subroutine read_hsst_(hsst,cwoption)
+!
+! abstract : read sst bg error correlation length from berror fix file
+!
+!     03/13/2020 - Xu Li (based on read_wgt)
+!
+   use kinds,     only : i_kind,r_single,r_kind
+   use gridmod,   only : nlat,nlon,nsig
+   use mpeu_util, only : check_iostat
+
+   implicit none
+
+   integer(i_kind)                    , intent(in   ) :: cwoption
+   real(r_single),dimension(nlat,nlon), intent(out  ) :: hsst
+
+   real(r_single),dimension(nlat,nlon) :: corsst
+   character(len=*),parameter :: myname_=myname//'::read_hsst'
+
+   real(r_single),dimension(nlat,nsig,nsig):: agvin
+   real(r_single),dimension(nlat,nsig) :: wgvin,bvin
+
+   integer(i_kind) :: inerr,istat,ier
+   integer(i_kind) :: nsigstat,nlatstat
+   integer(i_kind) :: isig
+   character(len=5) :: var
+
+   real(r_single), allocatable, dimension(:,:) :: hwllin
+   real(r_single), allocatable, dimension(:,:) :: corzin
+   real(r_single), allocatable, dimension(:,:) :: corq2
+   real(r_single), allocatable, dimension(:,:) :: vscalesin
+
+   character(len=256) :: berror_stats = "berror_stats"      ! filename
+
+   ! Open background error statistics file
+   inerr = 22
+   open(inerr,file=berror_stats,form='unformatted',status='old',iostat=ier)
+   call check_iostat(ier,myname_,'open('//trim(berror_stats)//')')
+
+   ! Read header.  Ensure that vertical resolution is consistent
+   ! with that specified via the user namelist
+
+   rewind inerr
+   read(inerr,iostat=ier)nsigstat,nlatstat
+   call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (nsigstat,nlatstat)')
+
+   if ( nsigstat/=nsig .or. nlatstat/=nlat ) then
+      write(6,*)'PREBAL: **ERROR** resolution of berror_stats incompatiable with GSI'
+
+      write(6,*)'PREBAL:  berror nsigstat,nlatstat=', nsigstat,nlatstat, &
+         ' -vs- GSI nsig,nlat=',nsig,nlat
+      call stop2(101)
+   endif
+
+   write(6,*) myname_,'(read_hsst):  read error amplitudes ', &
+     '"',trim(berror_stats),'".  ', &
+     'nsigstat,nlatstat =',nsigstat,nlatstat
+
+   read(inerr,iostat=ier) agvin,bvin,wgvin
+   call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (agvin,bvin,wgvin)')
+
+   write(*,*) 'in read_hsst_, cwoption = ',cwoption
+
+   readloop: do
+      read(inerr,iostat=istat) var, isig
+      if ( istat/=0 ) exit
+      write(*,*) 'var, isig, istat : ',var, isig, istat
+      allocate(corzin(nlat,isig))
+      if ( var=='q' .or. var=='cw' ) allocate(corq2(nlat,isig))
+      allocate(hwllin(nlat,isig))
+      if ( isig>1 ) allocate(vscalesin(nlat,isig))
+      if ( var/='sst' ) then
+         if ( var=='q' .or. var=='Q' .or. (var=='cw' .and. cwoption==2) ) then
+            read(inerr,iostat=ier) corzin,corq2
+            call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (corzin,corq2)')
+         else
+            read(inerr,iostat=ier) corzin
+            call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (corzin)')
+         endif
+         read(inerr,iostat=ier) hwllin
+         call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (hwllin)')
+         if ( isig>1 ) then
+            read(inerr,iostat=ier) vscalesin
+            call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (vscalein)')
+         endif
+      else
+         read(inerr,iostat=ier) corsst
+         call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (corsst)')
+         read(inerr,iostat=ier) hsst
+         call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (hsst)')
+      endif
+
+
+      deallocate(corzin,hwllin)
+      if (isig>1) deallocate(vscalesin)
+      if ( var=='q' .or. var=='cw' ) deallocate(corq2)
+
+   enddo readloop
+   close(inerr)
+
+   return
+  end subroutine read_hsst_
+
+  subroutine berror_read_hsst_(iope,hsst)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    berror_read_hsst_     read hsst from berror_stats file
+!   prgmmr: xuli          org: np23                date: 2020-03-13
+!
+! program history log:
+!
+!   input argument list:
+!     iope        - mpi task handling i/o
+!
+!   output argument list:
+!     hsst      - sst bg error correlation length (km)
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+    use kinds, only: r_kind,i_kind,r_single
+    use gridmod, only: nlat,nlon
+    use mpimod, only: mpi_itype,mpi_rtype4,mpi_comm_world,mype
+    use jfunc, only: cwoption
+    implicit none
+
+!   Declare passed variables
+    integer(i_kind),                       intent(in)  :: iope
+    real(r_single),  dimension(nlat,nlon), intent(out) :: hsst
+
+!   Declare local variables
+    integer(i_kind):: iret,npts
+
+!-----------------------------------------------------------------------------
+!   Read surface history file on processor iope
+    if(mype == iope)then
+       call read_hsst_(hsst,cwoption)
+       write(*,*) 'read hsst from berror_stats'
+    endif
+
+!   Load onto all processors
+    npts=nlat*nlon
+    call mpi_bcast(hsst,npts,mpi_rtype4,iope,mpi_comm_world,iret)
+  end subroutine berror_read_hsst_
+
   subroutine read_nst_ (tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
 
 !$$$  subprogram documentation block
@@ -2310,12 +2461,13 @@ contains
     ! Calculate delz increment for UPP
     if (lupp) then
        do k=1,grd%nsig
-          sub_dzb(:,:,k) = ges_geopi(:,:,k+1,ibin) - ges_geopi(:,:,k,ibin)
+          ! k goes from bottom to top, so k - k+1 is negative delz
+          sub_dzb(:,:,k) = ges_geopi(:,:,k,ibin) - ges_geopi(:,:,k+1,ibin)
        enddo
 
        if ((.not. lwrite4danl) .or. ibin == 1) call load_geop_hgt
        do k=1,grd%nsig
-          sub_dza(:,:,k) = geop_hgti(:,:,k+1,ibin) - geop_hgti(:,:,k,ibin)
+          sub_dza(:,:,k) = geop_hgti(:,:,k,ibin) - geop_hgti(:,:,k+1,ibin)
        enddo
 
        sub_dza = sub_dza - sub_dzb !sub_dza is increment
@@ -2800,10 +2952,10 @@ contains
                work1,grd%ijn,grd%displs_g,mpi_rtype,&
                mype_out,mpi_comm_world,ierror)
           if (mype == mype_out) then
-             work1 = -one * work1  ! Flip sign, FV3 is top to bottom
              call nemsio_readrecv(gfile,'delz','mid layer',k,rwork1d,iret=iret)
              if (iret /= 0) call error_msg(trim(my_name),trim(filename),'delz','read',istop,iret)
-             if (sum(rwork1d) < zero) work1 = -one * work1  !Flip sign, FV3 is top to bottom 
+             ! if delz in background is positive, flip sign of increment
+             if (sum(rwork1d) > zero) work1 = -one * work1  
              if(diff_res)then
                 grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
                 do kk=1,grd%iglobal
@@ -3149,12 +3301,13 @@ contains
     ! Calculate delz increment for UPP
     if (lupp) then
        do k=1,grd%nsig
-          sub_dzb(:,:,k) = ges_geopi(:,:,k+1,ibin) - ges_geopi(:,:,k,ibin)
+          ! k goes from bottom to top, so k - k+1 is negative delz
+          sub_dzb(:,:,k) = ges_geopi(:,:,k,ibin) - ges_geopi(:,:,k+1,ibin)
        enddo
 
        if ((.not. lwrite4danl) .or. ibin == 1) call load_geop_hgt
        do k=1,grd%nsig
-          sub_dza(:,:,k) = geop_hgti(:,:,k+1,ibin) - geop_hgti(:,:,k,ibin)
+          sub_dza(:,:,k) = geop_hgti(:,:,k,ibin) - geop_hgti(:,:,k+1,ibin)
        enddo
 
        sub_dza = sub_dza - sub_dzb !sub_dza is increment
@@ -3531,10 +3684,10 @@ contains
                work1,grd%ijn,grd%displs_g,mpi_rtype,&
                mype_out,mpi_comm_world,ierror)
           if (mype == mype_out) then
-             work1 = -one * work1  ! Flip sign, FV3 is top to bottom
              call nemsio_readrecv(gfile,'delz','mid layer',k,rwork1d,iret=iret)
              if (iret /= 0) call error_msg(trim(my_name),trim(filename),'delz','read',istop,iret)
-             if (sum(rwork1d) < zero) work1 = -one * work1  ! Flip sign, FV3 is top to bottom
+             ! if delz in background is positive, flip sign of increment
+             if (sum(rwork1d) > zero) work1 = -one * work1  ! Flip sign, FV3 is top to bottom
              if(diff_res)then
                 grid_b=reshape(rwork1d,(/size(grid_b,1),size(grid_b,2)/))
                 do kk=1,grd%iglobal

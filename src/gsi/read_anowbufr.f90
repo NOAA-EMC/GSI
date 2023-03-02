@@ -329,6 +329,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
 1000 continue
 
   call closbf(lunin)
+  close(lunin)
   
   if(diagnostic_reg .and. &
        ntest > 0) write(6,*)'read_airnow_bufr: ',&

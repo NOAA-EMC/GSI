@@ -156,6 +156,10 @@ module obsmod
 !                          observation error (DOE) specification to
 !                          GSI namelist level.  
 !  2020-09-15  Wu        - add option tcp_posmatch to mitigate possibility of erroneous TC initialization
+!  2020-09-19  CAPS(J. Park) - add 'vad_near_analtime' flag to assimilate newvad obs around analysis time only
+!   2021-11-16 Zhao      - add option l_obsprvdiag (if true) to trigger the output of
+!                          observation provider and sub-provider information into
+!                          obsdiags files (used for AutoObsQC)
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -397,6 +401,7 @@ module obsmod
 !                        (nobs_type,npe)
 !   def binary_diag    - trigger binary diag-file output (being phased out)
 !   def netcdf_diag    - trigger netcdf diag-file output
+!   def l_obsprvdiag   - trigger obs provider info output into obsdiags files
 !   def l_wcp_cwm      - namelist logical whether to use operator that
 !                        includes cwm for both swcp and lwcp or not
 !   def neutral_stability_windfact_2dvar - logical, if .true., then use simple formula representing
@@ -439,6 +444,7 @@ module obsmod
   public :: use_similarity_2dvar
   public :: time_window_rad
   public :: perturb_fact,dtbduv_on,nsat1,obs_sub_comm,mype_diaghdr
+  public :: ta2tb
   public :: lobsdiag_allocated
   public :: nloz_v8,nloz_v6,nloz_omi,nlco,nobskeep
   public :: rmiss_single,nchan_total,mype_sst,mype_gps
@@ -483,6 +489,7 @@ module obsmod
   public :: nobs_sub
 
   public :: netcdf_diag, binary_diag
+  public :: l_obsprvdiag
 
   public :: l_wcp_cwm
   public :: aircraft_recon
@@ -526,7 +533,12 @@ module obsmod
   public :: uv_doe_b_236
   public :: uv_doe_b_237
   public :: uv_doe_b_213
-  
+
+  public :: vad_near_analtime
+
+  ! The following correspond to OMPS LP observations:
+
+  public :: ompslp_mult_fact
 
   interface obsmod_init_instr_table
           module procedure init_instr_table_
@@ -547,6 +559,7 @@ module obsmod
 
   logical luse_obsdiag
   logical binary_diag, netcdf_diag 
+  logical l_obsprvdiag 
 
 ! Declare types
 
@@ -602,6 +615,7 @@ module obsmod
 
   integer(i_kind) ntilt_radarfiles,tcp_posmatch,tcp_box
 
+  logical ::  ta2tb
   logical ::  doradaroneob
   logical :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, l2rwthin
   character(4) :: whichradar,oneobradid
@@ -674,7 +688,13 @@ module obsmod
   real(r_kind) :: uv_doe_a_236, uv_doe_b_236
   real(r_kind) :: uv_doe_a_237, uv_doe_b_237
   real(r_kind) :: uv_doe_a_213, uv_doe_b_213
+
+  logical vad_near_analtime 
   
+ ! The following correspond to OMPS LP observations:
+
+  real(r_kind) :: ompslp_mult_fact
+
 contains
 
   subroutine init_obsmod_dflts
@@ -707,6 +727,7 @@ contains
 !   2015-07-10  pondeca - add cldch
 !   2015-10-27  todling - default to luse_obsdiag is true now
 !   2016-03-07  pondeca - add uwnd10m,vwnd10m
+!   2021-11-16  zhao    - add initialization of l_obsprvdiag (.FALSE. as default)
 !
 !   input argument list:
 !
@@ -726,7 +747,7 @@ contains
     if_vterminal=.false.
     l2rwthin    =.false.  
     if_vrobs_raw=.false.
-    if_model_dbz=.true.
+    if_model_dbz=.false.
     inflate_obserr=.false.
     whichradar="KKKK"
 
@@ -776,6 +797,8 @@ contains
     nobskeep=0
     lsaveobsens=.false.
     l_do_adjoint=.true.     ! .true. = apply H^T when in int routines
+    ta2tb=.false.           ! .true. = assimilation antenna temperature for
+                            !          AMSU-A, ATMS and MHS
     oberrflg  = .false.
     bflag     = .false.     ! 
     sfcmodel  = .false.     ! .false. = do not use boundary layer model 
@@ -899,6 +922,9 @@ contains
     netcdf_diag = .false. ! by default, do not write netcdf_diag
     binary_diag = .true.  ! by default, do write binary diag
 
+!   set default on triggering the output of obs provider info into obsdiags file
+    l_obsprvdiag = .false. ! by default, do not write obs provider info
+
     l_wcp_cwm          = .false.                 ! .true. = use operator that involves cwm
     aircraft_recon     = .false.                 ! .true. = use DOE for aircraft data
     hurricane_radar    = .false.                 ! .true. = use radar data for hurricane application 
@@ -942,7 +968,15 @@ contains
     uv_doe_b_237 = 0.0_r_kind      
     uv_doe_a_213 = 1.0_r_kind
     uv_doe_b_213 = 0.0_r_kind
+
+    ! This flag was set to assimilate newvad obs around anaylsis time only.
+    ! see 'read_prepbufr.f90'
+    vad_near_analtime = .false.
     
+    ! The following correspond to OMPS LP  observations:
+
+    ompslp_mult_fact = 2.0_r_kind
+
     return
   end subroutine init_obsmod_dflts
   

@@ -285,7 +285,7 @@ subroutine cloud_calc_gfs(g_ql,g_qi,g_cwmr,g_q,g_tv,lower_bound,g_cf)
   real(r_kind),dimension(lat2,lon2,nsig),intent(inout):: g_cwmr ! mixing ratio of total condensates [Kg/Kg]
   real(r_kind),dimension(lat2,lon2,nsig),intent(in   ):: g_q    ! specific humidity [Kg/Kg]
   real(r_kind),dimension(lat2,lon2,nsig),intent(in   ):: g_tv   ! virtual temperature [K]
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout), optional:: g_cf   ! cloud fractio   
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout), optional:: g_cf   ! cloud fraction   
   logical,intent(in):: lower_bound                                ! If .true., set lower bound to cloud
 
 ! Declare local variables

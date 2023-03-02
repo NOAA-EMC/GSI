@@ -244,7 +244,6 @@ loopd : do
 !!  go through the satedump to find out how many subset to process
 !** Open and read data from bufr data file
 
-  call closbf(lunin)
   open(lunin,file=trim(infile),form='unformatted')
   call openbf(lunin,'IN',lunin)
   call datelen(10)
@@ -389,6 +388,7 @@ loopd : do
      endif
 
      call closbf(lunin)
+     close(lunin)
      open(lunin,file=infile,form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -663,8 +663,6 @@ loopd : do
         enddo  loop_readsb
 
      enddo loop_msg
-!    Close unit to bufr file
-     call closbf(lunin)
 !    Deallocate arrays used for thinning data
      if (.not.use_all) then
         deallocate(presl_thin)
@@ -674,6 +672,7 @@ loopd : do
 
   enddo loop_convinfo! loops over convinfo entry matches
   deallocate(lmsg,tab,nrep)
+  call closbf(lunin)
  
 ! Write header record and data to output file for further processing
   allocate(iloc(ndata))
@@ -710,10 +709,7 @@ loopd : do
   if(diagnostic_reg .and. nvtest>0) write(6,*)'READ_RAPIDSCAT:  ',&
        'nvtest,vdisterrmax=',ntest,vdisterrmax
 
-  if (ndata == 0) then
-     call closbf(lunin)
-     write(6,*)'READ_RAPIDSCAT:  closbf(',lunin,')'
-  endif
+  write(6,*)'READ_RAPIDSCAT:  closbf(',lunin,')'
   
   write(6,*) 'READ_RAPIDSCAT,nread,ndata,nreal,nodata=',nread,ndata,nreal,nodata
 

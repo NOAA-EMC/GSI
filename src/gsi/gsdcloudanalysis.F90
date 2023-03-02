@@ -23,7 +23,21 @@ subroutine  gsdcloudanalysis(mype)
 !    2015-01-13  ladwig - add code for Qni and Qnc (cloud ice and water number concentration)
 !    2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS
 !                           core
-!
+!    2019-10-10  Zhao    - add code to check and adjust Qr/qs/qg and Qnr for
+!                          each vertical profile to reduce the background
+!                          reflectivity ghost in final analysis. (for RTMA3D
+!                          only now, option l_precip_vertical_check)
+!    2020-04-16  Zhao    - modifications to the code which checks and adjusts the vertical
+!                          profile of Qg/Qr/Qs/Qnr retrieved through cloud analysis to
+!                          alleviate the background ghost reflectivity in analysis.
+!                          Modifications includes:
+!                          1. change option l_precip_vertical_check to i_precip_vertical_check
+!                          2. i_precip_vertical_check:
+!                           = 0(no adjustment, default)
+!                           = 1(Clean off Qg only, where dbz_obs_max<=35dbz in the profile)
+!                           = 2(clean Qg as in 1, and adjustment to the retrieved Qr/Qs/Qnr throughout the whole profile)
+!                           = 3(similar to 2, but adjustment to Qr/Qs/Qnr only below maximum reflectivity level
+!                             and where the dbz_obs is missing);
 !
 !   input argument list:
 !     mype     - processor ID that does this IO
@@ -66,7 +80,6 @@ subroutine  gsdcloudanalysis(mype)
   use mpimod, only: mpi_comm_world,ierror,mpi_real4
   use rapidrefresh_cldsurf_mod, only: dfi_radar_latent_heat_time_period,   &
                                       metar_impact_radius,                 &
-                                      metar_impact_radius_lowCloud,        &
                                       l_cleanSnow_WarmTs,l_conserve_thetaV,&
                                       r_cleanSnow_WarmTs_threshold,        &
                                       i_conserve_thetaV_iternum,           &
@@ -76,16 +89,18 @@ subroutine  gsdcloudanalysis(mype)
                                       iclean_hydro_withRef, iclean_hydro_withRef_allcol, &
                                       l_use_hydroretrieval_all, &
                                       i_lightpcp, l_numconc, qv_max_inc,ioption, &
-                                      l_precip_clear_only,l_fog_off,cld_bld_coverage,cld_clr_coverage
+                                      l_precip_clear_only,l_fog_off,cld_bld_coverage,cld_clr_coverage,&
+                                      i_T_Q_adjust,l_saturate_bkCloud,i_precip_vertical_check,l_rtma3d
 
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use gsi_io, only: verbose
+#ifdef RR_CLOUDANALYSIS
 
   implicit none
 
 ! Declare passed variables
   integer(i_kind),intent(in):: mype
-#ifdef RR_CLOUDANALYSIS
 !
 ! background
 !
@@ -182,8 +197,6 @@ subroutine  gsdcloudanalysis(mype)
   real(r_single),allocatable :: vis2qc(:,:)           ! fog
 
   real(r_kind)    ::  thunderRadius=2.5_r_kind
-  real(r_single)  ::  r_radius          ! influence radius of cloud based on METAR obs
-  real(r_single)  ::  r_radius_lowCloud ! influence radius of low cloud to cloud top pressure
   integer(i_kind) :: miss_obs_int
   real(r_kind)    :: miss_obs_real
   parameter ( miss_obs_int = -99999  )
@@ -235,7 +248,10 @@ subroutine  gsdcloudanalysis(mype)
   logical :: ifindomain
   integer(i_kind) :: imaxlvl_ref
   real(r_kind)    :: max_retrieved_qrqs,max_bk_qrqs,ratio_hyd_bk2obs
+  real(r_kind)    :: qrqs_retrieved
   real(r_kind)    :: qrlimit,qrlimit_lightpcp
+  real(r_kind)    :: qnr_limit
+  real(r_kind)    :: dbz_clean_graupel
   character(10)   :: obstype
   integer(i_kind) :: lunin, is, ier, istatus
   integer(i_kind) :: nreal,nchanl,ilat1s,ilon1s
@@ -253,6 +269,9 @@ subroutine  gsdcloudanalysis(mype)
   real(r_kind),parameter    :: rho_w = 999.97_r_kind, rho_a = 1.2_r_kind
   real(r_kind),parameter    :: cldDiameter = 10.0E3_r_kind
 
+! local variables used for adjustment of qr/qs for RTMA_3D to alleviate ghost reflectivity
+  logical         :: print_verbose
+  integer(i_kind) :: k_cap            ! highest level when adjument is done (used for adjust qr/qs for RTMA_3D)
 
 !
 !
@@ -289,8 +308,6 @@ subroutine  gsdcloudanalysis(mype)
 !
 !
   krad_bot=7.0_r_single
-  r_radius=metar_impact_radius
-  r_radius_lowCloud=metar_impact_radius_lowCloud
 
   opt_hydrometeor_retri=3       ! 1=Kessler 2=Lin 3=Thompson
   opt_cloudtemperature=3        ! 3=latent heat, 4,5,6 = adiabat profile
@@ -309,6 +326,9 @@ subroutine  gsdcloudanalysis(mype)
   istat_radar=0
   istat_lightning=0
   istat_nasalarc=0
+
+  print_verbose=.false.
+  if (verbose) print_verbose=.true.
 
   call load_gsdpbl_hgt(mype)
 !
@@ -694,7 +714,7 @@ subroutine  gsdcloudanalysis(mype)
 !
 !
   if(istat_surface ==  1) then
-     call cloudCover_surface(mype,lat2,lon2,nsig,r_radius,thunderRadius,  &
+     call cloudCover_surface(mype,lat2,lon2,nsig,thunderRadius,  &
               cld_bld_hgt,t_bk,p_bk,q_bk,h_bk,zh,                         &
               numsao,nvarcld_p,numsao,oi,oj,ocld,owx,oelvtn,odist,        &
               cld_cover_3d,cld_type_3d,wthr_type_2d,pcp_type_3d,          &
@@ -869,7 +889,7 @@ subroutine  gsdcloudanalysis(mype)
 !  2013)
 !
 
-  if(l_use_hydroretrieval_all) then !RTMA
+  if(l_use_hydroretrieval_all .or. l_rtma3d) then !RTMA
      qrlimit=15.0_r_kind*0.001_r_kind
      do k=1,nsig
         do j=2,lat2-1
@@ -907,6 +927,103 @@ subroutine  gsdcloudanalysis(mype)
         end do
         end do
      end do
+ 
+!    ---- verical check and adjustment to the analysis of precipitation
+!         in order to remove/reduce the backround reflectivity "ghost" in
+!         analysis.
+!         Note: here rain_3d, snow_3d have been already changed into unit of kg/kg.
+     if(i_precip_vertical_check > 0) then
+
+        if(print_verbose) then
+           write(6,'(1x,A,I4.4,A)')"SUB gsdcloudanalysis: precip_vertical_check start... (for pe=",mype,")."
+        else
+           if(mype == 0) then
+              write(6,'(1x,A,I4.4,A)')"SUB gsdcloudanalysis: precip_vertical_check start ... (only print for pe=",mype,")."
+           end if
+        end if
+
+        qnr_limit=200000_r_kind
+        dbz_clean_graupel=35.0_r_kind
+
+        do j=2,lat2-1
+           do i=2,lon2-1
+
+!          1. search the max reflectivity obs for veritcal profile at each grid
+!             point (same code used in hydrometeor anlysis for RAP forecast)
+              refmax=-999.0_r_kind
+              imaxlvl_ref=0
+              do k=1,nsig
+                 if(ref_mos_3d(i,j,k) > refmax) then
+                    imaxlvl_ref=k
+                    refmax=ref_mos_3d(i,j,k)
+                 endif
+              enddo
+!          2. check and adjustment along the profile at each grid point
+              if( refmax > 0 .and. (imaxlvl_ref > 0 .and. imaxlvl_ref < nsig ) ) then
+                 ! cleaning the Graupel, if refmax <= dbz_clean_graupel (35dbz)
+                 ! because graupel is copied from background, not retrieved in cloud analysis.
+                 ! (as seen above, graupel_3d(i,j,k) = ges_qg(j,i,k) )
+                 if( refmax <= dbz_clean_graupel ) graupel_3d(i,j,:) = zero
+
+                 ! adjusting hydrometeors based on maximum reflectivity level
+                 select case (i_precip_vertical_check)
+                    case(2)    ! adjust each level along the profile (1:nsig)
+                       max_retrieved_qrqs=snow_3d(i,j,imaxlvl_ref)+rain_3d(i,j,imaxlvl_ref)
+                       do k=1,nsig
+                          qrqs_retrieved=snow_3d(i,j,k)+rain_3d(i,j,k)
+                          if(qrqs_retrieved > max_retrieved_qrqs .and. qrqs_retrieved > 0.0001_r_kind) then
+                             ratio_hyd_bk2obs=max(min(max_retrieved_qrqs/qrqs_retrieved,1.0_r_kind),0.0_r_kind)
+                             if(rain_3d(i,j,k) > zero) then
+                                rain_3d(i,j,k) = rain_3d(i,j,k)*ratio_hyd_bk2obs
+                                nrain_3d(i,j,k)= min(nrain_3d(i,j,k)/ratio_hyd_bk2obs*2.5_r_kind,qnr_limit)
+                             endif
+                             if(snow_3d(i,j,k) > zero) then
+                                snow_3d(i,j,k) = snow_3d(i,j,k)*ratio_hyd_bk2obs
+                             end if
+                          end if
+                       end do
+                    case(3)    ! adjust the dbz-obs-missed levels below max-dbz layer (1:kcap)
+                               ! based on the qr+qs on max-refl level
+                               ! keep the retrieved cloud analysis as much as possible
+                       max_retrieved_qrqs=snow_3d(i,j,imaxlvl_ref)+rain_3d(i,j,imaxlvl_ref)
+                       k_cap=min(imaxlvl_ref,nsig)
+                       do k=k_cap,1,-1
+                          if( ref_mos_3d(i,j,k) <= -100.0_r_kind ) then   !  dbz-obs-missing level
+                             qrqs_retrieved=snow_3d(i,j,k)+rain_3d(i,j,k)
+                             if(qrqs_retrieved > max_retrieved_qrqs .and. qrqs_retrieved > 0.0001_r_kind) then
+                                ratio_hyd_bk2obs=max(min(max_retrieved_qrqs/qrqs_retrieved,1.0_r_kind),0.0_r_kind)
+                                if(rain_3d(i,j,k) > zero) then
+                                   rain_3d(i,j,k) = rain_3d(i,j,k)*ratio_hyd_bk2obs
+                                   ! for nrain_3d:  2.5(old) or 1.0(new4) or 1.5(new5/6) 2.5(old, new7) 2.0(new8)
+                                   nrain_3d(i,j,k)= min(nrain_3d(i,j,k)/ratio_hyd_bk2obs*2.5_r_kind,qnr_limit)
+                                endif
+                                if(snow_3d(i,j,k) > zero) then
+                                   snow_3d(i,j,k) = snow_3d(i,j,k)*ratio_hyd_bk2obs
+                                end if
+                             end if
+                          end if
+                       end do
+                    case default
+                       rain_3d(i,j,k) = rain_3d(i,j,k)
+                       nrain_3d(i,j,k)= nrain_3d(i,j,k)
+                       snow_3d(i,j,k) = snow_3d(i,j,k)
+                 end select
+
+              end if
+
+           end do
+        end do
+
+        if(print_verbose) then
+           write(6,'(1x,A,I4.4,A)')"SUB gsdcloudanalysis: precip_vertical_check is done ... (for pe=",mype,")."
+        else
+           if(mype == 0) then
+              write(6,'(1x,A,I4.4,A)')"SUB gsdcloudanalysis: precip_vertical_check is done ... (only print for pe=",mype,")."
+           end if
+        end if
+
+     end if 
+
   elseif(l_precip_clear_only) then !only clear for HRRRE
      do k=1,nsig
         do j=2,lat2-1
@@ -1099,7 +1216,7 @@ subroutine  gsdcloudanalysis(mype)
 !
   call cloud_saturation(mype,l_conserve_thetaV,i_conserve_thetaV_iternum,  &
                  lat2,lon2,nsig,q_bk,t_bk,p_bk,      &
-                 cld_cover_3d,wthr_type_2d,cldwater_3d,cldice_3d,sumqci,qv_max_inc)
+                 cld_cover_3d,wthr_type_2d,cldwater_3d,cldice_3d,sumqci,qv_max_inc, l_saturate_bkCloud)
 
 
 !
@@ -1136,24 +1253,50 @@ subroutine  gsdcloudanalysis(mype)
   do k=1,nsig
      do j=1,lat2
         do i=1,lon2
-           if(l_conserve_thetaV) then
+           ! T/Q update
+           ! =0 no T/Q adjustment
+           if(i_T_Q_adjust==0) then
+              if(mype==0) then
+                write(6,*) 'gsdcloudanalysis: no T/Q adjustment',mype
+              endif
+           ! =1 default T/Q adjustment
+           elseif(i_T_Q_adjust==1) then
               if(.not.twodvar_regional .or. .not.tsensible) then
-                 ges_tv(j,i,k)=t_bk(i,j,k)*(p_bk(i,j,k)/h1000)**rd_over_cp * &  ! t_bk is potential T
-                        (one+fv*q_bk(i,j,k))                                      ! convert T to virtual T
+                 ! t_bk is potential T, convert to virtual T
+                 ges_tv(j,i,k)=t_bk(i,j,k)*(p_bk(i,j,k)/h1000)**rd_over_cp * (one+fv*q_bk(i,j,k))
                  ges_tsen(j,i,k,itsig) = ges_tv(j,i,k)/(one+fv*q_bk(i,j,k))
               else
-                 ges_tsen(j,i,k,itsig)=t_bk(i,j,k)*(p_bk(i,j,k)/h1000)**rd_over_cp    ! t_bk is potential T
-                 ges_tv(j,i,k) = ges_tsen(j,i,k,itsig)*(one+fv*q_bk(i,j,k))         ! convert virtual T to T
+                 ! t_bk is potential T, convert virtual T to T
+                 ges_tsen(j,i,k,itsig)=t_bk(i,j,k)*(p_bk(i,j,k)/h1000)**rd_over_cp  
+                 ges_tv(j,i,k) = ges_tsen(j,i,k,itsig)*(one+fv*q_bk(i,j,k))  
               endif
-           endif   ! l_conserve_thetaV
-           ges_q(j,i,k)=q_bk(i,j,k)/(1+q_bk(i,j,k))     ! Here q is mixing ratio kg/kg, 
-                                                        ! need to convert to specific humidity
+              ! Here q is mixing ratio kg/kg, need to convert to specific humidity
+              ges_q(j,i,k)=q_bk(i,j,k)/(1+q_bk(i,j,k)) 
+           ! =2 T/Q adjustment only for case of clearing
+           elseif(i_T_Q_adjust==2) then
+              if(.not.twodvar_regional .or. .not.tsensible) then
+                 ! t_bk is potential T, convert to virtual T
+                 ges_tv(j,i,k)=max(ges_tv(j,i,k),t_bk(i,j,k)*(p_bk(i,j,k)/h1000)**rd_over_cp * (one+fv*q_bk(i,j,k)))
+                 ges_tsen(j,i,k,itsig) = max(ges_tsen(j,i,k,itsig),ges_tv(j,i,k)/(one+fv*q_bk(i,j,k)))
+              else
+                 ! t_bk is potential T, convert virtual T to T
+                 ges_tsen(j,i,k,itsig)= max(ges_tsen(j,i,k,itsig),t_bk(i,j,k)*(p_bk(i,j,k)/h1000)**rd_over_cp) 
+                 ges_tv(j,i,k) = max(ges_tv(j,i,k),ges_tsen(j,i,k,itsig)*(one+fv*q_bk(i,j,k)))
+              endif
+              ! Here q is mixing ratio kg/kg, need to convert to specific humidity
+              ges_q(j,i,k)=min(ges_q(j,i,k),q_bk(i,j,k)/(1+q_bk(i,j,k)))
+           else
+              write(6,*) 'gsdcloudanalysis: WARNING no T/Q adjustment, check i_T_Q_adjust value',mype
+           endif
+
+           ! hydrometeor update
            ges_qr(j,i,k)=rain_3d(i,j,k)
            ges_qs(j,i,k)=snow_3d(i,j,k)
            ges_qg(j,i,k)=graupel_3d(i,j,k)
            ges_ql(j,i,k)=cldwater_3d(i,j,k)
            ges_qi(j,i,k)=cldice_3d(i,j,k)
            ges_qnr(j,i,k)=nrain_3d(i,j,k)
+           ! cloud number concentration update
            if( l_numconc ) then
              ges_qni(j,i,k)=nice_3d(i,j,k)
              ges_qnc(j,i,k)=nwater_3d(i,j,k)
@@ -1193,9 +1336,13 @@ subroutine  gsdcloudanalysis(mype)
   endif
 
 #else /* Start no RR cloud analysis library block */
+  implicit none
+
+! Declare passed variables
+  integer(i_kind),intent(in):: mype
+!
 
   if( mype == 0) write(6,*)'gsdcloudanalysis:  dummy routine, does nothing!'
 
 #endif /* End no RR cloud analysis library block */
-
 end subroutine gsdcloudanalysis

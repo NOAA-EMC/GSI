@@ -284,7 +284,7 @@ contains
 !$$$ end documentation block
 
     use fgrid2agrid_mod, only: create_fgrid2agrid
-    use jfunc, only: nrclen,nclen,diag_precon
+    use jfunc, only: nrclen,nclen
     use berror, only: varprd,vprecond,bnf=>nf,bnr=>nr
     use gridmod, only: nlat,nlon
     implicit none
@@ -292,7 +292,7 @@ contains
     integer(i_kind),intent(in   ) :: mype
 
     allocate(varprd(max(1,nrclen)))
-    if(diag_precon)allocate(vprecond(nclen))
+    allocate(vprecond(nclen))
     allocate(an_amp(max_ngauss,nvars))
     an_amp=one/three
 
@@ -388,14 +388,13 @@ contains
 !
 !$$$
     use fgrid2agrid_mod, only: destroy_fgrid2agrid
-    use jfunc, only: diag_precon
     use berror, only: vprecond
     implicit none
 
     deallocate(an_amp)
     deallocate(afact0)
     deallocate(qvar3d)
-    if(diag_precon)deallocate(vprecond)
+    deallocate(vprecond)
 
     call destroy_fgrid2agrid(pf2aP1)
     call destroy_fgrid2agrid(pf2aP2)
@@ -431,7 +430,7 @@ contains
 !
 !$$$
     use fgrid2agrid_mod, only: create_fgrid2agrid
-    use jfunc, only: nrclen,nclen,diag_precon
+    use jfunc, only: nrclen,nclen
     use berror, only: varprd,vprecond
     use gridmod, only: nlat,nlon,istart,jstart
     use general_commvars_mod, only: s2g_raf
@@ -442,7 +441,7 @@ contains
     logical regional
 
     allocate(varprd(max(1,nrclen)))
-    if(diag_precon)allocate(vprecond(nclen))
+    allocate(vprecond(nclen))
     allocate(an_amp(max_ngauss,nvars))
     an_amp=one/three
 
@@ -654,7 +653,6 @@ contains
 !$$$ end documentation block
 
     use fgrid2agrid_mod, only: destroy_fgrid2agrid
-    use jfunc, only: diag_precon
     use berror, only: vprecond
     use general_sub2grid_mod, only: general_sub2grid_destroy_info
     implicit none
@@ -662,7 +660,7 @@ contains
     deallocate(an_amp)
     deallocate(afact0)
     deallocate(qvar3d)
-    if(diag_precon)deallocate(vprecond)
+    deallocate(vprecond)
     call destroy_fgrid2agrid(pf2aP1)
     call general_sub2grid_destroy_info(s2g_rff)
 !write(6,'(" FOR TEST ONLY--REMOVE THIS MESSAGE BEFORE FINAL COMMIT--SUCCESSFUL CALL TO general_sub2grid_destroy_info to remove s2g_rff in destroy_anberror_vars_reg")')

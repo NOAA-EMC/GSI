@@ -460,6 +460,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   
 ! Close unit to input file
   call closbf(lnbufr)
+  close(lnbufr)
 
   nprof_gps = nmrecs
   write(6,*)'READ_GPS:  # bad or missing data=', notgood

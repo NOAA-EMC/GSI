@@ -83,7 +83,7 @@ subroutine bkgvar(cvec,iflg)
   real(r_kind),pointer,dimension(:,:)  ::ptrsst=>NULL()
   real(r_kind),pointer,dimension(:,:)  ::ptrstl=>NULL()
   real(r_kind),pointer,dimension(:,:)  ::ptrsti=>NULL()
-  real(r_kind),dimension(lat2,lon2) :: sst,stl,sti
+  real(r_kind),dimension(lat2,lon2) :: sst
 
 ! Multipy by variances
 !$omp parallel do  schedule(dynamic,1) private(n,k,i,j,ptr3d,istatus)
@@ -105,15 +105,17 @@ subroutine bkgvar(cvec,iflg)
   call gsi_bundlegetpointer(cvec,'sst',ptrsst,istatus)
   call gsi_bundlegetpointer(cvec,'stl',ptrstl,istatus)
   call gsi_bundlegetpointer(cvec,'sti',ptrsti,istatus)
-  sst=zero
-  stl=zero
-  sti=zero
+  if(iflg == 0)then
+     if(i_sst > 0)sst=zero
+     if(i_stl > 0)ptrstl=zero
+     if(i_sti > 0)ptrsti=zero
+  end if
 
 ! Surface fields
 !     !$omp parallel do  schedule(dynamic,1) private(n,i,j,ptr2d,istatus)
   do n=1,cvec%n2d
-     call gsi_bundlegetpointer(cvec,cvec%r2(n)%shortname,ptr2d,istatus)
      if(n/=i_sst.and.n/=i_stl.and.n/=i_sti) then
+        call gsi_bundlegetpointer(cvec,cvec%r2(n)%shortname,ptr2d,istatus)
         do i=1,lon2
            do j=1,lat2
               ptr2d(j,i)=ptr2d(j,i)*dssvs(j,i,n)
@@ -130,13 +132,13 @@ subroutine bkgvar(cvec,iflg)
            elseif(n==i_stl) then
               do i=1,lon2
                  do j=1,lat2
-                    if(isli2(j,i) == 1) stl(j,i)=ptrsst(j,i)*dssvs(j,i,n)
+                    if(isli2(j,i) == 1) ptrstl(j,i)=ptrsst(j,i)*dssvs(j,i,n)
                  end do
               end do
            elseif(n==i_sti) then
               do i=1,lon2
                  do j=1,lat2
-                    if(isli2(j,i) == 2) sti(j,i)=ptrsst(j,i)*dssvs(j,i,n)
+                    if(isli2(j,i) == 2) ptrsti(j,i)=ptrsst(j,i)*dssvs(j,i,n)
                  end do
               end do
            end if
@@ -144,19 +146,19 @@ subroutine bkgvar(cvec,iflg)
            if(n==i_sst) then
               do i=1,lon2
                  do j=1,lat2
-                    if(isli2(j,i)/=1.and.isli2(j,i)/=2) sst(j,i)=ptrsst(j,i)*dssvs(j,i,n)
+                    if(isli2(j,i)/=1.and.isli2(j,i)/=2) ptrsst(j,i)=ptrsst(j,i)*dssvs(j,i,n)
                  end do
               end do
            elseif(n==i_stl) then
               do i=1,lon2
                  do j=1,lat2
-                    if(isli2(j,i) == 1) sst(j,i)=ptrstl(j,i)*dssvs(j,i,n)
+                    if(isli2(j,i) == 1) ptrsst(j,i)=ptrstl(j,i)*dssvs(j,i,n)
                  end do
               end do
            elseif(n==i_sti) then
               do i=1,lon2
                  do j=1,lat2
-                    if(isli2(j,i) == 2) sst(j,i)=ptrsti(j,i)*dssvs(j,i,n)
+                    if(isli2(j,i) == 2) ptrsst(j,i)=ptrsti(j,i)*dssvs(j,i,n)
                  end do
               end do
            end if
@@ -164,15 +166,8 @@ subroutine bkgvar(cvec,iflg)
      end if
      
   end do
+  if(iflg == 0 .and. i_sst>0) ptrsst=sst
 
-  if(iflg==0) then
-     if(i_sst>0) ptrsst=sst
-     if(i_stl>0) ptrstl=stl
-     if(i_sti>0) ptrsti=sti
-  else
-     if(i_sst>0) ptrsst=sst
-!        ignore contents of ptrstl,ptrsti
-  end if
   
   return
 end subroutine bkgvar

@@ -190,7 +190,6 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   endif
 
 ! Open bufr file.
-  call closbf(lnbufr)
   open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
   call datelen(10)
@@ -247,6 +246,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
 
 !  Reopen unit to bufr file
   call closbf(lnbufr)
+  close(lnbufr)
   if(jsatid == 'm08') kidsat = 55
   if(jsatid == 'm09') kidsat = 56
   if(jsatid == 'm10') kidsat = 57
@@ -526,6 +526,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
      if(allocated(rd_tdiffs)) deallocate(rd_tdiffs)
   enddo read_msg
   call closbf(lnbufr)
+  close(lnbufr)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
      nele,itxmax,nread,ndata,data_all,score_crit,nrec)
@@ -621,6 +622,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
         subset_num(nnmsg)=nnsb
      enddo read_msg2
      call closbf(lnbufr)
+     close(lnbufr)
      if (npe_sub > 1 ) then 
         call mpi_allreduce(subset_num, subset_nnsb, nnmsg,mpi_itype,mpi_sum,mpi_comm_sub,ierror)
      else

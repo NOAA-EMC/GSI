@@ -61,8 +61,8 @@
 
  subroutine readgriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,ntimes, &
                              fileprefixes,filesfcprefixes,reducedgrid,grdin,qsat)
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                 quantize_data,read_attribute, close_dataset, get_dim, read_vardata
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         quantize_data,read_attribute, close_dataset, get_dim, read_vardata
   implicit none
 
   character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
@@ -207,6 +207,7 @@
   endif
   ! pressure at interfaces
   do k=1,nlevs+1
+     ! k=1 in ak,bk is model top
      pressi(:,k) = 0.01_r_kind*ak(nlevs-k+2)+bk(nlevs-k+2)*psg
      if (nanal .eq. 1 .and. iope==0) print *,'netcdf, min/max pressi',k,minval(pressi(:,k)),maxval(pressi(:,k))
   enddo
@@ -332,14 +333,19 @@
 
   if (iope==0) then
      do k=1,nlevs
-        krev = nlevs-k+1
-        ! layer pressure from phillips vertical interolation
+        ! pressure at bottom of layer interface (for gps jacobian, see prsltmp in setupbend.f90)
+        if (prse_ind > 0) then
+           ug(:) = pressi(:,k)
+           call copytogrdin(ug,pslg(:,k))
+           ! Jacobian for gps in pressure is saved in different units in GSI; need to
+           ! multiply pressure by 0.1
+           grdin(:,levels(prse_ind-1)+k,nb,ne) = 0.1*pslg(:,k)
+        endif
+        ! layer pressure from phillips vertical interolation (used for qsat
+        ! calculation)
         ug(:) = ((pressi(:,k)**kap1-pressi(:,k+1)**kap1)/&
                 (kap1*(pressi(:,k)-pressi(:,k+1))))**kapr
         call copytogrdin(ug,pslg(:,k))
-        ! Jacobian for gps in pressure is saved in different units in GSI; need to
-        ! multiply pressure by 0.1
-        if (prse_ind > 0)     grdin(:,levels(prse_ind-1)+k,nb,ne) = 0.1*pslg(:,k)
      end do
      if (pseudo_rh) then
         call genqsat1(q,qsat(:,:,nb,ne),pslg,tv,ice,npts,nlevs)
@@ -417,8 +423,8 @@
   use nemsio_module, only: nemsio_gfile,nemsio_open,nemsio_close,&
                            nemsio_getfilehead,nemsio_getheadvar,nemsio_realkind,nemsio_charkind,&
                            nemsio_readrecv,nemsio_init,nemsio_setheadvar,nemsio_writerecv
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                 quantize_data,read_attribute, close_dataset, get_dim, read_vardata
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         quantize_data,read_attribute, close_dataset, get_dim, read_vardata
   implicit none
 
   integer, intent(in) :: nanal1,nanal2
@@ -624,6 +630,7 @@
      endif
      ! pressure at interfaces
      do k=1,nlevs+1
+        ! k=1 in ak,bk is model top
         pressi(:,k) = 0.01_r_kind*ak(nlevs-k+2)+bk(nlevs-k+2)*psg
         if (nanal .eq. 1) print *,'netcdf, min/max pressi',k,minval(pressi(:,k)),maxval(pressi(:,k))
      enddo
@@ -950,15 +957,19 @@
 
   ! compute saturation q.
   do k=1,nlevs
-    ! layer pressure from phillips vertical interolation
+    ! pressure at bottom of layer interface (for gps jacobian, see prsltmp in setupbend.f90)
+    if (prse_ind > 0) then
+       ug(:) = pressi(:,k)
+       call copytogrdin(ug,pslg(:,k))
+       ! Jacobian for gps in pressure is saved in different units in GSI; need to
+       ! multiply pressure by 0.1
+       grdin(:,levels(prse_ind-1)+k,nb,ne) = 0.1*pslg(:,k)
+    endif
+    ! layer pressure from phillips vertical interolation (used for qsat
+    ! calculation)
     ug(:) = ((pressi(:,k)**kap1-pressi(:,k+1)**kap1)/&
             (kap1*(pressi(:,k)-pressi(:,k+1))))**kapr
-
     call copytogrdin(ug,pslg(:,k))
-    ! Jacobian for gps in pressure is saved in different units in GSI; need to
-    ! multiply pressure by 0.1
-    if (prse_ind > 0)     grdin(:,levels(prse_ind-1)+k,nb,ne) = 0.1*pslg(:,k)
-
   end do
   if (pseudo_rh) then
      call genqsat1(q,qsat(:,:,nb,ne),pslg,tv,ice,npts,nlevs)
@@ -1021,11 +1032,11 @@
 
  subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
   use netcdf
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                          read_attribute, close_dataset, get_dim, read_vardata,&
-                          create_dataset, get_idate_from_time_units, &
-                          get_time_units_from_idate, write_vardata, &
-                          write_attribute, quantize_data, has_var, has_attr
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         read_attribute, close_dataset, get_dim, read_vardata,&
+                         create_dataset, get_idate_from_time_units, &
+                         get_time_units_from_idate, write_vardata, &
+                         write_attribute, quantize_data, has_var, has_attr
   use constants, only: grav, zero
   use params, only: nbackgrounds,anlfileprefixes,fgfileprefixes,reducedgrid,&
                     nccompress
@@ -1113,7 +1124,9 @@
   ! need to distribute grdin to all PEs in this subcommunicator
   ! bring all the subdomains back to the main PE
   call mpi_barrier(iocomms(mem_pe(nproc)), iret)
-  call mpi_bcast(grdin,npts*ndim*nbackgrounds, mpi_real4, 0, iocomms(mem_pe(nproc)), iret)
+  do nb=1,nbackgrounds
+     call mpi_bcast(grdin(1,1,nb,1),npts*ndim, mpi_real4, 0, iocomms(mem_pe(nproc)), iret)
+  enddo
 
   ! loop through times and do the read
   ne = 1
@@ -1146,6 +1159,7 @@
      call stop2(29)
   endif
   do k=1,nlevs+1
+     ! k=1 in values_1d is model top, flip so k=1 in ak is bottom
      ak(nlevs-k+2) = 0.01_r_kind*values_1d(k)
   enddo
   call read_attribute(dsfg, 'bk', values_1d,errcode=iret)
@@ -1154,6 +1168,7 @@
      call stop2(29)
   endif
   do k=1,nlevs+1
+     ! k=1 in values_1d is model top, flip so k=1 in ak is bottom
      bk(nlevs-k+2) = values_1d(k)
   enddo
 
@@ -1509,16 +1524,18 @@
      endif
      vg = values_1d + (vg*100_r_kind) ! analysis ps (values_1d is background ps)
      do k=lev_pe1(iope), lev_pe2(iope)
-        krev = nlevs-k+1
+        krev = nlevs-k+1 ! k=1 is model top
         ki = k - lev_pe1(iope) + 1
         ug=(rd/grav)*reshape(tv_anal(:,:,ki),(/nlons*nlats/))
         ! ps in Pa here, need to multiply ak by 100.
-        ug=ug*log((100_r_kind*ak(krev)+bk(krev)*vg)/(100_r_kind*ak(krev+1)+bk(krev+1)*vg))
+        ! ug is hydrostatic analysis delz (should be negative)
+        ! (note that ak,bk are already reversed to go from bottom to top)
+        ug=ug*log((100_r_kind*ak(krev+1)+bk(krev+1)*vg)/(100_r_kind*ak(krev)+bk(krev)*vg))
         ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
-        ! delzb is hydrostatic background delz inferred from background ps,Tv
+        ! delzb is (negative) hydrostatic background delz inferred from background ps,Tv
         delzb=(rd/grav)*reshape(tv_bg(:,:,ki),(/nlons*nlats/))
-        delzb=delzb*log((100_r_kind*ak(krev)+bk(krev)*values_1d)/(100_r_kind*ak(krev+1)+bk(krev+1)*values_1d))
-        ug3d(:,:,ki)=values_3d(:,:,ki) + reshape(delzb-ug,(/nlons,nlats/))
+        delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*values_1d)/(100_r_kind*ak(krev)+bk(krev)*values_1d))
+        ug3d(:,:,ki)=values_3d(:,:,ki) + reshape(ug-delzb,(/nlons,nlats/)) 
      end do
      if (has_attr(dsfg, 'nbits', 'delz') .and. .not. nocompress) then
        call read_attribute(dsfg, 'nbits', nbits, 'delz')
@@ -1825,14 +1842,14 @@
                            nemsio_readrec,nemsio_writerec,nemsio_intkind,nemsio_charkind,&
                            nemsio_getheadvar,nemsio_realkind,nemsio_getfilehead,&
                            nemsio_readrecv,nemsio_init,nemsio_setheadvar,nemsio_writerecv
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                          read_attribute, close_dataset, get_dim, read_vardata,&
-                          create_dataset, get_idate_from_time_units, &
-                          get_time_units_from_idate, write_vardata, &
-                          write_attribute, quantize_data, has_var, has_attr
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         read_attribute, close_dataset, get_dim, read_vardata,&
+                         create_dataset, get_idate_from_time_units, &
+                         get_time_units_from_idate, write_vardata, &
+                         write_attribute, quantize_data, has_var, has_attr
   use constants, only: grav
   use params, only: nbackgrounds,anlfileprefixes,fgfileprefixes,reducedgrid,&
-                    nccompress
+                    nccompress,write_ensmean
   implicit none
 
   integer, intent(in) :: nanal1,nanal2
@@ -1881,7 +1898,7 @@
   integer :: ps_ind, pst_ind, nbits
   integer :: ql_ind, qi_ind, qr_ind, qs_ind, qg_ind
 
-  integer k,nt,ierr,iunitsig,nb,i,ne,nanal
+  integer k,krev,nt,ierr,iunitsig,nb,i,ne,nanal
 
   logical :: nocompress
 
@@ -1900,12 +1917,17 @@
   write(charnanal,'(i3.3)') nanal
   backgroundloop: do nb=1,nbackgrounds
 
-  if(no_inflate_flag) then
-    filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"nimem"//charnanal
+  if (nanal == 0 .and. write_ensmean) then
+     filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"ensmean"
+     filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"ensmean"
   else
-    filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"mem"//charnanal
-  end if
-  filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+     if(no_inflate_flag) then
+       filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"nimem"//charnanal
+     else
+       filenameout = trim(adjustl(datapath))//trim(adjustl(anlfileprefixes(nb)))//"mem"//charnanal
+     end if
+     filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+  endif
 
   if (use_gfs_nemsio) then
      clip = tiny(vg(1))
@@ -1969,6 +1991,7 @@
         call stop2(29)
      endif
      do k=1,nlevs+1
+        ! k=1 in values_1d is model top, flip so k=1 in ak is bottom
         ak(nlevs-k+2) = 0.01_r_kind*values_1d(k)
      enddo
      call read_attribute(dsfg, 'bk', values_1d,errcode=iret)
@@ -1977,6 +2000,7 @@
         call stop2(29)
      endif
      do k=1,nlevs+1
+        ! k=1 in values_1d is model top, flip so k=1 in ak is bottom
         bk(nlevs-k+2) = values_1d(k)
      enddo
   else
@@ -2475,8 +2499,9 @@
         if (hasfield) then
            call nemsio_readrecv(gfilein,'pres','sfc',1,nems_wrk2,iret=iret)
            delzb=(rd/grav)*nems_wrk
-           ! ps in Pa here, need to multiply ak by 100.
-           delzb=delzb*log((100_r_kind*ak(k)+bk(k)*nems_wrk2)/(100_r_kind*ak(k+1)+bk(k+1)*nems_wrk2))
+           ! ps in Pa here, need to multiply ak by 100. k is bottom to top,
+           ! calculate delzb so it is negative.
+           delzb=delzb*log((100_r_kind*ak(k+1)+bk(k+1)*nems_wrk2)/(100_r_kind*ak(k)+bk(k)*nems_wrk2))
         endif
         ! convert Tv back to T
         nems_wrk = ug/(1. + fv*vg)
@@ -2508,14 +2533,16 @@
            vg = nems_wrk2 + vg
            ug=(rd/grav)*ug ! ug is analysis Tv
            ! ps in Pa here, need to multiply ak by 100.
-           ug=ug*log((100_r_kind*ak(k)+bk(k)*vg)/(100_r_kind*ak(k+1)+bk(k+1)*vg))
-           ug=ug-delzb
+           ! k is bottom to top, calculate delz so it is negative
+           ug=ug*log((100_r_kind*ak(k+1)+bk(k+1)*vg)/(100_r_kind*ak(k)+bk(k)*vg))
+           ug=ug-delzb ! analysis - background
            call nemsio_readrecv(gfilein,'delz','mid layer',k,nems_wrk,iret=iret)
            if (iret/=0) then
               write(6,*)'gridio/writegriddata: gfs model: problem with nemsio_readrecv(delz), iret=',iret
               call stop2(23)
            endif
-           if (sum(nems_wrk) < 0.0_r_kind) ug = ug * -1.0_r_kind
+           ! flip sign of delz increment if background is positive.
+           if (sum(nems_wrk) > 0.0_r_kind) ug = ug * -1.0_r_kind
            nems_wrk = nems_wrk + ug
            call nemsio_writerecv(gfileout,'delz','mid layer',k,nems_wrk,iret=iret)
            if (iret/=0) then
@@ -2876,17 +2903,20 @@
         endif
         vg = values_1d + vg*100_r_kind ! analysis ps (values_1d is background ps)
         do k=1,nlevs
-           ug=(rd/grav)*reshape(tv_anal(:,:,nlevs-k+1),(/nlons*nlats/))
+           krev = nlevs-k+1  ! k=1 is model top
+           ug=(rd/grav)*reshape(tv_anal(:,:,k),(/nlons*nlats/))
            ! ps in Pa here, need to multiply ak by 100.
-           ug=ug*log((100_r_kind*ak(k)+bk(k)*vg)/(100_r_kind*ak(k+1)+bk(k+1)*vg))
+           ! ug is analysis delz, calculate so it is negative
+           ! (note that ak,bk are already reversed to go from bottom to top)
+           ug=ug*log((100_r_kind*ak(krev+1)+bk(krev+1)*vg)/(100_r_kind*ak(krev)+bk(krev)*vg))
            ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
            ! delzb is hydrostatic background delz inferred from background ps,Tv
-           delzb=(rd/grav)*reshape(tv_bg(:,:,nlevs-k+1),(/nlons*nlats/))
-           delzb=delzb*log((100_r_kind*ak(k)+bk(k)*values_1d)/(100_r_kind*ak(k+1)+bk(k+1)*values_1d))
-           ug3d(:,:,nlevs-k+1)=values_3d(:,:,nlevs-k+1) +&
-           reshape(delzb-ug,(/nlons,nlats/))
+           ! calculate so it is negative
+           delzb=(rd/grav)*reshape(tv_bg(:,:,k),(/nlons*nlats/))
+           delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*values_1d)/(100_r_kind*ak(krev)+bk(krev)*values_1d))
+           ug3d(:,:,k)=values_3d(:,:,k) +&
+           reshape(ug-delzb,(/nlons,nlats/))
         enddo
-        !print *,'min/max delz',minval(values_3d),maxval(values_3d),&
         !  minval(ug3d),maxval(ug3d)
         if (has_attr(dsfg, 'nbits', 'delz') .and. .not. nocompress) then
           call read_attribute(dsfg, 'nbits', nbits, 'delz')
@@ -3275,14 +3305,14 @@
  subroutine writeincrement(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
   use netcdf
   use params, only: nbackgrounds,incfileprefixes,fgfileprefixes,reducedgrid,&
-                    datestring,nhr_anal
+                    datestring,nhr_anal,write_ensmean
   use constants, only: grav
   use mpi
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                          read_attribute, close_dataset, get_dim, read_vardata,&
-                          create_dataset, get_idate_from_time_units, &
-                          get_time_units_from_idate, write_vardata, &
-                          write_attribute, quantize_data, has_var, has_attr
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         read_attribute, close_dataset, get_dim, read_vardata,&
+                         create_dataset, get_idate_from_time_units, &
+                         get_time_units_from_idate, write_vardata, &
+                         write_attribute, quantize_data, has_var, has_attr
   implicit none
 
   integer, intent(in) :: nanal1,nanal2
@@ -3340,12 +3370,17 @@
   write(charnanal,'(i3.3)') nanal
   backgroundloop: do nb=1,nbackgrounds
 
-  if(no_inflate_flag) then
-    filenameout = trim(adjustl(datapath))//trim(adjustl(incfileprefixes(nb)))//"nimem"//charnanal
+  if (nanal == 0 .and. write_ensmean) then
+     filenameout = trim(adjustl(datapath))//trim(adjustl(incfileprefixes(nb)))//"ensmean"
+     filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"ensmean"
   else
-    filenameout = trim(adjustl(datapath))//trim(adjustl(incfileprefixes(nb)))//"mem"//charnanal
-  end if
-  filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+     if(no_inflate_flag) then
+       filenameout = trim(adjustl(datapath))//trim(adjustl(incfileprefixes(nb)))//"nimem"//charnanal
+     else
+       filenameout = trim(adjustl(datapath))//trim(adjustl(incfileprefixes(nb)))//"mem"//charnanal
+     end if
+     filenamein = trim(adjustl(datapath))//trim(adjustl(fgfileprefixes(nb)))//"mem"//charnanal
+  endif
 
   ! create the output netCDF increment file
   call nccheck_incr(nf90_create(path=trim(filenameout), cmode=nf90_netcdf4, ncid=ncid_out))
@@ -3409,6 +3444,7 @@
      call stop2(29)
   endif
   do k=1,nlevs+1
+     ! k=1 in values_1d is model top, flip so k=1 in ak is bottom
      ak(nlevs-k+2) = 0.01_r_kind*values_1d(k)
   enddo
   call read_attribute(dsfg, 'bk', values_1d,errcode=iret)
@@ -3417,6 +3453,7 @@
      call stop2(29)
   endif
   do k=1,nlevs+1
+     ! k=1 in values_1d is model top, flip so k=1 in ak is bottom
      bk(nlevs-k+2) = values_1d(k)
   enddo
 
@@ -3571,15 +3608,17 @@
      psges = reshape(values_2d,(/nlons*nlats/))
      vg = psges + (psinc*100_r_kind)
      do k=1,nlevs
-        krev = nlevs-k+1
+        krev = nlevs-k+1 ! k=1 is model top
         ug=(rd/grav)*reshape(tvanl(:,:,k),(/nlons*nlats/))
         ! ps in Pa here, need to multiply ak by 100.
-        ug=ug*log((100_r_kind*ak(krev)+bk(krev)*vg)/(100_r_kind*ak(krev+1)+bk(krev+1)*vg))
+        ! calculate ug (analysis delz) so it is negative. 
+        ! (note that ak,bk are already reversed to go from bottom to top)
+        ug=ug*log((100_r_kind*ak(krev+1)+bk(krev+1)*vg)/(100_r_kind*ak(krev)+bk(krev)*vg))
         ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
         ! delzb is hydrostatic background delz inferred from background ps,Tv
         delzb=(rd/grav)*reshape(tv(:,:,k),(/nlons*nlats/))
-        delzb=delzb*log((100_r_kind*ak(krev)+bk(krev)*psges)/(100_r_kind*ak(krev+1)+bk(krev+1)*psges))
-        inc3d(:,:,k)=reshape(delzb-ug,(/nlons,nlats/))
+        delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*psges)/(100_r_kind*ak(krev)+bk(krev)*psges))
+        inc3d(:,:,k)=reshape(ug-delzb,(/nlons,nlats/))
      end do
   end if
   do j=1,nlats
@@ -3672,11 +3711,11 @@
                     datestring,nhr_anal
   use constants, only: grav
   use mpi
-  use module_fv3gfs_ncio, only: Dataset, Variable, Dimension, open_dataset,&
-                          read_attribute, close_dataset, get_dim, read_vardata,&
-                          create_dataset, get_idate_from_time_units, &
-                          get_time_units_from_idate, write_vardata, &
-                          write_attribute, quantize_data, has_var, has_attr
+  use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
+                         read_attribute, close_dataset, get_dim, read_vardata,&
+                         create_dataset, get_idate_from_time_units, &
+                         get_time_units_from_idate, write_vardata, &
+                         write_attribute, quantize_data, has_var, has_attr
   implicit none
 
   character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
@@ -3755,7 +3794,9 @@
   ! need to distribute grdin to all PEs in this subcommunicator
   ! bring all the subdomains back to the main PE
   call mpi_barrier(iocomms(mem_pe(nproc)), iret)
-  call mpi_bcast(grdin,npts*ndim*nbackgrounds, mpi_real4, 0, iocomms(mem_pe(nproc)), iret)
+  do nb=1,nbackgrounds
+     call mpi_bcast(grdin(1,1,nb,1),npts*ndim, mpi_real4, 0, iocomms(mem_pe(nproc)), iret)
+  enddo
 
   ! loop through times and do the read
   ne = 1
@@ -3841,6 +3882,7 @@
      call stop2(29)
   endif
   do k=1,nlevs+1
+     ! k=1 in values_1d is model top, flip so k=1 in ak is bottom
      ak(nlevs-k+2) = 0.01_r_kind*values_1d(k)
   enddo
   call read_attribute(dsfg, 'bk', values_1d,errcode=iret)
@@ -3849,6 +3891,7 @@
      call stop2(29)
   endif
   do k=1,nlevs+1
+     ! k=1 in values_1d is model top, flip so k=1 in ak is bottom
      bk(nlevs-k+2) = values_1d(k)
   enddo
 
@@ -4016,12 +4059,15 @@
         ki = k - lev_pe1(iope) + 1
         ug=(rd/grav)*reshape(tvanl(:,:,ki),(/nlons*nlats/))
         ! ps in Pa here, need to multiply ak by 100.
-        ug=ug*log((100_r_kind*ak(krev)+bk(krev)*vg)/(100_r_kind*ak(krev+1)+bk(krev+1)*vg))
+        ! calculate analysis delz so it is negative.
+        ! (note that ak,bk are already reversed to go from bottom to top)
+        ug=ug*log((100_r_kind*ak(krev+1)+bk(krev+1)*vg)/(100_r_kind*ak(krev)+bk(krev)*vg))
         ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
         ! delzb is hydrostatic background delz inferred from background ps,Tv
+        ! calculate delzb so it is negative
         delzb=(rd/grav)*reshape(tv(:,:,ki),(/nlons*nlats/))
-        delzb=delzb*log((100_r_kind*ak(krev)+bk(krev)*psges)/(100_r_kind*ak(krev+1)+bk(krev+1)*psges))
-        inc3d(:,:,ki)=reshape(delzb-ug,(/nlons,nlats/))
+        delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*psges)/(100_r_kind*ak(krev)+bk(krev)*psges))
+        inc3d(:,:,ki)=reshape(ug-delzb,(/nlons,nlats/))
      end do
   end if
   do j=1,nlats

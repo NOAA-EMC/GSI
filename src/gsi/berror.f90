@@ -33,7 +33,6 @@ module berror
 !   2011-04-07  todling - move newpc4pred to radinfo
 !   2012-10-09  Gu - add fut2ps to project unbalanced temp to surface pressure in static B modeling
 !   2013-05-27  zhu - add background error variances for aircraft temperature bias correction coefficients
-!   2013-10-02  zhu - add reset_predictors_var
 !
 ! subroutines included:
 !   sub init_berror         - initialize background error related variables
@@ -120,7 +119,6 @@ module berror
   public :: create_berror_vars
   public :: destroy_berror_vars
   public :: set_predictors_var
-  public :: reset_predictors_var
   public :: init_rftable
   public :: initable
   public :: create_berror_vars_reg
@@ -249,7 +247,7 @@ contains
 !$$$
   use balmod, only: llmin,llmax
   use gridmod, only: nlat,nlon,lat2,lon2,nsig,nnnn1o
-  use jfunc, only: nrclen,nclen,diag_precon
+  use jfunc, only: nrclen,nclen
   use constants, only: zero,one
   implicit none
   
@@ -293,7 +291,7 @@ contains
      dssvs = zero
   endif
   allocate(varprd(nrclen))
-  if(diag_precon)allocate(vprecond(nclen))
+  allocate(vprecond(nclen))
   allocate(inaxs(nf,nlon/8),inxrs(nlon/8,mr:nr) )
 
   allocate(slw(ny*nx,nnnn1o),&
@@ -330,7 +328,6 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use jfunc, only: diag_precon
     implicit none
     if(allocated(table)) deallocate(table)
     deallocate(wtaxs)
@@ -342,7 +339,7 @@ contains
     if(allocated(alv))   deallocate(alv)
     if(allocated(dssv))  deallocate(dssv)
     if(allocated(dssvs)) deallocate(dssvs)
-    if(diag_precon)deallocate(vprecond)
+    deallocate(vprecond)
     deallocate(slw,slw1,slw2)
     deallocate(ii,jj,ii1,jj1,ii2,jj2)
 
@@ -378,15 +375,14 @@ contains
 !
 !$$$
     use constants, only:  zero,one,two,one_tenth,r10
-    use radinfo, only: ostats,varA,jpch_rad,npred,inew_rad,newpc4pred,biaspredvar
-    use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,biaspredt,ntail,npredt,ostats_t,varA_t
+    use radinfo, only: varA,jpch_rad,npred,inew_rad,newpc4pred,biaspredvar
+    use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,biaspredt,ntail,npredt,varA_t
     use gridmod, only: twodvar_regional
     use jfunc, only: nrclen, ntclen
     implicit none
 
     integer(i_kind) i,j,ii
     real(r_kind) stndev
-    real(r_kind) obs_count
     logical new_tail
     
     stndev = one/biaspredvar
@@ -408,17 +404,12 @@ contains
           do j=1,npred
              ii=ii+1
              if (inew_rad(i)) then
-                varprd(ii)=10000.0_r_kind
+                varA(j,i)=r10
              else
-                if (ostats(i)<=20.0_r_kind) then 
-                   varA(j,i)=two*varA(j,i)+1.0e-6_r_kind
-                   varprd(ii)=varA(j,i)
-                else
-                   varprd(ii)=1.1_r_kind*varA(j,i)+1.0e-6_r_kind
-                end if
-                if (varprd(ii)>r10) varprd(ii)=r10
-                if (varA(j,i)>10000.0_r_kind) varA(j,i)=10000.0_r_kind
+                varA(j,i)=1.1_r_kind*varA(j,i)+1.0e-6_r_kind
+                varA(j,i)= min(r10,varA(j,i))
              end if
+             varprd(ii)=varA(j,i)
           end do
        end do
 
@@ -428,50 +419,33 @@ contains
              do j=1,npredt
                 ii=ii+1
 
-                if (aircraft_t_bc_pof) then 
-                   obs_count = ostats_t(j,i)
-                   new_tail = varA_t(j,i)==zero
-                end if
+                new_tail = varA_t(j,i)==zero
                 if (aircraft_t_bc) then 
-                   obs_count = ostats_t(1,i)
                    new_tail = .true.
                    if (any(varA_t(:,i)/=zero)) new_tail = .false.
                 end if
 
                 if (new_tail) then
-                   varprd(ii)=one_tenth*one_tenth
-                   if (aircraft_t_bc .and. j==2) varprd(ii)=1.0e-4_r_kind
-                   if (aircraft_t_bc .and. j==3) varprd(ii)=1.0e-5_r_kind
-                else
-                   if (obs_count<=10.0_r_kind) then
-                      if (aircraft_t_bc .and. j==2) then
-                         varA_t(j,i)=1.01_r_kind*varA_t(j,i)+1.0e-6_r_kind
-                      else if (aircraft_t_bc .and. j==3) then
-                         varA_t(j,i)=1.01_r_kind*varA_t(j,i)+1.0e-7_r_kind
-                      else
-                         varA_t(j,i)=1.01_r_kind*varA_t(j,i)+1.0e-5_r_kind
-                      end if
-                      varprd(ii)=varA_t(j,i)
-                   else
-                      if (aircraft_t_bc .and. j==2) then
-                         varprd(ii)=1.005_r_kind*varA_t(j,i)+1.0e-6_r_kind
-                      else if (aircraft_t_bc .and. j==3) then
-                         varprd(ii)=1.005_r_kind*varA_t(j,i)+1.0e-7_r_kind
-                      else
-                         varprd(ii)=1.005_r_kind*varA_t(j,i)+1.0e-5_r_kind
-                      end if
-                   end if
-                   if (varprd(ii)>one_tenth) varprd(ii)=one_tenth
-                   if (varA_t(j,i)>one_tenth) varA_t(j,i)=one_tenth
                    if (aircraft_t_bc .and. j==2) then
-                      if (varprd(ii)>1.0e-3_r_kind) varprd(ii)=1.0e-3_r_kind
-                      if (varA_t(j,i)>1.0e-3_r_kind) varA_t(j,i)=1.0e-3_r_kind
+                      varA_t(j,i)=1.0e-4_r_kind
+                   else if (aircraft_t_bc .and. j==3) then
+                      varA_t(j,i)=1.0e-5_r_kind
+                   else
+                      varA_t(j,i)=one_tenth*one_tenth
                    end if
-                   if (aircraft_t_bc .and. j==3) then
-                      if (varprd(ii)>1.0e-4_r_kind) varprd(ii)=1.0e-4_r_kind
-                      if (varA_t(j,i)>1.0e-4_r_kind) varA_t(j,i)=1.0e-4_r_kind
+                else
+                   if (aircraft_t_bc .and. j==2) then
+                      varA_t(j,i)=1.005_r_kind*varA_t(j,i)+1.0e-6_r_kind
+                      varA_t(j,i)=min(varA_t(j,i),1.0e-3_r_kind)
+                   else if (aircraft_t_bc .and. j==3) then
+                      varA_t(j,i)=1.005_r_kind*varA_t(j,i)+1.0e-7_r_kind
+                      varA_t(j,i)=min(varA_t(j,i),1.0e-4_r_kind)
+                   else
+                      varA_t(j,i)=1.005_r_kind*varA_t(j,i)+1.0e-5_r_kind
+                      varA_t(j,i)=min(varA_t(j,i),one_tenth)
                    end if
                 end if
+                varprd(ii)=varA_t(j,i)
              end do
           end do
        end if
@@ -479,70 +453,6 @@ contains
 
     return
   end subroutine set_predictors_var
-
-
-  subroutine reset_predictors_var
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    reset_predictors_var sets variances for bias correction predictors
-!   prgmmr: yanqiu           org: np20                date: 2013-10-01
-!
-! abstract: resets variances for bias correction predictors
-!
-! program history log:
-!   output argument list:
-!   2013-10-01  zhu
-!
-! attributes:
-!   language: f90
-!   machine:  ibm RS/6000 SP
-!
-!$$$
-    use constants, only:  one,one_tenth
-    use radinfo, only: newpc4pred,jpch_rad,npred,ostats,inew_rad,iuse_rad
-    use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,biaspredt,ntail,npredt,ostats_t
-    use gridmod, only: twodvar_regional
-    use jfunc, only: nrclen, ntclen
-    implicit none
-
-    integer(i_kind) i,j,ii,obs_count
-    real(r_kind) stndev
-    
-    stndev = one/biaspredt
-
-!   reset variances for bias predictor coeff. based on current data count
-    if (.not. twodvar_regional .and. newpc4pred) then
-       ii=0
-       do i=1,jpch_rad
-          do j=1,npred
-             ii=ii+1
-             if (.not.inew_rad(i) .and. iuse_rad(i)>0 .and. ostats(i)<=20.0_r_kind) then
-                varprd(ii)=1.0e-6_r_kind
-             end if
-          end do
-       end do
-
-       if ((aircraft_t_bc_pof .or. aircraft_t_bc) .and. ntclen>0) then
-          ii=nrclen-ntclen
-          do i=1,ntail
-             do j=1,npredt
-                ii=ii+1
-
-                if (aircraft_t_bc_pof) obs_count = ostats_t(j,i)
-                if (aircraft_t_bc) obs_count = ostats_t(1,i)
-
-                if (obs_count<=10.0_r_kind .and. varprd(ii)>stndev) then
-                   varprd(ii)=stndev
-                   if (aircraft_t_bc .and. j==2) varprd(ii)=one_tenth*stndev
-                   if (aircraft_t_bc .and. j==3) varprd(ii)=one_tenth*one_tenth*stndev
-                end if
-             end do
-          end do
-       end if
-    end if
-
-    return
-  end subroutine reset_predictors_var
 
   subroutine pcinfo
 !$$$  subprogram documentation block
@@ -566,7 +476,7 @@ contains
     use kinds, only: r_kind,i_kind
     use radinfo, only: ostats,rstats,varA,jpch_rad,npred,newpc4pred
     use aircraftinfo, only: aircraft_t_bc_pof,aircraft_t_bc,ntail,npredt,ostats_t,rstats_t,varA_t
-    use jfunc, only: nclen,nrclen,diag_precon,step_start,ntclen
+    use jfunc, only: nclen,nrclen,step_start,ntclen,diag_precon
     use constants, only:  zero,one
     implicit none
 
@@ -580,10 +490,10 @@ contains
 !   Only diagonal elements are considered
 
 !   set a coeff. factor for variances of control variables
-    if(diag_precon)then
-      lfact=step_start
-      vprecond=lfact
+    lfact=step_start
+    vprecond=lfact
 
+    if(diag_precon)then
       if(newpc4pred)then
 !       for radiance bias predictor coeff.
         nclen1=nclen-nrclen
@@ -596,7 +506,7 @@ contains
                  if (rstats(j,i)>zero) then
                     varA(j,i)=one/(one/varprd(ii)+rstats(j,i))
                  else
-                    varA(j,i)=10000.0_r_kind
+                    if(varA(j,i) <= zero)varA(j,i)=10000.0_r_kind
                  end if
               end if
            end do
@@ -612,12 +522,18 @@ contains
                 ii=ii+1
                 jj=jj+1
 
-                if (aircraft_t_bc_pof) obs_count = ostats_t(j,i)
-                if (aircraft_t_bc) obs_count = ostats_t(1,i)
+                obs_count=0
+                if (aircraft_t_bc_pof) then
+                   obs_count = ostats_t(j,i)
+                else if (aircraft_t_bc) then
+                   obs_count = ostats_t(1,i)
+                end if
 
                 if (obs_count>zero) vprecond(nclen1+ii)=one/(one+rstats_t(j,i)*varprd(jj))
                 if (obs_count>3.0_r_kind) then
                    varA_t(j,i)=one/(one/varprd(jj)+rstats_t(j,i))
+                else
+                   if(varA_t(j,i) <= zero)varA_t(j,i)=10000.0_r_kind
                 end if
              end do
           end do
@@ -917,7 +833,7 @@ contains
     use constants, only: zero
     use balmod, only: llmin,llmax
     use gridmod, only: nlat,nlon,nsig,nnnn1o,lat2,lon2
-    use jfunc, only: nrclen,nclen,diag_precon
+    use jfunc, only: nrclen,nclen
     implicit none
     
     nx=nlon
@@ -940,7 +856,7 @@ contains
     endif
     
     allocate(varprd(max(1,nrclen) ) )     
-    if(diag_precon)allocate(vprecond(nclen))
+    allocate(vprecond(nclen))
 
     allocate(slw(ny*nx,nnnn1o) )
     allocate(ii(ny,nx,3,nnnn1o),jj(ny,nx,3,nnnn1o) )
@@ -973,7 +889,6 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
-    use jfunc, only:diag_precon
     implicit none
 
     deallocate(be,qvar3d)
@@ -984,7 +899,7 @@ contains
     deallocate(ii,jj)
     deallocate(slw)
     deallocate(varprd)
-    if(diag_precon)deallocate(vprecond)
+    deallocate(vprecond)
 
     return
   end subroutine destroy_berror_vars_reg

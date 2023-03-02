@@ -18,6 +18,7 @@ module enkf_obs_sensitivity
 !   destroy_ob_sens - Deallocate variables
 !
 ! Variable Definitions:
+!   adloc_chunk - Coordinates of observation response
 !   obsense_kin - forecast sensitivity on each observations (kinetic energy)
 !   obsense_dry - forecast sensitivity on each observations (dry total energy)
 !   obsense_moist - forecast sensitivity on each observations (moist total energy)
@@ -32,23 +33,22 @@ use mpimod, only: mpi_comm_world
 use mpisetup, only: mpi_real4,mpi_sum,mpi_comm_io,mpi_in_place,numproc,nproc,&
                 mpi_integer,mpi_wtime,mpi_status,mpi_real8,mpi_max,mpi_realkind
 use kinds, only: r_single,r_kind,r_double,i_kind
-use params, only: fso_calculate,latbound,nlevs,nanals,datestring, &
+use params, only: efsoi_flag,latbound,nlevs,nanals,datestring, &
                   lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh, &
                   lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh, &
                   lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh, &
                   corrlengthnh,corrlengthtr,corrlengthsh, &
                   obtimelnh,obtimeltr,obtimelsh,letkf_flag, &
-                  nbackgrounds
+                  nbackgrounds,adrate,eft
 use constants, only: zero,one,half,rearth,pi,deg2rad,rad2deg
 use enkf_obsmod, only: nobstot,nobs_conv,nobs_oz,nobs_sat,obtype,obloclat, &
                        obloclon,obpress,indxsat,oberrvar,stattype,obtime,ob, &
                        ensmean_ob,ensmean_obnobc,obsprd_prior,obfit_prior, &
-                       oberrvar_orig,biaspreds,anal_ob,nobstot,lnsigl, &
-                       corrlengthsq,obtimel,oblnp,obloc
+                       oberrvar_orig,biaspreds,anal_ob_post,nobstot,lnsigl, &
+                       corrlengthsq,obtimel,oblnp,obloc ,assimltd_flag
 use convinfo, only: convinfo_read,init_convinfo
 use ozinfo, only: ozinfo_read,init_oz
 use radinfo, only: radinfo_read,jpch_rad,nusis,nuchan,npred
-use gridinfo, only: latsgrd,lonsgrd,nlevs_pres,npts
 use loadbal, only: indxproc,grdloc_chunk,numptsperproc,npts_max,kdtree_grid
 use covlocal, only: latval
 use kdtree2_module, only: kdtree2_create
@@ -57,9 +57,10 @@ implicit none
 
 private
 public init_ob_sens,destroy_ob_sens,print_ob_sens,read_ob_sens,&
-       obsense_kin,obsense_dry,obsense_moist
+       obsense_kin,obsense_dry,obsense_moist,adloc_chunk
 
 real(r_kind),allocatable,dimension(:) :: obsense_kin,obsense_dry,obsense_moist
+real(r_single),allocatable,dimension(:,:) :: adloc_chunk
 
 ! Structure for observation sensitivity information output
 type obsense_header
@@ -90,12 +91,14 @@ type obsense_info
   integer(i_kind) :: stattype           ! Observation type
   character(len=20) :: obtype           ! Observation element / Satellite name
   integer(i_kind) :: indxsat            ! Satellite index (channel)
+  integer(i_kind) :: assimltd_flag      ! is assimilated? flag
   real(r_single)  :: osense_kin         ! Observation sensitivity (kinetic energy) [J/kg]
   real(r_single)  :: osense_dry         ! Observation sensitivity (Dry total energy) [J/kg]
   real(r_single)  :: osense_moist       ! Observation sensitivity (Moist total energy) [J/kg]
 end type obsense_info
 
 contains
+
 
 subroutine init_ob_sens
 !$$$  subprogram documentation block
@@ -128,6 +131,7 @@ subroutine init_ob_sens
   return
 
 end subroutine init_ob_sens
+
 
 subroutine read_ob_sens
 !$$$  subprogram documentation block
@@ -188,8 +192,15 @@ subroutine read_ob_sens
      write(6,*) 'READ_OBSENSE:  number of members is not correct.',nanals,inhead%nanals
      call stop2(26)
   end if
- ! nobstot=nobsgood
+
   if(nproc == 0) write(6,*) 'total number of obs ',nobstot
+  if(nproc == 0) write(6,*) 'total number of conv obs ',nobs_conv
+  if(nproc == 0) write(6,*) 'total number of oz obs',nobs_oz
+  if(nproc == 0) write(6,*) 'total number of sat obs',nobs_sat
+  if(nproc == 0) write(6,*) 'npred=',inhead%npred
+  if(nproc == 0) write(6,*) 'idate=',inhead%idate
+  if(nproc == 0) write(6,*) 'nanals=',inhead%nanals
+
   ! Allocate arrays
   allocate(obfit_prior(nobstot))
   allocate(obsprd_prior(nobstot))
@@ -205,10 +216,11 @@ subroutine read_ob_sens
   allocate(stattype(nobstot))
   allocate(obtype(nobstot))
   allocate(indxsat(nobs_sat))
+  allocate(assimltd_flag(nobstot))
   allocate(biaspreds(npred+1,nobs_sat))
   allocate(tmpanal_ob(nanals))
   allocate(tmpbiaspreds(npred+1))
-  if(nproc == 0) allocate(anal_ob(nanals,nobstot))
+  if(nproc == 0) allocate(anal_ob_post(nanals,nobstot))
   ! Read loop over conventional observations
   do nob=1,nobs_conv+nobs_oz
      read(iunit) indata,tmpanal_ob
@@ -225,7 +237,8 @@ subroutine read_ob_sens
      oberrvar_orig(nob) = real(indata%oberrvar_orig,r_kind)
      stattype(nob) = indata%stattype
      obtype(nob) = indata%obtype
-     if(nproc == 0) anal_ob(1:nanals,nob) = real(tmpanal_ob(1:nanals),r_kind)
+     assimltd_flag(nob) = indata%assimltd_flag
+     if(nproc == 0) anal_ob_post(1:nanals,nob) = real(tmpanal_ob(1:nanals),r_kind)
   end do
   ! Read loop over satellite radiance observations
   nn = 0
@@ -246,7 +259,8 @@ subroutine read_ob_sens
      stattype(nob) = indata%stattype
      obtype(nob) = indata%obtype
      indxsat(nn) = indata%indxsat
-     if(nproc == 0) anal_ob(1:nanals,nob) = real(tmpanal_ob(1:nanals),r_kind)
+     assimltd_flag(nob) = indata%assimltd_flag
+     if(nproc == 0) anal_ob_post(1:nanals,nob) = real(tmpanal_ob(1:nanals),r_kind)
      biaspreds(1:npred+1,nn) = real(tmpbiaspreds(1:npred+1),r_kind)
   end do
   if(nn /= nobs_sat) then
@@ -332,7 +346,7 @@ subroutine print_ob_sens
   type(obsense_info) :: outdata
   iunit = 10
   ! Gather observation sensitivity informations to the root
-  if(fso_calculate) then
+  if(efsoi_flag) then
      allocate(recbuf(nobstot))
      call mpi_reduce(obsense_kin,recbuf,nobstot,mpi_realkind,mpi_sum,0, &
           & mpi_comm_world,ierr)
@@ -420,7 +434,8 @@ subroutine print_ob_sens
         outdata%stattype = stattype(nob)
         outdata%obtype = obtype(nob)
         outdata%indxsat = 0
-        if(fso_calculate) then
+        outdata%assimltd_flag = assimltd_flag(nob)
+        if(efsoi_flag) then
            outdata%osense_kin = real(obsense_kin(nob),r_single)
            outdata%osense_dry = real(obsense_dry(nob),r_single)
            outdata%osense_moist = real(obsense_moist(nob),r_single)
@@ -429,9 +444,9 @@ subroutine print_ob_sens
            outdata%osense_dry = 9.9e31_r_single
            outdata%osense_moist = 9.9e31_r_single
         end if
-        tmpanal_ob(1:nanals) = real(anal_ob(1:nanals,nob),r_single)
+        tmpanal_ob(1:nanals) = real(anal_ob_post(1:nanals,nob),r_single)
         write(iunit) outdata,tmpanal_ob
-        if(.not. fso_calculate) cycle
+        if(.not. efsoi_flag) cycle
         ! Sum up
         nob_conv(iobtyp,ireg) = nob_conv(iobtyp,ireg) + 1
         sumsense_conv(iobtyp,ireg,stkin) = sumsense_conv(iobtyp,ireg,stkin) &
@@ -448,7 +463,7 @@ subroutine print_ob_sens
              rate_conv(iobtyp,ireg,stmoist) = rate_conv(iobtyp,ireg,stmoist) + one
      end do
      ! print out
-     if(fso_calculate) then
+     if(efsoi_flag) then
         print *,'observation impact for conventional obs'
         print *,'region, obtype, nobs, dJ, positive rate[%]:'
         do iobtyp=1,8
@@ -489,9 +504,10 @@ subroutine print_ob_sens
         outdata%oberrvar_orig = real(oberrvar_orig(nob),r_single)
         outdata%stattype = stattype(nob)
         outdata%obtype = obtype(nob)
-        outdata%indxsat = nuchan(nchan)
+        outdata%indxsat = nchan
+        outdata%assimltd_flag = assimltd_flag(nob)
         tmpbiaspreds(1:npred+1) = real(biaspreds(1:npred+1,nn),r_single)
-        if(fso_calculate) then
+        if(efsoi_flag) then
            outdata%osense_kin = real(obsense_kin(nob),r_single)
            outdata%osense_dry = real(obsense_dry(nob),r_single)
            outdata%osense_moist = real(obsense_moist(nob),r_single)
@@ -500,9 +516,9 @@ subroutine print_ob_sens
            outdata%osense_dry = 9.9e31_r_single
            outdata%osense_moist = 9.9e31_r_single
         end if
-        tmpanal_ob(1:nanals) = real(anal_ob(1:nanals,nob),r_single)
+        tmpanal_ob(1:nanals) = real(anal_ob_post(1:nanals,nob),r_single)
         write(iunit) outdata,tmpanal_ob,tmpbiaspreds
-        if(.not. fso_calculate) cycle
+        if(.not. efsoi_flag) cycle
         ! Sum up
         if (oberrvar(nob) < 1.e10_r_kind .and. nchan > 0) then
            nob_sat(nchan) = nob_sat(nchan) + 1
@@ -521,7 +537,7 @@ subroutine print_ob_sens
         end if
      end do
      ! print out
-     if(fso_calculate) then
+     if(efsoi_flag) then
         print *,'observation impact for satellite brightness temp'
         print *,'instrument, channel #, nobs, dJ, positive rate[%]:'
         do nchan=1,jpch_rad
@@ -565,6 +581,7 @@ subroutine destroy_ob_sens
   if(allocated(obsense_kin)) deallocate(obsense_kin)
   if(allocated(obsense_dry)) deallocate(obsense_dry)
   if(allocated(obsense_moist)) deallocate(obsense_moist)
+  if(allocated(adloc_chunk)) deallocate(adloc_chunk)
   return
 end subroutine destroy_ob_sens
 end module enkf_obs_sensitivity

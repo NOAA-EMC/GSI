@@ -78,11 +78,11 @@ subroutine  gsdcloudanalysis4gfs(mype)
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
 
+#ifdef RR_CLOUDANALYSIS
   implicit none
 
 ! Declare passed variables
   integer(i_kind),intent(in):: mype
-#ifdef RR_CLOUDANALYSIS
 !
 ! background
 !
@@ -931,10 +931,15 @@ endif
      write(6,*) 'gsdcloudanalysis: generalized cloud analysis finished:',mype
      write(6,*) '========================================'
   endif
+
 #else /* Start no RR cloud analysis library block */
+  implicit none
+
+! Declare passed variables
+  integer(i_kind),intent(in):: mype
+!
 
   if( mype == 0) write(6,*)'gsdcloudanalysis:  dummy routine, does nothing!'
 
 #endif /* End no RR cloud analysis library block */
-
 end subroutine gsdcloudanalysis4gfs

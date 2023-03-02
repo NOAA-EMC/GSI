@@ -84,7 +84,7 @@ subroutine gesinfo
       sigio_sropen
   use nemsio_module, only:  nemsio_init,nemsio_open,nemsio_close
   use nemsio_module, only:  nemsio_gfile,nemsio_getfilehead,nemsio_getheadvar
-  use module_fv3gfs_ncio, only: Dimension, Dataset, open_dataset, get_dim, &
+  use module_ncio, only: Dimension, Dataset, open_dataset, get_dim, &
                                 read_vardata, get_idate_from_time_units,&
                                 read_attribute, close_dataset 
 
@@ -337,8 +337,16 @@ subroutine gesinfo
      else ! use_gfs_ncio and get this information
         write(sfilename,'("sfcf",i2.2)')nhr_assimilation
         ! open the netCDF file
-        atmges = open_dataset(filename)
-        sfcges = open_dataset(sfilename)
+        atmges = open_dataset(filename,errcode=iret)
+        if (iret /=0) then
+           write(6,*)'GESINFO:  ***ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
+           call stop2(99)
+        endif
+        sfcges = open_dataset(sfilename,errcode=iret)
+        if (iret /=0) then
+           write(6,*)'GESINFO:  ***ERROR*** ',trim(sfilename),' NOT AVAILABLE: PROGRAM STOPS'
+           call stop2(99)
+        endif
         ! get dimension sizes
         ncdim = get_dim(atmges, 'grid_xt'); gfshead%lonb = ncdim%len
         ncdim = get_dim(atmges, 'grid_yt'); gfshead%latb = ncdim%len

@@ -23,6 +23,7 @@ module readconvobs
 !   2017-05-12  Y. Wang and X. Wang - add to read dbz and rw for radar
 !                       reflectivity and radial velocity assimilation. POC: xuguang.wang@ou.edu
 !   2017-12-13  shlyaeva - added netcdf diag read/write capability
+!   2019-03-21  CAPS(C. Tong) - added direct reflectivity DA capability
 !
 ! attributes:
 !   language: f95
@@ -31,7 +32,7 @@ module readconvobs
 
 use kinds, only: r_kind,i_kind,r_single,r_double
 use constants, only: one,zero,deg2rad
-use params, only: npefiles, netcdf_diag, modelspace_vloc
+use params, only: npefiles, netcdf_diag, modelspace_vloc, l_use_enkf_directZDA
 implicit none
 
 private
@@ -334,8 +335,8 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
 
            errorlimit2=errorlimit2_obs
 
-           if (obtype == 'gps' ) then
-              if (GPS_Type(i)==1) errorlimit2=errorlimit2_bnd
+           if (obtype == 'gps') then
+               if (GPS_Type(i)==1) errorlimit2=errorlimit2_bnd
            endif
 
            ! for q, normalize by qsatges
@@ -663,7 +664,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
         do i = 1, nobs
            nobdiag = nobdiag + 1
            ! special handling for error limits for GPS bend angle
-           if (obtype == 'gps' ) then
+           if (obtype == 'gps') then
               if (GPS_Type(i)==1) errorlimit2=errorlimit2_bnd
            endif
 
@@ -788,6 +789,9 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
               x_obs(nob)   = x_obs(nob) /Forecast_Saturation_Spec_Hum(i)
               hx_mean(nob)     = hx_mean(nob) /Forecast_Saturation_Spec_Hum(i)
               hx_mean_nobc(nob) = hx_mean_nobc(nob) /Forecast_Saturation_Spec_Hum(i)
+              if (neigv>0) then
+              hx_modens(:,nob) = hx_modens(:,nob)/ Forecast_Saturation_Spec_Hum(i)
+              endif
            endif
 
            ! for wind, also read v-component
@@ -1072,6 +1076,66 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
         obtype == 'sst' .or. obtype == ' rw' .or. obtype == 'dbz' .or. &
         obtype == 'gps' .or. obtype == ' dw' .or. obtype == ' pw')  then
 
+!   direct reflectivitiy DA has a different routine for dbz obs.
+     if (l_use_enkf_directZDA .and. obtype == 'dbz' ) then
+       allocate(cdiagbuf(ii),rdiagbuf(nreal,ii))
+       read(iunit) cdiagbuf(1:ii),rdiagbuf(:,1:ii)
+
+       if(twofiles)then
+          allocate(cdiagbuf2(ii2), rdiagbuf2(nreal2,ii2))
+          read(iunit2) cdiagbuf2(1:ii2),rdiagbuf2(:,1:ii2)
+       end if
+
+       do n=1,ii
+          nobdiag = nobdiag + 1
+          if(rdiagbuf(12,n) < zero .or. rdiagbuf(16,n) < errorlimit .or. &
+             rdiagbuf(16,n) > errorlimit2)cycle
+          if(abs(rdiagbuf(17,n)) > 1.e9_r_kind  .or. &
+               rdiagbuf(6,n) < 0.001_r_kind .or. &
+               rdiagbuf(6,n) > 1200._r_kind) cycle
+          if(twofiles)then
+          if(rdiagbuf(1,n) /= rdiagbuf2(1,n) .or. abs(rdiagbuf(3,n)-rdiagbuf2(3,n)) .gt. 1.e-5_r_kind .or. &
+             abs(rdiagbuf(4,n)-rdiagbuf2(4,n)) .gt. 1.e-5_r_kind .or. abs(rdiagbuf(8,n)-rdiagbuf2(8,n)) .gt. 1.e-5_r_kind)then
+             write (6,*) obtype, ' conv ob data inconsistency '
+             write (6,*) (rdiagbuf(i,n),i=1,8)
+             write (6,*) (rdiagbuf2(i,n),i=1,8)
+             call stop2(94)
+          end if
+          end if
+
+          nob = nob + 1
+          x_used(nobdiag) = 1
+          x_code(nob)    = rdiagbuf(1,n)
+          x_lat(nob)     = rdiagbuf(3,n)
+          x_lon(nob)     = rdiagbuf(4,n)
+          x_press(nob)   = rdiagbuf(6,n)
+          x_time(nob)    = rdiagbuf(8,n)
+          if (rdiagbuf(14,n) > 1.e-5_r_kind) then
+            x_errorig(nob) = (one/rdiagbuf(14,n))**2
+          else
+            x_errorig(nob) = 1.e10_r_kind
+          endif
+          x_err(nob) = (one/rdiagbuf(16,n))**2
+          x_obs(nob) = rdiagbuf(17,n)
+          hx_mean(nob)      = rdiagbuf(17,n)-rdiagbuf(18,n)
+          hx_mean_nobc(nob) = rdiagbuf(17,n)-rdiagbuf(19,n)
+          x_type(nob) = obtype
+          ! get Hx
+          if (nanal <= nanals) then
+            ! read full Hx from file
+            if (.not. lobsdiag_forenkf) then
+              hx(nob) = rdiagbuf(17,n) - rdiagbuf2(18,n)
+            else ! Linearized Hx not supported for dbz yet
+              write(6,*)'Current dbz DA code does NOT support lobsdiag_forenkf yet!'
+              write(6,*)'BREAK HERE...'
+              call stop2(94)
+            endif
+          endif
+       enddo
+       deallocate(cdiagbuf,rdiagbuf)
+       if(twofiles)deallocate(cdiagbuf2,rdiagbuf2)
+     else
+
        allocate(cdiagbuf(ii),rdiagbuf(nreal,ii))
        read(iunit) cdiagbuf(1:ii),rdiagbuf(:,1:ii)
 
@@ -1305,7 +1369,7 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
        enddo
        deallocate(cdiagbuf,rdiagbuf)
        if (twofiles) deallocate(cdiagbuf2,rdiagbuf2)
-
+     end if ! end of .not. l_use_enkf_directZDA flag
     else if (obtype == 'tcx' .or. obtype == 'tcy' .or. obtype == 'tcz') then
        allocate(cdiagbuf(ii),rdiagbuf(nreal,ii))
        read(iunit) cdiagbuf(1:ii),rdiagbuf(:,1:ii)

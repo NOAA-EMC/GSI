@@ -399,7 +399,6 @@ subroutine sfilter(grd,sp,filter,grid)
   end do
 
   return
-  return
 end subroutine sfilter
 
 

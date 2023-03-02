@@ -22,6 +22,8 @@ module read_l2bufr_mod
 !   2011-07-04  todling  - fixes to run either single or double precision
 !   2020-10-23  S.Liu    - fix reading l2rw_bufr issue
 !   2020-10-14  xu/sippel - Add options to superob the GRO
+!   2021-12-08  s.liu    - change max_num_radars from 150 to 250
+!   2021-12-10  s.liu    - fixes to find the index of radar station
 !
 ! subroutines included:
 !   sub initialize_superob_radar - initialize superob parameters to defaults
@@ -147,7 +149,7 @@ contains
 
     integer(i_kind),intent(in):: npe,mype
 
-    integer(i_kind),parameter:: max_num_radars=150
+    integer(i_kind),parameter:: max_num_radars=250
     integer(i_kind),parameter:: maxobs=2e8 
     integer(i_kind),parameter:: n_gates_max=4000
     real(r_kind),parameter:: four_thirds = 4.0_r_kind / 3.0_r_kind
@@ -247,7 +249,7 @@ contains
     character(len=256),allocatable,dimension(:):: rtable 
     character(4),allocatable,dimension(:):: rsite 
     integer(i_kind),allocatable,dimension(:):: ruse 
- 
+
     print_verbose=.false.
     if(verbose) print_verbose=.true.
     if (radar_sites) then 
@@ -257,7 +259,7 @@ contains
        call gettable(tbname,666,ntot,radar_count,rtable) 
        do i=1,radar_count 
          read(rtable(i),*) rsite(i),ruse(i) 
-         if (mype==0) write(*,'(A10,X,A4,X,I)'),"Radar sites usage: ",rsite(i),ruse(i)
+         if (mype==0) write(*,'(A20,X,A4,X,I3)'),"Radar sites usage: ",rsite(i),ruse(i)
        end do 
     end if 
     ! define infile if using either option for radial winds.
@@ -371,7 +373,7 @@ contains
              end do 
              if (radar_true == 0) cycle 
           end if 
-          ibyte=index(cstn_id_table,stn_id)
+          ibyte=locindex(stn_id_table,max_num_radars,stn_id)
           if(ibyte==0) then
              num_radars=num_radars+1
              if(num_radars>max_num_radars) then
@@ -395,6 +397,7 @@ contains
        if(rite) write(6,*)'RADAR_BUFR_READ_ALL:  NO RADARS KEPT IN radar_bufr_read_all, ',&
             'continue without level 2 data'
        call closbf(inbufr)
+       close(inbufr)
        return
     end if
     call mpi_reduce(num_radars,num_radars_min,1,mpi_integer4,mpi_min,0,mpi_comm_world,ierror)
@@ -491,11 +494,12 @@ contains
        dgv=delat*half
        mlat=max(2,mlat);mlonx=max(2,mlonx)
        nlevz=nint(15000.0_r_kind/radar_zmesh)
-       nthisrad=(nlevz+1)*mlat*mlonx
+       nthisrad=nlevz*mlat*mlonx
        nthisbins=6*nthisrad
     end if
 ! reopen and reread the file for data this time
     call closbf(inbufr)
+    close(inbufr)
     open(inbufr,file=infile,form='unformatted')
     call openbf(inbufr,'IN',inbufr)
     allocate(bins(6,nthisrad,num_radars_0),ibins(nthisrad,num_radars_0))
@@ -546,7 +550,7 @@ contains
 	     cycle
 	  end if
 	  stn_id=chdr 
-	  ibyte=index(cmaster_stn_table,stn_id)
+	  ibyte=locindex(master_stn_table,max_num_radars,stn_id)
           if (radar_sites) then 
              radar_true=0 
              do i=1,radar_count 
@@ -560,7 +564,7 @@ contains
 	     write(6,*) ' index error in radar_bufr_read_all -- program stops -- ',ibyte,stn_id
 	     call stop2(99)
 	  else
-	     krad=1+(ibyte-1)/4
+	     krad=ibyte
 	  end if
 
 	  call ufbint(inbufr,rwnd,3,n_gates_max,n_gates,'DIST125M DMVR DVSW')
@@ -578,17 +582,17 @@ contains
 		nobs_badsr=nobs_badsr+1
 		cycle
 	     end if
-	     irbin=ceiling(range*rdelr)
-	     if(irbin<1) then
-		nobs_lrbin=nobs_lrbin+1
-		cycle
-	     end if
-	     if(irbin>nrbin) then
-		nobs_hrbin=nobs_hrbin+1
-		cycle
-	     end if
+             if (.not.radar_box) then
+	        irbin=ceiling(range*rdelr)
+	        if(irbin<1) then
+		   nobs_lrbin=nobs_lrbin+1
+		   cycle
+	        end if
+	        if(irbin>nrbin) then
+		   nobs_hrbin=nobs_hrbin+1
+		   cycle
+	        end if
 
-       if (.not.radar_box) then 
 	        iloc=nrbin*(nazbin*(ielbin-1)+(iazbin-1))+irbin
 	        bins(1,iloc,krad)=bins(1,iloc,krad)+range
 	        bins(2,iloc,krad)=bins(2,iloc,krad)+stn_az
@@ -597,66 +601,66 @@ contains
 	        bins(5,iloc,krad)=bins(5,iloc,krad)+rwnd(2,i)**2
 	        bins(6,iloc,krad)=bins(6,iloc,krad)+t
 	        ibins(iloc,krad)=ibins(iloc,krad)+1
-       else 
-          this_stalat=master_lat_table(krad)
-          if(abs(this_stalat)>r89_5) cycle
-             this_stalon=master_lon_table(krad)
-             rlon0=deg2rad*this_stalon
-             this_stalatr=this_stalat*deg2rad
-             clat0=cos(this_stalatr) ; slat0=sin(this_stalatr)
-             this_staid=master_stn_table(krad)
-             this_stahgt=master_hgt_table(krad)
-             thisrange=  range
-             thisazimuth=stn_az
-             thistilt=stn_el
-             thisvr=rwnd(2,i)
+             else 
+                this_stalat=master_lat_table(krad)
+                if(abs(this_stalat)>r89_5) cycle
+                this_stalon=master_lon_table(krad)
+                rlon0=deg2rad*this_stalon
+                this_stalatr=this_stalat*deg2rad
+                clat0=cos(this_stalatr) ; slat0=sin(this_stalatr)
+                this_staid=master_stn_table(krad)
+                this_stahgt=master_hgt_table(krad)
+                thisrange=  range
+                thisazimuth=stn_az
+                thistilt=stn_el
+                thisvr=rwnd(2,i)
 
 
-             vrmax = tiny(1.0_r_kind)
-             vrmin = huge(1.0_r_kind)
+                vrmax = tiny(1.0_r_kind)
+                vrmin = huge(1.0_r_kind)
 
-             vrmax=max(vrmax,thisvr)
-             vrmin=min(vrmin,thisvr)
-             thisvr2=rwnd(2,i)**2
-             thiserr=sqrt(abs(thisvr2-thisvr**2))
+                vrmax=max(vrmax,thisvr)
+                vrmin=min(vrmin,thisvr)
+                thisvr2=rwnd(2,i)**2
+                thiserr=sqrt(abs(thisvr2-thisvr**2))
 
 
-             errmax = tiny(1.0_r_kind)
-             errmin = huge(1.0_r_kind)
+                errmax = tiny(1.0_r_kind)
+                errmin = huge(1.0_r_kind)
 
-             errmax=max(errmax,thiserr)
-             errmin=min(errmin,thiserr)
-             thistime=t
-             aactual=erad+this_stahgt
-             a43=four_thirds*aactual
-             thistiltr=thistilt*deg2rad
-             selev0=sin(thistiltr)
-             celev0=cos(thistiltr)
-             b=thisrange*(thisrange+two*aactual*selev0)
-             c=sqrt(aactual*aactual+b)
-             ha=b/(aactual+c)
-             epsh=(thisrange*thisrange-ha*ha)/(r8*aactual)
-             h=ha-epsh
-             thishgt=this_stahgt+h
-             celev=celev0
-             selev=selev0
+                errmax=max(errmax,thiserr)
+                errmin=min(errmin,thiserr)
+                thistime=t
+                aactual=erad+this_stahgt
+                a43=four_thirds*aactual
+                thistiltr=thistilt*deg2rad
+                selev0=sin(thistiltr)
+                celev0=cos(thistiltr)
+                b=thisrange*(thisrange+two*aactual*selev0)
+                c=sqrt(aactual*aactual+b)
+                ha=b/(aactual+c)
+                epsh=(thisrange*thisrange-ha*ha)/(r8*aactual)
+                h=ha-epsh
+                thishgt=this_stahgt+h
+                celev=celev0
+                selev=selev0
+ 
+                if(thisrange>=one) then
+                   celev=a43*celev0/(a43+h)
+                   selev=(thisrange*thisrange+h*h+two*a43*h)/(two*thisrange*(a43+h))
+                end if
 
-             if(thisrange>=one) then
-                celev=a43*celev0/(a43+h)
-                selev=(thisrange*thisrange+h*h+two*a43*h)/(two*thisrange*(a43+h))
-             end if
+                corrected_tilt=atan2(selev,celev)*rad2deg
+                gamma=half*thisrange*(celev0+celev)
+!               Get earth lat lon of superob
+                thisazimuthr=thisazimuth*deg2rad
+                rlonloc=rad_per_meter*gamma*cos(thisazimuthr)
+                rlatloc=rad_per_meter*gamma*sin(thisazimuthr)
+                call invtllv(rlonloc,rlatloc,rlon0,clat0,slat0,rlonglob,rlatglob)
+                thislat=rlatglob*rad2deg
+                thislon=rlonglob*rad2deg
 
-             corrected_tilt=atan2(selev,celev)*rad2deg
-             gamma=half*thisrange*(celev0+celev)
-!            Get earth lat lon of superob
-             thisazimuthr=thisazimuth*deg2rad
-             rlonloc=rad_per_meter*gamma*cos(thisazimuthr)
-             rlatloc=rad_per_meter*gamma*sin(thisazimuthr)
-             call invtllv(rlonloc,rlatloc,rlon0,clat0,slat0,rlonglob,rlatglob)
-             thislat=rlatglob*rad2deg
-             thislon=rlonglob*rad2deg
-
-             if(abs(thislat)>r89_5) cycle
+                if(abs(thislat)>r89_5) cycle
                 clat1=cos(rlatglob)
                 caz0=cos(thisazimuthr)
                 saz0=sin(thisazimuthr)
@@ -670,7 +674,15 @@ contains
                 ilev=ceiling(thishgt/radar_zmesh)
                 ilat=ceiling((thislat-rlat_min)/delat)
                 ilon=ceiling((thislon-rlon_min)/(dlon_grid/mlonx)) 
-                iloc=mlat*(mlonx*(ilev-1)+ilon)+ilat 
+                if(ilev<1 .or. ilat<1 .or. ilon<1) then
+                   nobs_lrbin=nobs_lrbin+1
+                   cycle
+                end if
+                if(ilev>nlevz .or. ilat>mlat .or. ilon>mlonx) then
+                   nobs_hrbin=nobs_hrbin+1
+                   cycle
+                end if
+                iloc=mlat*(mlonx*(ilev-1)+(ilon-1))+ilat
                 bins(1,iloc,krad)=bins(1,iloc,krad)+range
                 bins(2,iloc,krad)=bins(2,iloc,krad)+stn_az
                 bins(3,iloc,krad)=bins(3,iloc,krad)+stn_el
@@ -679,11 +691,12 @@ contains
                 bins(6,iloc,krad)=bins(6,iloc,krad)+t
                 ibins(iloc,krad)=ibins(iloc,krad)+1
 
-       end if !radar_box end
+             end if !radar_box end
 	  end do
        end do          !  end do while
     end do             !  loop over blocks
     call closbf(inbufr)
+    close(inbufr)
     if (.not. allocated(ibins2)) allocate(ibins2(nthisrad,num_radars_0))
 
     ibins2=0
@@ -931,6 +944,7 @@ contains
           write(6,*)' deldistmin,maxall=',deldistminall,deldistmaxall
        end if
        close(inbufr)
+       close(inbufr)
     end if
     deallocate(bins_work,bins,ibins2)
     if(l2superob_only) then
@@ -1042,4 +1056,21 @@ SUBROUTINE invtllv(ALM,APH,TLMO,CTPH0,STPH0,TLM,TPH)
   TPH=ASIN(CTPH0*SPH+STPH0*CC)
   return
 END SUBROUTINE invtllv
+
+FUNCTION locindex(stnall,nstr,stn)
+  use kinds, only:  i_kind
+  implicit none
+  
+  integer(i_kind),intent(in):: nstr
+  character(4),intent(in):: stnall(nstr)
+  character(4),intent(in):: stn
+  integer(i_kind):: i,locindex
+  do i=1,nstr
+     locindex=index(stnall(i),stn)
+     if(locindex>0) then
+       locindex=i
+       exit
+     end if
+  end do
+END FUNCTION locindex
 end module read_l2bufr_mod

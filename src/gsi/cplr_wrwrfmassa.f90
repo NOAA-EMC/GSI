@@ -58,6 +58,14 @@ contains
   !                               over snow  
   !   2017-03-23  Hu      - add code to use hybrid vertical coodinate in WRF MASS
   !                               core
+  !   2020-09-13 CAPS(C. Liu, L. Chen, and H. Li) 
+  !                            - add code for hydrometer variables needed for
+  !                            direct reflectivity DA
+  !                            - add CV transform option on hydrometer variables
+  !                            for direct reflectivity DA
+  !   2022-03-15  Hu  change all th2 to t2m and convert 2m temperature 
+  !                        from sensible to potentionl temperature for writing
+  !
   !
   !   input argument list:
   !     mype     - pe number
@@ -83,7 +91,7 @@ contains
     use constants, only: soilmoistmin
     use gsi_io, only: lendian_in,verbose
     use rapidrefresh_cldsurf_mod, only: l_hydrometeor_bkio,l_gsd_soilTQ_nudge,&
-         i_use_2mq4b
+         i_use_2mq4b,i_use_2mt4b
     use wrf_mass_guess_mod, only: destroy_cld_grids
     use gsi_bundlemod, only: GSI_BundleGetPointer
     use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
@@ -150,7 +158,7 @@ contains
   
     real(r_kind), pointer :: ges_ps(:,:)=>NULL()
     real(r_kind), pointer :: ges_tsk(:,:)=>NULL()
-    real(r_kind), pointer :: ges_th2(:,:)=>NULL()
+    real(r_kind), pointer :: ges_t2m(:,:)=>NULL()
     real(r_kind), pointer :: ges_q2(:,:)=>NULL()
     real(r_kind), pointer :: ges_soilt1(:,:)=>NULL()
     real(r_kind), pointer :: ges_tslb_it(:,:,:)=>NULL()
@@ -745,8 +753,6 @@ contains
           end do
        end do
        ier=0
-       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'th2m',  ges_th2, istatus );ier=ier+istatus
-       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q2m' ,  ges_q2,  istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tsoil', ges_soilt1, istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tskn' , ges_tsk , istatus );ier=ier+istatus
        if (ier/=0) then ! doesn't have to die - code can be generalized to bypass missing vars
@@ -758,12 +764,23 @@ contains
           do j=1,lat1
              jp1=j+1
              all_loc(j,i,i_tsk)=ges_tsk(jp1,ip1)
-             all_loc(j,i,i_th2)=ges_th2(jp1,ip1)
              all_loc(j,i,i_soilt1)=ges_soilt1(jp1,ip1)
           end do
        end do
     endif ! l_gsd_soilTQ_nudge
+    if(i_use_2mt4b > 0 ) then
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 't2m',  ges_t2m, istatus );ier=ier+istatus
+       do i=1,lon1
+          ip1=i+1
+          do j=1,lat1
+  !  Convert 2m sensible T to potential T
+             jp1=j+1
+             all_loc(j,i,i_th2)=ges_t2m(jp1,ip1)*(r100/ges_ps(jp1,ip1))**rd_over_cp_mass
+          end do
+       end do
+    endif
     if (i_use_2mq4b > 0) then
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q2m' ,  ges_q2,  istatus );ier=ier+istatus
        do i=1,lon1
           ip1=i+1
           do j=1,lat1
@@ -1807,6 +1824,32 @@ contains
   !                               concentration)
   !   2017-03-23  Hu     - add code to use hybrid vertical coodinate in WRF MASS
   !                        core
+  !   2017-03-30  g.zhao - special treatment to final analysis of qr/qs/qg, re-set
+  !                        to zero value if no update or only trivial update
+  !                         assign different tiny values to qr/qs/qg (~0dbz)
+  !                         (match the configuration in read_wrf_mass_guess)
+  !                         if T > 274.15
+  !                                qr_min=2.9E-6
+  !                                qs_min=0.0E-6
+  !                                qg_min=3.1E-7
+  !                         if T < 274.15  and  T > 272.15
+  !                                qr_min=2.0E-6
+  !                                qs_min=1.3E-7
+  !                                qg_min=3.1E-7
+  !                         if T < 272.15
+  !                                qr_min=0.0E-6
+  !                                qs_min=6.3E-6
+  !                                qg_min=3.1E-7
+  !   2018-02-xx  g.zhao - only reset the value for log transformed qx
+  !                        for regular qx, the non-zero tiny value is applied to
+  !                        qx on obs point in setupdbz
+  !   2018-10-23   C.Liu   add w 
+  !   2019-04-18  cTong  - add code of treatments for logarithmic q conversion
+  !   2019-05-30  cTong  - add w analysis output 
+  !   2022-03-15  Hu  change all th2 to t2m and convert 2m temperature 
+  !                        from sensible to potentionl temperature for writing
+  !   2022-03-15  Hu  add a check to remove the negative moisture if rh>4%
+  !                   for the lowest 3 model level
   !
   !   input argument list:
   !     mype     - pe number
@@ -1839,6 +1882,12 @@ contains
     use mpeu_util, only: die
     use wrf_vars_mod, only : w_exist, dbz_exist
     use obsmod,only: if_model_dbz
+    use constants, only: zero,r0_01
+    use directDA_radaruse_mod, only: l_use_cvpqx, cvpqx_pval, cld_nt_updt
+    use directDA_radaruse_mod, only: l_use_dbz_directDA
+    use directDA_radaruse_mod, only: init_mm_qnr
+    use directDA_radaruse_mod, only: l_cvpnr, cvpnr_pval
+
     implicit none
   
   ! Declare passed variables
@@ -1848,6 +1897,8 @@ contains
   ! Declare local parameters
     character(len=*),parameter::myname='wrwrfmassa_netcdf'
     real(r_kind),parameter:: r225=225.0_r_kind
+    integer(i_kind), parameter :: nlvl_qcheck=3
+    real(r_kind),parameter:: D608=0.608_r_kind
   
   ! Declare local variables
     integer(i_kind) im,jm,lm
@@ -1855,8 +1906,10 @@ contains
     real(r_single),allocatable::all_loc(:,:,:)
     real(r_single),allocatable::strp(:)
     real(r_single),allocatable::landmask(:),snow(:),seaice(:),t1st2d(:),pt2t(:)
+    real(r_single),allocatable::qs1st2d(:,:),sfcprs(:)
+    real(r_kind),allocatable::tmp2da(:,:),tmp2db(:,:),tmp2dc(:,:)
     character(6) filename
-    integer(i_kind) i,j,k,kt,kq,ku,kv,it,i_psfc,i_t,i_q,i_u,i_v,i_w,i_dbz
+    integer(i_kind) i,j,k,kt,kq,ku,kv,it,i_psfc,i_t,i_q,i_u,i_v,i_w,i_dbz,ij
     integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr,i_qni,i_qnc
     integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,kqni,kqnc,i_tt,ktt,kw,kdbz
     integer(i_kind) i_sst,i_skt,i_th2,i_q2,i_soilt1,i_tslb,i_smois,ktslb,ksmois
@@ -1876,7 +1929,7 @@ contains
   
     real(r_kind), pointer :: ges_ps(:,:  )=>NULL()
     real(r_kind), pointer :: ges_tsk(:,:)=>NULL()
-    real(r_kind), pointer :: ges_th2(:,:)=>NULL()
+    real(r_kind), pointer :: ges_t2m(:,:)=>NULL()
     real(r_kind), pointer :: ges_q2(:,:)=>NULL()
     real(r_kind), pointer :: ges_soilt1(:,:)=>NULL()
     real(r_kind), pointer :: ges_tslb_it(:,:,:)=>NULL()
@@ -1911,7 +1964,7 @@ contains
     real(r_kind), pointer :: ges_seas4(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_p25  (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_pm2_5  (:,:,:)=>NULL()
-  
+
     associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
     end associate
     it=ntguessig
@@ -1927,8 +1980,10 @@ contains
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
-       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qni',ges_qni,istatus );ier=ier+istatus
-       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnc',ges_qnc,istatus );ier=ier+istatus
+       if ( .not. l_use_dbz_directDA ) then ! direct reflectivity DA does not use qni and qnc
+          call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qni',ges_qni,istatus );ier=ier+istatus
+          call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnc',ges_qnc,istatus );ier=ier+istatus
+       end if
        if (ier/=0) n_actual_clouds=0
     end if
   
@@ -1938,8 +1993,13 @@ contains
   
     num_mass_fields_base=2+4*lm + 1
     num_mass_fields=num_mass_fields_base
+    if ( l_use_dbz_directDA ) then
+!    The 7 3D cloud analysis fields are: ql,qi,qr,qs,qg,qnr,tt
+       if(l_hydrometeor_bkio .and. n_actual_clouds>0) num_mass_fields=num_mass_fields + 7*lm
+    else
 !    The 9 3D cloud analysis fields are: ql,qi,qr,qs,qg,qnr,qni,qnc,tt
-    if(l_hydrometeor_bkio .and. n_actual_clouds>0) num_mass_fields=num_mass_fields + 9*lm
+       if(l_hydrometeor_bkio .and. n_actual_clouds>0) num_mass_fields=num_mass_fields + 9*lm
+    end if
     if(l_gsd_soilTQ_nudge) num_mass_fields=num_mass_fields+2*nsig_soil+1
     if(i_use_2mt4b > 0 ) num_mass_fields=num_mass_fields+2
     if(i_use_2mt4b <= 0 .and. i_use_2mq4b > 0) num_mass_fields=num_mass_fields+1
@@ -1963,7 +2023,6 @@ contains
     if(w_exist) num_mass_fields = num_mass_fields +lm+1
     if(dbz_exist.and.if_model_dbz) num_mass_fields = num_mass_fields +lm
     
-  
     num_all_fields=num_mass_fields
     num_all_pad=num_all_fields
     allocate(all_loc(lat2,lon2,num_all_pad))
@@ -2010,13 +2069,19 @@ contains
        i_qi=i_qs+lm
        i_qg=i_qi+lm
        i_qnr=i_qg+lm
-       i_qni=i_qnr+lm
-       i_qnc=i_qni+lm
+       if ( .not. l_use_dbz_directDA) then ! direct reflectivity DA does use qni and qnc
+          i_qni=i_qnr+lm
+          i_qnc=i_qni+lm
+       end if
        if(dbz_exist.and.if_model_dbz)then
          i_dbz=i_qnc+lm
          i_tt=i_dbz+lm
        else
-         i_tt=i_qnc+lm
+         if ( l_use_dbz_directDA) then ! direct reflectivity DA : qnr, tt
+            i_tt=i_qnr+lm
+         else                           
+            i_tt=i_qnc+lm          ! ORG: qnc, tt
+         end if
        end if
        if ( laeroana_gocart ) then
           do iv = 1, n_gocart_var
@@ -2048,6 +2113,8 @@ contains
     if(mype==0) then
        allocate(landmask(im*jm),snow(im*jm),seaice(im*jm))
        allocate(t1st2d(im*jm),pt2t(im*jm))
+       allocate(qs1st2d(im*jm,nlvl_qcheck))
+       allocate(sfcprs(im*jm))
     endif
   
     if(mype == 0) write(6,*)' at 2 in wrwrfmassa'
@@ -2070,8 +2137,10 @@ contains
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qs', ges_qs, istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qg', ges_qg, istatus );ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnr',ges_qnr,istatus );ier=ier+istatus
-       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qni',ges_qni,istatus );ier=ier+istatus
-       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnc',ges_qnc,istatus );ier=ier+istatus
+       if ( .not.l_use_dbz_directDA) then ! direct reflectivity does not use qni and qnc
+          call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qni',ges_qni,istatus );ier=ier+istatus
+          call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qnc',ges_qnc,istatus );ier=ier+istatus
+       end if
        if(dbz_exist) &
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'dbz',ges_dbz,istatus );ier=ier+istatus
        if (ier/=0) then
@@ -2109,8 +2178,10 @@ contains
        kqs=i_qs-1
        kqg=i_qg-1
        kqnr=i_qnr-1
-       kqni=i_qni-1
-       kqnc=i_qnc-1
+       if (.not.l_use_dbz_directDA) then ! direct reflectivity DA does not use qni and qnc
+          kqni=i_qni-1
+          kqnc=i_qnc-1
+       end if
        if(dbz_exist.and.if_model_dbz)kdbz=i_dbz-1
        ktt=i_tt-1
     endif
@@ -2150,7 +2221,6 @@ contains
        kchem(iv) = i_chem(iv)-1
     endif
   
-  
     q_integral=one
     q_integralc4h=zero_single
     do k=1,nsig
@@ -2168,8 +2238,10 @@ contains
           kqs=kqs+1
           kqg=kqg+1
           kqnr=kqnr+1
-          kqni=kqni+1
-          kqnc=kqnc+1
+          if ( .not. l_use_dbz_directDA) then ! diret reflectivity DA does not use qni and qnc
+             kqni=kqni+1
+             kqnc=kqnc+1
+          end if
           if(dbz_exist.and.if_model_dbz)kdbz=kdbz+1
           ktt=ktt+1
        endif
@@ -2206,12 +2278,15 @@ contains
                 all_loc(j,i,kqs)=ges_qs(j,i,k)
                 all_loc(j,i,kqg)=ges_qg(j,i,k)
                 all_loc(j,i,kqnr)=ges_qnr(j,i,k)
-                all_loc(j,i,kqni)=ges_qni(j,i,k)
-                all_loc(j,i,kqnc)=ges_qnc(j,i,k)
-                if(dbz_exist.and.if_model_dbz)all_loc(j,i,kdbz)=ges_dbz(j,i,k)
                 all_loc(j,i,ktt)=ges_tten(j,i,k,it)
-             endif
-  
+                if(dbz_exist.and.if_model_dbz)all_loc(j,i,kdbz)=ges_dbz(j,i,k)
+                if ( .not. l_use_dbz_directDA) then ! dirZDA does not update qni, qnc
+                   all_loc(j,i,kqni)=ges_qni(j,i,k)
+                   all_loc(j,i,kqnc)=ges_qnc(j,i,k)
+                endif
+
+             end if
+
              if ( laeroana_gocart ) then
                 all_loc(j,i,kchem(1))=ges_sulf(j,i,k)
                 all_loc(j,i,kchem(2))=ges_bc1(j,i,k)
@@ -2276,6 +2351,18 @@ contains
           all_loc(j,i,i_psfc)=r100*psfc_this_dry
        end do
     end do
+
+! directZDA - restore cvpqx to qx
+    if ( l_use_dbz_directDA ) then
+       call convert_cvpqx_to_qx(all_loc(:,:,i_qr:i_qr+nsig), & 
+                                all_loc(:,:,i_qs:i_qs+nsig), &
+                                all_loc(:,:,i_qg:i_qg+nsig), &
+                                l_use_cvpqx, cvpqx_pval)  ! Convert Qx back
+       call convert_cvpnx_to_nx(all_loc(:,:,i_qnr:i_qnr+nsig), &
+                                l_cvpnr, cvpnr_pval, cld_nt_updt, &
+                                ges_q, all_loc(:,:,i_qr:i_qr+nsig), ges_ps)       ! psfc/ Convert Nx back 
+    end if
+  
     
     if(mype == 0) then
        read(lendian_in) regional_time0,nlon_regional0,nlat_regional0,nsig0,pt0,nsoil
@@ -2306,8 +2393,7 @@ contains
        call unfill_mass_grid2t(tempa,im,jm,temp1)
        write(lendian_out)temp1
        do i=1,im*jm
-          work_prsl = one_tenth*(aeta1_ll(1)*(temp1(i)/r100-pt_ll)+aeta2_ll(1)+pt_ll)
-          pt2t(i)   = (work_prsl/r100)**rd_over_cp_mass
+          sfcprs(i) = temp1(i)
        enddo
     end if
   
@@ -2332,11 +2418,29 @@ contains
           end do
           call unfill_mass_grid2t(tempa,im,jm,temp1)
           write(lendian_out)temp1
-          if(k==1) then
-             do i=1,im*jm
-                t1st2d(i)=temp1(i)*pt2t(i)  ! convert potential to sensible T
-             end do
-             pt2t=t1st2d   ! save a copy
+          if(k>=1 .and. k<=nlvl_qcheck) then
+          ! calculate moisture saturation at model level k 
+             allocate(tmp2da(im,jm),tmp2db(im,jm),tmp2dc(im,jm))
+             ij=0
+             do j=1,jm
+                do i=1,im
+                   ij=ij+1
+                   work_prsl = one_tenth*(aeta1_ll(k)*(sfcprs(ij)/r100-pt_ll)+aeta2_ll(k)+pt_ll)
+                   tmp2dc(i,j)=work_prsl                                       ! pressure
+                   tmp2db(i,j)=temp1(ij)*(work_prsl/r100)**rd_over_cp_mass     ! T in K
+                   if(k==1) t1st2d(ij)  = tmp2db(i,j)
+                enddo
+             enddo
+             call genqsat(tmp2da,tmp2db,tmp2dc,im,jm,1,.false.,0)
+             ij=0
+             do j=1,jm
+                do i=1,im
+                   ij=ij+1
+                   qs1st2d(ij,k)=tmp2da(i,j) ! moisture saturation 
+                enddo
+             enddo
+             deallocate(tmp2da,tmp2db,tmp2dc)
+             if(k==1) pt2t=t1st2d   ! save a copy
           endif
        end if
     end do
@@ -2354,7 +2458,11 @@ contains
           do i=1,iglobal
              tempa(i)=tempa(i)-tempb(i)
           end do
-          call unfill_mass_grid2t(tempa,im,jm,temp1)
+          if(k>=1 .and. k<=nlvl_qcheck) then
+             call unfill_mass_grid2t_drycheck(tempa,im,jm,temp1,qs1st2d(:,k))
+          else
+             call unfill_mass_grid2t(tempa,im,jm,temp1)
+          endif
           write(lendian_out)temp1
        end if
     end do
@@ -2461,14 +2569,15 @@ contains
     endif ! l_gsd_soilTQ_nudge
 
     if(i_use_2mt4b > 0 ) then
-       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'th2m', ges_th2,istatus );ier=ier+istatus
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 't2m', ges_t2m,istatus );ier=ier+istatus
        if (ier/=0) then ! doesn't have to die - code can be generalized to bypass
            write(6,*)'wrwrfmassa_netcdf: getpointer failed, cannot retrieve th2'
            call stop2(999)
        endif
+! convert to potential T
        do i=1,lon2
           do j=1,lat2
-             all_loc(j,i,i_th2)=ges_th2(j,i)
+             all_loc(j,i,i_th2)=ges_t2m(j,i)*(r100/ges_ps(j,i))**rd_over_cp_mass
           end do
        end do
     endif
@@ -2642,7 +2751,7 @@ contains
           end do
           write(6,*)' at 10.13 in wrwrfmassa,max,min(tempa)=', &
                              maxval(tempa),minval(tempa)
-          call unfill_mass_grid2t(tempa,im,jm,temp1)
+          call unfill_mass_grid2t_drycheck(tempa,im,jm,temp1,qs1st2d(:,1))
           write(6,*)' at 10.14 in wrwrfmassa,max,min(temp1)=', &
                              maxval(temp1),minval(temp1)
           write(lendian_out)temp1
@@ -2804,42 +2913,44 @@ contains
              write(lendian_out)temp1
           end if
        end do
+       
+       if ( .not. l_use_dbz_directDA) then ! direct reflectivity DA does not use qni and qnc
+       ! Update qni     
+            kqni=i_qni-1
+            do k=1,nsig
+               kqni=kqni+1
+               if(mype == 0) read(lendian_in)temp1
+               call strip(all_loc(:,:,kqni),strp)
+               call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+                    tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+               if(mype == 0) then
+                  call fill_mass_grid2t(temp1,im,jm,tempb,2)
+                  do i=1,iglobal
+                     tempa(i)=tempa(i)-tempb(i)
+                  end do
+                  call unfill_mass_grid2t(tempa,im,jm,temp1)
+                  write(lendian_out)temp1
+               end if
+            end do
    
-  ! Update qni     
-       kqni=i_qni-1
-       do k=1,nsig
-          kqni=kqni+1
-          if(mype == 0) read(lendian_in)temp1
-          call strip(all_loc(:,:,kqni),strp)
-          call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-               tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-          if(mype == 0) then
-             call fill_mass_grid2t(temp1,im,jm,tempb,2)
-             do i=1,iglobal
-                tempa(i)=tempa(i)-tempb(i)
-             end do
-             call unfill_mass_grid2t(tempa,im,jm,temp1)
-             write(lendian_out)temp1
-          end if
-       end do
-   
-  ! Update qnc     
-       kqnc=i_qnc-1
-       do k=1,nsig
-          kqnc=kqnc+1
-          if(mype == 0) read(lendian_in)temp1
-          call strip(all_loc(:,:,kqnc),strp)
-          call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
-               tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
-          if(mype == 0) then
-             call fill_mass_grid2t(temp1,im,jm,tempb,2)
-             do i=1,iglobal
-                tempa(i)=tempa(i)-tempb(i)
-             end do
-             call unfill_mass_grid2t(tempa,im,jm,temp1)
-             write(lendian_out)temp1
-          end if
-       end do
+       ! Update qnc     
+            kqnc=i_qnc-1
+            do k=1,nsig
+               kqnc=kqnc+1
+               if(mype == 0) read(lendian_in)temp1
+               call strip(all_loc(:,:,kqnc),strp)
+               call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+                    tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+               if(mype == 0) then
+                  call fill_mass_grid2t(temp1,im,jm,tempb,2)
+                  do i=1,iglobal
+                     tempa(i)=tempa(i)-tempb(i)
+                  end do
+                  call unfill_mass_grid2t(tempa,im,jm,temp1)
+                  write(lendian_out)temp1
+               end if
+            end do
+       end if
    
        if(dbz_exist.and.if_model_dbz)then
        ! Update refl_10cm
@@ -2946,6 +3057,8 @@ contains
        deallocate(seaice)
        deallocate(t1st2d)
        deallocate(pt2t)
+       deallocate(qs1st2d)
+       deallocate(sfcprs)
     endif
     
   end subroutine wrwrfmassa_netcdf_wrf
@@ -3076,4 +3189,288 @@ contains
     write(6,*) 'UPDATE_START_DATE:  old second, new second =',d2,' , ',c2
   
   end subroutine update_start_date
+
+subroutine convert_cvpqx_to_qx(qr_arr,qs_arr,qg_arr,use_cvpqx,cvpqx_pvalue)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    convert_cvpqx_to_qx
+!   prgmmr: J. Park(CAPS)                     date: 2021-05-05
+!
+! abstract: convert cvpqx to qx for qr, qs, qg
+!
+! program history log:
+!   2021-05-05 - initial commit 
+!              - this is used when GSI writes qx data to a background file
+!                (subroutine wrfv3_netcdf)
+!              - since minimum qr, qs, and qg are set for CVlogq,
+!                it reads three qx arrays and then processes.
+!
+!   input argument list:
+!     qr_arr         - array of qr 
+!     qs_arr         - array of qs 
+!     qg_arr         - array of qg 
+!     use_cvpqx      - flag to use power transform or not
+!     cvpqx_pvalue   - value to be used for power transform
+!
+!   output argument list:
+!     qr_arr           - updated array of qr after power transform
+!     qs_arr           - updated array of qs after
+!     qg_arr           - updated array of qg after power transfrom
+!
+! attributes:
+!   language: f90
+!
+    use kinds, only: r_kind,i_kind,r_single
+    use gridmod, only: lat2,lon2,nsig
+    use guess_grids, only: ges_tsen
+    use mpimod, only: mype
+    use guess_grids, only: ntguessig
+    use constants, only: zero, one_tenth,r0_01
+
+    implicit none
+    real(r_single), intent(inout  ) :: qr_arr(lat2,lon2,nsig)
+    real(r_single), intent(inout  ) :: qs_arr(lat2,lon2,nsig)
+    real(r_single), intent(inout  ) :: qg_arr(lat2,lon2,nsig)
+    logical,      intent(in     ) :: use_cvpqx
+    real(r_kind), intent(in     ) :: cvpqx_pvalue
+
+    integer(i_kind)               :: i, j, k, it
+
+    real(r_kind), dimension(lat2,lon2,nsig) :: tmparr_qr, tmparr_qs
+    real(r_kind), dimension(lat2,lon2,nsig) :: tmparr_qg
+
+    real(r_kind) :: qr_min, qs_min, qg_min
+    real(r_kind) :: qr_tmp, qs_tmp, qg_tmp
+    real(r_kind) :: qr_thrshd, qs_thrshd, qg_thrshd
+!
+    it=ntguessig
+!
+
+!   print info message: CVq, CVlogq, and CVpq
+    if(mype==0)then
+       if (use_cvpqx) then
+          if ( cvpqx_pvalue == 0._r_kind ) then        ! CVlogq
+              write(6,*)'wrwrfmassa_netcdf_wrf: convert log(qr/qs/qg) back to qr/qs/qg.'
+              write(6,*)'wrwrfmassa_netcdf_wrf: then reset (qr/qs/qg)to 0.0 for some cases.'
+          else if ( cvpqx_pvalue > 0._r_kind ) then   ! CVpq
+              write(6,*)'wrwrfmassa_netcdf_wrf: convert power transformed (qr/qs/qg) back to qr/qs/qg.'
+              write(6,*)'wrwrfmassa_netcdf_wrf: then reset (qr/qs/qg)to 0.0 for some cases.'
+          end if
+       else                                         ! CVq
+          write(6,*)'wrwrfmassa_netcdf_wrf: only reset (qr/qs/qg) to 0.0 for negative analysis value. (regular qx)'
+       end if
+    end if
+
+! Initialized temp arrays with ges. Will be recalculated later if log(q) is used
+    tmparr_qr =qr_arr
+    tmparr_qs =qs_arr
+    tmparr_qg =qg_arr
+
+    do k=1,nsig
+      do i=1,lon2
+        do j=1,lat2
+
+!          initialize hydrometeors as zero
+           qr_tmp=zero
+           qs_tmp=zero
+           qg_tmp=zero
+           if ( use_cvpqx ) then
+              if ( cvpqx_pvalue == 0._r_kind ) then ! CVlogq
+
+                 if (ges_tsen(j,i,k,it) > 274.15_r_kind) then
+                    qr_min=2.9E-6_r_kind
+                    qr_thrshd=qr_min * one_tenth
+                    qs_min=0.1E-9_r_kind
+                    qs_thrshd=qs_min
+                    qg_min=3.1E-7_r_kind
+                    qg_thrshd=qg_min * one_tenth
+                 else if (ges_tsen(j,i,k,it) <= 274.15_r_kind .and. &
+                          ges_tsen(j,i,k,it) >= 272.15_r_kind) then
+                    qr_min=2.0E-6_r_kind
+                    qr_thrshd=qr_min * one_tenth
+                    qs_min=1.3E-7_r_kind
+                    qs_thrshd=qs_min * one_tenth
+                    qg_min=3.1E-7_r_kind
+                    qg_thrshd=qg_min * one_tenth
+                 else if (ges_tsen(j,i,k,it) < 272.15_r_kind) then
+                    qr_min=0.1E-9_r_kind
+                    qr_thrshd=qr_min
+                    qs_min=6.3E-6_r_kind
+                    qs_thrshd=qs_min * one_tenth
+                    qg_min=3.1E-7_r_kind
+                    qg_thrshd=qg_min * one_tenth
+                 end if
+
+                 qr_tmp=exp(qr_arr(j,i,k))
+                 qs_tmp=exp(qs_arr(j,i,k))
+                 qg_tmp=exp(qg_arr(j,i,k))
+
+!                if no update or very tiny value of qr/qs/qg, re-set/clear it
+!                off to zero
+                 if ( abs(qr_tmp - qr_min) < (qr_min*r0_01) ) then
+                    qr_tmp=zero
+                 else if (qr_tmp < qr_thrshd) then
+                    qr_tmp=zero
+                 end if
+
+                 if ( abs(qs_tmp - qs_min) < (qs_min*r0_01) ) then
+                    qs_tmp=zero
+                 else if (qs_tmp < qs_thrshd) then
+                    qs_tmp=zero
+                 end if
+
+                 if ( abs(qg_tmp - qg_min) < (qg_min*r0_01) ) then
+                    qg_tmp=zero
+                 else if (qg_tmp < qg_thrshd) then
+                    qg_tmp=zero
+                 end if
+
+              else if ( cvpqx_pvalue > 0._r_kind ) then   ! CVpq
+
+                 qr_tmp=max((cvpqx_pvalue*qr_arr(j,i,k)+1)**(1/cvpqx_pvalue)-1.0E-6_r_kind,0.0_r_kind)
+                 qs_tmp=max((cvpqx_pvalue*qs_arr(j,i,k)+1)**(1/cvpqx_pvalue)-1.0E-6_r_kind,0.0_r_kind)
+                 qg_tmp=max((cvpqx_pvalue*qg_arr(j,i,k)+1)**(1/cvpqx_pvalue)-1.0E-6_r_kind,0.0_r_kind)
+
+                 !set upper limits to hydrometeors to disable overshooting
+                 qr_tmp=min(qr_tmp,1E-2_r_kind)
+                 qs_tmp=min(qs_tmp,1.5E-2_r_kind)
+                 qg_tmp=min(qg_tmp,2E-2_r_kind)
+              end if
+
+           else   ! For CVq
+              qr_min=zero
+              qs_min=zero
+              qg_min=zero
+
+              qr_tmp=qr_arr(j,i,k)-1.0E-8_r_kind
+              qs_tmp=qs_arr(j,i,k)-1.0E-8_r_kind
+              qg_tmp=qg_arr(j,i,k)-1.0E-8_r_kind
+
+
+              qr_tmp=max(qr_tmp,qr_min)
+              qs_tmp=max(qs_tmp,qs_min)
+              qg_tmp=max(qg_tmp,qg_min)
+
+           end if         ! cvpqx
+
+           tmparr_qr(j,i,k)=qr_tmp
+           tmparr_qs(j,i,k)=qs_tmp
+           tmparr_qg(j,i,k)=qg_tmp
+
+        end do
+      end do
+    end do
+
+    qr_arr=tmparr_qr
+    qs_arr=tmparr_qs
+    qg_arr=tmparr_qg
+
+end subroutine convert_cvpqx_to_qx
+
+subroutine convert_cvpnx_to_nx(qnx_arr,cvpnr,cvpnr_pvalue,cloud_nt_updt,q_arr,qr_arr,ps_arr)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    convert_cvpnx_to_nx
+!   prgmmr: J. Park(CAPS)                     date: 2021-05-05
+!
+! abstract: convert cvpnx to nx (number concentration)
+!
+! program history log:
+!   2021-05-05 - initial commit 
+!              - this is used when GSI writes nx data from a background file
+!                (subroutine wrfv3_netcdf)
+!              - this can be used for other nx variables
+!
+!   input argument list:
+!     qnx_arr        - array of qnx
+!     cvpnr          - flag to use power transform or not
+!     cvpnr_pvalue   - value to be used for power transform
+!     cloud_nt_updt  - integer flag to use re-initialisation of QNRAIN with
+!     analyzed qr and n0r
+!     q_arr          - array of qv, used only if cloud_nt_up_dt is 2
+!     qr_arr         - array of qr, used only if cloud_nt_up_dt is 2
+!     ps_arr         - array of ps, used only if cloud_nt_up_dt is 2
+!
+!   output argument list:
+!     qnx_arr           - updated array of qnx after power transform
+!
+! attributes:
+!   language: f90
+!
+    use kinds, only: r_kind,i_kind,r_single
+    use gridmod, only: lat2,lon2,nsig
+    use mpimod, only: mype
+    use constants, only: zero, one, one_tenth
+    use directDA_radaruse_mod, only: init_mm_qnr
+    use guess_grids, only: ges_tsen
+    use guess_grids, only: ntguessig
+    use gridmod, only: pt_ll, aeta1_ll
+    use constants, only: r10, r100, rd
+
+
+    implicit none
+    real(r_single), intent(inout  )    :: qnx_arr(lat2,lon2,nsig)
+    logical,      intent(in     )    :: cvpnr
+    real(r_kind), intent(in     )    :: cvpnr_pvalue
+    integer(i_kind), intent(in     ) :: cloud_nt_updt
+    real(r_kind), intent(in     )    :: q_arr(lat2,lon2,nsig)
+    real(r_single), intent(in     )  :: qr_arr(lat2,lon2,nsig)
+    real(r_kind), intent(in     )    :: ps_arr(lat2,lon2)
+
+    real(r_kind), dimension(lat2,lon2,nsig) :: tmparr_qnr
+    integer(i_kind)                   :: i, j, k, it
+    real(r_kind)                      :: qnr_tmp
+
+    real(r_kind) :: P1D,T1D,Q1D,RHO,QR1D
+    real(r_kind),parameter:: D608=0.608_r_kind
+
+
+!
+    it=ntguessig
+!
+
+!   print info message: CVpnr
+    if (mype==0 .and. cvpnr)then
+       write(6,*)'wrwrfmassa_netcdf_wrf: convert power transformed(qnx) back to qnx.'
+    end if
+
+! Initialized temp arrays with ges.
+    tmparr_qnr=qnx_arr
+
+    do k=1,nsig
+      do i=1,lon2
+        do j=1,lat2
+
+!          re-initialisation of QNRAIN with analyzed qr and N0r(which is
+!          single-moment parameter)
+!          equation is used in subroutine init_MM of initlib3d.f90 in arps
+!          package
+           qnr_tmp = zero
+           if ( cloud_nt_updt == 2 ) then
+              T1D=ges_tsen(j,i,k,it)                                 ! sensible temperature (K)
+              P1D=r100*(aeta1_ll(k)*(r10*ps_arr(j,i)-pt_ll)+pt_ll)   ! pressure hPa --> Pa
+              Q1D=q_arr(j,i,k)/(one-q_arr(j,i,k))                    ! mixing ratio 
+              RHO=P1D/(rd*T1D*(one+D608*Q1D))                        ! air density in kg m^-3
+              QR1D=qr_arr(j,i,k)
+              CALL init_mm_qnr(RHO,QR1D,qnr_tmp)
+              qnr_tmp = max(qnr_tmp, zero)
+
+           else
+              if (cvpnr) then ! power transform
+                 qnr_tmp=max((cvpnr_pvalue*qnx_arr(j,i,k)+1)**(1/cvpnr_pvalue)-1.0E-2_r_kind,0.0_r_kind)
+              else
+                 qnr_tmp=qnx_arr(j,i,k)
+              end if
+
+           end if
+           tmparr_qnr(j,i,k)=qnr_tmp
+
+        end do
+      end do
+    end do
+
+    qnx_arr=tmparr_qnr
+
+end subroutine convert_cvpnx_to_nx
+
 end module wrwrfmassa_mod

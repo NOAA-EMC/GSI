@@ -212,6 +212,7 @@ subroutine read_radarref_mosaic(nread,ndata,infile,obstype,lunout,twind,sis,nobs
     endif
  
     call closbf(lunin)
+    close(lunin)
     return
 200 continue
     write(6,*) 'read_radarref_mosaic, Warning : cannot find radar data file'

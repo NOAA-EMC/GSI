@@ -102,6 +102,12 @@ subroutine setupbend(obsLL,odiagLL, &
 !   2020-04-13  Shao    - update the statistis QC for COSMIC-2
 !   2020-05-21  Shao    - add comments to include commercial data ID information
 !   2020-08-26  Shao/Bathmann - add Jacobian QC
+!   2021-07-29  cucurull - revert gross error check to default values
+!   2021-07-29  cucurull - fix forward operator issues identified with L127
+!   2021-11-04  cucurull - turn off Jacbian QC
+!   2021-11-05  cucurull - update QCs and optimize/improve forward operator; bug fixes
+!   2022-01-28  cucurull - add Sentinel-6, PAZ
+!   2022-04-06  collard  - reintroduce Jacbian QC as an option (default off)
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -123,6 +129,7 @@ subroutine setupbend(obsLL,odiagLL, &
   use obsmod , only: nprof_gps,lobsdiag_allocated,&
       lobsdiagsave,nobskeep,&
       time_offset,lobsdiag_forenkf
+  use qcmod, only: gps_jacqc
   use m_obsNode, only: obsNode
   use m_gpsNode , only: gpsNode
   use m_gpsNode , only: gpsNode_appendto
@@ -140,7 +147,7 @@ subroutine setupbend(obsLL,odiagLL, &
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,nfldsig
-  use guess_grids, only: nsig_ext,gpstop
+  use guess_grids, only: nsig_ext,gpstop,commgpstop,commgpserrinf
   use gridmod, only: nsig
   use gridmod, only: get_ij,latlon11
   use constants, only: fv,n_a,n_b,n_c,deg2rad,tiny_r_kind,r0_01,r18,r61,r63,r10000
@@ -196,6 +203,7 @@ subroutine setupbend(obsLL,odiagLL, &
   real(r_kind),parameter:: r12=12.0_r_kind
   real(r_kind),parameter:: r20=20.0_r_kind
   real(r_kind),parameter:: r40=40.0_r_kind
+  real(r_kind),parameter:: r80=80.0_r_kind
   real(r_kind),parameter:: r1em3 = 1.0e-3_r_kind
   real(r_kind),parameter:: r1em6 = 1.0e-6_r_kind
   character(len=*),parameter :: myname='setupbend'
@@ -257,6 +265,7 @@ subroutine setupbend(obsLL,odiagLL, &
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
 
   type(obsLList),pointer,dimension(:):: gpshead
+  logical:: commdat
   gpshead => obsLL(:)
 
   save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
@@ -291,6 +300,7 @@ subroutine setupbend(obsLL,odiagLL, &
 !267 => PlanetiQ GNOMES-A
 !268 => PlanetiQ GNOMES-B
 !269 => Spire Lemur 3U CubeSat
+!66 => Sentinel-6 
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -329,7 +339,7 @@ subroutine setupbend(obsLL,odiagLL, &
   mm1=mype+1
   ns=nsig/two
   nsigstart=nint(ns)
-  ns=(r61/r63)*nsig+r18
+  ns=r80
   grids_dim=nint(ns)  ! grid points for integration of GPS bend
   ds=r10000
   allocate(ddnj(grids_dim),grid_s(grids_dim),ref_rad_s(grids_dim)) 
@@ -339,33 +349,33 @@ subroutine setupbend(obsLL,odiagLL, &
   nreal=mreal
   if (lobsdiagsave) nreal=nreal+4*miter+1
   if (save_jacobian) then
-     nnz = nsig * 3         ! number of non-zero elements in dH(x)/dx profile
-     nind   = 3             ! number of dense subarrays 
-     call new(dhx_dx, nnz, nind)
-     nreal = nreal + size(dhx_dx)
+    nnz = nsig * 3         ! number of non-zero elements in dH(x)/dx profile
+    nind   = 3             ! number of dense subarrays 
+    call new(dhx_dx, nnz, nind)
+    nreal = nreal + size(dhx_dx)
     ! jacobian sparse array indices are the same for all obs and can be filled
     ! in once here:
-     t_ind = getindex(svars3d, 'tv')
-     if (t_ind < 0) then
-        print *, 'Error: no variable tv in state vector. Exiting.'
-        call stop2(1300)
-     endif
-     q_ind = getindex(svars3d, 'q')
-     if (q_ind < 0) then
-        print *, 'Error: no variable q in state vector. Exiting.'
-        call stop2(1300)
-     endif
-     p_ind = getindex(svars3d, 'prse')
-     if (p_ind < 0) then
-        print *, 'Error: no variable prse in state vector. Exiting.'
-        call stop2(1300)
-     endif
-     dhx_dx%st_ind(1)  = sum(levels(1:t_ind-1)) + 1
-     dhx_dx%end_ind(1) = sum(levels(1:t_ind-1)) + nsig
-     dhx_dx%st_ind(2)  = sum(levels(1:q_ind-1)) + 1
-     dhx_dx%end_ind(2) = sum(levels(1:q_ind-1)) + nsig
-     dhx_dx%st_ind(3)  = sum(levels(1:p_ind-1)) + 1
-     dhx_dx%end_ind(3) = sum(levels(1:p_ind-1)) + nsig
+    t_ind = getindex(svars3d, 'tv')
+    if (t_ind < 0) then
+      print *, 'Error: no variable tv in state vector. Exiting.'
+      call stop2(1300)
+    endif
+    q_ind = getindex(svars3d, 'q')
+    if (q_ind < 0) then
+      print *, 'Error: no variable q in state vector. Exiting.'
+      call stop2(1300)
+    endif
+    p_ind = getindex(svars3d, 'prse')
+    if (p_ind < 0) then
+      print *, 'Error: no variable prse in state vector. Exiting.'
+      call stop2(1300)
+    endif
+    dhx_dx%st_ind(1)  = sum(levels(1:t_ind-1)) + 1
+    dhx_dx%end_ind(1) = sum(levels(1:t_ind-1)) + nsig
+    dhx_dx%st_ind(2)  = sum(levels(1:q_ind-1)) + 1
+    dhx_dx%end_ind(2) = sum(levels(1:q_ind-1)) + nsig
+    dhx_dx%st_ind(3)  = sum(levels(1:p_ind-1)) + 1
+    dhx_dx%end_ind(3) = sum(levels(1:p_ind-1)) + nsig
   endif
   if(init_pass) call gpsrhs_alloc(is,'bend',nobs,nsig,nreal,grids_dim,nsig_ext)
   call gpsrhs_aliases(is)
@@ -465,7 +475,6 @@ subroutine setupbend(obsLL,odiagLL, &
      top_layer_SR=0
      bot_layer_SR=0
 
-     alt=(tpdpres(i)-rocprof)*r1em3
 !$omp parallel do  schedule(dynamic,1) private(k,qmean,tmean,fact,pw,pressure,nrefges1,nrefges2,nrefges3)
      do k=1,nsig 
         zges(k) = (termr*hges(k)) / (termrg-hges(k))  ! eq (23) at interface (topo corrected)
@@ -508,28 +517,25 @@ subroutine setupbend(obsLL,odiagLL, &
            (k4/(tmean**2*pw))*fact*qmean*pressure
 
      end do
-     alt=(tpdpres(i)-rocprof)*r1em3
-     if (alt<= six) then 
+     alt=(tpdpres(i)-rocprof-zsges-unprof)*r1em3
+     if (alt<= five) then 
         do k=nsigstart,1,-1 
 !       check for model SR layer at obs location
            grad_mod=1000.0_r_kind*(nrefges(k+1,i)-nrefges(k,i))/(rges(k+1,i)-rges(k,i))
            if (abs(grad_mod)>= half*crit_grad) then  ! SR - likely, to be used in obs SR qc
               qc_layer_SR=.true.   !SR-likely layer detected
            endif
-!           if (((ref_rad(k+1)-ref_rad(k))/(rges(k+1,i)-rges(k,i))) < zero) then
-           if (abs(grad_mod)>= 0.75_r_kind*crit_grad) then  !relax to close-to-SR conditions
-              count_SR=count_SR+1 ! layers of SR
+           if (abs(grad_mod) >= 0.75_r_kind*crit_grad) then  !relax to close-to-SR conditions
+              count_SR=count_SR+1 ! layers of SR                                           
               if (count_SR > 1 ) then
-!                 if(abs(bot_layer_SR-k) > 1) write(6,*) 'WARNING GPSRO: non-consecutive SR layers'
                  bot_layer_SR=k
-
               else
                  top_layer_SR=k
                  bot_layer_SR=top_layer_SR
               endif
            endif
-        end do
-     endif
+        end do 
+     endif 
 
 !    locate observation in model vertical grid
      hob=tpdpres(i)
@@ -540,7 +546,7 @@ subroutine setupbend(obsLL,odiagLL, &
      error(i)=tiny_r_kind
      error_adjst(i)=tiny_r_kind
 
-     if (hob<one .or. hob>rsig) then
+     if (hob<three .or. hob>rsig) then
         data(ier,i) = zero
         ratio_errors(i) = zero
         muse(i)=.false.
@@ -579,290 +585,317 @@ subroutine setupbend(obsLL,odiagLL, &
 
      if(ratio_errors(i) > tiny_r_kind)  then ! obs inside model grid
 
-        if (alt <= six) then
-           if (top_layer_SR >= 1) then ! SR exists for at least one layer. Check if obs is inside 
-              if (tpdpres(i)==ref_rad(top_layer_SR+1)) then !obs inside model SR layer
-                 qcfail(i)=.true.
-              elseif (tpdpres(i) < ref_rad(top_layer_SR+1)) then !obs below model close-to-SR layer
-                 qcfail(i)=.true.
-              elseif (tpdpres(i) >= ref_rad(top_layer_SR+1) .and. tpdpres(i) <= ref_rad(top_layer_SR+2)) then !source too close
-                 qcfail(i)=.true.
-              else !above
+       if (alt <= five) then
+          if (top_layer_SR >= 1) then ! SR exists for at least one layer. Check if obs is inside                                                                       
+             if ((tpdpres(i)<ref_rad(top_layer_SR+1)) .and. &
+                    (tpdpres(i)<ref_rad(bot_layer_SR))) then !obs below model SR/close-to-SR layer
+                    qcfail(i)=.true.
+             elseif (tpdpres(i)>ref_rad(top_layer_SR+5)) then ! obs above SR/close-to-SR layer
+                    qcfail(i)=.false.
+                    if(hob < top_layer_SR+1) then !location might be aliased to the lower section of the non-monotonicity 
+                      hob = tpdpres(i)
+                      call grdcrd1(hob,ref_rad(top_layer_SR+1),nsig-top_layer_SR-1,1) ! only non-monotonic section above SR layer 
+                      data(ihgt,i) = hob+top_layer_SR
+                      hob = hob+top_layer_SR
+                      rdiagbuf(19,i) = hob
+                    endif
+             else ! obs inside model SR/shadow or close-to-SR layer                                                                                                     
+                    qcfail(i)=.true.
+             endif
+          endif
+
+!         check for SR in obs, will be updated in genstats. 
+          if ( data(igps,i) >= 0.03_r_kind .and. qc_layer_SR) then
+             kprof = data(iprof,i)
+             toss_gps_sub(kprof) = max (toss_gps_sub(kprof),data(igps,i))
+          endif
+       endif 
+
+       alt=(tpdpres(i)-rocprof)*r1em3
+!      get pressure (in mb), temperature and moisture at obs location
+       call tintrp31(ges_lnprsi(:,:,1:nsig,:),dpressure,dlat,dlon,hob,&
+              dtime,hrdifsig,mype,nfldsig)
+       ihob=hob
+       k1=min(max(1,ihob),nsig)
+       k2=max(1,min(ihob+1,nsig))
+       delz=hob-float(k1)
+       delz=max(zero,min(delz,one))
+       trefges=tges_o(k1,i)*(one-delz)+tges_o(k2,i)*delz
+       qrefges=qges_o(k1)*(one-delz)+qges_o(k2)*delz !Lidia
+
+       rdiagbuf( 6,i)  = ten*exp(dpressure) ! pressure at obs location (hPa) if monotone grid
+       rdiagbuf(18,i)  = trefges ! temperature at obs location (Kelvin) if monotone grid
+       rdiagbuf(21,i)  = qrefges ! specific humidity at obs location (kg/kg) if monotone grid
+       commdat=.false.
+       if (data(isatid,i)>=265 .and. data(isatid,i)<=269) commdat=.true.
+       if (.not. qcfail(i)) then ! not SR
+
+!        Modify error to account for representativeness error. 
+         repe_gps=one
+
+!        UKMET-type processing
+         if((data(isatid,i)==41) .or.(data(isatid,i)==722).or. &
+            (data(isatid,i)==723).or.(data(isatid,i)==4)  .or. & 
+            (data(isatid,i)==42) .or.(data(isatid,i)==3)  .or. &
+            (data(isatid,i)==821).or.(data(isatid,i)==421).or. &
+            (data(isatid,i)==440).or.(data(isatid,i)==43) .or. &
+            (data(isatid,i)==5).or.(data(isatid,i)==66)) then
+                    
+           if((data(ilate,i)> r40).or.(data(ilate,i)< -r40)) then
+              if(alt>r12) then
+                repe_gps=0.19032_r_kind+0.287535_r_kind*alt-0.00260813_r_kind*alt**2
+              else
+                repe_gps=-3.20978_r_kind+1.26964_r_kind*alt-0.0622538_r_kind*alt**2 
+              endif
+           else
+              if(alt>r18) then
+                repe_gps=-1.87788_r_kind+0.354718_r_kind*alt-0.00313189_r_kind*alt**2
+              else
+                repe_gps=-2.41024_r_kind+0.806594_r_kind*alt-0.027257_r_kind*alt**2
               endif
            endif
-
-!          check for SR in obs, will be updated in genstats. 
-           if ( data(igps,i) >= 0.03 .and. qc_layer_SR) then
-              kprof = data(iprof,i)
-              toss_gps_sub(kprof) = max (toss_gps_sub(kprof),data(igps,i))
-           endif
-        endif
-
-!       get pressure (in mb), temperature and moisture at obs location
-        call tintrp31(ges_lnprsi(:,:,1:nsig,:),dpressure,dlat,dlon,hob,&
-              dtime,hrdifsig,mype,nfldsig)
-        ihob=hob
-        k1=min(max(1,ihob),nsig)
-        k2=max(1,min(ihob+1,nsig))
-        delz=hob-float(k1)
-        delz=max(zero,min(delz,one))
-        trefges=tges_o(k1,i)*(one-delz)+tges_o(k2,i)*delz
-        qrefges=qges_o(k1)*(one-delz)+qges_o(k2)*delz !Lidia
-        
-        rdiagbuf( 6,i)  = ten*exp(dpressure) ! pressure at obs location (hPa) if monotone grid
-        rdiagbuf(18,i)  = trefges ! temperature at obs location (Kelvin) if monotone grid
-        rdiagbuf(21,i)  = qrefges ! specific humidity at obs location (kg/kg) if monotone grid
-        
-        if (.not. qcfail(i)) then ! not SR
-
-!          Modify error to account for representativeness error. 
-           repe_gps=one
-
-!          UKMET-type processing
-           if((data(isatid,i)==41) .or.(data(isatid,i)==722).or. &
-              (data(isatid,i)==723).or.(data(isatid,i)==4)  .or. & 
-              (data(isatid,i)==42) .or.(data(isatid,i)==3)  .or. &
-              (data(isatid,i)==821).or.(data(isatid,i)==421).or. &
-              (data(isatid,i)==440).or.(data(isatid,i)==43) .or. &
-              (data(isatid,i)==5)) then
-                    
+         else 
+!        CDAAC-type processing
+           if (((data(isatid,i) > 749).and.(data(isatid,i) < 756)).or.commdat) then
+              if ((data(ilate,i)> r40).or.(data(ilate,i)< -r40)) then
+                if (alt <= 8.0_r_kind) then
+                  repe_gps=-1.0304261_r_kind+0.3203316_r_kind*alt+0.0141337_r_kind*alt**2
+                elseif (alt > 8.0_r_kind.and.alt <= r12) then
+                  repe_gps=2.1750271_r_kind+0.0431177_r_kind*alt-0.0008567_r_kind*alt**2
+                else
+                  repe_gps=-0.3447429_r_kind+0.2829981_r_kind*alt-0.0028545_r_kind*alt**2
+                endif
+              else
+                if (alt <= 4.0_r_kind) then
+                  repe_gps=0.7285212_r_kind-1.1138755_r_kind*alt+0.2311123_r_kind*alt**2
+                elseif (alt <= r18.and.alt > 4.0_r_kind) then
+                  repe_gps=-3.3878629_r_kind+0.8691249_r_kind*alt-0.0297196_r_kind*alt**2
+                else
+                  repe_gps=-2.3875749_r_kind+0.3667211_r_kind*alt-0.0037542_r_kind*alt**2
+                endif
+              endif
+           else
               if((data(ilate,i)> r40).or.(data(ilate,i)< -r40)) then
                  if(alt>r12) then
-                    repe_gps=0.19032_r_kind+0.287535_r_kind*alt-0.00260813_r_kind*alt**2
+                    repe_gps=-0.685627_r_kind+0.377174_r_kind*alt-0.00421934_r_kind*alt**2
                  else
-                    repe_gps=-3.20978_r_kind+1.26964_r_kind*alt-0.0622538_r_kind*alt**2 
+                    repe_gps=-3.27737_r_kind+1.20003_r_kind*alt-0.0558024_r_kind*alt**2
                  endif
               else
                  if(alt>r18) then
-                    repe_gps=-1.87788_r_kind+0.354718_r_kind*alt-0.00313189_r_kind*alt**2
+                    repe_gps=-2.73867_r_kind+0.447663_r_kind*alt-0.00475603_r_kind*alt**2
                  else
-                    repe_gps=-2.41024_r_kind+0.806594_r_kind*alt-0.027257_r_kind*alt**2
+                    repe_gps=-3.45303_r_kind+0.908216_r_kind*alt-0.0293331_r_kind*alt**2
                  endif
               endif
-           else 
-!             CDAAC-type processing
-              if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
-                 if ((data(ilate,i)> r40).or.(data(ilate,i)< -r40)) then
-                    if (alt <= 8.0_r_kind) then
-                       repe_gps=-1.0304261_r_kind+0.3203316_r_kind*alt+0.0141337_r_kind*alt**2
-                    elseif (alt > 8.0_r_kind.and.alt <= r12) then
-                       repe_gps=2.1750271_r_kind+0.0431177_r_kind*alt-0.0008567_r_kind*alt**2
-                    else
-                       repe_gps=-0.3447429_r_kind+0.2829981_r_kind*alt-0.0028545_r_kind*alt**2
-                    endif
-                 else
-                    if (alt <= 4.0_r_kind) then
-                       repe_gps=0.7285212_r_kind-1.1138755_r_kind*alt+0.2311123_r_kind*alt**2
-                    elseif (alt <= r18.and.alt > 4.0_r_kind) then
-                       repe_gps=-3.3878629_r_kind+0.8691249_r_kind*alt-0.0297196_r_kind*alt**2
-                    else
-                       repe_gps=-2.3875749_r_kind+0.3667211_r_kind*alt-0.0037542_r_kind*alt**2
-                    endif
-                 endif
-              else
-                 if((data(ilate,i)> r40).or.(data(ilate,i)< -r40)) then
-                    if(alt>r12) then
-                       repe_gps=-0.685627_r_kind+0.377174_r_kind*alt-0.00421934_r_kind*alt**2
-                    else
-                       repe_gps=-3.27737_r_kind+1.20003_r_kind*alt-0.0558024_r_kind*alt**2
-                    endif
-                 else
-                    if(alt>r18) then
-                       repe_gps=-2.73867_r_kind+0.447663_r_kind*alt-0.00475603_r_kind*alt**2
-                    else
-                       repe_gps=-3.45303_r_kind+0.908216_r_kind*alt-0.0293331_r_kind*alt**2
-                    endif
-                 endif
-              endif
-              
            endif
 
-           repe_gps=exp(repe_gps) ! one/modified error in (rad-1*1E3)
-           repe_gps= r1em3*(one/abs(repe_gps)) ! modified error in rad
-           ratio_errors(i) = data(ier,i)/abs(repe_gps)
-           
-           error(i)=one/data(ier,i) ! one/original error
-           data(ier,i)=one/data(ier,i) ! one/original error
-           error_adjst(i)= ratio_errors(i)* data(ier,i) !one/adjusted error
-           
-!          Extending atmosphere above interface level nsig
-           d_ref_rad=ref_rad(nsig)-ref_rad(nsig-1)
-           do k=1,nsig_ext
-              ref_rad(nsig+k)=ref_rad(nsig)+ k*d_ref_rad ! extended x_i
-              nrefges(nsig+k,i)=nrefges(nsig+k-1,i)**2/nrefges(nsig+k-2,i) ! exended N_i
-           end do
-           
-!          Lagrange coefficients
-           ref_rad(0)=ref_rad(3)
-           ref_rad(nsig_up+1)=ref_rad(nsig_up-2)
-           do k=1,nsig_up
-              call setq(q_w(:,k),ref_rad(k-1:k+1),3)
-           enddo
-           
-           muse(i)=nint(data(iuse,i)) <= jiter
+         endif
 
-!          Get refractivity index-radius and [d(ln(n))/dx] in new grid.
-           intloop: do j=1,grids_dim
-              ref_rad_s(j)=sqrt(grid_s(j)*grid_s(j)+tpdpres(i)*tpdpres(i)) !x_j
-              xj(j,i)=ref_rad_s(j)
-              hob_s=ref_rad_s(j)
-              call grdcrd1(hob_s,ref_rad(1),nsig_up,1)
-              dbend_loc(j,i)=hob_s  !location of x_j with respect to extended x_i
-              
+         repe_gps=exp(repe_gps) ! one/modified error in (rad-1*1E3)
+         repe_gps= r1em3*(one/abs(repe_gps)) ! modified error in rad
+         if (commdat) repe_gps=commgpserrinf*repe_gps ! Inflate error for commercial data
+         ratio_errors(i) = data(ier,i)/abs(repe_gps)
+  
+         error(i)=one/data(ier,i) ! one/original error
+         data(ier,i)=one/data(ier,i) ! one/original error
+         error_adjst(i)= ratio_errors(i)* data(ier,i) !one/adjusted error
 
-              if (hob_s < rsig_up) then  !obs inside the new grid
-                 ihob=hob_s
+!        Extending atmosphere above interface level nsig
+         d_ref_rad=ref_rad(nsig)-ref_rad(nsig-1)
+         do k=1,nsig_ext
+            ref_rad(nsig+k)=ref_rad(nsig)+ k*d_ref_rad ! extended x_i
+            nrefges(nsig+k,i)=nrefges(nsig+k-1,i)**2/nrefges(nsig+k-2,i) ! exended N_i
+         end do
 
-!                Compute refractivity and derivative at target points 
-!                using Lagrange interpolators
-                 call slagdw(ref_rad(ihob-1:ihob+2),ref_rad_s(j),&
-                      q_w(:,ihob),q_w(:,ihob+1),&
-                      w4,dw4,4)
-                 if(ihob==1) then
-                    w4(4)=w4(4)+w4(1); w4(1:3)=w4(2:4);w4(4)=zero
-                    dw4(4)=dw4(4)+dw4(1);dw4(1:3)=dw4(2:4);dw4(4)=zero
-                    ihob=ihob+1
-                 endif
-                 if(ihob==nsig_up-1) then
-                    w4(1)=w4(1)+w4(4); w4(2:4)=w4(1:3);w4(1)=zero
-                    dw4(1)=dw4(1)+dw4(4); dw4(2:4)=dw4(1:3);dw4(1)=zero
-                    ihob=ihob-1
-                 endif
-                 ddnj(j)=dot_product(dw4,nrefges(ihob-1:ihob+2,i))!derivative (dN/dx)_j
-                 ddnj(j)=max(zero,abs(ddnj(j)))
-              else
-                 obs_check=.true.
-                 if (obs_check) then ! only once per obs here
-                    nobs_out=nobs_out+1
-                    d_ref_rad=ref_rad(nsig)-ref_rad(nsig-1)
-                    do kk=1,20
-                       ref_rad_out(nsig_up+kk)=ref_rad(nsig_up)+ kk*d_ref_rad ! extended x_i
-                    end do
-                    do kk=1,nsig_up
-                       ref_rad_out(kk)=ref_rad(kk)
-                    enddo
-                 endif
-                 hob_s=ref_rad_s(j)
-                 call grdcrd1(hob_s,ref_rad_out,nsig_up+20,1)
-                 hob_s_top=max(hob_s,hob_s_top) 
-              endif !obs in new grid
-           end do intloop
+!        Lagrange coefficients
+         ref_rad(0)=ref_rad(3)
+         ref_rad(nsig_up+1)=ref_rad(nsig_up-2)
+         do k=1,nsig_up
+            call setq(q_w(:,k),ref_rad(k-1:k+1),3)
+         enddo
 
-           if (obs_check) then      ! reject observation
-              qcfail(i)=.true.
-              data(ier,i) = zero
-              ratio_errors(i) = zero
-              muse(i)=.false.
-              cycle loopoverobs1 
+         muse(i)=nint(data(iuse,i)) <= jiter
+
+!        Get refractivity index-radius and [d(ln(n))/dx] in new grid.
+         intloop: do j=1,grids_dim
+           ref_rad_s(j)=sqrt(grid_s(j)*grid_s(j)+tpdpres(i)*tpdpres(i)) !x_j
+           xj(j,i)=ref_rad_s(j)
+           hob_s=ref_rad_s(j)
+           call grdcrd1(hob_s,ref_rad(1),nsig_up,1)
+           if(top_layer_SR >=1) then
+             if(hob_s < top_layer_SR+1) then !correct if wrong location
+                hob_s = ref_rad_s(j)
+                call grdcrd1(hob_s,ref_rad(top_layer_SR+1),nsig_up-top_layer_SR-1,1)
+                hob_s = hob_s+top_layer_SR
+             endif
            endif
+           dbend_loc(j,i)=hob_s  !location of x_j with respect to extended x_i
+ 
 
-!          bending angle (radians)
-           dbend=ds*ddnj(1)/ref_rad_s(1)
-           do j=2,grids_dim
-              ddbend=ds*ddnj(j)/ref_rad_s(j)
-              dbend=dbend+two*ddbend
-           end do
-           dbend=r1em6*tpdpres(i)*dbend  
+           if (hob_s < rsig_up) then  !obs inside the new grid
+              ihob=hob_s
 
-!          Accumulate diagnostic information
-           rdiagbuf( 5,i)  = (data(igps,i)-dbend)/data(igps,i) ! incremental bending angle (x100 %)
-
-           data(igps,i)=data(igps,i)-dbend !innovation vector
-
-           if (alt <= gpstop) then ! go into qc checks
-              cgrossuse=cgross(ikx)
-              cermaxuse=cermax(ikx)
-              cerminuse=cermin(ikx) 
-              if (alt > five) then
-                 cgrossuse=cgrossuse*r400
-                 cermaxuse=cermaxuse*r400
-                 cerminuse=cerminuse*r100
+!             Compute refractivity and derivative at target points 
+!             using Lagrange interpolators
+              call slagdw(ref_rad(ihob-1:ihob+2),ref_rad_s(j),&
+                   q_w(:,ihob),q_w(:,ihob+1),&
+                   w4,dw4,4)
+              if(ihob==1) then
+                 w4(4)=w4(4)+w4(1); w4(1:3)=w4(2:4);w4(4)=zero
+                 dw4(4)=dw4(4)+dw4(1);dw4(1:3)=dw4(2:4);dw4(4)=zero
+                 ihob=ihob+1
               endif
-!             Gross error check
-              obserror = one/max(ratio_errors(i)*data(ier,i),tiny_r_kind)
-              obserrlm = max(cerminuse,min(cermaxuse,obserror))
-              residual = abs(data(igps,i))
-              ratio    = residual/obserrlm
-              
-              if (ratio > cgrossuse) then
-                 if (luse(i)) then
-                    awork(4) = awork(4)+one
-                 endif
-                 qcfail_gross(i)=one 
+              if(ihob==nsig_up-1) then
+                 w4(1)=w4(1)+w4(4); w4(2:4)=w4(1:3);w4(1)=zero
+                 dw4(1)=dw4(1)+dw4(4); dw4(2:4)=dw4(1:3);dw4(1)=zero
+                 ihob=ihob-1
+              endif
+              ddnj(j)=dot_product(dw4,nrefges(ihob-1:ihob+2,i))!derivative (dN/dx)_j                                                                      
+              if(ddnj(j)>zero) then
+                 qcfail(i)=.true.
                  data(ier,i) = zero
                  ratio_errors(i) = zero
                  muse(i)=.false.
-              else   
-!                Statistics QC check if obs passed gross error check
-                 cutoff=zero
-                 if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
-                    cutoff1=(-4.725_r_kind+0.045_r_kind*alt+0.005_r_kind*alt**2)*one/two
-                 else
-                    cutoff1=(-4.725_r_kind+0.045_r_kind*alt+0.005_r_kind*alt**2)*two/three
-                 end if
-                 cutoff2=1.5_r_kind+one*cos(data(ilate,i)*deg2rad)
-                 if(trefges<=r240) then
-                    cutoff3=two
-                 else
-                    cutoff3=0.005_r_kind*trefges**2-2.3_r_kind*trefges+266_r_kind
-                 endif
-                 if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
-                    cutoff3=cutoff3*one/two
-                 else
-                    cutoff3=cutoff3*two/three
-                 end if
-                 if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
-                    cutoff4=(four+eight*cos(data(ilate,i)*deg2rad))*one/two
-                 else
-                    cutoff4=(four+eight*cos(data(ilate,i)*deg2rad))*two/three
-                 end if
-                 cutoff12=((36_r_kind-alt)/two)*cutoff2+&
-                          ((alt-34_r_kind)/two)*cutoff1
-                 cutoff23=((eleven-alt)/two)*cutoff3+&
-                          ((alt-nine)/two)*cutoff2
-                 cutoff34=((six-alt)/two)*cutoff4+&
-                          ((alt-four)/two)*cutoff3
-                 if(alt>36_r_kind) cutoff=cutoff1
-                 if((alt<=36_r_kind).and.(alt>34_r_kind)) cutoff=cutoff12
-                 if((alt<=34_r_kind).and.(alt>eleven)) cutoff=cutoff2
-                 if((alt<=eleven).and.(alt>nine)) cutoff=cutoff23
-                 if((alt<=nine).and.(alt>six)) cutoff=cutoff3
-                 if((alt<=six).and.(alt>four)) cutoff=cutoff34
-                 if(alt<=four) cutoff=cutoff4
-                 
-                 if ((data(isatid,i) > 749).and.(data(isatid,i) < 756)) then
-                    cutoff=two*cutoff*r0_01
-                 else
-                    cutoff=three*cutoff*r0_01
-                 end if
-                 
-                 if(abs(rdiagbuf(5,i)) > cutoff) then
-                    qcfail(i)=.true.
-                    data(ier,i) = zero
-                    ratio_errors(i) = zero
-                    muse(i) = .false.
-                 end if
-              end if ! gross qc check
-           end if ! qc checks (only below 50km)
+                 cycle loopoverobs1 ! reject observation                                                                                                  
+              endif
+           else
+              obs_check=.true.
+              if (obs_check) then ! only once per obs here
+                 nobs_out=nobs_out+1
+                 d_ref_rad=ref_rad(nsig)-ref_rad(nsig-1)
+                 do kk=1,20
+                    ref_rad_out(nsig_up+kk)=ref_rad(nsig_up)+ kk*d_ref_rad ! extended x_i
+                 end do
+                 do kk=1,nsig_up
+                    ref_rad_out(kk)=ref_rad(kk)
+                 enddo
+              endif
+              hob_s=ref_rad_s(j)
+              call grdcrd1(hob_s,ref_rad_out,nsig_up+20,1)
+              hob_s_top=max(hob_s,hob_s_top) 
+           endif !obs in new grid
+         end do intloop
 
-!          Remove obs above 50 km  
-           if(alt > gpstop) then
-              data(ier,i) = zero
-              ratio_errors(i) = zero
-              qcfail_high(i)=one
-              muse(i)=.false.
-           endif
+         if (obs_check) then      ! reject observation
+            qcfail(i)=.true.
+            data(ier,i) = zero
+            ratio_errors(i) = zero
+            muse(i)=.false.
+            cycle loopoverobs1 
+         endif
 
-!          Remove MetOP/GRAS data below 8 km
-           if( (alt <= eight) .and. & 
-              ((data(isatid,i)==4).or.(data(isatid,i)==3).or.(data(isatid,i)==5))) then
-              qcfail(i)=.true.
-              data(ier,i) = zero
-              ratio_errors(i) = zero
-              muse(i)=.false.
-           endif
-           
-        end if ! obs above super-refraction and shadow layers
+!        bending angle (radians)
+         dbend=ds*ddnj(1)/ref_rad_s(1)
+         do j=2,grids_dim
+            ddbend=ds*ddnj(j)/ref_rad_s(j)
+            dbend=dbend+two*ddbend
+         end do
+         dbend=-r1em6*tpdpres(i)*dbend  
+
+!        Accumulate diagnostic information
+         rdiagbuf( 5,i)  = (data(igps,i)-dbend)/data(igps,i) ! incremental bending angle (x100 %)
+
+         data(igps,i)=data(igps,i)-dbend !innovation vector
+
+!        Remove very large simulated values
+         if(dbend > 0.05_r_kind) then
+           data(ier,i) = zero
+           ratio_errors(i) = zero
+           qcfail(i)=.true.
+           muse(i)=.false.
+         endif
+
+         if (alt <= gpstop) then ! go into qc checks
+            if ((alt <= commgpstop) .or. (.not.commdat)) then 
+               cgrossuse=cgross(ikx)
+               cermaxuse=cermax(ikx)
+               cerminuse=cermin(ikx) 
+!              Gross error check
+               obserror = one/max(ratio_errors(i)*data(ier,i),tiny_r_kind)
+               obserrlm = max(cerminuse,min(cermaxuse,obserror))
+               residual = abs(data(igps,i))
+               ratio    = residual/obserrlm
+
+               if (ratio > cgrossuse) then
+                   if (luse(i)) then
+                      awork(4) = awork(4)+one
+                   endif
+                   qcfail_gross(i)=one 
+                   data(ier,i) = zero
+                   ratio_errors(i) = zero
+                   muse(i)=.false.
+               else   
+!                  Statistics QC check if obs passed gross error check
+                   cutoff=zero
+                   if (((data(isatid,i) > 749).and.(data(isatid,i) < 756)).or.commdat) then
+                      cutoff1=(-4.725_r_kind+0.045_r_kind*alt+0.005_r_kind*alt**2)*one/two
+                   else
+                      cutoff1=(-4.725_r_kind+0.045_r_kind*alt+0.005_r_kind*alt**2)*two/three
+                   end if
+                   cutoff2=1.5_r_kind+one*cos(data(ilate,i)*deg2rad)
+                   if(trefges<=r240) then
+                     cutoff3=two
+                   else
+                      cutoff3=0.005_r_kind*trefges**2-2.3_r_kind*trefges+266_r_kind
+                   endif
+                   if (((data(isatid,i) > 749).and.(data(isatid,i) < 756)).or.commdat) then
+                      cutoff3=cutoff3*one/two
+                   else
+                      cutoff3=cutoff3*two/three
+                   end if
+                   if (((data(isatid,i) > 749).and.(data(isatid,i) < 756)).or.commdat) then
+                      cutoff4=(four+eight*cos(data(ilate,i)*deg2rad))*one/two
+                   else
+                      cutoff4=(four+eight*cos(data(ilate,i)*deg2rad))*two/three
+                   end if
+                   cutoff12=((36_r_kind-alt)/two)*cutoff2+&
+                            ((alt-34_r_kind)/two)*cutoff1
+                   cutoff23=((eleven-alt)/two)*cutoff3+&
+                            ((alt-nine)/two)*cutoff2
+                   cutoff34=((six-alt)/two)*cutoff4+&
+                            ((alt-four)/two)*cutoff3
+                   if(alt>36_r_kind) cutoff=cutoff1
+                   if((alt<=36_r_kind).and.(alt>34_r_kind)) cutoff=cutoff12
+                   if((alt<=34_r_kind).and.(alt>eleven)) cutoff=cutoff2
+                   if((alt<=eleven).and.(alt>nine)) cutoff=cutoff23
+                   if((alt<=nine).and.(alt>six)) cutoff=cutoff3
+                   if((alt<=six).and.(alt>four)) cutoff=cutoff34
+                   if(alt<=four) cutoff=cutoff4
+
+                   if (((data(isatid,i) > 749).and.(data(isatid,i) < 756)).or.commdat) then
+                      cutoff=two*cutoff*r0_01
+                   else
+                      cutoff=three*cutoff*r0_01
+                   end if
+ 
+                   if(abs(rdiagbuf(5,i)) > cutoff) then
+                      qcfail(i)=.true.
+                      data(ier,i) = zero
+                      ratio_errors(i) = zero
+                      muse(i) = .false.
+                   end if
+               end if !gross qc check
+            end if ! commdat < commgpstop
+         end if ! qc checks (only below 50km)
+!        Remove obs above 50 km  
+         if((alt > gpstop) .or. (commdat .and. (alt > commgpstop))) then
+           data(ier,i) = zero
+           ratio_errors(i) = zero
+           qcfail_high(i)=one
+           muse(i)=.false.
+         endif
+
+!       Remove MetOP/GRAS data below 8 km
+         if( (alt <= eight) .and. & 
+            ((data(isatid,i)==4).or.(data(isatid,i)==3).or.(data(isatid,i)==5))) then
+           qcfail(i)=.true.
+           data(ier,i) = zero
+           ratio_errors(i) = zero
+           muse(i)=.false.
+         endif
+
+       end if ! obs above super-refraction and shadow layers
      end if ! obs inside the vertical grid
 
   end do loopoverobs1 ! end of loop over observations
@@ -1019,26 +1052,26 @@ subroutine setupbend(obsLL,odiagLL, &
         ioff = mreal
         if (lobsdiagsave) then
            associate(odiag => my_diag )
-             do jj=1,miter
-                ioff=ioff+1
-                if (odiag%muse(jj)) then
-                   rdiagbuf(ioff,i) = one
-                else
-                   rdiagbuf(ioff,i) = -one
-                endif
-             enddo
-             do jj=1,miter+1
-                ioff=ioff+1
-                rdiagbuf(ioff,i) = odiag%nldepart(jj)
-             enddo
-             do jj=1,miter
-                ioff=ioff+1
-                rdiagbuf(ioff,i) = odiag%tldepart(jj)
-             enddo
-             do jj=1,miter
-                ioff=ioff+1
-                rdiagbuf(ioff,i) = odiag%obssen(jj)
-             enddo
+              do jj=1,miter
+                 ioff=ioff+1
+                 if (odiag%muse(jj)) then
+                    rdiagbuf(ioff,i) = one
+                 else
+                    rdiagbuf(ioff,i) = -one
+                 endif
+              enddo
+              do jj=1,miter+1
+                 ioff=ioff+1
+                 rdiagbuf(ioff,i) = odiag%nldepart(jj)
+              enddo
+              do jj=1,miter
+                 ioff=ioff+1
+                 rdiagbuf(ioff,i) = odiag%tldepart(jj)
+              enddo
+              do jj=1,miter
+                 ioff=ioff+1
+                 rdiagbuf(ioff,i) = odiag%obssen(jj)
+              enddo
            end associate  ! odiag
         endif
 
@@ -1181,14 +1214,13 @@ subroutine setupbend(obsLL,odiagLL, &
                                                    dbenddn(j) * dndp(j,k)
               end do
 
-              if ((abs(my_head%jac_t(k)) > 0.0016_r_kind).or.(abs(my_head%jac_q(k)) > 7.5_r_kind).or. &
-                  (abs(my_head%jac_p(k)) > 0.004_r_kind)) then
-                 qcfail_jac(i) = one
-              end if
-           end do
+              if (gps_jacqc .and. ((abs(my_head%jac_t(k)) > 0.0016_r_kind).or.(abs(my_head%jac_q(k)) > 7.5_r_kind).or. &
+                  (abs(my_head%jac_p(k)) > 0.004_r_kind))) qcfail_jac(i) = one
+
+           end do 
 
            my_head%jac_p(nsig+1) = zero
-   
+
            if (qcfail_jac(i) == one) then
               do k=1,nsig
                  my_head%jac_t(k) = zero
@@ -1200,7 +1232,6 @@ subroutine setupbend(obsLL,odiagLL, &
               rdiagbuf(12,i) = -one
               rdiagbuf(10,i) = six
            end if
-              
 
            if (save_jacobian) then
               ! fill in the jacobian
@@ -1214,7 +1245,6 @@ subroutine setupbend(obsLL,odiagLL, &
               ioff = ioff + size(dhx_dx)
            endif
 
-           my_head%jac_p(nsig+1) = zero
            my_head%raterr2= ratio_errors(i)**2     
            my_head%res    = data(igps,i)
            my_head%err2   = data(ier,i)**2
@@ -1279,55 +1309,55 @@ subroutine setupbend(obsLL,odiagLL, &
      varname='z'
      call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
      if (istatus==0) then
-        if(allocated(ges_z))then
-           write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
-           call stop2(999)
-        endif
-        allocate(ges_z(size(rank2,1),size(rank2,2),nfldsig))
-        ges_z(:,:,1)=rank2
-        do ifld=2,nfldsig
-           call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
-           ges_z(:,:,ifld)=rank2
-        enddo
+         if(allocated(ges_z))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_z(size(rank2,1),size(rank2,2),nfldsig))
+         ges_z(:,:,1)=rank2
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+            ges_z(:,:,ifld)=rank2
+         enddo
      else
-        write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
-        call stop2(999)
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
      endif
 !    get tv ...
      varname='tv'
      call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
      if (istatus==0) then
-        if(allocated(ges_tv))then
-           write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
-           call stop2(999)
-        endif
-        allocate(ges_tv(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
-        ges_tv(:,:,:,1)=rank3
-        do ifld=2,nfldsig
-           call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
-           ges_tv(:,:,:,ifld)=rank3
-        enddo
+         if(allocated(ges_tv))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_tv(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_tv(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_tv(:,:,:,ifld)=rank3
+         enddo
      else
-        write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
-        call stop2(999)
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
      endif
 !    get q ...
      varname='q'
      call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
      if (istatus==0) then
-        if(allocated(ges_q))then
-           write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
-           call stop2(999)
-        endif
-        allocate(ges_q(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
-        ges_q(:,:,:,1)=rank3
-        do ifld=2,nfldsig
-           call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
-           ges_q(:,:,:,ifld)=rank3
-        enddo
+         if(allocated(ges_q))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_q(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_q(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_q(:,:,:,ifld)=rank3
+         enddo
      else
-        write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
-        call stop2(999)
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
      endif
   else
      write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&

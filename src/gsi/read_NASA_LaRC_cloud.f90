@@ -298,6 +298,7 @@ subroutine read_NASALaRC_cloud_bufr(satfile,atime,&
    enddo msg_report
    write(*,*) 'message/reports num=',nmsg,ntb
  call closbf(unit_in)
+ close(unit_in)
  numobs=ntb
  write(atime,'(I10)') idate
 
@@ -409,6 +410,7 @@ subroutine read_NASALaRC_cloud_bufr_survey(satfile,east_time, west_time)
    enddo msg_report
    write(*,*) 'message/reports num=',nmsg,ntb
  call closbf(unit_in)
+ close(unit_in)
 
  write(*,'(2x,a10,a10,a11)') 'time_level','subset_num'
  DO i=1,num_obstime

@@ -217,7 +217,6 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
   endif
 !
 !  *#* Main - Start *#*!
-   call closbf(lun11)
    open(lun11,file=trim(infile),action='read',form='unformatted', iostat=ierr)
    if (ierr/=0) then
       print*, myname,' : ERROR : File ', trim(infile),' not existing. '
@@ -234,6 +233,7 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
       end do   
    end do
    call closbf(lun11)
+   close(lun11)
 !
 ! Allocate Arrays for all the data
    allocate (data_all (nreal, cnt),isort(cnt))
@@ -491,7 +491,7 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
   deallocate(data_out)
  
   if (ndata == 0) then
-     write(6,*)myname,':  closbf(',lun11,')'
+     write(6,*)myname,':  closbf(',lun11,') no data'
   endif
   close(lun11)
 !

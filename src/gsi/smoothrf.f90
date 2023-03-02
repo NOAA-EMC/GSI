@@ -1171,7 +1171,7 @@ subroutine sqrt_smoothrf(z,work,nlevs)
   else
 
      do j=1,nhscrf
-        totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
+        totwgt(j)=sqrt(hswgt(j))*hzscl(j)
      end do
      
 !       zero output array
@@ -1330,7 +1330,7 @@ subroutine sqrt_smoothrf_ad(z,work,nlevs)
         if(nrf_var(nvar_id(k))=='sf'.or.nrf_var(nvar_id(k))=='vp')then
            totwgt(3)=sqrt(half)*totwgt(3)
         end if
-		
+
         call sqrt_rfxyyx_ad(zloc,work(1,1,k),ny,nx,ii(1,1,1,k),&
              jj(1,1,1,k),slw(1,k),totwgt)
 
@@ -1348,7 +1348,7 @@ subroutine sqrt_smoothrf_ad(z,work,nlevs)
   else
 
      do j=1,nhscrf
-        totwgt(j)=sqrt(hswgt(j)*hzscl(j)*hzscl(j))
+        totwgt(j)=sqrt(hswgt(j))*hzscl(j)
      end do
      
 

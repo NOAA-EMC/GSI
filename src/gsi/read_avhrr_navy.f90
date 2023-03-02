@@ -496,6 +496,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 900 continue
   call destroygrids
   call closbf(lnbufr)
+  close(lnbufr)
 
   if(diagnostic_reg.and.ntest>0) write(6,*)'READ_AVHRR_NAVY:  ',&
      'mype,ntest,disterrmax=',mype,ntest,disterrmax

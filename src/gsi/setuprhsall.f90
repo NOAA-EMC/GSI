@@ -100,6 +100,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !                         polymorphic implementation using %setup().
 !   2019-03-15  Ladwig  - add option for cloud analysis in observer
 !   2019-03-28  Ladwig  - add metar cloud obs as pseudo water vapor in var analysis
+!   2020-09-08  CAPS(G. Zhao) - add 'l_use_dbz_directDA' flag not to sort obsdiag
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -149,7 +150,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use lag_fields, only: lag_presetup,lag_state_write,lag_state_read,lag_destroy_uv
   use mpeu_util, only: getindex
   use mpl_allreducemod, only: mpl_allreduce
-  use berror, only: reset_predictors_var
   use rapidrefresh_cldsurf_mod, only: l_PBL_pseudo_SurfobsT,l_PBL_pseudo_SurfobsQ,&
                                       l_PBL_pseudo_SurfobsUV,i_gsdcldanal_type,&
                                       i_cloud_q_innovation
@@ -192,6 +192,9 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
   use mpeu_util, only: die,warn,perr
   use mpeu_util, only: basename
+
+  use directDA_radaruse_mod, only: l_use_dbz_directDA
+
   implicit none
 
 ! Declare passed variables
@@ -542,8 +545,9 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   ! those applications.  The case of i_cloud_q_innovation==2 is new.  It is
   ! not sure why it won't work even in case of .not.luse_obsdiag.
 
-  if(.not.(l_PBL_pseudo_SurfobsT  .or.  l_PBL_pseudo_SurfobsQ   .or. &
-           l_PBL_pseudo_SurfobsUV .or. (i_cloud_q_innovation==2)) ) then
+  if(.not.(l_PBL_pseudo_SurfobsT  .or.  l_PBL_pseudo_SurfobsQ     .or. &
+           l_PBL_pseudo_SurfobsUV .or. (i_cloud_q_innovation==2)) .or.  &
+           l_use_dbz_directDA  ) then
      call obsdiags_sort()
   endif
 
@@ -572,10 +576,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !    call mpl_allreduce(npredt,max_tail,rstats_t)
      call mpl_allreduce(npredt,ntail,ostats_t)
      call mpl_allreduce(npredt,ntail,rstats_t)
-  end if
-
-  if (newpc4pred .or. aircraft_t_bc_pof .or. aircraft_t_bc) then
-     call reset_predictors_var
   end if
 
 ! Collect satellite and precip. statistics

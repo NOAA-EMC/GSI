@@ -78,12 +78,14 @@ module qcmod
 !   2019-06-10  h. liu - add Geostationary satellites CSR data QC to replace qc_abi,qc_seviri
 !   2019-09-29  X.Su   - add troflg and lat_c for hilbert curve tunning
 !   2019-04-19  eliu    - add QC flag for cold-air outbreak 
+!   2021-04-29  Jung/Collard - Fix numerics for emissivity check
 !
 ! subroutines included:
 !   sub init_qcvars
 !   sub create_qcvars
 !   sub destroy_qcvars
 !   sub errormod
+!   sub errormod_hdraob
 !   sub errormod_aircraft
 !   sub setup_tzr_qc    - set up QC with Tz retrieval
 !   sub tz_retrieval    - Apply Tz retrieval
@@ -162,6 +164,7 @@ module qcmod
   public :: create_qcvars
   public :: destroy_qcvars
   public :: errormod
+  public :: errormod_hdraob
   public :: errormod_aircraft
   public :: setup_tzr_qc
   public :: qc_ssmi
@@ -182,7 +185,7 @@ module qcmod
   public :: qc_saphir
 ! set passed variables to public
   public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc,njqc,vqc,nvqc,hub_norm
-  public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate
+  public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate,gps_jacqc
   public :: pboto3,ptopo3,pbotq,ptopq,newvad,tdrerr_inflate
   public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,&
             ifail_gross_qc,ifail_cloud_qc,ifail_outside_range,&
@@ -203,6 +206,7 @@ module qcmod
   logical use_poq7
   logical qc_noirjaco3
   logical qc_noirjaco3_pole
+  logical gps_jacqc
   logical newvad
   logical tdrerr_inflate
   logical qc_satwnds
@@ -430,6 +434,8 @@ contains
     use_poq7 = .false.
     cao_check = .false.
 
+    gps_jacqc = .false.     ! Jacobian QC for GNSS RO is off by default
+
     qc_noirjaco3 = .false.  ! when .f., use O3 Jac from IR instruments
     qc_noirjaco3_pole = .false. ! true=do not use O3 Jac from IR instruments near poles
 
@@ -581,7 +587,7 @@ contains
       tzchk = 0.50_r_kind
     elseif ( obstype == 'amsua' .or. obstype == 'ssmis' .or. obstype == 'ssmi' ) then
       tzchk = 0.12_r_kind
-    elseif (  obstype == 'avhrr' .or. obstype == 'avhrr_navy' ) then 
+    elseif (  obstype == 'avhrr' .or. obstype == 'avhrr_navy' .or. obstype == 'viirs') then 
       tzchk = 0.85_r_kind
     elseif (  obstype == 'hirs2' .or. obstype == 'hirs3' .or. obstype == 'hirs4' .or. & 
               obstype == 'sndr' .or. obstype == 'sndrd1' .or. obstype == 'sndrd2'.or. &
@@ -637,10 +643,10 @@ contains
     implicit none
 
     integer(i_kind)                     ,intent(in   ) :: levs,k,nsig,lim_qm
-    real(r_kind)   ,dimension(255)      ,intent(in   ) :: plevs
+    real(r_kind)   ,dimension(*)        ,intent(in   ) :: plevs
     real(r_kind)   ,dimension(nsig)     ,intent(in   ) :: presl
     real(r_kind)   ,dimension(nsig-1)   ,intent(in   ) :: dpres
-    integer(i_kind),dimension(255)      ,intent(in   ) :: pq,vq
+    integer(i_kind),dimension(*)        ,intent(in   ) :: pq,vq
     real(r_kind)                        ,intent(inout) :: errout
 
     integer(i_kind) n,l,ilev
@@ -699,6 +705,114 @@ contains
 
     return
 end subroutine errormod
+  subroutine errormod_hdraob(pq,vq,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    errormod
+!   prgmmr: derber           org: np23                date: 2003-09-30
+!
+! abstract: adjust observation error for conventional obs
+!
+! program history log:
+!   2003-09-30  derber
+!   2004-05-18  kleist, documentation
+!   2004-10-26  kleist - add 0.5 half-layer factor
+!   2006-02-15  treadon - add (l==levs,1) exit to upprof and dwprof loops
+!   2006-12-20  Sienkiewicz  multiply tiny_r_kind in errout div-by-zero
+!                            check by expected largest value for numerator
+!                            max(2*vmax) = max(dpres) ~= 5 cb
+!   2008-04-23  safford - rm unused vars and uses
+!   2008-09-05  lueken  - merged ed's changes into q1fy09 code
+!
+!   input argument list:
+!     pq     - pressure quality mark
+!     vq     - observation quality mark (t,q,wind)
+!     levs   - number of levels in profile for observation
+!     plevs  - observation pressures
+!     errout - observation error 
+!     k      - observation level 
+!     presl  - model pressure at half sigma levels
+!     dpres  - delta pressure between model pressure levels
+!     nsig   - number of vertical levels
+!     lim_qm - qc limit 
+!
+!   output argument list:
+!     errout - adjusted observation error
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    implicit none
+
+    integer(i_kind)                     ,intent(in   ) :: levs,k,nsig,lim_qm
+    real(r_kind)   ,dimension(*)        ,intent(in   ) :: plevs
+    real(r_kind)   ,dimension(nsig)     ,intent(in   ) :: presl
+    real(r_kind)   ,dimension(nsig-1)   ,intent(in   ) :: dpres
+    integer(i_kind),dimension(*)        ,intent(in   ) :: pq,vq
+    real(r_kind)                        ,intent(inout) :: errout
+
+    integer(i_kind) n,l,ilev
+    real(r_kind):: vmag,pdiffu,pdiffd
+    
+    errout=one
+    if(levs == 1)return
+    ilev=1
+    do n=2,nsig-1
+       if(plevs(k) < presl(n))ilev=n
+    end do
+    vmag=abs(dpres(ilev))
+
+    pdiffu=vmag
+    pdiffd=vmag
+    if(pq(k) < lim_qm .and. vq(k) < lim_qm)then
+! Move up through the profile.  
+       l=k
+
+! Array plevs is only defined from l=1 to l=levs.  Hence the check below
+       if (l+1<=levs) then
+          upprof: do while (abs(plevs(k)-plevs(l+1)) < vmag .and. l <= levs-1) 
+             l=l+1
+             if(pq(l) < lim_qm .and. vq(l) < lim_qm)then
+                pdiffu=abs(plevs(k)-plevs(l))
+                exit upprof
+             end if
+             if (l==levs) exit upprof
+          end do upprof
+       endif
+        
+! Reset the level and move down through the profile
+       l=k
+
+! The check (l>=2) ensures that plevs(l-1) is defined
+       if (l>=2) then
+          dwprof: do while (abs(plevs(l-1)-plevs(k)) < vmag .and. l >= 2) 
+             l=l-1
+             if(pq(l) < lim_qm .and. vq(l) < lim_qm)then
+                pdiffd=abs(plevs(l)-plevs(k))
+                exit dwprof
+             end if
+             if (l==1) exit dwprof
+          end do dwprof
+       endif
+
+! Set adjusted error
+       if(plevs(k) > presl(1))then
+          errout=errout*(dpres(1)+plevs(k)-presl(1))/dpres(1)
+       else if(plevs(k) < presl(nsig))then
+          errout=errout*(dpres(nsig-1)+presl(nsig)-plevs(k))/dpres(nsig-1)
+       else
+          errout=sqrt(two*vmag/max(pdiffd+pdiffu,five*tiny_r_kind))
+       end if
+
+! Quality marks indicate bad data.  Set error to large value.
+    else
+       errout=1.e6_r_kind
+    end if
+
+    return
+end subroutine errormod_hdraob
 
   subroutine errormod_aircraft(pq,vq,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
 !$$$  subprogram documentation block
@@ -2271,8 +2385,10 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr, &
      sum=zero
      sum2=zero
      do i=1,nchanl
-        sum=sum+tbc(i)*ts(i)*varinv_use(i)
-        sum2=sum2+ts(i)*ts(i)*varinv_use(i)
+        if ( varinv_use(i) > tiny_r_kind .and. ts(i) > 0.0001_r_kind) then
+           sum=sum+tbc(i)*ts(i)*varinv_use(i)
+           sum2=sum2+ts(i)*ts(i)*varinv_use(i)
+        endif
      end do
      if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
      dts=abs(sum/sum2)
@@ -2769,7 +2885,7 @@ subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 end subroutine qc_avhrr
 
 subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
-     zsges,cenlat,tb_obsbc1,si_mean,cosza,clw,tbc,ptau5,emissivity_k,ts, &                    
+     zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts, &                    
      pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs,cldeff_fg,factch6, &
      cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp,radmod)                     
 
@@ -2852,7 +2968,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
   logical,                             intent(in   ) :: sea,land,ice,snow,mixed,luse
   integer(i_kind),                     intent(in   ) :: ndat,nsig,npred,nchanl,is
   integer(i_kind),dimension(nchanl),   intent(inout) :: id_qc
-  real(r_kind),                        intent(in   ) :: zsges,cenlat,tb_obsbc1,si_mean
+  real(r_kind),                        intent(in   ) :: zsges,cenlat,tb_obsbc1
   real(r_kind),dimension(nchanl),      intent(in   ) :: cldeff_obs,cldeff_fg
   real(r_kind),                        intent(in   ) :: cosza,clw,clwp_amsua,clw_guess_retrieval
   real(r_kind),                        intent(in   ) :: sfc_speed,scatp
@@ -3083,9 +3199,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
                     enddo
                  endif
               else if (latms) then
-                 if (si_mean >= 20.0_r_kind) then
-                    efactmc=zero
-                    vfactmc=zero
+                 if (abs(cldeff_obs(16)-cldeff_obs(17))>10.0_r_kind) then
                     if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch1617_qc
                     errf(ich890) = zero
                     varinv(ich890) = zero
@@ -3094,12 +3208,34 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
                        errf(i) = zero
                        varinv(i) = zero
                     enddo
-                    errf(1:ich544)=zero
-                    varinv(1:ich544)=zero
-                    do i=1,ich544
-                       if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch1617_qc
-                    end do
+                    if (abs(cldeff_obs(16)-cldeff_obs(17))>15.0_r_kind) then
+                       efactmc=zero
+                       vfactmc=zero
+                       errf(1:ich544)=zero
+                       varinv(1:ich544)=zero
+                       do i=1,ich544
+                          if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch1617_qc
+                       end do
+                    end if
                  end if
+                ! test in the future
+                ! if (si_mean >= 20.0_r_kind) then
+                !    efactmc=zero
+                !    vfactmc=zero
+                !    if(id_qc(ich890) == igood_qc)id_qc(ich890)=ifail_factch1617_qc
+                !    errf(ich890) = zero
+                !    varinv(ich890) = zero
+                !    do i=17,22   !  AMSU-B/MHS like channels
+                !       if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch1617_qc
+                !       errf(i) = zero
+                !       varinv(i) = zero
+                !    enddo
+                !    errf(1:ich544)=zero
+                !    varinv(1:ich544)=zero
+                !    do i=1,ich544
+                !       if(id_qc(i) == igood_qc)id_qc(i)=ifail_factch1617_qc
+                !    end do
+                ! end if
               else ! QC based on the sensitivity of Tb to the surface emissivity
 !             de1,de2,de3,de15 become smaller as the observation is more cloudy --
 !             i.e., less affected by the surface emissivity quality control check 
@@ -3556,7 +3692,7 @@ subroutine qc_mhs(nchanl,ndat,nsig,is,sea,land,ice,snow,mhs,luse,   &
 
 end subroutine qc_mhs
 subroutine qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
-                 zsges,cenlat,tb_obsbc1,si_mean,cosza,clw,tbc,ptau5,emissivity_k,ts, &                    
+                 zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts, &                    
                  pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs,cldeff_fg,factch6, &
                  cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp,radmod)                     
 
@@ -3629,7 +3765,7 @@ subroutine qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
   logical,                             intent(in   ) :: sea,land,ice,snow,mixed,luse
   integer(i_kind),                     intent(in   ) :: nchanl,is,ndat,nsig,npred
   integer(i_kind),dimension(nchanl),   intent(inout) :: id_qc
-  real(r_kind),                        intent(in   ) :: zsges,cenlat,tb_obsbc1,si_mean 
+  real(r_kind),                        intent(in   ) :: zsges,cenlat,tb_obsbc1
   real(r_kind),dimension(nchanl),      intent(in   ) :: cldeff_obs, cldeff_fg  
   real(r_kind),                        intent(in   ) :: cosza,clw,clwp_amsua,clw_guess_retrieval
   real(r_kind),                        intent(in   ) :: sfc_speed,scatp
@@ -3645,7 +3781,7 @@ subroutine qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
 
 ! For now, just pass all channels to qc_amsua
   call qc_amsua (nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
-                 zsges,cenlat,tb_obsbc1,si_mean,cosza,clw,tbc,ptau5,emissivity_k,ts, &                   
+                 zsges,cenlat,tb_obsbc1,cosza,clw,tbc,ptau5,emissivity_k,ts, &                   
                  pred,predchan,id_qc,aivals,errf,errf0,clwp_amsua,varinv,cldeff_obs,cldeff_fg,factch6, & 
                  cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp,radmod)                    
 

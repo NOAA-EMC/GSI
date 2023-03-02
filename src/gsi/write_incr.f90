@@ -91,6 +91,9 @@ contains
     use obsmod, only: ianldate 
     use state_vectors, only: allocate_state, deallocate_state
 
+    use state_vectors, only: svars3d
+    use mpeu_util, only: getindex
+
     implicit none
 
 ! !INPUT PARAMETERS:
@@ -107,6 +110,7 @@ contains
     real(r_kind),pointer,dimension(:,:,:) :: sub_u,sub_v
     real(r_kind),pointer,dimension(:,:,:) :: sub_qanl,sub_oz
     real(r_kind),pointer,dimension(:,:,:) :: sub_ql, sub_qi
+    real(r_kind),pointer,dimension(:,:,:) :: sub_qr, sub_qs, sub_qg
     real(r_kind),pointer,dimension(:,:) :: sub_ps
 
     real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig) :: sub_dzb,sub_dza, sub_tsen, sub_q
@@ -114,7 +118,7 @@ contains
     real(r_kind),dimension(grd%lat1,grd%lon1)     :: pssm
     real(r_kind),dimension(grd%lat1,grd%lon1,grd%nsig):: tsensm, usm, vsm
     real(r_kind),dimension(grd%lat1,grd%lon1,grd%nsig):: qsm, ozsm
-    real(r_kind),dimension(grd%lat1,grd%lon1,grd%nsig):: qism, qlsm 
+    real(r_kind),dimension(grd%lat1,grd%lon1,grd%nsig):: qism, qlsm, qrsm, qssm, qgsm
     real(r_kind),dimension(grd%lat1,grd%lon1,grd%nsig):: dzsm
     real(r_kind),dimension(grd%lat1,grd%lon1,grd%nsig):: delp
     real(r_kind),dimension(grd%nlon) :: deglons
@@ -128,7 +132,9 @@ contains
     integer(i_kind) :: ncid_out, lon_dimid, lat_dimid, lev_dimid, ilev_dimid
     integer(i_kind) :: lonvarid, latvarid, levvarid, pfullvarid, ilevvarid, &
                        hyaivarid, hybivarid, uvarid, vvarid, delpvarid, delzvarid, &
-                       tvarid, sphumvarid, liqwatvarid, o3varid, icvarid
+                       tvarid, sphumvarid, liqwatvarid, o3varid, icvarid, &
+                       qrvarid, qsvarid, qgvarid
+    integer(i_kind) :: iql,iqi,iqr,iqs,iqg
     integer(i_kind) :: dimids3(3),nccount(3),ncstart(3), cnksize(3), j1, j2
 
     type(gsi_bundle) :: svalinc(nobs_bins)
@@ -188,10 +194,20 @@ contains
        end if
     end if
 
+    ! Check hydrometeors in control variables 
+    iql = getindex(svars3d,'ql')
+    iqi = getindex(svars3d,'qi')
+    iqr = getindex(svars3d,'qr')
+    iqs = getindex(svars3d,'qs')
+    iqg = getindex(svars3d,'qg')
+
     istatus=0
     call gsi_bundlegetpointer(gfs_bundle,'q', sub_qanl, iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(svalinc(ibin2),'ql', sub_ql, iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(svalinc(ibin2),'qi', sub_qi, iret); istatus=istatus+iret
+    if (iql>0) call gsi_bundlegetpointer(svalinc(ibin2),'ql', sub_ql, iret); istatus=istatus+iret
+    if (iqi>0) call gsi_bundlegetpointer(svalinc(ibin2),'qi', sub_qi, iret); istatus=istatus+iret
+    if (iqr>0) call gsi_bundlegetpointer(svalinc(ibin2),'qr', sub_qr, iret); istatus=istatus+iret
+    if (iqs>0) call gsi_bundlegetpointer(svalinc(ibin2),'qs', sub_qs, iret); istatus=istatus+iret
+    if (iqg>0) call gsi_bundlegetpointer(svalinc(ibin2),'qg', sub_qg, iret); istatus=istatus+iret
     call gsi_bundlegetpointer(svalinc(ibin2),'oz', sub_oz, iret); istatus=istatus+iret
     call gsi_bundlegetpointer(svalinc(ibin2),'u', sub_u, iret); istatus=istatus+iret
     call gsi_bundlegetpointer(svalinc(ibin2),'v', sub_v, iret); istatus=istatus+iret
@@ -235,12 +251,28 @@ contains
     call nccheck_incr(nf90_var_par_access(ncid_out, tvarid, nf90_collective))
     call nccheck_incr(nf90_def_var(ncid_out, "sphum_inc", nf90_real, dimids3, sphumvarid)) 
     call nccheck_incr(nf90_var_par_access(ncid_out, sphumvarid, nf90_collective))
-    call nccheck_incr(nf90_def_var(ncid_out, "liq_wat_inc", nf90_real, dimids3, liqwatvarid)) 
-    call nccheck_incr(nf90_var_par_access(ncid_out, liqwatvarid, nf90_collective))
+    if (iql>0) then
+       call nccheck_incr(nf90_def_var(ncid_out, "liq_wat_inc", nf90_real, dimids3, liqwatvarid)) 
+       call nccheck_incr(nf90_var_par_access(ncid_out, liqwatvarid, nf90_collective))
+    endif
     call nccheck_incr(nf90_def_var(ncid_out, "o3mr_inc", nf90_real, dimids3, o3varid)) 
     call nccheck_incr(nf90_var_par_access(ncid_out, o3varid, nf90_collective))
-    call nccheck_incr(nf90_def_var(ncid_out, "icmr_inc", nf90_real, dimids3, icvarid)) 
-    call nccheck_incr(nf90_var_par_access(ncid_out, icvarid, nf90_collective))
+    if (iqi>0) then
+       call nccheck_incr(nf90_def_var(ncid_out, "icmr_inc", nf90_real, dimids3, icvarid)) 
+       call nccheck_incr(nf90_var_par_access(ncid_out, icvarid, nf90_collective))
+    endif
+    if (iqr>0) then
+       call nccheck_incr(nf90_def_var(ncid_out, "rwmr_inc", nf90_real, dimids3, qrvarid)) 
+       call nccheck_incr(nf90_var_par_access(ncid_out, qrvarid, nf90_collective))
+    endif
+    if (iqs>0) then
+       call nccheck_incr(nf90_def_var(ncid_out, "snmr_inc", nf90_real, dimids3, qsvarid)) 
+       call nccheck_incr(nf90_var_par_access(ncid_out, qsvarid, nf90_collective))
+    endif
+    if (iqg>0) then
+       call nccheck_incr(nf90_def_var(ncid_out, "grle_inc", nf90_real, dimids3, qgvarid)) 
+       call nccheck_incr(nf90_var_par_access(ncid_out, qgvarid, nf90_collective))
+    endif
     ! place global attributes to parallel calc_increment output
     call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "source", "GSI"))
     call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "comment", &
@@ -253,14 +285,14 @@ contains
     ! end the netCDF file definition
     call nccheck_incr(nf90_enddef(ncid_out))
 
-    ! compute delz
+    ! compute delz (so that delz < 0 as model expects)
     do k=1,grd%nsig
-       sub_dzb(:,:,k) = ges_geopi(:,:,k+1,ibin) - ges_geopi(:,:,k,ibin)
+       sub_dzb(:,:,k) = ges_geopi(:,:,k,ibin) - ges_geopi(:,:,k+1,ibin)
     enddo
 
     call load_geop_hgt
     do k=1,grd%nsig
-       sub_dza(:,:,k) = geop_hgti(:,:,k+1,ibin) - geop_hgti(:,:,k,ibin)
+       sub_dza(:,:,k) = geop_hgti(:,:,k,ibin) - geop_hgti(:,:,k+1,ibin)
     enddo
 
     sub_dza = sub_dza - sub_dzb !sub_dza is increment
@@ -274,8 +306,11 @@ contains
     ! Strip off boundary points from subdomains
     call strip(sub_tsen  ,tsensm  ,grd%nsig)
     call strip(sub_q   ,qsm   ,grd%nsig)
-    call strip(sub_ql  ,qlsm  ,grd%nsig)
-    call strip(sub_qi  ,qism  ,grd%nsig)
+    if (iql>0) call strip(sub_ql  ,qlsm  ,grd%nsig)
+    if (iqi>0) call strip(sub_qi  ,qism  ,grd%nsig)
+    if (iqr>0) call strip(sub_qr  ,qrsm  ,grd%nsig)
+    if (iqs>0) call strip(sub_qs  ,qssm  ,grd%nsig)
+    if (iqg>0) call strip(sub_qg  ,qgsm  ,grd%nsig)
     call strip(sub_oz  ,ozsm  ,grd%nsig)
     call strip(sub_ps  ,pssm  )
     call strip(sub_u   ,usm   ,grd%nsig)
@@ -410,17 +445,19 @@ contains
                       start = ncstart, count = nccount))
     call mpi_barrier(mpi_comm_world,ierror)
     ! liquid water increment
-    do k=1,grd%nsig
-       krev = grd%nsig+1-k
-       if (zero_increment_strat('liq_wat_inc')) then 
-         call zero_inc_strat(qlsm(:,:,k), k, troplev) 
-       end if
-       if (should_zero_increments_for('liq_wat_inc')) qlsm(:,:,k) = 0.0_r_kind
-       out3d(:,:,krev) = transpose(qlsm(j1:j2,:,k))
-    end do
-    call nccheck_incr(nf90_put_var(ncid_out, liqwatvarid, sngl(out3d), &
-                      start = ncstart, count = nccount))
-    call mpi_barrier(mpi_comm_world,ierror)
+    if (iql>0) then
+       do k=1,grd%nsig
+          krev = grd%nsig+1-k
+          if (zero_increment_strat('liq_wat_inc')) then 
+            call zero_inc_strat(qlsm(:,:,k), k, troplev) 
+          end if
+          if (should_zero_increments_for('liq_wat_inc')) qlsm(:,:,k) = 0.0_r_kind
+          out3d(:,:,krev) = transpose(qlsm(j1:j2,:,k))
+       end do
+       call nccheck_incr(nf90_put_var(ncid_out, liqwatvarid, sngl(out3d), &
+                         start = ncstart, count = nccount))
+       call mpi_barrier(mpi_comm_world,ierror)
+    endif
     ! ozone increment
     do k=1,grd%nsig
        krev = grd%nsig+1-k
@@ -434,17 +471,61 @@ contains
                          start = ncstart, count = nccount))
     call mpi_barrier(mpi_comm_world,ierror)
     ! ice mixing ratio increment
-    do k=1,grd%nsig
-       krev = grd%nsig+1-k
-       if (zero_increment_strat('icmr_inc')) then 
-         call zero_inc_strat(qism(:,:,k), k, troplev) 
-       end if
-       if (should_zero_increments_for('icmr_inc')) qism(:,:,k) = 0.0_r_kind
-       out3d(:,:,krev) = transpose(qism(j1:j2,:,k))
-    end do
-    call nccheck_incr(nf90_put_var(ncid_out, icvarid, sngl(out3d), &
-                      start = ncstart, count = nccount))
-    call mpi_barrier(mpi_comm_world,ierror)
+    if (iqi>0) then
+       do k=1,grd%nsig
+          krev = grd%nsig+1-k
+          if (zero_increment_strat('icmr_inc')) then 
+            call zero_inc_strat(qism(:,:,k), k, troplev) 
+          end if
+          if (should_zero_increments_for('icmr_inc')) qism(:,:,k) = 0.0_r_kind
+         out3d(:,:,krev) = transpose(qism(j1:j2,:,k))
+       end do
+       call nccheck_incr(nf90_put_var(ncid_out, icvarid, sngl(out3d), &
+                         start = ncstart, count = nccount))
+       call mpi_barrier(mpi_comm_world,ierror)
+    endif
+    ! rain water mixing ratio increment
+    if (iqr>0) then
+       do k=1,grd%nsig
+          krev = grd%nsig+1-k
+          if (zero_increment_strat('rwmr_inc')) then 
+            call zero_inc_strat(qrsm(:,:,k), k, troplev) 
+          end if
+          if (should_zero_increments_for('rwmr_inc')) qrsm(:,:,k) = 0.0_r_kind
+          out3d(:,:,krev) = transpose(qrsm(j1:j2,:,k))
+       end do
+       call nccheck_incr(nf90_put_var(ncid_out, qrvarid, sngl(out3d), &
+                         start = ncstart, count = nccount))
+       call mpi_barrier(mpi_comm_world,ierror)
+    endif
+    ! snow water mixing ratio increment
+    if (iqs>0) then
+       do k=1,grd%nsig
+          krev = grd%nsig+1-k
+          if (zero_increment_strat('snmr_inc')) then 
+            call zero_inc_strat(qssm(:,:,k), k, troplev) 
+          end if
+          if (should_zero_increments_for('snmr_inc')) qssm(:,:,k) = 0.0_r_kind
+          out3d(:,:,krev) = transpose(qssm(j1:j2,:,k))
+       end do
+       call nccheck_incr(nf90_put_var(ncid_out, qsvarid, sngl(out3d), &
+                         start = ncstart, count = nccount))
+       call mpi_barrier(mpi_comm_world,ierror)
+    endif
+    ! graupel mixing ratio increment
+    if (iqg>0) then
+       do k=1,grd%nsig
+          krev = grd%nsig+1-k
+          if (zero_increment_strat('grle_inc')) then 
+            call zero_inc_strat(qgsm(:,:,k), k, troplev) 
+          end if
+          if (should_zero_increments_for('grle_inc')) qgsm(:,:,k) = 0.0_r_kind
+          out3d(:,:,krev) = transpose(qgsm(j1:j2,:,k))
+       end do
+       call nccheck_incr(nf90_put_var(ncid_out, qgvarid, sngl(out3d), &
+                         start = ncstart, count = nccount))
+       call mpi_barrier(mpi_comm_world,ierror)
+    endif
 !    ! cleanup and exit
     call nccheck_incr(nf90_close(ncid_out))
     if ( mype == mype_out ) then

@@ -250,9 +250,11 @@ contains
        end if
        if(cflg == '!')cycle
        read(crecord,*)ictypet,icsubtypet,icuset
-       if (mype==0 .and. icuset < use_limit) write(6, *) &
-                'line ignored in convinfo due to use flag ',cflg,iotype,ictypet,icsubtypet,icuset
-       if(icuset < use_limit)cycle
+       if(icuset < use_limit)then
+         if (mype==0) write(6, *) 'line ignored in convinfo due to use flag ',&
+                cflg,iotype,ictypet,icsubtypet,icuset
+         cycle
+       end if
        nc=nc+1
        ioctype(nc)=iotype
            !otype   type isub iuse twindow numgrp ngroup nmiter gross ermax ermin var_b var_pg ithin rmesh pmesh npred pmot ptime
