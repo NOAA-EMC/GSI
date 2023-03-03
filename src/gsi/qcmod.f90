@@ -76,6 +76,7 @@ module qcmod
 !                         for all variables
 !   2019-03-27  h. liu  - add ABI QC
 !   2019-06-10  h. liu - add Geostationary satellites CSR data QC to replace qc_abi,qc_seviri
+!   2019-07-20  ejones  - mods to qc_irsnd for CrIS, add sun glint QC flag for CrIS
 !   2019-09-29  X.Su   - add troflg and lat_c for hilbert curve tunning
 !   2019-04-19  eliu    - add QC flag for cold-air outbreak 
 !   2021-04-29  Jung/Collard - Fix numerics for emissivity check
@@ -2087,8 +2088,10 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr, &
 !     2010-08-10  derber transfered from setuprad
 !     2011-08-20  zhu    add cloud qc for passive channels based on the cloud
 !                        level determined by channels with irad_use=1 and 0
-!     2015-03-26   mkim  add extra qc for sfc sensitive channels
+!     2015-03-26  mkim  add extra qc for sfc sensitive channels
 !                        These qc are optional.(On/off by depending on the number in satinfo table)
+!     2019-07-20  ejones Add sun glint check for CrIS SW obs
+!     2019-07-24  ejones Add cris_sw logic so observations aren't counted twice in aivals stats 
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -2194,21 +2197,19 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr, &
         if(luse)aivals(9,is) = aivals(9,is) + one
      endif
      do i=1,nchanl
-!    check for sun glint for CrIS at wavenumbers shortward of 2386.88     -EEJ
+!    check for sun glint for CrIS at wavenumbers shortward of 2386.88     
         if(cris)then
            if(wavenumber(i) > 2386.88)then
               ! calculate sun glint
-              ! pangs, solazi, satazi need conversion
+              ! pangs, solazi, satazi need conversion to radians
               ! zasat passed from reader in radians, take abs avalue
               pangs_rad=pangs*deg2rad
-              !solazi_rad=(90.0-solazi)*deg2rad
               solazi_rad=solazi*deg2rad
               satazi_rad=satazi*deg2rad
-              !relazi_rad=satazi_rad-solazi_rad
               relazi_rad=(180.0+solazi-satazi)*deg2rad
-              !glint_rad=acos(cos(zasat)*cos(pangs_rad)-sin(zasat)*sin(pangs_rad)*cos(relazi_rad))
               glint_rad=acos(cos(abs(zasat))*cos(pangs_rad)+sin(abs(zasat))*sin(pangs_rad)*cos(relazi_rad))
               glint=glint_rad*rad2deg
+              ! QC low peaking CrIS SW obs with sun glint less than or equal to 15deg
               if (glint <= 15.0) then
                  varinv(i)=zero
                  varinv_use(i)=zero

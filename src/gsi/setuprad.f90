@@ -379,7 +379,7 @@ contains
   logical in_curbin, in_anybin, save_jacobian
   logical account_for_corr_obs
   logical,dimension(nobs):: zero_irjaco3_pole
-  logical cris_sw
+  logical cris_sw   ! for CrIS SW processing
   logical abi2km    ! use 2km abi data (not CSR/ASR) 
 
 ! Declare local arrays
@@ -1351,7 +1351,7 @@ contains
         if (cris) then
            tref = 280.0_r_kind
            errfl = 0.5_r_kind    ! Error floor or minimum inflation to add to scene-dep error
-           call get_crtm_temp_tl(nchanl,tb_obs,error0,tref,tl_tbobs)
+           call get_crtm_temp_tl(nchanl,sc_index,tb_obs,error0,tref,tl_tbobs)
            do i=1,nchanl
               if (wavenumber(i) > 2165.0 .and. wavenumber(i) < 2386.0) then
                  error0(i)     = sqrt(tl_tbobs(i)**2 + errfl**2) 

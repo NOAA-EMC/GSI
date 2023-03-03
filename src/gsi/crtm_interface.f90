@@ -40,7 +40,7 @@ module crtm_interface
 !   2019-03-13  eliu    - add quality control to identify areas with cold-air outbreak 
 !   2019-03-13  eliu    - add calculation of GFDL cloud fraction 
 !   2019-03-22  Wei/Martin - Added VIIRS AOD capability alongside MODIS AOD
-!   2019-07-24  ejones  - add subroutine to get tangent linear for obs Tb using
+!   2019-07-24  ejones  - add get_crtm_temp_tl subroutine to get tangent linear for obs Tb using
 !                         crtm outputs
 
 !   
@@ -3204,7 +3204,7 @@ subroutine get_lai(data_s,nchanl,nreal,itime,ilate,lai_type,lai)
   return
   end subroutine get_lai
 
-subroutine get_crtm_temp_tl(nchanl,tb_obs,error0,tref,tl_tbobs)
+subroutine get_crtm_temp_tl(nchanl,sc_index,tb_obs,error0,tref,tl_tbobs)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_crtm_temp_tl
@@ -3221,6 +3221,7 @@ subroutine get_crtm_temp_tl(nchanl,tb_obs,error0,tref,tl_tbobs)
 !
 !   input argument list:
 !     nchanl       - number of channels for sensor
+!     sc_index     - index of channel numbers in the full 2211 channel set
 !     tref         - reference temperature to compute reference radiance_tl at
 !     tb_obs       - brightness temperature array
 !     error0       - array of original obs errors from satinfo file (specified
@@ -3242,6 +3243,7 @@ subroutine get_crtm_temp_tl(nchanl,tb_obs,error0,tref,tl_tbobs)
 ! passed variables
   integer(i_kind)                    ,intent(in)     :: nchanl
   real(r_kind)                       ,intent(in)     :: tref     ! reference temperature (K)
+  integer(i_kind),dimension(nchanl)  ,intent(in)     :: sc_index ! channel number in 2211 set
   real(r_kind),dimension(nchanl)     ,intent(in)     :: tb_obs   ! tbs
   real(r_kind),dimension(nchanl)     ,intent(in)     :: error0   ! error from satinfo
   real(r_kind),dimension(nchanl)     ,intent(out)    :: tl_tbobs ! new error to
@@ -3256,7 +3258,7 @@ use
   i=0
   crtm_sensorindex=channelinfo(1)%sensor_index
   do i=1,nchanl
-     crtm_channelindex=channelinfo(1)%channel_index(i)
+     crtm_channelindex=channelinfo(1)%channel_index(sc_index(i))
      call crtm_planck_radiance_tl(crtm_sensorindex,crtm_channelindex,tref,error0(i),tl_refrad)
      call crtm_planck_radiance(crtm_sensorindex,crtm_channelindex,tb_obs(i),obsrad)
      call crtm_planck_temperature_tl(crtm_sensorindex,crtm_channelindex,obsrad,tl_refrad,tl_tbobs(i))
