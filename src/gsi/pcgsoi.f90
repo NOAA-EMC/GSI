@@ -159,7 +159,6 @@ subroutine pcgsoi()
   use berror, only: vprecond
   use stpjomod, only: stpjo_setup
   use intradmod, only: setrad
-  use control2state_mod, only: c2sset
   
 
   implicit none
@@ -256,10 +255,8 @@ subroutine pcgsoi()
      sval(ii)=zero
   end do
   sbias=zero
-  diag_print=iter<=1 .and. print_diag_pcg
 
   call setrad(sval(1))
-  call c2sset(xhatsave,sval)
   if(l_hyb_ens .and. .not. aniso_a_en) then
      if (lsqrtb) then
         write(6,*)'l_hyb_ens: not for use with lsqrtb'
@@ -268,6 +265,8 @@ subroutine pcgsoi()
   end if
 ! Perform inner iteration
   inner_iteration: do iter=0,niter(jiter)
+ 
+  diag_print= iter <= 1 .and. print_diag_pcg
 
 ! Gradually turn on old variational qc to avoid possible convergence problems
      if(vqc) then
@@ -284,7 +283,7 @@ subroutine pcgsoi()
 
      llprt=(mype==minmype).and.(iter<=1)
 
-     if (iter<=1 .and. print_diag_pcg) then
+     if (diag_print) then
         do ii=1,nobs_bins
            call prt_state_norms(sval(ii),'sval')
         enddo
@@ -910,7 +909,7 @@ subroutine c2s(hat,val,bias,llprt,ltest)
   use gsi_bundlemod, only : gsi_bundle,assignment(=)
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar
   use gsi_4dcouplermod, only : gsi_4dcoupler_grtests
-  use control2state_mod, only: control2state,c2sset,control2state_ad
+  use control2state_mod, only: control2state,control2state_ad
   implicit none
   
   type(control_vector)                     ,intent(inout) :: hat

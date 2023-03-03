@@ -15,7 +15,7 @@ module control2state_mod
 ! !DESCRIPTION: module control2state routines and variables
 
 use kinds, only: r_kind,i_kind
-use control_vectors, only: control_vector
+use control_vectors, only: control_vector,c2sset_flg
 use gsi_4dvar, only: nsubwin, l4dvar, lsqrtb,ladtest_obs
 use gsi_chemguess_mod, only: gsi_chemguess_get
 use gsi_metguess_mod, only: gsi_metguess_get
@@ -169,6 +169,7 @@ real(r_kind),pointer,dimension(:,:)   :: sv_rank2=>NULL()
 
 real(r_kind),allocatable,dimension(:,:,:):: uland,vland,uwter,vwter
 
+if (c2sset_flg)call c2sset(xhat,sval)
 if (nclouds>0) then
    allocate(clouds(nclouds))
    call gsi_metguess_get('clouds::3d',clouds,istatus)
@@ -517,6 +518,7 @@ call gsi_bundlegetpointer (xhat%step(1),'cldch',iccldch,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'uwnd10m',icuwnd10m,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'vwnd10m',icvwnd10m,istatus)
 
+c2sset_flg=.false.
 return
 end subroutine c2sset
 subroutine control2state_ad(rval,bval,grad)
@@ -631,6 +633,7 @@ real(r_kind),allocatable,dimension(:,:,:):: uland,vland,uwter,vwter
 
 !******************************************************************************
 
+if (c2sset_flg)call c2sset(grad,rval)
 if (lsqrtb) then
    write(6,*)trim(myname),': not for sqrt(B)'
    call stop2(311)

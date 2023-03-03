@@ -58,7 +58,7 @@ use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
 use hybrid_ensemble_parameters,only : l_hyb_ens,ntlevs_ens
 use mpl_allreducemod, only: mpl_allreduce
 use obs_sensitivity, only: efsoi_o2_update
-use control2state_mod, only: control2state,c2sset,control2state_ad
+use control2state_mod, only: control2state,control2state_ad
 
 implicit none
 
@@ -114,7 +114,6 @@ call allocate_cv(ynew)
 zjl=zero_quad  ! Moisture constraint???
 
 ! Convert from control variable to state space
-call c2sset(xhat,mval)
 call control2state(xhat,mval,sbias)
 
 if (l4dvar) then

@@ -78,7 +78,7 @@ subroutine adtest_obs
 
   use m_obsdiags, only: obsLLists
   use m_obsLList, only: obsLList_getTLDdotprod
-  use control2state_mod, only: control2state,c2sset
+  use control2state_mod, only: control2state
 
   implicit none
 
@@ -117,7 +117,6 @@ subroutine adtest_obs
   enddo
   sbias1=zero
   lsqrtb = .false.
-  call c2sset(xtest1,mval)
   call control2state(xtest1,mval,sbias1)
 
   do ii=1,nobs_bins

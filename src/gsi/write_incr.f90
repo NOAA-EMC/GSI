@@ -93,7 +93,7 @@ contains
 
     use state_vectors, only: svars3d
     use mpeu_util, only: getindex
-    use control2state_mod, only: control2state,c2sset
+    use control2state_mod, only: control2state
 
     implicit none
 
@@ -168,7 +168,6 @@ contains
     do iii=1,ntlevs_ens
        call allocate_state(evalinc(iii))
     end do
-    call c2sset(xhatsave,mvalinc)
     call control2state(xhatsave,mvalinc,sbiasinc)
 
     if (l4dvar) then

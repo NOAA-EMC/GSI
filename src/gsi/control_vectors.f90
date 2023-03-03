@@ -113,7 +113,7 @@ public assignment(=)
 public dot_product  
 public prt_control_norms, axpy, random_cv, setup_control_vectors, &
      write_cv, read_cv, inquire_cv, maxval, qdot_prod_sub, init_anacv, &
-     final_anacv
+     final_anacv,c2sset_flg
 
 ! 
 ! Public variables
@@ -158,6 +158,7 @@ integer(i_kind) :: nclen,nclen1,nsclen,npclen,ntclen,nrclen,nsubwin,nval_len
 integer(i_kind) :: latlon11,latlon1n,lat2,lon2,nsig,n_ens
 integer(i_kind) :: nval_lenz_en
 logical,save :: lsqrtb,lcalc_gfdl_cfrac  
+logical :: c2sset_flg  
 
 integer(i_kind) :: m_vec_alloc, max_vec_alloc, m_allocs, m_deallocs
 
@@ -414,6 +415,7 @@ if (mype==0) then
     write(6,*) myname_,': ALL CONTROL VARIABLES    ', nrf_var
 end if
 lcalc_gfdl_cfrac = .false.
+c2sset_flg = .true.
 
 end subroutine init_anacv
 subroutine final_anacv

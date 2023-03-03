@@ -100,14 +100,23 @@ do ic=1,nclouds
    call gsi_bundlegetpointer (sval,clouds(ic),sv_rank3,istatus)
    if (istatus/=0) cycle
    sv_rank3=zero
-   do k=1,nsig
-      do j=1,lon2
-         do i=1,lat2
-            if (clouds(ic)=='ql') sv_rank3(i,j,k)=cwgues(i,j,k)*(one-work(i,j,k))
-            if (clouds(ic)=='qi') sv_rank3(i,j,k)=cwgues(i,j,k)*work(i,j,k)
+   if (clouds(ic)=='ql') then
+      do k=1,nsig
+         do j=1,lon2
+            do i=1,lat2
+               sv_rank3(i,j,k)=cwgues(i,j,k)*(one-work(i,j,k))
+            end do
          end do
       end do
-   end do
+   else if (clouds(ic)=='qi') then
+      do k=1,nsig
+         do j=1,lon2
+            do i=1,lat2
+               sv_rank3(i,j,k)=cwgues(i,j,k)*work(i,j,k)
+            end do
+         end do
+      end do
+   end if
 end do
 
 return
@@ -174,16 +183,25 @@ do ic=1,nclouds
    call gsi_bundlegetpointer (sval,clouds(ic),sv_rank3,istatus)
    if (istatus/=0) cycle
    sv_rank3=zero
-   do k=1,nsig
-      do j=1,lon2
-         do i=1,lat2
-!           if (clouds(ic)=='ql') sv_rank3(i,j,k)=cv_cw(i,j,k)*(one-work0(i,j,k))-cwgues(i,j,k)*work(i,j,k)
-!           if (clouds(ic)=='qi') sv_rank3(i,j,k)=cv_cw(i,j,k)*work0(i,j,k)+cwgues(i,j,k)*work(i,j,k)
-            if (clouds(ic)=='ql') sv_rank3(i,j,k)=cv_cw(i,j,k)*(one-work0(i,j,k))
-            if (clouds(ic)=='qi') sv_rank3(i,j,k)=cv_cw(i,j,k)*work0(i,j,k)
+   if (clouds(ic)=='ql') then
+      do k=1,nsig
+         do j=1,lon2
+            do i=1,lat2
+!              sv_rank3(i,j,k)=cv_cw(i,j,k)*(one-work0(i,j,k))-cwgues(i,j,k)*work(i,j,k)
+               sv_rank3(i,j,k)=cv_cw(i,j,k)*(one-work0(i,j,k))
+            end do
          end do
       end do
-   end do
+   else if (clouds(ic)=='qi') then
+      do k=1,nsig
+         do j=1,lon2
+            do i=1,lat2
+!              sv_rank3(i,j,k)=cv_cw(i,j,k)*work0(i,j,k)+cwgues(i,j,k)*work(i,j,k)
+               sv_rank3(i,j,k)=cv_cw(i,j,k)*work0(i,j,k)
+            end do
+         end do
+      end do
+   end if
 end do
 
 return
@@ -226,8 +244,6 @@ real(r_kind),pointer,dimension(:,:,:) :: rv_rank3
 real(r_kind),pointer,dimension(:,:,:) :: cv_cw
 
 ! Get pointer to required control variable
-call gsi_bundlegetpointer (wbundle,'cw',cv_cw,istatus)
-cv_cw=zero
 
 do k=1,nsig
    do j=1,lon2
@@ -239,25 +255,30 @@ do k=1,nsig
    end do
 end do
 
+call gsi_bundlegetpointer (wbundle,'cw',cv_cw,istatus)
 do ic=1,nclouds
    call gsi_bundlegetpointer (rval,clouds(ic),rv_rank3,istatus)
    if (istatus/=0) cycle
-   do k=1,nsig
-      do j=1,lon2
-         do i=1,lat2
-            if (clouds(ic)=='ql') then
+   if (clouds(ic)=='ql') then
+      do k=1,nsig
+         do j=1,lon2
+            do i=1,lat2
                cv_cw(i,j,k)=cv_cw(i,j,k)+rv_rank3(i,j,k)*(one-work0(i,j,k))
                rv_rank3(i,j,k)=zero
-            end if
-
-            if (clouds(ic)=='qi') then
-               cv_cw(i,j,k)=cv_cw(i,j,k)+rv_rank3(i,j,k)*work0(i,j,k)
-               rv_rank3(i,j,k)=zero
-            end if
-
+            end do
          end do
       end do
-   end do
+   else if (clouds(ic)=='qi') then
+      do k=1,nsig
+         do j=1,lon2
+            do i=1,lat2
+               cv_cw(i,j,k)=cv_cw(i,j,k)+rv_rank3(i,j,k)*work0(i,j,k)
+               rv_rank3(i,j,k)=zero
+            end do
+         end do
+      end do
+   end if
+
 end do
 
 return
