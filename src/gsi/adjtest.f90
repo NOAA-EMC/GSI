@@ -129,19 +129,19 @@ if(lsqrtb)then
 else
    call control2state_ad(stest2,sbias2,xtest2)
 endif
-if (mype==minmype) then
 
 ! Diagnostics
-   zz1=dot_product(xtest1,xtest2)
+zz1=dot_product(xtest1,xtest2)
 
-   zz2=zero
-   do ii=1,nsubwin
-      zz2=zz2+dot_product(stest1(ii),stest1(ii))
-   enddo
-   do ii=1,nrclen
-      zz2=zz2+sbias1%values(ii)*sbias1%values(ii)
-   enddo
+zz2=zero
+do ii=1,nsubwin
+   zz2=zz2+dot_product(stest1(ii),stest1(ii))
+enddo
+do ii=1,nrclen
+   zz2=zz2+sbias1%values(ii)*sbias1%values(ii)
+enddo
 
+if (mype==minmype) then
    if ( abs(zz1+zz2) > sqrt(tiny(zz3)) ) then
       zz3=two*abs(zz1-zz2)/(zz1+zz2)
    else
@@ -170,7 +170,7 @@ call deallocate_preds(sbias1)
 call deallocate_preds(sbias2)
 ! ----------------------------------------------------------------------
 
-if (mype==0) write(6,*)'ADTEST finished'
+if (mype==minmype) write(6,*)'ADTEST finished'
 
 return
 end subroutine adtest
