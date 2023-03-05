@@ -8,14 +8,18 @@ use abstract_get_fv3_regional_ensperts_mod,only: abstract_get_fv3_regional_enspe
     procedure, pass(this) :: get_fv3_regional_ensperts => get_fv3_regional_ensperts_run
     procedure, pass(this) :: ens_spread_dualres_regional => ens_spread_dualres_regional_fv3_regional
     procedure, pass(this) :: general_read_fv3_regional
+    procedure, pass(this) :: general_read_fv3_regional_parallel_over_ens
+    procedure, pass(this) :: parallel_read_fv3_step2
+    procedure, nopass :: fill_regional_2d
   end type get_fv3_regional_ensperts_class
-    type(sub2grid_info):: grd_fv3lam_ens_dynvar_io_nouv,grd_fv3lam_ens_tracer_io_nouv,grd_fv3lam_ens_uv
+    type(sub2grid_info):: grd_fv3lam_ens_dynvar_io_nouv,grd_fv3lam_ens_tracer_io_nouv,grd_fv3lam_ens_uv,grd_fv3lam_ens_phyvar_io_nouv
     character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_ens_io_dynmetvars3d_nouv 
                                ! copy of cvars3d excluding uv 3-d fields   
     character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_ens_io_tracermetvars3d_nouv
                                ! copy of cvars3d excluding uv 3-d fields   
     character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_ens_io_dynmetvars2d_nouv
     character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_ens_io_tracermetvars2d_nouv
+    character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_ens_io_phymetvars3d_nouv
 contains
   
   subroutine get_fv3_regional_ensperts_run(this,en_perts,nelen,ps_bar)
@@ -46,8 +50,8 @@ contains
   
      use kinds, only: r_kind,i_kind,r_single
      use constants, only: zero,one,half,zero_single,rd_over_cp,one_tenth
-     use mpimod, only: mpi_comm_world,ierror,mype
-     use hybrid_ensemble_parameters, only: n_ens,grd_ens
+     use mpimod, only: mpi_comm_world,ierror,mype,npe
+     use hybrid_ensemble_parameters, only: n_ens,grd_ens,parallelization_over_ensmembers
      use hybrid_ensemble_parameters, only: l_both_fv3sar_gfs_ens, n_ens_gfs,n_ens_fv3sar
      use hybrid_ensemble_parameters, only: ntlevs_ens,ensemble_path
      use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
@@ -69,6 +73,8 @@ contains
      use gsi_rfv3io_mod, only: fv3lam_io_dynmetvars2d_nouv,fv3lam_io_tracermetvars2d_nouv 
      use netcdf   , only: nf90_open, nf90_close,nf90_nowrite,nf90_inquire,nf90_format_netcdf4
      use netcdf_mod , only: nc_check
+     use gsi_rfv3io_mod, only: fv3lam_io_phymetvars3d_nouv
+     use obsmod, only: if_model_dbz
     
 
      implicit none
@@ -79,7 +85,11 @@ contains
  
      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig):: u,v,tv,oz,rh
      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2):: ps
-     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)::w,ql,qi,qr,qg,qs,qnr
+     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)::w,ql,qi,qr,qg,qs,qnr,dbz
+     real(r_kind),dimension(:,:,:),allocatable :: gg_u,gg_v,gg_tv,gg_rh
+     real(r_kind),dimension(:,:,:),allocatable :: gg_w,gg_dbz,gg_qr,gg_qs, &
+                                                  gg_qi,gg_qg,gg_oz,gg_cwmr
+     real(r_kind),dimension(:,:),allocatable :: gg_ps
  
      real(r_single),pointer,dimension(:,:,:):: w3 =>NULL()
      real(r_single),pointer,dimension(:,:):: w2 =>NULL()
@@ -96,9 +106,9 @@ contains
  
      integer(i_kind):: i,j,k,n,mm1,istatus
      integer(i_kind):: ndynvario2d,ntracerio2d
-     integer(r_kind):: ndynvario3d,ntracerio3d
+     integer(r_kind):: ndynvario3d,ntracerio3d,nphyvario3d
      integer(i_kind):: inner_vars,numfields
-     integer(i_kind):: ilev,ic2,ic3
+     integer(i_kind):: ilev,ic2,ic3,iope
      integer(i_kind):: m
      integer(i_kind)::loc_id,ncfmt
 
@@ -125,8 +135,10 @@ contains
 !clt setup varnames for IO
      ndynvario2d=0
      ntracerio2d=0
+     nphyvario3d=0
      ndynvario3d=size(fv3lam_io_dynmetvars3d_nouv)
      ntracerio3d=size(fv3lam_io_tracermetvars3d_nouv)
+     nphyvario3d=size(fv3lam_io_phymetvars3d_nouv)
      if (allocated(fv3lam_io_dynmetvars2d_nouv))then
        ndynvario2d=size(fv3lam_io_dynmetvars2d_nouv)
      endif
@@ -137,6 +149,10 @@ contains
      allocate(fv3lam_ens_io_tracermetvars3d_nouv(ndynvario3d))
      fv3lam_ens_io_dynmetvars3d_nouv=fv3lam_io_dynmetvars3d_nouv
      fv3lam_ens_io_tracermetvars3d_nouv=fv3lam_io_tracermetvars3d_nouv
+     if ( nphyvario3d > 0 )then
+       allocate(fv3lam_ens_io_phymetvars3d_nouv(nphyvario3d))
+       fv3lam_ens_io_phymetvars3d_nouv=fv3lam_io_phymetvars3d_nouv
+     end if
      if (ndynvario2d > 0 ) then
        allocate(fv3lam_ens_io_dynmetvars2d_nouv(ndynvario2d))
        fv3lam_ens_io_dynmetvars2d_nouv=fv3lam_io_dynmetvars2d_nouv
@@ -167,6 +183,24 @@ contains
 
      call general_sub2grid_create_info(grd_fv3lam_ens_dynvar_io_nouv,inner_vars,grd_ens%nlat,&
           grd_ens%nlon,grd_ens%nsig,numfields,regional,names=names,lnames=lnames)
+
+     if( nphyvario3d > 0 )then
+        inner_vars=1
+        numfields=inner_vars*(nphyvario3d*grd_ens%nsig)
+        deallocate(lnames,names)
+        allocate(lnames(1,numfields),names(1,numfields))
+        ilev=1
+        do i=1,nphyvario3d
+           do k=1,grd_ens%nsig
+              lnames(1,ilev)=k
+              names(1,ilev)=fv3lam_ens_io_phymetvars3d_nouv(i)
+              ilev=ilev+1
+           enddo
+        enddo
+
+        call general_sub2grid_create_info(grd_fv3lam_ens_phyvar_io_nouv,inner_vars,grd_ens%nlat,&
+             grd_ens%nlon,grd_ens%nsig,numfields,regional,names=names,lnames=lnames)
+     end if
 
      inner_vars=1
      numfields=inner_vars*(ntracerio3d*grd_ens%nsig+ntracerio2d)  
@@ -254,16 +288,73 @@ contains
         mm1=mype+1
         kap1=rd_over_cp+one
         kapr=one/rd_over_cp
+
+         if( parallelization_over_ensmembers ) then
+         if(n_ens_fv3sar>npe) then
+            parallelization_over_ensmembers=.false.
+130         format('Disabling parallelization_over_ensmembers because number of ensemble members (',I0,') is greater than number of MPI ranks (',I0,').')
+            if(mype==0) then
+               write(6,130) n_ens_fv3sar,npe
+            endif
+         endif
+         endif ! parallelization_over_ensmembers
+
+         if(parallelization_over_ensmembers .and. mype==0) then
+             write(6,'(I0,A)') mype,': will read ensemble data in parallel (parallelization_over_ensmembers=.true.)'
+         endif
+
+        if( parallelization_over_ensmembers )then
+           do n=1,n_ens_fv3sar
+              write(ensfilenam_str,22) trim(adjustl(ensemble_path)),ens_fhrlevs(m),n
+22  format(a,'fv3SAR',i2.2,'_ens_mem',i3.3)
+              iope=(n-1)*npe/n_ens_fv3sar
+              ! DEFINE INPUT FILE NAME
+              fv3_filename%grid_spec=trim(ensfilenam_str)//'-fv3_grid_spec'
+              fv3_filename%ak_bk=trim(ensfilenam_str)//'-fv3_akbk'
+              fv3_filename%dynvars=trim(ensfilenam_str)//'-fv3_dynvars'
+              fv3_filename%tracers=trim(ensfilenam_str)//"-fv3_tracer"
+              fv3_filename%phyvars=trim(ensfilenam_str)//'-fv3_phyvars'
+              fv3_filename%sfcdata=trim(ensfilenam_str)//"-fv3_sfcdata"
+              fv3_filename%couplerres=trim(ensfilenam_str)//"-coupler.res"
+
+
+              if( mype==iope) then
+                 allocate(gg_u(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                 allocate(gg_v(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                 allocate(gg_tv(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                 allocate(gg_rh(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                 allocate(gg_oz(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                 allocate(gg_ps(grd_ens%nlat,grd_ens%nlon))
+                 if ( .not. if_model_dbz ) then
+                    call this%general_read_fv3_regional_parallel_over_ens(iope,fv3_filename,gg_ps,gg_u,gg_v,gg_tv,gg_rh,gg_oz)
+                 else
+                    allocate(gg_w(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                    allocate(gg_dbz(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                    allocate(gg_qr(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                    allocate(gg_qs(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                    allocate(gg_qi(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                    allocate(gg_qg(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                    allocate(gg_cwmr(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                    call this%general_read_fv3_regional_parallel_over_ens(iope,fv3_filename,gg_ps,gg_u,gg_v,gg_tv,gg_rh,gg_oz, &
+                                                       g_ql=gg_cwmr,g_qi=gg_qi,g_qr=gg_qr,g_qs=gg_qs,g_qg=gg_qg,g_w=gg_w,g_dbz=gg_dbz)
+                 end if
+              end if
+           end do
+           if(mype==0) then
+              write(6,'(I0,A)') mype,': reading ensemble data in parallel is done (parallelization_over_ensmembers=.true.)'
+           endif
+        end if
+        call MPI_Barrier(mpi_comm_world,ierror)
  !
  ! LOOP OVER ENSEMBLE MEMBERS 
         do n_fv3sar=1,n_ens_fv3sar
            n=n_ens_gfs+n_fv3sar
            write(ensfilenam_str,22) trim(adjustl(ensemble_path)),ens_fhrlevs(m),n_fv3sar
-22  format(a,'fv3SAR',i2.2,'_ens_mem',i3.3)
  ! DEFINE INPUT FILE NAME
            fv3_filename%grid_spec=trim(ensfilenam_str)//'-fv3_grid_spec' !exmaple thinktobe
            fv3_filename%ak_bk=trim(ensfilenam_str)//'-fv3_akbk'
            fv3_filename%dynvars=trim(ensfilenam_str)//'-fv3_dynvars'
+           fv3_filename%phyvars=trim(ensfilenam_str)//'-fv3_phyvars'
            fv3_filename%tracers=trim(ensfilenam_str)//"-fv3_tracer"
            fv3_filename%sfcdata=trim(ensfilenam_str)//"-fv3_sfcdata"
            fv3_filename%couplerres=trim(ensfilenam_str)//"-coupler.res"
@@ -299,15 +390,52 @@ contains
            endif
  ! 
  ! READ ENEMBLE MEMBERS DATA
-           if (mype == 0) write(6,'(a,a)') &
-               'CALL READ_FV3_REGIONAL_ENSPERTS FOR ENS DATA with the filename str : ',trim(ensfilenam_str)
-           if (.not.l_use_dbz_directDA ) then ! Read additional hydrometers and w for dirZDA
-              call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz) 
-           else
-              call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
-                                                  g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w)
+           if( .not. parallelization_over_ensmembers )then
+              if (mype == 0) write(6,'(a,a)') &
+                 'CALL READ_FV3_REGIONAL_ENSPERTS FOR ENS DATA with the filename str : ',trim(ensfilenam_str)
+              if (.not. (l_use_dbz_directDA .or. if_model_dbz) ) then ! Read additional hydrometers and w for dirZDA
+                 call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz)
+              else
+                 if( l_use_dbz_directDA ) then
+                    call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
+                                                        g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w)
+                 else if( if_model_dbz )then
+                    call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
+                                                        g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_dbz=dbz)
+                 end if
+              end if
            end if
  
+           if( parallelization_over_ensmembers )then 
+              iope=(n_fv3sar-1)*npe/n_ens_fv3sar
+              if(mype==iope) then
+                 write(0,'(I0,A,I0,A)') mype,': scatter member ',n_fv3sar,' to other ranks...'
+                 if( if_model_dbz )then
+                    call this%parallel_read_fv3_step2(mype,iope,&
+                          g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,&
+                          g_oz=oz,g_w=w,g_qr=qr,g_qs=qs,g_qi=qi,g_qg=qg,g_dbz=dbz,&
+                          gg_ps=gg_ps,gg_tv=gg_tv,gg_u=gg_u,gg_v=gg_v,&
+                          gg_rh=gg_rh,gg_w=gg_w,gg_dbz=gg_dbz,gg_qr=gg_qr,&
+                          gg_qs=gg_qs,gg_qi=gg_qi,gg_qg=gg_qg,gg_ql=gg_cwmr)
+                 else
+                    call this%parallel_read_fv3_step2(mype,iope,&
+                          g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,g_oz=oz, &
+                          gg_ps=gg_ps,gg_tv=gg_tv,gg_u=gg_u,gg_v=gg_v,gg_rh=gg_rh)
+                 end if
+              else
+                 if( if_model_dbz )then
+                    call this%parallel_read_fv3_step2(mype,iope,&
+                          g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,&
+                          g_oz=oz,g_w=w,g_qr=qr,g_qs=qs,g_qi=qi,g_qg=qg,g_dbz=dbz)
+                 else
+                    call this%parallel_read_fv3_step2(mype,iope,&
+                          g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,g_oz=oz)
+                 endif
+              endif
+
+              call MPI_Barrier(mpi_comm_world,ierror)
+           end if
+
  ! SAVE ENSEMBLE MEMBER DATA IN COLUMN VECTOR
            do ic3=1,nc3d
  
@@ -463,6 +591,16 @@ contains
                           end do
                        end do
                     end do
+
+                 case('dbz','DBZ')
+                    do k=1,grd_ens%nsig
+                       do i=1,grd_ens%lon2
+                          do j=1,grd_ens%lat2
+                             w3(j,i,k) = dbz(j,i,k)
+                             x3(j,i,k)=x3(j,i,k)+dbz(j,i,k)
+                          end do
+                       end do
+                    end do
               end select
 
        
@@ -572,7 +710,7 @@ contains
   end subroutine get_fv3_regional_ensperts_run
   
   subroutine general_read_fv3_regional(this,fv3_filenameginput,g_ps,g_u,g_v,g_tv,g_rh,g_oz, &
-                                        g_ql,g_qi,g_qr,g_qs,g_qg,g_qnr,g_w)
+                                        g_ql,g_qi,g_qr,g_qs,g_qg,g_qnr,g_w,g_dbz)
   !$$$  subprogram documentation block
   !     first compied from general_read_arw_regional           .      .    .                                       .
   ! subprogram:    general_read_fv3_regional  read fv3sar model ensemble members
@@ -623,7 +761,7 @@ contains
     use hybrid_ensemble_parameters, only: grd_ens
     use directDA_radaruse_mod, only: l_use_cvpqx, cvpqx_pval, cld_nt_updt
     use directDA_radaruse_mod, only: l_cvpnr, cvpnr_pval
-
+    use obsmod, only:if_model_dbz
 
 
     implicit none
@@ -632,7 +770,7 @@ contains
     class(get_fv3_regional_ensperts_class), intent(inout) :: this
     type (type_fv3regfilenameg)                  , intent (in)   :: fv3_filenameginput
     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out)::g_u,g_v,g_tv,g_rh,g_oz
-    real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),optional,intent(out)::g_ql,g_qi,g_qr
+    real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),optional,intent(out)::g_ql,g_qi,g_qr,g_dbz
     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),optional,intent(out)::g_qs,g_qg,g_qnr,g_w
 
     real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2),intent(out):: g_ps
@@ -656,11 +794,13 @@ contains
     character(len=24),parameter :: myname_ = 'general_read_fv3_regional'
     type(gsi_bundle) :: gsibundle_fv3lam_ens_dynvar_nouv
     type(gsi_bundle) :: gsibundle_fv3lam_ens_tracer_nouv
+    type(gsi_bundle) :: gsibundle_fv3lam_ens_phyvar_nouv
     type(gsi_grid):: grid_ens
 
     character(len=:),allocatable :: grid_spec !='fv3_grid_spec'            
     character(len=:),allocatable :: ak_bk     !='fv3_akbk'
     character(len=:),allocatable :: dynvars   !='fv3_dynvars'
+    character(len=:),allocatable :: phyvars   !='fv3_phyvars'
     character(len=:),allocatable :: tracers   !='fv3_tracer'
     character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
     character(len=:),allocatable :: couplerres!='coupler.res'
@@ -676,6 +816,7 @@ contains
     grid_spec=fv3_filenameginput%grid_spec
     ak_bk=fv3_filenameginput%ak_bk
     dynvars=fv3_filenameginput%dynvars
+    phyvars=fv3_filenameginput%phyvars
     tracers=fv3_filenameginput%tracers
     sfcdata=fv3_filenameginput%sfcdata
     couplerres=fv3_filenameginput%couplerres
@@ -701,7 +842,10 @@ contains
     endif
      
   
-
+    if(allocated(fv3lam_ens_io_phymetvars3d_nouv))then
+       call gsi_bundlecreate(gsibundle_fv3lam_ens_phyvar_nouv,grid_ens,'gsibundle_fv3lam_ens_phyvar_nouv',istatus, &
+                names3d=fv3lam_ens_io_phymetvars3d_nouv)
+    end if
 
      
     if(fv3sar_ensemble_opt == 0 ) then  
@@ -714,6 +858,10 @@ contains
                             fv3_filenameginput%dynvars,fv3_filenameginput)
       call gsi_fv3ncdf_read(grd_fv3lam_ens_tracer_io_nouv,gsibundle_fv3lam_ens_tracer_nouv,&
                             fv3_filenameginput%tracers,fv3_filenameginput)
+      if( if_model_dbz ) then
+         call gsi_fv3ncdf_read(grd_fv3lam_ens_phyvar_io_nouv,gsibundle_fv3lam_ens_phyvar_nouv,&
+                               fv3_filenameginput%phyvars,fv3_filenameginput)
+      end if
     else
       call gsi_fv3ncdf_read_v1(grd_fv3lam_ens_dynvar_io_nouv,gsibundle_fv3lam_ens_dynvar_nouv,&
                                fv3_filenameginput%dynvars,fv3_filenameginput)
@@ -724,14 +872,17 @@ contains
     call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_dynvar_nouv, 'tsen' ,g_tsen ,istatus );ier=ier+istatus
     call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'q'  ,g_q ,istatus );ier=ier+istatus
     call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'oz'  ,g_oz ,istatus );ier=ier+istatus
-    if (l_use_dbz_directDA) then
+    if (l_use_dbz_directDA .or. if_model_dbz) then
        call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'ql' ,g_ql ,istatus );ier=ier+istatus
        call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'qi' ,g_qi ,istatus );ier=ier+istatus
        call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'qr' ,g_qr ,istatus );ier=ier+istatus
        call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'qs' ,g_qs ,istatus );ier=ier+istatus
        call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'qg' ,g_qg ,istatus );ier=ier+istatus
+       if (l_use_dbz_directDA) &
        call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'qnr',g_qnr ,istatus );ier=ier+istatus
        call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_dynvar_nouv, 'w' , g_w ,istatus );ier=ier+istatus
+       if( if_model_dbz )&
+       call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_phyvar_nouv, 'dbz' , g_dbz ,istatus );ier=ier+istatus
     end if
     
 
@@ -834,10 +985,338 @@ contains
     enddo
     call gsi_bundledestroy(gsibundle_fv3lam_ens_dynvar_nouv)
     call gsi_bundledestroy(gsibundle_fv3lam_ens_tracer_nouv)
-
+    call gsi_bundledestroy(gsibundle_fv3lam_ens_phyvar_nouv)
 
   return       
   end subroutine general_read_fv3_regional
+
+  subroutine general_read_fv3_regional_parallel_over_ens(this,iope,fv3_filenameginput,g_ps,g_u,g_v,g_tv,g_rh,g_oz, &
+                                                  g_ql,g_qi,g_qr,g_qs,g_qg,g_qnr,g_w,g_dbz)
+  !$$$  subprogram documentation block
+  !     first compied from general_read_arw_regional           .      .    .                                       .
+  ! subprogram:    general_read_fv3_regional  read fv3sar model ensemble members
+  !   prgmmr: Ting             org: emc/ncep            date: 2018
+  !
+  ! abstract: read ensemble members from the fv3sar model in "restart" or "cold start"  netcdf format
+  !           for use with hybrid ensemble option. 
+  !
+  ! program history log:
+  !   2018-  Ting      - intial versions  
+  !   2022-04-01 Y. Wang and X. Wang - read all fields for each member for
+  !                                    parallel ensemble IO capability
+  !                                    poc: xuguang.wang@ou.edu
+  !
+  !   input argument list:
+  !
+  !   output argument list:
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm RS/6000 SP
+  !
+  !$$$ end documentation block
+  
+    use netcdf, only: nf90_nowrite
+    use netcdf, only: nf90_open,nf90_close
+    use netcdf, only: nf90_inq_dimid,nf90_inquire_dimension
+    use netcdf, only: nf90_inq_varid,nf90_inquire_variable,nf90_get_var
+    use kinds, only: r_kind,r_single,i_kind
+    use gridmod, only: eta1_ll,eta2_ll
+    use constants, only: zero,one,fv,zero_single,one_tenth,h300
+    use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens
+    use hybrid_ensemble_parameters, only: fv3sar_ensemble_opt 
+
+    use mpimod, only: mpi_comm_world,mpi_rtype,mype
+    use netcdf_mod, only: nc_check
+    use gsi_rfv3io_mod,only: type_fv3regfilenameg
+    use gsi_rfv3io_mod,only:n2d 
+    use constants, only: half,zero
+    use gsi_rfv3io_mod, only: gsi_fv3ncdf_read 
+    use gsi_rfv3io_mod, only: gsi_fv3ncdf_read_v1
+    use gsi_rfv3io_mod, only: gsi_fv3ncdf_readuv
+    use gsi_rfv3io_mod, only: gsi_fv3ncdf_readuv_v1
+    use gsi_rfv3io_mod, only: gsi_fv3ncdf2d_read_v1
+    use directDA_radaruse_mod, only: l_use_dbz_directDA
+    use gsi_bundlemod, only: gsi_gridcreate
+    use gsi_bundlemod, only: gsi_grid
+    use gsi_bundlemod, only: gsi_bundlecreate,gsi_bundledestroy
+    use gsi_bundlemod, only: gsi_bundlegetvar
+    use obsmod, only: if_model_dbz
+    use directDA_radaruse_mod, only: l_use_cvpqx, cvpqx_pval, cld_nt_updt
+    use directDA_radaruse_mod, only: l_cvpnr, cvpnr_pval
+    use gsi_rfv3io_mod, only: gsi_fv3ncdf_read_ens_parallel_over_ens,gsi_fv3ncdf_readuv_ens_parallel_over_ens
+
+
+
+    implicit none
+!
+! Declare passed variables
+    class(get_fv3_regional_ensperts_class), intent(inout) :: this
+    integer(i_kind),                               intent (in)   :: iope
+    type (type_fv3regfilenameg)                  , intent (in)   :: fv3_filenameginput
+    real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig),intent(out)::g_u,g_v,g_tv,g_rh,g_oz
+    real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig),optional,intent(out)::g_ql,g_qi,g_qr,g_dbz
+    real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig),optional,intent(out)::g_qs,g_qg,g_qnr,g_w
+
+    real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon),intent(out):: g_ps
+    real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig+1) ::g_prsi 
+    real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig) ::g_prsl ,g_tsen,g_q,g_delp
+!
+! Declare local parameters
+    real(r_kind),parameter:: r0_01 = 0.01_r_kind
+    real(r_kind),parameter:: r10   = 10.0_r_kind
+    real(r_kind),parameter:: r100  = 100.0_r_kind
+   !
+!   Declare local variables
+    
+    integer(i_kind):: i,j,k,kp
+ 
+    integer(i_kind) iderivative
+
+    
+    logical ice
+
+    character(len=24),parameter :: myname_ = 'general_read_fv3_regional'
+
+    character(len=:),allocatable :: grid_spec !='fv3_grid_spec'            
+    character(len=:),allocatable :: ak_bk     !='fv3_akbk'
+    character(len=:),allocatable :: dynvars   !='fv3_dynvars'
+    character(len=:),allocatable :: phyvars   !='fv3_phyvars'
+    character(len=:),allocatable :: tracers   !='fv3_tracer'
+    character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
+    character(len=:),allocatable :: couplerres!='coupler.res'
+    integer (i_kind) ier,istatus
+
+    
+    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+    end associate
+
+    if( mype == iope )then
+       grid_spec=fv3_filenameginput%grid_spec
+       ak_bk=fv3_filenameginput%ak_bk
+       dynvars=fv3_filenameginput%dynvars
+       phyvars=fv3_filenameginput%phyvars
+       tracers=fv3_filenameginput%tracers
+       sfcdata=fv3_filenameginput%sfcdata
+       couplerres=fv3_filenameginput%couplerres
+   
+       if(fv3sar_ensemble_opt == 0 ) then  
+          call gsi_fv3ncdf_readuv_ens_parallel_over_ens(g_u,g_v,fv3_filenameginput,iope)
+       else
+          write(6,*) "Warning: we can only grab fields from restart files not cold start files for ensemble!"
+       endif
+   
+       if(fv3sar_ensemble_opt == 0) then
+          if (if_model_dbz) then
+             call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%dynvars,fv3_filenameginput,delp=g_delp,tsen=g_tsen,w=g_w,iope=iope)
+             call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%tracers,fv3_filenameginput,q=g_q,oz=g_oz,ql=g_ql,qr=g_qr,&
+                                                  qs=g_qs,qi=g_qi,qg=g_qg,iope=iope)
+             call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%phyvars,fv3_filenameginput,dbz=g_dbz,iope=iope)
+          else
+             call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%dynvars,fv3_filenameginput,delp=g_delp,tsen=g_tsen,iope=iope)         
+             call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%tracers,fv3_filenameginput,q=g_q,oz=g_oz,iope=iope)
+          end if
+       else
+          write(6,*) "Warning: we can only grab fields from restart files not cold start files for ensemble!"
+       endif
+       
+   
+       if (fv3sar_ensemble_opt == 0) then 
+          g_prsi(:,:,grd_ens%nsig+1)=eta1_ll(grd_ens%nsig+1) !thinkto be done , should use eta1_ll from ensemble grid
+          do i=grd_ens%nsig,1,-1
+             g_prsi(:,:,i)=g_delp(:,:,i)*0.001_r_kind+g_prsi(:,:,i+1)
+          enddo
+          g_ps(:,:)=g_prsi(:,:,1)
+   
+       endif
+        
+   !!  tsen2tv  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+       do k=1,grd_ens%nsig
+          do j=1,grd_ens%nlon
+             do i=1,grd_ens%nlat
+                g_tv(i,j,k)=g_tsen(i,j,k)*(one+fv*g_q(i,j,k))
+             enddo
+          enddo
+       enddo
+       if (.not.q_hyb_ens) then
+         ice=.true.
+         iderivative=0
+         do k=1,grd_ens%nsig
+           kp=k+1
+           do j=1,grd_ens%nlon
+             do i=1,grd_ens%nlat
+               g_prsl(i,j,k)=(g_prsi(i,j,k)+g_prsi(i,j,kp))*half
+             end do
+           end do
+         end do
+         call genqsat(g_rh,g_tsen(1,1,1),g_prsl(1,1,1),grd_ens%nlat,grd_ens%nlon,grd_ens%nsig,ice,iderivative)
+         do k=1,grd_ens%nsig
+           do j=1,grd_ens%nlon
+             do i=1,grd_ens%nlat
+               g_rh(i,j,k) = g_q(i,j,k)/g_rh(i,j,k)
+             end do
+           end do
+         end do
+       else
+           do k=1,grd_ens%nsig
+             do j=1,grd_ens%nlon
+               do i=1,grd_ens%nlat
+                 g_rh(i,j,k) = g_q(i,j,k)
+               end do
+              end do
+            end do
+       end if
+    end if ! mype
+   
+  return       
+  end subroutine general_read_fv3_regional_parallel_over_ens
+
+
+  subroutine parallel_read_fv3_step2(this,mype,iope, &
+       g_ps,g_u,g_v,g_tv,g_rh,g_ql,g_oz,g_w,g_qr,g_qs,g_qi,&
+       g_qg,g_dbz, &
+       gg_ps,gg_tv,gg_u,gg_v,gg_rh,gg_w,gg_dbz,gg_qr,&
+       gg_qs,gg_qi,gg_qg,gg_ql)
+
+  !$$$  subprogram documentation block
+  !     .
+  ! subprogram:   parallel_read_fv3_step2 distribute all fields into all tasks
+  !   prgmmr: Y. Wang and X. Wang             org: OU/MAP           date: 2022-04-01
+  !
+  ! abstract: All fields have been read in by general_read_fv3_regional_parallel_over_ens.
+  !           Different tasks contain the data from different members.
+  !           This program will divided the full-domain fields into subdomains
+  !           and assign them to all tasks. poc: xuguang.wang@ou.edu
+  !
+  ! program history log:
+  !                                      
+  !   2022-04-01 Y. Wang and X. Wang - Changed from the code for WRF-ARW
+  !
+  !   input argument list:
+  !
+  !   output argument list:
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm RS/6000 SP
+  !
+  !$$$ end documentation block
+
+    use hybrid_ensemble_parameters, only: grd_ens
+    use mpimod, only: mpi_comm_world,ierror,mpi_rtype
+    use kinds, only: r_kind,r_single,i_kind
+    use gridmod,only: itotsub
+   
+    implicit none
+
+  !
+  ! Declare passed variables
+      class(get_fv3_regional_ensperts_class), intent(inout) :: this
+      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out):: &
+                                                    g_u,g_v,g_tv,g_rh,g_ql,g_oz
+      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig),intent(out),optional::&
+                                  g_w,g_qr,g_qs,g_qi,g_qg,g_dbz
+      integer(i_kind), intent(in) :: mype, iope
+      real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2),intent(out):: g_ps
+
+      ! The gg_ arrays are only sent by the rank doing I/O (mype==iope)
+      real(r_kind),optional,dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig) :: &
+           gg_u,gg_v,gg_tv,gg_rh
+
+      real(r_kind),optional,dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig) :: &
+           gg_w,gg_dbz,gg_qr,gg_qs,gg_qi,gg_qg,gg_ql
+      real(r_kind),optional,dimension(grd_ens%nlat,grd_ens%nlon):: gg_ps
+
+  ! Declare local variables
+      real(r_kind),allocatable,dimension(:):: wrk_send_2d
+      integer(i_kind) :: k
+
+  ! transfer data from root to subdomains on each task
+  ! scatterv used, since full grids exist only on root task.
+    allocate(wrk_send_2d(grd_ens%itotsub))
+  ! first PS (output from fill_regional_2d is a column vector with a halo)
+    if(mype==iope) call this%fill_regional_2d(gg_ps,wrk_send_2d)
+    call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
+    g_ps,grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+  ! then TV,U,V,RH
+    do k=1,grd_ens%nsig
+       if (mype==iope) then
+          call this%fill_regional_2d(gg_tv(:,:,k),wrk_send_2d)
+       endif
+       call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
+       g_tv(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+       if (mype==iope) call this%fill_regional_2d(gg_u(1,1,k),wrk_send_2d)
+       call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
+       g_u(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+       if (mype==iope) call this%fill_regional_2d(gg_v(1,1,k),wrk_send_2d)
+       call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
+       g_v(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+       if (mype==iope) call this%fill_regional_2d(gg_rh(1,1,k),wrk_send_2d)
+       call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
+       g_rh(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+       if( present(g_dbz) )then
+          if (mype==iope) call this%fill_regional_2d(gg_w(1,1,k),wrk_send_2d)
+          call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
+          g_w(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+          if (mype==iope) call this%fill_regional_2d(gg_dbz(1,1,k),wrk_send_2d)
+          call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype,&
+          g_dbz(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+          if (mype==iope) call this%fill_regional_2d(gg_qr(1,1,k),wrk_send_2d)
+          call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype,&
+          g_qr(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+          if (mype==iope) call this%fill_regional_2d(gg_qs(1,1,k),wrk_send_2d)
+          call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype,&
+          g_qs(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+          if (mype==iope) call this%fill_regional_2d(gg_qi(1,1,k),wrk_send_2d)
+          call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype,&
+          g_qi(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+          if (mype==iope) call this%fill_regional_2d(gg_qg(1,1,k),wrk_send_2d)
+          call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
+          g_qg(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+          if (mype==iope) call this%fill_regional_2d(gg_ql(1,1,k),wrk_send_2d)
+          call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype,&
+          g_ql(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
+       end if
+    enddo
+    deallocate(wrk_send_2d)
+  end subroutine parallel_read_fv3_step2
+
+  subroutine fill_regional_2d(fld_in,fld_out)
+  !$$$  subprogram documentation block
+  !                .      .    .                                       .
+  ! subprogram:    fill_regional_2d
+  !   prgmmr: mizzi            org: ncar/mmm            date: 2010-08-11
+  !
+  ! abstract:  create a column vector for the subdomain (including halo)
+  ! from global 2d grid.
+  !
+  !
+  ! program history log:
+  !   2010-08-11  parrish, initial documentation
+  !   2012-03-12  whitaker, remove nx,ny,itotsub from argument list.
+  !
+  !   input argument list:
+  !
+  !   output argument list:
+  !
+  ! attributes:
+  !   language: f90
+  !   machine:  ibm RS/6000 SP
+  !
+  !$$$ end documentation block
+    use kinds, only: r_kind,i_kind
+    use hybrid_ensemble_parameters, only: grd_ens
+    implicit none
+    real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon)::fld_in
+    real(r_kind),dimension(grd_ens%itotsub)::fld_out
+    integer(i_kind):: i,j,k
+    do k=1,grd_ens%itotsub
+       i=grd_ens%ltosj_s(k)
+       j=grd_ens%ltosi_s(k)
+       fld_out(k)=fld_in(j,i)
+    enddo
+  return
+  end subroutine fill_regional_2d
 
   subroutine ens_spread_dualres_regional_fv3_regional(this,mype,en_perts,nelen)
   !$$$  subprogram documentation block
