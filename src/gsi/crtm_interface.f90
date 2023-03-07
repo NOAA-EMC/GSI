@@ -3246,8 +3246,7 @@ subroutine get_crtm_temp_tl(nchanl,sc_index,tb_obs,error0,tref,tl_tbobs)
   integer(i_kind),dimension(nchanl)  ,intent(in)     :: sc_index ! channel number in 2211 set
   real(r_kind),dimension(nchanl)     ,intent(in)     :: tb_obs   ! tbs
   real(r_kind),dimension(nchanl)     ,intent(in)     :: error0   ! error from satinfo
-  real(r_kind),dimension(nchanl)     ,intent(out)    :: tl_tbobs ! new error to
-use
+  real(r_kind),dimension(nchanl)     ,intent(out)    :: tl_tbobs ! new error to use
 
 ! local variables
   integer(i_kind)    :: i
