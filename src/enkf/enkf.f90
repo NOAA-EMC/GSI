@@ -97,7 +97,11 @@ module enkf
 !                used to be the same) and the "chunks" come from loadbal
 !   2018-05-31:  whitaker:  add modulated ensemble model-space vertical
 !                localization (neigv>0) and denkf option.
-!   2022-04-01:  Yongming Wang and X. Wang: Fix spurious analysis increments when assimilating reflectivity
+!   2022-04-01:  Y. Wang and X. Wang: Add dbz_ind related if-blocks to fix spurious
+!                analysis increments due to some unstable amplifying behaviors near edges of
+!                strong precipitation when clear air and large reflectivity values are
+!                assimilated in locations near each other (as may be the case in the leading
+!                line of an MCS).
 !                poc: xuguang.wang@ou.edu
 !
 ! attributes:
