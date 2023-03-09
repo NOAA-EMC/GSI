@@ -53,8 +53,8 @@ case $regtest in
            topts[1]="0:15:00" ; popts[1]="12/5/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="12/9/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
-           topts[1]="0:50:00" ; popts[1]="12/3/" ; ropts[1]="/1"
-           topts[2]="0:50:00" ; popts[2]="12/9/" ; ropts[2]="/2"
+           topts[1]="0:15:00" ; popts[1]="12/5/" ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="12/9/" ; ropts[2]="/2"
         elif [[ "$machine" = "Cheyenne" ]]; then
            topts[1]="0:30:00" ; popts[1]="16/2/" ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="16/4/" ; ropts[2]="/2"
@@ -123,8 +123,8 @@ case $regtest in
            topts[1]="0:10:00" ; popts[1]="12/8/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="12/12/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
-           topts[1]="0:35:00" ; popts[1]="6/8/" ; ropts[1]="/1"
-           topts[2]="0:35:00" ; popts[2]="6/10/" ; ropts[2]="/2"
+           topts[1]="0:10:00" ; popts[1]="12/8/" ; ropts[1]="/1"
+           topts[2]="0:10:00" ; popts[2]="12/10/" ; ropts[2]="/2"
         elif [[ "$machine" = "Discover" ]]; then
            topts[1]="0:30:00" ; popts[1]="48/2"  ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="60/3"  ; ropts[2]="/2"
@@ -153,8 +153,8 @@ case $regtest in
             topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Jet" ]]; then
-            topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
-            topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
+            topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
+            topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
         elif [[ "$machine" = "wcoss2" ]]; then
            topts[1]="0:15:00" ; popts[1]="64/1/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="128/2/" ; ropts[2]="/1"
@@ -255,8 +255,8 @@ case $regtest in
             topts[1]="0:10:00" ; popts[1]="12/3/" ; ropts[1]="/1"
             topts[2]="0:10:00" ; popts[2]="12/5/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
-            topts[1]="0:15:00" ; popts[1]="12/3/" ; ropts[1]="/1"
-            topts[2]="0:15:00" ; popts[2]="12/5/" ; ropts[2]="/2"
+            topts[1]="0:10:00" ; popts[1]="12/3/" ; ropts[1]="/1"
+            topts[2]="0:10:00" ; popts[2]="12/5/" ; ropts[2]="/2"
         elif [[ "$machine" = "Cheyenne" ]]; then
             topts[1]="0:15:00" ; popts[1]="16/2/" ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="16/4/" ; ropts[2]="/2"
