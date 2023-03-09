@@ -129,6 +129,7 @@ contains
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
     use mpimod, only: npe,mype
     use cloud_efr_mod, only: cloud_calc_gfs,set_cloud_lower_bound
+    use jfunc, only: hofx_2m_sfcfile
     use gridmod, only: fv3_full_hydro
 
     implicit none
@@ -141,6 +142,8 @@ contains
 
     real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_z_it   =>NULL()
+    real(r_kind),pointer,dimension(:,:  ):: ges_t2m_it   =>NULL()
+    real(r_kind),pointer,dimension(:,:  ):: ges_q2m_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_u_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_v_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_div_it =>NULL()
@@ -164,8 +167,10 @@ contains
     type(gsi_grid)   :: atm_grid
     integer(i_kind),parameter :: n2d=2
     ! integer(i_kind),parameter :: n3d=8
+    integer(i_kind),parameter :: n2d_2m=4
     integer(i_kind),parameter :: n3d=14
     character(len=4), parameter :: vars2d(n2d) = (/ 'z   ', 'ps  ' /)
+    character(len=4), parameter :: vars2d_with2m(n2d_2m) = (/ 'z   ', 'ps  ','t2m ','q2m ' /)
     ! character(len=4), parameter :: vars3d(n3d) = (/ 'u   ', 'v   ', &
     !                                                 'vor ', 'div ', &
     !                                                 'tv  ', 'q   ', &
@@ -189,8 +194,11 @@ contains
 
 !   Allocate bundle used for reading members
     call gsi_gridcreate(atm_grid,lat2,lon2,nsig)
-
-    call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-read',istatus,names2d=vars2d,names3d=vars3d)
+    if (hofx_2m_sfcfile) then 
+        call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-read',istatus,names2d=vars2d_with2m,names3d=vars3d)
+    else 
+        call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-read',istatus,names2d=vars2d,names3d=vars3d)
+    endif 
     if(istatus/=0) then
       write(6,*) myname_,': trouble creating atm_bundle'
       call stop2(999)
@@ -198,20 +206,28 @@ contains
 
     do it=1,nfldsig
 
-       write(filename,'(''sigf'',i2.2)') ifilesig(it)
-
 !      Read background fields into bundle
+       if (hofx_2m_sfcfile) then  ! current read_sfc routines called from different part of 
+                                 ! of the code, can't easily read into the met-bundle 
+                                 ! wrote a new routine here
+          if (mype==0) write(*,*) 'calling general_read_gfsatm_nc for 2m data', it
+          write(filename,'(''sfcf'',i2.2)') ifilesig(it)
+          call general_read_gfsatm_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
+               atm_bundle,.true.,istatus)
+          if (mype==0) write(*,*) 'done with general_read_gfsatm_nc for 2m data', it 
+       endif
+       write(filename,'(''sigf'',i2.2)') ifilesig(it)
        if (fv3_full_hydro) then
           if (mype==0) write(*,*) 'calling general_read_gfsatm_allhydro_nc', it
           call general_read_gfsatm_allhydro_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
               atm_bundle,istatus) ! this loads cloud and precip
           if (mype==0) write(*,*) 'done with general_read_gfsatm_allhydro_nc', it 
-       else
+       else 
           if (mype==0) write(*,*) 'calling general_read_gfsatm_nc'
           call general_read_gfsatm_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
-              atm_bundle,.true.,istatus)
+               atm_bundle,.true.,istatus)
           if (mype==0) write(*,*) 'done with general_read_gfsatm_nc'
-       end if
+       endif
 
        inithead=.false.
        zflag=.false.
@@ -272,6 +288,16 @@ contains
     if (istatus==0) then
        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z' ,ges_z_it ,istatus)
        if(istatus==0) ges_z_it = ptr2d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'t2m',ptr2d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'t2m' ,ges_t2m_it ,istatus)
+       if(istatus==0) ges_t2m_it = ptr2d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'q2m',ptr2d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q2m' ,ges_q2m_it ,istatus)
+       if(istatus==0) ges_q2m_it = ptr2d
     endif
     call gsi_bundlegetpointer (atm_bundle,'u',ptr3d,istatus)
     if (istatus==0) then
@@ -1203,11 +1229,9 @@ contains
           call read_sfc_(sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough, &
                          veg_type,soil_type,terrain,isli,use_sfc_any, &
                          tref,dt_cool,z_c,dt_warm,z_w,c_0,c_d,w_0,w_d)
-          write(*,*) 'read_sfc netcdf, with NSST variables'
        else
           call read_sfc_(sfct,soil_moi,sno,soil_temp,veg_frac,fact10,sfc_rough, &
                          veg_type,soil_type,terrain,isli,use_sfc_any)
-          write(*,*) 'read_sfc netcdf, without NSST variables'
        endif
     endif
 

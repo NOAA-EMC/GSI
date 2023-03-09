@@ -66,7 +66,7 @@ integer,public :: ntrunc
 ! supported variable names in anavinfo
 character(len=max_varname_length),public, dimension(13) :: vars3d_supported = (/'u   ', 'v   ', 'tv  ', 'q   ', 'oz  ', 'cw  ', 'tsen', 'prse', &
                                                                                 'ql  ', 'qi  ', 'qr  ', 'qs  ', 'qg  '/) 
-character(len=max_varname_length),public, dimension(3)  :: vars2d_supported = (/'ps ', 'pst', 'sst' /)
+character(len=max_varname_length),public, dimension(13)  :: vars2d_supported = (/'ps ', 'pst', 'sst', 't2m', 'q2m', 'soilt1', 'soilt2', 'soilt3', 'soilt4', 'slc1', 'slc2', 'slc3', 'slc4' /)
 ! supported variable names in anavinfo
 contains
 
@@ -303,9 +303,9 @@ if (nproc .eq. 0) then
       enddo
    endif
    do k=1,nlevs
-     ! layer pressure from Phillips vertical interpolation.
-     presslmn(:,k) = ((pressimn(:,k)**kap1-pressimn(:,k+1)**kap1)/&
-                      (kap1*(pressimn(:,k)-pressimn(:,k+1))))**kapr
+      ! layer pressure from Phillips vertical interpolation.
+      presslmn(:,k) = ((pressimn(:,k)**kap1-pressimn(:,k+1)**kap1)/&
+                         (kap1*(pressimn(:,k)-pressimn(:,k+1))))**kapr
    end do
    print *,'ensemble mean first guess surface pressure:'
    print *,minval(spressmn),maxval(spressmn)

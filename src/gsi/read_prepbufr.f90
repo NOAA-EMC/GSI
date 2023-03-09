@@ -145,7 +145,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2019-06-17  mmorris - Update adjust_goescldobs to reject clear cloud obs over water at night
 !   2019-09-27  Su      - add hilbert curve application to aircraft winds
 !   2019-12-05  mmorris - Update adjust_goescldobs to reject ALL clear cloud obs at night
-!
 !   2020-05-04  wu      - no rotate_wind for fv3_regional
 !   2020-09-05  CAPS(C. Tong) - add flag for new vadwind obs to assimilate around the analysis time only
 
@@ -212,7 +211,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use hilbertcurve,only: init_hilbertcurve, accum_hilbertcurve, &
                          apply_hilbertcurve,destroy_hilbertcurve
   use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
-  use jfunc, only: tsensible
+  use jfunc, only: tsensible, hofx_2m_sfcfile
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_deter
@@ -1410,7 +1409,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                       endif
                    enddo
                 endif
-             else
+             else 
                 do k=1,levs
                    itypex=kx
                    ppb=obsdat(1,k)
@@ -1617,7 +1616,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !          If temperature ob, extract information regarding virtual
 !          versus sensible temperature
            if(tob) then
-              if (.not. twodvar_regional .or. .not.tsensible) then
+              ! use tvirtual if tsensible flag not set, and not in either 2Dregional or global_2m DA mode
+              if ( (.not. tsensible)  .and. .not. (twodvar_regional .or. hofx_2m_sfcfile) ) then 
+              
                  do k=1,levs
                     tvflg(k)=one                               ! initialize as sensible
                     do j=1,20
@@ -1914,6 +1915,19 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Missing Values ==>  Cycling! In this case for howv only.  #ww3 
               if (howvob  .and. owave(1,k) > r0_1_bmiss) cycle LOOP_K_LEVS
 
+! CSD - temporary hack ( move to prepbufr pre-processing later)
+!             Over-ride QM=9 for sfc obs 
+!NOTE: 187, 181, and 183 are the screen-level obs over land
+              if (sfctype .and. hofx_2m_sfcfile ) then 
+                if (tob .and. (kx==187 .or. kx==181 .or. kx==183) ) then!hardwire 181/183/187 obs error
+                  tqm(k)=2
+                  qm=2
+                  if (kx==187) obserr(3,k)=2.2585
+                  if (kx==181) obserr(3,k)=1.5056
+                  if (kx==183) obserr(3,k)=2.6349
+                endif
+                if (qob .and. qm == 9 ) qm = 2
+              endif
 !             Set usage variable              
               usage = zero
               if(icuse(nc) <= 0)usage=100._r_kind
@@ -2068,10 +2082,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Temperature
               if(tob) then
                  ppb=obsdat(1,k)
+                 errout = one
                  if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
                     call errormod_aircraft(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
                  else
-                    call errormod(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
+                    if (.not. (sfctype .and. hofx_2m_sfcfile)) then
+                       call errormod(pqm,tqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
+                    endif
                  end if
                  toe=obserr(3,k)*errout
                  qtflg=tvflg(k) 
@@ -2326,7 +2343,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  end if
                  qobcon=obsdat(2,k)*convert
                  tdry=r999
-                 if (tqm(k)<lim_tqm) tdry=(obsdat(3,k)+t0c)/(one+fv*qobcon)
+                 if (sfctype .and. hofx_2m_sfcfile) then
+                    if (tqm(k) < 10) tdry=(obsdat(3,k)+t0c)/(one+fv*qobcon)
+                 else
+                    if (tqm(k)<lim_tqm) tdry=(obsdat(3,k)+t0c)/(one+fv*qobcon)
+                 endif
                  cdata_all(1,iout)=qoe                     ! q error   
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
                  cdata_all(3,iout)=dlat                    ! grid relative latitude
