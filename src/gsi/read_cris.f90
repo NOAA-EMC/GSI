@@ -35,6 +35,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !                      thinning routine including cloud info, and test 431
 !                      subset.
 !   2018-05-21  j.jin  - added time-thinning. Moved the checking of thin4d into satthin.F90.
+!   2023-03-09  ejones - add MW sfc channel for use in thinning in case LW band
+!                        fails
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -153,7 +155,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)   :: idate
   integer(i_kind)   :: idate5(5)
   real(r_kind)      :: sstime, tdiff, t4dv
-  integer(i_kind)   :: nmind, sfc_channel_index
+  integer(i_kind)   :: nmind, sfc_channel_index, sfc_channel_indexLW, sfc_channel_indexMW
   integer(i_kind)   :: subset_start, subset_end, satinfo_nchan, sc_chan, bufr_chan
   integer(i_kind),allocatable, dimension(:) :: channel_number, sc_index, bufr_index
   integer(i_kind),allocatable,dimension(:):: bufr_chan_test
@@ -208,7 +210,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Set standard parameters
   character(8),parameter:: fov_flag="crosstrk"
-  integer(i_kind),parameter:: sfc_channel=501 !used in thinning routine if cloud informatino is not available
+  integer(i_kind),parameter:: sfc_channelLW=501 
+  integer(i_kind),parameter:: sfc_channelMW=748
+  integer(i_kind),parameter:: sfc_channel      !used in thinning routine if cloud information is not available
   integer(i_kind),parameter:: ichan=-999  ! fov-based surface code is not channel specific for cris 
   real(r_kind),parameter:: expansion=one         ! exansion factor for fov-based surface code.
                                                  ! use one for ir sensors.
@@ -665,18 +669,25 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          If this is the first time or a change in the bufr channels is detected, sync with satinfo file
            if (ANY(int(allchan(1,:)) /= bufr_chan_test(:))) then
               sfc_channel_index = 0                                         ! surface channel used for qc and thinning test
+              sfc_channel_indexLW = 0
+              sfc_channel_indexMW = 0
               bufr_index(:) = 0
               bufr_chans: do l=1,bufr_nchan
                  bufr_chan_test(l) = int(allchan(1,l))                      ! Copy this bufr channel selection into array for comparison to next profile
                  satinfo_chans: do i=1,satinfo_nchan                        ! Loop through sensor (cris) channels in the satinfo file
                     if ( channel_number(i) == int(allchan(1,l)) ) then      ! Channel found in both bufr and satinfo file
                        bufr_index(i) = l
-                       if ( channel_number(i) == sfc_channel ) sfc_channel_index = l
-                       exit satinfo_chans                                   ! go to next bufr channel
+                       if ( channel_number(i) == sfc_channelLW ) sfc_channel_indexLW = l      ! check for LW sfc channel
+                       if ( channel_number(i) == sfc_channelMW ) sfc_channel_indexMW = l      ! check for MW sfc channel 
+                       exit satinfo_chans                               ! go to next bufr channel
                     endif
                  end do  satinfo_chans
               end do bufr_chans
-           end if 
+           end if
+
+!          if the LW surface channel is present, use it. If not, check for the MW surface channel and use it instead
+           if ( sfc_channel_indexLW > 0 ) sfc_channel_index = sfc_channel_indexLW 
+           if ( sfc_channel_indexLW == 0 .and. sfc_channel_indexMW > 0 ) sfc_channel_index = sfc_channel_indexMW
 
            if ( sfc_channel_index == 0 ) then
               write(6,*)'READ_CRIS:  ***ERROR*** SURFACE CHANNEL USED FOR QC WAS NOT FOUND'
