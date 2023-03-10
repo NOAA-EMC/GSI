@@ -1622,7 +1622,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !          versus sensible temperature
            if(tob) then
               ! use tvirtual if tsensible flag not set, and not in either 2Dregional or global_2m DA mode
+              ! for now, keeping 2m obs as sensible, for global system.
               if ( (.not. tsensible)  .and. .not. (twodvar_regional .or. global_2m_land) ) then
+              !if ( (.not. tsensible)  .and. .not. (twodvar_regional) ) then
 
                  do k=1,levs
                     tvflg(k)=one                               ! initialize as sensible
@@ -1922,8 +1924,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             Over-ride QM=9 and hard-wire errors for land obs and hofx_sfc_file option
 !             Can be deleted once prepbufr processing updated.
-              if ( global_2m_DA ) then 
-                if (tob .and. qm==9 ) then 
+              if ( global_2m_land ) then
+                if (tob .and. qm==9 ) then
+                     pqm=2 ! otherwise, type 183 will be discarded.
                      qm=2
                      tqm(k)=2
                      if (kx==187) obserr(3,k)=2.2
@@ -1975,7 +1978,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     if(obsdat(12,k) > 32.2_r_kind) usage=118._r_kind  ! > 90F
                  endif
               endif
-              ! to-do: should we add Td checkes from above for landsfctype too?
+              ! to-do: should we add Td checks from above for landsfctype too?
 
               if ((kx>129.and.kx<140).or.(kx>229.and.kx<240) ) then
                  call get_aircraft_usagerj(kx,obstype,c_station_id,usage)
