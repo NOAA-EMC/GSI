@@ -210,9 +210,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Set standard parameters
   character(8),parameter:: fov_flag="crosstrk"
-  integer(i_kind),parameter:: sfc_channelLW=501 
+  integer(i_kind),parameter:: sfc_channelLW=501 !used in thinning routine if cloud information is not available
   integer(i_kind),parameter:: sfc_channelMW=748
-  integer(i_kind),parameter:: sfc_channel      !used in thinning routine if cloud information is not available
   integer(i_kind),parameter:: ichan=-999  ! fov-based surface code is not channel specific for cris 
   real(r_kind),parameter:: expansion=one         ! exansion factor for fov-based surface code.
                                                  ! use one for ir sensors.
@@ -223,6 +222,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: rato   = 0.87997285_r_kind 
   real(r_kind)    :: ptime,timeinflat,crit0
   integer(i_kind) :: ithin_time,n_tbin,it_mesh
+  integer(i_kind) :: sfc_channel      !used in thinning routine if cloud information is not available
   logical print_verbose
 
   print_verbose = .false.
