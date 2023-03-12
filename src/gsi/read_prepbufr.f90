@@ -1926,7 +1926,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Can be deleted once prepbufr processing updated.
               if ( global_2m_land ) then
                 if (tob .and. qm==9 ) then
-                     pqm=2 ! otherwise, type 183 will be discarded.
+                     pqm(k)=2 ! otherwise, type 183 will be discarded.
                      qm=2
                      tqm(k)=2
                      if (kx==187) obserr(3,k)=2.2
