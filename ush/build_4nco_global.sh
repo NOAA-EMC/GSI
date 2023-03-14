@@ -18,6 +18,9 @@ export GSI_MODE="GFS"
 export ENKF_MODE="GFS"
 export REGRESSION_TESTS="NO"
 
+# Optionally set compiler flags
+##export FFLAGS="-check all,noarg_temp_created"
+
 # Prune the directory structure per NCO liking
 if [[ "${PRUNE_4NCO:-}" =~ [yYtT] ]]; then
   $DIR_ROOT/ush/prune_4nco_global.sh prune

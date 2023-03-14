@@ -57,7 +57,7 @@ module aircraftinfo
   logical :: cleanup_tail ! logical to remove tail number no longer used
   logical :: upd_aircraft ! indicator if update bias at 06Z & 18Z
   
-  integer(i_kind), parameter :: max_tail=10000  ! max tail numbers
+  integer(i_kind), parameter :: max_tail=100000  ! max tail numbers
   integer(i_kind) npredt          ! predictor number
   integer(i_kind) ntail           ! total tail number
   integer(i_kind) ntail_update    ! new total tail number

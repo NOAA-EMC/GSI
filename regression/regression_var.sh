@@ -173,18 +173,6 @@ case $machine in
   ;;
 esac
 
-if [[ "$cmaketest" = "false" ]]; then
-  export builddir=$noscrub/build
-  export gsisrc="$basedir/$updat/src"
-  export gsiexec_updat="$gsisrc/global_gsi.x"
-  export gsiexec_contrl="$basedir/$contrl/src/global_gsi.x"
-  export enkfexec_updat="$gsisrc/enkf/global_enkf.x"
-  export enkfexec_contrl="$basedir/$contrl/src/enkf/global_enkf.x"
-  export fixgsi="$basedir/$updat/fix"
-  export scripts="$basedir/$updat/regression"
-  export ush="$basedir/$updat/ush"
-fi
-
 # We are dealing with *which* endian files
 export endianness="Big_Endian"
 
