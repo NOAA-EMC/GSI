@@ -58,7 +58,6 @@ case $machine in
     fi
     export ptmp="/glade/scratch/$LOGNAME/$ptmpName"
 
-    export fixcrtm="/glade/p/ral/jntp/tools/crtm/2.2.3/fix_update"
     export casesdir="/glade/p/ral/jntp/tools/CASES"
 
     export check_resource="no"
@@ -99,7 +98,6 @@ case $machine in
       fi
       export ptmp="${ptmp:-/work/noaa/stmp/$LOGNAME/$ptmpName}"
 
-      export fixcrtm=${CRTM_FIX:-/apps/contrib/NCEPLIBS/orion/fix/crtm_v2.3.0}
       export casesdir="/work/noaa/da/rtreadon/CASES/regtest"
 
       export check_resource="no"
@@ -124,7 +122,6 @@ case $machine in
 
     export ptmp="${ptmp:-/scratch1/NCEPDEV/stmp2/$LOGNAME/$ptmpName}"
 
-##  export fixcrtm="${CRTM_FIX:-/scratch1/NCEPDEV/da/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update}"
     export casesdir="/scratch1/NCEPDEV/da/Russ.Treadon/CASES/regtest"
 
     export check_resource="no"
@@ -160,7 +157,6 @@ case $machine in
     export ptmp=$basedir
     export ptmp=$basedir
     export noscrub=$basedir
-    export fixcrtm="/discover/nobackup/projects/gmao/share/gmao_ops/fvInput_4dvar/gsi/etc/fix_ncep20170329/REL-2.2.3-r60152_local-rev_1/CRTM_Coeffs/$endianness"
     export casesdir="/discover/nobackup/projects/gmao/obsdev/wrmccart/NCEP_regression/CASES"
     export check_resource="no"
     export accnt="g0613"
