@@ -441,7 +441,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
        else if(trim(filename) == 'satwndbufr')then
          lexist = .false.
          loop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
-!        5 GOES-R AMVs (NC005030, NC005031, NC005032, NC005034 and NC005039)
+!        5 GOES-R AMVs (NC005030, NC005031, NC005032, NC005034, NC005039, NC005099)
 !        are added as the GOES-R bufr file provide do not contain other winds.
 !        May not be necessary with the operational satwnd BUFR
             if(trim(subset) == 'NC005010' .or. trim(subset) == 'NC005011' .or.&
@@ -452,6 +452,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
                trim(subset) == 'NC005030' .or. trim(subset) == 'NC005031' .or.& 
                trim(subset) == 'NC005032' .or. trim(subset) == 'NC005034' .or.&
                trim(subset) == 'NC005039' .or. &
+               trim(subset) == 'NC005099' .or. &
                trim(subset) == 'NC005090' .or. trim(subset) == 'NC005091' .or.&
                trim(subset) == 'NC005067' .or. trim(subset) == 'NC005068' .or. trim(subset) == 'NC005069' .or.&
                trim(subset) == 'NC005047' .or. trim(subset) == 'NC005048' .or. trim(subset) == 'NC005049' .or.&
