@@ -99,7 +99,7 @@ character(len=500),public :: datapath
 ! if deterministic=.true., the deterministic square-root filter
 ! update is used.  If .false, a perturbed obs (stochastic) update
 ! is used.
-logical, public :: deterministic, sortinc, pseudo_rh, &
+logical, public :: deterministic, sortinc, pseudo_rh, qobs_pseudo_rh, &
                    varqc, huber, cliptracers, readin_localization
 logical, public :: lupp
 logical, public :: cnvw_option
@@ -242,7 +242,6 @@ logical,public :: netcdf_diag = .false.
 ! use fv3 cubed-sphere tiled restart files
 logical,public :: fv3_native = .false.
 character(len=500),public :: fv3fixpath = ' '
-character(len=24),public :: diagprefix = 'diag'
 integer(i_kind),public :: ntiles=6
 integer(i_kind),public :: nx_res=0,ny_res=0
 integer(i_kind),public :: fv3_io_layout_nx=1,fv3_io_layout_ny=1
@@ -275,10 +274,10 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
                    analpertwtnh_rtpp,analpertwtsh_rtpp,analpertwttr_rtpp,&
                    nlevs,nanals,saterrfact,univaroz,regional,use_gfs_nemsio,use_gfs_ncio,&
-                   paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
+                   paoverpb_thresh,latbound,delat,pseudo_rh,qobs_pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,nhr_state, fhr_assim,nbackgrounds,nstatefields, &
-                   save_inflation,nobsl_max,lobsdiag_forenkf,netcdf_diag,diagprefix,forecast_impact,&
+                   save_inflation,nobsl_max,lobsdiag_forenkf,netcdf_diag,forecast_impact,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles,&
                    getkf,getkf_inflation,denkf,modelspace_vloc,dfs_sort,write_spread_diag,&
                    covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff,letkf_bruteforce_search,&
@@ -389,6 +388,8 @@ paoverpb_thresh = 1.0_r_single! don't skip any obs
 iassim_order = 0
 ! use 'pseudo-rh' analysis variable, as in GSI.
 pseudo_rh = .false.
+! divide qobs by forecast qsat, giving pseudo RH obs
+qobs_pseudo_rh = .true.
 ! if deterministic is true, use LETKF/EnSRF w/o perturbed obs.
 ! if false, use perturbed obs EnKF/LETKF.
 deterministic = .true.
@@ -741,11 +742,7 @@ do while (nhr_state(nstatefields+1) > 0)
         statefileprefixes(nstatefields+1)="firstguess."
       endif
      else  ! global
-      !if (global_2mda) then
-      !statefileprefixes(nstatefields+1)="bfg_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
-      !else
       statefileprefixes(nstatefields+1)="sfg_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
-      !endif
      endif
    endif
    if (trim(statesfcfileprefixes(nstatefields+1)) .eq. "") then

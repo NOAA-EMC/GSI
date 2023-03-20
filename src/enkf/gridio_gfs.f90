@@ -101,7 +101,7 @@
   logical ice
   logical use_full_hydro
   integer(i_kind), allocatable, dimension(:) :: mem_pe, lev_pe1, lev_pe2, iocomms
-  integer(i_kind) :: iope, ionumproc, iolevs, krev
+  integer(i_kind) :: iope, ionumproc, iolevs, krev, ierr
   integer(i_kind) :: ncstart(3), nccount(3)
 
   ! mpi gatherv things

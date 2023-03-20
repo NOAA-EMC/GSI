@@ -32,8 +32,8 @@ module readconvobs
 
 use kinds, only: r_kind,i_kind,r_single,r_double
 use constants, only: one,zero,deg2rad
-use params, only: npefiles, netcdf_diag, modelspace_vloc,&
-l_use_enkf_directZDA,diagprefix
+use params, only: npefiles, netcdf_diag, modelspace_vloc, &
+                  l_use_enkf_directZDA, qobs_pseudo_rh
 implicit none
 
 private
@@ -109,10 +109,10 @@ subroutine get_num_convobs_bin(obspath,datestring,num_obs_tot,num_obs_totdiag,id
        write(pe_name,'(i4.4)') ipe
        if (npefiles .eq. 0) then
            ! read diag file (concatenated pe* files)
-           obsfile = trim(adjustl(obspath))//trim(diagprefix)//"_conv_ges."//datestring//'_'//trim(adjustl(id))
+           obsfile = trim(adjustl(obspath))//"diag_conv_ges."//datestring//'_'//trim(adjustl(id))
            inquire(file=obsfile,exist=fexist)
            if (.not. fexist .or. datestring .eq. '0000000000') &
-             obsfile = trim(adjustl(obspath))//trim(diagprefix)//"_conv_ges."//trim(adjustl(id))
+             obsfile = trim(adjustl(obspath))//"diag_conv_ges."//trim(adjustl(id))
        else ! read raw, unconcatenated pe* files.
            obsfile =&
              trim(adjustl(obspath))//'gsitmp_'//trim(adjustl(id))//'/pe'//pe_name//'.conv_01'
@@ -257,17 +257,16 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
   character(len=500) :: obsfile
   character(len=4) :: pe_name
   character(len=3) :: obtype
-  integer(i_kind) :: iunit, itype, ipe, i, nobs_curr, ityp
+  integer(i_kind) :: iunit, itype, ipe, i, nobs_curr
   integer(i_kind),dimension(nobtype,2) :: nobs
   real(r_kind) :: errorlimit,errorlimit2,error,pres,obmax
   real(r_kind) :: errorlimit2_obs,errorlimit2_bnd
-  logical :: fexist, sfctype
+  logical :: fexist
 
   real(r_single), allocatable, dimension (:) :: Pressure
   real(r_single), allocatable, dimension (:) :: Analysis_Use_Flag
   real(r_single), allocatable, dimension (:) :: Errinv_Final, GPS_Type
   real(r_single), allocatable, dimension (:) :: Observation, v_Observation
-  integer(i_kind), allocatable, dimension (:) :: Observation_Type
   real(r_single), allocatable, dimension (:) :: Forecast_Saturation_Spec_Hum
 
     ! If ob error > errorlimit or < errorlimit2, skip it.
@@ -286,10 +285,10 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
         write(pe_name,'(i4.4)') ipe
         if (npefiles .eq. 0) then
            ! read diag file (concatenated pe* files)
-           obsfile = trim(adjustl(obspath))//trim(diagprefix)//"_conv_"//trim(adjustl(obtype))//"_ges."//datestring//'_'//trim(adjustl(id))//'.nc4'
+           obsfile = trim(adjustl(obspath))//"diag_conv_"//trim(adjustl(obtype))//"_ges."//datestring//'_'//trim(adjustl(id))//'.nc4'
            inquire(file=obsfile,exist=fexist)
            if (.not. fexist .or. datestring .eq. '0000000000') &
-              obsfile = trim(adjustl(obspath))//trim(diagprefix)//"_conv_"//trim(adjustl(obtype))//"_ges."//trim(adjustl(id))//'.nc4'
+              obsfile = trim(adjustl(obspath))//"diag_conv_"//trim(adjustl(obtype))//"_ges."//trim(adjustl(id))//'.nc4'
         else ! read raw, unconcatenated pe* files.
            obsfile = &
               trim(adjustl(obspath))//'gsitmp_'//trim(adjustl(id))//'/pe'//pe_name//'.conv_'//trim(adjustl(obtype))//'_01.nc4'
@@ -308,11 +307,10 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
         endif
 
         allocate(Pressure(nobs_curr), Analysis_Use_Flag(nobs_curr),     &
-                 Observation_Type(nobs_curr),Errinv_Final(nobs_curr), Observation(nobs_curr))
+                 Errinv_Final(nobs_curr), Observation(nobs_curr))
         call nc_diag_read_get_var(iunit, 'Pressure', Pressure)
         call nc_diag_read_get_var(iunit, 'Analysis_Use_Flag', Analysis_Use_Flag)
         call nc_diag_read_get_var(iunit, 'Errinv_Final', Errinv_Final)
-        call nc_diag_read_get_var(iunit, 'Observation_Type', Observation_Type)
 
         if (obtype == ' uv') then
            call nc_diag_read_get_var(iunit, 'u_Observation', Observation)
@@ -327,16 +325,17 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
         endif
         if (obtype == '  q') then
            allocate(Forecast_Saturation_Spec_Hum(nobs_curr))
-           call nc_diag_read_get_var(iunit, 'Forecast_Saturation_Spec_Hum', Forecast_Saturation_Spec_Hum)
+           if ( qobs_pseudo_rh ) then
+              call nc_diag_read_get_var(iunit, 'Forecast_Saturation_Spec_Hum', Forecast_Saturation_Spec_Hum)
+           else
+               Forecast_Saturation_Spec_Hum=1.
+           endif
         endif
 
         call nc_diag_read_close(obsfile)
 
         num_obs_totdiag = num_obs_totdiag + nobs_curr
         do i = 1, nobs_curr
-
-           ityp = Observation_Type(i)
-           sfctype =( ityp==181 .or. ityp==183 .or. ityp==187 )
 
            errorlimit2=errorlimit2_obs
 
@@ -345,7 +344,7 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
            endif
 
            ! for q, normalize by qsatges
-           if (obtype == '  q' .and. .not. sfctype) then  ! not normalizing for sfc q (should we?)
+           if (obtype == '  q') then
               obmax     = abs(Observation(i) / Forecast_Saturation_Spec_Hum(i))
               error     = Errinv_Final(i) * Forecast_Saturation_Spec_Hum(i)
            else
@@ -384,7 +383,7 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
            endif
         end do
 
-        deallocate(Pressure, Analysis_Use_Flag, Errinv_Final, Observation_Type, Observation)
+        deallocate(Pressure, Analysis_Use_Flag, Errinv_Final, Observation)
 
         if (obtype == ' uv') then
            deallocate(v_Observation)
@@ -486,7 +485,6 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
 
   character(len=10), intent(in) :: id
   integer, intent(in)           :: nanal, nmem
-  integer :: ityp
 
   real(r_double) t1,t2,tsum
   character(len=4) pe_name
@@ -504,7 +502,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
   real(r_kind) :: errorlimit,errorlimit2,error,errororig
   real(r_kind) :: obmax, pres
   real(r_kind) :: errorlimit2_obs,errorlimit2_bnd
-  logical fexist, sfctype
+  logical fexist
   logical twofiles, fexist2
   real(r_single), allocatable, dimension (:) :: Latitude, Longitude, Pressure, Time
   integer(i_kind), allocatable, dimension (:) :: Observation_Type
@@ -552,10 +550,10 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
         write(pe_name,'(i4.4)') ipe
         if (npefiles .eq. 0) then
            ! read diag file (concatenated pe* files)
-           obsfile = trim(adjustl(obspath))//trim(diagprefix)//"_conv_"//trim(adjustl(obtype))//"_ges."//datestring//'_'//trim(adjustl(id))//'.nc4'
+           obsfile = trim(adjustl(obspath))//"diag_conv_"//trim(adjustl(obtype))//"_ges."//datestring//'_'//trim(adjustl(id))//'.nc4'
            inquire(file=obsfile,exist=fexist)
            if (.not. fexist .or. datestring .eq. '0000000000') &
-              obsfile = trim(adjustl(obspath))//trim(diagprefix)//"_conv_"//trim(adjustl(obtype))//"_ges."//trim(adjustl(id))//'.nc4'
+              obsfile = trim(adjustl(obspath))//"diag_conv_"//trim(adjustl(obtype))//"_ges."//trim(adjustl(id))//'.nc4'
         else ! read raw, unconcatenated pe* files.
            obsfile = &
               trim(adjustl(obspath))//'gsitmp_'//trim(adjustl(id))//'/pe'//pe_name//'.conv_'//trim(adjustl(obtype))//'_01.nc4'
@@ -606,7 +604,11 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
         endif
         if (obtype == '  q') then
            allocate(Forecast_Saturation_Spec_Hum(nobs))
-           call nc_diag_read_get_var(iunit, 'Forecast_Saturation_Spec_Hum', Forecast_Saturation_Spec_Hum)
+           if ( qobs_pseudo_rh ) then
+              call nc_diag_read_get_var(iunit, 'Forecast_Saturation_Spec_Hum', Forecast_Saturation_Spec_Hum)
+           else
+               Forecast_Saturation_Spec_Hum=1.
+           endif
         endif
         if (lobsdiag_forenkf) then
           call nc_diag_read_get_global_attr(iunit, "jac_nnz", nnz)
@@ -637,10 +639,10 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
         if(twofiles) then
            if (npefiles .eq. 0) then
              ! read diag file (concatenated pe* files)
-             obsfile2 = trim(adjustl(obspath))//trim(diagprefix)//"_conv_"//trim(adjustl(obtype))//"_ges."//datestring//'_'//trim(adjustl(id2))//'.nc4'
+             obsfile2 = trim(adjustl(obspath))//"diag_conv_"//trim(adjustl(obtype))//"_ges."//datestring//'_'//trim(adjustl(id2))//'.nc4'
              inquire(file=obsfile2,exist=fexist2)
              if (.not. fexist2 .or. datestring .eq. '0000000000') &
-                obsfile2 = trim(adjustl(obspath))//trim(diagprefix)//"_conv_"//trim(adjustl(obtype))//"_ges."//trim(adjustl(id2))//'.nc4'
+                obsfile2 = trim(adjustl(obspath))//"diag_conv_"//trim(adjustl(obtype))//"_ges."//trim(adjustl(id2))//'.nc4'
            else ! read raw, unconcatenated pe* files.
              obsfile2 =&
                  trim(adjustl(obspath))//'gsitmp_'//trim(adjustl(id2))//'/pe'//pe_name//'.conv_'//trim(adjustl(obtype))//'_01.nc4'
@@ -668,8 +670,6 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
         errorlimit2=errorlimit2_obs
 
         do i = 1, nobs
-           ityp = Observation_Type(i)
-           sfctype =( ityp==181 .or. ityp==183 .or. ityp==187 )
            nobdiag = nobdiag + 1
            ! special handling for error limits for GPS bend angle
            if (obtype == 'gps') then
@@ -677,7 +677,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
            endif
 
            ! for q, normalize by qsatges
-           if (.not. sfctype  .and. obtype == '  q') then ! not normalizing for sfc q (should we?)
+           if (obtype == '  q') then
               obmax     = abs(real(Observation(i),r_single) / real(Forecast_Saturation_Spec_Hum(i),r_single))
               errororig = real(Errinv_Input(i),r_single) * real(Forecast_Saturation_Spec_Hum(i),r_single)
               error     = real(Errinv_Final(i),r_single) * real(Forecast_Saturation_Spec_Hum(i),r_single)
@@ -694,10 +694,10 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
            else
               pres = Pressure(i)
            endif
-           if (Analysis_Use_Flag(i) < zero) cycle
-           if (error < errorlimit .or. error > errorlimit2 .or.  &
+           if (Analysis_Use_Flag(i) < zero .or.                  &
+               error < errorlimit .or. error > errorlimit2 .or.  &
                abs(obmax) > 1.e9_r_kind) cycle
-           if (.not. modelspace_vloc .and.  &
+           if (.not. modelspace_vloc .and. &
               (pres < 0.001_r_kind .or. pres > 1200._r_kind)) cycle
            ! skipping sst obs since ENKF does not how how to handle them yet.
            if (obtype == 'sst') cycle
@@ -713,8 +713,9 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
            x_time(nob)  = Time(i)
 
            ! observation errors
-           x_errorig(nob) = (one/errororig)**2
-           if (x_errorig(nob) > 1.e10) then
+           if (errororig > 1.e-5_r_kind) then
+              x_errorig(nob) = (one/errororig)**2
+           else
               x_errorig(nob) = 1.e10_r_kind
            endif
            x_err(nob)   = (one/error)**2
@@ -786,13 +787,13 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
               endif
 
               ! normalize q by qsatges
-              if (obtype == '  q' .and. .not.  sfctype ) then 
+              if (obtype == '  q') then
                  hx(nob) = hx(nob) / Forecast_Saturation_Spec_Hum(i)
               endif
            endif
 
            ! normalize q by qsatges
-           if (obtype == '  q' .and. .not. sfctype ) then 
+           if (obtype == '  q') then
               x_obs(nob)   = x_obs(nob) /Forecast_Saturation_Spec_Hum(i)
               hx_mean(nob)     = hx_mean(nob) /Forecast_Saturation_Spec_Hum(i)
               hx_mean_nobc(nob) = hx_mean_nobc(nob) /Forecast_Saturation_Spec_Hum(i)
@@ -1019,10 +1020,10 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
     write(pe_name,'(i4.4)') ipe
     if (npefiles .eq. 0) then
         ! read diag file (concatenated pe* files)
-        obsfile = trim(adjustl(obspath))//trim(diagprefix)//"_conv_ges."//datestring//'_'//trim(adjustl(id))
+        obsfile = trim(adjustl(obspath))//"diag_conv_ges."//datestring//'_'//trim(adjustl(id))
         inquire(file=obsfile,exist=fexist)
         if (.not. fexist .or. datestring .eq. '0000000000') &
-        obsfile = trim(adjustl(obspath))//trim(diagprefix)//"_conv_ges."//trim(adjustl(id))
+        obsfile = trim(adjustl(obspath))//"diag_conv_ges."//trim(adjustl(id))
     else ! read raw, unconcatenated pe* files.
         obsfile = &
         trim(adjustl(obspath))//'gsitmp_'//trim(adjustl(id))//'/pe'//pe_name//'.conv_01'
@@ -1041,10 +1042,10 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
     if(twofiles) then
        if (npefiles .eq. 0) then
          ! read diag file (concatenated pe* files)
-         obsfile2 = trim(adjustl(obspath))//trim(diagprefix)//"_conv_ges."//datestring//'_'//trim(adjustl(id2))
+         obsfile2 = trim(adjustl(obspath))//"diag_conv_ges."//datestring//'_'//trim(adjustl(id2))
          inquire(file=obsfile2,exist=fexist2)
          if (.not. fexist2 .or. datestring .eq. '0000000000') &
-         obsfile2 = trim(adjustl(obspath))//trim(diagprefix)//"_conv_ges."//trim(adjustl(id2))
+         obsfile2 = trim(adjustl(obspath))//"diag_conv_ges."//trim(adjustl(id2))
        else ! read raw, unconcatenated pe* files.
          obsfile2 =&
          trim(adjustl(obspath))//'gsitmp_'//trim(adjustl(id2))//'/pe'//pe_name//'.conv_01'
@@ -1506,19 +1507,19 @@ subroutine write_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, &
 
 
   if (datestring .eq. '0000000000') then
-     obsfile2 = trim(adjustl(obspath))//trim(diagprefix)//"_conv_"//trim(adjustl(gesid2))//"."//trim(adjustl(id2))
+     obsfile2 = trim(adjustl(obspath))//"diag_conv_"//trim(adjustl(gesid2))//"."//trim(adjustl(id2))
   else
-     obsfile2 = trim(adjustl(obspath))//trim(diagprefix)//"_conv_"//trim(adjustl(gesid2))//"."//datestring//'_'//trim(adjustl(id2))
+     obsfile2 = trim(adjustl(obspath))//"diag_conv_"//trim(adjustl(gesid2))//"."//datestring//'_'//trim(adjustl(id2))
   endif
   peloop: do ipe=0,npefiles
 
     write(pe_name,'(i4.4)') ipe
     if (npefiles .eq. 0) then
        ! diag file (concatenated pe* files)
-       obsfile = trim(adjustl(obspath))//trim(diagprefix)//"_conv_ges."//datestring//'_'//trim(adjustl(id))
+       obsfile = trim(adjustl(obspath))//"diag_conv_ges."//datestring//'_'//trim(adjustl(id))
        inquire(file=obsfile,exist=fexist)
        if (.not. fexist .or. datestring .eq. '0000000000') then
-          obsfile = trim(adjustl(obspath))//trim(diagprefix)//"_conv_ges."//trim(adjustl(id))
+          obsfile = trim(adjustl(obspath))//"diag_conv_ges."//trim(adjustl(id))
        endif
     else ! read raw, unconcatenated pe* files.
        obsfile = trim(adjustl(obspath))//'gsitmp_'//trim(adjustl(id))//'/pe'//pe_name//'.conv_01'
@@ -1679,12 +1680,12 @@ subroutine write_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, &
         write(pe_name,'(i4.4)') ipe
         if (npefiles .eq. 0) then
            ! read diag file (concatenated pe* files)
-           obsfile = trim(adjustl(obspath))//trim(diagprefix)//"_conv_"//trim(adjustl(obtype))//"_ges."//datestring//'_'//trim(adjustl(id))//'.nc4'
-           obsfile2 = trim(adjustl(obspath))//trim(diagprefix)//"_conv_"//trim(adjustl(obtype))//"_ges."//datestring//'_'//trim(adjustl(id))//'_spread.nc4'
+           obsfile = trim(adjustl(obspath))//"diag_conv_"//trim(adjustl(obtype))//"_ges."//datestring//'_'//trim(adjustl(id))//'.nc4'
+           obsfile2 = trim(adjustl(obspath))//"diag_conv_"//trim(adjustl(obtype))//"_ges."//datestring//'_'//trim(adjustl(id))//'_spread.nc4'
            inquire(file=obsfile,exist=fexist)
            if (.not. fexist .or. datestring .eq. '0000000000') &
-              obsfile = trim(adjustl(obspath))//trim(diagprefix)//"_conv_"//trim(adjustl(obtype))//"_ges."//trim(adjustl(id))//'.nc4'
-              obsfile2 = trim(adjustl(obspath))//trim(diagprefix)//"_conv_"//trim(adjustl(obtype))//"_ges."//trim(adjustl(id))//'_spread.nc4'
+              obsfile = trim(adjustl(obspath))//"diag_conv_"//trim(adjustl(obtype))//"_ges."//trim(adjustl(id))//'.nc4'
+              obsfile2 = trim(adjustl(obspath))//"diag_conv_"//trim(adjustl(obtype))//"_ges."//trim(adjustl(id))//'_spread.nc4'
         else ! read raw, unconcatenated pe* files.
            obsfile = &
               trim(adjustl(obspath))//'gsitmp_'//trim(adjustl(id))//'/pe'//pe_name//'.conv_'//trim(adjustl(obtype))//'_01.nc4'
