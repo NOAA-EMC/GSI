@@ -33,7 +33,7 @@ module mpi_readobs
 !$$$
   
 use kinds, only: r_double,i_kind,r_kind,r_single,num_bytes_for_r_single
-use params, only: ntasks_io, nanals_per_iotask, nanal1, nanal2 
+use params, only: ntasks_io, nanals_per_iotask, nanal1, nanal2
 use radinfo, only: npred
 use readconvobs
 use readsatobs
@@ -97,7 +97,6 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     call mpi_bcast(nobs_ozdiag,1,mpi_integer,iozproc,mpi_comm_world,ierr)
     call mpi_bcast(nobs_sat,1,mpi_integer,isatproc,mpi_comm_world,ierr)
     call mpi_bcast(nobs_satdiag,1,mpi_integer,isatproc,mpi_comm_world,ierr)
-    call mpi_barrier(mpi_comm_world,ierr)
     if(nproc == 0)print *,'nobs_conv, nobs_oz, nobs_sat = ',nobs_conv,nobs_oz,nobs_sat
     if(nproc == 0)print *,'total diag nobs_conv, nobs_oz, nobs_sat = ', nobs_convdiag, nobs_ozdiag, nobs_satdiag
     nobs_tot = nobs_conv + nobs_oz + nobs_sat

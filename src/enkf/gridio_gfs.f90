@@ -56,7 +56,7 @@
  implicit none
  private
  public :: readgriddata, readgriddata_pnc, writegriddata, writegriddata_pnc
- public :: writeincrement, writeincrement_pnc 
+ public :: writeincrement, writeincrement_pnc
 
  contains
 
@@ -111,7 +111,7 @@
 
   call set_ncio_file_flags(vars3d, n3d, vars2d, n2d, read_sfc_file, read_atm_file)
 
-   if (read_sfc_file) then ! flag for parallel rad
+   if (read_sfc_file) then
       print *,'paranc not supported for reading surface files'
       call mpi_barrier(mpi_comm_world,ierr)
       call mpi_finalize(ierr)
@@ -505,7 +505,7 @@
   pst_ind = getindex(vars2d, 'pst') ! Ps tendency (2D)   // equivalent of
                                      ! old logical massbal_adjust, if non-zero
   sst_ind = getindex(vars2d, 'sst')
- 
+
   use_full_hydro = ( ql_ind > 0 .and. qi_ind > 0  .and. &
                      qr_ind > 0 .and. qs_ind > 0 .and. qg_ind > 0 )
 
@@ -911,7 +911,7 @@
            enddo
         endif
         deallocate(ug3d,vg3d)
-      
+
      else
    !$omp parallel do private(k,ug,vg,divspec,vrtspec)  shared(sigdata,pressi,vmassdiv,grdin,tv,q,cw,u_ind,v_ind,pst_ind,q_ind,tsen_ind,cw_ind,qi_ind,ql_ind)
         do k=1,nlevs
@@ -1032,18 +1032,18 @@
   if (use_gfs_nemsio) call nemsio_close(gfilesfc,iret=iret)
 
   if ( read_sfc_file ) then
- 
-     if ( .not.  use_gfs_ncio ) then 
-        write(6,*) 'griddio/griddata for sfc update vars only coded for nc io' 
+
+     if ( .not.  use_gfs_ncio ) then
+        write(6,*) 'griddio/griddata for sfc update vars only coded for nc io'
         call stop2(23)
-     endif  
-     if (  reducedgrid ) then 
+     endif
+     if ( reducedgrid ) then
         write(6,*) "reducedgrid=T not valid for writing sfc files"
         call stop2(22)
-     endif  
+     endif
 
      ! land sfc DA variables
-     tmp2m_ind  = getindex(vars2d, 't2m') 
+     tmp2m_ind  = getindex(vars2d, 't2m')
      spfh2m_ind = getindex(vars2d, 'q2m')
      soilt1_ind = getindex(vars2d, 'soilt1')
      slc1_ind = getindex(vars2d, 'slc1')
@@ -1053,7 +1053,7 @@
      slc3_ind = getindex(vars2d, 'slc3')
      soilt4_ind = getindex(vars2d, 'soilt4')
      slc4_ind = getindex(vars2d, 'slc4')
-  
+
      dset_sfc = open_dataset(filenamesfc)
      ! read in sfc vars, if requested
      if (tmp2m_ind > 0) then
@@ -1681,7 +1681,7 @@
         ! delzb is (negative) hydrostatic background delz inferred from background ps,Tv
         delzb=(rd/grav)*reshape(tv_bg(:,:,ki),(/nlons*nlats/))
         delzb=delzb*log((100_r_kind*ak(krev+1)+bk(krev+1)*values_1d)/(100_r_kind*ak(krev)+bk(krev)*values_1d))
-        ug3d(:,:,ki)=values_3d(:,:,ki) + reshape(ug-delzb,(/nlons,nlats/)) 
+        ug3d(:,:,ki)=values_3d(:,:,ki) + reshape(ug-delzb,(/nlons,nlats/))
      end do
      if (has_attr(dsfg, 'nbits', 'delz') .and. .not. nocompress) then
        call read_attribute(dsfg, 'nbits', nbits, 'delz')
@@ -2050,7 +2050,7 @@
   call set_ncio_file_flags(vars3d, n3d, vars2d, n2d, write_sfc_file, write_atm_file)
 
   if (write_sfc_file .and. nproc==0 ) then
-        ! adding the sfc increments requires adjusting several other variables. This is done is a separate 
+        ! adding the sfc increments requires adjusting several other variables. This is done is a separate
         ! program.
         write(6,*)'gridio/writegriddata: not coded to write sfc analysis, use separate add_incr program instead'
   endif
@@ -3458,7 +3458,7 @@
  subroutine writeincrement(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
   use netcdf
   use params, only: nbackgrounds,incfileprefixes,fgfileprefixes,reducedgrid,&
-                    datestring,nhr_anal,write_ensmean, fgsfcfileprefixes,incsfcfileprefixes 
+                    datestring,nhr_anal,write_ensmean, fgsfcfileprefixes,incsfcfileprefixes
   use constants, only: grav
   use mpi
   use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
@@ -3496,7 +3496,7 @@
                      hyaivarid, hybivarid, uvarid, vvarid, delpvarid, delzvarid, &
                      tvarid, sphumvarid, liqwatvarid, o3varid, icvarid, &
                      tmp2mvarid, spfh2mvarid, soilt1varid, soilt2varid, &
-                     soilt3varid, soilt4varid, slc1varid, slc2varid, & 
+                     soilt3varid, soilt4varid, slc1varid, slc2varid, &
                      slc3varid, slc4varid, maskvarid
   integer(i_kind) :: tmp2m_ind, spfh2m_ind, soilt1_ind, soilt2_ind, soilt3_ind, &
                      soilt4_ind,slc1_ind, slc2_ind, slc3_ind, slc4_ind
@@ -3520,7 +3520,7 @@
   logical :: write_sfc_file, write_atm_file
 
   call set_ncio_file_flags(vars3d, n3d, vars2d, n2d, write_sfc_file, write_atm_file)
- 
+
   if ( write_atm_file) then
      use_full_hydro = .false.
      clip = tiny_r_kind
@@ -3776,7 +3776,7 @@
            krev = nlevs-k+1 ! k=1 is model top
            ug=(rd/grav)*reshape(tvanl(:,:,k),(/nlons*nlats/))
            ! ps in Pa here, need to multiply ak by 100.
-           ! calculate ug (analysis delz) so it is negative. 
+           ! calculate ug (analysis delz) so it is negative.
            ! (note that ak,bk are already reversed to go from bottom to top)
            ug=ug*log((100_r_kind*ak(krev+1)+bk(krev+1)*vg)/(100_r_kind*ak(krev)+bk(krev)*vg))
            ! ug is hydrostatic analysis delz inferred from analysis ps,Tv
@@ -3858,7 +3858,7 @@
 
   endif ! write_atm_file
 
-  if (write_sfc_file) then 
+  if (write_sfc_file) then
 
      ne = 0
      sfcensmemloop: do nanal=nanal1,nanal2
@@ -3911,15 +3911,15 @@
      call nccheck_incr(nf90_enddef(ncid_out))
 
      tmp2m_ind  = getindex(vars2d, 't2m')   !< indices in the state or control var arrays
-     spfh2m_ind = getindex(vars2d, 'q2m')   
-     soilt1_ind = getindex(vars2d, 'soilt1') 
-     slc1_ind = getindex(vars2d, 'slc1') 
-     soilt2_ind = getindex(vars2d, 'soilt2') 
-     slc2_ind = getindex(vars2d, 'slc2') 
-     soilt3_ind = getindex(vars2d, 'soilt3') 
-     slc3_ind = getindex(vars2d, 'slc3') 
-     soilt4_ind = getindex(vars2d, 'soilt4') 
-     slc4_ind = getindex(vars2d, 'slc4') 
+     spfh2m_ind = getindex(vars2d, 'q2m')
+     soilt1_ind = getindex(vars2d, 'soilt1')
+     slc1_ind = getindex(vars2d, 'slc1')
+     soilt2_ind = getindex(vars2d, 'soilt2')
+     slc2_ind = getindex(vars2d, 'slc2')
+     soilt3_ind = getindex(vars2d, 'soilt3')
+     slc3_ind = getindex(vars2d, 'slc3')
+     soilt4_ind = getindex(vars2d, 'soilt4')
+     slc4_ind = getindex(vars2d, 'slc4')
 
      dsfg = open_dataset(filenamein)
 
@@ -3937,28 +3937,28 @@
 
      call nccheck_incr(nf90_put_var(ncid_out, latvarid, deglats, &
                           start = (/1/), count = (/nlats/)))
-    
-     ! construct mask (1 - soil, 2 - snow, 0 - not snow)   
-     ! note: same logic/threshold used in global_cycle to produce 
+
+     ! construct mask (1 - soil, 2 - snow, 0 - not snow)
+     ! note: same logic/threshold used in global_cycle to produce
      ! mask on model grid.
 
      call read_vardata(dsfg, 'slc1', values_2d, errcode=iret)
-    
+
      mask = 0
      do j=1,nlats
        do i = 1, nlons
-           if (values_2d(i,j) .LT. 1.0) then 
-           mask(i,nlats-j+1) = 1 
-           endif 
+           if (values_2d(i,j) .LT. 1.0) then
+           mask(i,nlats-j+1) = 1
+           endif
        enddo
      end do
 
      call read_vardata(dsfg, 'weasd', values_2d, errcode=iret)
      do j=1,nlats
        do i = 1, nlons
-           if (values_2d(i,j) .GT. 0.001) then 
+           if (values_2d(i,j) .GT. 0.001) then
            mask(i,nlats-j+1) = 2
-           endif 
+           endif
        enddo
      end do
      call nccheck_incr(nf90_put_var(ncid_out, maskvarid, mask, &
@@ -3996,7 +3996,7 @@
      endif
      inc2d(:,:) = reshape(inc,(/nlons,nlats/))
      inc2dout=0.
-     do j=1,nlats 
+     do j=1,nlats
        do i = 1, nlons
            if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
        enddo
@@ -4096,7 +4096,7 @@
        call stop2(23)
      endif
      ! deallocate things
-     deallocate(inc2d,inc2dout) 
+     deallocate(inc2d,inc2dout)
 
   end do sfcbackgroundloop ! loop over backgrounds to read in
   end do sfcensmemloop ! loop over ens members to read in
@@ -4587,7 +4587,7 @@
   character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
   character(len=max_varname_length), dimension(n3d), intent(in) :: vars3d
   integer, intent(in) :: n2d, n3d
-  logical, intent(out) :: sfc_file, atm_file 
+  logical, intent(out) :: sfc_file, atm_file
 
   integer(i_kind) :: u_ind, v_ind, tv_ind, q_ind, oz_ind, cw_ind
   integer(i_kind) :: qr_ind, qs_ind, qg_ind
@@ -4620,12 +4620,12 @@
   sst_ind = getindex(vars2d, 'sst') ! is this really in the atmos file?
 
   ! for nc gfs io determine if requested variables are in sfc and/or atmos file
-  atm_file = ( u_ind>0 .or. v_ind>0 .or. tv_ind>0 .or. q_ind>0 .or. sst_ind>0 .or. & 
-                  oz_ind>0 .or. cw_ind>0 .or. tsen_ind>0 .or. ql_ind>0 .or. & 
-                  qi_ind>0 .or. prse_ind>0 .or. qr_ind>0 .or. qs_ind>0 .or. qg_ind>0 ) 
+  atm_file = ( u_ind>0 .or. v_ind>0 .or. tv_ind>0 .or. q_ind>0 .or. sst_ind>0 .or. &
+                  oz_ind>0 .or. cw_ind>0 .or. tsen_ind>0 .or. ql_ind>0 .or. &
+                  qi_ind>0 .or. prse_ind>0 .or. qr_ind>0 .or. qs_ind>0 .or. qg_ind>0 )
 
   ! sfc file variables
-  tmp2m_ind  = getindex(vars2d, 't2m') 
+  tmp2m_ind  = getindex(vars2d, 't2m')
   spfh2m_ind = getindex(vars2d, 'q2m')
   soilt1_ind = getindex(vars2d, 'soilt1')
   slc1_ind = getindex(vars2d, 'slc1')
@@ -4636,10 +4636,10 @@
   soilt4_ind = getindex(vars2d, 'soilt4')
   slc4_ind = getindex(vars2d, 'slc4')
 
-  sfc_file = ( tmp2m_ind > 0 .or. spfh2m_ind > 0 .or. soilt1_ind > 0 .or. & 
-       slc1_ind > 0 .or. soilt2_ind > 0 .or. slc2_ind > 0 .or.    & 
-       soilt3_ind > 0 .or. slc3_ind > 0 .or. soilt4_ind > 0 .or.  & 
-       slc4_ind  > 0 )  
+  sfc_file = ( tmp2m_ind > 0 .or. spfh2m_ind > 0 .or. soilt1_ind > 0 .or. &
+       slc1_ind > 0 .or. soilt2_ind > 0 .or. slc2_ind > 0 .or.    &
+       soilt3_ind > 0 .or. slc3_ind > 0 .or. soilt4_ind > 0 .or.  &
+       slc4_ind  > 0 )
 
  end subroutine set_ncio_file_flags
 

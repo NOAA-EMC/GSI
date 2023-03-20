@@ -303,9 +303,9 @@ if (nproc .eq. 0) then
       enddo
    endif
    do k=1,nlevs
-      ! layer pressure from Phillips vertical interpolation.
-      presslmn(:,k) = ((pressimn(:,k)**kap1-pressimn(:,k+1)**kap1)/&
-                         (kap1*(pressimn(:,k)-pressimn(:,k+1))))**kapr
+     ! layer pressure from Phillips vertical interpolation.
+     presslmn(:,k) = ((pressimn(:,k)**kap1-pressimn(:,k+1)**kap1)/&
+                      (kap1*(pressimn(:,k)-pressimn(:,k+1))))**kapr
    end do
    print *,'ensemble mean first guess surface pressure:'
    print *,minval(spressmn),maxval(spressmn)

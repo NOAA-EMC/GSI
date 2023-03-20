@@ -178,7 +178,6 @@ subroutine calc_linhx(hx, dens, dhx_dx, hxpert, hx_ens, &
   ! interpolate state horizontally and in time and do  dot product with dHx/dx profile
   ! saves from calculating interpolated x_ens for each state variable
   hx_ens = hx
-
   do i = 1, dhx_dx%nnz
      j = dhx_dx%ind(i)
      hxpert%val(i) = (( dens( ix*nlons  + iy , j, it) *delxp*delyp          &
