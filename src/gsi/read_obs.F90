@@ -438,7 +438,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
           end do
           nread = nread + 1
          end do airploop
-       else if(trim(filename) == 'satwndbufr')then
+       else if(index(filename,'satwndbufr') /= 0)then
          lexist = .false.
          loop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
 !        5 GOES-R AMVs (NC005030, NC005031, NC005032, NC005034, NC005039, NC005099)
