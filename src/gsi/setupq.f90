@@ -160,7 +160,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use constants, only: huge_single,wgtlim,three
   use constants, only: tiny_r_kind,five,half,two,huge_r_kind,r0_01
   use qcmod, only: npres_print,ptopq,pbotq,dfact,dfact1,njqc,vqc,nvqc
-  use jfunc, only: jiter,last,jiterstart,miter,superfact,limitqobs
+  use jfunc, only: jiter,last,jiterstart,miter,superfact,limitqobs,hofx_2m_sfcfile
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: ibeta,ikapa
   use convinfo, only: icsubtype
@@ -281,6 +281,9 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   logical:: l_pbl_pseudo_itype
   integer(i_kind):: ich0
   type(obsLList),pointer,dimension(:):: qhead
+
+  logical :: landsfctype
+
   qhead => obsLL(:)
 
   save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
@@ -359,7 +362,12 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   hr_offset=min_offset/60.0_r_kind
   dup=one
   do k=1,nobs
+     ikx=nint(data(ikxx,k))
+     itype=ictype(ikx)
+     landsfctype =( itype==181 .or. itype==183 .or. itype==187 )
      do l=k+1,nobs
+        !if (twodvar_regional .or. (hofx_2m_sfcfile .and. landsfctype) ) then
+        ! CSD for initial testing leave this off.
         if (twodvar_regional) then
            duplogic=data(ilat,k) == data(ilat,l) .and.  &
            data(ilon,k) == data(ilon,l) .and.  &
@@ -426,7 +434,9 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   iderivative=0
   do jj=1,nfldsig
+     ! qg is used below
      call genqsat(qg(1,1,1,jj),ges_tsen(1,1,1,jj),ges_prsl(1,1,1,jj),lat2,lon2,nsig,ice,iderivative)
+     ! CSD - this is LML. Only used for i_use_2mq4b
      qg2m(:,:,jj)=qg(:,:,1,jj)
   end do
 
@@ -440,10 +450,10 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      call dtime_check(dtime, in_curbin, in_anybin)
      if(.not.in_anybin) cycle
 
+     landsfctype =( itype==181 .or. itype==183 .or. itype==187 )
 
      ! Flag static conditions to create PBL_pseudo_surfobsq obs.
-     l_pbl_pseudo_itype = l_pbl_pseudo_surfobsq .and.         &
-                          ( itype==181 .or. itype==183 .or.itype==187 )
+     l_pbl_pseudo_itype = l_pbl_pseudo_surfobsq .and. landsfctype
 
      if(in_curbin) then
 !       Convert obs lats and lons to grid coordinates
@@ -536,6 +546,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
      call tintrp31(qg,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
           mype,nfldsig)
+! CSD - i_use_2mq4b interpolation here: uses qg2m
 ! Interpolate 2-m qs to obs locations/times
      if((i_use_2mq4b > 0) .and. ((itype > 179 .and. itype < 190) .or. itype == 199) &
             .and.  .not.twodvar_regional)then
@@ -619,6 +630,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      endif
 
 ! Interpolate 2-m q to obs locations/times
+! CSD another interpolation for i_use_2mq4b, but this one is for not twodvar_regional
      if(i_use_2mq4b>0 .and. itype > 179 .and. itype < 190 .and.  .not.twodvar_regional)then
 
         if(i_coastline==2 .or. i_coastline==3) then
@@ -1025,7 +1037,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
          call stop2(999)
      endif
 !    get q2m ...
-     if (i_use_2mq4b>0) then
+     if (i_use_2mq4b>0 .or. hofx_2m_sfcfile) then
         varname='q2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
         if (istatus==0) then

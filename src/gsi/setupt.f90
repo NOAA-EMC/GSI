@@ -352,7 +352,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_kind), parameter :: lapse_error_frac = 0.5 ! inflation factor for obs error when vertically interpolating
   real(r_kind), parameter :: max_delta_z = 300. ! max. vertical mismatch allowed
 
-
+! CSD - move this to where the namelists are read in.
   if (i_use_2mt4b>0)  hofx_2m_sfcfile=.false.
 
   thead => obsLL(:)
