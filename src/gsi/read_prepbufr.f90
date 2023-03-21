@@ -1624,7 +1624,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               ! use tvirtual if tsensible flag not set, and not in either 2Dregional or global_2m DA mode
               ! for now, keeping 2m obs as sensible, for global system.
               if ( (.not. tsensible)  .and. .not. (twodvar_regional .or. global_2m_land) ) then
-              !if ( (.not. tsensible)  .and. .not. (twodvar_regional) ) then
 
                  do k=1,levs
                     tvflg(k)=one                               ! initialize as sensible
@@ -1933,7 +1932,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                      if (kx==181) obserr(3,k)=1.5
                      if (kx==183) obserr(3,k)=2.6
                 endif
-                !if (qob .and. qm == 9 ) qm = 2
+                if (qob .and. qm == 9 ) then 
+                     qm = 2
+                     ! qob err specified as fraction of qsat, multiplied by 10.
+                     if (kx==187) obserr(2,k)=1.0
+                     if (kx==181) obserr(2,k)=1.0
+                     if (kx==183) obserr(2,k)=1.0
+                endif
+
               endif
 !             Set usage variable              
               usage = zero
@@ -1978,7 +1984,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     if(obsdat(12,k) > 32.2_r_kind) usage=118._r_kind  ! > 90F
                  endif
               endif
-              ! to-do: should we add Td checks from above for landsfctype too?
+              ! to-do: should we add qob checks from above for landsfctype too?
 
               if ((kx>129.and.kx<140).or.(kx>229.and.kx<240) ) then
                  call get_aircraft_usagerj(kx,obstype,c_station_id,usage)
