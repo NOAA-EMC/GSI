@@ -154,7 +154,7 @@
                          i_ensloccov4tim,i_ensloccov4var,i_ensloccov4scl,l_timloc_opt,&
                          vdl_scale,vloc_varlist,&
                          global_spectral_filter_sd,assign_vdl_nml,parallelization_over_ensmembers
-  use hybrid_ensemble_parameters,only : l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar
+  use hybrid_ensemble_parameters,only : l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,weight_ens_gfs,weight_ens_fv3sar
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
                             metar_impact_radius_lowcloud,l_gsd_terrain_match_surftobs, &
@@ -1408,7 +1408,8 @@
 !                 s_ens_h  = v1L1  v2L1  v3L1  v1L2 v2L2
 !                 Then localization lengths will be assigned as above.
 !
-  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,nlon_ens,nlat_ens,jcap_ens,&
+  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,&
+                l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,weight_ens_gfs,weight_ens_fv3sar,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,fv3sar_bg_opt,fv3sar_ensemble_opt,full_ensemble,pwgtflg,&
                 jcap_ens_test,beta_s0,beta_e0,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
                 grid_ratio_ens, &
@@ -1821,7 +1822,8 @@
     else 
        write(6,*)'n_ens_gfs and n_ens_fv3sar won"t be used if not regional_ensemble_option==5' 
     endif
-    
+    weight_ens_gfs=one
+    weight_ens_fv3sar=one
   endif
   if(ltlint) then
      if(vqc .or. njqc .or. nvqc)then
