@@ -33,7 +33,7 @@ if [[ -d /glade ]]; then # Cheyenne
   export machine="Cheyenne"
 elif [[ -d /scratch1 ]]; then # Hera
   export machine="Hera"
-elif [[ -d /jetmon ]]; then # Jet
+elif [[ -d /mnt/lfs4 || -d /jetmon || -d /mnt/lfs1 ]]; then # Jet
   export machine="Jet"
 elif [[ -d /discover ]]; then # NCCS Discover
   export machine="Discover"
@@ -58,7 +58,6 @@ case $machine in
     fi
     export ptmp="/glade/scratch/$LOGNAME/$ptmpName"
 
-    export fixcrtm="/glade/p/ral/jntp/tools/crtm/2.2.3/fix_update"
     export casesdir="/glade/p/ral/jntp/tools/CASES"
 
     export check_resource="no"
@@ -99,7 +98,6 @@ case $machine in
       fi
       export ptmp="${ptmp:-/work/noaa/stmp/$LOGNAME/$ptmpName}"
 
-      export fixcrtm=${CRTM_FIX:-/apps/contrib/NCEPLIBS/orion/fix/crtm_v2.3.0}
       export casesdir="/work/noaa/da/rtreadon/CASES/regtest"
 
       export check_resource="no"
@@ -124,7 +122,6 @@ case $machine in
 
     export ptmp="${ptmp:-/scratch1/NCEPDEV/stmp2/$LOGNAME/$ptmpName}"
 
-##  export fixcrtm="${CRTM_FIX:-/scratch1/NCEPDEV/da/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update}"
     export casesdir="/scratch1/NCEPDEV/da/Russ.Treadon/CASES/regtest"
 
     export check_resource="no"
@@ -138,18 +135,15 @@ case $machine in
 
     export noscrub=/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/noscrub
     export ptmp=/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/ptmp
-    export fixcrtm="/lfs1/NESDIS/nesdis-rdo2/David.Huber/save/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
-    export casesdir="/lfs1/NESDIS/nesdis-rdo2/David.Huber/save/CASES"
+    export casesdir="/lfs1/NESDIS/nesdis-rdo2/David.Huber/save/CASES/regtest"
     export check_resource="no"
     export accnt="nesdis-rdo2"
 
     export group="global"
     export queue="batch"
     if [[ "$cmaketest" = "false" ]]; then
-      export basedir="/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/gsi"
+      export basedir="/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/save/git/gsi"
     fi
-
-    export ptmp="/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/ptmp/$ptmpName"
 
     #  On Jet, there are no scrubbers to remove old contents from stmp* directories.
     #  After completion of regression tests, will remove the regression test subdirecories
@@ -163,7 +157,6 @@ case $machine in
     export ptmp=$basedir
     export ptmp=$basedir
     export noscrub=$basedir
-    export fixcrtm="/discover/nobackup/projects/gmao/share/gmao_ops/fvInput_4dvar/gsi/etc/fix_ncep20170329/REL-2.2.3-r60152_local-rev_1/CRTM_Coeffs/$endianness"
     export casesdir="/discover/nobackup/projects/gmao/obsdev/wrmccart/NCEP_regression/CASES"
     export check_resource="no"
     export accnt="g0613"
@@ -175,18 +168,6 @@ case $machine in
     exit 1
   ;;
 esac
-
-if [[ "$cmaketest" = "false" ]]; then
-  export builddir=$noscrub/build
-  export gsisrc="$basedir/$updat/src"
-  export gsiexec_updat="$gsisrc/global_gsi.x"
-  export gsiexec_contrl="$basedir/$contrl/src/global_gsi.x"
-  export enkfexec_updat="$gsisrc/enkf/global_enkf.x"
-  export enkfexec_contrl="$basedir/$contrl/src/enkf/global_enkf.x"
-  export fixgsi="$basedir/$updat/fix"
-  export scripts="$basedir/$updat/regression"
-  export ush="$basedir/$updat/ush"
-fi
 
 # We are dealing with *which* endian files
 export endianness="Big_Endian"

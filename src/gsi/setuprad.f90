@@ -1816,7 +1816,7 @@ contains
         err2 = one/error0**2
         tbc0=tbc
         tb_obs0=tb_obs
-        wgtjo=varinv0
+        wgtjo=varinv
         if (l_may_be_passive .and. .not. retrieval) then
           if(iii>0 .and. iinstr.ne.-1)then
             chan_count=(iii*(iii+1))/2

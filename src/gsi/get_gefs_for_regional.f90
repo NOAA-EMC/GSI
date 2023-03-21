@@ -41,7 +41,7 @@ subroutine get_gefs_for_regional
                      fv3_regional
   use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
   use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
-  use hybrid_ensemble_parameters, only: n_ens_gfs,grd_ens,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
+  use hybrid_ensemble_parameters, only: n_ens_gfs,weight_ens_gfs,grd_ens,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
   use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens,l_ens_in_diff_time,write_ens_sprd
   use hybrid_ensemble_parameters, only: ntlevs_ens,ensemble_path,jcap_ens
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
@@ -1311,7 +1311,7 @@ subroutine get_gefs_for_regional
 ! 2*J_b = x^T * (beta1*B + beta2*P_ens)^(-1) * x
 ! where  P_ens is the ensemble covariance which is the sum of outer products of the
 ! ensemble perturbations (unnormalized) divided by n_ens-1  (or n_ens, depending on who you read).
-     sig_norm=sqrt(one/max(one,n_ens_temp-one))
+     sig_norm=sqrt(weight_ens_gfs/max(one,n_ens_temp-one))
 
 !     if(n_ens_temp==n_ens.and.n==n_ens+1) sig_norm=one
 !                                                  if(n==1 .or. n==2 .or. n==50) then
