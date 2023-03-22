@@ -443,8 +443,9 @@ subroutine general_2m_reload(grd,g_t2m, g_q2m,g_ps,icount,iflag,work)
         mpi_comm_world,ierror)
 
 !$omp parallel do  schedule(dynamic,1) private(k,i,j,ij)
+
    do k=1,icount
-      if ( iflag(k) == 1 ) then
+      if ( iflag(k) == 2 ) then
          ij=0
          do j=1,grd%lon2
             do i=1,grd%lat2
@@ -452,7 +453,7 @@ subroutine general_2m_reload(grd,g_t2m, g_q2m,g_ps,icount,iflag,work)
                g_t2m(i,j)=sub(ij,k)
             enddo
          enddo
-      elseif ( iflag(k) == 2 ) then
+      elseif ( iflag(k) == 3 ) then
          ij=0
          do j=1,grd%lon2
             do i=1,grd%lat2
@@ -460,7 +461,7 @@ subroutine general_2m_reload(grd,g_t2m, g_q2m,g_ps,icount,iflag,work)
                g_q2m(i,j)=sub(ij,k)
             enddo
          enddo
-      elseif ( iflag(k) == 3 ) then
+      elseif ( iflag(k) == 4 ) then
          ij=0
          do j=1,grd%lon2
             do i=1,grd%lat2
@@ -2270,350 +2271,351 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
 
    if (.not. read_2m)  then
 
-   icount=icount+1
-   iflag(icount)=2
-   ilev(icount)=1
+       icount=icount+1
+       iflag(icount)=2
+       ilev(icount)=1
 
-   ! Surface pressure:  same procedure as terrain
-   if (mype==mype_use(icount)) then
-      ! read ps
-      call read_vardata(filges, 'pressfc', rwork2d)
-      rwork2d = r0_001*rwork2d ! convert Pa to cb
-      if ( diff_res ) then
-         vector(1)=.false.
-         grid_b=rwork2d
-         call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-         call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-         do kk=1,grd%itotsub
-            i=grd%ltosi_s(kk)
-            j=grd%ltosj_s(kk)
-            work(kk)=grid2(i,j,1)
-         enddo
-      else
-         grid=rwork2d
-         call general_fill_ns(grd,grid,work)
-      endif
-   endif
-   if ( icount == icm ) then
-      call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
-           icount,iflag,ilev,work,uvflag,vordivflag)
-   endif
+       ! Surface pressure:  same procedure as terrain
+       if (mype==mype_use(icount)) then
+          ! read ps
+          call read_vardata(filges, 'pressfc', rwork2d)
+          rwork2d = r0_001*rwork2d ! convert Pa to cb
+          if ( diff_res ) then
+             vector(1)=.false.
+             grid_b=rwork2d
+             call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+             call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+             do kk=1,grd%itotsub
+                i=grd%ltosi_s(kk)
+                j=grd%ltosj_s(kk)
+                work(kk)=grid2(i,j,1)
+             enddo
+          else
+             grid=rwork2d
+             call general_fill_ns(grd,grid,work)
+          endif
+       endif
+       if ( icount == icm ) then
+          call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
+               icount,iflag,ilev,work,uvflag,vordivflag)
+       endif
 
-   !   Thermodynamic variable:  s-->g transform, communicate to all tasks
-   !   For multilevel fields, each task handles a given level.  Periodic
-   !   mpi_alltoallv calls communicate the grids to all mpi tasks.
-   !   Finally, the grids are loaded into guess arrays used later in the
-   !   code.
+       !   Thermodynamic variable:  s-->g transform, communicate to all tasks
+       !   For multilevel fields, each task handles a given level.  Periodic
+       !   mpi_alltoallv calls communicate the grids to all mpi tasks.
+       !   Finally, the grids are loaded into guess arrays used later in the
+       !   code.
 
-   do k=1,nlevs
+       do k=1,nlevs
 
-      icount=icount+1
-      iflag(icount)=3
-      ilev(icount)=k
-      kr = levs+1-k ! netcdf is top to bottom, need to flip
+          icount=icount+1
+          iflag(icount)=3
+          ilev(icount)=k
+          kr = levs+1-k ! netcdf is top to bottom, need to flip
 
-      if (mype==mype_use(icount)) then
-         call read_vardata(filges, 'spfh', rwork3d1, nslice=kr, slicedim=3)
-         call read_vardata(filges, 'tmp', rwork3d0, nslice=kr, slicedim=3)
-         rwork2d = rwork3d0(:,:,1) * (one+fv*rwork3d1(:,:,1))
-         if ( diff_res ) then
-            grid_b=rwork2d
-            vector(1)=.false.
-            call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-            call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-            do kk=1,grd%itotsub
-               i=grd%ltosi_s(kk)
-               j=grd%ltosj_s(kk)
-               work(kk)=grid2(i,j,1)
-            enddo
-         else
-            grid=rwork2d
-            call general_fill_ns(grd,grid,work)
-         endif
-      endif
-      if ( icount == icm ) then
-         call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
-              icount,iflag,ilev,work,uvflag,vordivflag)
-      endif
-   end do
+          if (mype==mype_use(icount)) then
+             call read_vardata(filges, 'spfh', rwork3d1, nslice=kr, slicedim=3)
+             call read_vardata(filges, 'tmp', rwork3d0, nslice=kr, slicedim=3)
+             rwork2d = rwork3d0(:,:,1) * (one+fv*rwork3d1(:,:,1))
+             if ( diff_res ) then
+                grid_b=rwork2d
+                vector(1)=.false.
+                call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+                call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+                do kk=1,grd%itotsub
+                   i=grd%ltosi_s(kk)
+                   j=grd%ltosj_s(kk)
+                   work(kk)=grid2(i,j,1)
+                enddo
+             else
+                grid=rwork2d
+                call general_fill_ns(grd,grid,work)
+             endif
+          endif
+          if ( icount == icm ) then
+             call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
+                  icount,iflag,ilev,work,uvflag,vordivflag)
+          endif
+       end do
 
-   if ( vordivflag .or. .not. uvflag ) then
-      do k=1,nlevs
-         kr = levs+1-k ! netcdf is top to bottom, need to flip
-         icount=icount+1
-         iflag(icount)=4
-         ilev(icount)=k
+       if ( vordivflag .or. .not. uvflag ) then
+          do k=1,nlevs
+             kr = levs+1-k ! netcdf is top to bottom, need to flip
+             icount=icount+1
+             iflag(icount)=4
+             ilev(icount)=k
 
-         if (mype==mype_use(icount)) then
-            call read_vardata(filges, 'ugrd', rwork3d0, nslice=kr, slicedim=3)
-            call read_vardata(filges, 'vgrd', rwork3d1, nslice=kr, slicedim=3)
-            ! Vorticity
-            ! Convert grid u,v to div and vor
-            if ( diff_res ) then
-               grid_b = rwork3d0(:,:,1)
-               grid_b2 = rwork3d1(:,:,1)
-               vector(1)=.true.
-               call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
-               call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-               do kk=1,grd%itotsub
-                  i=grd%ltosi_s(kk)
-                  j=grd%ltosj_s(kk)
-                  work(kk)=grid2(i,j,1)
-               enddo
-               do j=1,grd%nlon
-                  do i=2,grd%nlat-1
-                     grid(j,grd%nlat-i)=grid2(i,j,1)
-                  enddo
-               enddo
-               call g_egrid2agrid(p_high,grid_c2,grid2,1,1,vector)
-               do kk=1,grd%itotsub
-                  i=grd%ltosi_s(kk)
-                  j=grd%ltosj_s(kk)
-                  work_v(kk)=grid2(i,j,1)
-               enddo
-               do j=1,grd%nlon
-                  do i=2,grd%nlat-1
-                     grid_v(j,grd%nlat-i)=grid2(i,j,1)
-                  enddo
-               enddo
-            else
-               grid = rwork3d0(:,:,1)
-               grid_v = rwork3d1(:,:,1)
-               call general_filluv_ns(grd,slons,clons,grid,grid_v,work,work_v)
-            endif
-            allocate( grid_vor(grd%nlon,nlatm2))
-            call general_sptez_v(sp_a,spec_div,spec_vor,grid,grid_v,-1)
-            call general_sptez_s_b(sp_a,sp_a,spec_vor,grid_vor,1)
-            ! Load values into rows for south and north pole
-            call general_fill_ns(grd,grid_vor,work)
-            deallocate(grid_vor)
-         endif
-         if ( icount == icm ) then
-            call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
-                 icount,iflag,ilev,work,uvflag,vordivflag)
-         endif
+             if (mype==mype_use(icount)) then
+                call read_vardata(filges, 'ugrd', rwork3d0, nslice=kr, slicedim=3)
+                call read_vardata(filges, 'vgrd', rwork3d1, nslice=kr, slicedim=3)
+                ! Vorticity
+                ! Convert grid u,v to div and vor
+                if ( diff_res ) then
+                   grid_b = rwork3d0(:,:,1)
+                   grid_b2 = rwork3d1(:,:,1)
+                   vector(1)=.true.
+                   call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
+                   call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+                   do kk=1,grd%itotsub
+                      i=grd%ltosi_s(kk)
+                      j=grd%ltosj_s(kk)
+                      work(kk)=grid2(i,j,1)
+                   enddo
+                   do j=1,grd%nlon
+                      do i=2,grd%nlat-1
+                         grid(j,grd%nlat-i)=grid2(i,j,1)
+                      enddo
+                   enddo
+                   call g_egrid2agrid(p_high,grid_c2,grid2,1,1,vector)
+                   do kk=1,grd%itotsub
+                      i=grd%ltosi_s(kk)
+                      j=grd%ltosj_s(kk)
+                      work_v(kk)=grid2(i,j,1)
+                   enddo
+                   do j=1,grd%nlon
+                      do i=2,grd%nlat-1
+                         grid_v(j,grd%nlat-i)=grid2(i,j,1)
+                      enddo
+                   enddo
+                else
+                   grid = rwork3d0(:,:,1)
+                   grid_v = rwork3d1(:,:,1)
+                   call general_filluv_ns(grd,slons,clons,grid,grid_v,work,work_v)
+                endif
+                allocate( grid_vor(grd%nlon,nlatm2))
+                call general_sptez_v(sp_a,spec_div,spec_vor,grid,grid_v,-1)
+                call general_sptez_s_b(sp_a,sp_a,spec_vor,grid_vor,1)
+                ! Load values into rows for south and north pole
+                call general_fill_ns(grd,grid_vor,work)
+                deallocate(grid_vor)
+             endif
+             if ( icount == icm ) then
+                call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
+                     icount,iflag,ilev,work,uvflag,vordivflag)
+             endif
 
-      end do
-      do k=1,nlevs
-         kr = levs+1-k ! netcdf is top to bottom, need to flip
+          end do
+          do k=1,nlevs
+             kr = levs+1-k ! netcdf is top to bottom, need to flip
 
-         icount=icount+1
-         iflag(icount)=5
-         ilev(icount)=k
+             icount=icount+1
+             iflag(icount)=5
+             ilev(icount)=k
 
-         if (mype==mype_use(icount)) then
-            call read_vardata(filges, 'ugrd', rwork3d0, nslice=kr, slicedim=3)
-            call read_vardata(filges, 'vgrd', rwork3d1, nslice=kr, slicedim=3)
-            ! Divergence
-            ! Convert grid u,v to div and vor
-            if ( diff_res ) then
-               grid_b = rwork3d0(:,:,1)
-               grid_b2 = rwork3d1(:,:,1)
-               vector(1)=.true.
-               call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
-               call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-               do kk=1,grd%itotsub
-                  i=grd%ltosi_s(kk)
-                  j=grd%ltosj_s(kk)
-                  work(kk)=grid2(i,j,1)
-               enddo
-               do j=1,grd%nlon
-                  do i=2,grd%nlat-1
-                     grid(j,grd%nlat-i)=grid2(i,j,1)
-                  enddo
-               enddo
-               call g_egrid2agrid(p_high,grid_c2,grid2,1,1,vector)
-               do kk=1,grd%itotsub
-                  i=grd%ltosi_s(kk)
-                  j=grd%ltosj_s(kk)
-                  work_v(kk)=grid2(i,j,1)
-               enddo
-               do j=1,grd%nlon
-                  do i=2,grd%nlat-1
-                     grid_v(j,grd%nlat-i)=grid2(i,j,1)
-                  enddo
-               enddo
-            else
-               grid = rwork3d0(:,:,1)
-               grid_v = rwork3d1(:,:,1)
-               call general_filluv_ns(grd,slons,clons,grid,grid_v,work,work_v)
-            endif
-            allocate( grid_div(grd%nlon,nlatm2) )
-            call general_sptez_v(sp_a,spec_div,spec_vor,grid,grid_v,-1)
-            call general_sptez_s_b(sp_a,sp_a,spec_div,grid_div,1)
-            ! Load values into rows for south and north pole
-            call general_fill_ns(grd,grid_div,work)
-            deallocate(grid_div)
-         endif
-         if ( icount == icm ) then
-            call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
-                 icount,iflag,ilev,work,uvflag,vordivflag)
-         endif
+             if (mype==mype_use(icount)) then
+                call read_vardata(filges, 'ugrd', rwork3d0, nslice=kr, slicedim=3)
+                call read_vardata(filges, 'vgrd', rwork3d1, nslice=kr, slicedim=3)
+                ! Divergence
+                ! Convert grid u,v to div and vor
+                if ( diff_res ) then
+                   grid_b = rwork3d0(:,:,1)
+                   grid_b2 = rwork3d1(:,:,1)
+                   vector(1)=.true.
+                   call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
+                   call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+                   do kk=1,grd%itotsub
+                      i=grd%ltosi_s(kk)
+                      j=grd%ltosj_s(kk)
+                      work(kk)=grid2(i,j,1)
+                   enddo
+                   do j=1,grd%nlon
+                      do i=2,grd%nlat-1
+                         grid(j,grd%nlat-i)=grid2(i,j,1)
+                      enddo
+                   enddo
+                   call g_egrid2agrid(p_high,grid_c2,grid2,1,1,vector)
+                   do kk=1,grd%itotsub
+                      i=grd%ltosi_s(kk)
+                      j=grd%ltosj_s(kk)
+                      work_v(kk)=grid2(i,j,1)
+                   enddo
+                   do j=1,grd%nlon
+                      do i=2,grd%nlat-1
+                         grid_v(j,grd%nlat-i)=grid2(i,j,1)
+                      enddo
+                   enddo
+                else
+                   grid = rwork3d0(:,:,1)
+                   grid_v = rwork3d1(:,:,1)
+                   call general_filluv_ns(grd,slons,clons,grid,grid_v,work,work_v)
+                endif
+                allocate( grid_div(grd%nlon,nlatm2) )
+                call general_sptez_v(sp_a,spec_div,spec_vor,grid,grid_v,-1)
+                call general_sptez_s_b(sp_a,sp_a,spec_div,grid_div,1)
+                ! Load values into rows for south and north pole
+                call general_fill_ns(grd,grid_div,work)
+                deallocate(grid_div)
+             endif
+             if ( icount == icm ) then
+                call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
+                     icount,iflag,ilev,work,uvflag,vordivflag)
+             endif
 
-      end do
-   endif ! if ( vordivflag .or. .not. uvflag )
-   if ( uvflag ) then
-      do k=1,nlevs
-         kr = levs+1-k ! netcdf is top to bottom, need to flip
-         icount=icount+1
-         iflag(icount)=6
-         ilev(icount)=k
+          end do
+       endif ! if ( vordivflag .or. .not. uvflag )
+       if ( uvflag ) then
+          do k=1,nlevs
+             kr = levs+1-k ! netcdf is top to bottom, need to flip
+             icount=icount+1
+             iflag(icount)=6
+             ilev(icount)=k
 
-         if (mype==mype_use(icount)) then
-            call read_vardata(filges, 'ugrd', rwork3d0, nslice=kr, slicedim=3)
-            call read_vardata(filges, 'vgrd', rwork3d1, nslice=kr, slicedim=3)
+             if (mype==mype_use(icount)) then
+                call read_vardata(filges, 'ugrd', rwork3d0, nslice=kr, slicedim=3)
+                call read_vardata(filges, 'vgrd', rwork3d1, nslice=kr, slicedim=3)
 
-            if ( diff_res ) then
-               grid_b = rwork3d0(:,:,1)
-               grid_b2 = rwork3d1(:,:,1)
-               vector(1)=.true.
-               call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
-               call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-               do kk=1,grd%itotsub
-                  i=grd%ltosi_s(kk)
-                  j=grd%ltosj_s(kk)
-                  work(kk)=grid2(i,j,1)
-               enddo
-            else
-               grid = rwork3d0(:,:,1)
-               grid_v = rwork3d1(:,:,1)
-               call general_filluv_ns(grd,slons,clons,grid,grid_v,work,work_v)
-            endif
-         endif
-         if ( icount == icm ) then
-            call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
-                 icount,iflag,ilev,work,uvflag,vordivflag)
-         endif
+                if ( diff_res ) then
+                   grid_b = rwork3d0(:,:,1)
+                   grid_b2 = rwork3d1(:,:,1)
+                   vector(1)=.true.
+                   call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
+                   call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+                   do kk=1,grd%itotsub
+                      i=grd%ltosi_s(kk)
+                      j=grd%ltosj_s(kk)
+                      work(kk)=grid2(i,j,1)
+                   enddo
+                else
+                   grid = rwork3d0(:,:,1)
+                   grid_v = rwork3d1(:,:,1)
+                   call general_filluv_ns(grd,slons,clons,grid,grid_v,work,work_v)
+                endif
+             endif
+             if ( icount == icm ) then
+                call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
+                     icount,iflag,ilev,work,uvflag,vordivflag)
+             endif
 
-         icount=icount+1
-         iflag(icount)=7
-         ilev(icount)=k
+             icount=icount+1
+             iflag(icount)=7
+             ilev(icount)=k
 
-         if (mype==mype_use(icount)) then
-            ! V
-            call read_vardata(filges, 'ugrd', rwork3d0, nslice=kr, slicedim=3)
-            call read_vardata(filges, 'vgrd', rwork3d1, nslice=kr, slicedim=3)
-            if ( diff_res ) then
-               grid_b = rwork3d0(:,:,1)
-               grid_b2 = rwork3d1(:,:,1)
-               vector(1)=.true.
-               call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
-               call g_egrid2agrid(p_high,grid_c2,grid2,1,1,vector)
-               do kk=1,grd%itotsub
-                  i=grd%ltosi_s(kk)
-                  j=grd%ltosj_s(kk)
-                  work(kk)=grid2(i,j,1)
-               enddo
-            else
-               grid = rwork3d0(:,:,1)
-               grid_v = rwork3d1(:,:,1)
-               ! Note work_v and work are switched because output must be in work.
-               call general_filluv_ns(grd,slons,clons,grid,grid_v,work_v,work)
-            endif
-         endif
-         if ( icount == icm ) then
-            call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
-                 icount,iflag,ilev,work,uvflag,vordivflag)
-         endif
-      end do
-   endif ! if ( uvflag )
-   do k=1,nlevs
-      kr = levs+1-k ! netcdf is top to bottom, need to flip
-      icount=icount+1
-      iflag(icount)=8
-      ilev(icount)=k
+             if (mype==mype_use(icount)) then
+                ! V
+                call read_vardata(filges, 'ugrd', rwork3d0, nslice=kr, slicedim=3)
+                call read_vardata(filges, 'vgrd', rwork3d1, nslice=kr, slicedim=3)
+                if ( diff_res ) then
+                   grid_b = rwork3d0(:,:,1)
+                   grid_b2 = rwork3d1(:,:,1)
+                   vector(1)=.true.
+                   call filluv2_ns(grid_b,grid_b2,grid_c(:,:,1),grid_c2(:,:,1),latb+2,lonb,slons,clons)
+                   call g_egrid2agrid(p_high,grid_c2,grid2,1,1,vector)
+                   do kk=1,grd%itotsub
+                      i=grd%ltosi_s(kk)
+                      j=grd%ltosj_s(kk)
+                      work(kk)=grid2(i,j,1)
+                   enddo
+                else
+                   grid = rwork3d0(:,:,1)
+                   grid_v = rwork3d1(:,:,1)
+                   ! Note work_v and work are switched because output must be in work.
+                   call general_filluv_ns(grd,slons,clons,grid,grid_v,work_v,work)
+                endif
+             endif
+             if ( icount == icm ) then
+                call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
+                     icount,iflag,ilev,work,uvflag,vordivflag)
+             endif
+          end do
+       endif ! if ( uvflag )
+       do k=1,nlevs
+          kr = levs+1-k ! netcdf is top to bottom, need to flip
+          icount=icount+1
+          iflag(icount)=8
+          ilev(icount)=k
 
-      if (mype==mype_use(icount)) then
-         ! Specific humidity
-         call read_vardata(filges, 'spfh', rwork3d0, nslice=kr, slicedim=3)
-         if ( diff_res ) then
-            grid_b=rwork3d0(:,:,1)
-            vector(1)=.false.
-            call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-            call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-            do kk=1,grd%itotsub
-               i=grd%ltosi_s(kk)
-               j=grd%ltosj_s(kk)
-               work(kk)=grid2(i,j,1)
-            enddo
-         else
-            grid = rwork3d0(:,:,1)
-            call general_fill_ns(grd,grid,work)
-         endif
-      endif
-      if ( icount == icm ) then
-         call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
-              icount,iflag,ilev,work,uvflag,vordivflag)
-      endif
-   end do
-   do k=1,nlevs
-      kr = levs+1-k ! netcdf is top to bottom, need to flip
-   
-      icount=icount+1
-      iflag(icount)=9
-      ilev(icount)=k
+          if (mype==mype_use(icount)) then
+             ! Specific humidity
+             call read_vardata(filges, 'spfh', rwork3d0, nslice=kr, slicedim=3)
+             if ( diff_res ) then
+                grid_b=rwork3d0(:,:,1)
+                vector(1)=.false.
+                call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+                call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+                do kk=1,grd%itotsub
+                   i=grd%ltosi_s(kk)
+                   j=grd%ltosj_s(kk)
+                   work(kk)=grid2(i,j,1)
+                enddo
+             else
+                grid = rwork3d0(:,:,1)
+                call general_fill_ns(grd,grid,work)
+             endif
+          endif
+          if ( icount == icm ) then
+             call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
+                  icount,iflag,ilev,work,uvflag,vordivflag)
+          endif
+       end do
+       do k=1,nlevs
+          kr = levs+1-k ! netcdf is top to bottom, need to flip
+       
+          icount=icount+1
+          iflag(icount)=9
+          ilev(icount)=k
 
-      if (mype==mype_use(icount)) then
-         call read_vardata(filges, 'o3mr', rwork3d0, nslice=kr, slicedim=3)
-         ! Ozone mixing ratio
-         if ( diff_res ) then
-            grid_b=rwork3d0(:,:,1)
-            vector(1)=.false.
-            call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-            call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-            do kk=1,grd%itotsub
-               i=grd%ltosi_s(kk)
-               j=grd%ltosj_s(kk)
-               work(kk)=grid2(i,j,1)
-            enddo
-         else
-            grid=rwork3d0(:,:,1)
-            call general_fill_ns(grd,grid,work)
-         endif
-      endif
-      if ( icount == icm ) then
-         call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
-              icount,iflag,ilev,work,uvflag,vordivflag)
-      endif
-   end do
+          if (mype==mype_use(icount)) then
+             call read_vardata(filges, 'o3mr', rwork3d0, nslice=kr, slicedim=3)
+             ! Ozone mixing ratio
+             if ( diff_res ) then
+                grid_b=rwork3d0(:,:,1)
+                vector(1)=.false.
+                call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+                call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+                do kk=1,grd%itotsub
+                   i=grd%ltosi_s(kk)
+                   j=grd%ltosj_s(kk)
+                   work(kk)=grid2(i,j,1)
+                enddo
+             else
+                grid=rwork3d0(:,:,1)
+                call general_fill_ns(grd,grid,work)
+             endif
+          endif
+          if ( icount == icm ) then
+             call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
+                  icount,iflag,ilev,work,uvflag,vordivflag)
+          endif
+       end do
 
-   do k=1,nlevs
-      icount=icount+1
-      iflag(icount)=10
-      ilev(icount)=k
-      kr = levs+1-k ! netcdf is top to bottom, need to flip
+       do k=1,nlevs
+          icount=icount+1
+          iflag(icount)=10
+          ilev(icount)=k
+          kr = levs+1-k ! netcdf is top to bottom, need to flip
 
-      if (mype==mype_use(icount)) then
-         call read_vardata(filges, 'clwmr', rwork3d0, nslice=kr, slicedim=3)
-         call read_vardata(filges, 'icmr', rwork3d1, nslice=kr, slicedim=3)
-         ! Cloud condensate mixing ratio.
-         rwork2d = rwork3d0(:,:,1)+rwork3d1(:,:,1)
-         if ( diff_res ) then
-            grid_b=rwork2d
-            vector(1)=.false.
-            call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-            call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-            do kk=1,grd%itotsub
-               i=grd%ltosi_s(kk)
-               j=grd%ltosj_s(kk)
-               work(kk)=grid2(i,j,1)
-            enddo
-         else
-            grid=rwork2d
-            call general_fill_ns(grd,grid,work)
-         endif
+          if (mype==mype_use(icount)) then
+             call read_vardata(filges, 'clwmr', rwork3d0, nslice=kr, slicedim=3)
+             call read_vardata(filges, 'icmr', rwork3d1, nslice=kr, slicedim=3)
+             ! Cloud condensate mixing ratio.
+             rwork2d = rwork3d0(:,:,1)+rwork3d1(:,:,1)
+             if ( diff_res ) then
+                grid_b=rwork2d
+                vector(1)=.false.
+                call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+                call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+                do kk=1,grd%itotsub
+                   i=grd%ltosi_s(kk)
+                   j=grd%ltosj_s(kk)
+                   work(kk)=grid2(i,j,1)
+                enddo
+             else
+                grid=rwork2d
+                call general_fill_ns(grd,grid,work)
+             endif
 
-      endif
+          endif
 
-         if ( icount == icm .or. k == nlevs ) then
-            call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
-                 icount,iflag,ilev,work,uvflag,vordivflag)
-         endif
+             if ( icount == icm .or. k == nlevs ) then
+                call general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr, &
+                     icount,iflag,ilev,work,uvflag,vordivflag)
+             endif
 
-   enddo ! do k=1,nlevs
-   elseif (read_2m) then  ! read_2m
-       icount=1
-       iflag(icount)=1
+       enddo ! do k=1,nlevs
+   else ! read_2m
+
+       icount=icount+1
+       iflag(icount)=2
 
        ! 2m temperature from sfc file
        if (mype==mype_use(icount)) then
@@ -2636,11 +2638,12 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
        endif
 
        icount=icount + 1
-       iflag(icount)=2
+       iflag(icount)=3
 
        ! 2m humidity from sfc file
        if (mype==mype_use(icount)) then
           call read_vardata(filges, 'spfh2m', rwork2d)
+
           if ( diff_res ) then
              vector(1)=.false.
              grid_b=rwork2d
@@ -2656,6 +2659,10 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
              call general_fill_ns(grd,grid,work)
           endif
        endif
+
+       icount=icount + 1
+       iflag(icount)=4
+
        if (mype==mype_use(icount)) then
           ! read ps 
           call read_vardata(filges, 'pressfc', rwork2d)
@@ -2681,7 +2688,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
           call general_2m_reload(grd,g_t2m, g_q2m, g_ps, icount,iflag,work)
        !endif
 
-   endif ! read_2a
+   endif ! read_2m
 
    if ( procuse ) then
       if ( diff_res) deallocate(grid_b,grid_b2,grid_c,grid_c2,grid2)

@@ -277,6 +277,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_q2m
+  real(r_kind),allocatable,dimension(:,:,:  ) :: ges_t2m
 
   logical:: l_pbl_pseudo_itype
   integer(i_kind):: ich0
@@ -432,12 +433,14 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   iderivative=0
 
+  ! calculate qsat and 2m qsat
   do jj=1,nfldsig
-     ! qg is used below
-     ! genqsat works on dimension( lat2, lon2, nsig )- clarify code by specifying full arrays.
      call genqsat(qg(:,:,:,jj),ges_tsen(:,:,:,jj),ges_prsl(:,:,:,jj),lat2,lon2,nsig,ice,iderivative)
-     ! CSD - this is LML. Only used for i_use_2mq4b
-     qg2m(:,:,jj)=qg(:,:,1,jj)
+     if (i_use_2mq4b > 0) then  ! use lowest model level
+       qg2m(:,:,jj)=qg(:,:,1,jj)
+     elseif ( hofx_2m_sfcfile ) then  ! calculate from 2m model output
+       call genqsat(qg2m(:,:,jj),ges_t2m(:,:,jj),ges_ps(:,:,jj),lat2,lon2,1,ice,iderivative)
+     endif
   end do
 
 
@@ -544,13 +547,13 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         qob=min(qob,superfact*qsges)
      end if
 
-! CSD using qg here (qsges is used below for errors only)
+! get qsges, to be used to scale the obs error
      call tintrp31(qg,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
           mype,nfldsig)
-! CSD - i_use_2mq4b interpolation here for qsat (replaces qsges from above for errors)
-! Interpolate 2-m qs to obs locations/times
-     if((i_use_2mq4b > 0) .and. ((itype > 179 .and. itype < 190) .or. itype == 199) &
-            .and.  .not.twodvar_regional)then
+
+! overwrite qsges with 2-m qs if sfc obs scheme
+     if( ( (i_use_2mq4b > 0) .and. ((itype > 179 .and. itype < 190) .or. itype == 199) &
+            .and.  .not.twodvar_regional) .or. (hofx_2m_sfcfile .and. landsfctype)  )then
         call tintrp2a11(qg2m,qsges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
      endif
 
@@ -561,11 +564,17 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      rmaxerr=max(small2,rmaxerr)
      errorx =(data(ier,i)+dprpx)*qsges
 
-! Interpolate guess moisture to observation location and time
-! CSD calculate ges_q here from qges 3D 
-     call tintrp31(ges_q,qges,dlat,dlon,dpres,dtime, &
-        hrdifsig,mype,nfldsig)
-    
+! qges: Interpolate guess moisture to observation location and time 
+
+     if (.not. ( hofx_2m_sfcfile .and. landsfctype) ) then 
+        call tintrp31(ges_q,qges,dlat,dlon,dpres,dtime, &
+           hrdifsig,mype,nfldsig)
+     else
+        ! only use land locations
+        if (int(data(idomsfc,i)) .NE. 1  ) muse(i) = .false.
+        call tintrp2a11(ges_q2m,qges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
+     endif
+
      ddiff=qob-qges 
   
 !    Setup dynamic ob error specification for aircraft recon in hurricanes 
@@ -585,7 +594,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      endif
 
      errorx =max(small1,errorx)
-    
 
 !    Adjust observation error to reflect the size of the residual.
 !    If extrapolation occurred, then further adjust error according to
@@ -632,7 +640,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      endif
 
 ! Interpolate 2-m q to obs locations/times
-! CSD: i_use_2mq final results, uses qges from earlier. q2mges from ges_q2m.
      if(i_use_2mq4b>0 .and. itype > 179 .and. itype < 190 .and.  .not.twodvar_regional)then
 
         if(i_coastline==2 .or. i_coastline==3) then
@@ -1058,6 +1065,25 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
             call stop2(999)
         endif
      endif ! i_use_2mq4b
+     if (hofx_2m_sfcfile) then
+        varname='t2m'
+        call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
+        if (istatus==0) then
+            if(allocated(ges_t2m))then
+               write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+               call stop2(999)
+            endif
+            allocate(ges_t2m(size(rank2,1),size(rank2,2),nfldsig))
+            ges_t2m(:,:,1)=rank2
+            do ifld=2,nfldsig
+               call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
+               ges_t2m(:,:,ifld)=rank2
+            enddo
+        else
+            write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+            call stop2(999)
+        endif
+     endif ! hofx_2m_sfcfile
 !    get q ...
      varname='q'
      call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
@@ -1406,6 +1432,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   subroutine final_vars_
     if(allocated(ges_q2m)) deallocate(ges_q2m)
+    if(allocated(ges_t2m)) deallocate(ges_t2m)
     if(allocated(ges_q )) deallocate(ges_q )
     if(allocated(ges_ps)) deallocate(ges_ps)
   end subroutine final_vars_
