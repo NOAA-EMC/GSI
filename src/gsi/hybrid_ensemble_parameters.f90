@@ -287,6 +287,7 @@ module hybrid_ensemble_parameters
   public :: generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,l_hyb_ens,&
        s_ens_h,oz_univ_static,vvlocal
   public :: n_ens_gfs,n_ens_fv3sar
+  public :: weight_ens_gfs,weight_ens_fv3sar
   public :: uv_hyb_ens,q_hyb_ens,s_ens_v,beta_s0,beta_e0,aniso_a_en,s_ens_hv,s_ens_vv
   public :: readin_beta,beta_s,beta_e
   public :: readin_localization
@@ -361,6 +362,7 @@ module hybrid_ensemble_parameters
   integer(i_kind) i_en_perts_io
   integer(i_kind) n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test
   integer(i_kind) n_ens_gfs,n_ens_fv3sar
+  real(r_kind) weight_ens_gfs,weight_ens_fv3sar
   real(r_kind) beta_s0,beta_e0,grid_ratio_ens
   integer(i_kind),parameter::max_naensloc=20
   integer(i_kind),parameter::max_nvars=100
@@ -497,6 +499,8 @@ subroutine init_hybrid_ensemble_parameters
   l_both_fv3sar_gfs_ens=.false.
   n_ens_gfs=0 
   n_ens_fv3sar=0
+  weight_ens_gfs=one
+  weight_ens_fv3sar=one
   vdl_scale = 0
   vloc_varlist = 'aaa'
   global_spectral_filter_sd=.false.
