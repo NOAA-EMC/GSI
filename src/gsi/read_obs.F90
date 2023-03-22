@@ -438,7 +438,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
           end do
           nread = nread + 1
          end do airploop
-       else if(index(filename,'satwndbufr') /= 0)then
+       else if(index(filename,'satwnd') /=0 .or. index(filename,'satwhr') /=0) then
          lexist = .false.
          loop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
 !        5 GOES-R AMVs (NC005030, NC005031, NC005032, NC005034, NC005039, NC005099)
@@ -1494,7 +1494,7 @@ subroutine read_obs(ndata,mype)
             else if(obstype == 'uv' .or. obstype == 'wspd10m' .or. &
                     obstype == 'uwnd10m' .or. obstype == 'vwnd10m') then
 !             Process satellite winds which seperate from prepbufr
-                if ( index(infile,'satwnd') /=0 ) then
+                if ( index(infile,'satwnd') /=0 .or. index(infile,'satwhr') /=0 ) then
                   call read_satwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                      prsl_full,nobs_sub1(1,i))
                   string='READ_SATWND'
