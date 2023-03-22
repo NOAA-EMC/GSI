@@ -2825,6 +2825,7 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
    call gsi_bundlegetpointer(gfs_bundle,'q' ,g_q   ,ier);istatus=istatus+ier
    call gsi_bundlegetpointer(gfs_bundle,'oz',g_oz  ,ier);istatus=istatus+ier
 !  call gsi_bundlegetpointer(gfs_bundle,'cw',g_cwmr,ier);istatus=istatus+ier
+   istatus1=0   
    call gsi_bundlegetpointer(gfs_bundle,'ql',g_ql  ,ier);istatus1=istatus1+ier
    call gsi_bundlegetpointer(gfs_bundle,'qi',g_qi  ,ier);istatus1=istatus1+ier
    call gsi_bundlegetpointer(gfs_bundle,'qr',g_qr  ,ier);istatus1=istatus1+ier
