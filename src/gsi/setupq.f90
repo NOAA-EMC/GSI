@@ -366,9 +366,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      itype=ictype(ikx)
      landsfctype =( itype==181 .or. itype==183 .or. itype==187 )
      do l=k+1,nobs
-        !if (twodvar_regional .or. (hofx_2m_sfcfile .and. landsfctype) ) then
-        ! CSD for initial testing leave this off.
-        if (twodvar_regional) then
+        if (twodvar_regional .or. (hofx_2m_sfcfile .and. landsfctype) ) then
            duplogic=data(ilat,k) == data(ilat,l) .and.  &
            data(ilon,k) == data(ilon,l) .and.  &
            data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
@@ -433,9 +431,11 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   ice=.false.   ! get larger (in rh) q obs error for mixed and ice phases
 
   iderivative=0
+
   do jj=1,nfldsig
      ! qg is used below
-     call genqsat(qg(1,1,1,jj),ges_tsen(1,1,1,jj),ges_prsl(1,1,1,jj),lat2,lon2,nsig,ice,iderivative)
+     ! genqsat works on dimension( lat2, lon2, nsig )- clarify code by specifying full arrays.
+     call genqsat(qg(:,:,:,jj),ges_tsen(:,:,:,jj),ges_prsl(:,:,:,jj),lat2,lon2,nsig,ice,iderivative)
      ! CSD - this is LML. Only used for i_use_2mq4b
      qg2m(:,:,jj)=qg(:,:,1,jj)
   end do
@@ -544,9 +544,10 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         qob=min(qob,superfact*qsges)
      end if
 
+! CSD using qg here (qsges is used below for errors only)
      call tintrp31(qg,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
           mype,nfldsig)
-! CSD - i_use_2mq4b interpolation here: uses qg2m
+! CSD - i_use_2mq4b interpolation here for qsat (replaces qsges from above for errors)
 ! Interpolate 2-m qs to obs locations/times
      if((i_use_2mq4b > 0) .and. ((itype > 179 .and. itype < 190) .or. itype == 199) &
             .and.  .not.twodvar_regional)then
@@ -561,6 +562,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      errorx =(data(ier,i)+dprpx)*qsges
 
 ! Interpolate guess moisture to observation location and time
+! CSD calculate ges_q here from qges 3D 
      call tintrp31(ges_q,qges,dlat,dlon,dpres,dtime, &
         hrdifsig,mype,nfldsig)
     
@@ -630,7 +632,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      endif
 
 ! Interpolate 2-m q to obs locations/times
-! CSD another interpolation for i_use_2mq4b, but this one is for not twodvar_regional
+! CSD: i_use_2mq final results, uses qges from earlier. q2mges from ges_q2m.
      if(i_use_2mq4b>0 .and. itype > 179 .and. itype < 190 .and.  .not.twodvar_regional)then
 
         if(i_coastline==2 .or. i_coastline==3) then
