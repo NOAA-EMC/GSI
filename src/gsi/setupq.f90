@@ -667,7 +667,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         endif
      endif
 
-     ratio_errors=error*qsges/(errorx+1.0e6_r_kind*rhgh+r8*ramp)
+     ratio_errors=error*qsges/(errorx+1.0e6_r_kind*rhgh+r8*ramp + lapse_error)
 
 !    Check to see if observations is above the top of the model (regional mode)
      if (dpres > rsig) ratio_errors=zero
