@@ -876,7 +876,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 !    inflate error for uncertainty in the terrain adjustment
      lapse_error = 0.
-     if  ( hofx_2m_sfcfile  .and. sfctype) then
+     if  ( hofx_2m_sfcfile  .and. landsfctype) then
         if (abs(delta_z)<max_delta_z) then  ! if height discrepency >max_delta_z do not assim.
                 ! inflate obs error to account for error in lapse_rate
                 ! also include some representativity error here (assuming

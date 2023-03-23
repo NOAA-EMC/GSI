@@ -288,13 +288,13 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   logical :: landsfctype
 
-  real(r_kind) :: delta_z,  lapse_error
+  real(r_kind) :: delta_z,  lapse_error, q_delta_terrain
   real(r_kind), parameter :: T_lapse = -0.0045 ! standard lapse rate, K/m
 ! use 4.5 K/km, in place of more standard 6.5 K/km, following
 ! https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2019EA000984
 ! lapse_error_frac around 0.5 ~ 2K/km, from Figure 2 of above.
   real(r_kind), parameter :: lapse_error_frac = 0.5 ! inflation factor for obs error when vertically interpolating
-  real(r_kind), parameter :: max_delta_z = 300. ! max. vertical mismatch allowed
+  real(r_kind), parameter :: max_delta_z = 300. ! max. vertical mismatch allowed (later: relax this)
 
   qhead => obsLL(:)
 
@@ -601,6 +601,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         enddo
 
         call tintrp2a11(qg2m_o,qsges_o,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
+        q_delta_terrain = (qsges/qsges_o - 1)*qob
         qob = qob * ( qsges/qsges_o)
 
         !update the station elevation
@@ -653,6 +654,19 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         if(rhgh/=zero) awork(3) = awork(3) + one
      end if
 
+!    inflate error for uncertainty in the terrain adjustment
+     lapse_error = 0.
+     if  ( hofx_2m_sfcfile  .and. landsfctype) then
+        if (abs(delta_z)<max_delta_z) then  ! if height discrepency >max_delta_z do not assim.
+                ! inflate obs error to account for error in lapse_rate
+                ! also include some representativity error here (assuming
+                ! delta_z ~ heterogeneity)
+                lapse_error = abs(lapse_error_frac*q_delta_terrain)
+        else
+                muse(i)=.false.
+        endif
+     endif
+
      ratio_errors=error*qsges/(errorx+1.0e6_r_kind*rhgh+r8*ramp)
 
 !    Check to see if observations is above the top of the model (regional mode)
@@ -677,7 +691,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         dhx_dx%val(2) = delz               ! weight for iz+1's level
      endif
 
-! Start of block for i_use_2mq4b: Interpolate 2-m q to obs locations/times
+! i_use_2mq4b: Interpolate 2-m q to obs locations/times
      if(i_use_2mq4b>0 .and. itype > 179 .and. itype < 190 .and.  .not.twodvar_regional)then
 
         if(i_coastline==2 .or. i_coastline==3) then
@@ -702,7 +716,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call stop2(100)
         endif
         ddiff=qob-qges
-     endif
+     endif ! i_use_2mq4b
 
 
 !    If requested, setup for single obs test.
@@ -1002,7 +1016,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            my_head => null()
         ENDDO
 
-     endif  ! 181,183,187
+     endif  ! i_use_2mq4b block
 !!!!!!!!!!!!!!!!!!  PBL pseudo surface obs  !!!!!!!!!!!!!!!!!!!!!!!
 
 ! End of loop over observations
