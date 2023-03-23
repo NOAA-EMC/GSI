@@ -148,6 +148,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !
 !   2020-05-04  wu      - no rotate_wind for fv3_regional
 !   2020-09-05  CAPS(C. Tong) - add flag for new vadwind obs to assimilate around the analysis time only
+!   2023-03-23  draper  - add code for processing T2m and q2m for global system
 
 !   input argument list:
 !     infile   - unit from which to read BUFR data

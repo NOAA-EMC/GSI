@@ -432,7 +432,10 @@ subroutine general_2m_reload(grd,g_t2m, g_q2m,g_ps,icount,iflag,work)
   real(r_kind),dimension(grd%lat2,grd%lon2),         intent(  out) :: g_t2m,&
                                                                       g_q2m, g_ps
 
-! !DESCRIPTION: 2m version og general_reload.
+! !DESCRIPTION: version of general_reload, for 2m variables.
+!
+! !REVISION HISTORY:
+!  2023-03-2    Draper
 !-------------------------------------------------------------------------
 
    integer(i_kind) i,j,ij,k
@@ -499,6 +502,7 @@ subroutine general_read_gfsatm(grd,sp_a,sp_b,filename,uvflag,vordivflag,zflag, &
 !   2014-11-30  todling    - genelize interface to handle bundle instead of fields;
 !                            internal code should be generalized
 !   2014-12-03  derber     - introduce vordivflag, zflag and optimize routines
+!   2023-03-23  draper     - added option to read sfc files (for 2m variables)
 !
 !   input argument list:
 !     grd      - structure variable containing information about grid

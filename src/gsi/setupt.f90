@@ -228,7 +228,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !                         for 3D-RTMA (if l_obsprvdiag is true).
 !   2022-03-15  Hu  change all th2 to t2m to indicate that 2m temperature 
 !                   is sensible instead of potentionl temperature
-!   2023-03-09 Draper added option to interpolate screen-level T from model 2m output.
+!   2023-03-21 Draper added option to interpolate screen-level T from model 2m output.
+!              (hofx_2m_sfcfile)
 !
 ! !REMARKS:
 !   language: f90

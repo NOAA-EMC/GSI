@@ -251,7 +251,7 @@ contains
 !   option for including convective clouds in the all-sky assimilation
     cnvw_option=.false.
 
-! to calculate hofx for 2m obs, interpolate from gfs sfc file.
+!   option to calculate hofx for T2m and q2m by interpolating from 2m vars in sfc file
     hofx_2m_sfcfile=.false.
 
     return

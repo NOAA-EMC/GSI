@@ -111,6 +111,8 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !                         information in diagonostic file, which is used
 !                         in offline observation quality control program (AutoObsQC) 
 !                         for 3D-RTMA (if l_obsprvdiag is true).
+!   2023-03-09 Draper added option to interpolate screen-level q from model 2m output.
+!              (hofx_2m_sfcfile)
 !
 !
 !   input argument list:
@@ -538,6 +540,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         if(((itype > 179 .and. itype < 190) .or. itype == 199) &
            .and. .not.twodvar_regional)then
             dprpx=abs(one-exp(dpres-log(psges)))*r10
+        endif
 
 !    Put obs pressure in correct units to get grid coord. number
         call grdcrd1(dpres,prsltmp(1),nsig,-1)
@@ -552,8 +555,6 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
      endif
 
-!    Scale errors by guess saturation q
- 
      qob = data(iqob,i) 
      if(limitqobs) then
         call tintrp31(ges_qsat,qsges,dlat,dlon,dpres,dtime,hrdifsig,&
@@ -676,7 +677,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         dhx_dx%val(2) = delz               ! weight for iz+1's level
      endif
 
-! Interpolate 2-m q to obs locations/times
+! Start of block for i_use_2mq4b: Interpolate 2-m q to obs locations/times
      if(i_use_2mq4b>0 .and. itype > 179 .and. itype < 190 .and.  .not.twodvar_regional)then
 
         if(i_coastline==2 .or. i_coastline==3) then
@@ -1349,10 +1350,10 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
            call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
            call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
-+! this is the obs height after being interpolated to the model (=model height)
+! this is the obs height after being interpolated to the model (=model height)
            call nc_diag_metadata("Station_Elevation",       sngl(data(istnelv,i))  )
            call nc_diag_metadata("Pressure",                sngl(presq)            )
-+! this is the original obs height (= stn elevation,  before being interpolated)
+! this is the original obs height (= stn elevation,  before being interpolated)
            call nc_diag_metadata("Height",                  sngl(data(iobshgt,i))  )
            call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
            call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )

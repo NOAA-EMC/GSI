@@ -105,6 +105,7 @@ contains
 !
 ! program history log:
 !   2019-09-24  Martin   - create routine based on read_nems
+!   2022-03-23  Draper   - add option to include T2m and q2m in MetGuess
 !
 !   input argument list:
 !
