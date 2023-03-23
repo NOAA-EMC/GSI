@@ -217,7 +217,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 ! Declare local variables  
   
   real(r_double) rstation_id
-  real(r_kind) qob,qges,qsges,q2mges,q2mges_water
+  real(r_kind) qob,qges,qsges,q2mges,q2mges_water,qsges_o
   real(r_kind) ratio_errors,dlat,dlon,dtime,dpres,rmaxerr,error
   real(r_kind) rsig,dprpx,rlow,rhgh,presq,tfact,ramp
   real(r_kind) psges,sfcchk,ddiff,errorx
@@ -231,6 +231,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(lat2,lon2,nsig,nfldsig):: qg
   real(r_kind),dimension(lat2,lon2,nfldsig):: qg2m
+  real(r_kind),dimension(lat2,lon2,nfldsig):: qg2m_o
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(34):: ptablq
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
@@ -284,6 +285,14 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   type(obsLList),pointer,dimension(:):: qhead
 
   logical :: landsfctype
+
+  real(r_kind) :: delta_z,  lapse_error
+  real(r_kind), parameter :: T_lapse = -0.0045 ! standard lapse rate, K/m
+! use 4.5 K/km, in place of more standard 6.5 K/km, following
+! https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2019EA000984
+! lapse_error_frac around 0.5 ~ 2K/km, from Figure 2 of above.
+  real(r_kind), parameter :: lapse_error_frac = 0.5 ! inflation factor for obs error when vertically interpolating
+  real(r_kind), parameter :: max_delta_z = 300. ! max. vertical mismatch allowed
 
   qhead => obsLL(:)
 
@@ -572,7 +581,25 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      else
         ! only use land locations
         if (int(data(idomsfc,i)) .NE. 1  ) muse(i) = .false.
+
         call tintrp2a11(ges_q2m,qges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
+
+        ! terrain correction: assume RH_zo = RH_zm, and correct T with 
+        ! same lapse rate as used for T2m terrain correction
+
+        delta_z = data(istnelv,i) - data(izz,i) ! obs -model
+
+        do jj=1,nfldsig
+           ! qsat in model at height of obs
+           call genqsat(qg2m_o(:,:,jj),ges_t2m(:,:,jj)+delta_z*T_lapse,ges_ps(:,:,jj),lat2,lon2,1,ice,iderivative)
+        enddo
+
+        call tintrp2a11(qg2m_o,qsges_o,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
+        qob = qob * ( qsges/qsges_o)
+
+        !update the station elevation
+        data(istnelv,i) = data(izz,i)
+
      endif
 
      ddiff=qob-qges 
@@ -1312,8 +1339,10 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
            call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
            call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
++! this is the obs height after being interpolated to the model (=model height)
            call nc_diag_metadata("Station_Elevation",       sngl(data(istnelv,i))  )
            call nc_diag_metadata("Pressure",                sngl(presq)            )
++! this is the original obs height (= stn elevation,  before being interpolated)
            call nc_diag_metadata("Height",                  sngl(data(iobshgt,i))  )
            call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
            call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
