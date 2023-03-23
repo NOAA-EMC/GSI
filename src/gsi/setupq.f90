@@ -531,21 +531,26 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      presq=r10*exp(dpres)
      itype=ictype(ikx)
      dprpx=zero
-     if(((itype > 179 .and. itype < 190) .or. itype == 199) &
+
+     if ( hofx_2m_sfcfile .and. landsfctype) then
+        dpres = one ! put obs on surface
+     else
+        if(((itype > 179 .and. itype < 190) .or. itype == 199) &
            .and. .not.twodvar_regional)then
-        dprpx=abs(one-exp(dpres-log(psges)))*r10
-     end if
+            dprpx=abs(one-exp(dpres-log(psges)))*r10
 
 !    Put obs pressure in correct units to get grid coord. number
-     call grdcrd1(dpres,prsltmp(1),nsig,-1)
+        call grdcrd1(dpres,prsltmp(1),nsig,-1)
 
 !    Get approximate k value of surface by using surface pressure
-     sfcchk=log(psges)
-     call grdcrd1(sfcchk,prsltmp(1),nsig,-1)
+        sfcchk=log(psges)
+        call grdcrd1(sfcchk,prsltmp(1),nsig,-1)
 
 !    Check to see if observations is above the top of the model (regional mode)
-     if( dpres>=nsig+1)dprpx=1.e6_r_kind
-     if((itype > 179 .and. itype < 186) .or. itype == 199) dpres=one
+        if( dpres>=nsig+1)dprpx=1.e6_r_kind
+        if((itype > 179 .and. itype < 186) .or. itype == 199) dpres=one
+
+     endif
 
 !    Scale errors by guess saturation q
  
@@ -626,12 +631,17 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !    If extrapolation occurred, then further adjust error according to
 !    amount of extrapolation.
 
-     rlow=max(sfcchk-dpres,zero)
+     if (.not. (hofx_2m_sfcfile  .and. landsfctype) ) then
+         rlow=max(sfcchk-dpres,zero)
 ! linear variation of observation ramp [between grid points 1(~3mb) and 15(~45mb) below the surface]
-     if(l_sfcobserror_ramp_q) then
-        ramp=min(max(((rlow-1.0_r_kind)/(15.0_r_kind-1.0_r_kind)),0.0_r_kind),1.0_r_kind)*0.001_r_kind
+         if(l_sfcobserror_ramp_q) then
+            ramp=min(max(((rlow-1.0_r_kind)/(15.0_r_kind-1.0_r_kind)),0.0_r_kind),1.0_r_kind)*0.001_r_kind
+         else
+            ramp=rlow
+         endif
      else
-        ramp=rlow
+        rlow = zero
+        ramp = zero
      endif
 
      rhgh=max(dpres-r0_001-rsig,zero)
