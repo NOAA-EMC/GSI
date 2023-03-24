@@ -1040,14 +1040,14 @@
      ! land sfc DA variables
      tmp2m_ind  = getindex(vars2d, 't2m')
      spfh2m_ind = getindex(vars2d, 'q2m')
-     soilt1_ind = getindex(vars2d, 'soilt1')
-     slc1_ind = getindex(vars2d, 'slc1')
-     soilt2_ind = getindex(vars2d, 'soilt2')
-     slc2_ind = getindex(vars2d, 'slc2')
-     soilt3_ind = getindex(vars2d, 'soilt3')
-     slc3_ind = getindex(vars2d, 'slc3')
-     soilt4_ind = getindex(vars2d, 'soilt4')
-     slc4_ind = getindex(vars2d, 'slc4')
+     soilt1_ind = getindex(vars2d, 'st1')
+     slc1_ind = getindex(vars2d, 'sl1')
+     soilt2_ind = getindex(vars2d, 'st2')
+     slc2_ind = getindex(vars2d, 'sl2')
+     soilt3_ind = getindex(vars2d, 'st3')
+     slc3_ind = getindex(vars2d, 'sl3')
+     soilt4_ind = getindex(vars2d, 'st4')
+     slc4_ind = getindex(vars2d, 'sl4')
 
      dset_sfc = open_dataset(filenamesfc)
      ! read in sfc vars, if requested
@@ -3909,14 +3909,14 @@
 
      tmp2m_ind  = getindex(vars2d, 't2m')   !< indices in the state or control var arrays
      spfh2m_ind = getindex(vars2d, 'q2m')
-     soilt1_ind = getindex(vars2d, 'soilt1')
-     slc1_ind = getindex(vars2d, 'slc1')
-     soilt2_ind = getindex(vars2d, 'soilt2')
-     slc2_ind = getindex(vars2d, 'slc2')
-     soilt3_ind = getindex(vars2d, 'soilt3')
-     slc3_ind = getindex(vars2d, 'slc3')
-     soilt4_ind = getindex(vars2d, 'soilt4')
-     slc4_ind = getindex(vars2d, 'slc4')
+     soilt1_ind = getindex(vars2d, 'st1')
+     slc1_ind = getindex(vars2d, 'sl1')
+     soilt2_ind = getindex(vars2d, 'st2')
+     slc2_ind = getindex(vars2d, 'sl2')
+     soilt3_ind = getindex(vars2d, 'st3')
+     slc3_ind = getindex(vars2d, 'sl3')
+     soilt4_ind = getindex(vars2d, 'st4')
+     slc4_ind = getindex(vars2d, 'sl4')
 
      dsfg = open_dataset(filenamein)
 
@@ -4619,14 +4619,14 @@
   ! sfc file variables
   tmp2m_ind  = getindex(vars2d, 't2m')
   spfh2m_ind = getindex(vars2d, 'q2m')
-  soilt1_ind = getindex(vars2d, 'soilt1')
-  slc1_ind = getindex(vars2d, 'slc1')
-  soilt2_ind = getindex(vars2d, 'soilt2')
-  slc2_ind = getindex(vars2d, 'slc2')
-  soilt3_ind = getindex(vars2d, 'soilt3')
-  slc3_ind = getindex(vars2d, 'slc3')
-  soilt4_ind = getindex(vars2d, 'soilt4')
-  slc4_ind = getindex(vars2d, 'slc4')
+  soilt1_ind = getindex(vars2d, 'st1')
+  slc1_ind = getindex(vars2d, 'sl1')
+  soilt2_ind = getindex(vars2d, 'st2')
+  slc2_ind = getindex(vars2d, 'sl2')
+  soilt3_ind = getindex(vars2d, 'st3')
+  slc3_ind = getindex(vars2d, 'sl3')
+  soilt4_ind = getindex(vars2d, 'st4')
+  slc4_ind = getindex(vars2d, 'sl4')
 
   sfc_file = ( tmp2m_ind > 0 .or. spfh2m_ind > 0 .or. soilt1_ind > 0 .or. &
        slc1_ind > 0 .or. soilt2_ind > 0 .or. slc2_ind > 0 .or.    &
