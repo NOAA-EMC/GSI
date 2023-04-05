@@ -3,12 +3,8 @@
 regtests_all="global_3dvar
               global_4dvar
               global_4denvar
-              arw_netcdf
-              arw_binary
-              nmm_binary
-              nmm_netcdf
-              nmmb_nems_4denvar
               netcdf_fv3_regional
+              rrfs_3denvar_glbens
               hwrf_nmm_d2
               hwrf_nmm_d3
               rtma
@@ -17,12 +13,8 @@ regtests_all="global_3dvar
 regtests_debug="global_3dvar
                 global_4dvar
                 global_4denvar
-                arw_netcdf
-                arw_binary
-                nmm_binary
-                nmm_netcdf
-                nmmb_nems_4denvar
                 netcdf_fv3_regional
+                rrfs_3denvar_glbens
                 hwrf_nmm_d2
                 hwrf_nmm_d3
                 rtma

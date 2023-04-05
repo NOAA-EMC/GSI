@@ -29,18 +29,26 @@ contains
 
   subroutine convert_binary_nmm_dummy(this,update_pint,ctph0,stph0,tlm0)
     use kinds, only: r_kind
+    use constants, only: zero 
     implicit none
     class(get_wrf_binary_interface_class), intent(inout) :: this
     logical     ,intent(inout) :: update_pint
     real(r_kind),intent(  out) :: ctph0,stph0,tlm0
+    ctph0 = zero
+    stph0 = zero
+    tlm0 = zero
   end subroutine convert_binary_nmm_dummy
 
   subroutine convert_nems_nmmb_dummy(this,update_pint,ctph0,stph0,tlm0)
     use kinds, only: r_kind
+    use constants, only: zero 
     implicit none
     class(get_wrf_binary_interface_class), intent(inout) :: this
     logical     ,intent(inout) :: update_pint
     real(r_kind),intent(  out) :: ctph0,stph0,tlm0
+    ctph0 = zero
+    stph0 = zero
+    tlm0 = zero
   end subroutine convert_nems_nmmb_dummy
 
 end module get_wrf_binary_interface_mod

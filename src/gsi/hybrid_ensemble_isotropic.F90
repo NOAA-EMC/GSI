@@ -4029,6 +4029,7 @@ subroutine hybens_grid_setup
   use constants, only: zero,one
   use control_vectors, only: cvars3d,nc2d,nc3d
   use gridmod, only: region_lat,region_lon,region_dx,region_dy
+  use hybrid_ensemble_parameters, only:nsclgrp,spc_multwgt,spcwgt_params,global_spectral_filter_sd
 
   implicit none
 
@@ -4129,6 +4130,28 @@ subroutine hybens_grid_setup
      end if
   end if
 
+  if(global_spectral_filter_sd .and. nsclgrp > 1)then
+     allocate(spc_multwgt(0:jcap_ens,nsclgrp))
+     allocate(spcwgt_params(4,nsclgrp))
+     spc_multwgt=1.0
+
+     ! The below parameters are used in Huang et al. (2021, MWR)
+     spcwgt_params(1,1)=4000.0_r_kind
+     spcwgt_params(2,1)=100000000.0_r_kind
+     spcwgt_params(3,1)=1.0_r_kind
+     spcwgt_params(4,1)=3000.0_r_kind
+
+     if( nsclgrp >=3 )then
+       spcwgt_params(1,3)=0.0_r_kind
+       spcwgt_params(2,3)=500.0_r_kind
+       spcwgt_params(3,3)=1.0_r_kind
+       spcwgt_params(4,3)=500.0_r_kind
+     end if
+
+     call init_mult_spc_wgts(jcap_ens)
+
+  end if
+
   return
 end subroutine hybens_grid_setup
 
@@ -4148,6 +4171,8 @@ subroutine hybens_localization_setup
 !   2012-10-16  wu - only call setup_ens_wgt if necessary
 !   2014-05-22  wu  modification to allow vertically varying localization scales in regional
 !   2022-09-15  yokota - add scale/variable/time-dependent localization
+!   2022-12-09  Y. Wang and X. Wang - add a variable-dependent localization option (assign_vdl_nml=.true.),
+!                                     poc: xuguang.wang@ou.edu
 !
 !   input argument list:
 !
@@ -4168,9 +4193,11 @@ subroutine hybens_localization_setup
    use hybrid_ensemble_parameters, only: readin_beta,beta_s,beta_e,beta_s0,beta_e0,sqrt_beta_s,sqrt_beta_e
    use hybrid_ensemble_parameters, only: readin_localization,create_hybens_localization_parameters, &
                                          vvlocal,s_ens_h,s_ens_hv,s_ens_v,s_ens_vv
-   use hybrid_ensemble_parameters, only: ntotensgrp,naensgrp,naensloc,ntlevs_ens,nsclgrp
-   use hybrid_ensemble_parameters, only: en_perts
+   use hybrid_ensemble_parameters, only: ntotensgrp,naensgrp,naensloc,ntlevs_ens,nsclgrp,assign_vdl_nml
+   use hybrid_ensemble_parameters, only: en_perts,vdl_scale,vloc_varlist,global_spectral_filter_sd
+   use hybrid_ensemble_parameters, only: ngvarloc
    use gsi_io, only: verbose
+   use string_utility, only: StrLowCase
 
    implicit none
 
@@ -4183,8 +4210,11 @@ subroutine hybens_localization_setup
    real(r_kind),allocatable:: s_ens_h_gu_x(:,:),s_ens_h_gu_y(:,:)
    logical :: l_read_success
    type(gsi_bundle) :: a_en(n_ens)
+   type(gsi_bundle) :: en_pertstmp(n_ens,ntlevs_ens)
+   type(gsi_bundle) :: en_pertstmp1(n_ens,ntlevs_ens)
    type(gsi_grid)  :: grid_ens
    real(r_kind), pointer :: values(:) => NULL()
+   integer(i_kind) :: iscl, iv, smooth_scales_num
    character(len=*),parameter::myname_=myname//'*hybens_localization_setup'
 
    l_read_success=.false.
@@ -4312,7 +4342,7 @@ subroutine hybens_localization_setup
       call init_sf_xy(jcap_ens)
    endif
 
-   if(ntotensgrp>1) then
+   if(ntotensgrp>1 .and. (.not. global_spectral_filter_sd)) then
       call gsi_bundlegetpointer(en_perts(1,1,1),cvars3d,ipc3d,istatus)
       if(istatus/=0) then
          write(6,*) myname_,': cannot find 3d pointers'
@@ -4326,64 +4356,159 @@ subroutine hybens_localization_setup
       if(nsclgrp>1) then
          call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
          allocate(values(grd_ens%latlon11*grd_ens%nsig*n_ens))
-         do ig=1,nsclgrp-1
-            ii=0
-            do n=1,n_ens
-               a_en(n)%values => values(ii+1:ii+grd_ens%latlon11*grd_ens%nsig)
-               call gsi_bundleset(a_en(n),grid_ens,'Ensemble Bundle',istatus,names3d=(/'a_en'/),bundle_kind=r_kind)
-               if (istatus/=0) then
-                  write(6,*) myname_,': error alloc(ensemble bundle)'
-                  call stop2(999)
-               endif
-               ii=ii+grd_ens%latlon11*grd_ens%nsig
-            enddo
-            do m=1,ntlevs_ens
+         if( .not. assign_vdl_nml )then
+            do ig=1,nsclgrp-1
+               ii=0
                do n=1,n_ens
-                  en_perts(n,ig+1,m)%valuesr4=en_perts(n,ig,m)%valuesr4
+                  a_en(n)%values => values(ii+1:ii+grd_ens%latlon11*grd_ens%nsig)
+                  call gsi_bundleset(a_en(n),grid_ens,'Ensemble Bundle',istatus,names3d=(/'a_en'/),bundle_kind=r_kind)
+                  if (istatus/=0) then
+                     write(6,*) myname_,': error alloc(ensemble bundle)'
+                     call stop2(999)
+                  endif
+                  ii=ii+grd_ens%latlon11*grd_ens%nsig
                enddo
-               do ic3=1,nc3d
-                  ipic=ipc3d(ic3)
+               do m=1,ntlevs_ens
                   do n=1,n_ens
-                     do k=1,grd_ens%nsig
-                        a_en(n)%r3(1)%q(:,:,k)=en_perts(n,ig,m)%r3(ipic)%qr4(:,:,k)
+                     en_perts(n,ig+1,m)%valuesr4=en_perts(n,ig,m)%valuesr4
+                  enddo
+                  do ic3=1,nc3d
+                     ipic=ipc3d(ic3)
+                     do n=1,n_ens
+                        do k=1,grd_ens%nsig
+                           a_en(n)%r3(1)%q(:,:,k)=en_perts(n,ig,m)%r3(ipic)%qr4(:,:,k)
+                        enddo
+                     enddo
+                     call bkgcov_a_en_new_factorization(naensgrp+ig,a_en)
+                     do n=1,n_ens
+                        do k=1,grd_ens%nsig
+                           en_perts(n,ig,m)%r3(ipic)%qr4(:,:,k)=a_en(n)%r3(1)%q(:,:,k)
+                        enddo
                      enddo
                   enddo
-                  call bkgcov_a_en_new_factorization(naensgrp+ig,a_en)
-                  do n=1,n_ens
-                     do k=1,grd_ens%nsig
-                        en_perts(n,ig,m)%r3(ipic)%qr4(:,:,k)=a_en(n)%r3(1)%q(:,:,k)
+                  do ic2=1,nc2d
+                     ipic=ipc2d(ic2)
+                     do n=1,n_ens
+                        do k=1,grd_ens%nsig
+                           a_en(n)%r3(1)%q(:,:,k)=en_perts(n,ig,m)%r2(ipic)%qr4(:,:)
+                        enddo
+                     enddo
+                     call bkgcov_a_en_new_factorization(naensgrp+ig,a_en)
+                     do n=1,n_ens
+                        en_perts(n,ig,m)%r2(ipic)%qr4(:,:)=a_en(n)%r3(1)%q(:,:,1)
                      enddo
                   enddo
-               enddo
-               do ic2=1,nc2d
-                  ipic=ipc2d(ic2)
                   do n=1,n_ens
-                     do k=1,grd_ens%nsig
-                        a_en(n)%r3(1)%q(:,:,k)=en_perts(n,ig,m)%r2(ipic)%qr4(:,:)
-                     enddo
-                  enddo
-                  call bkgcov_a_en_new_factorization(naensgrp+ig,a_en)
-                  do n=1,n_ens
-                     en_perts(n,ig,m)%r2(ipic)%qr4(:,:)=a_en(n)%r3(1)%q(:,:,1)
+                     en_perts(n,ig+1,m)%valuesr4=en_perts(n,ig+1,m)%valuesr4-en_perts(n,ig,m)%valuesr4
                   enddo
                enddo
                do n=1,n_ens
-                  en_perts(n,ig+1,m)%valuesr4=en_perts(n,ig+1,m)%valuesr4-en_perts(n,ig,m)%valuesr4
+                  call gsi_bundleunset(a_en(n),istatus)
                enddo
             enddo
-            do n=1,n_ens
-               call gsi_bundleunset(a_en(n),istatus)
+         else ! assign_vdl_nml
+            smooth_scales_num = naensloc - naensgrp
+            ngvarloc = 1 ! forced to 1 in this option
+            do n = 1, n_ens
+              do m = 1, ntlevs_ens
+                 call gsi_bundlecreate(en_pertstmp(n,m),grid_ens,'ensemble2',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_single)
+                 call gsi_bundlecreate(en_pertstmp1(n,m),grid_ens,'ensemble1',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_single)
+              end do
+            end do
+            ig = 1
+            do iscl=1,smooth_scales_num + 1
+               ii=0
+               do n=1,n_ens
+                  a_en(n)%values => values(ii+1:ii+grd_ens%latlon11*grd_ens%nsig)
+                  call gsi_bundleset(a_en(n),grid_ens,'Ensemble Bundle',istatus,names3d=(/'a_en'/),bundle_kind=r_kind)
+                  if (istatus/=0) then
+                     write(6,*) myname_,': error alloc(ensemble bundle)'
+                     call stop2(999)
+                  endif
+                  ii=ii+grd_ens%latlon11*grd_ens%nsig
+               enddo
+           
+               do m=1,ntlevs_ens
+                  if( ig == 1 )then
+                    do n=1,n_ens
+                       en_pertstmp(n,m)%valuesr4=en_perts(n,ig,m)%valuesr4
+                    enddo
+                  end if
+                  do ic3=1,nc3d
+                     ipic=ipc3d(ic3)
+                     do n=1,n_ens
+                        do k=1,grd_ens%nsig
+                           a_en(n)%r3(1)%q(:,:,k)=en_pertstmp(n,m)%r3(ipic)%qr4(:,:,k)
+                        enddo
+                     enddo
+                     if(iscl <= smooth_scales_num) call bkgcov_a_en_new_factorization(naensgrp+iscl,a_en)
+                     do n=1,n_ens
+                        do k=1,grd_ens%nsig
+                           en_pertstmp1(n,m)%r3(ipic)%qr4(:,:,k)=a_en(n)%r3(1)%q(:,:,k)
+                           if( vdl_scale(ig) == 0 )then
+                              en_perts(n,ig,m)%r3(ipic)%qr4(:,:,k)=a_en(n)%r3(1)%q(:,:,k)
+                           else  ! VDL is activated
+                             do iv = 1, vdl_scale(ig)
+                                en_perts(n,ig+iv-1,m)%r3(ipic)%qr4(:,:,k)=0.0_r_single
+                                if( any( trim(StrLowCase(cvars3d(ic3))) == vloc_varlist(ig+iv-1,:) ) ) then
+                                   en_perts(n,ig+iv-1,m)%r3(ipic)%qr4(:,:,k)=a_en(n)%r3(1)%q(:,:,k)
+                                end if
+                             end do
+                           end if
+                        enddo
+                     enddo
+                  enddo
+                  do ic2=1,nc2d
+                     ipic=ipc2d(ic2)
+                     do n=1,n_ens
+                        do k=1,grd_ens%nsig
+                           a_en(n)%r3(1)%q(:,:,k)=en_pertstmp(n,m)%r2(ipic)%qr4(:,:)
+                        enddo
+                     enddo
+                     if(iscl <= smooth_scales_num) call bkgcov_a_en_new_factorization(naensgrp+iscl,a_en)
+                     do n=1,n_ens
+                       en_pertstmp1(n,m)%r2(ipic)%qr4(:,:)=a_en(n)%r3(1)%q(:,:,1)
+                       if( vdl_scale(ig) == 0 )then
+                          en_perts(n,ig,m)%r2(ipic)%qr4(:,:)=a_en(n)%r3(1)%q(:,:,1)
+                       else  ! VDL is activated
+                          do iv = 1, vdl_scale(ig)
+                             en_perts(n,ig+iv-1,m)%r2(ipic)%qr4(:,:)=0.0_r_single
+                             if( any( trim(StrLowCase(cvars2d(ic2)))  == vloc_varlist(ig+iv-1,:) ) ) then
+                                en_perts(n,ig+iv-1,m)%r2(ipic)%qr4(:,:)=a_en(n)%r3(1)%q(:,:,1)
+                             end if
+                          end do
+                       end if
+                     enddo
+                  enddo
+                  do n=1,n_ens
+                     en_pertstmp(n,m)%valuesr4=en_pertstmp(n,m)%valuesr4-en_pertstmp1(n,m)%valuesr4
+                  enddo
+               enddo
+               do n=1,n_ens
+                  call gsi_bundleunset(a_en(n),istatus)
+               enddo
+               if( vdl_scale(ig) == 0 )then
+                  ig = ig + 1
+               else
+                  ig = ig + vdl_scale(ig)
+               end if
             enddo
-         enddo
-         deallocate(values)
-      endif
-      do ig=nsclgrp+1,ntotensgrp
-         do m=1,ntlevs_ens
             do n=1,n_ens
-               en_perts(n,ig,m)%valuesr4=en_perts(n,ig-nsclgrp,m)%valuesr4
-            enddo
-         enddo
-      enddo
+              do m=1,ntlevs_ens
+                 call gsi_bundledestroy(en_pertstmp(n,m),istatus)
+                 call gsi_bundledestroy(en_pertstmp1(n,m),istatus)
+              end do
+            end do
+          end if
+          deallocate(values)
+       endif
+       do ig=nsclgrp+1,ntotensgrp
+          do m=1,ntlevs_ens
+             do n=1,n_ens
+                en_perts(n,ig,m)%valuesr4=en_perts(n,ig-nsclgrp,m)%valuesr4
+             enddo
+          enddo
+       enddo
    endif
 
    !!!!!!!! setup beta_s, beta_e!!!!!!!!!!!!
@@ -5428,7 +5553,7 @@ subroutine setup_ensgrp2aensgrp
 !
 !$$$ end documentation block
   use constants, only: zero,one
-  use hybrid_ensemble_parameters, only: l_timloc_opt,i_ensloccov4tim,i_ensloccov4var,i_ensloccov4scl
+  use hybrid_ensemble_parameters, only: l_timloc_opt,r_ensloccov4tim,r_ensloccov4var,r_ensloccov4scl
   use hybrid_ensemble_parameters, only: ensloccov4tim,ensloccov4var,ensloccov4scl
   use hybrid_ensemble_parameters, only: ntotensgrp,naensgrp,ntlevs_ens,nsclgrp,ngvarloc
   use hybrid_ensemble_parameters, only: ensgrp2aensgrp
@@ -5471,33 +5596,12 @@ subroutine setup_ensgrp2aensgrp
      enddo
   enddo
 
-  if (i_ensloccov4tim==0) then
-     ensloccov4tim=one
-  elseif (i_ensloccov4tim==1)then
-     ensloccov4tim=zero
-     ensloccov4tim(1)=one
-  else
-     write(6,*)'setup_ensgrp2aensgrp: wrong i_ensloccov4tim'
-     call stop2(666)
-  endif
-  if (i_ensloccov4var==0) then
-     ensloccov4var=one
-  elseif (i_ensloccov4var==1)then
-     ensloccov4var=zero
-     ensloccov4var(1)=one
-  else
-     write(6,*)'setup_ensgrp2aensgrp: wrong i_ensloccov4var'
-     call stop2(666)
-  endif
-  if (i_ensloccov4scl==0) then
-     ensloccov4scl=one
-  elseif (i_ensloccov4scl==1)then
-     ensloccov4scl=zero
-     ensloccov4scl(1)=one
-  else
-     write(6,*)'setup_ensgrp2aensgrp: wrong i_ensloccov4scl'
-     call stop2(666)
-  endif
+  ensloccov4tim=r_ensloccov4tim
+  ensloccov4tim(1)=one
+  ensloccov4var=r_ensloccov4var
+  ensloccov4var(1)=one
+  ensloccov4scl=r_ensloccov4scl
+  ensloccov4scl(1)=one
 
   do itim2=1,ntimloc
      do itim1=1,ntimloc

@@ -385,7 +385,7 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
     character(len=70) :: filename
 
     integer(i_kind) :: ierr
-    integer(i_kind) :: km,m
+    integer(i_kind) :: km1,m
     integer(i_kind) :: icw,iql,iqi,iqr,iqs,iqg  
     real(r_kind),pointer,dimension(:,:) :: ps
     !real(r_kind),pointer,dimension(:,:) :: sst
@@ -440,31 +440,31 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
 !      if(trim(cvars2d(m))=='sst') sst=en_loc3(:,:,m_cvars2d(m)) !no sst for now
     enddo
 
-    km = en_perts(1,1,1)%grid%km
+    km1 = en_perts(1,1,1)%grid%km - 1
 !$omp parallel do  schedule(dynamic,1) private(m) 
     do m=1,nc3d
        if(trim(cvars3d(m))=='sf')then
-          u    = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km)
+          u    = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km1)
        else if(trim(cvars3d(m))=='vp') then
-          v    = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km)
+          v    = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km1)
        else if(trim(cvars3d(m))=='t')  then
-          tv   = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km)
+          tv   = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km1)
        else if(trim(cvars3d(m))=='q')  then
-          q    = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km)
+          q    = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km1)
        else if(trim(cvars3d(m))=='oz') then
-          oz   = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km)
+          oz   = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km1)
        else if(trim(cvars3d(m))=='cw') then
-          cwmr = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km)
+          cwmr = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km1)
        else if(trim(cvars3d(m))=='ql') then
-          qlmr = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km)
+          qlmr = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km1)
        else if(trim(cvars3d(m))=='qi') then
-          qimr = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km)
+          qimr = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km1)
        else if(trim(cvars3d(m))=='qr') then
-          qrmr = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km)
+          qrmr = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km1)
        else if(trim(cvars3d(m))=='qs') then
-          qsmr = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km)
+          qsmr = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km1)
        else if(trim(cvars3d(m))=='qg') then
-          qgmr = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km)
+          qgmr = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km1)
        end if
     enddo
 
@@ -938,9 +938,8 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
 !  If file exists, open and process
    atmges = open_dataset(filename,errcode=ierror)
    if (ierror /=0) then
-      write(6,*)' PARALLEL_READ_GFSNC_STATE:  ***FATAL ERROR*** problem reading ',&
-           trim(filename),' ierror= ',ierror,' PROGRAM STOPS'
-      call die(myname_, ': ***FATAL ERROR*** problem reading ens fcst',999)
+      write(6,*)' PARALLEL_READ_GFSNC_STATE:  ***FATAL ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
+      call stop2(999)
    endif
    ! get dimension sizes
    ncdim = get_dim(atmges, 'grid_xt'); lonb = ncdim%len

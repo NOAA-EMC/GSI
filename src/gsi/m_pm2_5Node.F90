@@ -51,7 +51,7 @@ module m_pm2_5Node
      real(r_kind)    :: pg            !  variational quality control parameter
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
      integer(i_kind) :: ij(8)         !  horizontal locations
-     real(r_kind)    :: pm25wc(3)     !  weight coes at i,j,k modes
+     real(r_kind)    :: pm25wc(3)     !  weights
      !logical         :: luse          !  flag indicating if ob is used in pen.
      !integer(i_kind) :: idv,iob       ! device id and obs index for sorting
      !real   (r_kind) :: elat, elon      ! earth lat-lon for redistribution

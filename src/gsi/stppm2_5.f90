@@ -66,6 +66,7 @@ contains
     use gridmod, only: cmaq_regional,wrf_mass_regional,fv3_cmaq_regional
     USE chemmod, ONLY: d_2_5,s_2_5,nh4_mfac,oc_mfac,laeroana_gocart
     use chemmod, only: naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,laeroana_fv3cmaq
+    use chemmod, only: naero_smoke_fv3,aeronames_smoke_fv3,laeroana_fv3smoke
 
     implicit none
     
@@ -82,7 +83,7 @@ contains
     real(r_kind) cg_pm2_5,val,val2,wgross,wnotgross,pm2_5_pg
     real(r_kind),dimension(max(1,nstep))::pen
     real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8,qq
-    real(r_kind),pointer,dimension(:):: rpm2_5,spm2_5
+    real(r_kind),pointer,dimension(:):: rpm2_5,spm2_5,rdust,sdust
     type(pm2_5Node), pointer :: pm2_5ptr
 
     character(len=max_varname_length) :: aeroname    
@@ -254,6 +255,105 @@ contains
        end do
 
     end if
+
+    if ( laeroana_fv3smoke) then
+       pm2_5ptr => pm2_5Node_typecast(pm2_5head)
+
+       ier=0
+       iaero=1
+       aeroname=aeronames_smoke_fv3(iaero) !'smoke'
+       call gsi_bundlegetpointer(sval,trim(aeroname),spm2_5,istatus);ier=istatus+ier
+       call gsi_bundlegetpointer(rval,trim(aeroname),rpm2_5,istatus);ier=istatus+ier
+       iaero=2
+       aeroname=aeronames_smoke_fv3(iaero) !'dust'
+       call gsi_bundlegetpointer(sval,trim(aeroname),sdust,istatus);ier=istatus+ier
+       call gsi_bundlegetpointer(rval,trim(aeroname),rdust,istatus);ier=istatus+ier
+
+       if (istatus /= 0) then
+          write(6,*) 'error gsi_bundlegetpointer in intpm2_5 for ',aeronames_smoke_fv3(1:2)  
+          call stop2(454)
+       endif
+
+       do while (associated(pm2_5ptr))
+          if(pm2_5ptr%luse)then
+             if(nstep > 0)then
+                j1=pm2_5ptr%ij(1)
+                j2=pm2_5ptr%ij(2)
+                j3=pm2_5ptr%ij(3)
+                j4=pm2_5ptr%ij(4)
+                j5=pm2_5ptr%ij(5)
+                j6=pm2_5ptr%ij(6)
+                j7=pm2_5ptr%ij(7)
+                j8=pm2_5ptr%ij(8)
+                w1=pm2_5ptr%wij(1)
+                w2=pm2_5ptr%wij(2)
+                w3=pm2_5ptr%wij(3)
+                w4=pm2_5ptr%wij(4)
+                w5=pm2_5ptr%wij(5)
+                w6=pm2_5ptr%wij(6)
+                w7=pm2_5ptr%wij(7)
+                w8=pm2_5ptr%wij(8)
+
+                istatus=0
+
+                val2=-pm2_5ptr%res
+                val=zero
+              
+                iaero=1
+                val= pm2_5ptr%pm25wc(iaero)* &
+                    (w1*rpm2_5(j1)+w2*rpm2_5(j2)+w3*rpm2_5(j3)+w4*rpm2_5(j4)+&
+                     w5*rpm2_5(j5)+w6*rpm2_5(j6)+w7*rpm2_5(j7)+w8*rpm2_5(j8))+val
+                iaero=2
+                val= pm2_5ptr%pm25wc(iaero)* &
+                    (w1*rdust(j1)+w2*rdust(j2)+w3*rdust(j3)+w4*rdust(j4)+&
+                     w5*rdust(j5)+w6*rdust(j6)+w7*rdust(j7)+w8*rdust(j8))+val
+
+                iaero=1
+                val2= pm2_5ptr%pm25wc(iaero)* &
+                    (w1*spm2_5(j1)+w2*spm2_5(j2)+w3*spm2_5(j3)+w4*spm2_5(j4)+&
+                     w5*spm2_5(j5)+w6*spm2_5(j6)+w7*spm2_5(j7)+w8*spm2_5(j8))+val2
+                iaero=2
+                val2= pm2_5ptr%pm25wc(iaero)* &
+                    (w1*sdust(j1)+w2*sdust(j2)+w3*sdust(j3)+w4*sdust(j4)+&
+                     w5*sdust(j5)+w6*sdust(j6)+w7*sdust(j7)+w8*sdust(j8))+val2
+
+                do kk=1,nstep
+                   qq=val2+sges(kk)*val
+                   pen(kk)=qq*qq*pm2_5ptr%err2
+                end do
+             else
+                pen(1)=pm2_5ptr%res*pm2_5ptr%res*pm2_5ptr%err2
+             end if !nstep
+
+!  modify penalty term if nonlinear qc
+
+             if (nlnqc_iter .and. pm2_5ptr%pg > tiny_r_kind .and. &
+                  pm2_5ptr%b  > tiny_r_kind) then
+                pm2_5_pg=pm2_5ptr%pg*varqc_iter
+                cg_pm2_5=cg_term/pm2_5ptr%b
+                wnotgross= one-pm2_5_pg
+                wgross = pm2_5_pg*cg_pm2_5/wnotgross
+                do kk=1,max(1,nstep)
+                   pen(kk)= -two*log((exp(-half*pen(kk))+wgross)/(one+wgross))
+                end do
+             endif
+
+             out(1) = out(1)+pen(1)*pm2_5ptr%raterr2
+             do kk=2,nstep
+                out(kk) = out(kk)+(pen(kk)-pen(1))*pm2_5ptr%raterr2
+             end do
+          end if ! pm2_5ptr%luse
+
+          pm2_5ptr => pm2_5Node_nextcast(pm2_5ptr)
+
+       end do
+
+       nullify(spm2_5)
+       nullify(rpm2_5)
+       nullify(sdust)
+       nullify(rdust)
+
+    end if ! laeroana_fv3smoke
 
 
     if (wrf_mass_regional .and. laeroana_gocart) then
