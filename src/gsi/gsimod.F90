@@ -151,7 +151,7 @@
                          readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens,i_en_perts_io, &
                          l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens, &
                          ntotensgrp,nsclgrp,naensgrp,ngvarloc,ntlevs_ens,naensloc, &
-                         i_ensloccov4tim,i_ensloccov4var,i_ensloccov4scl,l_timloc_opt,&
+                         r_ensloccov4tim,r_ensloccov4var,r_ensloccov4scl,l_timloc_opt,&
                          vdl_scale,vloc_varlist,&
                          global_spectral_filter_sd,assign_vdl_nml,parallelization_over_ensmembers
   use hybrid_ensemble_parameters,only : l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,weight_ens_gfs,weight_ens_fv3sar
@@ -1368,23 +1368,28 @@
 !     l_timloc_opt - if true, then turn on time-dependent localization
 !     ngvarloc - number of variable-dependent localization lengths
 !     naensloc - total number of spatial localization lengths and scale separation lengths (should be naensgrp+nsclgrp-1)
-!     i_ensloccov4tim - flag of cross-temporal localization
-!                         =0: cross-temporal covariance is retained
-!                         =1: cross-temporal covariance is zero
-!     i_ensloccov4var - flag of cross-variable localization
-!                         =0: cross-variable covariance is retained
-!                         =1: cross-variable covariance is zero
-!     i_ensloccov4scl - flag of cross-scale localization
-!                         =0: cross-scale covariance is retained
-!                         =1: cross-scale covariance is zero
-!
+!     r_ensloccov4tim - factor multiplying to cross-time covariance
+!                         For example,
+!                         =0.0: cross-time covariance is decreased to zero
+!                         =0.5: cross-time covariance is decreased to half
+!                         =1.0: cross-time covariance is retained
+!     r_ensloccov4var - factor multiplying to cross-variable covariance
+!                         For example,
+!                         =0.0: cross-variable covariance is decreased to zero
+!                         =0.5: cross-variable covariance is decreased to half
+!                         =1.0: cross-variable covariance is retained
+!     r_ensloccov4scl - factor multiplying to cross-scale covariance
+!                         For example,
+!                         =0.0: cross-scale covariance is decreased to zero
+!                         =0.5: cross-scale covariance is decreased to half
+!                         =1.0: cross-scale covariance is retained
 !     global_spectral_filter_sd - if true, use spectral filter function for
 !                                 scale decomposition in the global application (Huang et al. 2021)
 !     assign_vdl_nml - if true, vdl_scale, and vloc_varlist will be used for
 !                      assigning variable-dependent localization upon SDL in gsiparm.anl.
 !                      This method described in (Wang and Wang 2022, JAMES) is
 !                      equivalent to, but different from the method associated
-!                      with the parameter i_ensloccov4var.
+!                      with the parameter r_ensloccov4var.
 !     vloc_varlist - list of control variables using the same localization length,
 !                     effective only with assign_vdl_nml=.true. For example,
 !                     vloc_varlist(1,:) = 'sf','vp','ps','t',
@@ -1415,7 +1420,7 @@
                 grid_ratio_ens, &
                 oz_univ_static,write_ens_sprd,use_localization_grid,use_gfs_ens, &
                 i_en_perts_io,l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens, &
-                nsclgrp,l_timloc_opt,ngvarloc,naensloc,i_ensloccov4tim,i_ensloccov4var,i_ensloccov4scl,&
+                nsclgrp,l_timloc_opt,ngvarloc,naensloc,r_ensloccov4tim,r_ensloccov4var,r_ensloccov4scl,&
                 vdl_scale,vloc_varlist,&
                 global_spectral_filter_sd,assign_vdl_nml,parallelization_over_ensmembers
 
