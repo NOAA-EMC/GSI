@@ -76,6 +76,7 @@ contains
     use general_sub2grid_mod, only: sub2grid_info
 
     use gsi_bundlemod, only: gsi_bundle, gsi_bundlegetpointer
+    use gsi_bundlemod, only: assignment(=)
     use control_vectors, only: control_vector
 
     use constants, only: one, rad2deg, r1000
@@ -158,7 +159,6 @@ contains
 !   set up state space based off of xhatsave
 !   Convert from control space directly to physical
 !   space for comparison with obs.
-    call allocate_preds(sbiasinc)
     do iii=1,nobs_bins
        call allocate_state(svalinc(iii))
     end do
@@ -168,7 +168,10 @@ contains
     do iii=1,ntlevs_ens
        call allocate_state(evalinc(iii))
     end do
+
+    call allocate_preds(sbiasinc)
     call control2state(xhatsave,mvalinc,sbiasinc)
+    call deallocate_preds(sbiasinc)
 
     if (l4dvar) then
        if (l_hyb_ens) then
@@ -193,6 +196,12 @@ contains
           end do
        end if
     end if
+    do iii=1,ntlevs_ens
+       call deallocate_state(evalinc(iii))
+    end do
+    do iii=1,nsubwin
+       call deallocate_state(mvalinc(iii))
+    end do
 
     ! Check hydrometeors in control variables 
     iql = getindex(svars3d,'ql')
@@ -202,7 +211,7 @@ contains
     iqg = getindex(svars3d,'qg')
 
     istatus=0
-    call gsi_bundlegetpointer(gfs_bundle,'q', sub_qanl, iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(svalinc(ibin2),'q', sub_qanl, iret); istatus=istatus+iret
     if (iql>0) call gsi_bundlegetpointer(svalinc(ibin2),'ql', sub_ql, iret); istatus=istatus+iret
     if (iqi>0) call gsi_bundlegetpointer(svalinc(ibin2),'qi', sub_qi, iret); istatus=istatus+iret
     if (iqr>0) call gsi_bundlegetpointer(svalinc(ibin2),'qr', sub_qr, iret); istatus=istatus+iret
@@ -527,6 +536,10 @@ contains
     endif
 !    ! cleanup and exit
     call nccheck_incr(nf90_close(ncid_out))
+    deallocate(out3d)
+    do iii=1,nobs_bins
+       call deallocate_state(svalinc(iii))
+    end do
     if ( mype == mype_out ) then
        write(6,*) "FV3 netCDF increment written, file= "//trim(filename)//".nc"
     end if
