@@ -211,7 +211,7 @@ contains
     iqg = getindex(svars3d,'qg')
 
     istatus=0
-    call gsi_bundlegetpointer(svalinc(ibin2),'q', sub_qanl, iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(gfs_bundle,'q', sub_qanl, iret); istatus=istatus+iret
     if (iql>0) call gsi_bundlegetpointer(svalinc(ibin2),'ql', sub_ql, iret); istatus=istatus+iret
     if (iqi>0) call gsi_bundlegetpointer(svalinc(ibin2),'qi', sub_qi, iret); istatus=istatus+iret
     if (iqr>0) call gsi_bundlegetpointer(svalinc(ibin2),'qr', sub_qr, iret); istatus=istatus+iret
