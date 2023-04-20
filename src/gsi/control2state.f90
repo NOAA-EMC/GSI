@@ -21,8 +21,6 @@ use control_vectors, only: cvars3d,cvars2d
 use bias_predictors, only: predictors
 use jfunc, only: nsclen,npclen,ntclen
 use gsi_4dvar, only: nsubwin, l4dvar, lsqrtb,ladtest_obs
-use cwhydromod, only: cw2hydro_tl
-use cwhydromod, only: cw2hydro_tl_hwrf
 use gsi_chemguess_mod, only: gsi_chemguess_get
 use gsi_metguess_mod, only: gsi_metguess_get
 use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -124,6 +122,8 @@ subroutine control2state(xhat,sval,bval)
 use amassaeromod, only: amass2aero_tl
 use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
 use general_commvars_mod, only: s2g_cv
+use cwhydromod, only: cw2hydro_tl
+use cwhydromod, only: cw2hydro_tl_hwrf
 implicit none
   
 ! Declare passed variables  
@@ -571,6 +571,8 @@ subroutine control2state_ad(rval,bval,grad)
 !
 !$$$
 use amassaeromod, only: amass2aero_ad 
+use cwhydromod, only: cw2hydro_ad
+use cwhydromod, only: cw2hydro_ad_hwrf
 
 implicit none
 
