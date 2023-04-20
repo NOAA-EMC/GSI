@@ -15,8 +15,14 @@ module control2state_mod
 ! !DESCRIPTION: module control2state routines and variables
 
 use kinds, only: r_kind,i_kind
+use constants, only : max_varname_length, zero
 use control_vectors, only: control_vector,c2sset_flg
+use control_vectors, only: cvars3d,cvars2d
+use bias_predictors, only: predictors
+use jfunc, only: nsclen,npclen,ntclen
 use gsi_4dvar, only: nsubwin, l4dvar, lsqrtb,ladtest_obs
+use cwhydromod, only: cw2hydro_tl
+use cwhydromod, only: cw2hydro_tl_hwrf
 use gsi_chemguess_mod, only: gsi_chemguess_get
 use gsi_metguess_mod, only: gsi_metguess_get
 use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -28,6 +34,9 @@ use gsi_bundlemod, only: gsi_bundledestroy
 use gsi_bundlemod, only: assignment(=)
 use gridmod, only: nems_nmmb_regional
 use gridmod, only: regional, twodvar_regional            
+use gridmod, only: lat2,lon2,nsig,nlat,nlon            
+use chemmod, only: laeroana_fv3cmaq, naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,icvt_cmaq_fv3
+use mpeu_util, only: getindex
 
 implicit none
 
@@ -112,23 +121,9 @@ subroutine control2state(xhat,sval,bval)
 !     bval - Bias predictors
 !
 !$$$ end documentation block
-use kinds, only: r_kind,i_kind
-use control_vectors, only: control_vector
-use control_vectors, only: cvars3d,cvars2d
-use bias_predictors, only: predictors
-use gsi_4dvar, only: nsubwin, l4dvar, ladtest_obs
-use gridmod, only: lat2,lon2,nsig, nlat, nlon            
-use jfunc, only: nsclen,npclen,ntclen
-use cwhydromod, only: cw2hydro_tl
 use amassaeromod, only: amass2aero_tl
-use cwhydromod, only: cw2hydro_tl_hwrf
-use gsi_chemguess_mod, only: gsi_chemguess_get
-use gsi_metguess_mod, only: gsi_metguess_get
-use mpeu_util, only: getindex
-use constants, only : max_varname_length, zero
 use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
 use general_commvars_mod, only: s2g_cv
-use chemmod, only: laeroana_fv3cmaq, naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,icvt_cmaq_fv3
 implicit none
   
 ! Declare passed variables  
@@ -575,21 +570,7 @@ subroutine control2state_ad(rval,bval,grad)
 !     grad - Control variable
 !
 !$$$
-use control_vectors, only: control_vector
-use control_vectors, only: cvars3d,cvars2d
-use bias_predictors, only: predictors
-use gsi_4dvar, only: nsubwin, lsqrtb
-use gridmod, only: lat2,lon2,nsig,twodvar_regional
-use jfunc, only: nsclen,npclen,ntclen
-use cwhydromod, only: cw2hydro_ad
 use amassaeromod, only: amass2aero_ad 
-use cwhydromod, only: cw2hydro_ad_hwrf
-use gsi_chemguess_mod, only: gsi_chemguess_get
-use gsi_metguess_mod, only: gsi_metguess_get
-use mpeu_util, only: getindex
-use constants, only: max_varname_length,zero
-use gridmod, only: nems_nmmb_regional
-use chemmod, only: laeroana_fv3cmaq, naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,icvt_cmaq_fv3
 
 implicit none
 
