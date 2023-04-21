@@ -829,6 +829,7 @@
         endif  ! use_full_hydro
      enddo
   else if (use_gfs_ncio) then
+     clip=tiny_r_kind
      call read_vardata(dset, 'ugrd', ug3d,errcode=iret)
      if (iret /= 0) then
         print *,'error reading ugrd'
@@ -1106,7 +1107,7 @@
         call copytogrdin(ug,grdin(:,levels(n3d) + soilt4_ind,nb,ne))
      endif
      if (slc1_ind > 0) then
-        call read_vardata(dset_sfc, 'slc1', values_2d, errcode=iret)
+        call read_vardata(dset_sfc, 'soill1', values_2d, errcode=iret)
         if (iret /= 0) then
                 print *,'error reading slc1'
                 call stop2(22)
@@ -1115,7 +1116,7 @@
         call copytogrdin(ug,grdin(:,levels(n3d) + slc1_ind,nb,ne))
      endif
      if (slc2_ind > 0) then
-        call read_vardata(dset_sfc, 'slc2', values_2d, errcode=iret)
+        call read_vardata(dset_sfc, 'soill2', values_2d, errcode=iret)
         if (iret /= 0) then
                 print *,'error reading slc2'
                 call stop2(22)
@@ -1124,7 +1125,7 @@
         call copytogrdin(ug,grdin(:,levels(n3d) + slc2_ind,nb,ne))
      endif
      if (slc3_ind > 0) then
-        call read_vardata(dset_sfc, 'slc3', values_2d, errcode=iret)
+        call read_vardata(dset_sfc, 'soill3', values_2d, errcode=iret)
         if (iret /= 0) then
                 print *,'error reading slc3'
                 call stop2(22)
@@ -1133,9 +1134,9 @@
         call copytogrdin(ug,grdin(:,levels(n3d) + slc3_ind,nb,ne))
      endif
      if (slc4_ind > 0) then
-        call read_vardata(dset_sfc, 'slc4', values_2d, errcode=iret)
+        call read_vardata(dset_sfc, 'soill4', values_2d, errcode=iret)
         if (iret /= 0) then
-                print *,'error reading slc2'
+                print *,'error reading slc4'
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))
@@ -3939,6 +3940,7 @@
      ! note: same logic/threshold used in global_cycle to produce
      ! mask on model grid.
 
+     !call read_vardata(dsfg, 'soill1', values_2d, errcode=iret)
      call read_vardata(dsfg, 'slc1', values_2d, errcode=iret)
 
      mask = 0

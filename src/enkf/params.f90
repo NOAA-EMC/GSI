@@ -67,7 +67,7 @@ integer(i_kind), public, parameter :: read_verification = 3
 integer(i_kind), public, parameter :: read_member_analyses = 2
 ! forecast times for first-guess forecasts to be updated (in hours)
 integer,dimension(7),public ::  nhr_anal  = (/6,-1,-1,-1,-1,-1,-1/)
-integer,dimension(7),public ::  nhr_state = (/6,-1,-1,-1,-1,-1,-1/)
+integer,dimension(8),public ::  nhr_state = (/6,-1,-1,-1,-1,-1,-1/)
 ! forecast hour at middle of assimilation window
 real(r_single),public :: fhr_assim=6.0
 ! character string version of nhr_anal with leading zeros.
@@ -748,6 +748,7 @@ do while (nhr_state(nstatefields+1) > 0)
    if (trim(statesfcfileprefixes(nstatefields+1)) .eq. "") then
       statesfcfileprefixes(nstatefields+1)="bfg_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
    end if
+   if (nstatefields == 7) exit
    nstatefields = nstatefields+1
 end do
 

@@ -95,8 +95,9 @@ subroutine setup_linhx(rlat, rlon, time, ix, delx, ixp, delxp, iy, dely,  &
   delx = max(zero,min(delx,one))
 
   iyp = 1
-  do while (iyp <= nlons .and. lonsgrd(ix*nlons + iyp) <= rlon)
+  do while (lonsgrd(ix*nlons + iyp) <= rlon)
     iyp = iyp + 1
+    if (iyp > nlons) exit 
   enddo
   iy = iyp - 1
   if(iy < 1)     iy = iy + nlons
