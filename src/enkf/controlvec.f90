@@ -299,6 +299,18 @@ real(r_single), allocatable, dimension(:,:,:,:) :: grdin_mean
 
 if (nproc <= ntasks_io-1) then
 
+   ! scale q by ensemble qsat, prior to averaging
+   if (pseudo_rh .and. q_ind > 0) then
+   if ( .not. use_qsatensmean ) then
+         do ne=1,nanals_per_iotask
+         do nb=1,nbackgrounds
+            grdin(:,(q_ind-1)*nlevs+1:q_ind*nlevs,nb,ne) = &
+            grdin(:,(q_ind-1)*nlevs+1:q_ind*nlevs,nb,ne)*qsat(:,:,nb,ne)
+         enddo
+         enddo
+   endif
+   endif
+
    allocate(grdin_mean_tmp(npts,ncdim))
    if (nproc == 0) then
      allocate(grdin_mean(npts,ncdim,nbackgrounds,1))
@@ -355,17 +367,8 @@ if (nproc <= ntasks_io-1) then
             grdin(:,(q_ind-1)*nlevs+1:q_ind*nlevs,nb,ne)*qsatmean(:,:,nb)
          enddo
          enddo
-      else
-         do ne=1,nanals_per_iotask
-         do nb=1,nbackgrounds
-            ! re-scale normalized spfh with sat. sphf of first guess
-            grdin(:,(q_ind-1)*nlevs+1:q_ind*nlevs,nb,ne) = &
-            grdin(:,(q_ind-1)*nlevs+1:q_ind*nlevs,nb,ne)*qsat(:,:,nb,ne)
-         enddo
-         enddo
       endif
-      if (nproc == 0 .and. write_ensmean) then
-         ! write_ensmean implies use_qsatensmean
+      if (nproc == 0 .and. write_ensmean .and. use_qsatensmean ) then
          do nb=1,nbackgrounds
             ! re-scale normalized spfh with sat. sphf of ensmean first guess
             grdin_mean(:,(q_ind-1)*nlevs+1:q_ind*nlevs,nb,1) = &

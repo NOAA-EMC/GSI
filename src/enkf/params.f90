@@ -67,7 +67,7 @@ integer(i_kind), public, parameter :: read_verification = 3
 integer(i_kind), public, parameter :: read_member_analyses = 2
 ! forecast times for first-guess forecasts to be updated (in hours)
 integer,dimension(7),public ::  nhr_anal  = (/6,-1,-1,-1,-1,-1,-1/)
-integer,dimension(8),public ::  nhr_state = (/6,-1,-1,-1,-1,-1,-1/)
+integer,dimension(7),public ::  nhr_state = (/6,-1,-1,-1,-1,-1,-1/)
 ! forecast hour at middle of assimilation window
 real(r_single),public :: fhr_assim=6.0
 ! character string version of nhr_anal with leading zeros.
@@ -682,10 +682,6 @@ if (nproc == 0) then
    if ((obtimelnh < 1.e10 .or. obtimeltr < 1.e10 .or. obtimelsh < 1.e10) .and. &
        letkf_flag) then
      print *,'warning: no time localization in LETKF!'
-   endif
-   if ((write_ensmean .and. pseudo_rh) .and. .not. use_qsatensmean) then
-      print *,'write_ensmean=T requires use_qsatensmean=T when pseudo_rh=T'
-      call stop2(19)
    endif
 
 
