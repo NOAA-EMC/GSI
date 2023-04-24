@@ -211,7 +211,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Set standard parameters
   character(8),parameter:: fov_flag="crosstrk"
   integer(i_kind),parameter:: sfc_channelLW=501 !used in thinning routine if cloud information is not available
-  integer(i_kind),parameter:: sfc_channelMW=748
+  integer(i_kind),parameter:: sfc_channelMW=742
   integer(i_kind),parameter:: ichan=-999  ! fov-based surface code is not channel specific for cris 
   real(r_kind),parameter:: expansion=one         ! exansion factor for fov-based surface code.
                                                  ! use one for ir sensors.
@@ -686,8 +686,14 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            end if
 
 !          if the LW surface channel is present, use it. If not, check for the MW surface channel and use it instead
-           if ( sfc_channel_indexLW > 0 ) sfc_channel_index = sfc_channel_indexLW 
-           if ( sfc_channel_indexLW == 0 .and. sfc_channel_indexMW > 0 ) sfc_channel_index = sfc_channel_indexMW
+           if ( sfc_channel_indexLW > 0 ) then
+              sfc_channel_index = sfc_channel_indexLW
+              sfc_channel = sfc_channelLW
+           endif 
+           if ( sfc_channel_indexLW == 0 .and. sfc_channel_indexMW > 0 ) then 
+              sfc_channel_index = sfc_channel_indexMW
+              sfc_channel = sfc_channelMW
+           endif
 
            if ( sfc_channel_index == 0 ) then
               write(6,*)'READ_CRIS:  ***ERROR*** SURFACE CHANNEL USED FOR QC WAS NOT FOUND'
