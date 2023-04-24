@@ -2033,8 +2033,6 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    procuse=.false.
 
    if (filename(1:3) == 'sfc') then
-   ! if input file is sfc file, read only 2m vars 
-   ! (also sfc pressure, as is needed by setup*)
         read_2m = .true.
         read_z = .false.
         if ( mype == 0 ) write(6,* ) &

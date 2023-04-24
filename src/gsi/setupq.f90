@@ -376,7 +376,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   do k=1,nobs
      ikx=nint(data(ikxx,k))
      itype=ictype(ikx)
-     landsfctype =( itype==181 .or. itype==183 .or. itype==187 )
+     landsfctype =( itype==181 .or. itype==183 .or. itype==187 .or. itype==188  )
      do l=k+1,nobs
         if (twodvar_regional .or. (hofx_2m_sfcfile .and. landsfctype) ) then
            duplogic=data(ilat,k) == data(ilat,l) .and.  &
