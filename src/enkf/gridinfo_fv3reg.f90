@@ -72,10 +72,10 @@ integer(i_kind),                                  public     :: nlevs_pres
 integer(i_kind),public :: npts
 integer(i_kind),public :: ntrunc
 ! supported variable names in anavinfo
-character(len=max_varname_length),public, dimension(15) :: &
+character(len=max_varname_length),public, dimension(16) :: &
   vars3d_supported = [character(len=max_varname_length) :: &
     'u', 'v', 'w', 't', 'q', 'oz', 'cw', 'tsen', 'prse', &
-    'ql', 'qi', 'qr', 'qs', 'qg', 'qnr']
+    'ql', 'qi', 'qr', 'qs', 'qg', 'qnr','dbz']
 character(len=max_varname_length),public, dimension(3) :: &
   vars2d_supported = [character(len=max_varname_length) :: &
     'ps', 'pst', 'sst']

@@ -134,15 +134,21 @@ module hybrid_ensemble_parameters
 !      l_timloc_opt:    if true, then turn on time-dependent localization
 !      ngvarloc:        number of variable-dependent localization lengths
 !      naensloc:        total number of spatial localization lengths and scale separation lengths (should be naensgrp+nsclgrp-1)
-!      i_ensloccov4tim: flag of cross-temporal localization
-!                         =0: cross-temporal covariance is retained
-!                         =1: cross-temporal covariance is zero
-!      i_ensloccov4var: flag of cross-variable localization
-!                         =0: cross-variable covariance is retained
-!                         =1: cross-variable covariance is zero
-!      i_ensloccov4scl: flag of cross-scale localization
-!                         =0: cross-scale covariance is retained
-!                         =1: cross-scale covariance is zero
+!      r_ensloccov4tim: factor multiplying to cross-time covariance
+!                         For example,
+!                         =0.0: cross-time covariance is decreased to zero
+!                         =0.5: cross-time covariance is decreased to half
+!                         =1.0: cross-time covariance is retained
+!      r_ensloccov4var: factor multiplying to cross-variable covariance
+!                         For example,
+!                         =0.0: cross-variable covariance is decreased to zero
+!                         =0.5: cross-variable covariance is decreased to half
+!                         =1.0: cross-variable covariance is retained
+!      r_ensloccov4scl: factor multiplying to cross-scale covariance
+!                         For example,
+!                         =0.0: cross-scale covariance is decreased to zero
+!                         =0.5: cross-scale covariance is decreased to half
+!                         =1.0: cross-scale covariance is retained
 !=====================================================================================================
 !
 !
@@ -287,6 +293,7 @@ module hybrid_ensemble_parameters
   public :: generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,l_hyb_ens,&
        s_ens_h,oz_univ_static,vvlocal
   public :: n_ens_gfs,n_ens_fv3sar
+  public :: weight_ens_gfs,weight_ens_fv3sar
   public :: uv_hyb_ens,q_hyb_ens,s_ens_v,beta_s0,beta_e0,aniso_a_en,s_ens_hv,s_ens_vv
   public :: readin_beta,beta_s,beta_e
   public :: readin_localization
@@ -325,7 +332,7 @@ module hybrid_ensemble_parameters
   public :: ensloccov4tim,ensloccov4var,ensloccov4scl
   public :: alphacvarsclgrpmat
   public :: l_timloc_opt
-  public :: i_ensloccov4tim,i_ensloccov4var,i_ensloccov4scl
+  public :: r_ensloccov4tim,r_ensloccov4var,r_ensloccov4scl
   public :: idaen3d,idaen2d
   public :: ens_fast_read
   public :: parallelization_over_ensmembers
@@ -361,6 +368,7 @@ module hybrid_ensemble_parameters
   integer(i_kind) i_en_perts_io
   integer(i_kind) n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test
   integer(i_kind) n_ens_gfs,n_ens_fv3sar
+  real(r_kind) weight_ens_gfs,weight_ens_fv3sar
   real(r_kind) beta_s0,beta_e0,grid_ratio_ens
   integer(i_kind),parameter::max_naensloc=20
   integer(i_kind),parameter::max_nvars=100
@@ -393,9 +401,9 @@ module hybrid_ensemble_parameters
   integer(i_kind) :: ntotensgrp=1
   integer(i_kind) :: naensloc=1
   integer(i_kind) :: ngvarloc=1
-  integer(i_kind) :: i_ensloccov4tim=0
-  integer(i_kind) :: i_ensloccov4var=0
-  integer(i_kind) :: i_ensloccov4scl=0
+  real(r_kind) :: r_ensloccov4tim
+  real(r_kind) :: r_ensloccov4var
+  real(r_kind) :: r_ensloccov4scl
   integer(i_kind),allocatable,dimension(:) :: idaen3d,idaen2d
 
   real(r_kind),allocatable,dimension(:,:) :: spc_multwgt
@@ -497,6 +505,11 @@ subroutine init_hybrid_ensemble_parameters
   l_both_fv3sar_gfs_ens=.false.
   n_ens_gfs=0 
   n_ens_fv3sar=0
+  weight_ens_gfs=one
+  weight_ens_fv3sar=one
+  r_ensloccov4tim=one
+  r_ensloccov4var=one
+  r_ensloccov4scl=one
   vdl_scale = 0
   vloc_varlist = 'aaa'
   global_spectral_filter_sd=.false.

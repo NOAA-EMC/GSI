@@ -52,7 +52,7 @@ contains
      use constants, only: zero,one,half,zero_single,rd_over_cp,one_tenth
      use mpimod, only: mpi_comm_world,ierror,mype,npe
      use hybrid_ensemble_parameters, only: n_ens,grd_ens,parallelization_over_ensmembers
-     use hybrid_ensemble_parameters, only: l_both_fv3sar_gfs_ens, n_ens_gfs,n_ens_fv3sar
+     use hybrid_ensemble_parameters, only: l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,weight_ens_fv3sar
      use hybrid_ensemble_parameters, only: ntlevs_ens,ensemble_path
      use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
      use gsi_bundlemod, only: gsi_bundlecreate
@@ -674,7 +674,7 @@ contains
  !
  !
  ! CONVERT ENSEMBLE MEMBERS TO ENSEMBLE PERTURBATIONS
-        sig_norm=sqrt(one/max(one,n_ens_fv3sar-one))
+        sig_norm=sqrt(weight_ens_fv3sar/max(one,n_ens_fv3sar-one))
  
         do n=imem_start,n_ens
            do i=1,nelen

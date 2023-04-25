@@ -47,7 +47,7 @@ subroutine init_mult_spc_wgts(jcap_in)
   use hybrid_ensemble_parameters,only: use_localization_grid
   use gridmod,only: use_sp_eqspace
   use general_specmod, only: general_init_spec_vars
-  use constants, only: zero,half,one,two,three,rearth,pi
+  use constants, only: zero,half,one,two,three,rearth,pi,tiny_r_kind
   use constants, only: rad2deg
   use mpimod, only: mype
   use general_sub2grid_mod, only: general_sub2grid_create_info
@@ -55,7 +55,7 @@ subroutine init_mult_spc_wgts(jcap_in)
   use general_sub2grid_mod, only: sub2grid_info
   use gsi_io, only: verbose
   use hybrid_ensemble_parameters, only: nsclgrp
-  use hybrid_ensemble_parameters, only: spc_multwgt,spcwgt_params,i_ensloccov4scl
+  use hybrid_ensemble_parameters, only: spc_multwgt,spcwgt_params,r_ensloccov4scl
   implicit none
 
   integer(i_kind),intent(in   ) :: jcap_in
@@ -68,7 +68,7 @@ subroutine init_mult_spc_wgts(jcap_in)
   integer(i_kind) :: l_sum_spc_weights
 
   ! Spectral scale decomposition is differernt between SDL-cross and SDL-nocross
-  if( i_ensloccov4scl == 1 )then
+  if( r_ensloccov4scl < tiny_r_kind )then
      l_sum_spc_weights = 1
   else
      l_sum_spc_weights = 0

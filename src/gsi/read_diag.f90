@@ -1165,7 +1165,9 @@ subroutine read_radiag_data_nc(diag_status,header_fix,data_fix,data_chan,data_ex
 
   data_fix        = diag_status%all_data_fix(diag_status%cur_ob_idx)
   data_chan(:)    = diag_status%all_data_chan(diag_status%cur_ob_idx,:)
-  data_extra(:,:) = diag_status%all_data_extra(diag_status%cur_ob_idx,:,:) 
+  if (header_fix%iextra > 0) then
+     data_extra(:,:) = diag_status%all_data_extra(diag_status%cur_ob_idx,:,:)
+  endif
 
   diag_status%cur_ob_idx = diag_status%cur_ob_idx + 1
 
