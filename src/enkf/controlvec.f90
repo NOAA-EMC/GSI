@@ -160,7 +160,7 @@ endif
 do i = 1, nc2d
   if (getindex(vars2d_supported, cvars2d(i))<0) then
     if (nproc .eq. 0) then
-      print *,'Error: 2D variable ', cvars2d(i), ' is not supported in current version.'
+      print *,'Error: control 2D variable ', cvars2d(i), ' is not supported in current version.'
       print *,'Supported variables: ', vars2d_supported
     endif
     call stop2(502)
@@ -169,7 +169,7 @@ enddo
 do i = 1, nc3d
   if (getindex(vars3d_supported, cvars3d(i))<0) then
     if (nproc .eq. 0) then 
-       print *,'Error: 3D variable ', cvars3d(i), ' is not supported in current version.'
+       print *,'Error: control 3D variable ', cvars3d(i), ' is not supported in current version.'
        print *,'Supported variables: ', vars3d_supported
     endif
     call stop2(502)

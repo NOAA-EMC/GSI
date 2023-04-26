@@ -744,8 +744,8 @@ do while (nhr_state(nstatefields+1) > 0)
    if (trim(statesfcfileprefixes(nstatefields+1)) .eq. "") then
       statesfcfileprefixes(nstatefields+1)="bfg_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
    end if
-   if (nstatefields == 7) exit
    nstatefields = nstatefields+1
+   if (nstatefields == 7) exit
 end do
 
 do nb=1,nbackgrounds
