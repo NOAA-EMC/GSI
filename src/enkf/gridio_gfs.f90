@@ -3940,8 +3940,7 @@
      ! note: same logic/threshold used in global_cycle to produce
      ! mask on model grid.
 
-     !call read_vardata(dsfg, 'soill1', values_2d, errcode=iret)
-     call read_vardata(dsfg, 'slc1', values_2d, errcode=iret)
+     call read_vardata(dsfg, 'soill1', values_2d, errcode=iret)
 
      mask = 0
      do j=1,nlats
