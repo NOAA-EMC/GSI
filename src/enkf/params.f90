@@ -99,7 +99,7 @@ character(len=500),public :: datapath
 ! if deterministic=.true., the deterministic square-root filter
 ! update is used.  If .false, a perturbed obs (stochastic) update
 ! is used.
-logical, public :: deterministic, sortinc, pseudo_rh, qobs_pseudo_rh, &
+logical, public :: deterministic, sortinc, pseudo_rh, &
                    varqc, huber, cliptracers, readin_localization
 logical, public :: lupp
 logical, public :: cnvw_option

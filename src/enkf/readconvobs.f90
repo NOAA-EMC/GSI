@@ -34,7 +34,7 @@ module readconvobs
 use kinds, only: r_kind,i_kind,r_single,r_double
 use constants, only: one,zero,deg2rad
 use params, only: npefiles, netcdf_diag, modelspace_vloc, &
-                  l_use_enkf_directZDA, qobs_pseudo_rh
+                  l_use_enkf_directZDA
 implicit none
 
 private
@@ -326,11 +326,7 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
         endif
         if (obtype == '  q') then
            allocate(Forecast_Saturation_Spec_Hum(nobs_curr))
-           if ( qobs_pseudo_rh ) then
-              call nc_diag_read_get_var(iunit, 'Forecast_Saturation_Spec_Hum', Forecast_Saturation_Spec_Hum)
-           else
-               Forecast_Saturation_Spec_Hum=1.
-           endif
+           call nc_diag_read_get_var(iunit, 'Forecast_Saturation_Spec_Hum', Forecast_Saturation_Spec_Hum)
         endif
 
         call nc_diag_read_close(obsfile)
@@ -605,11 +601,7 @@ subroutine get_convobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag,   &
         endif
         if (obtype == '  q') then
            allocate(Forecast_Saturation_Spec_Hum(nobs))
-           if ( qobs_pseudo_rh ) then
-              call nc_diag_read_get_var(iunit, 'Forecast_Saturation_Spec_Hum', Forecast_Saturation_Spec_Hum)
-           else
-               Forecast_Saturation_Spec_Hum=1.
-           endif
+           call nc_diag_read_get_var(iunit, 'Forecast_Saturation_Spec_Hum', Forecast_Saturation_Spec_Hum)
         endif
         if (lobsdiag_forenkf) then
           call nc_diag_read_get_global_attr(iunit, "jac_nnz", nnz)
