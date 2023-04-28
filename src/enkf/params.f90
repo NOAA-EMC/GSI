@@ -274,7 +274,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
                    analpertwtnh_rtpp,analpertwtsh_rtpp,analpertwttr_rtpp,&
                    nlevs,nanals,saterrfact,univaroz,regional,use_gfs_nemsio,use_gfs_ncio,&
-                   paoverpb_thresh,latbound,delat,pseudo_rh,qobs_pseudo_rh,numiter,biasvar,&
+                   paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,nhr_state, fhr_assim,nbackgrounds,nstatefields, &
                    save_inflation,nobsl_max,lobsdiag_forenkf,netcdf_diag,forecast_impact,&
@@ -388,8 +388,6 @@ paoverpb_thresh = 1.0_r_single! don't skip any obs
 iassim_order = 0
 ! use 'pseudo-rh' analysis variable, as in GSI.
 pseudo_rh = .false.
-! divide qobs by forecast qsat, giving pseudo RH obs
-qobs_pseudo_rh = .true.
 ! if deterministic is true, use LETKF/EnSRF w/o perturbed obs.
 ! if false, use perturbed obs EnKF/LETKF.
 deterministic = .true.
