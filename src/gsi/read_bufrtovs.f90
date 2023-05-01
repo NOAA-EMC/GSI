@@ -684,7 +684,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            if (llll > 1) then
               sacv = nint(bfr1bhdr(14))
               if (sacv > spc_coeff_versions) then
-                 write(6,*) 'READ_BUFRTOVS WARNING sacv greater than spc_coeff_versions'
+                 write(6,*) 'READ_BUFRTOVS WARNING sacv greater than spc_coeff_versions',' ',jsatid,' ',obstype
               end if
            else ! normal feed doesn't have antenna correction, so set sacv to 0
               sacv = 0
