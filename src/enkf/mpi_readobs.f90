@@ -250,7 +250,7 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
 ! exchange obs prior ensemble members across all tasks to fully populate shared
 ! memory array pointer on each node.
     if (nproc_shm == 0) then
-       if (real(nanals)*real(nobs_tot) < 2**32/2. - 1) then
+       if (real(nanals)*real(nobs_tot) < 2_r_kind**32/2_r_kind - 1_r_kind) then
           call mpi_allreduce(mpi_in_place,anal_ob,nanals*nobs_tot,mpi_real4,mpi_sum,mpi_comm_shmemroot,ierr)
        else
           ! count won't fit in 32-bit integer and mpi_allreduce doesn't handle

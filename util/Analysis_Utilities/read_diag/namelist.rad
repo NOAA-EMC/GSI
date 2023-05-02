@@ -1,5 +1,0 @@
- &iosetup
-  infilename='./diag_amsua_n15_anl',
-  outfilename='./results_amsua_n15_anl',
- /     
-

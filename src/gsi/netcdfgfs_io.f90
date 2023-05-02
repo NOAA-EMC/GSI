@@ -1300,7 +1300,7 @@ contains
     ! open the netCDF file
     sfcges = open_dataset(filename,errcode=iret)
     if (iret/=0) then
-       write(6,*) trim(my_name),':  ***ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
+       write(6,*) trim(my_name),':  ***FATAL ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
        call stop2(999)
     endif
 
@@ -2480,6 +2480,7 @@ contains
        jdate(5) = 0          ! analysis minute
        jdate(6) = 0          ! analysis scaled seconds
 
+       allocate(fhour(1))
        fhour    = zero
        odate(1) = jdate(4)  !hour
        odate(2) = jdate(2)  !month
@@ -2750,6 +2751,7 @@ contains
        jdate(5) = 0          ! analysis minute
        jdate(6) = 0          ! analysis scaled seconds
 
+       allocate(fhour(1))
        fhour    = zero
        odate(1) = jdate(4)  !hour
        odate(2) = jdate(2)  !month

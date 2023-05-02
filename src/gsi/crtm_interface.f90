@@ -194,7 +194,7 @@ public isazi_ang2           ! = 37 index of solar azimuth angle (degrees)
   integer(i_kind),save :: n_clouds_fwd_wk           ! number of clouds considered
   integer(i_kind),save :: n_clouds_jac_wk           ! number of clouds considered
   integer(i_kind),save :: n_ghg              ! number of green-house gases
-  integer(i_kind),save :: itv,iqv,ioz,ius,ivs,isst
+  integer(i_kind),save :: itsen,iqv,ioz,ius,ivs,isst
   integer(i_kind),save :: indx_p25, indx_dust1, indx_dust2
   logical        ,save :: lwind
   logical        ,save :: cld_sea_only_wk
@@ -326,6 +326,8 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
   use radinfo, only: radjacindxs,radjacnames,jpch_rad,nusis,nuchan
   use aeroinfo, only: aerojacindxs
   use gridmod, only: fv3_full_hydro
+  use gridmod, only: fv3_cmaq_regional
+  use chemmod, only: crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file 
   use mpeu_util, only: getindex
   use constants, only: zero,max_varname_length
   use obsmod, only: dval_use
@@ -348,6 +350,7 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
   integer(i_kind) :: ier,ii,error_status
   integer(i_kind) :: k, subset_start, subset_end
   logical :: Load_AerosolCoeff,Load_CloudCoeff
+  character(50) Aerosol_Model, AerosolCoeff_File,AerosolCoeff_Format
   character(len=20),dimension(1) :: sensorlist
   integer(i_kind) :: indx,iii,icloud4crtm
 ! ...all "additional absorber" variables
@@ -365,10 +368,10 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
   ius=-1
   ioz=-1
   iqv=-1
-  itv=-1
+  itsen=-1
 ! Get indexes of variables composing the jacobian
-  indx =getindex(radjacnames,'tv')
-  if(indx>0) itv=radjacindxs(indx)
+  indx =getindex(radjacnames,'tsen')
+  if(indx>0) itsen=radjacindxs(indx)
   indx =getindex(radjacnames,'q' )
   if(indx>0) iqv=radjacindxs(indx)
   indx =getindex(radjacnames,'oz')
@@ -559,6 +562,11 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
     n_aerosols_fwd_wk=n_aerosols_fwd
     n_aerosols_jac_wk=n_aerosols_jac
     Load_AerosolCoeff=.true.
+     if (fv3_cmaq_regional) then
+       Aerosol_Model = trim(crtm_aerosol_model)
+       AerosolCoeff_File = trim(crtm_aerosolcoeff_file)
+       AerosolCoeff_Format = trim(crtm_aerosolcoeff_format)
+     end if
  else
     n_actual_aerosols_wk=0
     n_aerosols_fwd_wk=0
@@ -570,16 +578,29 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
 
  sensorlist(1)=isis
  quiet=.not. print_verbose
+
  if( crtm_coeffs_path /= "" ) then
     if(init_pass .and. mype==mype_diaghdr .and. print_verbose) &
         write(6,*)myname_,': crtm_init() on path "'//trim(crtm_coeffs_path)//'"'
     error_status = crtm_init(sensorlist,channelinfo,&
        Process_ID=mype,Output_Process_ID=mype_diaghdr, &
+! for crtm2.4.1 
+!<Aero need to comment out if CRTM doesn't support 
+!       Aerosol_Model=Aerosol_Model,AerosolCoeff_File=AerosolCoeff_File, &
+!       AerosolCoeff_Format=AerosolCoeff_Format, &
+!Aero>
        Load_CloudCoeff=Load_CloudCoeff,Load_AerosolCoeff=Load_AerosolCoeff, &
        File_Path = crtm_coeffs_path,quiet=quiet )
  else
+
     error_status = crtm_init(sensorlist,channelinfo,&
        Process_ID=mype,Output_Process_ID=mype_diaghdr, &
+
+! for crtm2.4.1
+!Aero need to comment out if CRTM doesn't support 
+!       Aerosol_Model=Aerosol_Model,AerosolCoeff_File=AerosolCoeff_File, &
+!       AerosolCoeff_Format=AerosolCoeff_Format, &
+!Aero>
        Load_CloudCoeff=Load_CloudCoeff,Load_AerosolCoeff=Load_AerosolCoeff,&
        quiet=quiet)
  endif
@@ -954,7 +975,7 @@ subroutine destroy_crtm
   return
 end subroutine destroy_crtm
 subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
-                   h,q,clw_guess,ciw_guess,rain_guess,snow_guess,prsl,prsi, &
+                   h,q,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsl,prsi, &
                    trop5,tzbgr,dtsavg,sfc_speed,&
                    tsim,emissivity,chan_level,ptau5,ts, &
                    emissivity_k,temp,wmix,jacobian,error_status,tsim_clr,tcc, & 
@@ -991,6 +1012,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !   2015-09-10  zhu  - generalize enabling all-sky and aerosol usage in radiance assimilation,
 !                      use n_clouds_fwd_wk,n_aerosols_fwd_wk,cld_sea_only_wk, cld_sea_only_wk,cw_cv,etc
 !   2019-03-22  Wei/Martin - added VIIRS AOD obs in addition to MODIS AOD obs
+!   2020-05-24  H.Wang  - add interface (subroutine set_crtm_aerosol_fv3_cmaq_regional) for regional FV3-CMAQ. 
 !
 !   input argument list:
 !     obstype      - type of observations for which to get profile
@@ -1046,10 +1068,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use gsi_metguess_mod,  only: gsi_metguess_get
   use gridmod, only: istart,jstart,nlon,nlat,lon1,rlats,rlons
   use wrf_params_mod, only: cold_start
-  use constants, only: zero,half,one,one_tenth,fv,r0_05,r10,r100,r1000,constoz,grav,rad2deg, &
+  use constants, only: zero,half,one,one_tenth,r0_05,r10,r100,r1000,constoz,grav,rad2deg, &
       sqrt_tiny_r_kind,constoz,two,three,four,five,t0c,rd,eps,rd_over_cp,rearth
   use constants, only: max_varname_length,pi  
-  use set_crtm_aerosolmod, only: set_crtm_aerosol
+  use set_crtm_aerosolmod, only: set_crtm_aerosol,set_crtm_aerosol_fv3_cmaq_regional
   use set_crtm_cloudmod, only: set_crtm_cloud
   use crtm_module, only: limit_exp,o3_id,toa_pressure
   use obsmod, only: iadate
@@ -1060,6 +1082,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                                     cloudcover_maxran_overlap,  &
                                     cloudcover_average_overlap, &  !default
                                     cloudcover_overcast_overlap
+  !use chemmod, only: raod_radius_mean_scale,raod_radius_std_scale
+  use gridmod, only: fv3_cmaq_regional
 
   implicit none
 
@@ -1068,7 +1092,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   integer(i_kind)                       ,intent(in   ) :: nchanl,nreal
   integer(i_kind),dimension(nchanl)     ,intent(in   ) :: ich
   real(r_kind)                          ,intent(  out) :: trop5,tzbgr
-  real(r_kind),dimension(nsig)          ,intent(  out) :: h,q,prsl
+  real(r_kind),dimension(nsig)          ,intent(  out) :: h,q,prsl,qs
   real(r_kind),dimension(nsig+1)        ,intent(  out) :: prsi
   real(r_kind)                          ,intent(  out) :: sfc_speed,dtsavg
   real(r_kind),dimension(nchanl+nreal)  ,intent(in   ) :: data_s
@@ -1113,7 +1137,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   integer(i_kind):: idx700,dprs,dprs_min  
   integer(i_kind),dimension(8)::obs_time,anal_time
   integer(i_kind),dimension(msig) :: klevel
-  real(r_kind),dimension(nsig) :: qsat
 
 ! ****************************** 
 ! Constrained indexing for lai
@@ -1137,11 +1160,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),dimension(msig)  :: prsl_rtm
   real(r_kind),dimension(msig)  :: auxq,auxdp
   real(r_kind),dimension(nsig)  :: poz
-  real(r_kind),dimension(nsig)  :: rh,qs
+  real(r_kind),dimension(nsig)  :: rh
   real(r_kind),dimension(5)     :: tmp_time
   real(r_kind),dimension(0:3)   :: dtskin
   real(r_kind),dimension(msig)  :: c6
-  real(r_kind),dimension(nsig)  :: c2,c3,c4,c5
+  real(r_kind),dimension(nsig)  :: c3
   real(r_kind),dimension(nsig) :: ugkg_kgm2,cwj
   real(r_kind),dimension(nsig) :: rho_air   ! density of air (kg/m3)
   real(r_kind),dimension(nsig) :: cf_calc   ! GFDL cloud fraction calculation
@@ -1164,7 +1187,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),pointer,dimension(:,:,:)::cfges_itsig =>NULL()  
   real(r_kind),pointer,dimension(:,:,:)::cfges_itsigp=>NULL()  
 
-  logical :: sea,icmask   
+  logical :: sea,icmask
 
   integer(i_kind),parameter,dimension(12):: mday=(/0,31,59,90,&
        120,151,181,212,243,273,304,334/)
@@ -1699,21 +1722,16 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      else
         q(k)  = qsmall
      endif
-     if (n_clouds_fwd_wk>0) then
-        qsat(k)=(ges_qsat (ix ,iy ,k, itsig)*w00+ &
-                 ges_qsat (ixp,iy ,k, itsig)*w10+ &
-                 ges_qsat (ix ,iyp,k, itsig)*w01+ &
-                 ges_qsat (ixp,iyp,k, itsig)*w11)*dtsig + &
-                (ges_qsat (ix ,iy ,k, itsigp)*w00+ &
-                 ges_qsat (ixp,iy ,k, itsigp)*w10+ &
-                 ges_qsat (ix ,iyp,k, itsigp)*w01+ &
-                 ges_qsat (ixp,iyp,k, itsigp)*w11)*dtsigp
-     end if
-     c2(k)=one/(one+fv*q(k))
-     c3(k)=one/(one-q(k))
-     c4(k)=fv*h(k)*c2(k)
-     c5(k)=r1000*c3(k)*c3(k)
-     qmix(k)=q(k)*c3(k)  !conver specific humidity to mixing ratio
+     qs(k)=(ges_qsat (ix ,iy ,k, itsig)*w00+ &
+            ges_qsat (ixp,iy ,k, itsig)*w10+ &
+            ges_qsat (ix ,iyp,k, itsig)*w01+ &
+            ges_qsat (ixp,iyp,k, itsig)*w11)*dtsig + &
+           (ges_qsat (ix ,iy ,k, itsigp)*w00+ &
+            ges_qsat (ixp,iy ,k, itsigp)*w10+ &
+            ges_qsat (ix ,iyp,k, itsigp)*w01+ &
+            ges_qsat (ixp,iyp,k, itsigp)*w11)*dtsigp
+     c3(k)=r1000/(one-q(k))
+     qmix(k)=q(k)*c3(k)  !convert specific humidity to mixing ratio
 ! Space-time interpolation of ozone(poz)
      if (iozs==0) then
          poz(k)=((ozges_itsig (ix ,iy ,k)*w00+ &
@@ -1808,7 +1826,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 ! if ( icmask .and. n_clouds_fwd_wk > 0 .and. imp_physics==11 .and.  lcalc_gfdl_cfrac ) then
   if ( icmask .and. n_clouds_fwd_wk > 0 .and. imp_physics==11 .and.  lprecip_wk ) then
      cf_calc  = zero
-     call calc_gfdl_cloudfrac(rho_air,h,q,cloud,hs,garea,qsat,cf_calc)
+     call calc_gfdl_cloudfrac(rho_air,h,q,cloud,hs,garea,qs,cf_calc)
      cf   = cf_calc
      icfs = 0        ! load cloud fraction into CRTM 
   endif
@@ -1922,14 +1940,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
        end if ! lread_ext_aerosol
     end if ! n_actual_aerosols_wk > 0
     do k=1,nsig
-        qs(k) = (ges_qsat(ix ,iy ,k,itsig )*w00+ &
-                 ges_qsat(ixp,iy ,k,itsig )*w10+ &
-                 ges_qsat(ix ,iyp,k,itsig )*w01+ &
-                 ges_qsat(ixp,iyp,k,itsig )*w11)*dtsig + &
-                (ges_qsat(ix ,iy ,k,itsigp)*w00+ &
-                 ges_qsat(ixp,iy ,k,itsigp)*w10+ &
-                 ges_qsat(ix ,iyp,k,itsigp)*w01+ &
-                 ges_qsat(ixp,iyp,k,itsigp)*w11)*dtsigp
         rh(k) = q(k)/qs(k)
     end do
   endif
@@ -1978,7 +1988,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
      kk2 = klevel(kk)
      atmosphere(1)%temperature(k) = h(kk2)
-     atmosphere(1)%absorber(k,1)  = r1000*q(kk2)*c3(kk2)
+     atmosphere(1)%absorber(k,1)  = q(kk2)*c3(kk2)
      if(iozs==0) then
         atmosphere(1)%absorber(k,2)  = poz(kk2)
      else
@@ -1995,6 +2005,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         aero_conc(k,:)=aero(kk2,:)
         auxrh(k)      =rh(kk2)
      endif
+
 
 ! Include cloud guess profiles in mw radiance computation
 
@@ -2125,9 +2136,19 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   endif
 
 ! Set aerosols for CRTM
-  if(n_actual_aerosols_wk>0) then
-     call Set_CRTM_Aerosol ( msig, n_actual_aerosols_wk, n_aerosols_fwd_wk, aerosol_names, aero_conc, auxrh, &
+  if (n_actual_aerosols_wk>0) then
+     if (fv3_cmaq_regional) then
+! for crtm2.4.1 
+!<need to comment out if CRTM doesn't support 
+!     atmosphere(1)%Relative_Humidity = auxrh
+!>
+        call set_crtm_aerosol_fv3_cmaq_regional ( msig, n_actual_aerosols_wk, n_aerosols_fwd_wk, aerosol_names, aero_conc, auxrh, &
                              atmosphere(1)%aerosol )
+     else
+
+        call Set_CRTM_Aerosol ( msig, n_actual_aerosols_wk, n_aerosols_fwd_wk, aerosol_names, aero_conc, auxrh, &
+                             atmosphere(1)%aerosol )
+     end if
   endif
 
 ! Call CRTM K Matrix model
@@ -2277,6 +2298,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !   wmix  - moisture sensitivity
 !   omix  - ozone sensitivity
 !   ptau5 - layer transmittance
+       
        do k=1,msig
           kk = klevel(msig-k+1)
           temp(kk,i) = temp(kk,i) + atmosphere_k(i,1)%temperature(k)
@@ -2294,15 +2316,15 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
        end do ! <nsig>
 
 !  Deflate moisture jacobian above the tropopause.
-       if (itv>=0) then
+       if (itsen>=0) then
           do k=1,nsig
-             jacobian(itv+k,i)=temp(k,i)*c2(k)               ! virtual temperature sensitivity
+             jacobian(itsen+k,i)=temp(k,i)               ! sensible temperature sensitivity
           end do ! <nsig>
        endif
        if (iqv>=0) then
           m=ich(i)
           do k=1,nsig
-             jacobian(iqv+k,i)=c5(k)*wmix(k,i)-c4(k)*temp(k,i)        ! moisture sensitivity
+             jacobian(iqv+k,i)=c3(k)*wmix(k,i)        ! moisture sensitivity
              if (prsi(k) < trop5) then
                 term = (prsi(k)-trop5)/(trop5-prsi(nsig))
                 jacobian(iqv+k,i) = exp(ifactq(m)*term)*jacobian(iqv+k,i)

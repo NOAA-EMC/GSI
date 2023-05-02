@@ -90,8 +90,19 @@ module hybrid_ensemble_parameters
 !      beta_e0 - default weight given to ensemble background error covariance
 !                (if .not. readin_beta). if beta_e0<0, then it is set to
 !                1.-beta_s0 (this is the default)
-!      s_ens_h:    horizontal localization correlation length (units of km), default = 2828.0
-!      s_ens_v:    vertical localization correlation length (grid units), default = 30.0
+!      s_ens_h: horizontal localization correlation length of Gaussian exp(-0.5*(r/L)**2)
+!               (units of km), default = 2828.0
+!      s_ens_v: vertical localization correlation length of Gaussian exp(-0.5*(r/L)**2)
+!               (grid units if s_ens_v>=0, or units of ln(p) if s_ens_v<0), default = 30.0
+!                  in scale/variable/time-dependent localization (SDL/VDL/TDL),
+!                  localization length for i-th scale, j-th variable, and k-th time is
+!                     s_ens_[hv]( i + nsclgrp*(j-1) + nsclgrp*ngvarloc*(k-1) )
+!                        in SDL(nsclgrp>1),         i = 1(largest scale)  .. nsclgrp(smallest scale)
+!                        in VDL(ngvarloc=2),        j = 1(itracer<=10)    .. 2(itracer>=11)
+!                        in TDL(l_timloc_opt=true), k = 1(first time bin) .. ntlevs_ens(last time bin)
+!                  in SDL, scale separation length for i-th scale is also set here as
+!                     s_ens_[hv]( naensgrp+i ) - naensgrp is the total number of localization lengths for SDL/VDL/TDL
+!                        in applying SDL only horizontally, set s_ens_v(naensgrp+i)=0.0
 !      generate_ens:  if .true., generate ensemble perturbations internally as random samples of background B.
 !                       (used primarily for testing/debugging)
 !                     if .false., read external ensemble perturbations
@@ -117,7 +128,27 @@ module hybrid_ensemble_parameters
 !                function of z, default = .false. 
 !      ensemble_path: path to ensemble members; default './'
 !      ens_fast_read: read ensemble in parallel; default '.false.'
+!      parallelization_over_ensmembers: parallelly read ensemble members for FV3-LAM; default '.false'      
 !      sst_staticB:   if .true. (default) uses only static part of B error covariance for SST
+!      nsclgrp:         number of scale-dependent localization lengths
+!      l_timloc_opt:    if true, then turn on time-dependent localization
+!      ngvarloc:        number of variable-dependent localization lengths
+!      naensloc:        total number of spatial localization lengths and scale separation lengths (should be naensgrp+nsclgrp-1)
+!      r_ensloccov4tim: factor multiplying to cross-time covariance
+!                         For example,
+!                         =0.0: cross-time covariance is decreased to zero
+!                         =0.5: cross-time covariance is decreased to half
+!                         =1.0: cross-time covariance is retained
+!      r_ensloccov4var: factor multiplying to cross-variable covariance
+!                         For example,
+!                         =0.0: cross-variable covariance is decreased to zero
+!                         =0.5: cross-variable covariance is decreased to half
+!                         =1.0: cross-variable covariance is retained
+!      r_ensloccov4scl: factor multiplying to cross-scale covariance
+!                         For example,
+!                         =0.0: cross-scale covariance is decreased to zero
+!                         =0.5: cross-scale covariance is decreased to half
+!                         =1.0: cross-scale covariance is retained
 !=====================================================================================================
 !
 !
@@ -151,6 +182,7 @@ module hybrid_ensemble_parameters
 !   2015-01-22  Hu      - add flag i_en_perts_io to control reading ensemble perturbation.
 !   2015-02-11  Hu      - add flag l_ens_in_diff_time to force GSI hybrid use ensembles not available at analysis time
 !   2015-09-18  todling - add sst_staticB to control use of ensemble SST error covariance 
+!   2022-09-15  yokota  - add scale/variable/time-dependent localization
 !
 ! subroutines included:
 
@@ -174,8 +206,10 @@ module hybrid_ensemble_parameters
 !                                   beta_s(:) = beta_s0     , vertically varying weights given to B ; 
 !                                   beta_e(:) = 1 - beta_s0 , vertically varying weights given to A.
 !                            If (readin_beta) then beta_s and beta_e are read from a file and beta_s0 is not used.
-!   def s_ens_h             - homogeneous isotropic horizontal ensemble localization scale (km)
-!   def s_ens_v             - vertical localization scale (grid units for now)
+!   def s_ens_h             - horizontal localization correlation length of Gaussian exp(-0.5*(r/L)**2)
+!                             (units of km), default = 2828.0
+!   def s_ens_v             - vertical localization correlation length of Gaussian exp(-0.5*(r/L)**2)
+!                             (grid units if s_ens_v>=0, or units of ln(p) if s_ens_v<0), default = 30.0
 !   def readin_localization - flag to read (.true.)external localization information file
 !   def eqspace_ensgrid     - if .true., then ensemble grid is equal spaced, staggered 1/2 grid unit off
 !                               poles.  if .false., then Gaussian grid assumed for ensemble (global only)
@@ -258,6 +292,8 @@ module hybrid_ensemble_parameters
 ! set passed variables to public
   public :: generate_ens,n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test,l_hyb_ens,&
        s_ens_h,oz_univ_static,vvlocal
+  public :: n_ens_gfs,n_ens_fv3sar
+  public :: weight_ens_gfs,weight_ens_fv3sar
   public :: uv_hyb_ens,q_hyb_ens,s_ens_v,beta_s0,beta_e0,aniso_a_en,s_ens_hv,s_ens_vv
   public :: readin_beta,beta_s,beta_e
   public :: readin_localization
@@ -291,10 +327,27 @@ module hybrid_ensemble_parameters
   public :: en_perts,ps_bar
   public :: region_lat_ens,region_lon_ens
   public :: region_dx_ens,region_dy_ens
+  public :: naensgrp,ntotensgrp,nsclgrp,naensloc,ngvarloc
+  public :: ensgrp2aensgrp
+  public :: ensloccov4tim,ensloccov4var,ensloccov4scl
+  public :: alphacvarsclgrpmat
+  public :: l_timloc_opt
+  public :: r_ensloccov4tim,r_ensloccov4var,r_ensloccov4scl
+  public :: idaen3d,idaen2d
   public :: ens_fast_read
+  public :: parallelization_over_ensmembers
+  public :: l_both_fv3sar_gfs_ens 
   public :: sst_staticB
+  public :: limqens
+
+  public :: spc_multwgt
+  public :: spcwgt_params
+  public :: vdl_scale,vloc_varlist
+  public :: global_spectral_filter_sd
+  public :: assign_vdl_nml
 
   logical l_hyb_ens,uv_hyb_ens,q_hyb_ens,oz_univ_static,sst_staticB
+  logical l_timloc_opt
   logical aniso_a_en
   logical full_ensemble,pwgtflg
   logical generate_ens
@@ -310,13 +363,22 @@ module hybrid_ensemble_parameters
   logical vvlocal
   logical l_ens_in_diff_time
   logical ens_fast_read
+  logical parallelization_over_ensmembers
+  logical l_both_fv3sar_gfs_ens
   integer(i_kind) i_en_perts_io
   integer(i_kind) n_ens,nlon_ens,nlat_ens,jcap_ens,jcap_ens_test
-  real(r_kind) beta_s0,beta_e0,s_ens_h,s_ens_v,grid_ratio_ens
+  integer(i_kind) n_ens_gfs,n_ens_fv3sar
+  real(r_kind) weight_ens_gfs,weight_ens_fv3sar
+  real(r_kind) beta_s0,beta_e0,grid_ratio_ens
+  integer(i_kind),parameter::max_naensloc=20
+  integer(i_kind),parameter::max_nvars=100
+  real(r_kind) s_ens_h(max_naensloc)
+  real(r_kind) s_ens_v(max_naensloc)
   type(sub2grid_info),save :: grd_ens,grd_loc,grd_sploc,grd_anl,grd_e1,grd_a1
   type(spec_vars),save :: sp_ens,sp_loc
   type(egrid2agrid_parm),save :: p_e2a,p_sploc2ens
-  real(r_kind),allocatable,dimension(:) :: s_ens_hv,s_ens_vv
+  real(r_kind),allocatable,dimension(:,:) :: s_ens_vv
+  real(r_kind),allocatable,dimension(:,:) :: s_ens_hv
   real(r_kind),allocatable,dimension(:) :: sqrt_beta_s,sqrt_beta_e
   real(r_kind),allocatable,dimension(:) :: beta_s,beta_e
   real(r_kind),allocatable,dimension(:,:,:) :: pwgt
@@ -331,6 +393,25 @@ module hybrid_ensemble_parameters
   integer(i_kind) regional_ensemble_option
   integer(i_kind) fv3sar_ensemble_opt 
   character(len=512),save :: ensemble_path
+  real(r_kind),allocatable,dimension(:,:) :: alphacvarsclgrpmat
+  integer(i_kind),allocatable,dimension(:,:,:) :: ensgrp2aensgrp
+  real(r_kind),allocatable,dimension(:) :: ensloccov4tim,ensloccov4var,ensloccov4scl
+  integer(i_kind) :: nsclgrp=1
+  integer(i_kind) :: naensgrp=1
+  integer(i_kind) :: ntotensgrp=1
+  integer(i_kind) :: naensloc=1
+  integer(i_kind) :: ngvarloc=1
+  real(r_kind) :: r_ensloccov4tim
+  real(r_kind) :: r_ensloccov4var
+  real(r_kind) :: r_ensloccov4scl
+  integer(i_kind),allocatable,dimension(:) :: idaen3d,idaen2d
+
+  real(r_kind),allocatable,dimension(:,:) :: spc_multwgt
+  real(r_kind),allocatable,dimension(:,:) :: spcwgt_params
+  character(len=3) vloc_varlist(max_naensloc,max_nvars)
+  integer(i_kind) vdl_scale(max_naensloc)
+  logical :: global_spectral_filter_sd
+  logical :: assign_vdl_nml
 
 ! following is for storage of ensemble perturbations:
 
@@ -338,8 +419,9 @@ module hybrid_ensemble_parameters
 !   def nelen               - length of one ensemble perturbation vector
 
   integer(i_kind) nelen
-  type(gsi_bundle),save,allocatable :: en_perts(:,:)
+  type(gsi_bundle),save,allocatable :: en_perts(:,:,:)
   real(r_single),dimension(:,:,:),allocatable:: ps_bar
+  real(r_single):: limqens
 
 !    following is for interpolation of global ensemble to regional ensemble grid
 
@@ -378,6 +460,7 @@ subroutine init_hybrid_ensemble_parameters
   implicit none
 
   l_hyb_ens=.false.
+  l_timloc_opt=.false.
   full_ensemble=.false.
   pwgtflg=.false.
   uv_hyb_ens=.false.
@@ -417,6 +500,20 @@ subroutine init_hybrid_ensemble_parameters
   i_en_perts_io=0            ! default for en_pert IO. 0 is no IO
   ensemble_path = './'       ! default for path to ensemble members
   ens_fast_read=.false.
+  parallelization_over_ensmembers=.false.
+  limqens=1.0_r_single       ! default for limiting ensemble RH (+/-)
+  l_both_fv3sar_gfs_ens=.false.
+  n_ens_gfs=0 
+  n_ens_fv3sar=0
+  weight_ens_gfs=one
+  weight_ens_fv3sar=one
+  r_ensloccov4tim=one
+  r_ensloccov4var=one
+  r_ensloccov4scl=one
+  vdl_scale = 0
+  vloc_varlist = 'aaa'
+  global_spectral_filter_sd=.false.
+  assign_vdl_nml=.false.
 
 end subroutine init_hybrid_ensemble_parameters
 
@@ -425,15 +522,23 @@ subroutine create_hybens_localization_parameters
   use constants, only: zero
   implicit none
   
-  allocate( s_ens_hv(grd_ens%nsig),s_ens_vv(grd_ens%nsig) )
+  allocate( s_ens_hv(grd_ens%nsig,naensloc),s_ens_vv(grd_ens%nsig,naensloc) )
   allocate( beta_s(grd_ens%nsig),beta_e(grd_ens%nsig))
   allocate( sqrt_beta_s(grd_ens%nsig),sqrt_beta_e(grd_ens%nsig) )
   allocate( pwgt(grd_ens%lat2,grd_ens%lon2,grd_ens%nsig) )
+  allocate( alphacvarsclgrpmat(naensgrp,naensgrp) )
+  allocate( ensgrp2aensgrp(ntotensgrp,max_nvars,ntlevs_ens) )
+  allocate( ensloccov4tim(ntlevs_ens),ensloccov4var(ngvarloc),ensloccov4scl(nsclgrp) )
   beta_s  =one
   beta_e  =zero
   sqrt_beta_s=one
   sqrt_beta_e=zero
   pwgt=zero
+  alphacvarsclgrpmat=one
+  ensgrp2aensgrp=1
+  ensloccov4tim=one
+  ensloccov4var=one
+  ensloccov4scl=one
   
 end subroutine create_hybens_localization_parameters
 
@@ -443,6 +548,8 @@ subroutine destroy_hybens_localization_parameters
   deallocate(s_ens_vv,s_ens_hv) 
   deallocate(beta_s,beta_e)
   deallocate(sqrt_beta_s,sqrt_beta_e,pwgt)
+  deallocate(alphacvarsclgrpmat)
+  deallocate(ensgrp2aensgrp)
 
 end subroutine destroy_hybens_localization_parameters
 

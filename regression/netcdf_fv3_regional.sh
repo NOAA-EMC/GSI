@@ -7,15 +7,6 @@ set -x
 # Set experiment name
 exp=$jobname
 
-#TM=00
-#TM2=03
-#tmmark=tm${TM}
-
-
-# Set path/file for gsi executable
-#gsiexec=/meso/save/Wanshu.Wu/Code/trunk/trunk_40320/src/global_gsi_org
-#gsiexec=/da/save/Michael.Lueken/trunk/src/global_gsi.x
-
 # Set runtime and save directories
 tmpdir=$tmpdir/tmpreg_netcdf_fv3_regional/${exp}
 savdir=$savdir/outreg_netcdf_fv3_regional/${exp}
@@ -188,8 +179,9 @@ cp $fv3_netcdf_obs/ndas.t06z.satwnd.tm06.bufr_d   ./satwndbufr
 cp $fv3_netcdf_ges/coupler.res coupler.res
 cp $fv3_netcdf_ges/fv_core.res.nest02.nc fv3_akbk
 cp $fv3_netcdf_ges/grid_spec.nest02.nc fv3_grid_spec
-cp $fv3_netcdf_ges/fv_core.res.nest02.tile7.nc fv3_dynvars
-cp $fv3_netcdf_ges/fv_tracer.res.nest02.tile7.nc fv3_tracer
+#the current GSI parallel IO for fv3-lam require the netcdf 4 format for nc files containing 3d fields
+nccopy -4  $fv3_netcdf_ges/fv_core.res.nest02.tile7.nc fv3_dynvars
+nccopy -4  $fv3_netcdf_ges/fv_tracer.res.nest02.tile7.nc fv3_tracer
 cp $fv3_netcdf_ges/sfc_data.nest02.tile7.nc fv3_sfcdata
 
 

@@ -1,3 +1,0 @@
-# GSI_Docker build option list
-#  compiler,     MPI,          NETCDF,         
-   gnu/7.3.0, openmpi/2.1.0, netcdf4/4.4.4

@@ -55,7 +55,7 @@ subroutine get_gefs_ensperts_dualres
   use constants,only: zero,zero_single,half,fv,rd_over_cp,one,qcmin
   use mpimod, only: mpi_comm_world,mype,npe
   use kinds, only: r_kind,i_kind,r_single
-  use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens
+  use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens,limqens
   use hybrid_ensemble_parameters, only: beta_s0,beta_s,beta_e
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use gsi_bundlemod, only: gsi_bundlecreate
@@ -68,6 +68,7 @@ subroutine get_gefs_ensperts_dualres
   use gsi_enscouplermod, only: gsi_enscoupler_create_sub2grid_info
   use gsi_enscouplermod, only: gsi_enscoupler_destroy_sub2grid_info
   use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
+  use hybrid_ensemble_parameters, only: nsclgrp,sp_ens,spc_multwgt,global_spectral_filter_sd
   implicit none
 
   real(r_kind),pointer,dimension(:,:)   :: ps
@@ -78,6 +79,8 @@ subroutine get_gefs_ensperts_dualres
   real(r_kind),pointer,dimension(:,:):: x2
   type(gsi_bundle),allocatable,dimension(:) :: en_read
   type(gsi_bundle):: en_bar
+  type(gsi_bundle)            :: en_pertstmp1
+  type(gsi_bundle)            :: en_pertstmp2
 ! type(gsi_grid)  :: grid_ens
   real(r_kind) bar_norm,sig_norm,kapr,kap1
 ! real(r_kind),allocatable,dimension(:,:):: z,sst2
@@ -91,34 +94,35 @@ subroutine get_gefs_ensperts_dualres
 ! integer(i_kind) il,jl
   logical ice,hydrometeor 
   type(sub2grid_info) :: grd_tmp
+  integer(i_kind) :: ig0,ig
 
 ! Create perturbations grid and get variable names from perturbations
-  if(en_perts(1,1)%grid%im/=grd_ens%lat2.or. &
-     en_perts(1,1)%grid%jm/=grd_ens%lon2.or. &
-     en_perts(1,1)%grid%km/=grd_ens%nsig ) then
+  if(en_perts(1,1,1)%grid%im/=grd_ens%lat2.or. &
+     en_perts(1,1,1)%grid%jm/=grd_ens%lon2.or. &
+     en_perts(1,1,1)%grid%km/=grd_ens%nsig ) then
      if (mype==0) then
         write(6,*) 'get_gefs_ensperts_dualres: grd_ens ', grd_ens%lat2,grd_ens%lon2,grd_ens%nsig
-        write(6,*) 'get_gefs_ensperts_dualres: pertgrid', en_perts(1,1)%grid%im, en_perts(1,1)%grid%jm, en_perts(1,1)%grid%km
+        write(6,*) 'get_gefs_ensperts_dualres: pertgrid', en_perts(1,1,1)%grid%im, en_perts(1,1,1)%grid%jm, en_perts(1,1,1)%grid%km
         write(6,*) 'get_gefs_ensperts_dualres: inconsistent dims, aborting ...'
      endif
      call stop2(999)
  endif
 
-  call gsi_bundlegetpointer (en_perts(1,1),cvars3d,ipc3d,istatus)
+  call gsi_bundlegetpointer (en_perts(1,1,1),cvars3d,ipc3d,istatus)
   if(istatus/=0) then
     write(6,*) ' get_gefs_ensperts_dualres',': cannot find 3d pointers'
     call stop2(999)
   endif
-  call gsi_bundlegetpointer (en_perts(1,1),cvars2d,ipc2d,istatus)
+  call gsi_bundlegetpointer (en_perts(1,1,1),cvars2d,ipc2d,istatus)
   if(istatus/=0) then
     write(6,*) ' get_gefs_ensperts_dualres',': cannot find 2d pointers'
     call stop2(999)
   endif
 
 
-  im=en_perts(1,1)%grid%im
-  jm=en_perts(1,1)%grid%jm
-  km=en_perts(1,1)%grid%km
+  im=en_perts(1,1,1)%grid%im
+  jm=en_perts(1,1,1)%grid%jm
+  km=en_perts(1,1,1)%grid%km
   bar_norm = one/float(n_ens)
   sig_norm=sqrt(one/max(one,n_ens-one))
 
@@ -126,14 +130,24 @@ subroutine get_gefs_ensperts_dualres
   call gsi_enscoupler_create_sub2grid_info(grd_tmp,km,npe,grd_ens)
 
   ! Allocate bundle to hold mean of ensemble members
-  call gsi_bundlecreate(en_bar,en_perts(1,1)%grid,'ensemble',istatus,names2d=cvars2d,names3d=cvars3d)
+  call gsi_bundlecreate(en_bar,en_perts(1,1,1)%grid,'ensemble',istatus,names2d=cvars2d,names3d=cvars3d)
   if ( istatus /= 0 ) &
      call die('get_gefs_ensperts_dualres',': trouble creating en_bar bundle, istatus =',istatus)
+
+! Allocate bundle used for temporary usage
+  if( nsclgrp > 1 .and. global_spectral_filter_sd )then
+     call gsi_bundlecreate(en_pertstmp1,en_perts(1,1,1)%grid,'aux-ens-read',istatus,names2d=cvars2d,names3d=cvars3d)
+     call gsi_bundlecreate(en_pertstmp2,en_perts(1,1,1)%grid,'aux-ens-read',istatus,names2d=cvars2d,names3d=cvars3d)
+     if(istatus/=0) then
+        write(6,*)' get_gefs_ensperts_dualres: trouble creating en_read like tempbundle'
+        call stop2(999)
+     endif
+  end if
 
   ! Allocate bundle used for reading members
   allocate(en_read(n_ens))
   do n=1,n_ens
-     call gsi_bundlecreate(en_read(n),en_perts(1,1)%grid,'ensemble member',istatus,names2d=cvars2d,names3d=cvars3d)
+     call gsi_bundlecreate(en_read(n),en_perts(1,1,1)%grid,'ensemble member',istatus,names2d=cvars2d,names3d=cvars3d)
      if ( istatus /= 0 ) &
         call die('get_gefs_ensperts_dualres',': trouble creating en_read bundle, istatus =',istatus)
   end do
@@ -147,7 +161,7 @@ subroutine get_gefs_ensperts_dualres
 !$omp parallel do schedule(dynamic,1) private(m,n)
   do m=1,ntlevs_ens
      do n=1,n_ens
-       en_perts(n,m)%valuesr4=zero_single
+       en_perts(n,1,m)%valuesr4=zero_single
      end do
   end do
 
@@ -254,7 +268,7 @@ subroutine get_gefs_ensperts_dualres
 
        end do !c3d
        do i=1,nelen
-          en_perts(n,m)%valuesr4(i)=en_read(n)%values(i)
+          en_perts(n,1,m)%valuesr4(i)=en_read(n)%values(i)
           en_bar%values(i)=en_bar%values(i)+en_read(n)%values(i)
        end do
 
@@ -295,7 +309,7 @@ subroutine get_gefs_ensperts_dualres
 !$omp parallel do schedule(dynamic,1) private(n,i,ic3,ipic,k,j)
      do n=1,n_ens
         do i=1,nelen
-           en_perts(n,m)%valuesr4(i)=en_perts(n,m)%valuesr4(i)-en_bar%values(i)
+           en_perts(n,1,m)%valuesr4(i)=en_perts(n,1,m)%valuesr4(i)-en_bar%values(i)
         end do
         if(.not. q_hyb_ens) then
           do ic3=1,nc3d
@@ -304,8 +318,8 @@ subroutine get_gefs_ensperts_dualres
                 do k=1,km
                    do j=1,jm
                       do i=1,im
-                         en_perts(n,m)%r3(ipic)%qr4(i,j,k) = min(en_perts(n,m)%r3(ipic)%qr4(i,j,k),1._r_single)
-                         en_perts(n,m)%r3(ipic)%qr4(i,j,k) = max(en_perts(n,m)%r3(ipic)%qr4(i,j,k),-1._r_single)
+                         en_perts(n,1,m)%r3(ipic)%qr4(i,j,k) = min(en_perts(n,1,m)%r3(ipic)%qr4(i,j,k),limqens)
+                         en_perts(n,1,m)%r3(ipic)%qr4(i,j,k) = max(en_perts(n,1,m)%r3(ipic)%qr4(i,j,k),-limqens)
                       end do
                    end do
                 end do
@@ -313,10 +327,22 @@ subroutine get_gefs_ensperts_dualres
           end do
         end if
         do i=1,nelen
-           en_perts(n,m)%valuesr4(i)=en_perts(n,m)%valuesr4(i)*sig_norm
+           en_perts(n,1,m)%valuesr4(i)=en_perts(n,1,m)%valuesr4(i)*sig_norm
         end do
      end do
   end do  ntlevs_ens_loop !end do over bins
+
+  if(nsclgrp > 1 .and. global_spectral_filter_sd) then
+     do m=1,ntlevs_ens
+        do n=1,n_ens
+           en_pertstmp1%values=en_perts(n,1,m)%valuesr4
+           do ig=1,nsclgrp
+              call apply_scaledepwgts(grd_ens,sp_ens,en_pertstmp1,spc_multwgt(:,ig),en_pertstmp2)
+              en_perts(n,ig,m)%valuesr4=en_pertstmp2%values
+           enddo
+        enddo
+     enddo
+  endif
 
   do n=n_ens,1,-1
      call gsi_bundledestroy(en_read(n),istatus)
@@ -324,6 +350,12 @@ subroutine get_gefs_ensperts_dualres
         call die('get_gefs_ensperts_dualres',': trouble destroying en_read bundle, istatus = ', istatus)
   end do
   deallocate(en_read)
+  if(nsclgrp > 1 .and. global_spectral_filter_sd) then
+     call gsi_bundledestroy(en_pertstmp1,istatus)
+     call gsi_bundledestroy(en_pertstmp2,istatus)
+     if ( istatus /= 0 ) &
+        call die('get_gefs_ensperts_dualres',': trouble destroying en_pertstmp2 bundle, istatus = ', istatus)
+  end if
   call gsi_enscoupler_destroy_sub2grid_info(grd_tmp)
 
 ! mm1=mype+1
@@ -455,7 +487,7 @@ subroutine ens_spread_dualres(en_bar,ibin)
   do n=1,n_ens
      do i=1,nelen
         sube%values(i)=sube%values(i) &
-           +(en_perts(n,ibin)%valuesr4(i)-en_bar%values(i))*(en_perts(n,ibin)%valuesr4(i)-en_bar%values(i))
+           +(en_perts(n,1,ibin)%valuesr4(i)-en_bar%values(i))*(en_perts(n,1,ibin)%valuesr4(i)-en_bar%values(i))
      end do
   end do
 

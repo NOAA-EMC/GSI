@@ -8,10 +8,6 @@ exp1=$1
 exp2=$3
 exp3=$2
 
-#exp1=$global_T62_updat_exp1
-#exp2=$global_T62_contrl_exp1
-#exp3=$global_T62_updat_exp2
-
 input=$5
 
 #input=tmp62
@@ -50,6 +46,9 @@ for exp in $list; do
    $ncp $savdir/$exp/wrf_inout ./wrf_inout.$exp
    $ncp $savdir/$exp/wrf_inout06 ./wrf_inout06.$exp
    $ncp $savdir/$exp/siginc.nc ./siginc.nc.$exp
+   $ncp $savdir/$exp/fv3_dynvars ./fv3_dynvars.$exp
+   $ncp $savdir/$exp/fv3_sfcdata ./fv3_sfcdata.$exp
+   $ncp $savdir/$exp/fv3_tracer ./fv3_tracer.$exp
 done
 
 # Grep out penalty/gradient information, run time, and maximum resident memory from stdout file
@@ -72,9 +71,6 @@ diff penalty.$exp1.txt penalty.$exp3.txt > penalty.${exp1}-${exp3}.txt
 # Give location of additional output files for scalability testing
 exp1_scale=$2
 exp2_scale=$4
-
-#exp1_scale=$global_T62_updat_exp2
-#exp2_scale=$global_T62_contrl_exp2
 
 # Copy stdout for additional scalability testing
 list="$exp1_scale $exp2_scale"
@@ -227,18 +223,18 @@ fi
 
 if [[ $(grep -c 'cost,grad,step' penalty.${exp1}-${exp2}.txt) = 0 ]]; then
    if [[ $(grep -c 'congrad::evaljgrad: grepcost' penalty.${exp1}-${exp2}.txt) = 0 ]]; then
-      echo 'The results between the two runs ('${exp1}' and '${exp2}') are reproducible.'
+      echo 'The results (penalty) between the two runs ('${exp1}' and '${exp2}') are reproducible.'
 #      echo 'since the corresponding penalties and gradients are identical with '$(grep -c 'cost,grad,step' penalty.${exp1}-${exp2}.txt)' lines different.'
       echo
    else
-      echo 'The results between the two runs are nonreproducible,'
+      echo 'The results (penalty) between the two runs are nonreproducible,'
       echo 'thus the regression test has Failed on cost for '${exp1}' and '${exp2}' analyses.'
 #     echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses with '$(grep -c 'cost,grad,step' penalty.${exp1}-${exp2}.txt)' lines different.'
       echo
       failed_test=1
    fi
 else
-   echo 'The results between the two runs are nonreproducible,'
+   echo 'The results (penalty) between the two runs are nonreproducible,'
    echo 'thus the regression test has Failed on cost for '${exp1}' and '${exp2}' analyses.'
    echo
 fi
@@ -351,6 +347,40 @@ else
 fi
 } >> $output
    fi
+
+   elif [[ `expr substr $exp1 1 4` = "rrfs" ]]; then
+{
+     fv3_failed_test=0
+     if cmp -s fv3_dynvars.${exp1} fv3_dynvars.${exp2}
+     then
+       echo 'The fv3_dynvars are reproducible'
+     else
+       fv3_failed_test=1
+     fi
+     if cmp -s fv3_sfcdata.${exp1} fv3_sfcdata.${exp2}
+     then
+       echo 'The fv3_sfcdata are reproducible'
+     else
+       fv3_failed_test=1
+     fi
+     if cmp -s fv3_tracer.${exp1} fv3_tracer.${exp2}
+     then
+       echo 'The fv3_tracer are reproducible'
+     else
+       fv3_failed_test=1
+     fi
+     if [[ $fv3_failed_test -eq 0 ]]
+     then
+        echo 'The results between the two runs ('${exp1}' and '${exp2}') are reproducible'
+        echo 'since the corresponding results are identical.'
+        echo
+     else
+        echo 'The results between the two runs ('${exp1}' and '${exp2}') are not reproducible'
+        echo 'Thus, the case has Failed siganl of the regression tests.'
+        echo
+        failed_test=1
+     fi
+} >> $output
 fi
 
 # Next, reproducibility between exp1 and exp3
@@ -359,18 +389,18 @@ fi
 
 if [[ $(grep -c 'cost,grad,step' penalty.${exp1}-${exp3}.txt) = 0 ]]; then
    if [[ $(grep -c 'congrad::evaljgrad: grepcost' penalty.${exp1}-${exp3}.txt) = 0 ]]; then
-      echo 'The results between the two runs ('${exp1}' and '${exp3}') are reproducible'
+      echo 'The results (penalty) between the two runs ('${exp1}' and '${exp3}') are reproducible'
 #     echo 'since the corresponding penalties and gradients are identical with '$(grep -c 'cost,grad,step' penalty.${exp1}-${exp3}.txt)' lines different.'
       echo
    else
-      echo 'The results between the two runs are nonreproducible,'
+      echo 'The results (penalty) between the two runs are nonreproducible,'
       echo 'thus the regression test has Failed cost for '${exp1}' and '${exp3}' analyses.'
 #     echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses with '$(grep -c 'cost,grad,step' penalty.${exp1}-${exp3}.txt)' lines different.'
       echo
       failed_test=1
    fi
 else
-   echo 'The results between the two runs are nonreproducible,'
+   echo 'The results (penalty) between the two runs are nonreproducible,'
    echo 'thus the regression test has Failed cost for '${exp1}' and '${exp3}' analyses.'
    echo
 fi
@@ -450,6 +480,7 @@ elif [[ `expr substr $exp1 1 6` = "global" ]]; then
       fi
 
 } >> $output
+
    elif [[ -f siganl.${exp1} ]]; then
 
 {
@@ -467,6 +498,7 @@ elif [[ `expr substr $exp1 1 6` = "global" ]]; then
       fi
 
 } >> $output
+
    elif [[ -f siginc.nc.${exp1} ]]; then
 
 {
@@ -487,6 +519,41 @@ elif [[ `expr substr $exp1 1 6` = "global" ]]; then
 } >> $output
 
    fi
+
+elif [[ `expr substr $exp1 1 4` = "rrfs" ]]; then
+{
+     fv3_failed_test=0
+     if cmp -s fv3_dynvars.${exp1} fv3_dynvars.${exp3}
+     then
+       echo 'The fv3_dynvars are reproducible'
+     else
+       fv3_failed_test=1
+     fi
+     if cmp -s fv3_sfcdata.${exp1} fv3_sfcdata.${exp3}
+     then
+       echo 'The fv3_sfcdata are reproducible'
+     else
+       fv3_failed_test=1
+     fi
+     if cmp -s fv3_tracer.${exp1} fv3_tracer.${exp3}
+     then
+       echo 'The fv3_tracer are reproducible'
+     else
+       fv3_failed_test=1
+     fi
+     if [[ $fv3_failed_test -eq 0 ]]
+     then
+        echo 'The results between the two runs ('${exp1}' and '${exp3}') are reproducible'
+        echo 'since the corresponding results are identical.'
+        echo
+     else
+        echo 'The results between the two runs ('${exp1}' and '${exp3}') are not reproducible'
+        echo 'Thus, the case has Failed siganl of the regression tests.'
+        echo
+        failed_test=1
+     fi
+} >> $output
+
 fi
 
    # Finally, scalability
@@ -509,11 +576,20 @@ mkdir -p $vfydir
 
 $ncp $output                        $vfydir/
 
+# Final check for any failed tests
+count=$(grep -i "fail" $output |wc -l)
+if [ $count -gt 0 ]; then
+    (( failed_test = $failed_test + $count ))
+fi
+
+# Remove job log files is no failures detected
 cd $scripts
-rm -f ${exp1}.out
-rm -f ${exp2}.out
-rm -f ${exp3}.out
-rm -f ${exp2_scale}.out
+if [ $count -eq 0 ]; then
+    rm -f ${exp1}.out
+    rm -f ${exp2}.out
+    rm -f ${exp3}.out
+    rm -f ${exp2_scale}.out
+fi
 
 if [[ "$clean" = ".true." ]]; then
    rm -rf $savdir
