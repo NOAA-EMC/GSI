@@ -93,7 +93,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth,gsi_nstcoupler_deter
   use mpimod, only: npe
   use gsi_io, only: verbose
-  use qcmod,  only: cris_co2
 ! use radiance_mod, only: rad_obs_type
 
   implicit none
@@ -156,8 +155,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind)      :: sstime, tdiff, t4dv
   integer(i_kind)   :: nmind, sfc_channel_index
   integer(i_kind)   :: subset_start, subset_end, satinfo_nchan, sc_chan, bufr_chan
-  integer(i_kind),dimension(5) :: co2_channel = (/67, 89, 105, 134, 158/)
-  integer(i_kind),dimension(5) :: co2_channel_index
   integer(i_kind),allocatable, dimension(:) :: channel_number, sc_index, bufr_index
   integer(i_kind),allocatable,dimension(:):: bufr_chan_test
 
@@ -191,11 +188,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind):: radedge_min, radedge_max
   integer(i_kind):: bufr_size
   character(len=20),dimension(1):: sensorlist
-
-! viirs cluster tests
-!   real(r_kind),dimension(83,7) :: cloud_frac
-! bufr error codes 
-!   real(r_kind),dimension(7,3)  :: error_codes
 
 ! scan angle calculation geometry based on:
 ! C. Root 2014: JPSS Ground Project Code 474-00032
@@ -673,7 +665,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          If this is the first time or a change in the bufr channels is detected, sync with satinfo file
            if (ANY(int(allchan(1,:)) /= bufr_chan_test(:))) then
               sfc_channel_index = 0                                         ! surface channel used for qc and thinning test
-              co2_channel_index = 0
               bufr_index(:) = 0
               bufr_chans: do l=1,bufr_nchan
                  bufr_chan_test(l) = int(allchan(1,l))                      ! Copy this bufr channel selection into array for comparison to next profile
@@ -681,9 +672,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
                     if ( channel_number(i) == int(allchan(1,l)) ) then      ! Channel found in both bufr and satinfo file
                        bufr_index(i) = l
                        if ( channel_number(i) == sfc_channel ) sfc_channel_index = l
-                       co2_index: do k=1,5
-                         if ( channel_number(i) == co2_channel(k)) co2_channel_index(k) = l
-                       end do co2_index
                        exit satinfo_chans                                   ! go to next bufr channel
                     endif
                  end do  satinfo_chans
@@ -694,13 +682,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
               write(6,*)'READ_CRIS:  ***ERROR*** SURFACE CHANNEL USED FOR QC WAS NOT FOUND'
               cycle read_loop
            endif 
-
-           do k=1, 5
-             if ( cris_co2 .and. co2_channel_index(k) == 0 ) then
-               write(6,*) 'READ_CRIS:  ***ERROR*** CO2 CLOUD DETECTION CHANNEL WAS NOT FOUND'
-               cycle read_loop
-             endif
-           end do
 
 !          Cloud / clear tests.
            clear = .false.
@@ -775,10 +756,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
               bufr_chan = bufr_index(i)
               if(temperature(bufr_chan) <= tbmin .or. temperature(bufr_chan) >= tbmax ) then
                  temperature(bufr_chan) = tbmin
-!                CO2_cloud_detect requirement
-                 do k=1, 5 
-                   if ( cris_co2 .and. bufr_chan == co2_channel_index(k)) cycle read_loop
-                 end do
                  if(iuse_rad(ioff+i) >= 0) iskip = iskip + 1
               endif
            end do skip_loop
@@ -796,16 +773,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            endif
            if(.not. iuse)cycle read_loop
 
-!viirs cluster tests here
-!           call ufbseq(lnbufr,cloud_frac,83,7,iret,'CRISCS')
-!               if ( iret /= 7 ) write(*,*) 'JAJ cluster info failure', iret
-!              write(*,*) 'JAJ cris chnm fost ',iret,(cloud_frac(i,1),i=69,73 )
-!           call ufbseq(lnbufr,error_codes,7,3,iret, 'BCFQFSQ')
-!               write(*,*) 'JAJ error codes', error_codes(1,1),
-!               error_codes(4,1), error_
-!
-!          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
-!
            if ( nst_gsi > 0 ) then
               tref  = ts(0)
               dtw   = zero

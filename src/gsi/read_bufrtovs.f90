@@ -154,7 +154,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use mpimod, only: npe
   use radiance_mod, only: rad_obs_type
   use gsi_io, only: verbose
-  use qcmod,  only: hirs_co2
   implicit none
 
 ! Declare passed variables
@@ -208,8 +207,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) error_status,irecx,ierr
   integer(i_kind) radedge_min, radedge_max
   integer(i_kind),allocatable,dimension(:)::nrec
-  integer(i_kind),dimension(5) :: co2_channel = (/3, 4, 5, 6, 7/)
-  integer(i_kind),dimension(5) :: co2_channel_index
   character(len=20),dimension(1):: sensorlist
 
   real(r_kind) cosza,sfcr

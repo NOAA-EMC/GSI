@@ -302,7 +302,6 @@ contains
   use radiance_mod, only: rad_obs_type,radiance_obstype_search,radiance_ex_obserr,radiance_ex_biascor
   use sparsearr, only: sparr2, new, writearray, size, fullarray
   use radiance_mod, only: radiance_ex_obserr_gmi,radiance_ex_biascor_gmi
-!JAJ  use cads, only: cloud_aerosol_detection
 
   implicit none
 
@@ -441,24 +440,6 @@ contains
   type(fptr_obsdiagNode),dimension(nchanl):: odiags
 
   logical:: muse_ii
-
-!JAJ for cloud_aerosol_detect
-!  integer(i_kind) I_Sensor_ID
-!  integer(i_kind), dimension(nchanl) :: chan_array
-!  integer(i_kind) boundary_layer_pres
-!  integer(i_kind) tropopause_height
-!  real(r_kind),dimension(nchanl) :: cloud_detect_ht
-
-
-
-! Notations in use: for a single obs. or a single obs. type
-! nchanl        : a known channel count of a given type obs stream
-! nchanl_diag   : a subset of "iuse"
-! icc, iii      : a subset of "(varinv(i)>tiny_r_kind) .and. iuse)" or qc-passed
-
-! And for all instruments
-! jpch_rad      : sum(nchanl)
-! nchanl_total  : subset of jpch_rad, sum(icc)
 
   radhead => obsLL(:)
 

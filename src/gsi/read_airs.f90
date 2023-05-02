@@ -125,7 +125,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
   use gsi_io, only: verbose
-  use qcmod,  only: airs_co2
 ! use radiance_mod, only: rad_obs_type
 
   implicit none
@@ -212,8 +211,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind):: radedge_min, radedge_max, maxinfo
   integer(i_kind)   :: subset_start, subset_end, satinfo_nchan
   integer(i_kind)   :: bufr_start, bufr_end, bufr_nchan
-  integer(i_kind),dimension(5) :: co2_channel = (/144, 192, 232, 295, 338/)
-  integer(i_kind),dimension(5) :: co2_channel_index
   integer(i_kind),allocatable, dimension(:) :: bufr_index
   integer(i_kind),allocatable, dimension(:) :: bufr_chan_test
 
@@ -613,28 +610,17 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 !       Coordinate bufr channels with satinfo file channels
 !       If this is the first time or a change in the bufr channels is detected, sync with satinfo file
         if (ANY(int(allchan(1,bufr_start:bufr_end)) /= bufr_chan_test(bufr_start:bufr_end))) then
-           co2_channel_index = 0
            bufr_index(:) = 0
            bufr_chans: do l=bufr_start, bufr_end
               bufr_chan_test(l) = int(allchan(1,l))                          ! Copy this bufr channel selection into array for comparison to next profile
               satinfo_chans: do i=1,satinfo_nchan                            ! Loop through sensor (airs) channels in the satinfo file
                  if ( nuchan(ioff+i) == bufr_chan_test(l) ) then             ! Channel found in both bufr and stainfo file
                     bufr_index(i) = l
-                    co2_index: do k=1, 5
-                      if ( nuchan(ioff+i) == co2_channel(k)) co2_channel_index(k) = l
-                    end do co2_index
                     exit satinfo_chans                                       ! go to next bufr channel
                  endif
               end do  satinfo_chans
            end do bufr_chans
         end if
-
-        do k=1,5
-          if ( airs_co2 .and. co2_channel_index(k) == 0 ) then
-            write(6,*) 'READ_AIRS:  ***ERROR*** CO2 CLOUD_DETECTION CHANNEL WAS NOT FOUND'
-            cycle read_loop
-          endif
-        end do
 
 !       Channel based quality control
         if(amsua)then
@@ -776,9 +762,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
               iskip = iskip + 1
               if(airs) then
                  if( bufr_index(l) == chan_map(914) ) cycle read_loop
-                 do k=1,5
-                   if( airs_co2 .and. bufr_index(l) == co2_channel_index(k)) cycle read_loop
-                 end do
               else if(amsua)then
                  if (bufr_index(l) == 1 .or. bufr_index(l) == 2 .or. bufr_index(l) == 3 .or. &
                      bufr_index(l) == 4 .or. bufr_index(l) == 6 .or. bufr_index(l) == 15 ) cycle read_loop

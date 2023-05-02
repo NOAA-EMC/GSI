@@ -288,8 +288,6 @@ subroutine cloud_aerosol_detection( I__Sensor_ID, I__Num_Chans, I__Chan_ID, Z__L
 
 ! Interim prodcts
   character(len=200) :: C__Error_Message     ! Message output for abort
-!JAJ  integer(i_kind) :: I__Obs                  ! Observation counter
-!JAJ  integer(i_kind) :: I__Num_Observations     ! Total number of observations
 
 ! Diagnostics: percentages of positive detections
   integer(i_kind) :: I__Chan                 ! Channel index
@@ -301,9 +299,6 @@ subroutine cloud_aerosol_detection( I__Sensor_ID, I__Num_Chans, I__Chan_ID, Z__L
 
 
   integer(i_kind) :: i
-
-
-!JAJ  call CADS_Setup_Cloud
 
   CALL CADS_Detect_Cloud( I__Sensor_ID, I__Num_Chans, I__Chan_ID,I__Min_Level, I__Max_Level, I__Num_Imager_Chans, &
                  I__Chan_ID_Imager, I__Num_Imager_Clusters, I__Flag_Cloud, Z__BT_Obser, Z__BT_Model, Z__Chan_Height, &
@@ -362,18 +357,6 @@ SUBROUTINE CADS_Setup_Cloud
 !                                Add HIRAS, GIIRS (IASING + IRS added earlier)
 !   16/04/20   R.Eresmaa   3.0   Rename, tidy up.
 
-!JAJ USE CADS_Module, ONLY : S__CADS_Setup_Cloud,  &
-!&                       JP__Min_Sensor_Index, &
-!&                       JP__Max_Sensor_Index, &
-!&                       INST_ID_AIRS,         &
-!&                       INST_ID_CRIS,         &
-!&                       INST_ID_GIIRS,        &
-!&                       INST_ID_HIRAS,        &
-!&                       INST_ID_IASI,         &
-!&                       INST_ID_IASING,       &
-!&                       INST_ID_IKFS2,        &
-!&                       INST_ID_IRS
-
   use kinds, only: i_kind, r_kind
   IMPLICIT NONE
 
@@ -426,14 +409,6 @@ SUBROUTINE CADS_Setup_Cloud
            N__Num_Imager_Clusters, N__Imager_Chans,                     &
            R__Stddev_Threshold, R__Coverage_Threshold,                  &
            R__FG_Departure_Threshold
-
-
-
-
-!============================================================================
-
-! JAJ WRITE (*,'(A)') ''
-!JAJ WRITE (*,'(A)') 'Setting up the cloud detection ...'
 
 !============================================================================
 !   Loop through sensors setting up cloud detection
@@ -944,10 +919,7 @@ SUBROUTINE CADS_Setup_Cloud
        FILE=TRIM(CL__Cloud_Detection_File), IOSTAT=IOS)
   IF (IOS == 0) THEN
     READ(INIU1,nml=Cloud_Detect_Coeffs,IOSTAT=IOS)
-    IF (IOS == 0) THEN
-      WRITE(*,'(3X,A)') TRIM(CL__InstrumentName) // &
-           ' CLOUD DETECTION FILE READ OK'
-    ELSE
+    IF (IOS /= 0) THEN
       CALL CADS_Abort('PROBLEM READING '//TRIM(CL__InstrumentName)//&
                      'CLOUD DETECTION FILE')
     ENDIF
@@ -1139,7 +1111,6 @@ SUBROUTINE CADS_Detect_Cloud(  K__Sensor,  K__NChans,  K__ChanID, K__Minlev, K__
 !   R.Eresmaa   2.4   05/02/19   Explicit KIND specifications.
 !   R.Eresmaa   3.0   16/04/20   Move the call to imager-based detection here.
 
-!JAJ USE CADS_Module, ONLY : S__CADS_Setup_Cloud, INST_ID_AIRS
   use kinds, only: i_kind, r_kind
   IMPLICIT NONE
 
@@ -1195,8 +1166,6 @@ SUBROUTINE CADS_Detect_Cloud(  K__Sensor,  K__NChans,  K__ChanID, K__Minlev, K__
   INTEGER(i_kind)              :: I__LastClearChannel   ! Lowest clear channel
   INTEGER(i_kind),POINTER      :: I__Window_Width(:)    ! Box-car filter width
   INTEGER(i_kind),POINTER      :: I__GradChkInterval(:) ! Gradient-check interval
-
-!JAJ  REAL(r_kind)                 :: Z__Cloud_Level        ! Cloud height assignment
 
 !======================================================================
 
@@ -1265,8 +1234,8 @@ SUBROUTINE CADS_Detect_Cloud(  K__Sensor,  K__NChans,  K__ChanID, K__Minlev, K__
     DO J=1,I__Band_Size(JBAND)
       DO I_K=1,K__NChans
         IF (K__ChanID(I_K) == I__BANDS(J,JBAND)) THEN
-!JAJ        IF (P__ObsBTs(I_K) < 0. .OR. P__ModelBTs(I_K) < 0.) CYCLE
-          IF (P__ObsBTs(I_K) < 60.0_r_kind .OR. P__ModelBTs(I_K) < 60.0_r_kind) CYCLE    !JAJ Missing channels are set to 50.0K
+!        IF (P__ObsBTs(I_K) < 0. .OR. P__ModelBTs(I_K) < 0.) CYCLE
+          IF (P__ObsBTs(I_K) < 60.0_r_kind .OR. P__ModelBTs(I_K) < 60.0_r_kind) CYCLE    ! Missing channels are set to 50.0K
           I__NumFoundChans = I__NumFoundChans + 1
           Z__DBT(I__NumFoundChans)=P__ObsBTs(I_K)-P__ModelBTs(I_K)
           Z__LEVEL(I__NumFoundChans)=P__Chan_Level(I_K)
@@ -1433,8 +1402,6 @@ SUBROUTINE CADS_Detect_Cloud_Imager( K__Sensor,  K__Nchans,  K__Chanid, K__Nclus
 !                                are received as input.
 !   05/02/19   R.Eresmaa   2.4   Explicit kind specifications.
 !   16/04/20   R.Eresmaa   3.0   Rename and tidy up.
-
-!JAJ USE CADS_Module, ONLY : S__CADS_Setup_Cloud
 
   use kinds, only: i_kind, r_kind
   IMPLICIT NONE
@@ -1770,8 +1737,6 @@ SUBROUTINE CADS_Detect_Cloud_Scenario( K__Sensor, K__Band, K__NumChans, K__GradC
 !                                 Cloud_Scenario (here) and Cloud_Separator.
 
 
-!JAJ USE CADS_Module, ONLY : S__CADS_Setup_Cloud
-
   use kinds, only: i_kind, r_kind
   IMPLICIT NONE
 
@@ -2014,8 +1979,6 @@ SUBROUTINE CADS_Detect_Cloud_Separator( K__Sensor, K__Band, K__NumChans, K__Grad
 !    16/04/20   R.Eresmaa   3.0   Divide the previous CF_Digital in two:
 !                                 Cloud_Scenario and Cloud_Separator (here).
 
-!JAJ USE CADS_Module, ONLY : S__CADS_Setup_Cloud
- 
   use kinds, only: i_kind, r_kind
   IMPLICIT NONE
 
