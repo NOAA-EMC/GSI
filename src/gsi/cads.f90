@@ -27,6 +27,37 @@ module cads
   private
 ! set routines to public
   public :: cloud_aerosol_detection
+  public :: cads_setup_cloud
+  public :: Cloud_Detect_Type
+
+  public :: M__Sensor,N__Num_Bands,N__GradChkInterval,N__Band_Size,N__Bands,N__Window_Width, &
+            N__Window_Bounds,R__BT_Threshold,R__Grad_Threshold,R__Window_Grad_Threshold, L__Do_Quick_Exit, &
+            L__Do_CrossBand, N__BandToUse,L__Do_Imager_Cloud_Detection, N__Num_Imager_Chans, &
+            N__Num_Imager_Clusters,N__Imager_Chans,R__Stddev_Threshold,R__Coverage_Threshold, &
+            R__FG_Departure_Threshold
+
+    INTEGER(i_kind)         :: M__Sensor                 ! Unique ID for sensor
+    INTEGER(i_kind)         :: N__Num_Bands              ! Number of channel bands
+    INTEGER(i_kind), POINTER :: N__GradChkInterval(:)    ! Window width used in gradient calculation
+    INTEGER(i_kind), POINTER :: N__Band_Size(:)          ! Number of channels in each band
+    INTEGER(i_kind), POINTER :: N__Bands(:,:)            ! Channel lists
+    INTEGER(i_kind), POINTER :: N__Window_Width(:)       ! Smoothing filter window widths per band
+    INTEGER(i_kind), POINTER :: N__Window_Bounds(:,:)    ! Channels in the spectral window gradient check
+    INTEGER(i_kind), POINTER :: N__BandToUse(:)          ! Band number assignment for each channel
+    LOGICAL  :: L__Do_Quick_Exit                         ! On/off switch for the Quick Exit scenario
+    LOGICAL  :: L__Do_CrossBand                          ! On/off switch for the cross-band method
+    REAL(r_kind), POINTER :: R__BT_Threshold(:)          ! BT threshold for cloud contamination
+    REAL(r_kind), POINTER :: R__Grad_Threshold(:)        ! Gradient threshold for cloud contamination
+    REAL(r_kind), POINTER :: R__Window_Grad_Threshold(:) ! Threshold for window gradient check in QE
+
+    LOGICAL  :: L__Do_Imager_Cloud_Detection             ! On/off switch for the imager cloud detection
+    INTEGER(i_kind)         :: N__Num_Imager_Chans       ! No. of imager channels
+    INTEGER(i_kind)         :: N__Num_Imager_Clusters    ! No. of clusters to be expected
+    INTEGER(i_kind),POINTER :: N__Imager_Chans(:)        ! List of imager channels
+    REAL(r_kind),POINTER    :: R__Stddev_Threshold(:)    ! St. Dev. threshold, one for each imager channel
+    REAL(r_kind)            :: R__Coverage_Threshold     ! Threshold for fractional coverage of a cluster
+    REAL(r_kind)            :: R__FG_Departure_Threshold ! Threshold for imager FG departure
+
 
 ! set passed variables to public
 
@@ -272,7 +303,7 @@ subroutine cloud_aerosol_detection( I__Sensor_ID, I__Num_Chans, I__Chan_ID, Z__L
   integer(i_kind) :: i
 
 
-  call CADS_Setup_Cloud
+!JAJ  call CADS_Setup_Cloud
 
   CALL CADS_Detect_Cloud( I__Sensor_ID, I__Num_Chans, I__Chan_ID,I__Min_Level, I__Max_Level, I__Num_Imager_Chans, &
                  I__Chan_ID_Imager, I__Num_Imager_Clusters, I__Flag_Cloud, Z__BT_Obser, Z__BT_Model, Z__Chan_Height, &
@@ -331,7 +362,7 @@ SUBROUTINE CADS_Setup_Cloud
 !                                Add HIRAS, GIIRS (IASING + IRS added earlier)
 !   16/04/20   R.Eresmaa   3.0   Rename, tidy up.
 
-!JAJUSE CADS_Module, ONLY : S__CADS_Setup_Cloud,  &
+!JAJ USE CADS_Module, ONLY : S__CADS_Setup_Cloud,  &
 !&                       JP__Min_Sensor_Index, &
 !&                       JP__Max_Sensor_Index, &
 !&                       INST_ID_AIRS,         &
@@ -396,14 +427,13 @@ SUBROUTINE CADS_Setup_Cloud
            R__Stddev_Threshold, R__Coverage_Threshold,                  &
            R__FG_Departure_Threshold
 
-!JAJ INCLUDE 'CADS_Abort.intfb'
 
 
 
 !============================================================================
 
 ! JAJ WRITE (*,'(A)') ''
-! JAJ WRITE (*,'(A)') 'Setting up the cloud detection ...'
+!JAJ WRITE (*,'(A)') 'Setting up the cloud detection ...'
 
 !============================================================================
 !   Loop through sensors setting up cloud detection
@@ -411,6 +441,7 @@ SUBROUTINE CADS_Setup_Cloud
 
   SensorLoop : DO J__Sensor = JP__Min_Sensor_Index, JP__Max_Sensor_Index
 
+!    SELECT CASE (I__Sensor_ID)
     SELECT CASE (J__Sensor)
 
     CASE(INST_ID_AIRS)
@@ -419,7 +450,7 @@ SUBROUTINE CADS_Setup_Cloud
     !====================
 
       CL__InstrumentName='AIRS'
-!JAJ    CL__Cloud_Detection_File = 'AIRS_CLDDET.NL'
+      CL__Cloud_Detection_File = 'AIRS_CLDDET.NL'
 
       N__Num_Bands = 5
 
@@ -525,7 +556,7 @@ SUBROUTINE CADS_Setup_Cloud
     !====================
 
       CL__InstrumentName='IASI'
-!JAJ    CL__Cloud_Detection_File = 'IASI_CLDDET.NL'
+      CL__Cloud_Detection_File = 'IASI_CLDDET.NL'
 
       N__Num_Bands = 5
 
@@ -613,24 +644,17 @@ SUBROUTINE CADS_Setup_Cloud
 
     ! This is the setup for imager cloud detection
 
-!JAJ    L__Do_Imager_Cloud_Detection = .TRUE.
-      L__Do_Imager_Cloud_Detection = .FALSE.
+      L__Do_Imager_Cloud_Detection = .TRUE.
 
-!JAJ    N__Num_Imager_Chans = 2
-!JAJ    N__Num_Imager_Clusters = 7
-      N__Num_Imager_Chans = 0
-      N__Num_Imager_Clusters = 0
+      N__Num_Imager_Chans = 2
+      N__Num_Imager_Clusters = 7
 
-      N__Imager_Chans(:) = 0
-!JAJ    N__Imager_Chans(1:N__Num_Imager_Chans) = (/ 2, 3 /)
+      N__Imager_Chans(1:N__Num_Imager_Chans) = (/ 2, 3 /)
 
-      R__Stddev_Threshold(:) = 0.0_r_kind
-!    R__Stddev_Threshold(1:N__Num_Imager_Chans) = (/ 0.75, 0.80 /)
+      R__Stddev_Threshold(1:N__Num_Imager_Chans) = (/ 0.75, 0.80 /)
 
-!JAJ    R__Coverage_Threshold = 0.03
-!JAJ    R__FG_Departure_Threshold = 1.0
-      R__Coverage_Threshold = 0.0_r_kind
-      R__FG_Departure_Threshold = 0.0_r_kind
+      R__Coverage_Threshold = 0.03
+      R__FG_Departure_Threshold = 1.0
 
 
     CASE(INST_ID_CRIS)
@@ -639,7 +663,7 @@ SUBROUTINE CADS_Setup_Cloud
     !====================
 
       CL__InstrumentName='CRIS'
-!JAJ    CL__Cloud_Detection_File = 'CRIS_CLDDET.NL'
+      CL__Cloud_Detection_File = 'CRIS_CLDDET.NL'
 
       N__Num_Bands = 5
  
@@ -751,7 +775,7 @@ SUBROUTINE CADS_Setup_Cloud
     !====================
 
       CL__InstrumentName='IRS'
-!JAJ    CL__Cloud_Detection_File = 'IRS_CLDDET.NL'
+      CL__Cloud_Detection_File = 'IRS_CLDDET.NL'
 
       N__Num_Bands = 1
 
@@ -826,7 +850,7 @@ SUBROUTINE CADS_Setup_Cloud
     !====================
 
       CL__InstrumentName='IASING'
-!JAJ    CL__Cloud_Detection_File = 'IASING_CLDDET.NL'
+      CL__Cloud_Detection_File = 'IASING_CLDDET.NL'
 
       N__Num_Bands = 1
 
@@ -906,31 +930,32 @@ SUBROUTINE CADS_Setup_Cloud
       R__FG_Departure_Threshold = 0.0_r_kind
 
 
-    CASE DEFAULT
-      CYCLE
+!    CASE DEFAULT
+!      CYCLE
     END SELECT
 
   !------------------------------------------------------------------
   ! Open and read file containing cloud detection setup for the
   ! current instrument
   !------------------------------------------------------------------
-!  INIU1=10
-!  OPEN(INIU1,STATUS='OLD',FORM='FORMATTED', &
-!       FILE=TRIM(CL__Cloud_Detection_File), IOSTAT=IOS)
-!  IF (IOS == 0) THEN
-!    READ(INIU1,nml=Cloud_Detect_Coeffs,IOSTAT=IOS)
-!    IF (IOS == 0) THEN
-!      WRITE(*,'(3X,A)') TRIM(CL__InstrumentName) // &
-!&           ' CLOUD DETECTION FILE READ OK'
-!    ELSE
-!      CALL CADS_Abort('PROBLEM READING '//TRIM(CL__InstrumentName)//&
-!&                     'CLOUD DETECTION FILE')
-!    ENDIF
-!    CLOSE(INIU1)
-!  ELSE
-!    WRITE(*,'(3X,A)') 'NO '//TRIM(CL__InstrumentName) // &
-!&             ' CLOUD DETECTION FILE : Using Default Values'
-!  ENDIF
+
+  INIU1=107
+  OPEN(INIU1,STATUS='OLD',FORM='FORMATTED', &
+       FILE=TRIM(CL__Cloud_Detection_File), IOSTAT=IOS)
+  IF (IOS == 0) THEN
+    READ(INIU1,nml=Cloud_Detect_Coeffs,IOSTAT=IOS)
+    IF (IOS == 0) THEN
+      WRITE(*,'(3X,A)') TRIM(CL__InstrumentName) // &
+           ' CLOUD DETECTION FILE READ OK'
+    ELSE
+      CALL CADS_Abort('PROBLEM READING '//TRIM(CL__InstrumentName)//&
+                     'CLOUD DETECTION FILE')
+    ENDIF
+  ELSE
+    WRITE(*,'(3X,A)') 'NO '//TRIM(CL__InstrumentName) // &
+             ' CLOUD DETECTION FILE : Using Default Values'
+  ENDIF
+  CLOSE(INIU1)
 
     IF (MAXVAL(N__Band_Size(:)) > JP__Max_Channels) &
                  CALL CADS_Abort('Too many channels specified in cloud '//&
@@ -1172,12 +1197,6 @@ SUBROUTINE CADS_Detect_Cloud(  K__Sensor,  K__NChans,  K__ChanID, K__Minlev, K__
   INTEGER(i_kind),POINTER      :: I__GradChkInterval(:) ! Gradient-check interval
 
 !JAJ  REAL(r_kind)                 :: Z__Cloud_Level        ! Cloud height assignment
-
-!JAJ INCLUDE 'CADS_Detect_Cloud_Imager.intfb'
-!JAJ INCLUDE 'CADS_Detect_Cloud_Heapsort.intfb'
-!JAJ INCLUDE 'CADS_Detect_Cloud_Smooth.intfb'
-!JAJ INCLUDE 'CADS_Detect_Cloud_Scenario.intfb'
-!JAJ INCLUDE 'CADS_Detect_Cloud_Separator.intfb'
 
 !======================================================================
 

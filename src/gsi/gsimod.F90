@@ -94,6 +94,11 @@
       pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres,cao_check, &
       airs_co2,cris_co2,iasi_co2,hirs_co2,goessndr_co2, cris_cads, iasi_cads, airs_cads
   use qcmod, only: troflg,lat_c,nrand
+  use cads, only: M__Sensor,N__Num_Bands,N__GradChkInterval,N__Band_Size,N__Bands,N__Window_Width, &
+      N__Window_Bounds,R__BT_Threshold,R__Grad_Threshold,R__Window_Grad_Threshold, L__Do_Quick_Exit, &
+      L__Do_CrossBand, N__BandToUse,L__Do_Imager_Cloud_Detection, N__Num_Imager_Chans, &
+      N__Num_Imager_Clusters,N__Imager_Chans,R__Stddev_Threshold,R__Coverage_Threshold, &
+      R__FG_Departure_Threshold, CADS_Setup_Cloud
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,superfact,limitqobs, &
      factql,factqi,factqr,factqs,factqg, &  
@@ -1560,6 +1565,40 @@
 !     fac_tsl  - index to apply thermal skin layer or not: 0 = no; 1 = yes.
    namelist/nst/nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl
 
+!  Initialize the Cloud and Aerosol Detection Software (CADS) 
+!
+!     M__Sensor                     Unique ID for sensor
+!     N__Num_Bands                  Number of channel bands
+!     N__Band_Size(:)               Number of channels in each band
+!     N__Bands(:,:)                 Channel lists
+!     N__Window_Width(:)            Smoothing filter window widths per band
+!     N__Window_Bounds(:,:)         Channels in the spectral window gradient check
+!     N__GradChkInterval(:)         Window width used in gradient calculation
+!     R__BT_Threshold(:)            BT threshold for cloud contamination
+!     R__Grad_Threshold(:)          Gradient threshold for cloud contamination
+!     R__Window_Grad_Threshold(:)   Threshold for window gradient check in QE
+!     L__Do_Quick_Exit              On/off switch for the Quick Exit scenario
+!     L__Do_CrossBand               On/off switch for the cross-band method
+!     N__BandToUse(:)               Band number assignment for each channel
+!     L__Do_Imager_Cloud_Detection  On/off switch for the imager cloud detection
+!     N__Num_Imager_Chans           No. of imager channels
+!     N__Num_Imager_Clusters        No. of clusters to be expected
+!     N__Imager_Chans(:)            List of imager channels
+!     R__Stddev_Threshold(:)        St. Dev. threshold, one for each imager channel
+!     R__Coverage_Threshold         Threshold for fractional coverage of a cluster
+!     R__FG_Departure_Threshold     Threshold for imager FG departure
+
+   NAMELIST / Cloud_Detect_Coeffs / M__Sensor, N__Num_Bands,            &
+           N__Band_Size, N__Bands, N__Window_Width, N__Window_Bounds,   &
+           N__GradChkInterval, R__BT_Threshold, R__Grad_Threshold,      &
+           R__Window_Grad_Threshold, L__Do_Quick_Exit,                  &
+           L__Do_CrossBand, N__BandToUse,                               &
+           L__Do_Imager_Cloud_Detection, N__Num_Imager_Chans,           &
+           N__Num_Imager_Clusters, N__Imager_Chans,                     &
+           R__Stddev_Threshold, R__Coverage_Threshold,                  &
+           R__FG_Departure_Threshold
+
+
 !EOC
 
 !---------------------------------------------------------------------------
@@ -1646,6 +1685,7 @@
   call set_fgrid2agrid
   call gsi_nstcoupler_init_nml
   call init_radaruse_directDA
+  call CADS_Setup_Cloud
 
  if(mype==0) write(6,*)' at 0 in gsimod, use_gfs_stratosphere,nems_nmmb_regional = ', &
                        use_gfs_stratosphere,nems_nmmb_regional
