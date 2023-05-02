@@ -543,6 +543,15 @@ $NLN $ABIBF            abibufr
 $NLN $HDOB             hdobbufr
 $NLN $SSTVIIRS         sstviirs
 
+#$NLN /data/users/jimj/global_workflow_v16/fix/fix_gsi/CRIS_CLDDET.NL CRIS_CLDDET.NL
+#$NLN /data/users/jimj/global_workflow_v16/fix/fix_gsi/IASI_CLDDET.NL IASI_CLDDET.NL
+$NLN ${FIXgsi}/AIRS_CLDDET.NL AIRS_CLDDET.NL
+$NLN ${FIXgsi}/CRIS_CLDDET.NL CRIS_CLDDET.NL
+$NLN ${FIXgsi}/IASI_CLDDET.NL IASI_CLDDET.NL
+$NLN ${FIXgsi}/IASING_CLDDET.NL IASING_CLDDET.NL
+$NLN ${FIXgsi}/IRS_CLDDET.NL IRS_CLDDET.NL
+
+
 [[ $DONST = "YES" ]] && $NLN $NSSTBF nsstbufr
 
 ##############################################################
@@ -808,7 +817,7 @@ cat > gsiparm.anl << EOF
   dfact=0.75,dfact1=3.0,noiqc=.true.,oberrflg=.false.,c_varqc=0.02,
   use_poq7=.true.,qc_noirjaco3_pole=.true.,vqc=.false.,nvqc=.true.,
   aircraft_t_bc=.true.,biaspredt=1.0e5,upd_aircraft=.true.,cleanup_tail=.true.,
-  tcp_width=70.0,tcp_ermax=7.35,cris_co2=.true.,iasi_co2=.true.,
+  tcp_width=70.0,tcp_ermax=7.35,cris_cads=.true.,iasi_cads=.true.,
   $OBSQC
 /
 &OBS_INPUT
