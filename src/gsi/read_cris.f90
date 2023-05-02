@@ -192,6 +192,11 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind):: bufr_size
   character(len=20),dimension(1):: sensorlist
 
+! viirs cluster tests
+!   real(r_kind),dimension(83,7) :: cloud_frac
+! bufr error codes 
+!   real(r_kind),dimension(7,3)  :: error_codes
+
 ! scan angle calculation geometry based on:
 ! C. Root 2014: JPSS Ground Project Code 474-00032
 ! Joint Polar Satellite System Cross Track Infrared Sounder Sensor Data Records
@@ -790,6 +795,14 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
               call finalcheck(one,crit1,itx,iuse)
            endif
            if(.not. iuse)cycle read_loop
+
+!viirs cluster tests here
+!           call ufbseq(lnbufr,cloud_frac,83,7,iret,'CRISCS')
+!               if ( iret /= 7 ) write(*,*) 'JAJ cluster info failure', iret
+!              write(*,*) 'JAJ cris chnm fost ',iret,(cloud_frac(i,1),i=69,73 )
+!           call ufbseq(lnbufr,error_codes,7,3,iret, 'BCFQFSQ')
+!               write(*,*) 'JAJ error codes', error_codes(1,1),
+!               error_codes(4,1), error_
 !
 !          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !

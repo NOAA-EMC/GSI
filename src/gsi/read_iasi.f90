@@ -127,7 +127,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
   use gsi_io, only: verbose
-  use qcmod,  only: iasi_co2
+  use qcmod,  only: iasi_co2, iasi_cads
 ! use radiance_mod, only: rad_obs_type
 
   implicit none
@@ -209,7 +209,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   logical          :: outside,iuse,assim,valid
   logical          :: iasi,quiet,cloud_info
 
-  integer(i_kind)  :: ifov, instr, iscn, ioff, sensorindex
+  integer(i_kind)  :: ifov, instr, iscn, ioff, sensorindex_iasi
   integer(i_kind)  :: i, j, l, iskip, ifovn, bad_line, ksatid, kidsat, llll
   integer(i_kind)  :: nreal, isflg
   integer(i_kind)  :: itx, k, nele, itt, n
@@ -224,8 +224,13 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind),dimension(5) :: co2_channel_index
   integer(i_kind),allocatable, dimension(:) :: channel_number, sc_index, bufr_index
   integer(i_kind),allocatable, dimension(:) :: bufr_chan_test
-  character(len=20),dimension(1):: sensorlist
+  character(len=20),dimension(2):: sensorlist
 
+! avhrr clouser information for CADS
+  integer(i_kind) :: sensorindex_avhrr
+  real(r_kind),dimension(33,7) :: avhrr_info
+  real(r_kind),dimension(2)  :: avhrr_mean, avhrr_std_dev
+  real(r_kind) :: avhrr_cluster_tot
 
 ! Set standard parameters
   character(8),parameter:: fov_flag="crosstrk"
@@ -319,6 +324,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! load spectral coefficient structure  
   quiet=.not. verbose
   sensorlist(1)=sis
+  sensorlist(2) = 'avhrr3_'//trim(jsatid)
+
   if( crtm_coeffs_path /= "" ) then
      if(mype_sub==mype_root .and. print_verbose) write(6,*)'READ_IASI: crtm_spccoeff_load() on path "'//trim(crtm_coeffs_path)//'"'
      error_status = crtm_spccoeff_load(sensorlist,&
@@ -348,14 +355,25 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   end do  satinfo_chan
 
 !  find IASI sensorindex
-  sensorindex = 0
+  sensorindex_iasi = 0
   if ( sc(1)%sensor_id(1:4) == 'iasi' ) then
-     sensorindex = 1
+     sensorindex_iasi = 1
   else
-     write(6,*)'READ_IASI: sensorindex not set  NO IASI DATA USED'
+     write(6,*)'READ_IASI: sensorindex_iasi not set  NO IASI DATA USED'
      write(6,*)'READ_IASI: We are looking for ', sc(1)%sensor_id, '   TERMINATE PROGRAM EXECUTION'
      call stop2(71)
   end if
+
+!  find AVHRR sensorindex
+  sensorindex_avhrr = 0
+  if ( sc(2)%sensor_id(1:4) == 'avhr' ) then
+     sensorindex_avhrr = 2
+  else
+     write(6,*)'READ_IASI: sensorindex_avhrr is not set  NO IASI DATA USED'
+     write(6,*)'READ_IASI: We are looking for ', sc(2)%sensor_id, '   TERMINATE PROGRAM EXECUTION'
+     call stop2(71)
+  end if
+
 
 ! Calculate parameters needed for FOV-based surface calculation.
   if (isfcalc==1)then
@@ -733,7 +751,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
                        exit scaleloop
                     end if
                  end do scaleloop
-                 call crtm_planck_temperature(sensorindex,sc_chan,radiance,temperature(bufr_chan))
+                 call crtm_planck_temperature(sensorindex_iasi,sc_chan,radiance,temperature(bufr_chan))
               else
                  temperature(bufr_chan) = tbmin
               endif
@@ -775,6 +793,71 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            endif
            if(.not. iuse)cycle read_loop
 
+!   Read the AVHRR cluster information for the Cloud and Aerosol Detection Software.
+!   Only channels 4 and 5 are used.
+!   Convert from radiance to brightness temperature for mean and standard deviation used by CADS.
+           if ( iasi_cads .and. cloud_info ) then
+           call ufbseq(lnbufr,avhrr_info,33,7,iret,'IASIL1CS')
+           if (iret == 7 ) then  ! if AVHRR cluster info exists
+              avhrr_mean = zero
+              avhrr_std_dev = zero
+              avhrr_cluster_tot = zero
+
+!  AVHRR cluster sum
+!              write(*,'(1x,a23,1x,8f7.2)') 'JAJ avhrr-iasi cluster', (avhrr_info(3,i),i=1,7), avhrr_cluster_tot
+              avhrr_cluster_info: do i=1,7
+
+                 avhrr_cluster_tot = avhrr_cluster_tot + avhrr_info(3,i)
+
+                  iexponent = -(nint(avhrr_info(25,i))-5 )                        ! channel 4 cluster mean
+                  avhrr_info(26,i) =  avhrr_info(26,i) * (ten ** iexponent)
+
+                  iexponent = -(nint(avhrr_info(27,i))-5 )                        ! channel 4 cluster std dev.
+                  avhrr_info(28,i) =  avhrr_info(28,i) * (ten ** iexponent)
+
+                  avhrr_mean(1) = avhrr_mean(1) + avhrr_info(3,i) * avhrr_info(26,i)
+                  avhrr_std_dev(1) = avhrr_std_dev(1) + (avhrr_info(3,i) *  &
+                      (avhrr_info(28,i)**2 + avhrr_info(26,i)**2))
+
+                  call crtm_planck_temperature(sensorindex_avhrr,2,avhrr_info(26,i),avhrr_info(26,i))
+                  avhrr_info(26,i) = max(avhrr_info(26,i),zero)
+
+                  iexponent = -(nint(avhrr_info(30,i))-5 )                        ! channel 5 cluster mean
+                  avhrr_info(31,i) =  avhrr_info(31,i) * (ten ** iexponent)
+
+                  iexponent = -(nint(avhrr_info(32,i))-5 )                        ! channel 5 cluster std dev.
+                  avhrr_info(33,i) =  avhrr_info(33,i) * (ten ** iexponent)
+
+                  avhrr_mean(2) = avhrr_mean(2) + avhrr_info(3,i) * avhrr_info(31,i)
+                  avhrr_std_dev(2) = avhrr_std_dev(2) + (avhrr_info(3,i) *  &
+                      (avhrr_info(33,i)**2 + avhrr_info(31,i)**2))
+
+                  call crtm_planck_temperature(sensorindex_avhrr,3,avhrr_info(31,i),avhrr_info(31,i))
+                  avhrr_info(31,i) = max(avhrr_info(31,i),zero)
+
+              end do avhrr_cluster_info
+
+              avhrr_mean = avhrr_mean / avhrr_cluster_tot
+              avhrr_std_dev = avhrr_std_dev / avhrr_cluster_tot
+
+              avhrr_std_dev(1) = avhrr_std_dev(1) - avhrr_mean(1)**2
+              avhrr_std_dev(1) = sqrt( max(avhrr_std_dev(1),zero) )
+              call crtm_planck_temperature(sensorindex_avhrr,2,(avhrr_std_dev(1) + avhrr_mean(1)),avhrr_std_dev(1))
+              call crtm_planck_temperature(sensorindex_avhrr,2,avhrr_mean(1),avhrr_mean(1))
+              avhrr_std_dev(1) = avhrr_std_dev(1) - avhrr_mean(1)
+
+              avhrr_std_dev(2) = avhrr_std_dev(2) - avhrr_mean(2)**2
+              avhrr_std_dev(2) = sqrt( max(avhrr_std_dev(2),zero) )
+              call crtm_planck_temperature(sensorindex_avhrr,3,(avhrr_std_dev(2) + avhrr_mean(2)),avhrr_std_dev(2))
+              call crtm_planck_temperature(sensorindex_avhrr,3,avhrr_mean(2),avhrr_mean(2))
+              avhrr_std_dev(2) = avhrr_std_dev(2) - avhrr_mean(2)
+
+           else
+              cloud_info = .false.
+!JAJ             add logic here if problem with the avhrr data probably set everything to zero
+!            set cloud_info to false and use it to NOT write out CADS information
+           endif   ! AVHRR cluster info exists.
+           endif ! iasi_cads
 !
 !          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
