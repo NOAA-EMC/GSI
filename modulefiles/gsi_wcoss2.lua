@@ -19,15 +19,6 @@ load(pathJoin("python", python_ver))
 load(pathJoin("prod_util", prod_util_ver))
 
 load("gsi_common")
-unload("ncio")
-unload("ncdiag")
-
-pushenv("HPC_OPT", "/apps/ops/para/libs")
-prepend_path("MODULEPATH", "/apps/ops/para/libs/modulefiles/compiler/intel/19.1.3.304")
-prepend_path("MODULEPATH", "/apps/ops/para/libs/modulefiles/mpi/intel/19.1.3.304/cray-mpich/8.1.7")
-
-load("ncio/1.1.2")
-load("ncdiag/1.0.0")
 
 pushenv("GSI_BINARY_SOURCE_DIR", "/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/gsi/20221128")
 
