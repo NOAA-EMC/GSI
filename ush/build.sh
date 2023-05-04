@@ -12,8 +12,7 @@ COMPILER=${COMPILER:-"intel"}
 BUILD_DIR=${BUILD_DIR:-"${DIR_ROOT}/build"}
 INSTALL_PREFIX=${INSTALL_PREFIX:-"${DIR_ROOT}/install"}
 GSI_MODE=${GSI_MODE:-"Regional"}  # By default build Regional GSI (for regression testing)
-#clt ENKF_MODE=${ENKF_MODE:-"GFS"}     # By default build Global EnKF  (for regression testing)
-ENKF_MODE=${ENKF_MODE:-"FV3REG"}     # By default build Global EnKF  (for regression testing)
+ENKF_MODE=${ENKF_MODE:-"GFS"}     # By default build Global EnKF  (for regression testing)
 REGRESSION_TESTS=${REGRESSION_TESTS:-"YES"} # Build regression test suite
 
 #==============================================================================#
