@@ -853,6 +853,10 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
               varstrname = 'sphum'
               call fv3lamfile%get_idfn(varstrname,file_id,fv3filename)
               call read_fv3_restart_data3d(varstrname,fv3filename,file_id,qworkvar3d)
+              if ( cliptracers ) then ! set cliptracers to remove negative hydrometers
+                clip = tiny(qworkvar3d(1,1,1))
+                where (qworkvar3d < clip) qworkvar3d = clip
+              end if
               tvworkvar3d=tsenworkvar3d*(one+fv*qworkvar3d)
               tvworkvar3d=tvworkvar3d+workinc3d
               if(q_ind > 0) then
@@ -866,6 +870,10 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
                    enddo
                  enddo
                  qworkvar3d=qworkvar3d+workinc3d   
+                 if ( cliptracers ) then ! set cliptracers to remove negative hydrometers
+                   clip = tiny(qworkvar3d(1,1,1))
+                   where (qworkvar3d < clip) qworkvar3d = clip
+                 end if
               endif
               tsenworkvar3d=tvworkvar3d/(one+fv*qworkvar3d)
               varstrname = 'T'
@@ -2173,6 +2181,10 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
                 enddo
        
                 if(iope ==0 ) then
+                  if ( cliptracers ) then ! set cliptracers to remove negative hydrometers
+                    clip = tiny(qworkvar3d(1,1,1))
+                    where (qworkvar3d < clip) qworkvar3d = clip
+                  end if
                   tvworkvar3d=tsenworkvar3d*(one+fv*qworkvar3d)
                   tvworkvar3d=tvworkvar3d+workinc3d
                   if(q_ind > 0) then
@@ -2186,6 +2198,10 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
                        enddo
                      enddo
                      qworkvar3d=qworkvar3d+workinc3d   
+                     if ( cliptracers ) then ! set cliptracers to remove negative hydrometers
+                       clip = tiny(qworkvar3d(1,1,1))
+                       where (qworkvar3d < clip) qworkvar3d = clip
+                     end if
                   endif
                   tsenworkvar3d=tvworkvar3d/(one+fv*qworkvar3d)
                 endif
