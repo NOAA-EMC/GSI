@@ -59,34 +59,37 @@ subroutine init_mult_spc_wgts(jcap_in)
   implicit none
 
   integer(i_kind),intent(in   ) :: jcap_in
-  real(r_kind),allocatable      :: totwvlength(:)
 
   integer(i_kind) i,ii,j,k,l,n,kk,nsigend
   integer(i_kind) ig
   real(r_kind) rwv0,rtem1,rtem2
   real (r_kind):: fwgtofwvlen
-  integer(i_kind) :: l_sum_spc_weights
+  real(r_kind) :: totwvlength
+  logical :: l_sum_spc_weights
 
   ! Spectral scale decomposition is differernt between SDL-cross and SDL-nocross
   if( r_ensloccov4scl < tiny_r_kind )then
-     l_sum_spc_weights = 1
+     l_sum_spc_weights = .true.
   else
-     l_sum_spc_weights = 0
+     l_sum_spc_weights = .false.
   end if
 
-  allocate(totwvlength(jcap_in))
+  spc_multwgt(0,1)=one
+  do ig=2,nsclgrp
+    spc_multwgt(0,ig)=zero
+  end do
 
-  rwv0=2*pi*rearth*0.001_r_kind
+
+  rwv0=2.0_r_kind*pi*rearth*0.001_r_kind
   do i=1,jcap_in
-     totwvlength(i)= rwv0/real(i)                   
-  enddo
-  do i=1,jcap_in
-     rtem1=0
+     totwvlength= rwv0/real(i)                   
+     rtem1=zero
      do ig=1,nsclgrp
         if(ig /= 2) then
            spc_multwgt(i,ig)=fwgtofwvlen(spcwgt_params(1,ig),spcwgt_params(2,ig),&
-                                         spcwgt_params(3,ig),spcwgt_params(4,ig),totwvlength(i))
-           if(l_sum_spc_weights == 0 ) then
+                                         spcwgt_params(3,ig),spcwgt_params(4,ig),totwvlength)
+           spc_multwgt(i,ig)=min(max(spc_multwgt(i,ig),zero),one)
+           if(l_sum_spc_weights) then
               rtem1=rtem1+spc_multwgt(i,ig)
            else
               rtem1=rtem1+spc_multwgt(i,ig)*spc_multwgt(i,ig)
@@ -94,18 +97,19 @@ subroutine init_mult_spc_wgts(jcap_in)
         endif
      enddo
      rtem2 =1.0_r_kind - rtem1
-     if(abs(rtem2) >= zero) then 
+     if(rtem2 >= zero) then 
  
-        if(l_sum_spc_weights == 0 ) then
+        if(l_sum_spc_weights) then
            spc_multwgt(i,2)=rtem2 
         else
            spc_multwgt(i,2)=sqrt(rtem2)
         endif
+     else
+        if(mype == 0)write(6,*) ' rtem2 < zero ',i,rtem2,(spc_multwgt(i,ig),ig=1,nsclgrp)
+        spc_multwgt(i,2)=zero
      endif
   enddo
-  spc_multwgt=max(spc_multwgt,0.0_r_kind)
   
-  deallocate(totwvlength)
   return
 end subroutine init_mult_spc_wgts
 
