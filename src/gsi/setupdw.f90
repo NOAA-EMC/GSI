@@ -895,6 +895,8 @@ subroutine setupdw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
 
   end subroutine contents_binary_diag_
   subroutine contents_netcdf_diag_(odiag)
+  use constants, only: r_missing
+  use screen_to_ncdiag
   type(obs_diag),pointer,intent(in):: odiag
 ! Observation class
   character(7),parameter     :: obsclass = '     dw'
@@ -904,29 +906,37 @@ subroutine setupdw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
            call nc_diag_metadata("Observation_Class",       obsclass               )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
-           call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
-           call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
+           call screen_to_single_nc_diag_metadata("Latitude",(data(ilate,i))    )
+           call screen_to_single_nc_diag_metadata("Longitude",(data(ilone,i))    )
            call nc_diag_metadata("Station_Elevation",       missing                )
-           call nc_diag_metadata("Pressure",                sngl(presw)            )
-           call nc_diag_metadata("Height",                  sngl(data(ihgt,i))     )
-           call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
+           call screen_to_single_nc_diag_metadata("Pressure",(presw)            )
+           call screen_to_single_nc_diag_metadata("Height",(data(ihgt,i))     )
+           if(isnan(dtime) .or. isnan(time_offset)) then
+              call nc_diag_metadata("Time",sngl(real(r_missing)))
+           else
+              call nc_diag_metadata("Time",sngl(dtime-time_offset))
+           endif
            call nc_diag_metadata("Prep_QC_Mark",            missing                )
-           call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )
+           call screen_to_single_nc_diag_metadata("Prep_Use_Flag",(data(iuse,i))     )
 !          call nc_diag_metadata("Nonlinear_QC_Var_Jb",     var_jb                 )
-           call nc_diag_metadata("Nonlinear_QC_Rel_Wgt",    sngl(rwgt)             )                 
+           call screen_to_single_nc_diag_metadata("Nonlinear_QC_Rel_Wgt",(rwgt)             )
            if(muse(i)) then
               call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)              )
            else
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)             )              
+              call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)             )
            endif
 
-           call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)     )
-           call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
-           call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
+           call screen_to_single_nc_diag_metadata("Errinv_Input",(errinv_input)     )
+           call screen_to_single_nc_diag_metadata("Errinv_Adjust",(errinv_adjst)     )
+           call screen_to_single_nc_diag_metadata("Errinv_Final",(errinv_final)     )
 
-           call nc_diag_metadata("Observation",                   sngl(data(ilob,i)))
-           call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)      )
-           call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(data(ilob,i)-dwwind))
+           call screen_to_single_nc_diag_metadata("Observation",(data(ilob,i)))
+           call screen_to_single_nc_diag_metadata("Obs_Minus_Forecast_adjusted",(ddiff)      )
+           if(isnan(data(ilob,i)) .or. isnan(dwwind)) then
+              call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(real(r_missing)))
+           else
+              call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(data(ilob,i)-dwwind))
+           endif
 
 !_RT_NC4_TODO
 !_RT    rdiagbuf(20,ii) = factw                ! 10m wind reduction factor

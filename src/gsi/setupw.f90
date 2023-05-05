@@ -1779,6 +1779,8 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   end subroutine contents_binary_diag_
   subroutine contents_netcdf_diag_(udiag,vdiag)
+  use constants, only: r_missing
+  use screen_to_ncdiag
   type(obs_diag),pointer,intent(in):: udiag,vdiag
 ! Observation class
   character(7),parameter     :: obsclass = '     uv'
@@ -1788,37 +1790,49 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Observation_Class",       obsclass               )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
-           call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
-           call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
-           call nc_diag_metadata("Station_Elevation",       sngl(data(ielev,i))    )
-           call nc_diag_metadata("Pressure",                sngl(presw)            )
-           call nc_diag_metadata("Height",                  sngl(data(ihgt,i))     )
-           call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
-           call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
+           call screen_to_single_nc_diag_metadata("Latitude",(data(ilate,i))    )
+           call screen_to_single_nc_diag_metadata("Longitude",(data(ilone,i))    )
+           call screen_to_single_nc_diag_metadata("Station_Elevation",(data(ielev,i))    )
+           call screen_to_single_nc_diag_metadata("Pressure",(presw)            )
+           call screen_to_single_nc_diag_metadata("Height",(data(ihgt,i))     )
+           if(isnan(dtime) .or. isnan(time_offset)) then
+              call nc_diag_metadata("Time",sngl(real(r_missing)))
+           else
+              call nc_diag_metadata("Time",sngl(dtime-time_offset))
+           endif
+           call screen_to_single_nc_diag_metadata("Prep_QC_Mark",(data(iqc,i))      )
 !           call nc_diag_metadata("Setup_QC_Mark",           rmiss_single           )
-           call nc_diag_metadata("Setup_QC_Mark",           sngl(bmiss)            )
-           call nc_diag_metadata("Nonlinear_QC_Var_Jb",     sngl(var_jb)           )
-           call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )
+           call screen_to_single_nc_diag_metadata("Setup_QC_Mark",(bmiss)            )
+           call screen_to_single_nc_diag_metadata("Nonlinear_QC_Var_Jb",(var_jb)           )
+           call screen_to_single_nc_diag_metadata("Prep_Use_Flag",(data(iuse,i))     )
            if(muse(i)) then
               call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)              )
            else
               call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)             )
            endif
 
-           call nc_diag_metadata("Nonlinear_QC_Rel_Wgt",    sngl(rwgt)             )
-           call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)     )
-           call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
-           call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
-           call nc_diag_metadata("Wind_Reduction_Factor_at_10m", sngl(factw)       )
+           call screen_to_single_nc_diag_metadata("Nonlinear_QC_Rel_Wgt",(rwgt)         )
+           call screen_to_single_nc_diag_metadata("Errinv_Input",(errinv_input)         )
+           call screen_to_single_nc_diag_metadata("Errinv_Adjust",(errinv_adjst)        )
+           call screen_to_single_nc_diag_metadata("Errinv_Final",(errinv_final)         )
+           call screen_to_single_nc_diag_metadata("Wind_Reduction_Factor_at_10m",(factw))
 
            if (.not. regional .or. fv3_regional) then
-              call nc_diag_metadata("u_Observation",                              sngl(data(iuob,i))    )
-              call nc_diag_metadata("u_Obs_Minus_Forecast_adjusted",              sngl(dudiff)          )
-              call nc_diag_metadata("u_Obs_Minus_Forecast_unadjusted",            sngl(uob-ugesin)      )
+              call screen_to_single_nc_diag_metadata("u_Observation",(data(iuob,i))    )
+              call screen_to_single_nc_diag_metadata("u_Obs_Minus_Forecast_adjusted",(dudiff)          )
+              if(isnan(uob) .or. isnan(ugesin)) then
+                 call nc_diag_metadata("u_Obs_Minus_Forecast_unadjusted",sngl(real(r_missing)))
+              else
+                 call nc_diag_metadata("u_Obs_Minus_Forecast_unadjusted",sngl(uob-ugesin))
+              endif
 
-              call nc_diag_metadata("v_Observation",                              sngl(data(ivob,i))    )
-              call nc_diag_metadata("v_Obs_Minus_Forecast_adjusted",              sngl(dvdiff)          )
-              call nc_diag_metadata("v_Obs_Minus_Forecast_unadjusted",            sngl(vob-vgesin)      )
+              call screen_to_single_nc_diag_metadata("v_Observation",(data(ivob,i))    )
+              call screen_to_single_nc_diag_metadata("v_Obs_Minus_Forecast_adjusted",(dvdiff)          )
+              if(isnan(vob) .or. isnan(vgesin)) then
+                 call nc_diag_metadata("v_Obs_Minus_Forecast_unadjusted",sngl(real(r_missing)))
+              else
+                 call nc_diag_metadata("v_Obs_Minus_Forecast_unadjusted",sngl(vob-vgesin))
+              endif
            else ! (if regional)
 !              replace positions 17-22 with earth relative wind component information
    
@@ -1829,13 +1843,21 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               call rotate_wind_xy2ll(ugesin,vgesin,uges_e,vges_e,dlon_e,dlon,dlat)
               call rotate_wind_xy2ll(dudiff,dvdiff,dudiff_e,dvdiff_e,dlon_e,dlon,dlat)
 
-              call nc_diag_metadata("u_Observation",                              sngl(uob_e)           )
-              call nc_diag_metadata("u_Obs_Minus_Forecast_adjusted",              sngl(dudiff_e)        )
-              call nc_diag_metadata("u_Obs_Minus_Forecast_unadjusted",            sngl(uob_e-uges_e)    )
+              call screen_to_single_nc_diag_metadata("u_Observation",(uob_e)           )
+              call screen_to_single_nc_diag_metadata("u_Obs_Minus_Forecast_adjusted",(dudiff_e)        )
+              if(isnan(uob_e) .or. isnan(uges_e)) then
+                 call nc_diag_metadata("u_Obs_Minus_Forecast_unadjusted",sngl(real(r_missing)))
+              else
+                 call nc_diag_metadata("u_Obs_Minus_Forecast_unadjusted",sngl(uob_e-uges_e))
+              endif
 
-              call nc_diag_metadata("v_Observation",                              sngl(vob_e)           )
-              call nc_diag_metadata("v_Obs_Minus_Forecast_adjusted",              sngl(dvdiff_e)        )
-              call nc_diag_metadata("v_Obs_Minus_Forecast_unadjusted",            sngl(vob_e-vges_e)    )
+              call screen_to_single_nc_diag_metadata("v_Observation",(vob_e)           )
+              call screen_to_single_nc_diag_metadata("v_Obs_Minus_Forecast_adjusted",(dvdiff_e)        )
+              if(isnan(vob_e) .or. isnan(vges_e)) then
+                 call nc_diag_metadata("v_Obs_Minus_Forecast_unadjusted",sngl(real(r_missing)))
+              else
+                 call nc_diag_metadata("v_Obs_Minus_Forecast_unadjusted",sngl(vob_e-vges_e))
+              endif
            endif
 
            if (lobsdiagsave) then

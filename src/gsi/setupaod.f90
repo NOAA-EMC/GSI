@@ -827,6 +827,7 @@ contains
       ! subroutine to write contents to netcdf diag files
       ! original: pagowski
       ! modified: 2019-03-21 - martin - cleaned up to fit GSI coding norms
+      use screen_to_ncdiag
       implicit none
       character(7),parameter     :: obsclass = '    aod'
       character(128) :: fieldname
@@ -841,16 +842,16 @@ contains
          if ( iuse_aero(l) < 0 ) cycle
          call nc_diag_metadata("Channel_Index",         i)
          call nc_diag_metadata("Observation_Class",     obsclass)
-         call nc_diag_metadata("Latitude",              sngl(cenlat)) ! observation latitude (degrees)
-         call nc_diag_metadata("Longitude",             sngl(cenlon)) ! observation longitude (degrees)
-         call nc_diag_metadata("Obs_Time",              sngl(dtime))!-time_offset)) ! observation time (hours relative to analysis time)
-         call nc_diag_metadata("Sol_Zenith_Angle",      sngl(pangs)) ! solar zenith angle (degrees)
-         call nc_diag_metadata("Sol_Azimuth_Angle",     sngl(data_s(isazi_ang,n))) ! solar azimuth angle (degrees)
+         call screen_to_single_nc_diag_metadata("Latitude",(cenlat)) ! observation latitude (degrees)
+         call screen_to_single_nc_diag_metadata("Longitude",(cenlon)) ! observation longitude (degrees)
+         call screen_to_single_nc_diag_metadata("Obs_Time",(dtime))!-time_offset)) ! observation time (hours relative to analysis time)
+         call screen_to_single_nc_diag_metadata("Sol_Zenith_Angle",(pangs)) ! solar zenith angle (degrees)
+         call screen_to_single_nc_diag_metadata("Sol_Azimuth_Angle",(data_s(isazi_ang,n))) ! solar azimuth angle (degrees)
          call nc_diag_metadata("Surface_type", nint(data_s(istyp,n)))
          call nc_diag_metadata("MODIS_deep_blue_flag", nint(dbcf) )
-         call nc_diag_metadata("Observation", sngl(diagbufchan(1,i))  )     ! observed aod
-         call nc_diag_metadata("Obs_Minus_Forecast_adjusted",sngl(diagbufchan(2,i)))
-         call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",sngl(diagbufchan(2,i)))! obs - sim aod with no bias correction
+         call nc_diag_metadata("Observation",(diagbufchan(1,i))  )     ! observed aod
+         call nc_diag_metadata("Obs_Minus_Forecast_adjusted",(diagbufchan(2,i)))
+         call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",(diagbufchan(2,i)))! obs - sim aod with no bias correction
 
          if (diagbufchan(3,i) > tiny_r_kind) then
             tmp(1)=one/diagbufchan(3,i)
@@ -859,7 +860,7 @@ contains
          end if
   
          call nc_diag_metadata("Observation_Error",tmp(1))
-         call nc_diag_metadata("QC_Flag", sngl(diagbufchan(4,i)))  !quality control mark or event indicator
+         call nc_diag_metadata("QC_Flag",(diagbufchan(4,i)))  !quality control mark or event indicator
          tmp(1)=get_zsfc()
          call nc_diag_metadata("sfc_height",tmp(1)) ! height in meters
   

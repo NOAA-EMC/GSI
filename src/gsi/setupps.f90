@@ -130,7 +130,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   use gridmod, only: nsig,get_ij,twodvar_regional
   use constants, only: zero,one_tenth,one,half,pi,g_over_rd, &
              huge_r_kind,tiny_r_kind,two,huge_single, &
-             r1000,wgtlim,tiny_single,r10,three
+             r1000,wgtlim,tiny_single,r10,three, r_missing
   use jfunc, only: jiter,last,jiterstart,miter
   use qcmod, only: dfact,dfact1,npres_print,vqc,nvqc
   use guess_grids, only: hrdifsig,ges_lnprsl,nfldsig,ntguessig
@@ -882,6 +882,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
 
   end subroutine contents_binary_diag_
   subroutine contents_netcdf_diag_(odiag)
+  use screen_to_ncdiag
   type(obs_diag),pointer,intent(in):: odiag
 ! Observation class
   character(7),parameter     :: obsclass = '     ps'
@@ -890,30 +891,54 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
            call nc_diag_metadata("Observation_Class",       obsclass               )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
-           call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
-           call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
-           call nc_diag_metadata("Station_Elevation",       sngl(data(istnelv,i))  )
-           call nc_diag_metadata("Pressure",                sngl(data(ipres,i)*r10))
-           call nc_diag_metadata("Height",                  sngl(dhgt)             )
-           call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
-           call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
-           call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )
-           call nc_diag_metadata("Nonlinear_QC_Var_Jb",     sngl(var_jb)           )
-           call nc_diag_metadata("Nonlinear_QC_Rel_Wgt",    sngl(rwgt)             )                 
+           !Replace direct calls to nc_diag_metadata with the screening subroutine
+           call screen_to_single_nc_diag_metadata("Latitude",(data(ilate,i))    )
+           call screen_to_single_nc_diag_metadata("Longitude",(data(ilone,i))    )
+           call screen_to_single_nc_diag_metadata("Station_Elevation",(data(istnelv,i))  )
+           if(isnan(data(ipres,i))) then
+              call nc_diag_metadata("Pressure",sngl(real(r_missing)))
+           else
+              call screen_to_single_nc_diag_metadata("Pressure",data(ipres,i)*r10)
+           endif
+           call screen_to_single_nc_diag_metadata("Height",dhgt)
+           if(isnan(dtime) .or. isnan(time_offset)) then
+              call nc_diag_metadata("Time",sngl(real(r_missing)))
+           else
+              call nc_diag_metadata("Time",sngl(dtime-time_offset))
+           endif
+           call screen_to_single_nc_diag_metadata("Prep_QC_Mark",(data(iqc,i))      )
+           call screen_to_single_nc_diag_metadata("Prep_Use_Flag",(data(iuse,i))     )
+           call screen_to_single_nc_diag_metadata("Nonlinear_QC_Var_Jb",(var_jb)           )
+           call screen_to_single_nc_diag_metadata("Nonlinear_QC_Rel_Wgt",rwgt             )
            if(muse(i)) then
               call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)              )
            else
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)             )              
+              call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)             )
            endif
 
-           call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)     )
-           call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
-           call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
+           call screen_to_single_nc_diag_metadata("Errinv_Input",(errinv_input)     )
+           call screen_to_single_nc_diag_metadata("Errinv_Adjust",(errinv_adjst)     )
+           call screen_to_single_nc_diag_metadata("Errinv_Final",(errinv_final)     )
 
-           call nc_diag_metadata("Observation",                   sngl(pob)        )
-           call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(pob-pges)   )
-           call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(pob-pgesorig))
- 
+           if(isnan(pob)) then
+              call nc_diag_metadata("Observation",sngl(real(r_missing))    )
+              call nc_diag_metadata("Obs_Minus_Forecast_adjusted",sngl(real(r_missing))   )
+              call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",sngl(real(r_missing)))
+           else
+              call nc_diag_metadata("Observation",sngl(pob)       )
+              if(isnan(pges)) then
+                 call nc_diag_metadata("Obs_Minus_Forecast_adjusted",sngl(real(r_missing)))
+              else
+                 call screen_to_single_nc_diag_metadata("Obs_Minus_Forecast_adjusted",pob-pges)
+              endif
+
+              if(isnan(pgesorig)) then
+                 call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",sngl(real(r_missing)))
+              else
+                 call screen_to_single_nc_diag_metadata("Obs_Minus_Forecast_unadjusted",pob-pgesorig)
+              endif
+           endif
+
           if (lobsdiagsave) then
 
               do jj=1,miter

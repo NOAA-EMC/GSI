@@ -66,7 +66,7 @@ subroutine setup_linhx(rlat, rlon, time, ix, delx, ixp, delxp, iy, dely,  &
 !$$$
   use kinds, only: r_kind,i_kind,r_single
   use params, only: nstatefields, nlons, nlats, nhr_state, fhr_assim
-  use gridinfo, only: latsgrd, lonsgrd
+  use gridinfo, only: latsgrd, lonsgrd, npts
   use constants, only: zero,one,pi
   use mpisetup
   implicit none
@@ -95,7 +95,12 @@ subroutine setup_linhx(rlat, rlon, time, ix, delx, ixp, delxp, iy, dely,  &
   delx = max(zero,min(delx,one))
 
   iyp = 1
-  do while (iyp <= nlons .and. lonsgrd(ix*nlons + iyp) <= rlon)
+  do
+    if (iyp > nlons .or. ix*nlons + iyp > npts) then
+       exit
+    elseif(lonsgrd(ix*nlons + iyp) > rlon) then
+       exit
+    endif
     iyp = iyp + 1
   enddo
   iy = iyp - 1

@@ -1614,30 +1614,36 @@ end subroutine contents_binary_diag_
 
 subroutine contents_netcdf_diag_(odiag)
 ! Observation class
+  use constants, only: r_missing
+  use screen_to_ncdiag
   type(obs_diag),pointer,intent(in):: odiag
   character(7),parameter     :: obsclass = '     light'
   real(r_single),parameter::     missing = -9.99e9_r_single
   real(r_kind),dimension(miter) :: obsdiag_iuse
 
-  call nc_diag_metadata("GLM_Detect_Err",                sngl(data(ier,i))       )
-  call nc_diag_metadata("Latitude",                      sngl(data(ilate,i))     )
-  call nc_diag_metadata("Longitude",                     sngl(data(ilone,i))     )
-  call nc_diag_metadata("Lightning_FR_Obs",              sngl(dlight )           )
-  call nc_diag_metadata("Time",                          sngl(dtime)             )
-  call nc_diag_metadata("GLM_QC_Mark",                   sngl(data(iqc,i))       )
-  call nc_diag_metadata("GLM_Orig_Detect_Err",           sngl(data(ier2,i))      )
-  call nc_diag_metadata("GLM_Use_Flag",                  sngl(data(iuse,i))      )
+  call screen_to_single_nc_diag_metadata("GLM_Detect_Err",(data(ier,i))       )
+  call screen_to_single_nc_diag_metadata("Latitude",(data(ilate,i))     )
+  call screen_to_single_nc_diag_metadata("Longitude",(data(ilone,i))     )
+  call screen_to_single_nc_diag_metadata("Lightning_FR_Obs",(dlight )           )
+  call screen_to_single_nc_diag_metadata("Time",(dtime)             )
+  call screen_to_single_nc_diag_metadata("GLM_QC_Mark",(data(iqc,i))       )
+  call screen_to_single_nc_diag_metadata("GLM_Orig_Detect_Err",(data(ier2,i))      )
+  call screen_to_single_nc_diag_metadata("GLM_Use_Flag",(data(iuse,i))      )
   if(muse(i)) then
      call nc_diag_metadata("Analysis_Use_Flag",          1._r_single             )
   else
      call nc_diag_metadata("Analysis_Use_Flag",          -1._r_single            )
   endif
-  call nc_diag_metadata("Nonlinear_QC_Rel_Wgt",          sngl(rwgt)              )
-  call nc_diag_metadata("Errinv_Input",                  sngl(errinv_input)      )
-  call nc_diag_metadata("Errinv_Adjust",                 sngl(errinv_adjst)      )
-  call nc_diag_metadata("Errinv_Final",                  sngl(errinv_final)      )
-  call nc_diag_metadata("Obs_Minus_Forecast_VarBC",      sngl(ddiff)             )
-  call nc_diag_metadata("Obs_Minus_Forecast_NoVarBC",    sngl(dlight-lightges0)  )
+  call screen_to_single_nc_diag_metadata("Nonlinear_QC_Rel_Wgt",(rwgt)              )
+  call screen_to_single_nc_diag_metadata("Errinv_Input",(errinv_input)      )
+  call screen_to_single_nc_diag_metadata("Errinv_Adjust",(errinv_adjst)      )
+  call screen_to_single_nc_diag_metadata("Errinv_Final",(errinv_final)      )
+  call screen_to_single_nc_diag_metadata("Obs_Minus_Forecast_VarBC",(ddiff)             )
+  if(isnan(dlight) .or. isnan(lightges0)) then
+     call nc_diag_metadata("Obs_Minus_Forecast_NoVarBC",    sngl(real(r_missing)))
+  else
+     call nc_diag_metadata("Obs_Minus_Forecast_NoVarBC",    sngl(dlight-lightges0)  )
+  endif
   if (lobsdiagsave) then
      do jj=1,miter
         if (odiag%muse(jj)) then
