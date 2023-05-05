@@ -69,9 +69,9 @@ subroutine init_mult_spc_wgts(jcap_in)
 
   ! Spectral scale decomposition is differernt between SDL-cross and SDL-nocross
   if( r_ensloccov4scl < tiny_r_kind )then
-     l_sum_spc_weights = .true.
-  else
      l_sum_spc_weights = .false.
+  else
+     l_sum_spc_weights = .true.
   end if
 
   spc_multwgt(0,1)=one
