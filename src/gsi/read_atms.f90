@@ -511,10 +511,10 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   ALLOCATE(Relative_Time_In_Seconds(Num_Obs))
   ALLOCATE(IScan(Num_Obs))
   Relative_Time_In_Seconds = 3600.0_r_kind*T4DV_Save(1:Num_Obs)
-  write(6,*) 'Calling ATMS_Spatial_Average'
+! write(6,*) 'Calling ATMS_Spatial_Average'
   CALL ATMS_Spatial_Average(Num_Obs, NChanl, IFOV_Save(1:Num_Obs), &
        Relative_Time_In_Seconds, BT_Save(1:nchanl,1:Num_Obs), IScan, IRet)
-  write(6,*) 'ATMS_Spatial_Average Called with IRet=',IRet
+! write(6,*) 'ATMS_Spatial_Average Called with IRet=',IRet
   DEALLOCATE(Relative_Time_In_Seconds)
   
   IF (IRet /= 0) THEN

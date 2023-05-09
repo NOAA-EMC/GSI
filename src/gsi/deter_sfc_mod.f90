@@ -207,7 +207,6 @@ subroutine deter_sfc(alat,alon,dlat_earth,dlon_earth,obstime,isflg, &
      sfcpct(istyp10)=sfcpct(istyp10)+w10
      sfcpct(istyp11)=sfcpct(istyp11)+w11
 
-     isflg = 0
      if(sfcpct(0) > 0.99_r_kind)then
         isflg = 0
      else if(sfcpct(1) > 0.99_r_kind)then
@@ -517,7 +516,6 @@ subroutine deter_sfc_type(dlat_earth,dlon_earth,obstime,isflg,tsavg)
      sfcpct(istyp10)=sfcpct(istyp10)+w10
      sfcpct(istyp11)=sfcpct(istyp11)+w11
 
-     isflg = 0
      if(sfcpct(0) > 0.99_r_kind)then
         isflg = 0
      else if(sfcpct(1) > 0.99_r_kind)then
@@ -1109,7 +1107,7 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
            do i = min_i(j), max_i(j)
               call reduce2full(i,j,ifull)
               call time_int_sfc(ifull,j,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
-!$omp parallel do  schedule(dynamic,1)private(jjj,iii,lat_mdl,lon_mdl)
+!$omp parallel do  schedule(dynamic,1) private(jjj,iii,lat_mdl,lon_mdl)
               do jjj = 1, subgrid_lengths_y
                  if (y_off(jjj) >= zero) then
                     lat_mdl = (one-y_off(jjj))*rlats_sfc(j)+y_off(jjj)*rlats_sfc(j+1)
@@ -1316,7 +1314,6 @@ subroutine deter_sfc_amsre_low(dlat_earth,dlon_earth,isflg,sfcpct)
 !     sfcpct(3)=min(sfcpct(3),sfcpct(1))
 !     sfcpct(1)=max(zero,sfcpct(1)-sfcpct(3))
 
-     isflg = 0
      if(sfcpct(0) > 0.99_r_kind)then
         isflg = 0
      else if(sfcpct(1) > 0.99_r_kind)then
@@ -1482,7 +1479,6 @@ subroutine deter_sfc_gmi(dlat_earth,dlon_earth,isflg,sfcpct)
 !     sfcpct(3)=min(sfcpct(3),sfcpct(1))
 !     sfcpct(1)=max(zero,sfcpct(1)-sfcpct(3))
 
-     isflg = 0
      if(sfcpct(0) > 0.99_r_kind)then
         isflg = 0
      else if(sfcpct(1) > 0.99_r_kind)then
@@ -1986,7 +1982,6 @@ subroutine calc_sfc(sfc_sum,isflg,idomsfc,sfcpct,vfr,sty,vty,sm, &
   sfcr = sfc_sum%sfcr/count_tot
   zz   = sfc_sum%zz/count_tot
 
-  isflg = 0
   if(sfcpct(0) > 0.99_r_kind)then
      isflg = 0      ! open water
   else if(sfcpct(1) > 0.99_r_kind)then

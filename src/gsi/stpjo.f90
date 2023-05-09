@@ -267,8 +267,6 @@ subroutine stpjo(dval,dbias,xval,xbias,sges,pbcjo,nstep)
   use m_obsdiags, only: obOper_destroy
   use gsi_obOperTypeManager, only: obOper_typeInfo
 
-  use intradmod, only: setrad
-
   use mpeu_util, only: perr,die
   use mpeu_util, only: tell
   use mpeu_mpif, only: MPI_comm_world
@@ -290,7 +288,6 @@ subroutine stpjo(dval,dbias,xval,xbias,sges,pbcjo,nstep)
   class(obOper),pointer:: it_obOper
 !************************************************************************************  
 
-  call setrad(xval(1))
 
 !$omp parallel do  schedule(dynamic,1) private(ll,mm,ib,it_obOper)
   do mm=1,stpcnt
