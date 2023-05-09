@@ -145,9 +145,9 @@ subroutine genqsat(qsat,tsen,prsl,lat2,lon2,nsig,ice,iderivative)
               esw = psat * (tr**xa) * exp(xb*(one-tr)) 
               esi = psat * (tr**xai) * exp(xbi*(one-tr)) 
               w  = (tdry - tmix) / (ttp - tmix)
-!             es =  w * esw + (one-w) * esi
-              es =  w * psat * (tr**xa) * exp(xb*(one-tr)) &
-                       + (one-w) * psat * (tr**xai) * exp(xbi*(one-tr))
+              es =  w * esw + (one-w) * esi
+!             es =  w * psat * (tr**xa) * exp(xb*(one-tr)) &
+!                      + (one-w) * psat * (tr**xai) * exp(xbi*(one-tr))
 
            endif
 

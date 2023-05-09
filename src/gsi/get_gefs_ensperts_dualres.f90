@@ -64,6 +64,7 @@ subroutine get_gefs_ensperts_dualres
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_bundlemod, only: gsi_bundledestroy
   use gsi_bundlemod, only: gsi_gridcreate
+  use gsi_bundlemod, only : assignment(=)
   use gsi_enscouplermod, only: gsi_enscoupler_get_user_nens
   use gsi_enscouplermod, only: gsi_enscoupler_create_sub2grid_info
   use gsi_enscouplermod, only: gsi_enscoupler_destroy_sub2grid_info
@@ -150,6 +151,7 @@ subroutine get_gefs_ensperts_dualres
      call gsi_bundlecreate(en_read(n),en_perts(1,1,1)%grid,'ensemble member',istatus,names2d=cvars2d,names3d=cvars3d)
      if ( istatus /= 0 ) &
         call die('get_gefs_ensperts_dualres',': trouble creating en_read bundle, istatus =',istatus)
+     en_read(n) = zero
   end do
 
 ! allocate(z(im,jm))
@@ -157,14 +159,6 @@ subroutine get_gefs_ensperts_dualres
 
 ! sst2=zero        !    for now, sst not used in ensemble perturbations, so if sst array is called for
                    !      then sst part of en_perts will be zero when sst2=zero
-
-!$omp parallel do schedule(dynamic,1) private(m,n)
-  do m=1,ntlevs_ens
-     do n=1,n_ens
-       en_perts(n,1,m)%valuesr4=zero_single
-     end do
-  end do
-
 
   ntlevs_ens_loop: do m=1,ntlevs_ens
 
@@ -180,28 +174,39 @@ subroutine get_gefs_ensperts_dualres
         cycle
      endif
 
+     en_bar%values=zero
      if (.not.q_hyb_ens) then !use RH
-       kap1=rd_over_cp+one
-       kapr=one/rd_over_cp
-       do n=1,n_ens
+       allocate(pri(im,jm,km+1))
+       allocate(prsl(im,jm,km),tsen(im,jm,km))
+       allocate(qs(im,jm,km))
+     end if
+     do n=1,n_ens
 
+       call gsi_bundlegetpointer(en_read(n),'q' ,q ,ier);istatus=istatus+ier
+       do k=1,km
+          do j=1,jm
+             do i=1,im
+                q(i,j,k)=max(q(i,j,k),zero)
+             end do
+          end do
+       end do
+       if (.not.q_hyb_ens) then !use RH
          call gsi_bundlegetpointer(en_read(n),'ps',ps,ier);istatus=ier
          call gsi_bundlegetpointer(en_read(n),'t' ,tv,ier);istatus=istatus+ier
-         call gsi_bundlegetpointer(en_read(n),'q' ,q ,ier);istatus=istatus+ier
 ! Compute RH
 ! Get 3d pressure field now on interfaces
-         allocate(pri(im,jm,km+1))
          call general_getprs_glb(ps,tv,pri)
-         allocate(prsl(im,jm,km),tsen(im,jm,km),qs(im,jm,km))
 ! Get sensible temperature and 3d layer pressure
          if (idsl5 /= 2) then
+            kap1=rd_over_cp+one
+            kapr=one/rd_over_cp
 !$omp parallel do schedule(dynamic,1) private(k,j,i)
             do k=1,km
                do j=1,jm
                   do i=1,im
                      prsl(i,j,k)=((pri(i,j,k)**kap1-pri(i,j,k+1)**kap1)/&
                              (kap1*(pri(i,j,k)-pri(i,j,k+1))))**kapr
-                     tsen(i,j,k)= tv(i,j,k)/(one+fv*max(zero,q(i,j,k)))
+                     tsen(i,j,k)= tv(i,j,k)/(one+fv*q(i,j,k))
                   end do
                end do
             end do
@@ -211,12 +216,11 @@ subroutine get_gefs_ensperts_dualres
                do j=1,jm
                   do i=1,im
                      prsl(i,j,k)=(pri(i,j,k)+pri(i,j,k+1))*half
-                     tsen(i,j,k)= tv(i,j,k)/(one+fv*max(zero,q(i,j,k)))
+                     tsen(i,j,k)= tv(i,j,k)/(one+fv*q(i,j,k))
                   end do
                end do
             end do
          end if
-         deallocate(pri)
 
          ice=.true.
          iderivative=0
@@ -228,14 +232,7 @@ subroutine get_gefs_ensperts_dualres
                end do
             end do
          end do
-         deallocate(tsen,prsl,qs)
-       enddo
-     end if
-
-
-     en_bar%values=zero
-
-     n_ens_loop: do n=1,n_ens
+       end if
 
 
 !$omp parallel do schedule(dynamic,1) private(i,k,j,ic3,hydrometeor,istatus,p3)
@@ -246,14 +243,14 @@ subroutine get_gefs_ensperts_dualres
                         trim(cvars3d(ic3))=='qs' .or. trim(cvars3d(ic3))=='qg' .or. &
                         trim(cvars3d(ic3))=='qh'
 
-          call gsi_bundlegetpointer(en_read(n),trim(cvars3d(ic3)),p3,istatus)
-          if(istatus/=0) then
-             write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' from read in member ',n,m
-             call stop2(999)
-          end if
 
 
           if ( hydrometeor ) then                
+             call gsi_bundlegetpointer(en_read(n),trim(cvars3d(ic3)),p3,istatus)
+             if(istatus/=0) then
+                write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' from read in member ',n,m
+                call stop2(999)
+             end if
              do k=1,km
                 do j=1,jm
                    do i=1,im
@@ -263,13 +260,17 @@ subroutine get_gefs_ensperts_dualres
              end do
 
           else if ( trim(cvars3d(ic3)) == 'oz' .and. oz_univ_static ) then
+             call gsi_bundlegetpointer(en_read(n),trim(cvars3d(ic3)),p3,istatus)
+             if(istatus/=0) then
+                write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' from read in member ',n,m
+                call stop2(999)
+             end if
              p3 = zero
           end if
 
        end do !c3d
        do i=1,nelen
-          en_perts(n,1,m)%valuesr4(i)=en_read(n)%values(i)
-          en_bar%values(i)=en_bar%values(i)+en_read(n)%values(i)
+          en_bar%values(i)=en_bar%values(i)+en_read(n)%values(i)*bar_norm
        end do
 
 
@@ -279,14 +280,14 @@ subroutine get_gefs_ensperts_dualres
 !       know who would want to commented out code below but be mindful 
 !       of how it interacts with option sst_staticB, please - Todling.
 
-     end do n_ens_loop ! end do over ensemble
-
-     do i=1,nelen
-        en_bar%values(i)=en_bar%values(i)*bar_norm
-     end do
+     end do  ! end do over ensembles
+     if (.not.q_hyb_ens) then !use RH
+       deallocate(pri)
+       deallocate(tsen,prsl)
+       deallocate(qs)
+     end if
 
 ! Before converting to perturbations, get ensemble spread
-     !-- if (m == 1 .and. write_ens_sprd )  call ens_spread_dualres(en_bar,1)
      !!! it is not clear of the next statement is thread/$omp safe.
      if (write_ens_sprd )  call ens_spread_dualres(en_bar,m)
 
@@ -297,7 +298,6 @@ subroutine get_gefs_ensperts_dualres
 
 ! Copy pbar to module array.  ps_bar may be needed for vertical localization
 ! in terms of scale heights/normalized p/p
-! Convert to mean
      do j=1,jm
         do i=1,im
            ps_bar(i,j,m)=x2(i,j)
@@ -309,7 +309,7 @@ subroutine get_gefs_ensperts_dualres
 !$omp parallel do schedule(dynamic,1) private(n,i,ic3,ipic,k,j)
      do n=1,n_ens
         do i=1,nelen
-           en_perts(n,1,m)%valuesr4(i)=en_perts(n,1,m)%valuesr4(i)-en_bar%values(i)
+           en_perts(n,1,m)%valuesr4(i)=en_read(n)%values(i)-en_bar%values(i)
         end do
         if(.not. q_hyb_ens) then
           do ic3=1,nc3d
@@ -332,6 +332,7 @@ subroutine get_gefs_ensperts_dualres
      end do
   end do  ntlevs_ens_loop !end do over bins
 
+  call gsi_bundledestroy(en_bar,istatus)
   if(nsclgrp > 1 .and. global_spectral_filter_sd) then
      do m=1,ntlevs_ens
         do n=1,n_ens
@@ -725,8 +726,6 @@ subroutine general_getprs_glb(ps,tv,prs)
   real(r_kind),parameter:: ten = 10.0_r_kind
 
 
-  kapr=one/rd_over_cp
-
   if (regional) then
      if(wrf_nmm_regional.or.nems_nmmb_regional) then
         do k=1,nsig+1
@@ -767,32 +766,45 @@ subroutine general_getprs_glb(ps,tv,prs)
         end do
      endif
   else
-     k=1
-     k2=nsig+1
-     do j=1,grd_ens%lon2
-        do i=1,grd_ens%lat2
-           prs(i,j,k)=ps(i,j)
-           prs(i,j,k2)=zero
-        end do
-     end do
      if (idvc5 /= 3) then
 !$omp parallel do schedule(dynamic,1) private(k,j,i)
-        do k=2,nsig
-           do j=1,grd_ens%lon2
-              do i=1,grd_ens%lat2
-                 prs(i,j,k)=ak5(k)+bk5(k)*ps(i,j)
+        do k=1,nsig
+           if(k == 1)then
+              k2=nsig+1
+              do j=1,grd_ens%lon2
+                do i=1,grd_ens%lat2
+                  prs(i,j,k)=ps(i,j)
+                  prs(i,j,k2)=zero
+                end do
               end do
-           end do
+           else
+              do j=1,grd_ens%lon2
+                 do i=1,grd_ens%lat2
+                    prs(i,j,k)=ak5(k)+bk5(k)*ps(i,j)
+                 end do
+              end do
+           end if
         end do
      else
+        kapr=one/rd_over_cp
 !$omp parallel do schedule(dynamic,1) private(k,j,i,trk)
-        do k=2,nsig
-           do j=1,grd_ens%lon2
-              do i=1,grd_ens%lat2
-                 trk=(half*(tv(i,j,k-1)+tv(i,j,k))/tref5(k))**kapr
-                 prs(i,j,k)=ak5(k)+(bk5(k)*ps(i,j))+(ck5(k)*trk)
+        do k=1,nsig
+           if(k == 1)then
+              k2=nsig+1
+              do j=1,grd_ens%lon2
+                do i=1,grd_ens%lat2
+                  prs(i,j,k)=ps(i,j)
+                  prs(i,j,k2)=zero
+                end do
               end do
-           end do
+           else
+              do j=1,grd_ens%lon2
+                 do i=1,grd_ens%lat2
+                    trk=(half*(tv(i,j,k-1)+tv(i,j,k))/tref5(k))**kapr
+                    prs(i,j,k)=ak5(k)+(bk5(k)*ps(i,j))+(ck5(k)*trk)
+                 end do
+              end do
+           end if
         end do
      end if
   end if
