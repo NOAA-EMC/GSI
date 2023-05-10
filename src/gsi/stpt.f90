@@ -184,7 +184,6 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
            w6=tptr%wij(6)
            w7=tptr%wij(7)
            w8=tptr%wij(8)
-!    Note time derivative stuff not consistent for virtual temperature
 
            if(tptr%tv_ob)then
               val= w1*rtv(j1)+w2*rtv(j2)+w3*rtv(j3)+w4*rtv(j4)+ &
@@ -208,9 +207,6 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
               end do 
            end if
 
-           do kk=1,nstep
-              tt(kk)=val2+sges(kk)*val
-           end do
 
            if(tptr%use_sfc_model) then
 
@@ -229,8 +225,9 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
               valv2=w1* sv(j1)+w2* sv(j2)+w3* sv(j3)+w4* sv(j4)
               valp =w1* rp(j1)+w2* rp(j2)+w3* rp(j3)+w4* rp(j4)
               valp2=w1* sp(j1)+w2* sp(j2)+w3* sp(j3)+w4* sp(j4)
+
               do kk=1,nstep
-                 ts_prime=tt(kk)
+                 ts_prime=val2+sges(kk)*val
                  tg_prime=valsst2+sges(kk)*valsst
                  qs_prime=valq2+sges(kk)*valq
                  us_prime=valu2+sges(kk)*valu
@@ -239,14 +236,18 @@ subroutine stpt(thead,dval,xval,out,sges,nstep,rpred,spred)
 
                  tt(kk)=psfc_prime*tptr%tlm_tsfc(1) + tg_prime*tptr%tlm_tsfc(2) + &
                         ts_prime  *tptr%tlm_tsfc(3) + qs_prime*tptr%tlm_tsfc(4) + &
-                        us_prime  *tptr%tlm_tsfc(5) + vs_prime*tptr%tlm_tsfc(6)
+                        us_prime  *tptr%tlm_tsfc(5) + vs_prime*tptr%tlm_tsfc(6) - &
+                        tptr%res
+              end do
+
+           else
+
+              do kk=1,nstep
+                 tt(kk)=val2+sges(kk)*val-tptr%res
               end do
 
            end if
  
-           do kk=1,nstep
-              tt(kk)=tt(kk)-tptr%res
-           end do
         else
            tt(1)=tptr%res
         end if
