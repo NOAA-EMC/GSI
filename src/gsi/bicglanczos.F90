@@ -57,13 +57,14 @@ use kinds    , only : r_kind,i_kind,r_quad,r_single,r_double
 use constants, only : zero, one, half,two, zero_quad,tiny_r_kind
 use timermod , only : timer_ini, timer_fnl
 use lanczos  , only : save_precond
-use gsi_4dvar, only : iorthomax
+use gsi_4dvar, only : iorthomax,lsqrtb
 use control_vectors, only: control_vector
 use control_vectors, only: allocate_cv,deallocate_cv,inquire_cv
 use control_vectors, only: read_cv,write_cv
 use control_vectors, only: dot_product,assignment(=)
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: assignment(=)
+use gsi_bundlemod, only : gsi_bundlegetpointer
 use mpimod  ,  only : mpi_comm_world
 use mpimod,    only: mype
 use jfunc   ,  only : iter, jiter
@@ -248,7 +249,13 @@ call allocate_cv(diry)
 if(nprt>=1.and.ltcost_) call allocate_cv(gradf)
 call allocate_cv(dirw)
 
-!--- 'zeta' is an upper bound on the relative error of the gradient.
+if(l_hyb_ens .and. .not. aniso_a_en) then
+   if (lsqrtb) then
+      write(6,*)'l_hyb_ens: not for use with lsqrtb'
+      call stop2(317)
+   end if
+end if
+ !--- 'zeta' is an upper bound on the relative error of the gradient.
 
 zeta  = 1.0e-4_r_kind
 zreqrd = preduc
