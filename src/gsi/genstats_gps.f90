@@ -784,7 +784,6 @@ subroutine contents_netcdf_diag_
            call screen_to_single_nc_diag_metadata("Errinv_Adjust",(gps_allptr%rdiag(15))   )
            call screen_to_single_nc_diag_metadata("Errinv_Final",(gps_allptr%rdiag(16))   )
            call screen_to_single_nc_diag_metadata("Observation",(gps_allptr%rdiag(17))   )
-           !TODO Verify that 'adjusted' is supposed to be the same as unadjusted
            if(isnan(gps_allptr%rdiag(17)) .or. isnan(gps_allptr%rdiag(5))) then
               call nc_diag_metadata("Obs_Minus_Forecast_adjusted",           sngl(real(r_missing)))
               call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",         sngl(real(r_missing)))
