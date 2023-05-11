@@ -98,7 +98,7 @@ SINGLEOB=""
 #   bftab_sst= bufr table for sst ONLY needed for sst retrieval (retrieval=.true.)
 #   aeroinfo = text file with information about assimilation of aerosol data
 
-anavinfo=$fixgsi/global_anavinfo.l${LEVS}.txt
+anavinfo=$fixgsi/global_anavinfo_qlqi.l${LEVS}.txt
 berror=$fixgsi/Big_Endian/global_berror.l${LEVS}y${NLAT}.f77
 locinfo=$fixgsi/global_hybens_info.l${LEVS}.txt
 satinfo=$fixgsi/global_satinfo.txt
@@ -311,9 +311,9 @@ $gsi_namelist
 EOF
 cp gsiparm.anl gsiparm.anl.obsvr
 
-echo "run gsi now"
+echo "run gsi observer"
 eval "$APRUN $tmpdir/gsi.x < gsiparm.anl > stdout.obsvr 2>&1"
-rc=$?
+ra=$?
 
 # Run gsi identity model 4dvar under Parallel Operating Environment (poe) on NCEP IBM
 rm -f siganl sfcanl.gsi satbias_out fort.2*
@@ -331,8 +331,8 @@ cat <<EOF > gsiparm.anl
 $gsi_namelist
 EOF
 
-echo "run gsi now"
+echo "run gsi 4dvar"
 eval "$APRUN $tmpdir/gsi.x < gsiparm.anl > stdout 2>&1"
-rc=$?
-
+rb=$?
+rc=$((ra+rb))
 exit $rc

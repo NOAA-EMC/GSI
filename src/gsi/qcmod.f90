@@ -2311,7 +2311,6 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
            if (lcloud .ge. kmax(i)) then
               if(luse)aivals(11,is)   = aivals(11,is) + one
               varinv(i) = zero
-              varinv_use(i) = zero
               if(id_qc(i) == igood_qc)id_qc(i)=ifail_cloud_qc
               cycle
            end if
@@ -2320,12 +2319,10 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 !       If more than 2% of the transmittance comes from the cloud layer,
 !          reject the channel (0.02 is a tunable parameter)
 
-        delta = 0.02_r_kind
         if ( ptau5(lcloud,i) > 0.02_r_kind) then
 !          QC4 in statsrad
            if(luse)aivals(11,is)   = aivals(11,is) + one
            varinv(i) = zero
-           varinv_use(i) = zero
            if(id_qc(i) == igood_qc)id_qc(i)=ifail_cloud_qc
         end if
      end do
@@ -2353,8 +2350,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
            delta=max(r0_05*tnoise(i),r0_02)
            if(abs(dts*ts(i)) > delta)then
 !             QC3 in statsrad
-              if(luse .and. varinv(i) > zero) &
-                 aivals(10,is)   = aivals(10,is) + one
+              if(luse .and. varinv(i) > zero) aivals(10,is)   = aivals(10,is) + one
               varinv(i) = zero
               if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
            end if
@@ -2369,8 +2365,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
      do i=1,nchanl
         if (ts(i) > 0.2_r_kind) then
            !             QC3 in statsrad
-           if(luse .and. varinv(i) > zero) &
-                aivals(10,is)   = aivals(10,is) + one
+           if(luse .and. varinv(i) > zero) aivals(10,is)   = aivals(10,is) + one
            varinv(i) = zero
            if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
         end if
@@ -2435,75 +2430,68 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
   if(hirs) then
     do i=1,nchanl
       m=ich(i)
-      if (iomg_det(m) > 0 .and. i < 4 .and. abs(tbcnob(8)) > 40.0_r_kind) then
-         varinv(i) = zero
-         if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-      endif
-      if(iomg_det(m) > 0 .and. i == 12 .and. abs(tbcnob(8)) > 10.0_r_kind)  then
-         varinv(i) = zero
-         if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-      endif
+      if(iomg_det(m) > 0 .and. i >= 4 .and. i <= 12)then
+         if (i < 4 .and. abs(tbcnob(8)) > 40.0_r_kind) then
+            varinv(i) = zero
+            if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+         else if(i == 12 .and. abs(tbcnob(8)) > 10.0_r_kind)  then
+            varinv(i) = zero
+            if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+         endif
 !90S-60S
-      if(cenlat >= -90.0_r_kind .and. cenlat < -60.0_r_kind) then
-         if(iomg_det(m) > 0 .and. i == 4 .and. abs(tbcnob(8)) > 12.0_r_kind)  then
-           varinv(i) = zero
-          if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-         endif
-         if(iomg_det(m) > 0 .and. i == 5 .and. abs(tbcnob(8)) > 6.0_r_kind)  then
-           varinv(i) = zero
-           if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-         endif
-         if(iomg_det(m) > 0 .and. i == 6 .and. abs(tbcnob(8)) > 4.0_r_kind)  then
+         if(cenlat >= -90.0_r_kind .and. cenlat < -60.0_r_kind) then
+            if(i == 4 .and. abs(tbcnob(8)) > 12.0_r_kind)  then
               varinv(i) = zero
               if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-         endif
+            else if(i == 5 .and. abs(tbcnob(8)) > 6.0_r_kind)  then
+              varinv(i) = zero
+              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+            else if(i == 6 .and. abs(tbcnob(8)) > 4.0_r_kind)  then
+                 varinv(i) = zero
+                 if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+            endif
 !60S-30S
-      else if(cenlat >= -60.0_r_kind .and. cenlat < -30.0_r_kind) then
-         if(iomg_det(m) > 0 .and. i == 4 .and. abs(tbcnob(8)) > 10.0_r_kind)  then
-            varinv(i) = zero
-            if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-         endif
-         if(iomg_det(m) > 0 .and. i == 5 .and. abs(tbcnob(8)) > 2.0_r_kind)  then
-            varinv(i) = zero
-            if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-         endif
-         if(iomg_det(m) > 0 .and. i == 6 .and. abs(tbcnob(8)) > 1.5_r_kind)  then
-            varinv(i) = zero
-            if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-         endif
+         else if(cenlat >= -60.0_r_kind .and. cenlat < -30.0_r_kind) then
+            if(i == 4 .and. abs(tbcnob(8)) > 10.0_r_kind)  then
+               varinv(i) = zero
+               if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+            else if( i == 5 .and. abs(tbcnob(8)) > 2.0_r_kind)  then
+               varinv(i) = zero
+               if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+            else if(i == 6 .and. abs(tbcnob(8)) > 1.5_r_kind)  then
+               varinv(i) = zero
+               if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+            endif
 !30S-30N
-      else if(cenlat >= -30.0_r_kind .and. cenlat < 30.0_r_kind) then
-         if(iomg_det(m) > 0 .and. i == 4 .and. abs(tbcnob(8)) > 5.0_r_kind)  then
-            varinv(i) = zero
-            if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-         endif
-         if(iomg_det(m) > 0 .and. i == 5 .and. (tbcnob(8) < -2.0_r_kind .or. tbcnob(8) > 3.0_r_kind))  then
-            varinv(i) = zero
-            if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-         endif
-         if(iomg_det(m) > 0 .and. i == 6 .and. (tbcnob(8) < -1.5_r_kind .or. tbcnob(8) > 3.0_r_kind))  then
-            varinv(i) = zero
-            if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-         endif
+         else if(cenlat >= -30.0_r_kind .and. cenlat < 30.0_r_kind ) then
+            if(i == 4 .and. abs(tbcnob(8)) > 5.0_r_kind)  then
+               varinv(i) = zero
+               if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+            else if(i == 5 .and. (tbcnob(8) < -2.0_r_kind .or. tbcnob(8) > 3.0_r_kind))  then
+               varinv(i) = zero
+               if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+            else if(i == 6 .and. (tbcnob(8) < -1.5_r_kind .or. tbcnob(8) > 3.0_r_kind))  then
+               varinv(i) = zero
+               if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+            endif
 !30N-60N
-      else if(cenlat >= 30.0_r_kind .and. cenlat < 60.0_r_kind) then
-        if(iomg_det(m) > 0 .and. i == 4 .and. abs(tbcnob(8)) > 8.0_r_kind)  then
-           varinv(i) = zero
-           if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-        endif
-        if(iomg_det(m) > 0 .and. i == 5 .and. abs(tbcnob(8)) > 2.0_r_kind)  then
-           varinv(i) = zero
-           if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-        endif
-        if(iomg_det(m) > 0 .and. i == 6 .and. abs(tbcnob(8)) > 1.0_r_kind)  then
-           varinv(i) = zero
-           if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-        endif
-      endif  !cenlat
+         else if(cenlat >= 30.0_r_kind .and. cenlat < 60.0_r_kind) then
+           if(i == 4 .and. abs(tbcnob(8)) > 8.0_r_kind)  then
+              varinv(i) = zero
+              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+           else if(i == 5 .and. abs(tbcnob(8)) > 2.0_r_kind)  then
+              varinv(i) = zero
+              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+           else if(i == 6 .and. abs(tbcnob(8)) > 1.0_r_kind)  then
+              varinv(i) = zero
+              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+           endif
+         endif  !cenlat
+      end if
 
       if (itopo_det(m) > 0 .and. zsges > 1500.0_r_kind) then
          varinv(i) = zero
-         if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_itopo_det
+         if ( id_qc(i) == igood_qc ) id_qc(i) = ifail_itopo_det
       endif
     end do
   endif !! if (hirs)
@@ -2990,13 +2978,11 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
      dsval=((2.41_r_kind-0.0098_r_kind*tb_obsbc1)*tbc(ich238) + &
             0.454_r_kind*tbc(ich314)-tbc(ich890))*w1f6
      dsval=max(zero,dsval)
-  end if
-
-  if(sea)then                          
      clwx=cosza*clw*w1f4
   else
      clwx=0.6_r_kind
   end if
+
 ! QC6 in statsrad
   if(clwx >= one .and. luse)aivals(13,is) = aivals(13,is) + one
   factch4=clwx**2+(tbc(ich528)*w2f4)**2

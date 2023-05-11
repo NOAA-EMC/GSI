@@ -52,9 +52,6 @@ module load sigio-intel-sandybridge/2.0.1
 module load sp-intel-sandybridge/2.0.2
 module load w3nco-intel-sandybridge/2.0.6
 module load w3emc-intel-sandybridge/2.2.0
-module load crtm-intel/2.2.4
-#setenv CRTM_INC /lustre/f1/pdata/ncep_shared/NCEPLIBS/lib/crtm/v2.2.4/intel/include/crtm_v2.2.4
-#setenv CRTM_LIB /lustre/f1/pdata/ncep_shared/NCEPLIBS/lib/crtm/v2.2.4/intel/libcrtm_v2.2.4.a 
 module load bacio-intel-sandybridge/2.0.2
 setenv CRAYOS_VERSION $::env(CRAYPE_VERSION)
 #setenv CRAYOS_VERSION ${CRAYPE_VERSION}

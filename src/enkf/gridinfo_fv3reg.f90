@@ -43,7 +43,8 @@ module gridinfo
 !
 !$$$
 
-use mpisetup, only: nproc, mpi_integer, mpi_real4, mpi_comm_world,mpi_status
+use mpisetup, only: nproc, mpi_integer, mpi_real4,mpi_status
+use mpimod, only: mpi_comm_world
 use params, only: datapath,nlevs,nlons,nlats,use_gfs_nemsio, fgfileprefixes, &
                   fv3fixpath, nx_res,ny_res, ntiles,l_fv3reg_filecombined,paranc, &
                   fv3_io_layout_nx,fv3_io_layout_ny
@@ -71,10 +72,10 @@ integer(i_kind),                                  public     :: nlevs_pres
 integer(i_kind),public :: npts
 integer(i_kind),public :: ntrunc
 ! supported variable names in anavinfo
-character(len=max_varname_length),public, dimension(15) :: &
+character(len=max_varname_length),public, dimension(16) :: &
   vars3d_supported = [character(len=max_varname_length) :: &
     'u', 'v', 'w', 't', 'q', 'oz', 'cw', 'tsen', 'prse', &
-    'ql', 'qi', 'qr', 'qs', 'qg', 'qnr']
+    'ql', 'qi', 'qr', 'qs', 'qg', 'qnr','dbz']
 character(len=max_varname_length),public, dimension(3) :: &
   vars2d_supported = [character(len=max_varname_length) :: &
     'ps', 'pst', 'sst']

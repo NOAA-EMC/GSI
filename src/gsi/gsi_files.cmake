@@ -87,6 +87,7 @@ anisofilter_glb.f90
 antcorr_application.f90
 antest_maps0.f90
 antest_maps0_glb.f90
+apply_scaledepwgts.f90
 atms_spatial_average_mod.f90
 balmod.f90
 berror.f90
@@ -123,7 +124,6 @@ constants.f90
 control2model.f90
 control2model_ad.f90
 control2state.f90
-control2state_ad.f90
 control_vectors.f90
 convb_ps.f90
 convb_q.f90

@@ -83,6 +83,7 @@ use mpl_allreducemod, only: mpl_allreduce
 use hybrid_ensemble_parameters, only: beta_s0,l_hyb_ens
 use hybrid_ensemble_parameters, only: grd_ens
 use constants, only : max_varname_length
+use gridmod, only : minmype
 
 use m_rerank, only : rerank
 use GSI_BundleMod, only : GSI_BundleCreate
@@ -112,7 +113,7 @@ public assignment(=)
 public dot_product  
 public prt_control_norms, axpy, random_cv, setup_control_vectors, &
      write_cv, read_cv, inquire_cv, maxval, qdot_prod_sub, init_anacv, &
-     final_anacv
+     final_anacv,c2sset_flg
 
 ! 
 ! Public variables
@@ -157,6 +158,7 @@ integer(i_kind) :: nclen,nclen1,nsclen,npclen,ntclen,nrclen,nsubwin,nval_len
 integer(i_kind) :: latlon11,latlon1n,lat2,lon2,nsig,n_ens
 integer(i_kind) :: nval_lenz_en
 logical,save :: lsqrtb,lcalc_gfdl_cfrac  
+logical :: c2sset_flg  
 
 integer(i_kind) :: m_vec_alloc, max_vec_alloc, m_allocs, m_deallocs
 
@@ -413,6 +415,7 @@ if (mype==0) then
     write(6,*) myname_,': ALL CONTROL VARIABLES    ', nrf_var
 end if
 lcalc_gfdl_cfrac = .false.
+c2sset_flg = .true.
 
 end subroutine init_anacv
 subroutine final_anacv
@@ -889,12 +892,12 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
         end do
      endif
   else
+     m3d=xcv%step(1)%n3d
+     m2d=xcv%step(1)%n2d
+     itot=max(m3d,0)+max(m2d,0)
+     if(l_hyb_ens)itot=itot+n_ens
+     allocate(partsum(itot))
      do ii=1,nsubwin
-        m3d=xcv%step(ii)%n3d
-        m2d=xcv%step(ii)%n2d
-        itot=max(m3d,0)+max(m2d,0)
-        if(l_hyb_ens)itot=itot+naensgrp*n_ens
-        allocate(partsum(itot))
 !$omp parallel do  schedule(dynamic,1) private(i)
         do i = 1,m3d
            partsum(i) = dplevs(xcv%step(ii)%r3(i)%q,ycv%step(ii)%r3(i)%q,ihalo=1)
@@ -915,12 +918,12 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
         do i=1,itot
           qdot_prod_sub = qdot_prod_sub + partsum(i)
         end do
-        deallocate(partsum)
      end do
+     deallocate(partsum)
   end if
 
 ! Duplicated part of vector
-  if(mype == 0)then
+  if(mype == minmype)then
      do j=nclen1+1,nclen
         qdot_prod_sub=qdot_prod_sub+xcv%values(j)*ycv%values(j) 
      end do
@@ -966,37 +969,35 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
   character(len=*)    , intent(in   ) :: eb
   real(r_quad)        , intent(  out) :: prods(nsubwin+1)
 
-  real(r_quad) :: zz(nsubwin)
   integer(i_kind) :: ii,i,nn,m3d,m2d
   real(r_quad),allocatable,dimension(:) :: partsum
   integer(i_kind) :: ig
   integer(i_kind) ::ngtmp,nn0
 
   prods(:)=zero_quad
-  zz(:)=zero_quad
 
 ! Independent part of vector
   if (lsqrtb) then
      if(trim(eb) == 'cost_b') then
         do ii=1,nsubwin
-           zz(ii)=zz(ii)+qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
+           prods(ii)=prods(ii)+qdot_product( xcv%step(ii)%values(:) ,ycv%step(ii)%values(:) )
         end do
      endif
      if(trim(eb) == 'cost_e') then
         do ig=1,naensgrp
            do nn=1,n_ens
               do ii=1,nsubwin
-                 zz(ii)=zz(ii)+qdot_product( xcv%aens(ii,ig,nn)%values(:) ,ycv%aens(ii,ig,nn)%values(:) )
+                 prods(ii)=prods(ii)+qdot_product( xcv%aens(ii,ig,nn)%values(:) ,ycv%aens(ii,ig,nn)%values(:) )
               end do
            end do
         end do
      endif
   else
      if(trim(eb) == 'cost_b') then
+        m3d=xcv%step(1)%n3d
+        m2d=xcv%step(1)%n2d
+        allocate(partsum(m2d+m3d))
         do ii=1,nsubwin                                                         
-           m3d=xcv%step(ii)%n3d
-           m2d=xcv%step(ii)%n2d
-           allocate(partsum(m2d+m3d))
 !$omp parallel do  schedule(dynamic,1) private(i)
            do i = 1,m3d
               partsum(i)= dplevs(xcv%step(ii)%r3(i)%q,ycv%step(ii)%r3(i)%q,ihalo=1)
@@ -1006,17 +1007,17 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
               partsum(m3d+i)= dplevs(xcv%step(ii)%r2(i)%q,ycv%step(ii)%r2(i)%q,ihalo=1)
            enddo
            do i = 1,m2d+m3d
-              zz(ii)=zz(ii) + partsum(i)
+              prods(ii)=prods(ii) + partsum(i)
            end do
-           deallocate(partsum)
         end do
+        deallocate(partsum)
      end if
      if(trim(eb) == 'cost_e') then
-        do ii=1,nsubwin ! RTod: somebody could work in opt/zing this ...
-           allocate(partsum(n_ens*naensgrp))
+        allocate(partsum(n_ens*naensgrp))
+        do ii=1,nsubwin 
+!$omp parallel do  schedule(dynamic,1) private(nn,m3d,m2d,ig,ngtmp,nn0)
            do ig=1,naensgrp
               ngtmp=(ig-1)*n_ens
-!$omp parallel do  schedule(dynamic,1) private(nn,m3d,m2d)
               do nn=1,n_ens
                  nn0=nn+ngtmp
                  partsum(nn0) = zero_quad
@@ -1031,20 +1032,17 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
               enddo
            end do
            do nn=1,n_ens*naensgrp
-              zz(ii)=zz(ii)+partsum(nn)
+              prods(ii)=prods(ii)+partsum(nn)
            end do
-           deallocate(partsum)
         end do
+        deallocate(partsum)
      end if
   end if
 
-  call mpl_allreduce(nsubwin,qpvals=zz)
-  prods(1:nsubwin) = zz(1:nsubwin)
-
 ! Duplicated part of vector
-  if(trim(eb) == 'cost_b') then
+  if(mype == minmype .and. trim(eb) == 'cost_b' ) then
      if (nsclen>0) then
-        prods(nsubwin+1) = prods(nsubwin+1) + qdot_product(xcv%predr(:),ycv%predr(:))
+        prods(nsubwin+1) = qdot_product(xcv%predr(:),ycv%predr(:))
      endif
      if (npclen>0) then
         prods(nsubwin+1) = prods(nsubwin+1) + qdot_product(xcv%predp(:),ycv%predp(:))
@@ -1053,6 +1051,9 @@ subroutine qdot_prod_vars_eb(xcv,ycv,prods,eb)
         prods(nsubwin+1) = prods(nsubwin+1) + qdot_product(xcv%predt(:),ycv%predt(:))
      endif
   end if
+
+  call mpl_allreduce(nsubwin+1,qpvals=prods)
+
 
   return
 end subroutine qdot_prod_vars_eb
