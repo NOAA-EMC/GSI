@@ -1790,7 +1790,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
     if (hofx_2m_sfcfile ) then
       call nc_diag_metadata("Observation",             sngl(tob)    )
-!      call nc_diag_metadata("Observation_Before_Elev_Correction", sngl(data(itob,i))  )
     else
       call nc_diag_metadata("Observation",             sngl(data(itob,i))     )
     endif
