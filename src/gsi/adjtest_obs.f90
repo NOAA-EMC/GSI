@@ -78,6 +78,7 @@ subroutine adtest_obs
 
   use m_obsdiags, only: obsLLists
   use m_obsLList, only: obsLList_getTLDdotprod
+  use control2state_mod, only: control2state
 
   implicit none
 

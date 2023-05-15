@@ -73,6 +73,7 @@ use gsi_bundlemod, only: self_add,assignment(=)
 use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
 use mpeu_util, only: die
 use mpl_allreducemod, only: mpl_allreduce
+use intradmod, only: setrad
 
 implicit none
 
@@ -195,6 +196,7 @@ do ii=1,nsubwin
 end do
 
 qpred=zero_quad
+call setrad(sval(1))
 
 ! Compare obs to solution and transpose back to grid (H^T R^{-1} H)
 call intjo(rval,qpred,sval,sbias)

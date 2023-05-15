@@ -313,12 +313,10 @@ contains
 
 !      Successful read, return to calling routine
      else
-!       File does not exist, write warning message to alert users
+!       File does not exist, write warning message to unit 6 to alert users
         if (mype==mype_aero) then
-           open(iout_aero)
-           write(iout_aero,*)'AEROINFO_READ:  ***WARNING*** FILE ',trim(fname),' does not exist'
-           write(iout_aero,*)'AEROINFO_READ:  jpch_aero=',jpch_aero
-           close(iout_aero)
+           write(6,*)'AEROINFO_READ:  ***WARNING*** FILE ',trim(fname),' does not exist'
+           write(6,*)'AEROINFO_READ:  jpch_aero=',jpch_aero
         endif
      end if
 
