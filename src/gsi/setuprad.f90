@@ -1361,8 +1361,10 @@ contains
 
         do i=1,nchanl
            mm=ich(i)
-           errf_LW=zero 
-           errf_SW=zero
+           if (cris) then
+              errf_LW(i)=zero 
+              errf_SW(i)=zero
+           endif
            channel_passive=iuse_rad(ich(i))==-1 .or. iuse_rad(ich(i))==0
            if(tnoise(i) < 1.e4_r_kind .or. (channel_passive .and. rad_diagsave) &
                   .or. (passive_bc .and. channel_passive))then
