@@ -153,7 +153,7 @@ CONTAINS
        Scanline_Back(FOV(I),Scanline(I))=I
     END DO
 
-!$omp parallel do schedule(dynamic,1) private(ichan,iscan,ios,ifov)
+!$omp parallel do schedule(dynamic,1) private(i,ichan,iscan,ios,ifov)
     DO IChan=1,nchanl
     
        err(ichan)=0
