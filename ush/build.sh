@@ -27,14 +27,8 @@ module use $DIR_ROOT/modulefiles
 module load gsi_$MACHINE_ID
 module list
 
-# Set CONTROLPATH variables for Regression testing on supported MACHINE_ID
-if [[ $MACHINE_ID = wcoss ]] ; then
-    CONTROLPATH="/da/save/Michael.Lueken/svn1/build"
-elif [[ $MACHINE_ID = wcoss_dell_p3 ]] ; then
-    CONTROLPATH="/gpfs/dell2/emc/modeling/noscrub/Michael.Lueken/svn1/install/bin"
-elif [[ $MACHINE_ID = hera.intel ]] ; then
-    CONTROLPATH="/scratch1/NCEPDEV/da/Michael.Lueken/svn1/install/bin"
-fi
+# Set CONTROLPATH variable to user develop installation
+CONTROLPATH="$DIR_ROOT/../develop/install/bin"
 
 # Collect BUILD Options
 CMAKE_OPTS+=" -DCMAKE_BUILD_TYPE=$BUILD_TYPE"
