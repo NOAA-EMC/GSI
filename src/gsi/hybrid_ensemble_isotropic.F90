@@ -3592,7 +3592,7 @@ subroutine bkerror_a_en(grady)
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gsi_4dvar, only: nsubwin, lsqrtb
+  use gsi_4dvar, only: nsubwin
   use control_vectors, only: control_vector
   use timermod, only: timer_ini,timer_fnl
   use hybrid_ensemble_parameters, only: n_ens
@@ -3610,11 +3610,6 @@ subroutine bkerror_a_en(grady)
   real(r_kind),allocatable,dimension(:,:) :: z
   real(r_kind),allocatable,dimension(:) :: ztmp
 
-  if (lsqrtb) then
-     write(6,*)'bkerror_a_en: not for use with lsqrtb'
-     call stop2(317)
-  end if
-
 ! Initialize timer
   call timer_ini('bkerror_a_en')
 
@@ -3629,6 +3624,7 @@ subroutine bkerror_a_en(grady)
   call sqrt_beta_e_mult(grady)
 
 ! Apply variances, as well as vertical & horizontal parts of background error
+!   !$omp parallel do schedule(dynamic,1) private(ii)
   do ii=1,nsubwin
      if (naensgrp==1) then
         call bkgcov_a_en_new_factorization(1,grady%aens(ii,1,1:n_ens))
@@ -3710,11 +3706,9 @@ subroutine bkgcov_a_en_new_factorization(ig,a_en)
   type(gsi_bundle),intent(inout) :: a_en(n_ens)
 
 ! Local Variables
-  integer(i_kind) ii,k,iflg,iadvance,iback,is,ie,ipnt,istatus
+  integer(i_kind) ii,k,iadvance,iback,is,ie,ipnt,istatus
   real(r_kind) hwork(grd_loc%inner_vars,grd_loc%nlat,grd_loc%nlon,grd_loc%kbegin_loc:grd_loc%kend_alloc)
   real(r_kind),allocatable,dimension(:):: a_en_work
-
-  iflg=1
 
   call gsi_bundlegetpointer(a_en(1),'a_en',ipnt,istatus)
   if(istatus/=0) then

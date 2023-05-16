@@ -205,11 +205,13 @@ contains
     
     else    
         ! File does not exist, write warning message to alert users
-       if (mype==mype_light) then
-          open(iout_light)
-          write(iout_light,*)'LIGHTINFO_READ:  ***WARNING*** FILE ',trim(fname),'does not exist'
-          close(iout_light)
-       endif
+!  For many usages light data is not important.  Write line to output.
+!      if (mype==mype_light) then
+!         open(iout_light)
+!         write(iout_light,*)'LIGHTINFO_READ:  ***WARNING*** FILE ',trim(fname),'does not exist'
+          if(mype==mype_light)write(6,*)'LIGHTINFO_READ:  FILE ',trim(fname),'does not exist'
+!         close(iout_light)
+!      endif
     end if
 
     return

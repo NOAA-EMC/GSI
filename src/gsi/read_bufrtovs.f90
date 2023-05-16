@@ -228,7 +228,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   real(r_kind),allocatable,dimension(:,:):: data_all
 
   real(crtm_kind),allocatable,dimension(:):: data1b4
-  real(r_double),allocatable,dimension(:):: data1b8,data1b8x
+  real(r_double),allocatable,dimension(:):: data1b8
   real(r_double),dimension(n1bhdr):: bfr1bhdr
   real(r_double),dimension(n2bhdr):: bfr2bhdr
 
@@ -519,7 +519,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      ! support multiple spc coefficient files for any given sensor
      if(amsua .or. amsub .or. mhs)then
         quiet=.not.verbose
-        allocate(data1b8x(nchanl))
         spc_coeff_versions = 0
         spc_coeff_found = .true.
         do while (spc_coeff_found)
@@ -748,13 +747,15 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                     ! unless the satellite is n15 or n16, because tranamsua
                     ! does this conversion because the coefficient files exist
                     ! for it to use
-                    data1b8x=data1b8
                     data1b4=data1b8
                     !call apply_antcorr(accoeff_sets(spc_coeff_versions),ifov,data1b4)
                     call apply_antcorr(accoeff_sets(1),ifov,data1b4)
-                    data1b8=data1b4
                     do j=1,nchanl
-                       if(data1b8x(j) > r1000) data1b8(j) = 1000000._r_kind
+                       if(data1b8(j) > r1000)then
+                         data1b8(j) = 1000000._r_kind
+                       else
+                         data1b8(j) = data1b4(j)
+                       end if
                     end do
                  end if
               else     ! EARS / DB
@@ -766,14 +767,16 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
                     ! data originator,
                     ! then convert back to brightness temperature using the version
                     ! of parameters used by the CRTM
-                    data1b8x=data1b8
                     data1b4=data1b8
                     call remove_antcorr(accoeff_sets(sacv),ifov,data1b4)
                     !call apply_antcorr(accoeff_sets(spc_coeff_versions),ifov,data1b4)
                     call apply_antcorr(accoeff_sets(1),ifov,data1b4)
-                    data1b8=data1b4
                     do j=1,nchanl
-                       if(data1b8x(j) > r1000) data1b8(j) = 1000000._r_kind
+                       if(data1b8(j) > r1000) then
+                         data1b8(j) = 1000000._r_kind
+                       else
+                         data1b8(j)=data1b4(j)
+                       end if
                     end do
                  end if
               end if
@@ -785,12 +788,14 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               else     ! EARS / DB
                  call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBRST')
                  if ( amsua .or. amsub .or. mhs )then
-                    data1b8x=data1b8
                     data1b4=data1b8
                     call remove_antcorr(accoeff_sets(1),ifov,data1b4)
-                    data1b8=data1b4
                     do j=1,nchanl
-                       if(data1b8x(j) > r1000)data1b8(j) = 1000000._r_kind
+                       if(data1b8(j) > r1000)then
+                         data1b8(j) = 1000000._r_kind
+                       else
+                         data1b8(j) = data1b4(j)
+                       end if
                     end do
                  end if
               end if
@@ -1052,8 +1057,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      enddo read_subset
      call closbf(lnbufr)
      close(lnbufr)
-
-     if (allocated(data1b8x))   deallocate(data1b8x)
 
   end do ears_db_loop
   deallocate(data1b8,data1b4)

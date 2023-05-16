@@ -1206,7 +1206,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  else
                     if(itype==240 .or. itype==245 .or. itype==246 .or. itype==251) then 
                     ! types 245 and 246 have been used to determine the acceptable pct1 range, but that pct1 range is applied to all GOES-R winds
-           	       if (pct1 < 0.04_r_kind) qm=15  
+                       if (pct1 < 0.04_r_kind) qm=15  
                        if (pct1 > 0.50_r_kind) qm=15
                     endif
                  endif
