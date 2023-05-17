@@ -54,6 +54,8 @@ subroutine bkerror(grady)
   use kinds, only: r_kind,i_kind
   use berror, only: varprd,fpsproj,fut2ps
   use balmod, only: balance,tbalance
+  use balmod, only: balance_extra,tbalance_extra
+  use obsmod, only: if_cs_staticB
   use gsi_4dvar, only: nsubwin, lsqrtb
   use jfunc, only: nsclen,npclen,ntclen
   use jfunc, only: set_sqrt_2dsize
@@ -77,6 +79,16 @@ subroutine bkerror(grady)
   real(r_kind),pointer,dimension(:,:,:):: p_st =>NULL()
   real(r_kind),pointer,dimension(:,:,:):: p_vp =>NULL()
   real(r_kind),pointer,dimension(:,:)  :: p_ps =>NULL()
+
+  real(r_kind),pointer,dimension(:,:,:):: p_rh =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: p_w =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: p_qr =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: p_qs =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: p_qg =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: p_qi =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: p_ql =>NULL()
+  real(r_kind),pointer,dimension(:,:,:):: p_dbz =>NULL()
+
   real(r_kind),pointer::rank2a(:,:)  =>NULL()
   real(r_kind),pointer::rank2b(:,:)  =>NULL()
   real(r_kind),pointer::rank3a(:,:,:)=>NULL()
@@ -94,8 +106,14 @@ subroutine bkerror(grady)
   call timer_ini('bkerror')
 
 ! Only need to get pointer for ii=1 - all other are the same
-  call gsi_bundlegetpointer ( grady%step(1), (/'t ','sf','vp','ps'/), &
-                              ipnts, istatus )
+  if( if_cs_staticB )then
+     call gsi_bundlegetpointer ( grady%step(1), (/'t ','u','v','ps'/), &
+                                 ipnts, istatus )
+  else
+     call gsi_bundlegetpointer ( grady%step(1), (/'t ','sf','vp','ps'/), &
+                                 ipnts, istatus )
+  end if
+
   dobal = ipnts(1)>0 .and. ipnts(2)>0 .and. ipnts(3)>0 .and. ipnts(4)>0
 
 ! if ensemble run, multiply by sqrt_beta_s
@@ -114,10 +132,28 @@ subroutine bkerror(grady)
 !    Transpose of balance equation
      if(dobal) then
         call gsi_bundlegetpointer ( mbundle,'t' ,p_t ,istatus )
-        call gsi_bundlegetpointer ( mbundle,'sf',p_st,istatus )
-        call gsi_bundlegetpointer ( mbundle,'vp',p_vp,istatus )
+        if( if_cs_staticB )then
+           call gsi_bundlegetpointer ( mbundle,'u',p_st,istatus )
+           call gsi_bundlegetpointer ( mbundle,'v',p_vp,istatus )
+           call gsi_bundlegetpointer ( mbundle,'q' ,p_rh ,istatus )
+           call gsi_bundlegetpointer ( mbundle,'w' ,p_w ,istatus )
+           call gsi_bundlegetpointer ( mbundle,'qr' ,p_qr ,istatus )
+           call gsi_bundlegetpointer ( mbundle,'qs' ,p_qs ,istatus )
+           call gsi_bundlegetpointer ( mbundle,'qg' ,p_qg ,istatus )
+           call gsi_bundlegetpointer ( mbundle,'qi' ,p_qi ,istatus )
+           call gsi_bundlegetpointer ( mbundle,'ql' ,p_ql ,istatus )
+           call gsi_bundlegetpointer ( mbundle,'dbz' ,p_dbz ,istatus )
+        else
+           call gsi_bundlegetpointer ( mbundle,'sf',p_st,istatus )
+           call gsi_bundlegetpointer ( mbundle,'vp',p_vp,istatus )
+        end if
         call gsi_bundlegetpointer ( mbundle,'ps',p_ps,istatus )
-        call tbalance(p_t,p_ps,p_st,p_vp,fpsproj,fut2ps)
+
+        if( if_cs_staticB )then
+           call tbalance_extra(p_st,p_vp,p_t,p_ps,p_rh,p_w,p_qr,p_qs,p_qg,p_ql,p_qi,p_dbz)
+        else
+           call tbalance(p_t,p_ps,p_st,p_vp,fpsproj,fut2ps)
+        end if
      endif
 
 !    Apply variances, as well as vertical & horizontal parts of background error
@@ -137,7 +173,13 @@ subroutine bkerror(grady)
 !    deallocate(gradz)
 
 !    Balance equation
-     if(dobal) call balance(p_t,p_ps,p_st,p_vp,fpsproj,fut2ps)
+     if(dobal) then
+        if( if_cs_staticB )then 
+           call balance_extra(p_st,p_vp,p_ps,p_t,p_rh,p_w,p_qr,p_qs,p_qg,p_ql,p_qi,p_dbz)
+        else
+           call balance(p_t,p_ps,p_st,p_vp,fpsproj,fut2ps)
+        end if
+     end if
 
 !    Transfer step part of mbundle back to grady%step(ii)
      do i=1,nrf

@@ -69,6 +69,7 @@ module gsi_rfv3io_mod
       character(len=:),allocatable :: dynvars   !='fv3_dynvars'
       character(len=:),allocatable :: tracers   !='fv3_tracer'
       character(len=:),allocatable :: phyvars   !='fv3_phyvars'
+      character(len=:),allocatable :: mskvars   !='fv3_mask'
       character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
       character(len=:),allocatable :: couplerres!='coupler.res'
       contains
@@ -93,8 +94,10 @@ module gsi_rfv3io_mod
   type(sub2grid_info) :: grd_fv3lam_tracerchem_ionouv
   type(sub2grid_info) :: grd_fv3lam_tracersmoke_ionouv 
   type(sub2grid_info) :: grd_fv3lam_phyvar_ionouv
+  type(sub2grid_info) :: grd_fv3lam_mskvar_ionouv
   type(sub2grid_info) :: grd_fv3lam_uv 
-  integer(i_kind) ,parameter:: ndynvarslist=13, ntracerslist=8, nphyvarslist=1
+  integer(i_kind) ,parameter:: ndynvarslist=13, ntracerslist=8, nphyvarslist=1,&
+                               nmskvarslist=2
 
   character(len=max_varname_length), dimension(ndynvarslist), parameter :: &
     vardynvars = [character(len=max_varname_length) :: &
@@ -104,13 +107,15 @@ module gsi_rfv3io_mod
       'q','oz','ql','qi','qr','qs','qg','qnr',aeronames_cmaq_fv3,'pm25at','pm25ac','pm25co','pm2_5','amassi','amassj','amassk',aeronames_smoke_fv3]
   character(len=max_varname_length), dimension(nphyvarslist), parameter :: &
     varphyvars = [character(len=max_varname_length) :: 'dbz']
-  character(len=max_varname_length), dimension(16+naero_cmaq_fv3+7+naero_smoke_fv3), parameter :: &
+  character(len=max_varname_length), dimension(nmskvarslist), parameter :: &
+    varmskvars = [character(len=max_varname_length) :: 'mask','maskh']
+  character(len=max_varname_length), dimension(16+naero_cmaq_fv3+7+naero_smoke_fv3+2), parameter :: &
     varfv3name = [character(len=max_varname_length) :: &
       'u','v','W','T','delp','sphum','o3mr','liq_wat','ice_wat','rainwat','snowwat','graupel','rain_nc','ref_f3d','ps','DZ', & 
-      aeronames_cmaq_fv3,'pm25at','pm25ac','pm25co','pm2_5','amassi','amassj','amassk',aeronames_smoke_fv3], &
+      aeronames_cmaq_fv3,'pm25at','pm25ac','pm25co','pm2_5','amassi','amassj','amassk',aeronames_smoke_fv3,'rainwat','graupel'], &
       vgsiname = [character(len=max_varname_length) :: &
         'u','v','w','tsen','delp','q','oz','ql','qi','qr','qs','qg','qnr','dbz','ps','delzinc', &
-        aeronames_cmaq_fv3,'pm25at','pm25ac','pm25co','pm2_5','amassi','amassj','amassk',aeronames_smoke_fv3]
+        aeronames_cmaq_fv3,'pm25at','pm25ac','pm25co','pm2_5','amassi','amassj','amassk',aeronames_smoke_fv3,'mask','maskh']
   character(len=max_varname_length),dimension(:),allocatable:: name_metvars2d
   character(len=max_varname_length),dimension(:),allocatable:: name_metvars3d
   character(len=max_varname_length),dimension(:),allocatable:: name_chemvars3d
@@ -138,6 +143,7 @@ module gsi_rfv3io_mod
   public :: fv3lam_io_dynmetvars3d_nouv,fv3lam_io_tracermetvars3d_nouv
   public :: fv3lam_io_tracerchemvars3d_nouv,fv3lam_io_tracersmokevars3d_nouv
   public :: fv3lam_io_phymetvars3d_nouv
+  public :: fv3lam_io_mskmetvars3d_nouv
   public :: fv3lam_io_dynmetvars2d_nouv,fv3lam_io_tracermetvars2d_nouv
 
   integer(i_kind) mype_u,mype_v,mype_t,mype_q,mype_p,mype_delz,mype_oz,mype_ql
@@ -166,6 +172,7 @@ module gsi_rfv3io_mod
   character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_io_tracermetvars3d_nouv 
                                     ! copy of cvars3d excluding uv 3-d fields   
   character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_io_phymetvars3d_nouv
+  character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_io_mskmetvars3d_nouv
   character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_io_tracerchemvars3d_nouv
   character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_io_tracersmokevars3d_nouv 
                                     ! copy of cvars3d excluding uv 3-d fields
@@ -178,9 +185,11 @@ module gsi_rfv3io_mod
   character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_names_gsibundle_tracer_nouv 
                                     !to define names in gsibundle 
   character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_names_gsibundle_phyvar_nouv
+  character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_names_gsibundle_mskvar_nouv
   type(gsi_bundle):: gsibundle_fv3lam_dynvar_nouv 
   type(gsi_bundle):: gsibundle_fv3lam_tracer_nouv 
   type(gsi_bundle):: gsibundle_fv3lam_phyvar_nouv
+  type(gsi_bundle):: gsibundle_fv3lam_mskvar_nouv
   type(gsi_bundle):: gsibundle_fv3lam_tracerchem_nouv
   type(gsi_bundle):: gsibundle_fv3lam_tracersmoke_nouv 
  
@@ -219,6 +228,12 @@ contains
   else
     write(filename,"(A12,I2.2)") 'fv3_phyvars_',ifilesig(it)
     this%phyvars=trim(filename)
+  endif
+  if (it == ntguessig) then
+    this%mskvars='fv3_mask'
+  else
+    write(filename,"(A9,I2.2)") 'fv3_mask_',ifilesig(it)
+    this%mskvars=trim(filename)
   endif
   if (it == ntguessig) then
     this%sfcdata='fv3_sfcdata'
@@ -796,6 +811,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     use netcdf, only:nf90_open,nf90_close,nf90_inquire,nf90_nowrite, nf90_format_netcdf4
     use gsi_chemguess_mod, only: gsi_chemguess_get
     use obsmod, only: if_model_dbz
+    use obsmod,only: if_cs_staticB,adaptive_hybrid
 
     implicit none
 
@@ -826,6 +842,9 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     real(r_kind),dimension(:,:,:),pointer::ges_qnr=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_w=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_dbz=>NULL()
+
+    real(r_kind),dimension(:,:,:),pointer::ges_mask=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_mask1=>NULL()
 
     real(r_kind),dimension(:,:,:),pointer::ges_aalj=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_acaj=>NULL()
@@ -918,8 +937,8 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     integer(i_kind),dimension(:,:),allocatable:: lnames
     integer(i_kind),dimension(:,:),allocatable:: uvlnames
     integer(i_kind):: inner_vars,numfields
-    integer(i_kind):: ndynvario2d,ntracerio2d,ilev,jdynvar,jtracer,jphyvar
-    integer(i_kind):: iuv,ndynvario3d,ntracerio3d,nphyvario3d
+    integer(i_kind):: ndynvario2d,ntracerio2d,ilev,jdynvar,jtracer,jphyvar,jmskvar
+    integer(i_kind):: iuv,ndynvario3d,ntracerio3d,nphyvario3d,nmskvario3d
     integer(i_kind):: ntracerchemio3d,ntracersmokeio3d
     integer(i_kind):: loc_id,ncfmt
 
@@ -986,6 +1005,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
      ndynvario3d=0
      ntracerio3d=0
      nphyvario3d=0
+     nmskvario3d=0
      do i=1,size(name_metvars3d)
        vartem=trim(name_metvars3d(i))
        if(trim(vartem)=='u'.or.trim(vartem)=='v') then
@@ -998,6 +1018,8 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
               ntracerio3d=ntracerio3d+1
            else if (ifindstrloc(varphyvars,trim(vartem))> 0) then
               nphyvario3d=nphyvario3d+1
+           else if (ifindstrloc(varmskvars,trim(vartem))> 0) then
+              nmskvario3d=nmskvario3d+1
            else 
                write(6,*)'the metvarname1 ',trim(vartem),' has not been considered yet, stop'
                call stop2(333)
@@ -1015,6 +1037,12 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
             call stop2(223)
          end if
       endif
+      if( if_cs_staticB )then
+         if( nmskvario3d<=0 ) then
+            write(6,*)"the set up for met variable (mask) is not as expected, abort"
+            call stop2(223)
+         end if
+      end if
       if (fv3sar_bg_opt == 0.and.ifindstrloc(name_metvars3d,'delp') <= 0)then
          ndynvario3d=ndynvario3d+1  ! for delp  
       endif
@@ -1025,6 +1053,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
       allocate(fv3lam_io_dynmetvars3d_nouv(ndynvario3d))
       allocate(fv3lam_io_tracermetvars3d_nouv(ntracerio3d))
       allocate(fv3lam_io_phymetvars3d_nouv(nphyvario3d))
+      allocate(fv3lam_io_mskmetvars3d_nouv(nmskvario3d))
 
       if (laeroana_fv3cmaq) then
         allocate(fv3lam_io_tracerchemvars3d_nouv(naero_cmaq_fv3+7))
@@ -1037,6 +1066,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
       jdynvar=0
       jtracer=0
       jphyvar=0
+      jmskvar=0
       do i=1,size(name_metvars3d)
         vartem=trim(name_metvars3d(i))
         if(.not.(trim(vartem)=='u'.or.trim(vartem)=='v'.or.trim(vartem)=='iqr')) then
@@ -1054,6 +1084,9 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
            else if (ifindstrloc(varphyvars,trim(vartem)) > 0) then
              jphyvar=jphyvar+1
              fv3lam_io_phymetvars3d_nouv(jphyvar)=trim(vartem)
+           else if (ifindstrloc(varmskvars,trim(vartem)) > 0) then
+             jmskvar=jmskvar+1
+             fv3lam_io_mskmetvars3d_nouv(jmskvar)=trim(vartem)
            else
               write(6,*)'the metvarname ',vartem,' is not expected, stop'
               call flush(6)
@@ -1069,7 +1102,8 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
          jdynvar=jdynvar+1
          fv3lam_io_dynmetvars3d_nouv(jdynvar)="delzinc"
       endif
-      if(jdynvar /= ndynvario3d.or.jtracer /= ntracerio3d.or.jphyvar /= nphyvario3d  ) then
+      if(jdynvar /= ndynvario3d .or. jtracer /= ntracerio3d .or. &
+         jphyvar /= nphyvario3d .or. jmskvar /= nmskvario3d ) then
           write(6,*)'ndynvario3d is not as expected, stop'
           call flush(6)
           call stop2(333)
@@ -1078,6 +1112,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
         write(6,*) ' fv3lam_io_dynmetvars3d_nouv is ',(trim(fv3lam_io_dynmetvars3d_nouv(i)),i=1,ndynvario3d)
         write(6,*) ' fv3lam_io_tracermevars3d_nouv is ',(trim(fv3lam_io_tracermetvars3d_nouv(i)),i=1,ntracerio3d)
         write(6,*) ' fv3lam_io_phymetvars3d_nouv is ',(trim(fv3lam_io_phymetvars3d_nouv(i)),i=1,nphyvario3d)
+        write(6,*) ' fv3lam_io_mskmetvars3d_nouv is ',(trim(fv3lam_io_mskmetvars3d_nouv(i)),i=1,nmskvario3d)
       endif
  
       ndynvario2d=0
@@ -1212,6 +1247,11 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
         call gsi_bundlecreate(gsibundle_fv3lam_phyvar_nouv,GSI_MetGuess_Bundle(it)%grid,'gsibundle_fv3lam_phyvar_nouv',istatus, &
                  names3d=fv3lam_io_phymetvars3d_nouv)
       end if
+
+      if( if_cs_staticB )then
+          call gsi_bundlecreate(gsibundle_fv3lam_mskvar_nouv,GSI_MetGuess_Bundle(it)%grid,'gsibundle_fv3lam_mskvar_nouv',istatus,&
+                   names3d=fv3lam_io_mskmetvars3d_nouv)
+      end if
  
       if (laeroana_fv3cmaq) then
         if (allocated(fv3lam_io_tracerchemvars3d_nouv) ) then
@@ -1319,6 +1359,23 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
               grd_a%nlon,grd_a%nsig,numfields,regional,names=names,lnames=lnames)
       end if
 
+      if( if_cs_staticB )then
+         inner_vars=1
+         numfields=inner_vars*(nmskvario3d*grd_a%nsig)
+         deallocate(lnames,names)
+         allocate(lnames(1,numfields),names(1,numfields))
+         ilev=1
+         do i=1,nmskvario3d
+            do k=1,grd_a%nsig
+               lnames(1,ilev)=k
+               names(1,ilev)=trim(fv3lam_io_mskmetvars3d_nouv(i))
+               ilev=ilev+1
+            enddo
+         enddo
+         call general_sub2grid_create_info(grd_fv3lam_mskvar_ionouv,inner_vars,grd_a%nlat,&
+              grd_a%nlon,grd_a%nsig,numfields,regional,names=names,lnames=lnames)
+      end if
+
       inner_vars=2
       numfields=grd_a%nsig
       allocate(uvlnames(inner_vars,numfields),uvnames(inner_vars,numfields))
@@ -1357,6 +1414,17 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
             if(if_model_dbz) &
                call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'dbz' , ges_dbz ,istatus );ier=ier+istatus
          end if
+
+         if( if_cs_staticB )then
+            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'mask',ges_mask,istatus );ier=ier+istatus
+            if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
+            adaptive_hybrid = .true.
+         end if
+         if( adaptive_hybrid )then
+            call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'maskh',ges_mask1,istatus );ier=ier+istatus
+            if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
+         end if
+
          if (ier/=0) call die(trim(myname),'cannot get pointers for fv3 met-fields, ier =',ier)
    
          if(i_use_2mq4b > 0 .and. i_use_2mt4b > 0 ) then
@@ -1415,6 +1483,10 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
                call gsi_fv3ncdf_read(grd_fv3lam_phyvar_ionouv,gsibundle_fv3lam_phyvar_nouv &
                & ,fv3filenamegin(it)%phyvars,fv3filenamegin(it))
             end if
+            if (if_cs_staticB) then
+               call gsi_fv3ncdf_read(grd_fv3lam_mskvar_ionouv,gsibundle_fv3lam_mskvar_nouv &
+               & ,fv3filenamegin(it)%mskvars,fv3filenamegin(it))
+            endif
             if (laeroana_fv3cmaq) then
               call gsi_fv3ncdf_read(grd_fv3lam_tracerchem_ionouv,gsibundle_fv3lam_tracerchem_nouv &
               & ,fv3filenamegin(it)%tracers,fv3filenamegin(it))
@@ -1512,6 +1584,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
          endif
 
          if(if_model_dbz) call gsi_copy_bundle(gsibundle_fv3lam_phyvar_nouv,GSI_MetGuess_Bundle(it))
+         if (if_cs_staticB) call gsi_copy_bundle(gsibundle_fv3lam_mskvar_nouv,GSI_MetGuess_Bundle(it))
          call GSI_BundleGetPointer ( gsibundle_fv3lam_dynvar_nouv, 'tsen' ,ges_tsen_readin ,istatus );ier=ier+istatus
      !!  tsen2tv  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          do k=1,nsig
@@ -4979,6 +5052,8 @@ subroutine getfv3lamfilevname(vgsinamein,fv3filenamegref,filenameout,vname)
         filenameout=fv3filenamegref%tracers
     else if(ifindstrloc(varphyvars,vgsinamein)> 0)  then
         filenameout=fv3filenamegref%phyvars
+    else if(ifindstrloc(varmskvars,vgsinamein)> 0)  then
+        filenameout=fv3filenamegref%mskvars
     else
         write(6,*)'the filename corresponding to var ',trim(vgsinamein),' is not found, stop ' 
         call stop2(333)

@@ -494,6 +494,8 @@ module obsmod
   public :: l_wcp_cwm
   public :: aircraft_recon
   public :: hurricane_radar 
+  public :: if_cs_staticB,adaptive_hybrid,if_consistency_ratio
+  public :: nb_cv, covar,extra_var2num,extra_var3num
 
   ! The following public variables are the coefficients that describe
   ! the linear regression fits that are used to define the dynamic
@@ -654,6 +656,10 @@ module obsmod
   logical l_wcp_cwm
   logical aircraft_recon
   logical hurricane_radar 
+  logical if_cs_staticB
+  logical adaptive_hybrid,if_consistency_ratio
+  integer(i_kind) nb_cv,extra_var2num,extra_var3num
+  integer(i_kind),dimension(20,20) :: covar
 
   character(len=*),parameter:: myname='obsmod'
 
@@ -928,6 +934,15 @@ contains
     l_wcp_cwm          = .false.                 ! .true. = use operator that involves cwm
     aircraft_recon     = .false.                 ! .true. = use DOE for aircraft data
     hurricane_radar    = .false.                 ! .true. = use radar data for hurricane application 
+
+    if_cs_staticB      = .false.                 ! .true. = use the convective-scale static BEC
+    adaptive_hybrid    = .false.
+    if_consistency_ratio = .false.
+
+    nb_cv   = -999
+    covar   = -1
+    extra_var2num=-999
+    extra_var3num=-999
 
     ! The following variable initializations pertain to the
     ! coefficients that describe the linear regression fits that are

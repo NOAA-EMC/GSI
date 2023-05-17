@@ -65,7 +65,7 @@ character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed he
                                'sf ', 'vp ', 'ps ', 't  ',    &
                                'q  ', 'cw ', 'w  ', 'dw '/)
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw
-logical :: lc_w,lc_dw
+logical :: lc_w,lc_dw,lc_u,lc_v
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_vp=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_rh=>NULL()
@@ -92,7 +92,7 @@ real(r_kind),pointer,dimension(:,:,:) :: rv_w=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: rv_dw=>NULL()
 
 logical :: do_getuv,do_tv_to_tsen_ad,do_normal_rh_to_q_ad,do_getprs_ad,lstrong_bk_vars
-logical :: do_tlnmc,do_q_copy
+logical :: do_tlnmc,do_q_copy,do_uv_copy
 logical :: do_cw_to_hydro_ad
 logical :: do_cw_to_hydro_ad_hwrf
 logical :: wdw_exist
@@ -143,6 +143,7 @@ do_cw_to_hydro_ad_hwrf=.false.
 do_cw_to_hydro_ad_hwrf=lc_cw.and.ls_ql.and.ls_qi.and.ls_qr.and.ls_qs.and.ls_qg.and.ls_qh
 
 wdw_exist = lc_w.and.lc_dw.and.ls_w.and.ls_dw
+do_uv_copy = lc_u .and. lc_v
 
 ! Initialize
 mval%values=zero

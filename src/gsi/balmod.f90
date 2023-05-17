@@ -83,6 +83,10 @@ module balmod
   public :: pput
   public :: lnobalance
 
+  public :: balance_extra
+  public :: tbalance_extra
+  public :: evik2_real, evik3_real
+
   real(r_kind),allocatable,dimension(:,:,:):: agvz
   real(r_kind),allocatable,dimension(:,:):: wgvz
   real(r_kind),allocatable,dimension(:,:):: pput
@@ -92,6 +96,9 @@ module balmod
   real(r_kind),allocatable,dimension(:,:,:):: wgvk
   real(r_kind),allocatable,dimension(:,:,:):: bvk
   real(r_kind),allocatable   :: rllat(:,:),rllat1(:,:),f1(:,:)
+
+  real(r_kind),allocatable,dimension(:,:,:,:)  :: evik2_real
+  real(r_kind),allocatable,dimension(:,:,:,:,:):: evik3_real
 
   integer(i_kind) ke_vp
   integer(i_kind) llmin,llmax
@@ -186,6 +193,7 @@ contains
 !
 !$$$
     use gridmod, only: nlat,nlon,nsig,lat2,lon2
+    use obsmod, only: if_cs_staticB,extra_var2num,extra_var3num
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
@@ -199,6 +207,11 @@ contains
     allocate(agvk(lat2,lon2,nsig,nsig),agvk_lm(nsig,nsig), &
              wgvk(lat2,lon2,nsig),bvk(lat2,lon2,nsig))
     
+    if( if_cs_staticB )then
+       if(extra_var2num > 0) allocate(evik2_real(extra_var2num,lat2,lon2,nsig))
+       allocate(evik3_real(extra_var3num,lat2,lon2,nsig,nsig))
+    end if
+
     return
   end subroutine create_balance_vars_reg
 
@@ -224,9 +237,15 @@ contains
 !   machine:  ibm RS/6000 SP
 !
 !$$$
+    use obsmod, only: if_cs_staticB,extra_var2num,extra_var3num
     implicit none
 
     deallocate(rllat,rllat1,f1,agvk,agvk_lm,wgvk,bvk)
+
+    if( if_cs_staticB )then
+       if(extra_var2num > 0) deallocate(evik2_real)
+       deallocate(evik3_real)
+    end if
 
     return
   end subroutine destroy_balance_vars_reg
@@ -379,7 +398,10 @@ contains
     use m_berror_stats_reg, only: berror_set_reg,berror_get_dims_reg,berror_read_bal_reg
     use constants, only: zero,half,one
     use directDA_radaruse_mod, only: l_decouple_sf_tps, l_decouple_sf_vp
-
+    use m_berror_stats_reg, only: berror_read_bal_reg_extra,berror_get_dims_reg_extra
+    use gsi_bundlemod, only: gsi_bundlegetpointer
+    use gsi_metguess_mod, only: gsi_metguess_bundle 
+    use obsmod, only : if_cs_staticB,extra_var2num,extra_var3num
     implicit none
 
 !   Declare passed variables
@@ -398,6 +420,15 @@ contains
     real(r_kind):: dl1,dl2
     real(r_kind),allocatable,dimension(:,:):: wgvi ,bvi
     real(r_kind),allocatable,dimension(:,:,:):: agvi
+
+    integer(i_kind) num_bins2d,ivar
+    real(r_kind),allocatable,dimension(:,:,:,:)  :: evi2
+    real(r_kind),allocatable,dimension(:,:,:,:,:):: evi3
+
+    integer(i_kind)          :: extra_vartotnum,ii,jj,kk,varinfulllist,istatus
+    logical                  :: if_exist
+    character(len=1024)      :: varname
+    real(r_kind),dimension(:,:,:),pointer::ges_mask=>NULL()
 
 !   Set internal parameters to m_berror_stats
     call berror_set_reg('cwcoveqqcov',cwcoveqqcov)
@@ -419,14 +450,28 @@ contains
 
 !   Read dimension of stats file
     inerr=22
-    call berror_get_dims_reg(msig,mlat)
+    if( if_cs_staticB )then
+       call berror_get_dims_reg_extra(msig,mlat,num_bins2d)
+    else
+       call berror_get_dims_reg(msig,mlat)
+    end if
 
 !   Allocate arrays in stats file
     allocate ( agvi(0:mlat+1,1:nsig,1:nsig) )
     allocate ( bvi(0:mlat+1,1:nsig),wgvi(0:mlat+1,1:nsig) )
     
 !   Read in background error stats and interpolate in vertical to that specified in namelist
-    call berror_read_bal_reg(msig,mlat,agvi,bvi,wgvi,mype,inerr)
+    if( if_cs_staticB )then
+       if(extra_var2num>0) allocate ( evi2(extra_var2num,0:mlat+1,num_bins2d,1:nsig) )
+       allocate ( evi3(extra_var3num,0:mlat+1,num_bins2d,1:nsig,1:nsig) )
+       if(extra_var2num>0)then
+          call berror_read_bal_reg_extra(msig,mlat,num_bins2d,agvi,bvi,wgvi,evi2,evi3,mype,inerr)
+       else
+          call berror_read_bal_reg_extra(msig,mlat,num_bins2d,agvi,bvi,wgvi,evi3=evi3,mype=mype,unit=inerr)
+       end if
+    else
+       call berror_read_bal_reg(msig,mlat,agvi,bvi,wgvi,mype,inerr)
+    end if
 
 !   Alternatively, zero out all balance correlation matrices
 !   for univariate surface analysis
@@ -483,8 +528,62 @@ contains
              end do
           end do
        end do
+
+       if( if_cs_staticB )then
+          call gsi_bundlegetpointer(gsi_metguess_bundle(1),'mask',ges_mask,istatus)
+          if(extra_var2num>0 )then
+             do ivar = 1, extra_var2num
+                do k=1,nsig
+                   do j=1,lon2
+                      do i=1,lat2
+                         l=int(rllat1(i,j))
+                         l2=min0(l+1,llmax)
+                         dl2=rllat1(i,j)-float(l)
+                         dl1=one-dl2
+                         if( ges_mask(i,j,k) < -0.5_r_kind   )then
+                            evik2_real(ivar,i,j,k)=dl1*evi2(ivar,l,2,k)+dl2*evi2(ivar,l2,2,k)
+                         else if ( ges_mask(i,j,k) > 0.5_r_kind  )then
+                            evik2_real(ivar,i,j,k)=dl1*evi2(ivar,l,3,k)+dl2*evi2(ivar,l2,3,k)
+                         else
+                            evik2_real(ivar,i,j,k)=dl1*evi2(ivar,l,1,k)+dl2*evi2(ivar,l2,1,k)
+                         end if
+                      end do
+                   end do
+                end do
+             end do
+          end if
+
+
+          do ivar = 1, extra_var3num
+             do k=1,nsig
+                do m=1,nsig
+                   do j=1,lon2
+                      do i=1,lat2
+                         l=int(rllat1(i,j))
+                         l2=min0(l+1,llmax)
+                         dl2=rllat1(i,j)-float(l)
+                         dl1=one-dl2
+                         if( ges_mask(i,j,k) < -0.5_r_kind  )then
+                            evik3_real(ivar,i,j,m,k)=dl1*evi3(ivar,l,2,m,k)+dl2*evi3(ivar,l2,2,m,k)
+                         else if ( ges_mask(i,j,k) > 0.5_r_kind  )then
+                            evik3_real(ivar,i,j,m,k)=dl1*evi3(ivar,l,3,m,k)+dl2*evi3(ivar,l2,3,m,k)
+                         else
+                            evik3_real(ivar,i,j,m,k)=dl1*evi3(ivar,l,1,m,k)+dl2*evi3(ivar,l2,1,m,k)
+                         end if
+                      end do
+                   end do
+                end do
+             end do
+          end do
+
+       end if
     endif
     deallocate (agvi,bvi,wgvi)
+
+    if( if_cs_staticB )  then
+       deallocate(evi3) !ywang
+       if(extra_var2num>0) deallocate(evi2)
+    end if
 
 !   zero out balance for using radar radial wind observation
     if (l_decouple_sf_vp) then
@@ -506,7 +605,7 @@ contains
     
     return
   end subroutine prebal_reg
-  
+
   subroutine balance(t,p,st,vp,fpsproj,fut2ps)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -890,6 +989,261 @@ contains
 
     return
   end subroutine tbalance
+
+  subroutine det_field(idx,field,vor,div,qi,ql,t,q,w,qr,qs,qg,dbz,lat,lon,nsig )
+    implicit none
+    integer(i_kind), intent(in) :: idx,lat,lon,nsig
+    real(r_kind),dimension(lat,lon,nsig),intent(in)  :: vor,div,qi,ql,t,q,w,qr,qs,qg,dbz
+    real(r_kind),dimension(lat,lon,nsig),intent(out) :: field
+
+    select case(idx)
+       case(1)
+          field=vor
+       case(2)
+          field=div
+       case(3)
+          field=t
+       case(5)
+          field=q
+       case(6)
+          field=w
+       case(7)
+          field=ql
+       case(8)
+          field=qi
+       case(9)
+          field=qr
+       case(10)
+          field=qs
+       case(11)
+          field=qg
+       case(12)
+          field=dbz
+    end select
+
+
+  end subroutine det_field
+
+  subroutine balance_extra(vor,div,ps,t,q,w,qr,qs,qg,ql,qi,dbz)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    extension of balance operator
+!
+! program history log:
+!   2023-04-17  Y. Yang, Y. Wang, and X. Wang - extension of balance operator to include 
+!                                               cross-variable correlations that are suitable 
+!                                               for convective scales. 
+!                                               poc: xuguang.wang@ou.edu
+!
+    use constants, only: one,half
+    use gsi_4dvar, only: lsqrtb
+    use gridmod, only: regional,lat2,nsig,lon2
+    use obsmod, only: nb_cv, covar
+    implicit none
+
+!   Declare passed variables
+    real(r_kind),dimension(lat2,lon2),intent(inout)      :: ps
+    real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: vor,div,qi,ql
+    real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,q,w,qr,qs,qg,dbz
+
+!   Declare local variables
+    integer(i_kind) ii,jj,i,j,k,l,m,total_reg,total_reg2
+    integer(i_kind),dimension(nb_cv,nb_cv) :: covar_idx,covar_idx2
+    real(r_kind),dimension(lat2,lon2,nsig) :: fielda, fieldb
+
+
+    covar_idx = 0
+    total_reg = 0
+    covar_idx2 = 0
+    total_reg2 = 0
+    do jj = 1, nb_cv
+       do ii = 1, nb_cv
+          if( ii /= 4 .and. jj /= 4 )then
+             if( covar(ii,jj) == 0 )then
+                covar_idx(ii,jj) = 0
+             else
+                total_reg = total_reg + covar(ii,jj)
+                covar_idx(ii,jj) = total_reg
+             end if
+          else
+             if( covar(ii,jj) == 0 )then
+                covar_idx2(ii,jj) = 0
+             else
+                total_reg2 = total_reg2 + covar(ii,jj)
+                covar_idx2(ii,jj) = total_reg2
+             end if
+          end if
+       end do
+    end do
+
+    do ii = 1, nb_cv-1
+       if( sum(covar(nb_cv-ii+1,1:nb_cv)) > 0 ) then
+          if( ii /= 9 )then
+             call det_field(nb_cv-ii+1,fielda,vor,div,qi,ql,t,q,w,qr,qs,qg,dbz,lat2,lon2,nsig)
+             do jj = 1, nb_cv-ii
+                if( covar_idx(nb_cv-ii+1,jj) > 0 )then
+                   call det_field(jj,fieldb,vor,div,qi,ql,t,q,w,qr,qs,qg,dbz,lat2,lon2,nsig)
+                   do k=1,nsig
+                      do m=1,nsig
+                         fielda(:,:,k) = fielda(:,:,k) + evik3_real(covar_idx(nb_cv-ii+1,jj),:,:,k,m)*fieldb(:,:,m)
+                      end do
+                   end do
+                end if
+                if( covar_idx2(nb_cv-ii+1,jj) > 0 )then
+                   do k=1,nsig
+                      fielda(:,:,k) = fielda(:,:,k) + evik2_real(covar_idx2(nb_cv-ii+1,jj),:,:,k)*ps(:,:)
+                   end do
+                end if
+             end do
+
+             if( ii == 1 )then
+                dbz = fielda
+             else if( ii == 2 )then
+                qg = fielda
+             else if( ii == 3 )then
+                qs = fielda
+             else if( ii == 4 )then
+                qr = fielda
+             else if( ii == 5 )then
+                qi = fielda
+             else if( ii == 6 )then
+                ql = fielda
+             else if( ii == 7 )then
+                w  = fielda
+             else if( ii == 8 )then
+                q  = fielda
+             else if( ii == 10 )then
+                t  = fielda
+             else if( ii == 11 )then
+                div  = fielda
+             end if
+          else if( ii == 9 )then
+             do jj = 1, nb_cv-ii
+                if( covar_idx2(nb_cv-ii+1,jj) > 0 )then
+                   call det_field(jj,fieldb,vor,div,qi,ql,t,q,w,qr,qs,qg,dbz,lat2,lon2,nsig)
+                   do m=1,nsig
+                      ps = ps + evik2_real(covar_idx2(nb_cv-ii+1,jj),:,:,m)*fieldb(:,:,m)
+                   end do
+                end if
+             end do
+          end if
+       end if
+
+    end do
+
+    return
+
+  end subroutine balance_extra
+
+  subroutine tbalance_extra(vor,div,t,ps,q,w,qr,qs,qg,ql,qi,dbz)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    extension of balance operator
+!
+! program history log:
+!   2023-04-17  Y. Yang, Y. Wang, and X. Wang - extension of balance operator to include 
+!                                               cross-variable correlations that
+!                                               are suitable for convective scales. 
+!                                               poc: xuguang.wang@ou.edu
+!
+    use constants, only: one,half
+    use gsi_4dvar, only: lsqrtb
+    use gridmod, only: regional,lat2,nsig,lon2
+    use obsmod, only: nb_cv, covar
+    implicit none
+
+!   Declare passed variables
+    real(r_kind),dimension(lat2,lon2),intent(inout)      :: ps
+    real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: vor,div,ql,qi
+    real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: t,q,w,qr,qs,qg,dbz
+
+!   Declare local variables
+    integer(i_kind) ii,jj,i,j,k,l,m,total_reg,total_reg2
+    integer(i_kind),dimension(nb_cv,nb_cv) :: covar_idx,covar_idx2
+    real(r_kind),dimension(lat2,lon2,nsig) :: fielda, fieldb
+
+    covar_idx = 0
+    total_reg = 0
+    covar_idx2 = 0
+    total_reg2 = 0
+    do jj = 1, nb_cv
+       do ii = 1, nb_cv
+          if( ii /= 4 .and. jj /= 4 )then
+             if( covar(ii,jj) == 0 )then
+                covar_idx(ii,jj) = 0
+             else
+                total_reg = total_reg + covar(ii,jj)
+                covar_idx(ii,jj) = total_reg
+             end if
+          else
+             if( covar(ii,jj) == 0 )then
+                covar_idx2(ii,jj) = 0
+             else
+                total_reg2 = total_reg2 + covar(ii,jj)
+                covar_idx2(ii,jj) = total_reg2
+             end if
+          end if
+       end do
+    end do
+
+    do jj = 1, nb_cv-1
+       if( sum(covar(1:nb_cv,jj)) > 0 ) then
+          if( jj /= 4 )then
+             call det_field(jj,fielda,vor,div,qi,ql,t,q,w,qr,qs,qg,dbz,lat2,lon2,nsig)
+             do ii = jj+1, nb_cv
+                if( covar_idx(ii,jj) > 0 )then
+                   call det_field(ii,fieldb,vor,div,qi,ql,t,q,w,qr,qs,qg,dbz,lat2,lon2,nsig)
+                   do m=1,nsig
+                      do k=1,nsig
+                         fielda(:,:,m) = fielda(:,:,m) + evik3_real(covar_idx(ii,jj),:,:,k,m)*fieldb(:,:,k)
+                      end do
+                   end do
+                end if
+                if( covar_idx2(ii,jj) > 0 )then
+                   do m=1,nsig
+                      fielda(:,:,m) = fielda(:,:,m) + evik2_real(covar_idx2(ii,jj),:,:,m)*ps(:,:)
+                   end do
+                end if
+             end do
+
+             if( jj == 1 )then
+                vor = fielda
+             else if( jj == 2 )then
+                div = fielda
+             else if( jj == 3 )then
+                t = fielda
+             else if( jj == 5 )then
+                q  = fielda
+             else if( jj == 6 )then
+                w  = fielda
+             else if( jj == 7 )then
+                ql = fielda
+             else if( jj == 8 )then
+                qi = fielda
+             else if( jj == 9 )then
+                qr = fielda
+             else if( jj == 10 )then
+                qs = fielda
+             else if( jj == 11 )then
+                qg = fielda
+             end if
+          else if( jj == 4 ) then
+             do ii = jj+1, nb_cv
+                if( covar_idx2(ii,jj) > 0 )then
+                   call det_field(ii,fieldb,vor,div,qi,ql,t,q,w,qr,qs,qg,dbz,lat2,lon2,nsig)
+                   do k=1,nsig
+                      ps = ps + evik2_real(covar_idx2(ii,jj),:,:,k)*fieldb(:,:,k)
+                   end do
+                end if
+             end do
+          end if
+       end if
+
+    end do
+
+    return
+
+  end subroutine tbalance_extra
 
   subroutine locatelat_reg(mype)      
 !$$$  subprogram documentation block

@@ -89,6 +89,7 @@ subroutine prewgt_reg(mype)
   use constants, only: zero,half,one,two,four,rad2deg,zero_quad
   use guess_grids, only: ges_prslavg,ges_psfcavg
   use m_berror_stats_reg, only: berror_get_dims_reg,berror_read_wgt_reg
+  use m_berror_stats_reg, only: berror_get_dims_reg_extra,berror_read_wgt_reg_extra
   use mpeu_util, only: getindex
   use mpl_allreducemod, only: mpl_allreduce
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -103,6 +104,7 @@ subroutine prewgt_reg(mype)
                                l_use_cvpqx, cvpqx_pval,&
                                l_cvpnr, cvpnr_pval,&       
                                l_plt_be_stats, l_be_T_dep
+  use obsmod, only: if_cs_staticB
 
   implicit none
 
@@ -123,8 +125,10 @@ subroutine prewgt_reg(mype)
   integer(i_kind) j,k1,loc,kb,mm1,ix,jl,il
   integer(i_kind) inerr,l,lp,l2
   integer(i_kind) msig,mlat              ! stats dimensions
+  integer(i_kind) bin_l,num_bins2d
   integer(i_kind),dimension(nnnn1o):: ks
   integer(i_kind) nrf3_oz,nrf2_sst,nrf3_cw,istatus
+  integer(i_kind) nrf3_dbz,ibin
   integer(i_kind),allocatable,dimension(:) :: nrf3_loc,nrf2_loc
 
   integer(i_kind) nrf3_sf,nrf3_vp,nrf3_t,nrf3_q
@@ -156,17 +160,18 @@ subroutine prewgt_reg(mype)
   real(r_kind),dimension(ny,nx)::sl
   real(r_kind) fact,psfc015
 
-  real(r_kind),dimension(lon2,nsig,llmin:llmax):: dsv
+  real(r_kind),allocatable,dimension(:,:,:,:):: dsv
   real(r_kind),dimension(lon2,llmin:llmax):: dsvs
 
-  real(r_kind),allocatable,dimension(:,:):: corp, hwllp
-  real(r_kind),allocatable,dimension(:,:,:):: corz, hwll, vz
+  real(r_kind),allocatable,dimension(:,:,:):: corp, hwllp
+  real(r_kind),allocatable,dimension(:,:,:,:):: corz, hwll, vz
   real(r_kind),allocatable,dimension(:,:,:,:)::sli
   real(r_quad),dimension(180,nsig):: ozmz,cnt
   real(r_quad),dimension(180*nsig):: ozmz0,cnt0
   real(r_kind),dimension(180,nsig):: ozmzt,cntt
 
   real(r_kind),dimension(:,:,:),pointer::ges_oz=>NULL()
+  real(r_kind),dimension(:,:,:),pointer::ges_mask=>NULL()
 
 ! Initialize local variables
 !  do j=1,nx
@@ -204,13 +209,19 @@ subroutine prewgt_reg(mype)
 
 ! Read dimension of stats file
   inerr=22
-  call berror_get_dims_reg(msig,mlat,inerr)
+  if( if_cs_staticB )then
+     call berror_get_dims_reg_extra(msig,mlat,num_bins2d,inerr)
+  else
+     call berror_get_dims_reg(msig,mlat,inerr)
+     num_bins2d=1
+  end if
 
 ! Allocate arrays in stats file
-  allocate ( corz(1:mlat,1:nsig,1:nc3d) )
-  allocate ( corp(1:mlat,nvars-nc3d) )
-  allocate ( hwll(0:mlat+1,1:nsig,1:nc3d),hwllp(0:mlat+1,nvars-nc3d) )
-  allocate ( vz(1:nsig,0:mlat+1,1:nc3d) )
+  allocate ( corz(1:mlat,1:nsig,1:num_bins2d,1:nc3d) )
+  allocate ( corp(1:mlat,1:num_bins2d,nvars-nc3d) )
+  allocate ( hwll(0:mlat+1,1:nsig,1:num_bins2d,1:nc3d),hwllp(0:mlat+1,1:num_bins2d,nvars-nc3d) )
+  allocate ( vz(1:nsig,0:mlat+1,1:num_bins2d,1:nc3d) )
+  allocate ( dsv(1:lon2,1:nsig,1:num_bins2d,llmin:llmax)  )
 
 ! Arrays used for temperature-dependent error variance when assimilation radar dbz obs
   if (l_be_T_dep) then
@@ -220,7 +231,13 @@ subroutine prewgt_reg(mype)
   end if
 
 ! Read in background error stats and interpolate in vertical to that specified in namelist
-  call berror_read_wgt_reg(msig,mlat,corz,corp,hwll,hwllp,vz,rlsig,varq,qoption,varcw,cwoption,mype,inerr)
+  if( if_cs_staticB )then
+     call berror_read_wgt_reg_extra(msig,mlat,num_bins2d,corz,corp,hwll,hwllp,vz,rlsig,varq,qoption,varcw,cwoption,mype,inerr)
+     print*,'hwll1',maxval( hwll(:,:,:,1) ), minval( hwll(:,:,:,1) )
+     print*,'hwll2',maxval( hwll(:,:,:,2) ), minval( hwll(:,:,:,2) )
+  else
+     call berror_read_wgt_reg(msig,mlat,corz(:,:,1,:),corp(:,1,:),hwll(:,:,1,:),hwllp(:,1,:),vz(:,:,1,:),rlsig,varq,qoption,varcw,cwoption,mype,inerr)
+  endif
 
 ! find ozmz for background error variance
   kb=0
@@ -300,23 +317,23 @@ subroutine prewgt_reg(mype)
       do n=1,nc3d
           if (n==nrf3_q) then
               if (mype==0) write(6,*)'PREWGT_REG: tuning BE for q (pe=',mype,')'
-              if (    be_q > 0.0_r_kind ) corz(:,:,n) = corz(:,:,n) * be_q ! error stddev for Q
-              if (  hscl_q > 0.0_r_kind ) hwll(:,:,n) = hscl_q
-              if (  vscl_q > 0.0_r_kind ) vz(  :,:,n) = vscl_q
+              if (    be_q > 0.0_r_kind ) corz(:,:,1,n) = corz(:,:,1,n) * be_q ! error stddev for Q
+              if (  hscl_q > 0.0_r_kind ) hwll(:,:,1,n) = hscl_q
+              if (  vscl_q > 0.0_r_kind ) vz(  :,:,1,n) = vscl_q
           end if
           if (n==nrf3_t) then
               if (mype==0) write(6,*)'PREWGT_REG: tuning BE for t (pe=',mype,')'
-              if (    be_t > 0.0_r_kind ) corz(:,:,n) = corz(:,:,n) * be_t ! error stddev for t
-              if (  hscl_t > 0.0_r_kind ) hwll(:,:,n) = hscl_t
-              if (  vscl_t > 0.0_r_kind ) vz(  :,:,n) = vscl_t
+              if (    be_t > 0.0_r_kind ) corz(:,:,1,n) = corz(:,:,1,n) * be_t ! error stddev for t
+              if (  hscl_t > 0.0_r_kind ) hwll(:,:,1,n) = hscl_t
+              if (  vscl_t > 0.0_r_kind ) vz(  :,:,1,n) = vscl_t
           end if
           if (n==nrf3_sf) then
-              max_sf  = maxval(corz(:,:,n))
-              min_sf  = minval(corz(:,:,n))
-              ave_sf  = sum(corz(:,:,n))/(mlat*nsig)
+              max_sf  = maxval(corz(:,:,1,n))
+              min_sf  = minval(corz(:,:,1,n))
+              ave_sf  = sum(corz(:,:,1,n))/(mlat*nsig)
               if (  be_sf > 0.0_r_kind ) then
                   corz_sf = ave_sf * be_sf
-                  corz(:,:,n) = corz_sf                ! error stddev for sf (compensate for change in scale)
+                  corz(:,:,1,n) = corz_sf                ! error stddev for sf (compensate for change in scale)
                   if (mype==0) then
                       write(6,'(1x,A15,I4,A50,4(1x,F15.2),1x,A12)')                         &
                           '(PREWGT_REG:pe=',mype,') stream function err std max min ave:',  &
@@ -333,16 +350,16 @@ subroutine prewgt_reg(mype)
                   '(PREWGT_REG:pe=',mype,                                                   &
                   ') re-set the length-scale(hor ver) of sf (stream function): ',           &
                   hscl_sf, vscl_sf,'   n=', n,cvars3d(n)
-              if ( hscl_sf .gt. 0.0_r_kind ) hwll(:,:,n) = hscl_sf
-              if ( vscl_sf .gt. 0.0_r_kind ) vz(  :,:,n) = vscl_sf
+              if ( hscl_sf .gt. 0.0_r_kind ) hwll(:,:,1,n) = hscl_sf
+              if ( vscl_sf .gt. 0.0_r_kind ) vz(  :,:,1,n) = vscl_sf
           end if
           if (n==nrf3_vp) then
-              max_vp  = maxval(corz(:,:,n))
-              min_vp  = minval(corz(:,:,n))
-              ave_vp  = sum(corz(:,:,n))/(mlat*nsig)
+              max_vp  = maxval(corz(:,:,1,n))
+              min_vp  = minval(corz(:,:,1,n))
+              ave_vp  = sum(corz(:,:,1,n))/(mlat*nsig)
               if (  be_vp > 0.0_r_kind ) then
                   corz_vp = ave_vp * be_vp
-                  corz(:,:,n) = corz_vp                ! error stddev for vp (compensate for change in scale)
+                  corz(:,:,1,n) = corz_vp                ! error stddev for vp (compensate for change in scale)
                   if (mype == 0) then
                       write(6,'(1x,A15,I4,A50,4(1x,F15.2),1x,A12)')                           &
                           '(PREWGT_REG:pe=',mype,') velocity potential err std max min ave:', &
@@ -359,8 +376,8 @@ subroutine prewgt_reg(mype)
                   '(PREWGT_REG:pe=',mype,                                                    &
                   ') re-set the length-scale(hor ver) of vp (VelPotent): ',                  &
                   hscl_vp, vscl_vp,'   n=', n,cvars3d(n)
-              if ( hscl_vp > 0.0_r_kind ) hwll(:,:,n) = hscl_vp
-              if ( vscl_vp > 0.0_r_kind ) vz(  :,:,n) = vscl_vp
+              if ( hscl_vp > 0.0_r_kind ) hwll(:,:,1,n) = hscl_vp
+              if ( vscl_vp > 0.0_r_kind ) vz(  :,:,1,n) = vscl_vp
 
           end if
       end do
@@ -378,38 +395,38 @@ subroutine prewgt_reg(mype)
           if (n==nrf3_qr ) then
               if (mype==0) &
                   write(6,'(1x,A60,I4)')'PREWGT_REG: user-defined namelist to tune BE for qr on pe:',mype
-              if (    be_qr > 0.0_r_kind ) corz(:,:,n) = be_qr
-              if (  hscl_qx > 0.0_r_kind ) hwll(:,:,n) = hscl_qx
-              if (  vscl_qx > 0.0_r_kind ) vz(  :,:,n) = vscl_qx
+              if (    be_qr > 0.0_r_kind ) corz(:,:,1,n) = be_qr
+              if (  hscl_qx > 0.0_r_kind ) hwll(:,:,1,n) = hscl_qx
+              if (  vscl_qx > 0.0_r_kind ) vz(  :,:,1,n) = vscl_qx
           end if
           if (n==nrf3_qs ) then
               if (mype==0) &
                   write(6,'(1x,A60,I4)')'PREWGT_REG: user-defined namelist to tune BE for qs on pe:',mype
-              if (    be_qs > 0.0_r_kind ) corz(:,:,n) = be_qs
-              if (  hscl_qx > 0.0_r_kind ) hwll(:,:,n) = hscl_qx
-              if (  vscl_qx > 0.0_r_kind ) vz(  :,:,n) = vscl_qx
+              if (    be_qs > 0.0_r_kind ) corz(:,:,1,n) = be_qs
+              if (  hscl_qx > 0.0_r_kind ) hwll(:,:,1,n) = hscl_qx
+              if (  vscl_qx > 0.0_r_kind ) vz(  :,:,1,n) = vscl_qx
           end if
           if (n==nrf3_qg ) then
               if (mype==0) &
                   write(6,'(1x,A60,I4)')'PREWGT_REG: user-defined namelist to tune BE for qg on pe:',mype
-              if (    be_qg > 0.0_r_kind ) corz(:,:,n) = be_qg
-              if (  hscl_qx > 0.0_r_kind ) hwll(:,:,n) = hscl_qx
-              if (  vscl_qx > 0.0_r_kind ) vz(  :,:,n) = vscl_qx
+              if (    be_qg > 0.0_r_kind ) corz(:,:,1,n) = be_qg
+              if (  hscl_qx > 0.0_r_kind ) hwll(:,:,1,n) = hscl_qx
+              if (  vscl_qx > 0.0_r_kind ) vz(  :,:,1,n) = vscl_qx
           end if
           if (n==nrf3_qnr ) then
               if (mype==0) &
                   write(6,'(1x,A60,I4)')'PREWGT_REG: user-defined namelist to tune BE for qnr on pe:',mype
-                                              corz(:,:,n) = 100.0_r_kind
-              if (  hscl_qx > 0.0_r_kind ) hwll(:,:,n) = hscl_qx
-              if (  vscl_qx > 0.0_r_kind ) vz(  :,:,n) = vscl_qx
+                                              corz(:,:,1,n) = 100.0_r_kind
+              if (  hscl_qx > 0.0_r_kind ) hwll(:,:,1,n) = hscl_qx
+              if (  vscl_qx > 0.0_r_kind ) vz(  :,:,1,n) = vscl_qx
           end if
 
           if (n==nrf3_w ) then
               if (mype==0) &
                   write(6,'(1x,A60,I4)')'PREWGT_REG: user-defined namelist to tune BE for w on pe:',mype
-                                              corz(:,:,n) = 3.0_r_kind
-              if (  hscl_qx > 0.0_r_kind ) hwll(:,:,n) = hscl_qx
-              if (  vscl_qx > 0.0_r_kind ) vz(  :,:,n) = vscl_qx
+                                              corz(:,:,1,n) = 3.0_r_kind
+              if (  hscl_qx > 0.0_r_kind ) hwll(:,:,1,n) = hscl_qx
+              if (  vscl_qx > 0.0_r_kind ) vz(  :,:,1,n) = vscl_qx
           end if
       end do
   else
@@ -431,15 +448,23 @@ subroutine prewgt_reg(mype)
      nrf2_loc(ii)=getindex(cvars,cvars2d(ii))
   enddo
 
+  nrf3_dbz =getindex(cvars3d,'dbz')
+  call gsi_bundlegetpointer(gsi_metguess_bundle(1),'mask',ges_mask,istatus)
+  if(istatus/=0 .and. if_cs_staticB ) then
+     call die('prewgt_reg',': missing mask in metguess, aborting',istatus)
+  end if
+
   do n=1,nc3d
      if(n==nrf3_oz .and. regional_ozone)then   ! spetial treament for ozone variance
         loc=nrf3_loc(n)
-        vz(:,:,n)=1.5_r_kind   ! ozone vertical scale fixed
-        do j=llmin,llmax
-           call smoothzo(vz(1,j,n),samp,rate,n,j,dsv(1,1,j))
-           do k=1,nsig
-              do i=1,lon2
-                 dsv(i,k,j)=dsv(i,k,j)*as3d(n)
+        vz(:,:,:,n)=1.5_r_kind   ! ozone vertical scale fixed
+        do ibin = 1, num_bins2d
+           do j=llmin,llmax
+              call smoothzo(vz(1,j,ibin,n),samp,rate,n,j,dsv(1,1,ibin,j))
+              do k=1,nsig
+                 do i=1,lon2
+                    dsv(i,k,ibin,j)=dsv(i,k,ibin,j)*as3d(n)
+                 end do
               end do
            end do
         end do
@@ -455,11 +480,21 @@ subroutine prewgt_reg(mype)
               dl2=d-float(l)
               dl1=one-dl2
               do k=1,nsig
-                 dssv(i,j,k,n)=(dl1*ozmzt(l,k)+dl2*ozmzt(l2,k))*dsv(1,k,llmin)
+                 if( if_cs_staticB )then
+                    if( ges_mask(i,j,k) < -0.5_r_kind )then
+                       dssv(i,j,k,n)=(dl1*ozmzt(l,k)+dl2*ozmzt(l2,k))*dsv(1,k,2,llmin)
+                    else if ( ges_mask(i,j,k) > 0.5_r_kind )then
+                       dssv(i,j,k,n)=(dl1*ozmzt(l,k)+dl2*ozmzt(l2,k))*dsv(1,k,3,llmin)
+                    else
+                       dssv(i,j,k,n)=(dl1*ozmzt(l,k)+dl2*ozmzt(l2,k))*dsv(1,k,1,llmin)
+                    end if
+                 else
+                    dssv(i,j,k,n)=(dl1*ozmzt(l,k)+dl2*ozmzt(l2,k))*dsv(1,k,1,llmin)
+                 end if
               end do
            end do
         end do
-     else if ( n==nrf3_qr .or. n==nrf3_qs .or. n==nrf3_qg .or. n==nrf3_qnr) then
+     else if ( l_be_T_dep .and. (n==nrf3_qr .or. n==nrf3_qs .or. n==nrf3_qg .or. n==nrf3_qnr) ) then
 
         if ( l_be_T_dep ) then
             if (mype==0) &
@@ -473,13 +508,13 @@ subroutine prewgt_reg(mype)
 !           dependent.
 !           only initialization of alv in subroutine smoothzo
             do j=llmin,llmax
-                call smoothzo(vz(1,j,n),samp,rate,n,j,dsv(1,1,j))
+                call smoothzo(vz(1,j,1,n),samp,rate,n,j,dsv(1,1,1,j))
             end do
 
             do j=1,lat2
                 mid_nsig = int((nsig+1)/2)
                 mid_mlat = int((llmin+llmax)/2)
-                vz_cld(1:nsig) = vz(1:nsig,mid_mlat,n)    !
+                vz_cld(1:nsig) = vz(1:nsig,mid_mlat,1,n)    !
                 call smoothzo1(vz_cld(1:nsig),samp,rate,dsv_cld(1:lon2,1:nsig,j))
                 do i=1,lon2
                     do k=1,nsig
@@ -569,10 +604,10 @@ subroutine prewgt_reg(mype)
         else             ! if NOT T-dependent background error
             loc=nrf3_loc(n)
             do j=llmin,llmax
-                call smoothzo(vz(1,j,n),samp,rate,n,j,dsv(1,1,j))
+                call smoothzo(vz(1,j,1,n),samp,rate,n,j,dsv(1,1,1,j))
                 do k=1,nsig
                     do i=1,lon2
-                        dsv(i,k,j)=dsv(i,k,j)*corz(j,k,n)*as3d(n)
+                        dsv(i,k,1,j)=dsv(i,k,1,j)*corz(j,k,1,n)*as3d(n)
                     end do
                 end do
             end do
@@ -584,18 +619,20 @@ subroutine prewgt_reg(mype)
                     dl2=rllat1(j,i)-float(l)
                     dl1=one-dl2
                     do k=1,nsig
-                        dssv(j,i,k,n)=dl1*dsv(i,k,l)+dl2*dsv(i,k,l2)
+                        dssv(j,i,k,n)=dl1*dsv(i,k,1,l)+dl2*dsv(i,k,1,l2)
                     enddo
                 end do
             end do
         end if
      else
         loc=nrf3_loc(n)
-        do j=llmin,llmax
-           call smoothzo(vz(1,j,n),samp,rate,n,j,dsv(1,1,j))
-           do k=1,nsig
-              do i=1,lon2
-                 dsv(i,k,j)=dsv(i,k,j)*corz(j,k,n)*as3d(n)
+        do ibin=1,num_bins2d
+           do j=llmin,llmax
+              call smoothzo(vz(1,j,ibin,n),samp,rate,n,j,dsv(1,1,ibin,j))
+              do k=1,nsig
+                 do i=1,lon2
+                    dsv(i,k,ibin,j)=dsv(i,k,ibin,j)*corz(j,k,ibin,n)*as3d(n)
+                 end do
               end do
            end do
         end do
@@ -607,7 +644,17 @@ subroutine prewgt_reg(mype)
               dl2=rllat1(j,i)-float(l)
               dl1=one-dl2
               do k=1,nsig
-                 dssv(j,i,k,n)=dl1*dsv(i,k,l)+dl2*dsv(i,k,l2)
+                 if( if_cs_staticB )then
+                    if( ges_mask(j,i,k) < -0.5_r_kind )then
+                       dssv(j,i,k,n)=dl1*dsv(i,k,2,l)+dl2*dsv(i,k,2,l2)
+                    else if ( ges_mask(j,i,k) > 0.5_r_kind )then
+                       dssv(j,i,k,n)=dl1*dsv(i,k,3,l)+dl2*dsv(i,k,3,l2)
+                    else
+                       dssv(j,i,k,n)=dl1*dsv(i,k,1,l)+dl2*dsv(i,k,1,l2)
+                    end if
+                 else
+                    dssv(j,i,k,n)=dl1*dsv(i,k,1,l)+dl2*dsv(i,k,1,l2)
+                 end if 
               enddo
            end do
         end do
@@ -624,20 +671,20 @@ subroutine prewgt_reg(mype)
           open(inerr_out,file='./berror_prewgt_reg_vIntrp.dat',form='unformatted')
           write(inerr_out)mlat,nsig,nc3d
           write(inerr_out)cvars3d(1:nc3d)
-          write(inerr_out)(((hwll(j,k,n),j=0,mlat+1),k=1,nsig),n=1,nc3d)
+          write(inerr_out)(((hwll(j,k,1,n),j=0,mlat+1),k=1,nsig),n=1,nc3d)
           write(6,*),' ---- prewgt_reg(mype=',mype,'   output vz not normalized !'
-          write(inerr_out)(((vz(k,j,n),j=0,mlat+1),k=1,nsig),n=1,nc3d)
+          write(inerr_out)(((vz(k,j,1,n),j=0,mlat+1),k=1,nsig),n=1,nc3d)
           if ( .not. allocated(vz4plt)) allocate (vz4plt(1:nsig,0:mlat+1,1:nc3d) )
           do n=1,nc3d
               do j=0,mlat+1
                   do k=1,nsig
-                      vz4plt(k,j,n)=vz(k,j,n)
+                      vz4plt(k,j,n)=vz(k,j,1,n)
                   end do
               end do
           end do
           write(inerr_out)(((vz4plt(k,j,n),j=0,mlat+1),k=1,nsig),n=1,nc3d)
           deallocate(vz4plt)
-          write(inerr_out)(((corz(j,k,n),j=1,mlat),k=1,nsig),n=1,nc3d)
+          write(inerr_out)(((corz(j,k,1,n),j=1,mlat),k=1,nsig),n=1,nc3d)
           if (l_be_T_dep) then
               write(6,*),' ---- prewgt_reg(mype=',mype,':output temperature-dependent error for cloud hydrometers'
               write(inerr_out) ((corz_cld(1,1,k,n),k=1,nsig),n=1,3)
@@ -654,7 +701,7 @@ subroutine prewgt_reg(mype)
      loc=nrf2_loc(n)
      do j=llmin,llmax
         do i=1,lon2
-           dsvs(i,j)  =corp(j,n)*as2d(n)
+           dsvs(i,j)  =corp(j,1,n)*as2d(n)
         end do
      end do
 
@@ -711,6 +758,11 @@ subroutine prewgt_reg(mype)
 
 ! Set up scales
 
+  if( if_cs_staticB )then
+     bin_l = 2 ! temporily assign the scale in second bin to all bins 
+  else
+     bin_l = 1
+  end if
 
 ! This first loop for nnnn1o will be if we aren't dealing with
 ! surface pressure, skin temperature, or ozone
@@ -725,7 +777,7 @@ subroutine prewgt_reg(mype)
            if (nn/=nrf3_oz) then
               if (k1 >= ks(k))then
                  l=int(rllat(ny/2,nx/2))
-                 fact=one/hwll(l,k1,nn)
+                 fact=one/hwll(l,k1,1,nn)
                  do i=1,nx
                     do j=1,ny
                        slw((i-1)*ny+j,k)=slw((i-1)*ny+j,1)*fact**2
@@ -740,7 +792,7 @@ subroutine prewgt_reg(mype)
                        lp=min0(l+1,llmax)
                        dl2=rllat(j,i)-float(l)
                        dl1=one-dl2
-                       fact=one/(dl1*hwll(l,k1,nn)+dl2*hwll(lp,k1,nn))
+                       fact=one/(dl1*hwll(l,k1,1,nn)+dl2*hwll(lp,k1,1,nn))
                        slw((i-1)*ny+j,k)=slw((i-1)*ny+j,1)*fact**2
                        sli(j,i,1,k)=sli(j,i,1,1)*fact
                        sli(j,i,2,k)=sli(j,i,2,1)*fact
@@ -780,7 +832,7 @@ subroutine prewgt_reg(mype)
                     lp=min0(l+1,llmax)
                     dl2=rllat(j,i)-float(l)
                     dl1=one-dl2
-                    fact=cc/(dl1*hwllp(l,nn)+dl2*hwllp(lp,nn))
+                    fact=cc/(dl1*hwllp(l,1,nn)+dl2*hwllp(lp,1,nn))
                     slw((i-1)*ny+j,k)=slw((i-1)*ny+j,1)*fact**2
                     sli(j,i,1,k)=sli(j,i,1,1)*fact
                     sli(j,i,2,k)=sli(j,i,2,1)*fact

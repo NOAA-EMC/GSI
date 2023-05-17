@@ -33,6 +33,7 @@ use gsi_bundlemod, only: assignment(=)
 use gridmod, only: nems_nmmb_regional
 use gridmod, only: regional, twodvar_regional            
 use gridmod, only: lat2,lon2,nsig,nlat,nlon            
+use obsmod, only: if_cs_staticB
 use chemmod, only: laeroana_fv3cmaq, naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,icvt_cmaq_fv3
 use mpeu_util, only: getindex
 
@@ -51,6 +52,7 @@ public :: iccldch,icuwnd10m,icvwnd10m
 
 logical :: do_getprs,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,do_cw_to_hydro
 logical :: do_cw_to_hydro_hwrf
+logical :: do_uv_copy
 
 integer(i_kind) :: icpblh,icgust,icvis,icoz,icwspd10m,icw
 integer(i_kind) :: ictd2m,icmxtm,icmitm,icpmsl,ichowv
@@ -199,11 +201,17 @@ do jj=1,nsubwin
 !$omp parallel sections private(istatus,ii,ic,id,uland,vland,uwter,vwter) 
 
 !$omp section
-
-   call gsi_bundlegetpointer (wbundle,'sf' ,cv_sf ,istatus)
-   call gsi_bundlegetpointer (wbundle,'vp' ,cv_vp ,istatus)
    call gsi_bundlegetpointer (sval(jj),'u'   ,sv_u,   istatus)
    call gsi_bundlegetpointer (sval(jj),'v'   ,sv_v,   istatus)
+
+   if(do_uv_copy)then
+      call gsi_bundlegetvar (wbundle,'u' ,sv_u ,istatus)
+      call gsi_bundlegetvar (wbundle,'v' ,sv_v ,istatus)
+   else
+      call gsi_bundlegetpointer (wbundle,'sf' ,cv_sf ,istatus)
+      call gsi_bundlegetpointer (wbundle,'vp' ,cv_vp ,istatus)
+   end if
+
 !  Convert streamfunction and velocity potential to u,v
    if(do_getuv) then
       if (twodvar_regional .and. icsfwter>0 .and. icvpwter>0) then
@@ -431,11 +439,12 @@ integer(i_kind) :: istatus
 !       the state and control vectors, but rather the ones
 !       this routines knows how to handle.
 ! Declare required local control variables
-integer(i_kind), parameter :: ncvars = 9
+integer(i_kind), parameter :: ncvars = 11
 integer(i_kind) :: icps(ncvars)
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
-                'sf ', 'vp ', 'ps ', 't  ', 'q  ', 'cw ', 'ql ', 'qi ', 'w  ' /)
-logical :: lc_sf,lc_vp,lc_w,lc_ps,lc_t,lc_rh,lc_cw,lc_ql,lc_qi
+                'sf ', 'vp ', 'ps ', 't  ', 'q  ', 'cw ', 'ql ', 'qi ', 'w  ', &
+                'u  ', 'v  ' /)
+logical :: lc_sf,lc_vp,lc_w,lc_ps,lc_t,lc_rh,lc_cw,lc_ql,lc_qi,lc_u,lc_v
 
 ! Declare required local state variables
 integer(i_kind), parameter :: nsvars = 12
@@ -469,6 +478,7 @@ call gsi_bundlegetpointer (xhat%step(1),mycvars,icps,istatus)
 lc_sf =icps(1)>0; lc_vp =icps(2)>0; lc_ps =icps(3)>0
 lc_t  =icps(4)>0; lc_rh =icps(5)>0; lc_cw =icps(6)>0
 lc_ql =icps(7)>0; lc_qi =icps(8)>0; lc_w  =icps(9)>0
+lc_u  =icps(10)>0;lc_v  =icps(11)>0
 
 ! Since each internal vector of sval has the same structure, pointers are
 ! the same independent of the subwindow jj
@@ -484,6 +494,13 @@ do_getprs        =lc_ps.and.lc_t .and.ls_prse
 do_normal_rh_to_q=lc_rh.and.lc_t .and.ls_prse.and.ls_q
 do_tv_to_tsen    =lc_t .and.ls_q .and.ls_tsen
 do_getuv         =lc_sf.and.lc_vp.and.ls_u.and.ls_v
+do_uv_copy=.false.
+do_uv_copy          =lc_u .and.lc_v
+
+if( if_cs_staticB .and. ( .not. do_uv_copy ) )then
+   write(6,*) trim(myname),': convective-scale static BEC is used but uv are not the horizontal momentum CVs'
+   call stop2(9999)
+end if
 
 do_cw_to_hydro=.false.
 do_cw_to_hydro_hwrf=.false.
@@ -649,13 +666,20 @@ do jj=1,nsubwin
 !$omp parallel sections private(istatus,ii,ic,id,istatus_oz,rv_u,rv_v,rv_prse,rv_q,rv_tsen,uland,vland,uwter,vwter)
 
 !$omp section
-
-   call gsi_bundlegetpointer (wbundle,'sf' ,cv_sf ,istatus)
-   call gsi_bundlegetpointer (wbundle,'vp' ,cv_vp ,istatus)
+   if( .not. do_uv_copy)then
+      call gsi_bundlegetpointer (wbundle,'sf' ,cv_sf ,istatus)
+      call gsi_bundlegetpointer (wbundle,'vp' ,cv_vp ,istatus)
+   end if
    call gsi_bundlegetpointer (rval(jj),'u'   ,rv_u,   istatus)
    call gsi_bundlegetpointer (rval(jj),'v'   ,rv_v,   istatus)
-   call gsi_bundleputvar ( wbundle, 'sf',  zero,   istatus )
-   call gsi_bundleputvar ( wbundle, 'vp',  zero,   istatus )
+
+   if(do_uv_copy)then
+      call gsi_bundleputvar ( wbundle, 'u',  rv_u,  istatus )
+      call gsi_bundleputvar ( wbundle, 'v',  rv_v,   istatus )
+   else
+      call gsi_bundleputvar ( wbundle, 'sf',  zero,   istatus )
+      call gsi_bundleputvar ( wbundle, 'vp',  zero,   istatus )
+   end if
 !  Convert RHS calculations for u,v to st/vp for application of
 !  background error
    if (do_getuv) then

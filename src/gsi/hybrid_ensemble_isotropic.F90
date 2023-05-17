@@ -49,6 +49,10 @@ module hybrid_ensemble_isotropic
 !   2016-05-13  parrish - remove beta12mult
 !   2018-02-15  wu      - add code for fv3_regional option
 !   2022-09-15  yokota  - add scale/variable/time-dependent localization
+!   2022-11-16  Y. Yang, Y. Wang, and X. Wang - add convective-scale static BEC (if_cs_staticB = .true.) and 
+!                                               use adaptive hybridization (if_consistency_ratio = .true.) to 
+!                                               guide where the static BEC is adopted.
+!                                               poc: xuguang.wang@ou.edu
 !
 ! subroutines included:
 !   sub init_rf_z                         - initialize localization recursive filter (z direction)
@@ -2653,6 +2657,8 @@ subroutine sqrt_beta_s_mult_cvec(grady)
   use hybrid_ensemble_parameters, only: oz_univ_static
   use hybrid_ensemble_parameters, only: sqrt_beta_s
   use hybrid_ensemble_parameters, only: sst_staticB
+  use obsmod, only: if_cs_staticB,if_consistency_ratio
+  use gsi_metguess_mod, only: gsi_metguess_bundle
   use constants, only:  one
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use control_vectors,only: control_vector
@@ -2669,6 +2675,8 @@ subroutine sqrt_beta_s_mult_cvec(grady)
   character(len=*),parameter::myname_=myname//'*sqrt_beta_s_mult_cvec'
   integer(i_kind) :: i,j,k,ii,ic2,ic3,istatus
   integer(i_kind) :: ipc3d(nc3d),ipc2d(nc2d)
+  real(r_kind),dimension(:,:,:),pointer::ges_mask1=>NULL()
+  real(r_kind)    :: sqrt_beta_s_temp
 
   ! Initialize timer
   call timer_ini('sqrt_beta_s_mult_cvec')
@@ -2685,6 +2693,8 @@ subroutine sqrt_beta_s_mult_cvec(grady)
      call stop2(999)
   endif
 
+  call gsi_bundlegetpointer (gsi_metguess_bundle(1),'maskh',ges_mask1,istatus)
+
   ! multiply by sqrt_beta_s
 !$omp parallel do schedule(dynamic,1) private(ic3,ic2,k,j,i,ii)
   do j=1,lon2
@@ -2694,7 +2704,16 @@ subroutine sqrt_beta_s_mult_cvec(grady)
            if ( trim(StrUpCase(cvars3d(ic3))) == 'OZ' .and. oz_univ_static ) cycle
            do k=1,nsig
               do i=1,lat2
-                 grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k) = sqrt_beta_s(k)*grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k)
+                 if(  if_cs_staticB .and. if_consistency_ratio )then
+                    if( abs(ges_mask1(i,j,k)) > 0.5_r_kind ) then
+                       sqrt_beta_s_temp = sqrt_beta_s(k)
+                    else
+                       sqrt_beta_s_temp = 0.0_r_kind
+                    end if
+                 else
+                    sqrt_beta_s_temp = sqrt_beta_s(k)
+                 end if
+                 grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k) = sqrt_beta_s_temp*grady%step(ii)%r3(ipc3d(ic3))%q(i,j,k)
               enddo
            enddo
         enddo
@@ -2757,6 +2776,8 @@ subroutine sqrt_beta_s_mult_bundle(grady)
   use timermod, only: timer_ini,timer_fnl
 
   use gridmod, only: nsig,lat2,lon2
+  use obsmod,only: if_cs_staticB,if_consistency_ratio
+  use gsi_metguess_mod, only: gsi_metguess_bundle
 
   implicit none
 
@@ -2767,6 +2788,8 @@ subroutine sqrt_beta_s_mult_bundle(grady)
   character(len=*),parameter::myname_=myname//'*sqrt_beta_s_mult_bundle'
   integer(i_kind) :: i,j,k,ic2,ic3,istatus
   integer(i_kind) :: ipc3d(nc3d),ipc2d(nc2d)
+  real(r_kind),dimension(:,:,:),pointer::ges_mask1=>NULL()
+  real(r_kind)    :: sqrt_beta_s_temp
 
   ! Initialize timer
   call timer_ini('sqrt_beta_s_mult_bundle')
@@ -2783,6 +2806,8 @@ subroutine sqrt_beta_s_mult_bundle(grady)
      call stop2(999)
   endif
 
+  call gsi_bundlegetpointer (gsi_metguess_bundle(1),'maskh',ges_mask1,istatus)
+
   ! multiply by sqrt_beta_s
 !$omp parallel do schedule(dynamic,1) private(ic3,ic2,k,j,i)
   do j=1,lon2
@@ -2791,7 +2816,16 @@ subroutine sqrt_beta_s_mult_bundle(grady)
         if ( trim(StrUpCase(cvars3d(ic3))) == 'OZ' .and. oz_univ_static ) cycle
         do k=1,nsig
            do i=1,lat2
-              grady%r3(ipc3d(ic3))%q(i,j,k) = sqrt_beta_s(k)*grady%r3(ipc3d(ic3))%q(i,j,k)
+              if( if_cs_staticB .and. if_consistency_ratio )then
+                 if( abs(ges_mask1(i,j,k)) > 0.5_r_kind ) then
+                    sqrt_beta_s_temp = sqrt_beta_s(k)
+                 else
+                    sqrt_beta_s_temp = 0.0_r_kind
+                 end if
+              else
+                 sqrt_beta_s_temp = sqrt_beta_s(k)
+              end if
+              grady%r3(ipc3d(ic3))%q(i,j,k) = sqrt_beta_s_temp*grady%r3(ipc3d(ic3))%q(i,j,k)
            enddo
         enddo
      enddo
@@ -2850,6 +2884,9 @@ subroutine sqrt_beta_e_mult_cvec(grady)
   use timermod, only: timer_ini,timer_fnl
 
   use gridmod, only: nsig
+  use obsmod,only: if_cs_staticB,if_consistency_ratio
+  use gsi_bundlemod, only: gsi_bundlegetpointer 
+  use gsi_metguess_mod, only: gsi_metguess_bundle
 
   implicit none
 
@@ -2858,10 +2895,14 @@ subroutine sqrt_beta_e_mult_cvec(grady)
 
 ! Declare local variables
   character(len=*),parameter::myname_=myname//'*sqrt_beta_e_mult'
-  integer(i_kind) :: i,j,k,ii,nn,ig
+  integer(i_kind) :: i,j,k,ii,nn,ig,istatus
+  real(r_kind),dimension(:,:,:),pointer::ges_mask1=>NULL()
+  real(r_kind)    :: sqrt_beta_e_temp
 
   ! Initialize timer
   call timer_ini('sqrt_beta_e_mult')
+
+  call gsi_bundlegetpointer (gsi_metguess_bundle(1),'maskh',ges_mask1,istatus)
 
   ! multiply by sqrt_beta_e
 !$omp parallel do schedule(dynamic,1) private(nn,k,j,i,ii,ig)
@@ -2871,7 +2912,16 @@ subroutine sqrt_beta_e_mult_cvec(grady)
            do nn=1,n_ens
               do k=1,nsig
                  do i=1,grd_ens%lat2
-                    grady%aens(ii,ig,nn)%r3(1)%q(i,j,k) = sqrt_beta_e(k)*grady%aens(ii,ig,nn)%r3(1)%q(i,j,k)
+                    if( if_cs_staticB .and. if_consistency_ratio )then
+                       if( abs(ges_mask1(i,j,k)) > 0.5_r_kind ) then
+                          sqrt_beta_e_temp = sqrt_beta_e(k)
+                       else
+                          sqrt_beta_e_temp = 1.0_r_kind
+                       end if
+                    else
+                       sqrt_beta_e_temp = sqrt_beta_e(k)
+                    end if
+                    grady%aens(ii,ig,nn)%r3(1)%q(i,j,k) = sqrt_beta_e_temp*grady%aens(ii,ig,nn)%r3(1)%q(i,j,k)
                  enddo
               enddo
            enddo
@@ -2917,6 +2967,9 @@ subroutine sqrt_beta_e_mult_bundle(aens)
   use gsi_bundlemod, only: gsi_bundle
   use timermod, only: timer_ini,timer_fnl
   use gridmod, only: nsig
+  use obsmod,only: if_cs_staticB, if_consistency_ratio
+  use gsi_bundlemod, only: gsi_bundlegetpointer 
+  use gsi_metguess_mod, only: gsi_metguess_bundle
 
   implicit none
 
@@ -2925,10 +2978,14 @@ subroutine sqrt_beta_e_mult_bundle(aens)
 
 ! Declare local variables
   character(len=*),parameter::myname_=myname//'*sqrt_beta_e_mult'
-  integer(i_kind) :: i,j,k,nn,ig
+  integer(i_kind) :: i,j,k,nn,ig,istatus
+  real(r_kind),dimension(:,:,:),pointer::ges_mask1=>NULL()
+  real(r_kind)    :: sqrt_beta_e_temp
 
   ! Initialize timer
   call timer_ini('sqrt_beta_e_mult')
+
+  call gsi_bundlegetpointer (gsi_metguess_bundle(1),'maskh',ges_mask1,istatus)
 
   ! multiply by sqrt_beta_e
 !$omp parallel do schedule(dynamic,1) private(nn,k,j,i,ig)
@@ -2937,7 +2994,16 @@ subroutine sqrt_beta_e_mult_bundle(aens)
         do nn=1,n_ens
            do k=1,nsig
               do i=1,grd_ens%lat2
-                 aens(ig,nn)%r3(1)%q(i,j,k) = sqrt_beta_e(k)*aens(ig,nn)%r3(1)%q(i,j,k)
+                 if( if_cs_staticB .and. if_consistency_ratio )then
+                    if( abs(ges_mask1(i,j,k)) > 0.5_r_kind ) then
+                       sqrt_beta_e_temp = sqrt_beta_e(k)
+                    else
+                       sqrt_beta_e_temp = 1.0_r_kind
+                    end if
+                 else
+                    sqrt_beta_e_temp = sqrt_beta_e(k)
+                 end if
+                 aens(ig,nn)%r3(1)%q(i,j,k) = sqrt_beta_e_temp*aens(ig,nn)%r3(1)%q(i,j,k)
               enddo
            enddo
         enddo

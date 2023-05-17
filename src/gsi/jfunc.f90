@@ -284,12 +284,13 @@ contains
 !$$$
     use constants, only: zero
     use gridmod, only: nsig,regional
+    use obsmod, only : if_cs_staticB
     use m_berror_stats, only: berror_get_dims
-    use m_berror_stats_reg, only: berror_get_dims_reg
+    use m_berror_stats_reg, only: berror_get_dims_reg,berror_get_dims_reg_extra
     implicit none
 
     integer(i_kind) j,k
-    integer(i_kind) msig,mlat,mlon 
+    integer(i_kind) msig,mlat,mlon,num_bins2d 
 
 !   Set length of control vector and other control vector constants
     call set_pointer
@@ -298,7 +299,11 @@ contains
     if(.not.regional)then                    ! If global, use msig, mlat, and mlon
        call berror_get_dims(msig,mlat,mlon)
     else                                     ! If regional, use msig and mlat only
-       call berror_get_dims_reg(msig,mlat)
+       if( if_cs_staticB ) then
+          call berror_get_dims_reg_extra(msig,mlat,num_bins2d)
+       else
+          call berror_get_dims_reg(msig,mlat)
+       end if
     endif
 
     call allocate_cv(xhatsave)
