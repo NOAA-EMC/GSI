@@ -152,7 +152,7 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use m_dtime, only: dtime_setup, dtime_check
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
-  use screen_to_ncdiag
+  use screen_to_ncdiag, only: screen_to_single_nc_diag_metadata
   implicit none
   
 ! !INPUT PARAMETERS:
@@ -1662,7 +1662,7 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   end subroutine contents_binary_diag_
   subroutine contents_netcdf_diag_(odiag)
   use constants, only: r_missing
-  use screen_to_ncdiag
+  use screen_to_ncdiag, only: screen_to_single_nc_diag_metadata
   type(obs_diag),pointer,intent(in):: odiag
 ! Observation class
   character(7),parameter     :: obsclass = '  ozlev'

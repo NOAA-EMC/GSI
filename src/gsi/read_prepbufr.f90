@@ -689,26 +689,20 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! identify drifting buoys - TYP=180/280 T29=562 and last three digits of SID between 500 and 999
 !  (see https://www.wmo.int/pages/prog/amp/mmop/wmo-number-rules.html)  Set kx to 199/299
-        ! Prevent integer overflow by nint
-        if(hdr(3) < huge_i_kind) then
-           if (id_drifter .and. (kx==180 .or. kx==280) .and. idnint(hdr(3))==562) then
-              rstation_id=hdr(4)
-              read(c_station_id,*,iostat=ios) iwmo
-              if (ios == 0 .and. iwmo > 0) then
-                 if(mod(iwmo,1000) >=500) then
-                    kx = kx + 19
-                 end if
+        if (id_drifter .and. (kx==180 .or. kx==280) .and. nint(hdr(3),r_double)==562) then
+           rstation_id=hdr(4)
+           read(c_station_id,*,iostat=ios) iwmo
+           if (ios == 0 .and. iwmo > 0) then
+              if(mod(iwmo,1000) >=500) then
+                 kx = kx + 19
               end if
            end if
         end if
 
-        !Prevent integer overflow by nint
-        if(hdr(3) < huge_i_kind) then
-           if (id_ship .and. (kx==180) .and. (idnint(hdr(3))==522 .or. idnint(hdr(3))==523)) then
-              rstation_id=hdr(4)
-              kx = kx + 18
-           end if
-        endif
+        if (id_ship .and. (kx==180) .and. (nint(hdr(3),r_double)==522 .or. nint(hdr(3),r_double)==523)) then
+           rstation_id=hdr(4)
+           kx = kx + 18
+        end if
 
         if(twodvar_regional)then
 !          If running in 2d-var (surface analysis) mode, check to see if observation
@@ -974,26 +968,20 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !
 ! identify drifting buoys - TYP=180/280 T29=562 and last three digits of SID between 500 and 999
 !  (see https://www.wmo.int/pages/prog/amp/mmop/wmo-number-rules.html)  Set kx to 199/299
-              !Prevent integer overflow by nint
-              if(hdr(8) < huge_i_kind) then
-                 if (id_drifter .and. (kx==180 .or. kx==280) .and.  idnint(hdr(8))==562 ) then
-                    rstation_id=hdr(1)
-                    read(c_station_id,*,iostat=ios) iwmo
-                    if (ios == 0 .and. iwmo > 0) then
-                       if(mod(iwmo,1000) >=500) then
-                          kx = kx + 19
-                       end if
+              if (id_drifter .and. (kx==180 .or. kx==280) .and. nint(hdr(8),r_double)==562) then
+                 rstation_id=hdr(1)
+                 read(c_station_id,*,iostat=ios) iwmo
+                 if (ios == 0 .and. iwmo > 0) then
+                    if(mod(iwmo,1000) >=500) then
+                       kx = kx + 19
                     end if
                  end if
-              endif
+              end if
 
-              !Prevent integer overflow by nint
-              if(hdr(8) < huge_i_kind) then
-                 if (id_ship .and. (kx==180) .and.  (idnint(hdr(8))==522 .or. idnint(hdr(8))==523) ) then
-                    rstation_id=hdr(1)
-                    kx = kx + 18
-                 end if
-              endif
+              if (id_ship .and. (kx==180) .and. (nint(hdr(8),r_double)==522 .or. nint(hdr(8),r_double)==523) ) then
+                 rstation_id=hdr(1)
+                 kx = kx + 18
+              end if
 !
 
 !             check VAD subtype. 1--old, 2--new, other--old 
@@ -1650,8 +1638,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                              qcmark(3,k)=min(tobaux(2,k,j),qcmark_huge)
                              tqm(k)=idnint(qcmark(3,k))
                              exit
-                          endif
-                       endif
+                          end if
+                       end if
                        if (tpc(k,j)==vtcd) then
                           obsdat(3,k)=tobaux(1,k,j+1)
                           qcmark(3,k)=min(tobaux(2,k,j+1),qcmark_huge)
@@ -2143,23 +2131,20 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                        oelev=windsensht+selev !windsensht: read in from prepbufr
                     else
                        oelev=r10+selev
-                    endif
+                    end if
                     if (kx == 280 )then
-                       !Prevent integer overflow by nint
-                       if(hdr(8) < huge_i_kind) then
-                          it29=idnint(hdr(8))
-                          if(it29 == 522 .or. it29 == 523 .or. it29 == 531)then
+                       it29=nint(hdr(8),r_double)
+                       if(it29 == 522 .or. it29 == 523 .or. it29 == 531)then
 !                         oelev=r20+selev
-                             oelev=r20
-                          end if
+                          oelev=r20
                        end if
-                    endif
+                    end if
  
                     if (kx == 282) oelev=r20+selev
                     if (kx == 285 .or. kx == 289 .or. kx == 290) then
                        oelev=selev
                        selev=zero
-                    endif
+                    end if
                  else
                     if((kx >= 221 .and.  kx <= 229) &
                        .and. selev >= oelev) oelev=r10+selev

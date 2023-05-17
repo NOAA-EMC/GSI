@@ -1921,7 +1921,7 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
   end subroutine contents_binary_dirZDA_diag_
   subroutine contents_netcdf_diag_(odiag)
   use constants, only: r_missing
-  use screen_to_ncdiag
+  use screen_to_ncdiag, only: screen_to_single_nc_diag_metadata
   type(obs_diag),pointer,intent(in):: odiag
 ! Observation class
   character(7),parameter     :: obsclass = '    dbz'

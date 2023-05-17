@@ -2543,7 +2543,7 @@ contains
 
   end subroutine contents_binary_diag_
   subroutine contents_netcdf_diag_(odiags,idv,iob)
-    use screen_to_ncdiag
+    use screen_to_ncdiag, only: screen_to_single_nc_diag_metadata
     type(fptr_obsdiagNode),dimension(:),intent(in):: odiags
     integer(i_kind),intent(in):: idv,iob
 

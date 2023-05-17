@@ -754,7 +754,7 @@ end subroutine contents_binary_diag_
 subroutine contents_netcdf_diag_
   use sparsearr, only: sparr2, readarray, fullarray
   use constants, only: r_missing
-  use screen_to_ncdiag
+  use screen_to_ncdiag, only: screen_to_single_nc_diag_metadata
   integer(i_kind),dimension(miter) :: obsdiag_iuse
   integer(i_kind)                  :: obstype, obssubtype
   type(sparr2) :: dhx_dx

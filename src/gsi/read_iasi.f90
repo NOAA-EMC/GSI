@@ -729,8 +729,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
                 else
                    temperature(bufr_chan) = tbmin
                 endif
-              else
-                 temperature(bufr_chan) = tbmin
               end if
            end do channel_loop
 
