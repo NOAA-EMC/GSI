@@ -2169,7 +2169,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
        if ( ier == 0 ) iredundant = iredundant + 1
        if ( iredundant==2 ) then
           if ( mype == 0 ) then
-             write(6,*) 'general_read_gfsatm_nems: ERROR'
+             write(6,*) 'general_read_gfsatm_nc: ERROR'
              write(6,*) 'cannot handle having both sf and div'
              write(6,*) 'Aborting ... '
           endif
@@ -2182,7 +2182,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
        if ( ier == 0 ) iredundant = iredundant + 1
        if ( iredundant==2 ) then
           if ( mype == 0 ) then
-             write(6,*) 'general_read_gfsatm_nems: ERROR'
+             write(6,*) 'general_read_gfsatm_nc: ERROR'
              write(6,*) 'cannot handle having both vp and vor'
              write(6,*) 'Aborting ... '
           endif
@@ -2195,7 +2195,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
        if ( ier == 0 ) iredundant = iredundant + 1
        if ( iredundant==2 ) then
           if ( mype == 0 ) then
-             write(6,*) 'general_read_gfsatm_nems: ERROR'
+             write(6,*) 'general_read_gfsatm_nc: ERROR'
              write(6,*) 'cannot handle having both t and tv'
              write(6,*) 'Aborting ... '
           endif
@@ -2209,7 +2209,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
        call gsi_bundlegetpointer(gfs_bundle,'cw',g_cwmr,ier);istatus=istatus+ier
        if ( istatus /= 0 ) then
           if ( mype == 0 ) then
-             write(6,*) 'general_read_gfsatm_nems: ERROR'
+             write(6,*) 'general_read_gfsatm_nc: ERROR'
              write(6,*) 'Missing some of the required fields'
              write(6,*) 'Aborting ... '
           endif
@@ -2222,7 +2222,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
        call gsi_bundlegetpointer(gfs_bundle,'ps',g_ps  ,ier);istatus=istatus+ier
        if ( istatus /= 0 ) then
           if ( mype == 0 ) then
-             write(6,*) 'general_read_gfsatm_nems: ERROR'
+             write(6,*) 'general_read_gfsatm_nc: ERROR'
              write(6,*) 'Missing 2m required variables'
              write(6,*) 'Aborting ... '
           endif
