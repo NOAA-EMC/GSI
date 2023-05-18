@@ -453,21 +453,21 @@
   ! The following line will be removed after testing
   use_full_hydro = .true.
   if (.not. use_full_hydro .and. iope==0) then
-  if (ql_ind > 0 .or. qi_ind > 0) then
-     do k=1,nlevs
-        do i = 1, npts
-           qi_coef        = -r0_05*(tv(i,k)/(one+fv*q(i,k))-t0c)
-           qi_coef        = max(zero,qi_coef)
-           qi_coef        = min(one,qi_coef)    ! 0<=qi_coef<=1
-           if (ql_ind > 0) then
-             grdin(i,levels(ql_ind-1)+k,nb,ne) = cw(i,k)*(one-qi_coef)
-           endif
-           if (qi_ind > 0) then
-             grdin(i,levels(qi_ind-1)+k,nb,ne) = cw(i,k)*qi_coef
-           endif
+     if (ql_ind > 0 .or. qi_ind > 0) then
+        do k=1,nlevs
+           do i = 1, npts
+              qi_coef        = -r0_05*(tv(i,k)/(one+fv*q(i,k))-t0c)
+              qi_coef        = max(zero,qi_coef)
+              qi_coef        = min(one,qi_coef)    ! 0<=qi_coef<=1
+              if (ql_ind > 0) then
+                grdin(i,levels(ql_ind-1)+k,nb,ne) = cw(i,k)*(one-qi_coef)
+              endif
+              if (qi_ind > 0) then
+                grdin(i,levels(qi_ind-1)+k,nb,ne) = cw(i,k)*qi_coef
+              endif
+           enddo
         enddo
-     enddo
-  endif
+     endif
   endif
 
   if (sst_ind > 0 .and. iope==0) then
