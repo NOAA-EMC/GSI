@@ -185,6 +185,8 @@
   sst_ind = getindex(vars2d, 'sst')
   use_full_hydro = ( ql_ind > 0 .and. qi_ind > 0  .and. &
                      qr_ind > 0 .and. qs_ind > 0 .and. qg_ind > 0 )
+  ! Currently, we do not let precipiation to affect the enkf analysis  
+  ! The following line will be removed after testing
   use_full_hydro = .false.
 
   if (.not. isinitialized) call init_spec_vars(nlons,nlats,ntrunc,4)
@@ -447,6 +449,8 @@
   end if
 
   ! cloud derivatives
+  ! Currently, we do not let precipiation to affect the enkf analysis  
+  ! The following line will be removed after testing
   use_full_hydro = .true.
   if (.not. use_full_hydro .and. iope==0) then
   if (ql_ind > 0 .or. qi_ind > 0) then
