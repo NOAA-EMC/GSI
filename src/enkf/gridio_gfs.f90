@@ -3978,6 +3978,8 @@
                                     ! old logical massbal_adjust, if non-zero
   use_full_hydro = ( ql_ind > 0 .and. qi_ind > 0 .and. &
                      qr_ind > 0 .and. qs_ind > 0 .and. qg_ind > 0 )
+  ! Currently, we do not let precipiation to affect the enkf analysis  
+  ! The following line will be removed after testing
   use_full_hydro = .false.
 
   dsfg = open_dataset(filenamein, paropen=.true., mpicomm=iocomms(mem_pe(nproc)))
