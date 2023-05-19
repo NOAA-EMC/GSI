@@ -157,7 +157,7 @@
      levdim = get_dim(dset,'pfull');   nlevsin = levdim%len
      idvc=2
   else
-     print *, 'parallel read only supported for netCDF, stopping with error'
+     write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** parallel read only supported for netCDF' , ' PROGRAM STOPS'
      call stop2(23)
   end if
   ice = .false. ! calculate qsat w/resp to ice?
@@ -198,7 +198,7 @@
 
   call read_vardata(dset, 'pressfc', values_2d,errcode=iret)
   if (iret /= 0) then
-     print *,'error reading ps'
+     write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading ps, iret= ',iret,' PROGRAM STOPS'
      call stop2(31)
   endif
   psg = 0.01_r_kind*reshape(values_2d,(/nlons*nlats/))
@@ -218,12 +218,12 @@
 
   call read_vardata(dset, 'ugrd', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
   if (iret /= 0) then
-     print *,'error reading ugrd'
+     write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading ugrd, iret= ',iret,' PROGRAM STOPS'
      call stop2(22)
   endif
   call read_vardata(dset, 'vgrd', vg3d, ncstart=ncstart, nccount=nccount, errcode=iret)
   if (iret /= 0) then
-     print *,'error reading vgrd'
+     write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading vgrd, iret= ',iret,' PROGRAM STOPS'
      call stop2(23)
   endif
   call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
@@ -250,12 +250,12 @@
   end if
   call read_vardata(dset,'tmp', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
   if (iret /= 0) then
-     print *,'error reading tmp'
+     write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading tmp, iret= ',iret,' PROGRAM STOPS'
      call stop2(24)
   endif
   call read_vardata(dset,'spfh', vg3d, ncstart=ncstart, nccount=nccount, errcode=iret)
   if (iret /= 0) then
-     print *,'error reading spfh'
+     write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading spfh, iret= ',iret,' PROGRAM STOPS'
      call stop2(25)
   endif
   call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
@@ -279,7 +279,7 @@
   if (oz_ind > 0) then
      call read_vardata(dset, 'o3mr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
      if (iret /= 0) then
-        print *,'error reading o3mr'
+        write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading o3mr, iret= ',iret,' PROGRAM STOPS'
         call stop2(26)
      endif
      if (cliptracers)  where (ug3d < clip) ug3d = clip
@@ -298,7 +298,7 @@
      if(ql_ind > 0) then
         call read_vardata(dset, 'clwmr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
         if (iret /= 0) then
-           print *,'error reading clwmr'
+           write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading clwmr, iret= ',iret,' PROGRAM STOPS'
            call stop2(26)
         endif
         if (cliptracers)  where (ug3d < clip) ug3d = clip
@@ -315,7 +315,7 @@
      if(qi_ind > 0) then
         call read_vardata(dset, 'icmr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
         if (iret /= 0) then
-           print *,'error reading icmr'
+           write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading icmr, iret= ',iret,' PROGRAM STOPS'
            call stop2(26)
         endif
         if (cliptracers)  where (ug3d < clip) ug3d = clip
@@ -332,7 +332,7 @@
      if(qr_ind > 0) then
         call read_vardata(dset, 'rwmr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
         if (iret /= 0) then
-           print *,'error reading rwmr'
+           write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading rwmr, iret= ',iret,' PROGRAM STOPS'
            call stop2(26)
         endif
         if (cliptracers)  where (ug3d < clip) ug3d = clip
@@ -349,7 +349,7 @@
      if(qs_ind > 0) then
        call read_vardata(dset, 'snmr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
        if (iret /= 0) then
-           print *,'error reading snmr'
+           write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading snmr, iret= ',iret,' PROGRAM STOPS'
            call stop2(26)
         endif
         if (cliptracers)  where (ug3d < clip) ug3d = clip
@@ -366,7 +366,7 @@
      if(qg_ind > 0) then
         call read_vardata(dset, 'grle', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
         if (iret /= 0) then
-           print *,'error reading grle'
+           write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading grle, iret= ',iret,' PROGRAM STOPS'
            call stop2(26)
         endif
         if (cliptracers)  where (ug3d < clip) ug3d = clip
@@ -386,13 +386,13 @@
      if (cw_ind > 0 .or. ql_ind > 0 .or. qi_ind > 0) then
         call read_vardata(dset, 'clwmr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
         if (iret /= 0) then
-           print *,'error reading clwmr'
+           write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading clwmr, iret= ',iret,' PROGRAM STOPS'
            call stop2(27)
         endif
         if (imp_physics == 11) then
            call read_vardata(dset, 'icmr', vg3d, ncstart=ncstart, nccount=nccount, errcode=iret)
            if (iret /= 0) then
-              print *,'error reading icmr'
+              write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading icmr, iret= ',iret,' PROGRAM STOPS'
               call stop2(28)
            endif
            ug3d = ug3d + vg3d
@@ -3983,7 +3983,7 @@
   dsfg = open_dataset(filenamein, paropen=.true., mpicomm=iocomms(mem_pe(nproc)))
   call read_attribute(dsfg, 'ak', values_1d,errcode=iret)
   if (iret /= 0) then
-     print *,'error reading ak'
+     write(6,*)'WRITEINCREMENT_PNC:  ***FATAL ERROR*** reading ak, iret= ',iret,' PROGRAM STOPS'
      call stop2(29)
   endif
   do k=1,nlevs+1
@@ -3992,7 +3992,7 @@
   enddo
   call read_attribute(dsfg, 'bk', values_1d,errcode=iret)
   if (iret /= 0) then
-     print *,'error reading bk'
+     write(6,*)'WRITEINCREMENT_PNC:  ***FATAL ERROR*** reading bk, iret= ',iret,' PROGRAM STOPS'
      call stop2(29)
   endif
   do k=1,nlevs+1
@@ -4102,7 +4102,7 @@
   allocate(tvanl(nlons,nlats,nccount(3)),tmpanl(nlons,nlats,nccount(3)),qanl(nlons,nlats,nccount(3)))
   call read_vardata(dsfg, 'spfh', q, ncstart=ncstart, nccount=nccount, errcode=iret)
   if (iret /= 0) then
-     print *,'error reading spfh'
+     write(6,*)'WRITEINCREMENT_PNC:  ***FATAL ERROR*** reading spfh, iret= ',iret,' PROGRAM STOPS'
      call stop2(29)
   endif
   do k=lev_pe1(iope), lev_pe2(iope)
@@ -4127,7 +4127,7 @@
   ! t increment
   call read_vardata(dsfg, 'tmp', tmp, ncstart=ncstart, nccount=nccount, errcode=iret)
   if (iret /= 0) then
-     print *,'error reading tmp'
+     write(6,*)'WRITEINCREMENT_PNC:  ***FATAL ERROR*** reading tmp, iret= ',iret,' PROGRAM STOPS'
      call stop2(29)
   endif
   tv = tmp * ( 1.0 + fv*q)
@@ -4205,60 +4205,60 @@
   ! Adjust increment accordingly
 
   if (use_full_hydro) then 
-      ! liq wat increment 
-      call read_vardata(dsfg, 'clwmr', q, ncstart=ncstart, nccount=nccount, errcode=iret)
-      if (iret /= 0) then
-         print *,'error reading clwmr'
-         call stop2(29)
-      endif
-      do k=lev_pe1(iope), lev_pe2(iope)
-         krev = nlevs-k+1
-         ki = k - lev_pe1(iope) + 1
-         inc(:) = zero
-         if (ql_ind > 0) then
-           call copyfromgrdin(grdin(:,levels(ql_ind-1) + krev,nb,ne),inc)
-         endif
-         inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
-         qanl(:,:,ki) = q(:,:,ki) + inc3d(:,:,ki)
-      end do
-      if (cliptracers)  where (qanl < qcmin) qanl = qcmin
-      inc3d = qanl - q   ! updated clwmr increment
-      do j=1,nlats
-        inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
-      end do
-      if (should_zero_increments_for('liq_wat_inc')) inc3dout = zero
-      call nccheck_incr(nf90_put_var(ncid_out, liqwatvarid, sngl(inc3dout), &
-                          start = ncstart, count = nccount))
+     ! liq wat increment 
+     call read_vardata(dsfg, 'clwmr', q, ncstart=ncstart, nccount=nccount, errcode=iret)
+     if (iret /= 0) then
+        write(6,*)'WRITEINCREMENT_PNC:  ***FATAL ERROR*** reading clwmr, iret= ',iret,' PROGRAM STOPS'
+        call stop2(29)
+     endif
+     do k=lev_pe1(iope), lev_pe2(iope)
+        krev = nlevs-k+1
+        ki = k - lev_pe1(iope) + 1
+        inc(:) = zero
+        if (ql_ind > 0) then
+          call copyfromgrdin(grdin(:,levels(ql_ind-1) + krev,nb,ne),inc)
+        endif
+        inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
+        qanl(:,:,ki) = q(:,:,ki) + inc3d(:,:,ki)
+     end do
+     if (cliptracers)  where (qanl < qcmin) qanl = qcmin
+     inc3d = qanl - q   ! updated clwmr increment
+     do j=1,nlats
+       inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
+     end do
+     if (should_zero_increments_for('liq_wat_inc')) inc3dout = zero
+     call nccheck_incr(nf90_put_var(ncid_out, liqwatvarid, sngl(inc3dout), &
+                         start = ncstart, count = nccount))
 
-      ! icmr increment 
-      call read_vardata(dsfg, 'icmr', q, ncstart=ncstart, nccount=nccount, errcode=iret)
-      if (iret /= 0) then
-         print *,'error reading icmr'
-         call stop2(29)
-      endif
-      do k=lev_pe1(iope), lev_pe2(iope)
-         krev = nlevs-k+1
-         ki = k - lev_pe1(iope) + 1
-         inc(:) = zero
-         if (qi_ind > 0) then
-           call copyfromgrdin(grdin(:,levels(qi_ind-1) + krev,nb,ne),inc)
-         endif
-         inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
-         qanl(:,:,ki) = q(:,:,ki) + inc3d(:,:,ki)
-      end do
-      if (cliptracers)  where (qanl < qcmin) qanl = qcmin
-      inc3d = qanl - q   ! updated icmr increment
-      do j=1,nlats
-        inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
-      end do
-      if (should_zero_increments_for('icmr_inc')) inc3dout = zero
-      call nccheck_incr(nf90_put_var(ncid_out, icvarid, sngl(inc3dout), &
-                          start = ncstart, count = nccount))
+     ! icmr increment 
+     call read_vardata(dsfg, 'icmr', q, ncstart=ncstart, nccount=nccount, errcode=iret)
+     if (iret /= 0) then
+        write(6,*)'WRITEINCREMENT_PNC:  ***FATAL ERROR*** reading icmr, iret= ',iret,' PROGRAM STOPS'
+        call stop2(29)
+     endif
+     do k=lev_pe1(iope), lev_pe2(iope)
+        krev = nlevs-k+1
+        ki = k - lev_pe1(iope) + 1
+        inc(:) = zero
+        if (qi_ind > 0) then
+          call copyfromgrdin(grdin(:,levels(qi_ind-1) + krev,nb,ne),inc)
+        endif
+        inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
+        qanl(:,:,ki) = q(:,:,ki) + inc3d(:,:,ki)
+     end do
+     if (cliptracers)  where (qanl < qcmin) qanl = qcmin
+     inc3d = qanl - q   ! updated icmr increment
+     do j=1,nlats
+       inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
+     end do
+     if (should_zero_increments_for('icmr_inc')) inc3dout = zero
+     call nccheck_incr(nf90_put_var(ncid_out, icvarid, sngl(inc3dout), &
+                         start = ncstart, count = nccount))
 
      ! rwmr increment
      call read_vardata(dsfg, 'rwmr', q, ncstart=ncstart, nccount=nccount, errcode=iret)
      if (iret /= 0) then
-        print *,'error reading rwmr'
+        write(6,*)'WRITEINCREMENT_PNC:  ***FATAL ERROR*** reading rwmr, iret= ',iret,' PROGRAM STOPS'
         call stop2(29)
      endif
      do k=lev_pe1(iope), lev_pe2(iope)
@@ -4279,11 +4279,11 @@
      if (should_zero_increments_for('rwmr_inc')) inc3dout = zero
      call nccheck_incr(nf90_put_var(ncid_out, rwmrvarid, sngl(inc3dout), &
                          start = ncstart, count = nccount))
- 
+
      ! snmr increment
      call read_vardata(dsfg, 'snmr', q, ncstart=ncstart, nccount=nccount, errcode=iret)
      if (iret /= 0) then
-        print *,'error reading snmr'
+        write(6,*)'WRITEINCREMENT_PNC:  ***FATAL ERROR*** reading snmr, iret= ',iret,' PROGRAM STOPS'
         call stop2(29)
      endif
      do k=lev_pe1(iope), lev_pe2(iope)
@@ -4304,11 +4304,11 @@
      if (should_zero_increments_for('snmr_inc')) inc3dout = zero
      call nccheck_incr(nf90_put_var(ncid_out, snmrvarid, sngl(inc3dout), &
                          start = ncstart, count = nccount))
- 
+
      ! grle increment
      call read_vardata(dsfg, 'grle', q, ncstart=ncstart, nccount=nccount, errcode=iret)
      if (iret /= 0) then
-        print *,'error reading grle'
+        write(6,*)'WRITEINCREMENT_PNC:  ***FATAL ERROR*** reading grle, iret= ',iret,' PROGRAM STOPS'
         call stop2(29)
      endif
      do k=lev_pe1(iope), lev_pe2(iope)
