@@ -827,7 +827,7 @@ contains
       ! subroutine to write contents to netcdf diag files
       ! original: pagowski
       ! modified: 2019-03-21 - martin - cleaned up to fit GSI coding norms
-      use screen_to_ncdiag
+      use screen_to_ncdiag, only: screen_to_single_nc_diag_metadata
       implicit none
       character(7),parameter     :: obsclass = '    aod'
       character(128) :: fieldname

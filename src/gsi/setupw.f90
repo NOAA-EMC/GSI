@@ -1780,7 +1780,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   end subroutine contents_binary_diag_
   subroutine contents_netcdf_diag_(udiag,vdiag)
   use constants, only: r_missing
-  use screen_to_ncdiag
+  use screen_to_ncdiag, only: screen_to_single_nc_diag_metadata
   type(obs_diag),pointer,intent(in):: udiag,vdiag
 ! Observation class
   character(7),parameter     :: obsclass = '     uv'

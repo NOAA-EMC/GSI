@@ -1615,7 +1615,7 @@ end subroutine contents_binary_diag_
 subroutine contents_netcdf_diag_(odiag)
 ! Observation class
   use constants, only: r_missing
-  use screen_to_ncdiag
+  use screen_to_ncdiag, only: screen_to_single_nc_diag_metadata
   type(obs_diag),pointer,intent(in):: odiag
   character(7),parameter     :: obsclass = '     light'
   real(r_single),parameter::     missing = -9.99e9_r_single
