@@ -42,25 +42,18 @@ subroutine init_mult_spc_wgts(jcap_in)
 !$$$ end documentation block
 
   use kinds, only: r_kind,i_kind,r_single
-  use hybrid_ensemble_parameters,only: s_ens_hv,sp_loc,grd_ens,grd_loc,sp_ens
-  use hybrid_ensemble_parameters,only: n_ens,p_sploc2ens,grd_sploc
-  use hybrid_ensemble_parameters,only: use_localization_grid
-  use gridmod,only: use_sp_eqspace
-  use general_specmod, only: general_init_spec_vars
   use constants, only: zero,half,one,two,three,rearth,pi,tiny_r_kind
-  use constants, only: rad2deg
   use mpimod, only: mype
   use general_sub2grid_mod, only: general_sub2grid_create_info
   use egrid2agrid_mod,only: g_create_egrid2agrid
   use general_sub2grid_mod, only: sub2grid_info
-  use gsi_io, only: verbose
   use hybrid_ensemble_parameters, only: nsclgrp
   use hybrid_ensemble_parameters, only: spc_multwgt,spcwgt_params,r_ensloccov4scl
   implicit none
 
   integer(i_kind),intent(in   ) :: jcap_in
 
-  integer(i_kind) i,ii,j,k,l,n,kk,nsigend
+  integer(i_kind) i
   integer(i_kind) ig
   real(r_kind) rwv0,rtem1,rtem2
   real (r_kind):: fwgtofwvlen
@@ -121,18 +114,15 @@ subroutine apply_scaledepwgts(grd_in,sp_in,wbundle,spwgts,wbundle2)
 !                                 POC: xuguang.wang@ou.edu
 !
   use constants, only:  one
-  use control_vectors, only: nrf_var,cvars2d,cvars3d,control_vector
+  use control_vectors, only: control_vector
   use kinds, only: r_kind,i_kind
   use kinds, only: r_single
-  use mpimod, only: mype,nvar_id,levs_id
-  use hybrid_ensemble_parameters, only: oz_univ_static
   use general_specmod, only: general_spec_multwgt
   use gsi_bundlemod, only: gsi_bundle
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub   
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
-  use mpimod, only: mpi_comm_world,mype,npe,ierror
-  use file_utility, only : get_lun
+  use mpimod, only: mpi_comm_world,mype
   implicit none
 
 ! Declare passed variables
@@ -143,15 +133,11 @@ subroutine apply_scaledepwgts(grd_in,sp_in,wbundle,spwgts,wbundle2)
   real(r_kind),dimension(0:sp_in%jcap),intent(in):: spwgts
 
 ! Declare local variables
-  integer(i_kind) ii,kk
-  integer(i_kind) i,j,lunit 
+  integer(i_kind) kk
 
-  real(r_kind),dimension(grd_in%lat2,grd_in%lon2):: slndt,sicet,sst
   real(r_kind),dimension(grd_in%nlat*grd_in%nlon*grd_in%nlevs_alloc)      :: hwork
   real(r_kind),dimension(grd_in%nlat,grd_in%nlon,grd_in%nlevs_alloc)      :: work
   real(r_kind),dimension(sp_in%nc):: spc1
-  character*64 :: fname1
-  character*5:: varname1
 
 ! Beta1 first
 ! Get from subdomains to
