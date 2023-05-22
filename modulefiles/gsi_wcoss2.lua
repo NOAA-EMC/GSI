@@ -20,6 +20,6 @@ load(pathJoin("prod_util", prod_util_ver))
 
 load("gsi_common")
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/gsi/20221128")
+pushenv("GSI_BINARY_SOURCE_DIR", "/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/gsi/20230112")
 
 whatis("Description: GSI environment on WCOSS2")
