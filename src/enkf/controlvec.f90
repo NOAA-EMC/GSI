@@ -300,6 +300,7 @@ real(r_single), allocatable, dimension(:,:,:,:) :: grdin_mean
 if (nproc <= ntasks_io-1) then
 
    ! scale q by ensemble qsat, prior to averaging
+   q_ind = getindex(cvars3d, 'q')
    if (pseudo_rh .and. q_ind > 0) then
    if ( .not. use_qsatensmean ) then
          do ne=1,nanals_per_iotask
@@ -357,7 +358,6 @@ if (nproc <= ntasks_io-1) then
 100 format('ens. mean anal. increment min/max  ',a,2x,g19.12,2x,g19.12)
    deallocate(grdin_mean_tmp)
 
-   q_ind = getindex(cvars3d, 'q')
    if (pseudo_rh .and. q_ind > 0) then
       if (use_qsatensmean) then
          do ne=1,nanals_per_iotask
