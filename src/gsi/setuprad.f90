@@ -1461,7 +1461,6 @@ contains
            do i=1,nchanl
               m=ich(i)
               if (icld_det(m)>0 .and. varinv(i) >= tiny_r_kind) then
-!             if (icld_det(m)>0 .or. varinv(i) >= tiny_r_kind) then
                  varinv_use(i) = varinv(i)
               else
                  varinv_use(i) = zero
