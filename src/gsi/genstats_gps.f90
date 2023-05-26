@@ -250,7 +250,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   use obsmod, only: lobsdiagsave,luse_obsdiag
   use obsmod, only: binary_diag,netcdf_diag,dirname,ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
-                          nc_diag_write, nc_diag_data2d
+                          nc_diag_write, nc_diag_data2d, nc_diag_metadata_to_single
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use gridmod, only: nsig,regional
   use constants, only: tiny_r_kind,half,wgtlim,one,two,zero,five,four
@@ -753,8 +753,6 @@ end subroutine contents_binary_diag_
 
 subroutine contents_netcdf_diag_
   use sparsearr, only: sparr2, readarray, fullarray
-  use constants, only: r_missing
-  use screen_to_ncdiag, only: screen_to_single_nc_diag_metadata
   integer(i_kind),dimension(miter) :: obsdiag_iuse
   integer(i_kind)                  :: obstype, obssubtype
   type(sparr2) :: dhx_dx
@@ -768,32 +766,27 @@ subroutine contents_netcdf_diag_
            obssubtype = gps_allptr%rdiag(2)
            call nc_diag_metadata("Observation_Type",                      obstype                      )
            call nc_diag_metadata("Observation_Subtype",                   obssubtype                   )
-           call screen_to_single_nc_diag_metadata("Latitude",(gps_allptr%rdiag(3))    )
-           call screen_to_single_nc_diag_metadata("Longitude",(gps_allptr%rdiag(4))    )
-           call screen_to_single_nc_diag_metadata("Incremental_Bending_Angle",(gps_allptr%rdiag(5))    )
-           call screen_to_single_nc_diag_metadata("Pressure",(gps_allptr%rdiag(6))    )
-           call screen_to_single_nc_diag_metadata("Height",(gps_allptr%rdiag(7))    )
-           call screen_to_single_nc_diag_metadata("Time",(gps_allptr%rdiag(8))    )
-           call screen_to_single_nc_diag_metadata("Model_Elevation",(gps_allptr%rdiag(9))    )
-           call screen_to_single_nc_diag_metadata("Setup_QC_Mark",(gps_allptr%rdiag(10))   )
-           call screen_to_single_nc_diag_metadata("Prep_Use_Flag",(gps_allptr%rdiag(11))   )
-           call screen_to_single_nc_diag_metadata("Analysis_Use_Flag",(gps_allptr%rdiag(12))   )
+           call nc_diag_metadata_to_single("Latitude",                    gps_allptr%rdiag(3)          )
+           call nc_diag_metadata_to_single("Longitude",                   gps_allptr%rdiag(4)          )
+           call nc_diag_metadata_to_single("Incremental_Bending_Angle",   gps_allptr%rdiag(5)          )
+           call nc_diag_metadata_to_single("Pressure",                    gps_allptr%rdiag(6)          )
+           call nc_diag_metadata_to_single("Height",                      gps_allptr%rdiag(7)          )
+           call nc_diag_metadata_to_single("Time",                        gps_allptr%rdiag(8)          )
+           call nc_diag_metadata_to_single("Model_Elevation",             gps_allptr%rdiag(9)          )
+           call nc_diag_metadata_to_single("Setup_QC_Mark",               gps_allptr%rdiag(10)         )
+           call nc_diag_metadata_to_single("Prep_Use_Flag",               gps_allptr%rdiag(11)         )
+           call nc_diag_metadata_to_single("Analysis_Use_Flag",           gps_allptr%rdiag(12)         )
 
-           call screen_to_single_nc_diag_metadata("Nonlinear_QC_Rel_Wgt",(gps_allptr%rdiag(13))   )
-           call screen_to_single_nc_diag_metadata("Errinv_Input",(gps_allptr%rdiag(14))   )
-           call screen_to_single_nc_diag_metadata("Errinv_Adjust",(gps_allptr%rdiag(15))   )
-           call screen_to_single_nc_diag_metadata("Errinv_Final",(gps_allptr%rdiag(16))   )
-           call screen_to_single_nc_diag_metadata("Observation",(gps_allptr%rdiag(17))   )
-           if(isnan(gps_allptr%rdiag(17)) .or. isnan(gps_allptr%rdiag(5))) then
-              call nc_diag_metadata("Obs_Minus_Forecast_adjusted",           sngl(real(r_missing)))
-              call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",         sngl(real(r_missing)))
-           else
-              call nc_diag_metadata("Obs_Minus_Forecast_adjusted",           sngl(gps_allptr%rdiag(17))*sngl(gps_allptr%rdiag(5)) )
-              call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",         sngl(gps_allptr%rdiag(17))*sngl(gps_allptr%rdiag(5)) )
-           endif
-           call screen_to_single_nc_diag_metadata("GPS_Type",(gps_allptr%rdiag(20))   )
-           call screen_to_single_nc_diag_metadata("Temperature_at_Obs_Location",(gps_allptr%rdiag(18))   )
-           call screen_to_single_nc_diag_metadata("Specific_Humidity_at_Obs_Location",(gps_allptr%rdiag(21))   )
+           call nc_diag_metadata_to_single("Nonlinear_QC_Rel_Wgt",        gps_allptr%rdiag(13)         )
+           call nc_diag_metadata_to_single("Errinv_Input",                gps_allptr%rdiag(14)         )
+           call nc_diag_metadata_to_single("Errinv_Adjust",               gps_allptr%rdiag(15)         )
+           call nc_diag_metadata_to_single("Errinv_Final",                gps_allptr%rdiag(16)         )
+           call nc_diag_metadata_to_single("Observation",                 gps_allptr%rdiag(17)         )
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted", gps_allptr%rdiag(17),gps_allptr%rdiag(5),"*")
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",gps_allptr%rdiag(17),gps_allptr%rdiag(5),"*")
+           call nc_diag_metadata_to_single("GPS_Type",                    gps_allptr%rdiag(20)         )
+           call nc_diag_metadata_to_single("Temperature_at_Obs_Location", gps_allptr%rdiag(18)         )
+           call nc_diag_metadata_to_single("Specific_Humidity_at_Obs_Location",gps_allptr%rdiag(21)    )
 
            if (save_jacobian) then
               call readarray(dhx_dx, gps_allptr%rdiag(ioff+1:nreal))

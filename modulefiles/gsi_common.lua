@@ -32,5 +32,9 @@ load(pathJoin("nemsio", nemsio_ver))
 load(pathJoin("wrf_io", wrf_io_ver))
 load(pathJoin("ncio", ncio_ver))
 load(pathJoin("crtm", crtm_ver))
-load(pathJoin("ncdiag",ncdiag_ver))
+--load(pathJoin("ncdiag",ncdiag_ver))
+setenv("ncdiag_ROOT", "/work2/noaa/nesdis-rdo2/dhuber/GSI/ncdiag/1.0.1")
+setenv("ncdiag_VERSION", "1.0.1")
+
+prepend_path("PATH", pathJoin("/work2/noaa/nesdis-rdo2/dhuber/GSI/ncdiag/1.0.1/","bin"))
 
