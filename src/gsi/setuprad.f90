@@ -366,6 +366,7 @@ contains
   real(r_kind) si_obs,si_fg                
 ! real(r_kind) si_mean                     
   real(r_kind) total_cloud_cover
+  real(r_kind) tref,errfl
 
   logical cao_flag                       
   logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,ahi,mhs,abi
@@ -394,8 +395,6 @@ contains
   real(r_kind),dimension(nchanl):: err2,tbc0,tb_obs0,raterr2,wgtjo
   real(r_kind),dimension(nchanl):: varinv0,diagadd
   real(r_kind),dimension(nchanl):: varinv,varinv_use,error0,errf,errf0
-  real(r_kind),dimension(nchanl):: varinv_LW,varinv_SW,varinv_useLW,varinv_useSW
-  real(r_kind),dimension(nchanl):: errf_LW,errf_SW
   real(r_kind),dimension(nchanl):: tb_obs,tbc,tbcnob,tlapchn,tb_obs_sdv
   real(r_kind),dimension(nchanl):: tnoise,tnoise_cld
   real(r_kind),dimension(nchanl):: emissivity,ts,emissivity_k
@@ -411,12 +410,12 @@ contains
   real(r_kind),dimension(nchanl):: weightmax
   real(r_kind),dimension(nchanl):: cld_rbc_idx,cld_rbc_idx2
   real(r_kind),dimension(nchanl):: tcc         
-  real(r_kind),dimension(nchanl):: tl_tbobs
-  real(r_kind) :: tref,errfl
   real(r_kind) :: ptau5deriv, ptau5derivmax
   real(r_kind) :: clw_guess,clw_guess_retrieval,ciw_guess,rain_guess,snow_guess,clw_avg
   real(r_kind),dimension(:), allocatable :: rsqrtinv
   real(r_kind),dimension(:), allocatable :: rinvdiag
+  real(r_kind),dimension(:), allocatable :: tl_tbobs,errf_LW,errf_SW
+  real(r_kind),dimension(:), allocatable :: varinv_LW,varinv_SW,varinv_useLW,varinv_useSW 
   real(r_kind),dimension(nchanl) :: abi2km_bc
 
 !for GMI (dual scan angles)
@@ -427,9 +426,10 @@ contains
   real(r_kind),dimension(nsigradjac,nchanl):: jacobian2
   real(r_kind) cosza2
 
-  integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag,id_qcLW,id_qcSW
+  integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nchanl):: kmax
   integer(i_kind),allocatable,dimension(:) :: sc_index
+  integer(i_kind),allocatable,dimension(:) :: id_qcLW,id_qcSW
   integer(i_kind)  :: state_ind, nind, nnz
 
   logical,dimension(jpch_rad) :: channel_passive
@@ -482,7 +482,8 @@ contains
   tpwc_obs  = zero
   sgagl = zero
   dtp_avh=zero
-  tref  = zero
+!  tref  = zero   - EEJ
+!  errfl = zero
   icc   = 0
   iccm  = 0
   ich9  = min(9,nchanl)
@@ -495,7 +496,7 @@ contains
 ! Initialize logical flags for satellite platform
 
   cao_flag   = .false.     
-  cris_sw    = .false.
+!  cris_sw    = .false.    - EEJ
   hirs2      = obstype == 'hirs2'
   hirs3      = obstype == 'hirs3'
   hirs4      = obstype == 'hirs4'
@@ -707,7 +708,26 @@ contains
      endif
   endif
 
-
+! Allocate some arrays for use with CrIS  - EEJ
+  cris_sw = .false.
+  tref = zero
+  errfl = zero
+  if (cris) then 
+     allocate(tl_tbobs(nchanl),errf_LW(nchanl),errf_SW(nchanl))
+     allocate(varinv_LW(nchanl),varinv_SW(nchanl),varinv_useLW(nchanl),varinv_useSW(nchanl))
+     allocate(id_qcLW(nchanl),id_qcSW(nchanl))
+     do i=1,nchanl
+        tl_tbobs(i)=zero
+        varinv_LW(i)=zero
+        varinv_SW(i)=zero
+        varinv_useLW(i)=zero
+        varinv_useSW(i)=zero
+        errf_LW(i)=zero
+        errf_SW(i)=zero
+        id_qcLW=-999
+        id_qcSW=-999
+     end do
+  endif
 
 !  Find number of channels written to diag file
   if(reduce_diag)then
@@ -1327,7 +1347,7 @@ contains
         do i=1,nchanl
            error0(i) = tnoise(i)
            errf0(i) = error0(i)
-           tl_tbobs(i) = error0(i)
+           if(cris) tl_tbobs(i) = error0(i)
         end do
 
 !       Assign observation error for all-sky radiances 
@@ -1357,11 +1377,10 @@ contains
 
         do i=1,nchanl
            mm=ich(i)
-           if (cris) then
-              errf_LW(i)=zero 
-              errf_SW(i)=zero
-           endif
-           channel_passive=iuse_rad(ich(i))==-1 .or. iuse_rad(ich(i))==0
+!           if (cris) then                  ! - EEJ
+!              errf_LW(i)=zero 
+!              errf_SW(i)=zero
+!           endif
            if(tnoise(i) < 1.e4_r_kind .or. (channel_passive(mm) .and. rad_diagsave) &
                   .or. (passive_bc .and. channel_passive(mm)))then
               varinv(i)     = varinv(i)/error0(i)**2
@@ -2263,6 +2282,16 @@ contains
 ! Deallocate arrays
   deallocate(diagbufchan)
   deallocate(sc_index)
+
+  if(allocated(tl_tbobs)) deallocate(tl_tbobs)
+  if(allocated(varinv_LW)) deallocate(varinv_LW)
+  if(allocated(varinv_SW)) deallocate(varinv_SW)
+  if(allocated(varinv_useLW)) deallocate(varinv_useLW)
+  if(allocated(varinv_useSW)) deallocate(varinv_useSW)
+  if(allocated(errf_LW)) deallocate(errf_LW)
+  if(allocated(errf_SW)) deallocate(errf_SW)
+  if(allocated(id_qcLW)) deallocate(id_qcLW)
+  if(allocated(id_qcSW)) deallocate(id_qcSW)
 
   if (rad_diagsave .and. nchanl_diag > 0) then
      if (netcdf_diag) call nc_diag_write
