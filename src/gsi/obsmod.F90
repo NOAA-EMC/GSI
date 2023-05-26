@@ -1005,9 +1005,13 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$ end documentation block
+#ifdef __INTEL_COMPILER
+    use IFPORT
+#endif
     implicit none
 
     integer(i_kind),intent(in   ) :: mype
+    logical :: l_mkdir_stat
 
     character(len=144):: command
     character(len=8):: pe_name
@@ -1016,7 +1020,15 @@ contains
        write(pe_name,'(i4.4)') mype
        dirname = 'dir.'//trim(pe_name)//'/'
        command = 'mkdir -p -m 755 ' // trim(dirname)
+#ifdef __INTEL_COMPILER
+       l_mkdir_stat = MAKEDIRQQ(trim(dirname))
+       if(.not. l_mkdir_stat) then
+          write(6, *) "Failed to create directory ", trim(dirname), " for PE ", pe_name
+          call stop2(678)
+       endif
+#else
        call system(command)
+#endif
     else
        write(pe_name,100) mype
 100 format('pe',i4.4,'.')
