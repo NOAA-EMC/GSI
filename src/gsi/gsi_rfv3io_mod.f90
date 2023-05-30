@@ -1824,7 +1824,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m)
     real(r_kind),intent(in),dimension(:,:),pointer::ges_q2m
     type (type_fv3regfilenameg),intent(in) :: fv3filenamegin
     character(len=max_varname_length) :: name
-    integer(i_kind),allocatable,dimension(:):: dim_id,dim
+    integer(i_kind),allocatable,dimension(:):: dim
     real(r_kind),allocatable,dimension(:):: work
     real(r_kind),allocatable,dimension(:,:):: a
     real(r_kind),allocatable,dimension(:,:,:):: sfcn2d
@@ -2774,10 +2774,9 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
     type (type_fv3regfilenameg),intent(in) ::fv3filenamegin
     integer(i_kind)   ,intent(in   ) :: iope
     real(r_kind),allocatable,dimension(:,:):: uu2d, uu2d_tmp
-    real(r_kind),allocatable,dimension(:):: wrk_send_2d
     real(r_kind),dimension(nlat,nlon,nsig):: hwork
     real(r_kind),dimension(nlat,nlon,nsig),intent(out),optional:: delp,tsen,w,q,oz,ql,qr,qs,qi,qg,dbz
-    character(len=max_varname_length) :: varname,vgsiname
+    character(len=max_varname_length) :: varname
     character(len=max_varname_length) :: name
     character(len=max_varname_length), allocatable,dimension(:) :: varname_files
 
@@ -2994,8 +2993,6 @@ subroutine gsi_fv3ncdf_readuv_ens_parallel_over_ens(ges_u,ges_v,fv3filenamegin,i
     character(:), allocatable:: filenamein
     real(r_kind),allocatable,dimension(:,:):: u2d,v2d
     real(r_kind),allocatable,dimension(:,:):: uc2d,vc2d
-    character(len=max_varname_length) :: varname,vgsiname
-    real(r_kind),allocatable,dimension(:,:,:,:):: worksub
     integer(i_kind) u_grd_VarId,v_grd_VarId
     integer(i_kind) nlatcase,nloncase
     integer(i_kind) nxcase,nycase

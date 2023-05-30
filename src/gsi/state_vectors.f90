@@ -386,7 +386,7 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
 ! local variables
   real(r_kind),allocatable,dimension(:)   :: zloc,nloc
   real(r_kind),allocatable,dimension(:,:) :: zall,nall
-  integer(i_kind) :: i,ii
+  integer(i_kind) :: i
 
   pmin=zero
   pmax=zero
