@@ -720,7 +720,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !$omp parallel do schedule(dynamic,1) private(i,sc_chan,bufr_chan,radiance)
            channel_loop: do i=1,satinfo_nchan
               bufr_chan = bufr_index(i)
-              if (bufr_chan /= 0 ) then
+              if (bufr_chan > 0 ) then
 !             check that channel number is within reason
                 if (( allchan(2,bufr_chan) > zero .and. allchan(2,bufr_chan) < 99999._r_kind)) then  ! radiance bounds
                   radiance = allchan(2,bufr_chan)*scalef(bufr_chan)
@@ -729,8 +729,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
                 else
                    temperature(bufr_chan) = tbmin
                 endif
-              else
-                 temperature(bufr_chan) = tbmin
               end if
            end do channel_loop
 
