@@ -71,7 +71,7 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
                        one_tenth,r1000,r60,r60inv,r100,r400,grav_equator, &
                        eccentricity,somigliana,grav_ratio,grav,semi_major_axis,flattening 
   use gridmod, only: tll2xy,nsig,nlat,nlon
-  use obsmod, only: iadate,doradaroneob,oneoblat,oneoblon,oneobheight,oneobradid, &
+  use obsmod, only: iadate,doradaroneob,oneoblat,oneoblon,oneobheight, &
                     mintiltdbz,maxtiltdbz,minobrangedbz,maxobrangedbz,&
                     static_gsi_nopcp_dbz,rmesh_dbz,zmesh_dbz
   use hybrid_ensemble_parameters,only : l_hyb_ens
