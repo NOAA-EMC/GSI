@@ -980,7 +980,7 @@ contains
     return
   end subroutine init_obsmod_dflts
   
-  subroutine init_directories(mype)
+  subroutine init_directories(in_pe)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    create sub-directories
@@ -1010,14 +1010,14 @@ contains
 #endif
     implicit none
 
-    integer(i_kind),intent(in   ) :: mype
+    integer(i_kind),intent(in   ) :: in_pe
     logical :: l_mkdir_stat
 
     character(len=144):: command
     character(len=8):: pe_name
 
     if (lrun_subdirs) then
-       write(pe_name,'(i4.4)') mype
+       write(pe_name,'(i4.4)') in_pe
        dirname = 'dir.'//trim(pe_name)//'/'
        command = 'mkdir -p -m 755 ' // trim(dirname)
 #ifdef __INTEL_COMPILER
@@ -1030,7 +1030,7 @@ contains
        call system(command)
 #endif
     else
-       write(pe_name,100) mype
+       write(pe_name,100) in_pe
 100 format('pe',i4.4,'.')
        dirname= trim(pe_name)
     end if
