@@ -114,7 +114,7 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   use obsmod, only: rmiss_single,lobsdiag_forenkf,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,&
                     if_vterminal, ens_hx_dbz_cut, if_model_dbz, &
-                    doradaroneob,oneobddiff,oneobvalue, if_vrobs_raw
+                    doradaroneob,oneobddiff,oneobvalue, if_vrobs_raw, if_use_w_vr
   use obsmod, only: netcdf_diag, binary_diag, dirname,ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d, nc_diag_metadata_to_single
@@ -972,7 +972,7 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   call gsi_metguess_get ('var::v' , ivar, istatus )
   proceed=proceed.and.ivar>0
   call gsi_metguess_get ('var::w' , ivar, istatus )
-  if (ivar>0) then
+  if (if_use_w_vr.and.ivar>0) then
      include_w=.true.
      if(if_vterminal)then
       if( .not. if_model_dbz ) then

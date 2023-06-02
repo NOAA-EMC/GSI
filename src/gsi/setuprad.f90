@@ -1001,6 +1001,29 @@ contains
         endif
 
 !       Compute microwave cloud liquid water or graupel water path for bias correction and QC.
+        if (adp_anglebc) then
+!       If using adaptive angle dependent bias correction, update the predicctors
+!       for this part of bias correction.  The AMSUA cloud liquid water algorithm
+!       uses total angle dependent bias correction for channels 1 and 2
+           do i=1,nchanl
+              mm=ich(i)
+              if (goessndr .or. goes_img .or. ahi .or. seviri .or. ssmi .or. ssmis .or. gmi .or. abi) then
+                 pred(npred,i)=nadir*deg2rad
+              else
+                 pred(npred,i)=data_s(iscan_ang,n)
+              end if
+              do j=2,angord
+                 pred(npred-j+1,i)=pred(npred,i)**j
+              end do
+              cbias(nadir,mm)=zero
+              if (iuse_rad(mm)/=4) then
+                 do j=1,angord
+                    cbias(nadir,mm)=cbias(nadir,mm)+predchan(npred-j+1,i)*pred(npred-j+1,i)
+                 end do
+              end if
+           end do
+        end if
+!*****
         clw_obs=zero
         clw_guess_retrieval=zero
         gwp=zero
@@ -1062,28 +1085,13 @@ contains
         endif
 
         predbias=zero
+        abi2km_bc = zero
+        abi2km_bc(2) = 233.5_r_kind
+        abi2km_bc(3) = 241.7_r_kind
+        abi2km_bc(4) = 250.5_r_kind
 !$omp parallel do  schedule(dynamic,1) private(i,mm,j,k,tlap,node,bias)
         do i=1,nchanl
            mm=ich(i)
-!       If using adaptive angle dependent bias correction, update the predicctors
-!       for this part of bias correction.  The AMSUA cloud liquid water algorithm
-!       uses total angle dependent bias correction for channels 1 and 2
-           if (adp_anglebc) then
-              if (goessndr .or. goes_img .or. ahi .or. seviri .or. ssmi .or. ssmis .or. gmi .or. abi) then
-                 pred(npred,i)=nadir*deg2rad
-              else
-                 pred(npred,i)=data_s(iscan_ang,n)
-              end if
-              do j=2,angord
-                 pred(npred-j+1,i)=pred(npred,i)**j
-              end do
-              cbias(nadir,mm)=zero
-              if (iuse_rad(mm)/=4) then
-                 do j=1,angord
-                    cbias(nadir,mm)=cbias(nadir,mm)+predchan(npred-j+1,i)*pred(npred-j+1,i)
-                 end do
-              end if
-           end if
 
 !*****
 !     COMPUTE AND APPLY BIAS CORRECTION TO SIMULATED VALUES
@@ -1110,6 +1118,7 @@ contains
            else
               pred(3,i) = clw_obs*cosza*cosza
            end if
+
            if(radmod%lcloud_fwd .and. sea) pred(3,i ) = zero
  
 !       Apply bias correction
@@ -1159,10 +1168,6 @@ contains
            end if
 
            if (abi2km .and. regional) then
-              abi2km_bc = zero
-              abi2km_bc(2) = 233.5_r_kind
-              abi2km_bc(3) = 241.7_r_kind
-              abi2km_bc(4) = 250.5_r_kind
               pred(:,i) = zero
               if (i>=2 .and. i<=4) then
                  if (tb_obs(i) > 190.0_r_kind .and. tb_obs(i) < 300.0_r_kind) then
