@@ -180,7 +180,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     use gsi_4dvar, only: ens_fhrlevs
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only : assignment(=)
-    use hybrid_ensemble_parameters, only: n_ens,grd_ens,ntlevs_ens
+    use hybrid_ensemble_parameters, only: n_ens,grd_ens
     use hybrid_ensemble_parameters, only: ensemble_path
     use control_vectors, only: nc2d,nc3d
     !use control_vectors, only: cvars2d,cvars3d
@@ -202,7 +202,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     character(len=*),parameter :: myname_='get_user_ens_gfs_fastread_'
     character(len=70) :: filename
     character(len=70) :: filenamesfc
-    integer(i_kind) :: i,ii,j,jj,k,n
+    integer(i_kind) :: i,ii,j,k,n
     integer(i_kind) :: io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,i_ens
     integer(i_kind) :: ip
     integer(i_kind) :: nlon,nlat,nsig
@@ -301,6 +301,8 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
                                          iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
                                          filename)
        end if
+    else
+       allocate(en_full(1,1,1,1))
     end if
 
     call mpi_allreduce(m_cvars2dw,m_cvars2d,nc2d,mpi_integer4,mpi_max,mpi_comm_world,ierror)
@@ -314,7 +316,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     allocate(en_loc(ibsm:ibemz,jbsm:jbemz,kbsm:kbemz,mbsm:mbemz))
     call genex(s_a2b,en_full,en_loc)
 
-    if(mas == mae)deallocate(en_full)
+    deallocate(en_full)
 
 
 !   call genex_destroy_info(s_a2b)  ! check on actual routine name
@@ -921,6 +923,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
       call die(myname_, ': ***FATAL ERROR*** insufficient ens fcst for hybrid',999)
    endif
 
+   ierror=0
 !  If file exists, open and process
    atmges = open_dataset(filename,errcode=ierror)
    if (ierror /=0) then
