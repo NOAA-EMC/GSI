@@ -18,7 +18,7 @@ export gsi_namelist="
    oneobtest=.false.,retrieval=.false.,l_foto=.false.,
    use_pbl=.false.,use_compress=.true.,nsig_ext=45,gpstop=50.,
    commgpstop=45.,commgpserrinf=1.0,
-   use_gfs_nemsio=.false.,lrun_subdirs=.false.,
+   use_gfs_nemsio=.false.,lrun_subdirs=.true.,
    use_readin_anl_sfcmask=.true.,
    crtm_coeffs_path='./crtm_coeffs/',
    newpc4pred=.true.,adp_anglebc=.true.,angord=4,passive_bc=.true.,use_edges=.false.,
@@ -232,7 +232,7 @@ export gsi_namelist="
    use_pbl=.false.,use_compress=.false.,nsig_ext=10,gpstop=30.,
    crtm_coeffs_path='./crtm_coeffs/',
    lsqrtb=.true.,lcongrad=.true.,ltlint=.true.,ladtest=.true.,lgrtest=.false.,
-   use_gfs_nemsio=.false.,lrun_subdirs=.false.,use_gfs_ncio=.true.,
+   use_gfs_nemsio=.false.,lrun_subdirs=.true.,use_gfs_ncio=.true.,
    $SETUP
  /
  &GRIDOPTS
@@ -396,7 +396,7 @@ export gsi_namelist="
    iguess=-1,
    oneobtest=.false.,retrieval=.false.,l_foto=.false.,
    use_pbl=.false.,use_prepb_satwnd=.false.,
-   nhr_assimilation=6,lrun_subdirs=.false.,
+   nhr_assimilation=6,lrun_subdirs=.true.,
    $SETUP
  /
  &GRIDOPTS
@@ -578,7 +578,7 @@ export gsi_namelist="
    oneobtest=.false.,retrieval=.false.,l_foto=.false.,
    use_pbl=.false.,use_compress=.true.,nsig_ext=45,gpstop=50.,
    commgpstop=45.,commgpserrinf=1.0,
-   use_gfs_nemsio=.false.,lrun_subdirs=.false.,
+   use_gfs_nemsio=.false.,lrun_subdirs=.true.,
    use_readin_anl_sfcmask=.true.,
    crtm_coeffs_path='./crtm_coeffs/',
    newpc4pred=.true.,adp_anglebc=.true.,angord=4,passive_bc=.true.,use_edges=.false.,
@@ -798,7 +798,7 @@ export gsi_namelist="
    iguess=-1,
    oneobtest=.false.,retrieval=.false.,l_foto=.false.,
    use_pbl=.false.,use_compress=.true.,nsig_ext=56,gpstop=55.,
-   use_gfs_nemsio=.false.,lrun_subdirs=.false.,use_readin_anl_sfcmask=.true.,
+   use_gfs_nemsio=.false.,lrun_subdirs=.true.,use_readin_anl_sfcmask=.true.,
    crtm_coeffs_path='./crtm_coeffs/',
    newpc4pred=.true.,adp_anglebc=.true.,angord=4,passive_bc=.true.,use_edges=.false.,
    diag_precon=.true.,step_start=1.e-3,emiss_bc=.true.,thin4d=.true.,cwoption=3,
@@ -1008,7 +1008,7 @@ export gsi_namelist="
    iguess=-1,
    oneobtest=.false.,retrieval=.false.,
    diag_rad=.false.,diag_pcp=.false.,diag_ozone=.false.,diag_aero=.false.,
-   nhr_assimilation=6,min_offset=180,use_compress=.false.,lrun_subdirs=.false.,
+   nhr_assimilation=6,min_offset=180,use_compress=.false.,lrun_subdirs=.true.,
    use_similarity_2dvar=.true.,
    neutral_stability_windfact_2dvar=.false.,
    use_prepb_satwnd=.false.,
@@ -1607,7 +1607,7 @@ export gsi_namelist="
    diag_precon=.true., step_start=1.e-3,
    nhr_assimilation=3,l_foto=.false.,
    use_pbl=.false.,use_compress=.false.,gpstop=30.,
-   lrun_subdirs=.false.,
+   lrun_subdirs=.true.,
    $SETUP
  /
  &GRIDOPTS

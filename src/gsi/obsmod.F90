@@ -470,7 +470,7 @@ module obsmod
   ! ==== DBZ DA ===
   public :: ntilt_radarfiles
   public :: whichradar
-  public :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, l2rwthin 
+  public :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, if_use_w_vr, l2rwthin
 
   public :: doradaroneob,oneoblat,oneoblon
   public :: oneobddiff,oneobvalue,oneobheight,oneobradid
@@ -617,7 +617,7 @@ module obsmod
 
   logical ::  ta2tb
   logical ::  doradaroneob
-  logical :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, l2rwthin
+  logical :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, if_use_w_vr, l2rwthin
   character(4) :: whichradar,oneobradid
   real(r_kind) :: oneoblat,oneoblon,oneobddiff,oneobvalue,oneobheight
   logical :: radar_no_thinning
@@ -747,6 +747,7 @@ contains
     if_vterminal=.false.
     l2rwthin    =.false.  
     if_vrobs_raw=.false.
+    if_use_w_vr=.true.
     if_model_dbz=.false.
     inflate_obserr=.false.
     whichradar="KKKK"
@@ -980,7 +981,7 @@ contains
     return
   end subroutine init_obsmod_dflts
   
-  subroutine init_directories(mype)
+  subroutine init_directories(in_pe)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    create sub-directories
@@ -1005,20 +1006,32 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$ end documentation block
+#ifdef __INTEL_COMPILER
+    use IFPORT
+#endif
     implicit none
 
-    integer(i_kind),intent(in   ) :: mype
+    integer(i_kind),intent(in   ) :: in_pe
+    logical :: l_mkdir_stat
 
     character(len=144):: command
     character(len=8):: pe_name
 
     if (lrun_subdirs) then
-       write(pe_name,'(i4.4)') mype
+       write(pe_name,'(i4.4)') in_pe
        dirname = 'dir.'//trim(pe_name)//'/'
        command = 'mkdir -p -m 755 ' // trim(dirname)
+#ifdef __INTEL_COMPILER
+       l_mkdir_stat = MAKEDIRQQ(trim(dirname))
+       if(.not. l_mkdir_stat) then
+          write(6, *) "Failed to create directory ", trim(dirname), " for PE ", pe_name
+          call stop2(678)
+       endif
+#else
        call system(command)
+#endif
     else
-       write(pe_name,100) mype
+       write(pe_name,100) in_pe
 100 format('pe',i4.4,'.')
        dirname= trim(pe_name)
     end if

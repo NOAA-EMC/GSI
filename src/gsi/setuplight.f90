@@ -90,7 +90,7 @@ subroutine setuplight(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,light_di
                     nobskeep,lobsdiag_allocated
   use obsmod, only: netcdf_diag, binary_diag, dirname, ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
-       nc_diag_write, nc_diag_data2d
+       nc_diag_write, nc_diag_data2d, nc_diag_metadata_to_single
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use obsmod, only: luse_obsdiag
   use m_obsNode, only: obsNode
@@ -1614,36 +1614,30 @@ end subroutine contents_binary_diag_
 
 subroutine contents_netcdf_diag_(odiag)
 ! Observation class
-  use constants, only: r_missing
-  use screen_to_ncdiag, only: screen_to_single_nc_diag_metadata
   type(obs_diag),pointer,intent(in):: odiag
   character(7),parameter     :: obsclass = '     light'
   real(r_single),parameter::     missing = -9.99e9_r_single
   real(r_kind),dimension(miter) :: obsdiag_iuse
 
-  call screen_to_single_nc_diag_metadata("GLM_Detect_Err",(data(ier,i))       )
-  call screen_to_single_nc_diag_metadata("Latitude",(data(ilate,i))     )
-  call screen_to_single_nc_diag_metadata("Longitude",(data(ilone,i))     )
-  call screen_to_single_nc_diag_metadata("Lightning_FR_Obs",(dlight )           )
-  call screen_to_single_nc_diag_metadata("Time",(dtime)             )
-  call screen_to_single_nc_diag_metadata("GLM_QC_Mark",(data(iqc,i))       )
-  call screen_to_single_nc_diag_metadata("GLM_Orig_Detect_Err",(data(ier2,i))      )
-  call screen_to_single_nc_diag_metadata("GLM_Use_Flag",(data(iuse,i))      )
+  call nc_diag_metadata_to_single("GLM_Detect_Err",      data(ier,i)             )
+  call nc_diag_metadata_to_single("Latitude",            data(ilate,i)           )
+  call nc_diag_metadata_to_single("Longitude",           data(ilone,i)           )
+  call nc_diag_metadata_to_single("Lightning_FR_Obs",    dlight                  )
+  call nc_diag_metadata_to_single("Time",                dtime                   )
+  call nc_diag_metadata_to_single("GLM_QC_Mark",         data(iqc,i)             )
+  call nc_diag_metadata_to_single("GLM_Orig_Detect_Err", data(ier2,i)            )
+  call nc_diag_metadata_to_single("GLM_Use_Flag",        data(iuse,i)            )
   if(muse(i)) then
      call nc_diag_metadata("Analysis_Use_Flag",          1._r_single             )
   else
      call nc_diag_metadata("Analysis_Use_Flag",          -1._r_single            )
   endif
-  call screen_to_single_nc_diag_metadata("Nonlinear_QC_Rel_Wgt",(rwgt)              )
-  call screen_to_single_nc_diag_metadata("Errinv_Input",(errinv_input)      )
-  call screen_to_single_nc_diag_metadata("Errinv_Adjust",(errinv_adjst)      )
-  call screen_to_single_nc_diag_metadata("Errinv_Final",(errinv_final)      )
-  call screen_to_single_nc_diag_metadata("Obs_Minus_Forecast_VarBC",(ddiff)             )
-  if(isnan(dlight) .or. isnan(lightges0)) then
-     call nc_diag_metadata("Obs_Minus_Forecast_NoVarBC",    sngl(real(r_missing)))
-  else
-     call nc_diag_metadata("Obs_Minus_Forecast_NoVarBC",    sngl(dlight-lightges0)  )
-  endif
+  call nc_diag_metadata_to_single("Nonlinear_QC_Rel_Wgt",rwgt                    )
+  call nc_diag_metadata_to_single("Errinv_Input",        errinv_input            )
+  call nc_diag_metadata_to_single("Errinv_Adjust",       errinv_adjst            )
+  call nc_diag_metadata_to_single("Errinv_Final",        errinv_final            )
+  call nc_diag_metadata_to_single("Obs_Minus_Forecast_VarBC",ddiff               )
+  call nc_diag_metadata_to_single("Obs_Minus_Forecast_NoVarBC",dlight,lightges0,'-')
   if (lobsdiagsave) then
      do jj=1,miter
         if (odiag%muse(jj)) then
@@ -1656,7 +1650,7 @@ subroutine contents_netcdf_diag_(odiag)
      call nc_diag_data2d("ObsDiagSave_iuse",     obsdiag_iuse                             )
      call nc_diag_data2d("ObsDiagSave_nldepart", odiag%nldepart )
      call nc_diag_data2d("ObsDiagSave_tldepart", odiag%tldepart )
-     call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )         
+     call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )
   endif
 
 end subroutine contents_netcdf_diag_

@@ -57,7 +57,7 @@ subroutine setuptcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
              time_offset,rmiss_single,lobsdiagsave,lobsdiag_forenkf,ianldate
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
-       nc_diag_write, nc_diag_data2d
+       nc_diag_write, nc_diag_data2d, nc_diag_metadata_to_single
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use m_obsNode, only: obsNode
   use m_tcpNode, only: tcpNode
@@ -684,8 +684,6 @@ subroutine setuptcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
 
   end subroutine contents_binary_diag_
   subroutine contents_netcdf_diag_(odiag)
-  use screen_to_ncdiag, only: screen_to_single_nc_diag_metadata
-  use constants, only: r_missing
   type(obs_diag),pointer,intent(in):: odiag
 ! Observation class
   character(7),parameter     :: obsclass = '    tcp'
@@ -694,45 +692,29 @@ subroutine setuptcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
            call nc_diag_metadata("Observation_Class",       obsclass               )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
-           call screen_to_single_nc_diag_metadata("Latitude",(data(ilate,i))    )
-           call screen_to_single_nc_diag_metadata("Longitude",(data(ilone,i))    )
+           call nc_diag_metadata_to_single("Latitude",data(ilate,i)      )
+           call nc_diag_metadata_to_single("Longitude",data(ilone,i)      )
            call nc_diag_metadata("Station_Elevation",       sngl(zero)             )
-           if(isnan(data(ipres,i))) then
-              call nc_diag_metadata("Pressure",sngl(real(r_missing)))
-           else
-              call nc_diag_metadata("Pressure",                sngl(data(ipres,i)*r10))
-           endif
-           call screen_to_single_nc_diag_metadata("Height",(zero)             )
-           if(isnan(dtime) .or. isnan(time_offset)) then
-              call nc_diag_metadata("Time",sngl(real(r_missing)))
-           else
-              call nc_diag_metadata("Time",sngl(dtime-time_offset))
-           endif
+           call nc_diag_metadata_to_single("Pressure", data(ipres,i),r10,'*')
+           call nc_diag_metadata_to_single("Height",zero             )
+           call nc_diag_metadata_to_single("Time",dtime,time_offset,'-')
            call nc_diag_metadata("Prep_QC_Mark",            sngl(one)              )
            call nc_diag_metadata("Prep_Use_Flag",           sngl(one)              )
-           call screen_to_single_nc_diag_metadata("Nonlinear_QC_Rel_Wgt",(rwgt)             )                 
+           call nc_diag_metadata_to_single("Nonlinear_QC_Rel_Wgt",(rwgt)           )
            if(muse(i)) then
               call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)              )
            else
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)             )              
+              call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)             )
            endif
 
-           call screen_to_single_nc_diag_metadata("Errinv_Input",(errinv_input)     )
-           call screen_to_single_nc_diag_metadata("Errinv_Adjust",(errinv_adjst)     )
-           call screen_to_single_nc_diag_metadata("Errinv_Final",(errinv_final)     )
+           call nc_diag_metadata_to_single("Errinv_Input",errinv_input      )
+           call nc_diag_metadata_to_single("Errinv_Adjust",errinv_adjst      )
+           call nc_diag_metadata_to_single("Errinv_Final",errinv_final      )
 
-           call screen_to_single_nc_diag_metadata("Observation",(pob)        )
-           if(isnan(pob) .or. isnan(pges)) then
-              call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(real(r_missing)))
-           else
-              call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(pob-pges)   )
-           endif
+           call nc_diag_metadata_to_single("Observation",pob         )
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",pob,pges,'-')
 
-           if(isnan(pob) .or. isnan(pgesorig)) then
-              call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(real(r_missing)))
-           else
-              call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(pob-pgesorig))
-           endif
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",pob,pgesorig,'-')
 
            if (lobsdiagsave) then
               do jj=1,miter

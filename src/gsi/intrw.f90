@@ -96,7 +96,7 @@ subroutine intrw_(rwhead,rval,sval)
 !$$$
   use kinds, only: r_kind,i_kind
   use constants, only: half,one,tiny_r_kind,cg_term,r3600
-  use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
+  use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag,if_use_w_vr
   use qcmod, only: nlnqc_iter,varqc_iter
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
@@ -128,7 +128,7 @@ subroutine intrw_(rwhead,rval,sval)
   call gsi_bundlegetpointer(sval,'u',su,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval,'v',sv,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval,'w',sw,istatus)
-  if (istatus==0) then
+  if (if_use_w_vr.and.istatus==0) then
      include_w=.true.
   else
      include_w=.false.
@@ -136,7 +136,7 @@ subroutine intrw_(rwhead,rval,sval)
   call gsi_bundlegetpointer(rval,'u',ru,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'v',rv,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'w',rw,istatus)
-  if (istatus==0) then
+  if (if_use_w_vr.and.istatus==0) then
      include_w=.true.
   else
      include_w=.false.

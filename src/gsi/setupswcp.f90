@@ -67,7 +67,7 @@ subroutine setupswcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
 
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header,nc_diag_metadata, &
-       nc_diag_write, nc_diag_data2d
+       nc_diag_write, nc_diag_data2d, nc_diag_metadata_to_single
   use nc_diag_read_mod, only: nc_diag_read_init,nc_diag_read_get_dim,nc_diag_read_close
   use state_vectors, only: svars3d, levels
 
@@ -882,8 +882,6 @@ subroutine setupswcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   end subroutine contents_binary_diag_
 
   subroutine contents_netcdf_diag_(odiag)
-  use constants, only: r_missing
-  use screen_to_ncdiag, only: screen_to_single_nc_diag_metadata
   type(obs_diag),pointer,intent(in):: odiag
 ! Observation class
   character(7),parameter     :: obsclass = '   swcp'
@@ -895,36 +893,28 @@ subroutine setupswcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
     call nc_diag_metadata("Observation_Class",       obsclass               )
     call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
     call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
-    call screen_to_single_nc_diag_metadata("Latitude",(data(ilate,i))    )
-    call screen_to_single_nc_diag_metadata("Longitude",(data(ilone,i))    )
-    call screen_to_single_nc_diag_metadata("Station_Elevation",(data(istnelv,i))  )
-    call screen_to_single_nc_diag_metadata("Pressure",(data(iobsprs,i))  )
-    call screen_to_single_nc_diag_metadata("Height",(data(iobshgt,i))  )
-    if(isnan(dtime) .or. isnan(time_offset)) then
-       call nc_diag_metadata("Time",sngl(real(r_missing)))
-    else
-       call nc_diag_metadata("Time",sngl(dtime-time_offset))
-    endif
-    call screen_to_single_nc_diag_metadata("Prep_QC_Mark",(data(iqc,i))      )
-    call nc_diag_metadata("Setup_QC_Mark",(rmiss_single)     )
-    call screen_to_single_nc_diag_metadata("Prep_Use_Flag",(data(iuse,i))     )
+    call nc_diag_metadata_to_single("Latitude",data(ilate,i)      )
+    call nc_diag_metadata_to_single("Longitude",data(ilone,i)      )
+    call nc_diag_metadata_to_single("Station_Elevation",data(istnelv,i)  )
+    call nc_diag_metadata_to_single("Pressure",data(iobsprs,i)  )
+    call nc_diag_metadata_to_single("Height",data(iobshgt,i)  )
+    call nc_diag_metadata_to_single("Time",dtime,time_offset,'-')
+    call nc_diag_metadata_to_single("Prep_QC_Mark",data(iqc,i)        )
+    call nc_diag_metadata("Setup_QC_Mark",rmiss_single       )
+    call nc_diag_metadata_to_single("Prep_Use_Flag",data(iuse,i)       )
     if(muse(i)) then
        call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)              )
     else
        call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)             )
     endif
 
-    call screen_to_single_nc_diag_metadata("Nonlinear_QC_Rel_Wgt",(rwgt)             )
-    call screen_to_single_nc_diag_metadata("Errinv_Input",(errinv_input)     )
-    call screen_to_single_nc_diag_metadata("Errinv_Adjust",(errinv_adjst)     )
-    call screen_to_single_nc_diag_metadata("Errinv_Final",(errinv_final)     )
-    call screen_to_single_nc_diag_metadata("Observation",(dswcp)            )
-    call screen_to_single_nc_diag_metadata("Obs_Minus_Forecast_adjusted",(ddiff)      )
-    if(isnan(dswcp) .or. isnan(swcpges)) then
-       call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(real(r_missing)))
-    else
-       call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(dswcp-swcpges))
-    endif
+    call nc_diag_metadata_to_single("Nonlinear_QC_Rel_Wgt",rwgt               )
+    call nc_diag_metadata_to_single("Errinv_Input",errinv_input       )
+    call nc_diag_metadata_to_single("Errinv_Adjust",errinv_adjst       )
+    call nc_diag_metadata_to_single("Errinv_Final",errinv_final       )
+    call nc_diag_metadata_to_single("Observation",dswcp              )
+    call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",ddiff        )
+    call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted", dswcp,swcpges,'-')
 
     if (lobsdiagsave) then
        do jj=1,miter
