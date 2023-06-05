@@ -16,7 +16,7 @@ local nemsio_ver=os.getenv("nemsio_ver") or "2.5.4"
 local wrf_io_ver=os.getenv("wrf_io_ver") or "1.2.0"
 local ncio_ver=os.getenv("ncio_ver") or "1.1.2"
 local crtm_ver=os.getenv("crtm_ver") or "2.4.0"
-local ncdiag_ver=os.getenv("ncdiag_ver") or "1.0.0"
+local ncdiag_ver=os.getenv("ncdiag_ver") or "1.1.0"
 
 load(pathJoin("netcdf", netcdf_ver))
 
@@ -32,9 +32,4 @@ load(pathJoin("nemsio", nemsio_ver))
 load(pathJoin("wrf_io", wrf_io_ver))
 load(pathJoin("ncio", ncio_ver))
 load(pathJoin("crtm", crtm_ver))
---load(pathJoin("ncdiag",ncdiag_ver))
-setenv("ncdiag_ROOT", "/work2/noaa/nesdis-rdo2/dhuber/GSI/ncdiag/1.0.1")
-setenv("ncdiag_VERSION", "1.0.1")
-
-prepend_path("PATH", pathJoin("/work2/noaa/nesdis-rdo2/dhuber/GSI/ncdiag/1.0.1/","bin"))
-
+load(pathJoin("ncdiag",ncdiag_ver))
