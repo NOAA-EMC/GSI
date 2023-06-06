@@ -981,26 +981,25 @@ contains
                            hrdifsig_all(nfldsig_all), &
                            stat=istatus)
     if (istatus/=0) &
-         write(6,*)'CREATE_GESFINFO(hrdifsig,..):  allocate error, istatus=',&
-         istatus
+         call die('CREATE_GESFINFO', '(hrdifsig,..):  allocate error, istatus=', istatus)
     if(nfldsfc>0) allocate(hrdifsfc(nfldsfc),ifilesfc(nfldsfc), &
                            hrdifsfc_all(nfldsfc_all), &
                            stat=istatus)
     if (istatus/=0) &
-         write(6,*)'CREATE_GESFINFO(hrdifsfc,..):  allocate error, istatus=',&
-         istatus
+         call die('CREATE_GESFINFO', '(hrdifsfc,..):  allocate error, istatus=',&
+         istatus)
     if(nfldnst>0) allocate(hrdifnst(nfldnst),ifilenst(nfldnst), &
                            hrdifnst_all(nfldnst_all), &
-	                   stat=istatus)
+                           stat=istatus)
     if (istatus/=0) &
-         write(6,*)'CREATE_GESFINFO(hrdifnst,..):  allocate error, istatus=',&
-         istatus
+         call die('CREATE_GESFINFO', '(hrdifnst,..):  allocate error, istatus=',&
+         istatus)
     if(nfldnst>0) allocate(hrdifaer(nfldaer),ifileaer(nfldaer), &
                            hrdifaer_all(nfldaer_all), &
-	                   stat=istatus)
+                           stat=istatus)
     if (istatus/=0) &
-         write(6,*)'CREATE_GESFINFO(hrdifaer,..):  allocate error, istatus=',&
-         istatus
+         call die('CREATE_GESFINFO', '(hrdifaer,..):  allocate error, istatus=',&
+         istatus)
 #endif /* HAVE_ESMF */
 
     return
@@ -1044,16 +1043,16 @@ contains
 #ifndef HAVE_ESMF
     if(nfldsig>0) deallocate(hrdifsig,ifilesig,hrdifsig_all,stat=istatus)
     if (istatus/=0) &
-         write(6,*)'DESTROY_GESFINFO:  deallocate error, istatus=',istatus
+         call die('DESTROY_GESFINFO', 'deallocate error, istatus=',istatus)
     if(nfldsfc>0) deallocate(hrdifsfc,ifilesfc,hrdifsfc_all,stat=istatus)
     if (istatus/=0) &
-         write(6,*)'DESTROY_GESFINFO:  deallocate error, istatus=',istatus
+         call die('DESTROY_GESFINFO', 'deallocate error, istatus=',istatus)
     if(nfldnst>0) deallocate(hrdifnst,ifilenst,hrdifnst_all,stat=istatus)
     if (istatus/=0) &
-         write(6,*)'DESTROY_GESFINFO:  deallocate error, istatus=',istatus
+         call die('DESTROY_GESFINFO', 'deallocate error, istatus=',istatus)
     if(nfldnst>0) deallocate(hrdifaer,ifileaer,hrdifaer_all,stat=istatus)
     if (istatus/=0) &
-         write(6,*)'DESTROY_GESFINFO:  deallocate error, istatus=',istatus
+         call die('DESTROY_GESFINFO', 'deallocate error, istatus=',istatus)
 
     nfldsfc_all=0
     nfldnst_all=0
