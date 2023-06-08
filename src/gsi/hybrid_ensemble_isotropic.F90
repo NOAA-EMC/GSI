@@ -2993,7 +2993,7 @@ subroutine init_sf_xy(jcap_in)
 
   integer(i_kind),intent(in   ) :: jcap_in
 
-  integer(i_kind) i,ii,j,k,l,n,jcap,kk,nsigend,ig
+  integer(i_kind) i,ii,j,igg,k,l,n,jcap,kk,nsigend,ig
   real(r_kind),allocatable::g(:),gsave(:)
   real(r_kind) factor
   real(r_kind),allocatable::rkm(:),f(:,:),f0(:,:)
@@ -3005,7 +3005,6 @@ subroutine init_sf_xy(jcap_in)
   real(r_kind) rlons_ens_local(grd_ens%nlon)
   character(5) mapname
   logical make_test_maps
-  logical,allocatable,dimension(:)::ksame
   integer(i_kind) nord_sploc2ens
   integer(i_kind) nlon_sploc0,nlon_sploc,nlat_sploc,num_fields
   logical print_verbose
@@ -3159,92 +3158,101 @@ subroutine init_sf_xy(jcap_in)
   if(.not.allocated(sqrt_spectral_filter)) allocate(sqrt_spectral_filter(naensloc,sp_loc%nc,grd_sploc%nsig))
   allocate(g(sp_loc%nc),gsave(sp_loc%nc))
   allocate(pn0_npole(0:sp_loc%jcap))
-  allocate(ksame(grd_sploc%nsig))
   do ig=1,naensloc
-     ksame=.false.
-     do k=2,grd_sploc%nsig
-        if(s_ens_hv(k,ig) == s_ens_hv(k-1,ig))ksame(k)=.true.
-     enddo
      spectral_filter(ig,:,:)=zero
-     do k=1,grd_sploc%nsig
-        if(ksame(k))then
-           spectral_filter(ig,:,k)=spectral_filter(ig,:,k-1)
-        else
-           do i=1,grd_sploc%nlat
-              f0(i,1)=exp(-half*(rkm(i)/s_ens_hv(k,ig))**2)
-           enddo
-
-           do j=2,grd_sploc%nlon
-              do i=1,grd_sploc%nlat
-                 f0(i,j)=f0(i,1)
-              enddo
-           enddo
-
-           call general_g2s0(grd_sploc,sp_loc,g,f0)
-
-           call general_s2g0(grd_sploc,sp_loc,g,f)
-
-!          adjust so value at np = 1
-           f=f/f(grd_sploc%nlat,1)
-           f0=f
-           call general_g2s0(grd_sploc,sp_loc,g,f)
-           call general_s2g0(grd_sploc,sp_loc,g,f)
-           if(mype == 0)then
-              nsigend=k
-              do kk=k+1,grd_sploc%nsig
-                 if(s_ens_hv(kk,ig) /= s_ens_hv(k,ig))exit
-                 nsigend=nsigend+1
-              enddo
-              write(6,900)k,nsigend,sp_loc%jcap,s_ens_hv(k,ig),maxval(abs(f0-f))
-900           format(' in init_sf_xy, jcap,s_ens_hv(',i5,1x,'-',i5,'), max diff(f0-f)=', &
-                                           i10,f10.2,e20.10)
+     level_loop: do k=1,grd_sploc%nsig
+        do kk=1,k-1
+           if(s_ens_hv(k,ig) == s_ens_hv(kk,ig))then
+              spectral_filter(ig,:,k)=spectral_filter(ig,:,k-1)
+              cycle level_loop
            end if
-
-!          correct spectrum by dividing by pn0_npole
-           gsave=g
-
-!          obtain pn0_npole
-           do n=0,sp_loc%jcap
-              g=zero
-              g(2*n+1)=one
-              call general_s2g0(grd_sploc,sp_loc,g,f)
-              pn0_npole(n)=f(grd_sploc%nlat,1)
-           enddo
-   
-           g=zero
-           do n=0,sp_loc%jcap
-              g(2*n+1)=gsave(2*n+1)/pn0_npole(n)
-           enddo
-
-!          obtain spectral_filter
-
-           ii=0
-           do l=0,sp_loc%jcap
-              if(ig>naensgrp) then
-                 factor=one/g(1)
-              else
-                 factor=one
-                 if(l>0) factor=half
-              end if
-              do n=l,sp_loc%jcap
-                 ii=ii+1
-                 if(sp_loc%factsml(ii)) then
-                    spectral_filter(ig,ii,k)=zero
-                 else
-                    spectral_filter(ig,ii,k)=factor*g(2*n+1)
+        end do
+        if(ig > 1)then
+           do igg=1,ig-1
+              do kk=1,grd_sploc%nsig
+                 if(s_ens_hv(k,ig) == s_ens_hv(kk,igg))then
+                    spectral_filter(ig,:,k)=spectral_filter(igg,:,kk)
+                    cycle level_loop
                  end if
-                 ii=ii+1
-                 if(l == 0 .or. sp_loc%factsml(ii)) then
-                    spectral_filter(ig,ii,k)=zero
-                 else
-                    spectral_filter(ig,ii,k)=factor*g(2*n+1)
-                 end if
-              enddo
-           enddo
+              end do
+           end do
         end if
-     enddo
+
+        do i=1,grd_sploc%nlat
+           f0(i,1)=exp(-half*(rkm(i)/s_ens_hv(k,ig))**2)
+        enddo
+
+
+        do j=2,grd_sploc%nlon
+           do i=1,grd_sploc%nlat
+              f0(i,j)=f0(i,1)
+           enddo
+        end do
+
+
+        call general_g2s0(grd_sploc,sp_loc,g,f0)
+
+        call general_s2g0(grd_sploc,sp_loc,g,f)
+
+!       adjust so value at np = 1
+        f=f/f(grd_sploc%nlat,1)
+        f0=f
+        call general_g2s0(grd_sploc,sp_loc,g,f)
+        call general_s2g0(grd_sploc,sp_loc,g,f)
+        if(mype == 0)then
+           nsigend=k
+           do kk=k+1,grd_sploc%nsig
+              if(s_ens_hv(kk,ig) /= s_ens_hv(k,ig))exit
+              nsigend=nsigend+1
+           enddo
+           write(6,900)k,nsigend,sp_loc%jcap,s_ens_hv(k,ig),maxval(abs(f0-f))
+900        format(' in init_sf_xy, jcap,s_ens_hv(',i5,1x,'-',i5,'), max diff(f0-f)=', &
+                                           i10,f10.2,e20.10)
+        end if
+
+!       correct spectrum by dividing by pn0_npole
+
+!       obtain pn0_npole
+!$omp parallel do schedule(dynamic,1) private(n,gsave,f)
+        do n=0,sp_loc%jcap
+           gsave=zero
+           gsave(2*n+1)=one
+           call general_s2g0(grd_sploc,sp_loc,gsave,f)
+           pn0_npole(n)=f(grd_sploc%nlat,1)
+        enddo
+   
+        do n=0,sp_loc%jcap
+           g(2*n+1)=g(2*n+1)/pn0_npole(n)
+        enddo
+
+!       obtain spectral_filter
+
+        ii=0
+        do l=0,sp_loc%jcap
+           if(ig>naensgrp) then
+              factor=one/g(1)
+           else
+              factor=one
+              if(l>0) factor=half
+           end if
+           do n=l,sp_loc%jcap
+              ii=ii+1
+              if(sp_loc%factsml(ii)) then
+                 spectral_filter(ig,ii,k)=zero
+              else
+                 spectral_filter(ig,ii,k)=factor*g(2*n+1)
+              end if
+              ii=ii+1
+              if(l == 0 .or. sp_loc%factsml(ii)) then
+                 spectral_filter(ig,ii,k)=zero
+              else
+                 spectral_filter(ig,ii,k)=factor*g(2*n+1)
+              end if
+           enddo
+        enddo
+     enddo level_loop
   enddo !ig loop
-  deallocate(g,gsave,pn0_npole,ksame)
+  deallocate(g,gsave,pn0_npole)
 
 ! Compute sqrt(spectral_filter).  Ensure spectral_filter >=0 zero
 !$omp parallel do schedule(dynamic,1) private(k,i)
@@ -4125,7 +4133,7 @@ subroutine hybens_grid_setup
   end if
 
   if(global_spectral_filter_sd .and. nsclgrp > 1)then
-     allocate(spc_multwgt(0:jcap_ens,nsclgrp))
+     allocate(spc_multwgt(sp_ens%nc,nsclgrp))
      allocate(spcwgt_params(4,nsclgrp))
      spc_multwgt=1.0
 

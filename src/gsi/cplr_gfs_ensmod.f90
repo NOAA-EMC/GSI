@@ -273,8 +273,6 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     m_cvars2dw=-999
     m_cvars3dw=-999
 
-
-
 !!  read ensembles
 
     if ( mas == mae ) then
@@ -305,11 +303,6 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
        allocate(en_full(1,1,1,1))
     end if
 
-    call mpi_allreduce(m_cvars2dw,m_cvars2d,nc2d,mpi_integer4,mpi_max,mpi_comm_world,ierror)
-    call mpi_allreduce(m_cvars3dw,m_cvars3d,nc3d,mpi_integer4,mpi_max,mpi_comm_world,ierror)
-
-    deallocate(m_cvars2dw,m_cvars3dw)
-
 ! scatter to subdomains:
 
 !   en_loc=zero
@@ -318,13 +311,16 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
 
     deallocate(en_full)
 
-
 !   call genex_destroy_info(s_a2b)  ! check on actual routine name
 
 
-    allocate(sloc(lat2in*lon2in*(nc2d+nc3d*nsig)))
     call create_grd23d_(grd3d,nc2d+nc3d*grd%nsig)
 
+    call mpi_allreduce(m_cvars2dw,m_cvars2d,nc2d,mpi_integer4,mpi_max,mpi_comm_world,ierror)
+    call mpi_allreduce(m_cvars3dw,m_cvars3d,nc3d,mpi_integer4,mpi_max,mpi_comm_world,ierror)
+    deallocate(m_cvars2dw,m_cvars3dw)
+
+    allocate(sloc(lat2in*lon2in*(nc2d+nc3d*nsig)))
     iret=0
     do n=1,n_ens
        ii=0
@@ -375,7 +371,7 @@ subroutine move2bundle_(grd3d,sloc,atm_bundle,m_cvars2d,m_cvars3d,iret)
 
     use constants, only: zero,one,two,fv
     use general_sub2grid_mod, only: sub2grid_info
-    use hybrid_ensemble_parameters, only: en_perts
+    use hybrid_ensemble_parameters, only: en_perts,nsclgrp,global_spectral_filter_sd
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
@@ -406,7 +402,12 @@ subroutine move2bundle_(grd3d,sloc,atm_bundle,m_cvars2d,m_cvars3d,iret)
 
 
 !--- now update halo values of all variables using general_sub2grid
-    call update_halos_(grd3d,sloc,en_loc3)
+
+    if(nsclgrp > 1 .and. global_spectral_filter_sd) then
+       call update_halos_(grd3d,sloc,en_loc3)
+    else
+       call update_edges(grd3d,sloc,en_loc3)
+    end if
 
     ! Check hydrometeors in control variables 
     icw=getindex(cvars3d,'cw')
@@ -549,6 +550,42 @@ subroutine update_halos_(grd,sloc,s)
     enddo
 
 end subroutine update_halos_
+subroutine update_edges(grd,sloc,s)
+
+    use general_sub2grid_mod, only: sub2grid_info,general_sub2grid,general_grid2sub
+
+    implicit none
+
+    ! Declare passed variables
+    type(sub2grid_info), intent(in   ) :: grd
+    real(r_kind),        intent(  out) :: s(grd%lat2,grd%lon2,grd%num_fields)
+    real(r_kind),        intent(inout) :: sloc(grd%lat2*grd%lon2*grd%num_fields)
+
+    ! Declare local variables
+    integer(i_kind) lat2,lon2,nvert
+    integer(i_kind) ii,i,j,k
+
+    lat2=grd%lat2
+    lon2=grd%lon2
+    nvert=grd%num_fields
+
+    ii=0
+    do k=1,nvert
+       do j=1,lon2
+          do i=1,lat2
+             ii=ii+1
+             s(i,j,k)=sloc(ii)
+          enddo
+       enddo
+       do j=2,lon2-1
+          s(1,j,k)=s(2,j,k)
+       end do
+       do i=1,lat2
+          s(i,1,k)=s(i,2,k)
+       end do
+    enddo
+
+end subroutine update_edges
 
 subroutine ens_io_partition_(n_ens,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,io_pe0,i_ens)
 
@@ -1059,7 +1096,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
          enddo
       enddo
    enddo
-!  call close_dataset(atmges)
+   call close_dataset(atmges)
 
    deallocate(rwork2d)
    deallocate(temp2)
