@@ -521,6 +521,7 @@ subroutine update_halos_(grd,sloc,s)
     integer(i_kind) inner_vars,lat2,lon2,nlat,nlon,nvert,kbegin_loc,kend_alloc
     integer(i_kind) ii,i,j,k
     real(r_kind),allocatable,dimension(:,:,:,:) :: work
+    real(r_kind),dimension(grd%lat2*grd%lon2*grd%num_fields) :: s2
 
     lat2=grd%lat2
     lon2=grd%lon2
@@ -536,18 +537,9 @@ subroutine update_halos_(grd,sloc,s)
     allocate(work(inner_vars,nlat,nlon,kbegin_loc:kend_alloc))
     call general_sub2grid(grd,sloc,work)
 
-    call general_grid2sub(grd,work,sloc)
+    call general_grid2sub(grd,work,s2)
+    s=reshape(s2,(/grd%lat2,grd%lon2,grd%num_fields/))
     deallocate(work)
-
-    ii=0
-    do k=1,nvert
-       do j=1,lon2
-          do i=1,lat2
-             ii=ii+1
-             s(i,j,k)=sloc(ii)
-          enddo
-       enddo
-    enddo
 
 end subroutine update_halos_
 subroutine update_edges(grd,sloc,s)

@@ -145,7 +145,7 @@ subroutine apply_scaledepwgts(m,grd_in,sp_in)
 !
   use constants, only:  one
   use control_vectors, only: control_vector
-  use kinds, only: r_kind,i_kind
+  use kinds, only: r_kind,i_kind,r_single
   use gsi_bundlemod, only: gsi_bundle
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub   
   use general_specmod, only: spec_vars
@@ -162,36 +162,38 @@ subroutine apply_scaledepwgts(m,grd_in,sp_in)
 ! Declare local variables
   integer(i_kind) kk,ig,n
 
-  real(r_kind),dimension(grd_in%nlat*grd_in%nlon*grd_in%nlevs_alloc)      :: hwork
-  real(r_kind),dimension(grd_in%nlat,grd_in%nlon,grd_in%nlevs_alloc)      :: work
+  real(r_single),dimension(grd_in%nlat*grd_in%nlon*grd_in%nlevs_alloc)      :: hwork
+  real(r_single),dimension(grd_in%inner_vars,grd_in%nlat,grd_in%nlon,grd_in%nlevs_alloc)      :: hwork2
+  real(r_kind),dimension(grd_in%inner_vars,grd_in%nlat,grd_in%nlon)      :: work
   real(r_kind),dimension(sp_in%nc,grd_in%nlevs_alloc):: spc1
   real(r_kind),dimension(sp_in%nc):: spc2
-  real(r_kind),dimension(grd_in%lat2*grd_in%lon2*grd_in%num_fields)       :: wbundle
  
   do n=1,n_ens
 !    Get from subdomains to full grid
-     wbundle(:)=en_perts(n,1,m)%valuesr4(:)
-     call general_sub2grid(grd_in,wbundle,hwork)
-     work=reshape(hwork,(/grd_in%nlat,grd_in%nlon,grd_in%nlevs_alloc/))
+     call general_sub2grid(grd_in,en_perts(n,1,m)%valuesr4(:),hwork)
+     hwork2=reshape(hwork,(/grd_in%inner_vars,grd_in%nlat,grd_in%nlon,grd_in%nlevs_alloc/))
 
+!$omp parallel do schedule(static,1) private(kk,work)
      do kk=1,grd_in%nlevs_loc
+        work(:,:,:)=hwork2(:,:,:,kk)
 !    Transform from physical space to spectral space   
-        call general_g2s0(grd_in,sp_in,spc1(:,kk),work(:,:,kk))
+        call general_g2s0(grd_in,sp_in,spc1(:,kk),work)
 
      end do
      do ig=1,nsclgrp
+!$omp parallel do schedule(static,1) private(kk,work,spc2)
         do kk=1,grd_in%nlevs_loc 
            spc2(:)=spc1(:,kk)*spc_multwgt(:,ig)
 !    Apply spectral weights
 !    Transform back to physical space
-           call general_s2g0(grd_in,sp_in,spc2,work(:,:,kk))
+           call general_s2g0(grd_in,sp_in,spc2,work)
 
+           hwork2(:,:,:,kk)=work(:,:,:)
         end do
 
 !    Transfer work back to subdomains
-        hwork=reshape(work,(/grd_in%nlat*grd_in%nlon*grd_in%nlevs_alloc/))
-        call general_grid2sub(grd_in,hwork,wbundle)    
-        en_perts(n,ig,m)%valuesr4(:)=wbundle(:)
+        hwork=reshape(hwork2,(/grd_in%inner_vars*grd_in%nlat*grd_in%nlon*grd_in%nlevs_alloc/))
+        call general_grid2sub(grd_in,hwork,en_perts(n,ig,m)%valuesr4(:))    
      end do
   end do
 

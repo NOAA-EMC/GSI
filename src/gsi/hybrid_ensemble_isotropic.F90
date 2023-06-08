@@ -2994,12 +2994,12 @@ subroutine init_sf_xy(jcap_in)
   integer(i_kind),intent(in   ) :: jcap_in
 
   integer(i_kind) i,ii,j,igg,k,l,n,jcap,kk,nsigend,ig
-  real(r_kind),allocatable::g(:),gsave(:)
+  real(r_kind),allocatable::g(:),gtemp(:)
   real(r_kind) factor
   real(r_kind),allocatable::rkm(:),f(:,:),f0(:,:)
   real(r_kind) ftest(grd_loc%nlat,grd_loc%nlon,grd_loc%kbegin_loc:grd_loc%kend_alloc)
   real(r_single) out1(grd_ens%nlon,grd_ens%nlat)
-  real(r_single),allocatable::pn0_npole(:)
+  real(r_single) pn0_npole
   real(r_kind) s_ens_h_min
   real(r_kind) rlats_ens_local(grd_ens%nlat)
   real(r_kind) rlons_ens_local(grd_ens%nlon)
@@ -3156,8 +3156,7 @@ subroutine init_sf_xy(jcap_in)
 
   if(.not.allocated(spectral_filter)) allocate(spectral_filter(naensloc,sp_loc%nc,grd_sploc%nsig))
   if(.not.allocated(sqrt_spectral_filter)) allocate(sqrt_spectral_filter(naensloc,sp_loc%nc,grd_sploc%nsig))
-  allocate(g(sp_loc%nc),gsave(sp_loc%nc))
-  allocate(pn0_npole(0:sp_loc%jcap))
+  allocate(g(sp_loc%nc),gtemp(sp_loc%nc))
   do ig=1,naensloc
      spectral_filter(ig,:,:)=zero
      level_loop: do k=1,grd_sploc%nsig
@@ -3213,17 +3212,15 @@ subroutine init_sf_xy(jcap_in)
 !       correct spectrum by dividing by pn0_npole
 
 !       obtain pn0_npole
-!$omp parallel do schedule(dynamic,1) private(n,gsave,f)
+!$omp parallel do schedule(dynamic,1) private(n,gtemp,f)
         do n=0,sp_loc%jcap
-           gsave=zero
-           gsave(2*n+1)=one
-           call general_s2g0(grd_sploc,sp_loc,gsave,f)
-           pn0_npole(n)=f(grd_sploc%nlat,1)
+           gtemp=zero
+           gtemp(2*n+1)=one
+           call general_s2g0(grd_sploc,sp_loc,gtemp,f)
+           pn0_npole=f(grd_sploc%nlat,1)
+           g(2*n+1)=g(2*n+1)/pn0_npole
         enddo
    
-        do n=0,sp_loc%jcap
-           g(2*n+1)=g(2*n+1)/pn0_npole(n)
-        enddo
 
 !       obtain spectral_filter
 
@@ -3252,7 +3249,7 @@ subroutine init_sf_xy(jcap_in)
         enddo
      enddo level_loop
   enddo !ig loop
-  deallocate(g,gsave,pn0_npole)
+  deallocate(g,gtemp)
 
 ! Compute sqrt(spectral_filter).  Ensure spectral_filter >=0 zero
 !$omp parallel do schedule(dynamic,1) private(k,i)
