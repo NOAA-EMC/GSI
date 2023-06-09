@@ -162,20 +162,18 @@ subroutine apply_scaledepwgts(m,grd_in,sp_in)
 ! Declare local variables
   integer(i_kind) kk,ig,n
 
-  real(r_single),dimension(grd_in%nlat*grd_in%nlon*grd_in%nlevs_alloc)      :: hwork
-  real(r_single),dimension(grd_in%inner_vars,grd_in%nlat,grd_in%nlon,grd_in%nlevs_alloc)      :: hwork2
-  real(r_kind),dimension(grd_in%inner_vars,grd_in%nlat,grd_in%nlon)      :: work
+  real(r_single),dimension(grd_in%nlat,grd_in%nlon,grd_in%nlevs_alloc)      :: hwork2
+  real(r_kind),dimension(grd_in%nlat,grd_in%nlon)      :: work
   real(r_kind),dimension(sp_in%nc,grd_in%nlevs_alloc):: spc1
   real(r_kind),dimension(sp_in%nc):: spc2
  
   do n=1,n_ens
 !    Get from subdomains to full grid
-     call general_sub2grid(grd_in,en_perts(n,1,m)%valuesr4(:),hwork)
-     hwork2=reshape(hwork,(/grd_in%inner_vars,grd_in%nlat,grd_in%nlon,grd_in%nlevs_alloc/))
+     call general_sub2grid(grd_in,en_perts(n,1,m)%valuesr4(:),hwork2)
 
 !$omp parallel do schedule(static,1) private(kk,work)
      do kk=1,grd_in%nlevs_loc
-        work(:,:,:)=hwork2(:,:,:,kk)
+        work(:,:)=hwork2(:,:,kk)
 !    Transform from physical space to spectral space   
         call general_g2s0(grd_in,sp_in,spc1(:,kk),work)
 
@@ -188,12 +186,11 @@ subroutine apply_scaledepwgts(m,grd_in,sp_in)
 !    Transform back to physical space
            call general_s2g0(grd_in,sp_in,spc2,work)
 
-           hwork2(:,:,:,kk)=work(:,:,:)
+           hwork2(:,:,kk)=work(:,:)
         end do
 
 !    Transfer work back to subdomains
-        hwork=reshape(hwork2,(/grd_in%inner_vars*grd_in%nlat*grd_in%nlon*grd_in%nlevs_alloc/))
-        call general_grid2sub(grd_in,hwork,en_perts(n,ig,m)%valuesr4(:))    
+        call general_grid2sub(grd_in,hwork2,en_perts(n,ig,m)%valuesr4(:))    
      end do
   end do
 
