@@ -326,11 +326,8 @@ contains
           ibest_save(itx,ip)=iin
 
 !   Case(3): obs score > best value at this location, 
-!    -->  do not use this obs, return to calling program.
-       elseif (icount_fore(itx,ip) > 0 .and. crit > score_crit_fore(itx,ip)) then
-          iuse=.false.
-
 !   Case(4): none of the above cases are satisified, don't use this obs
+!    -->  do not use this obs, return to calling program.
        else
           iuse = .false.
        endif                 ! cases
@@ -358,25 +355,17 @@ contains
           ibest_save(itx,ip)=iin
 
 !   Case(3): obs score > best value at this location, 
-!    -->  do not use this obs, return to calling program.
-       elseif(icount_aft(itx,ip) > 0 .and. crit > score_crit_aft(itx,ip)) then
-          iuse=.false.
-
 !   Case(4):  none of the above cases are satisified, 
-!     -->  don't use this obs
+!    -->  do not use this obs, return to calling program.
        else
           iuse = .false.
        endif                 ! cases
 
     else 
-!      Case:  obs score > best value at this location, 
-!        -->  do not use this obs, return to calling program.
-       if(crit > score_crit(itx,ip) .and. icount(itx,ip) > 0) then
-          iuse=.false.
 
 !      Case:  obs score < best value at this location, 
 !        -->  update score, count, and best obs counters
-       elseif (icount(itx,ip) > 0 .and. crit < score_crit(itx,ip)) then
+       if (icount(itx,ip) > 0 .and. crit < score_crit(itx,ip)) then
           score_crit(itx,ip)= crit
           iobsout=ibest_obs(itx,ip)
           icount(itx,ip)=icount(itx,ip)+1
@@ -394,7 +383,8 @@ contains
           ibest_save(itx,ip) = iin
 
 !      Case:  none of the above cases are satisified, 
-!        -->  don't use this obs
+!      Case:  obs score > best value at this location, 
+!        -->  do not use this obs, return to calling program.
        else
           iuse = .false.
        end if
@@ -473,8 +463,8 @@ contains
     integer(i_kind) ix,iy
 
     real(r_kind) dlat1,dlon1,pob1
-    real(r_kind) dx,dy,dp,dxx,dyy,dpp
-    real(r_kind) crit!,dist1
+    real(r_kind) dx,dy,dp
+    real(r_kind) crit  !,dist1
 
     logical foreswp, aftswp
 
@@ -510,13 +500,13 @@ contains
     dx=dlon1-ix
     ix=max(1,min(ix,mlon(iy)))
 
-    dxx=half-min(dx,one-dx)
-    dyy=half-min(dy,one-dy)
-    if( pflag == 1) then
-       dpp=half-min(dp,one-dp)
-    else
-       dpp=min(dp,one-dp)
-    endif
+!   dxx=half-min(dx,one-dx)
+!   dyy=half-min(dy,one-dy)
+!   if( pflag == 1) then
+!      dpp=half-min(dp,one-dp)
+!   else
+!      dpp=min(dp,one-dp)
+!   endif
 
     itx=hll(ix,iy)
 
@@ -535,10 +525,10 @@ contains
 !   TDR fore/aft (Pseudo-dual-Doppler-radars)
     if(foreswp) then   !   fore sweeps
 
+       iobs=iobs+1
+       iobsout=iobs
 !   Case(1):  first obs at this location, keep this obs as starting point
        if (icount_fore(itx,ip)==0) then
-          iobs=iobs+1
-          iobsout=iobs
           score_crit_fore(itx,ip)= crit
           icount_fore(itx,ip)=icount_fore(itx,ip)+1
           ibest_obs(itx,ip) = iobs
@@ -549,8 +539,6 @@ contains
 !   Case(2): obs score < best value at this location,
 !     -->  update score, count, and best obs counters
        elseif (icount_fore(itx,ip) > 0 .and. crit < score_crit_fore(itx,ip)) then
-          iobs=iobs+1
-          iobsout=iobs
           score_crit(itx,ip)= crit
 !          iobsout=ibest_obs(itx,ip)
           icount(itx,ip)=icount(itx,ip)+1
@@ -560,27 +548,19 @@ contains
           ibest_save(itx,ip)=iobs
 
 !   Case(3): obs score > best value at this location,
+!   Case(4): none of the above cases are satisified, don't use this obs
 !    -->  do not use this obs, return to calling program.
-       elseif (icount_fore(itx,ip) > 0 .and. crit > score_crit_fore(itx,ip)) then
-          iobs=iobs+1
-          iobsout=iobs
+       else
           rusage(iobs)=101.1_r_kind
           iuse=.false.
-
-!   Case(4): none of the above cases are satisified, don't use this obs
-       else
-          iuse = .false.
-          iobs=iobs+1
-          iobsout=iobs
-          rusage(iobs)=101.1_r_kind
        endif                 ! cases
 
     else if(aftswp) then   !   aft sweeps
 
+       iobs=iobs+1
+       iobsout=iobs
 !   Case(1):  first obs at this location, keep this obs as starting point
        if (icount_aft(itx,ip)==0) then
-          iobs=iobs+1
-          iobsout=iobs
           score_crit_aft(itx,ip)= crit
           icount_aft(itx,ip)=icount_aft(itx,ip)+1
           ibest_obs(itx,ip) = iobs
@@ -589,8 +569,6 @@ contains
       !   Case(2):  obs score < best value at this location,
 !     -->  update score, count, and best obs counters
        elseif (icount_aft(itx,ip) > 0 .and. crit < score_crit_aft(itx,ip)) then
-          iobs=iobs+1
-          iobsout=iobs
           score_crit_aft(itx,ip)= crit
           icount_aft(itx,ip)=icount_aft(itx,ip)+1
           iobsout=ibest_obs(itx,ip)
@@ -599,36 +577,20 @@ contains
           rusage(iobs)=usage
 
 !   Case(3): obs score > best value at this location,
-!    -->  do not use this obs, return to calling program.
-       elseif(icount_aft(itx,ip) > 0 .and. crit > score_crit_aft(itx,ip)) then
-          iuse=.false.
-          iobs=iobs+1
-          iobsout=iobs
-          rusage(iobs)=101.1_r_kind
-
 !   Case(4):  none of the above cases are satisified,
-!     -->  don't use this obs
+!    -->  do not use this obs, return to calling program.
        else
           iuse = .false.
-          iobs=iobs+1
-          iobsout=iobs
           rusage(iobs)=101.1_r_kind
        endif                 ! cases
 
     else 
-!      Case:  obs score > best value at this location,
-!        -->  do not use this obs, return to calling program.
-       if(crit > score_crit(itx,ip) .and. icount(itx,ip) > 0) then
-          iuse=.false.
-          iobs=iobs+1
-          iobsout=iobs
-          rusage(iobs)=101.0_r_kind
+       iobs=iobs+1
+       iobsout=iobs
 
 !      Case:  obs score < best value at this location,
 !        -->  update score, count, and best obs counters
-       elseif (icount(itx,ip) > 0 .and. crit < score_crit(itx,ip)) then
-          iobs=iobs+1
-          iobsout=iobs
+       if (icount(itx,ip) > 0 .and. crit < score_crit(itx,ip)) then
           score_crit(itx,ip)= crit
           icount(itx,ip)=icount(itx,ip)+1
           iiout = ibest_obs(itx,ip)
@@ -640,20 +602,17 @@ contains
 !      Case:  first obs at this location,
 !        -->  keep this obs as starting point
        elseif (icount(itx,ip)==0) then
-          iobs=iobs+1
-          iobsout=iobs
           score_crit(itx,ip)= crit
           ibest_obs(itx,ip) = iobs
           icount(itx,ip)=icount(itx,ip)+1
           ibest_save(itx,ip) = iin
           rusage(iobs)=usage
 
-!      Case:  none of the above cases are satisified,
-!        -->  don't use this obs
+!      Case:  obs score > best value at this location,
+!         or  none of the above cases are satisified,
+!        -->  do not use this obs, return to calling program.
        else
           iuse = .false.
-          iobs=iobs+1
-          iobsout=iobs
           rusage(iobs)=101.0_r_kind
        end if
     end if

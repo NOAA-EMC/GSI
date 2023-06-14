@@ -317,7 +317,7 @@ contains
     real(r_kind),dimension(sp%nc),intent(inout) :: spcwrk
     real(r_kind),dimension(0:sp%jcap),intent(in) :: spcwgt
 
-    integer(i_kind) ii1,l,m,jmax,ks,n
+    integer(i_kind) l,jmax,ks,n
 
 !! Code borrowed from spvar in splib
     jmax=sp%jcap

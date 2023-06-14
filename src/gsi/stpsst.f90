@@ -101,13 +101,13 @@ subroutine stpsst(ssthead,rval,sval,out,sges,nstep)
   real(r_kind) pg_sst
   real(r_kind),pointer,dimension(:) :: ssst
   real(r_kind),pointer,dimension(:) :: rsst
-  real(r_kind) tdir,rdir
   type(sstNode), pointer :: sstptr
 
   out=zero_quad
 
 !  If no sst data return
   if(.not. associated(ssthead))return
+  if(.not.  nst_gsi > 2 ) return
 
 ! Retrieve pointers
 ! Simply return if any pointer not found
@@ -129,15 +129,12 @@ subroutine stpsst(ssthead,rval,sval,out,sges,nstep)
            w3=sstptr%wij(3)
            w4=sstptr%wij(4)
 
-           if ( nst_gsi > 2 .and. (sstptr%tz_tr > zero .and. sstptr%tz_tr <= one) ) then
-             tdir = w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)
-             rdir = w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
-             val  = sstptr%tz_tr*rdir
-             val2 = sstptr%tz_tr*tdir - sstptr%res
-           else
-             val =w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
-             val2=w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)-sstptr%res
-           endif
+           val =w1*rsst(j1)+w2*rsst(j2)+w3*rsst(j3)+w4*rsst(j4)
+           val2=w1*ssst(j1)+w2*ssst(j2)+w3*ssst(j3)+w4*ssst(j4)
+
+           val  = sstptr%tz_tr*val
+           val2 = sstptr%tz_tr*val2 
+           val2=val2-sstptr%res
 
            do kk=1,nstep
               sst=val2+sges(kk)*val

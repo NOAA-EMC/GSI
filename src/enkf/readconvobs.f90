@@ -24,6 +24,7 @@ module readconvobs
 !                       reflectivity and radial velocity assimilation. POC: xuguang.wang@ou.edu
 !   2017-12-13  shlyaeva - added netcdf diag read/write capability
 !   2019-03-21  CAPS(C. Tong) - added direct reflectivity DA capability
+!   2022-03-23  draper - added option to not scale qobs by forecast qsat.
 !
 ! attributes:
 !   language: f95
@@ -32,7 +33,8 @@ module readconvobs
 
 use kinds, only: r_kind,i_kind,r_single,r_double
 use constants, only: one,zero,deg2rad
-use params, only: npefiles, netcdf_diag, modelspace_vloc, l_use_enkf_directZDA
+use params, only: npefiles, netcdf_diag, modelspace_vloc, &
+                  l_use_enkf_directZDA
 implicit none
 
 private
@@ -328,7 +330,6 @@ subroutine get_num_convobs_nc(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
         endif
 
         call nc_diag_read_close(obsfile)
-
 
         num_obs_totdiag = num_obs_totdiag + nobs_curr
         do i = 1, nobs_curr

@@ -27,12 +27,12 @@
       real(r_kind),      intent(out) ::  gradv     
 ! Declare local variables
 
-   real(r_kind) wnotgross,wgross,g_nvqc,w_nvqc,p0,qq
+      real(r_kind) wnotgross,wgross,g_nvqc,w_nvqc,p0,qq
 
 
 
    
-          if (vqc .and. nlnqc_iter .and. t_pgv > tiny_r_kind .and.  &
+           if (vqc .and. nlnqc_iter .and. t_pgv > tiny_r_kind .and.  &
                                 cg_tv  > tiny_r_kind) then
               wnotgross= one-t_pgv
               wgross =t_pgv*cg_tv/wnotgross

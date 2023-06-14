@@ -26,7 +26,7 @@ module write_incr
 
 contains
 
-  subroutine write_fv3_inc_ (grd,sp_a,filename,mype_out,gfs_bundle,ibin)
+  subroutine write_fv3_inc_ (grd,filename,mype_out,gfs_bundle,ibin)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -94,13 +94,13 @@ contains
 
     use state_vectors, only: svars3d
     use mpeu_util, only: getindex
+    use control2state_mod, only: control2state
 
     implicit none
 
 ! !INPUT PARAMETERS:
 
     type(sub2grid_info), intent(in) :: grd
-    type(spec_vars),     intent(in) :: sp_a
     character(len=24),   intent(in) :: filename  ! file to open and write to
     integer(i_kind),     intent(in) :: mype_out  ! mpi task to write output file
     type(gsi_bundle),    intent(in) :: gfs_bundle
