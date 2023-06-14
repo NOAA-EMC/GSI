@@ -624,8 +624,11 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
                     call nc_diag_metadata("Row_Anomaly_Index",         sngl(rmiss)  )
                  endif
                  if (save_jacobian) then
-                    call fullarray(dhx_dx, dhx_dx_array)
-                    call nc_diag_data2d("Observation_Operator_Jacobian", dhx_dx_array)
+                    call nc_diag_data2d("Observation_Operator_Jacobian_stind",dhx_dx%st_ind)
+                    call nc_diag_data2d("Observation_Operator_Jacobian_endind",dhx_dx%end_ind)
+                    call nc_diag_data2d("Observation_Operator_Jacobian_val",real(dhx_dx%val,r_single))
+                    !call fullarray(dhx_dx, dhx_dx_array)
+                    !call nc_diag_data2d("Observation_Operator_Jacobian", dhx_dx_array)
                  endif
                 !if (wrtgeovals) then
                 !   call nc_diag_data2d("mole_fraction_of_ozone_in_air", sngl(constoz*ozgestmp)) 
@@ -1707,6 +1710,11 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
            if(k == nlevs)then
              k1=nlevs-1
              k2=1
+           endif
+           if (save_jacobian) then
+              call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)
+              call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
+              call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
            endif
 
            if (lobsdiagsave) then
