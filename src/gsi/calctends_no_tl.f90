@@ -244,28 +244,21 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
       end if
     end if
 
-!   top/bottom boundary condition:
 
     do j=jtstart(kk),jtstop(kk)
       do i=1,lat2
+
+!   top/bottom boundary condition:
+
         what(i,j,1)=zero
         what(i,j,nsig+1)=zero
-      enddo
-    enddo
-
 
 !   load actual dp/dt
 
-    do j=jtstart(kk),jtstop(kk)
-      do i=1,lat2
         p_t(i,j)=prsth(i,j,1)
-      end do
-    end do
 
 !   before big k loop, zero out the km1 summation arrays
 
-    do j=jtstart(kk),jtstop(kk)
-      do i=1,lat2
         sumkm1  (i,j)=zero
         sum2km1 (i,j)=zero
         sumvkm1 (i,j)=zero

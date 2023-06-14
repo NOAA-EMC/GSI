@@ -131,7 +131,7 @@ do ii=1,nvars
       cvars3d(nc3d) = trim(adjustl(var))
       clevels(nc3d) = ilev + clevels(nc3d-1)
    else 
-      if (nproc .eq. 0) print *,'Error: only ', nlevs, ' and ', nlevs+1,' number of levels is supported in current version, got ',ilev
+      if (nproc .eq. 0) print *,'Error controlvec: only ', nlevs, ' and ', nlevs+1,' number of levels is supported in current version, got ',ilev
       call stop2(503)
    endif
 enddo
@@ -212,7 +212,10 @@ end if
 ! read in whole control vector on i/o procs - keep in memory 
 ! (needed in write_ensemble)
 allocate(grdin(npts,ncdim,nbackgrounds,nanals_per_iotask))
-allocate(qsat(npts,nlevs,nbackgrounds,nanals_per_iotask))
+! if only updating the sfc fields, qsat will not be calculated in readgriddata
+! only allocate if needed.
+q_ind = getindex(cvars3d, 'q')
+if (q_ind > 0)  allocate(qsat(npts,nlevs,nbackgrounds,nanals_per_iotask))
 if (paranc) then
    if (nproc == 0) t1 = mpi_wtime()
    call readgriddata_pnc(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,nbackgrounds, &
@@ -225,7 +228,8 @@ if (nproc <= ntasks_io-1) then
            fgfileprefixes,fgsfcfileprefixes,reducedgrid,grdin,qsat)
    end if
    !print *,'min/max qsat',nanal,'=',minval(qsat),maxval(qsat)
-   if (use_qsatensmean) then
+   q_ind = getindex(cvars3d, 'q')
+   if (use_qsatensmean .and. q_ind>0 ) then
        allocate(qsatmean(npts,nlevs,nbackgrounds))
        allocate(qsat_tmp(npts))
        ! compute ensemble mean qsat
@@ -257,7 +261,6 @@ if (nproc <= ntasks_io-1) then
    !   print *,'min/max qsatmean proc',nproc,'=',&
    !            minval(qsatmean(:,:,nbackgrounds/2+1)),maxval(qsatmean(:,:,nbackgrounds/2+1))
    !endif
-   q_ind = getindex(cvars3d, 'q')
    if (pseudo_rh .and. q_ind > 0) then
       if (use_qsatensmean) then
          do ne=1,nanals_per_iotask

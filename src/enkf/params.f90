@@ -85,7 +85,9 @@ character(len=120),dimension(7),public :: fgsfcfileprefixes
 character(len=120),dimension(7),public :: statefileprefixes
 character(len=120),dimension(7),public :: statesfcfileprefixes
 character(len=120),dimension(7),public :: anlfileprefixes
+character(len=120),dimension(7),public :: anlsfcfileprefixes
 character(len=120),dimension(7),public :: incfileprefixes
+character(len=120),dimension(7),public :: incsfcfileprefixes
 ! analysis date string (YYYYMMDDHH)
 character(len=10), public ::  datestring
 ! Hour for datestring
@@ -266,7 +268,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
                    lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh,&
                    fgfileprefixes,fgsfcfileprefixes,anlfileprefixes, &
-                   incfileprefixes, &
+                   anlsfcfileprefixes,incfileprefixes,incsfcfileprefixes,&
                    statefileprefixes,statesfcfileprefixes, &
                    covl_minfact,covl_efold,lupd_obspace_serial,letkf_novlocal,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
@@ -460,8 +462,8 @@ dsis=' '
 ! Initialize first-guess and analysis file name prefixes.
 ! (blank means use default names)
 fgfileprefixes = ''; anlfileprefixes=''; statefileprefixes=''
-fgsfcfileprefixes = ''; statesfcfileprefixes=''
-incfileprefixes = ''
+anlsfcfileprefixes=''; fgsfcfileprefixes = ''; statesfcfileprefixes=''
+incfileprefixes = ''; incsfcfileprefixes = ''
 
 ! option for including convective clouds in the all-sky
 cnvw_option=.false.
@@ -720,7 +722,7 @@ do while (nhr_anal(nbackgrounds+1) > 0)
      endif
    endif
    if (trim(fgsfcfileprefixes(nbackgrounds+1)) .eq. "") then
-      fgsfcfileprefixes(nbackgrounds+1)="sfgsfc_"//datestring//"_fhr"//charfhr_anal(nbackgrounds+1)//"_"
+      fgsfcfileprefixes(nbackgrounds+1)="bfg_"//datestring//"_fhr"//charfhr_anal(nbackgrounds+1)//"_"
    end if
    nbackgrounds = nbackgrounds+1
 end do
@@ -742,7 +744,7 @@ do while (nhr_state(nstatefields+1) > 0)
      endif
    endif
    if (trim(statesfcfileprefixes(nstatefields+1)) .eq. "") then
-      statesfcfileprefixes(nstatefields+1)="sfgsfc_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
+      statesfcfileprefixes(nstatefields+1)="bfg_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
    end if
    nstatefields = nstatefields+1
 end do
@@ -760,6 +762,23 @@ do nb=1,nbackgrounds
 !      if (nbackgrounds > 1) then
         anlfileprefixes(nb)="sanl_"//datestring//"_fhr"//charfhr_anal(nb)//"_"
         incfileprefixes(nb)="incr_"//datestring//"_fhr"//charfhr_anal(nb)//"_"
+!      else
+!        anlfileprefixes(nb)="sanl_"//datestring//"_"
+!      endif
+     endif
+   endif
+   if (trim(anlsfcfileprefixes(nb)) .eq. "") then
+     ! default analysis file prefix
+     if (regional) then
+      if (nbackgrounds > 1) then
+        anlsfcfileprefixes(nb)="sfc_analysis_fhr"//charfhr_anal(nb)//"."
+      else
+        anlsfcfileprefixes(nb)="sfc_analysis."
+      endif
+     else ! global
+!      if (nbackgrounds > 1) then
+        anlsfcfileprefixes(nb)="banl_"//datestring//"_fhr"//charfhr_anal(nb)//"_"
+        incsfcfileprefixes(nb)="sfcincr_"//datestring//"_fhr"//charfhr_anal(nb)//"_"
 !      else
 !        anlfileprefixes(nb)="sanl_"//datestring//"_"
 !      endif
