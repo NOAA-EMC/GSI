@@ -24,7 +24,6 @@ pushenv("GSI_BINARY_SOURCE_DIR", "/lustre/f2/dev/role.epic/contrib/GSI_data/fix"
 setenv("CC","cc")
 setenv("FC","ftn")
 setenv("CXX","CC")
-unsetenv("CRAYPE_LINK_TYPE")
 pushenv("CRAYPE_LINK_TYPE","dynamic")
 
 whatis("Description: GSI environment on Gaea with Intel Compilers")
