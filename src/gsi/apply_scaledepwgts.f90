@@ -50,7 +50,7 @@ subroutine init_mult_spc_wgts(jcap_in)
 
   integer(i_kind),intent(in   ) :: jcap_in
 
-  integer(i_kind) i,l,ks,n
+  integer(i_kind) i,l,ks
   integer(i_kind) ig
   real(r_kind) :: rwv0,rtem1,rtem2
   real(r_kind) :: fwgtofwvlen
@@ -150,7 +150,6 @@ subroutine apply_scaledepwgts(m,grd_in,sp_in)
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub   
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
-  use mpimod, only: mpi_comm_world,mype
   use hybrid_ensemble_parameters, only: spc_multwgt,en_perts,nsclgrp,n_ens
   implicit none
 

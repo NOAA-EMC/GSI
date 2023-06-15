@@ -208,7 +208,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     integer(i_kind) :: nlon,nlat,nsig
     integer(i_kind),dimension(n_ens) :: io_pe0
     real(r_single),allocatable,dimension(:,:,:,:) :: en_full,en_loc
-    real(r_kind),allocatable,dimension(:) :: sloc
+    real(r_single),allocatable,dimension(:) :: sloc
     integer(i_kind),allocatable,dimension(:) :: m_cvars2dw,m_cvars3dw
     integer(i_kind) :: m_cvars2d(nc2d),m_cvars3d(nc3d)
     type(sub2grid_info) :: grd3d
@@ -369,7 +369,7 @@ subroutine move2bundle_(grd3d,sloc,atm_bundle,m_cvars2d,m_cvars3d,iret)
 !
 !$$$
 
-    use constants, only: zero,one,two,fv
+    use constants, only: zero,one,two
     use general_sub2grid_mod, only: sub2grid_info
     use hybrid_ensemble_parameters, only: en_perts,nsclgrp,global_spectral_filter_sd
     use gsi_bundlemod, only: gsi_bundle
@@ -382,7 +382,7 @@ subroutine move2bundle_(grd3d,sloc,atm_bundle,m_cvars2d,m_cvars3d,iret)
     ! Declare passed variables
     type(sub2grid_info), intent(in   ) :: grd3d
     type(gsi_bundle),    intent(inout) :: atm_bundle
-    real(r_kind),        intent(inout) :: sloc(grd3d%lat2*grd3d%lon2*(nc2d+nc3d*grd3d%nsig))
+    real(r_single),      intent(inout) :: sloc(grd3d%lat2*grd3d%lon2*(nc2d+nc3d*grd3d%nsig))
     integer(i_kind),     intent(in   ) :: m_cvars2d(nc2d),m_cvars3d(nc3d)
     integer(i_kind),     intent(inout) :: iret
 
@@ -393,21 +393,24 @@ subroutine move2bundle_(grd3d,sloc,atm_bundle,m_cvars2d,m_cvars3d,iret)
     integer(i_kind) :: ierr
     integer(i_kind) :: km1,m
     integer(i_kind) :: icw,iql,iqi,iqr,iqs,iqg  
-    real(r_kind),pointer,dimension(:,:) :: ps
+    real(r_single),dimension(grd3d%lat2,grd3d%lon2,nc2d+nc3d*grd3d%nsig)::en_loc3
+    real(r_single),pointer,dimension(:,:) :: ps
     !real(r_kind),pointer,dimension(:,:) :: sst
-    real(r_kind),dimension(grd3d%lat2,grd3d%lon2,nc2d+nc3d*grd3d%nsig)::en_loc3
-    real(r_kind),pointer,dimension(:,:,:) :: u,v,tv,q,oz,cwmr
-    real(r_kind),pointer,dimension(:,:,:) :: qlmr,qimr,qrmr,qsmr,qgmr   
-    real(r_kind),parameter :: r0_001 = 0.001_r_kind
+    real(r_single),pointer,dimension(:,:,:) :: u,v,tv,q,oz,cwmr
+    real(r_single),pointer,dimension(:,:,:) :: qlmr,qimr,qrmr,qsmr,qgmr   
 
 
 !--- now update halo values of all variables using general_sub2grid
+!    NOTE: The halo values if multiscale ensembles (nsclgrp >1 .and.
+!    global_spectral_filter_SD) used. So, in this case, we just put in 
+!    reasonable values (nearby points) so that computations on edge points do
+!    not fail.  
 
-    if(nsclgrp > 1 .and. global_spectral_filter_sd) then
-       call update_halos_(grd3d,sloc,en_loc3)
-    else
-       call update_edges(grd3d,sloc,en_loc3)
-    end if
+!   if(nsclgrp > 1 .and. global_spectral_filter_sd) then
+!     call update_edges(grd3d,sloc,en_loc3)
+!   else
+      call update_halos_(grd3d,sloc,en_loc3)
+!   end if
 
     ! Check hydrometeors in control variables 
     icw=getindex(cvars3d,'cw')
@@ -423,7 +426,7 @@ subroutine move2bundle_(grd3d,sloc,atm_bundle,m_cvars2d,m_cvars3d,iret)
     !call gsi_bundlegetpointer(atm_bundle,'sst',sst, ierr); iret = iret+ierr
     do m=1,nc2d
 !      convert ps from Pa to cb
-       if(trim(cvars2d(m))=='ps')   ps=r0_001*en_loc3(:,:,m_cvars2d(m))
+       if(trim(cvars2d(m))=='ps') ps=en_loc3(:,:,m_cvars2d(m))
 !      if(trim(cvars2d(m))=='sst') sst=en_loc3(:,:,m_cvars2d(m)) !no sst for now
     enddo
 
@@ -457,6 +460,8 @@ subroutine move2bundle_(grd3d,sloc,atm_bundle,m_cvars2d,m_cvars3d,iret)
        else if(trim(cvars3d(m))=='vp') then
           v    = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km1)
        else if(trim(cvars3d(m))=='t')  then
+!  Note tv here is sensible temperature.  Converted to virtual temperature
+!  later.
           tv   = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km1)
        else if(trim(cvars3d(m))=='q')  then
           q    = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km1)
@@ -476,9 +481,6 @@ subroutine move2bundle_(grd3d,sloc,atm_bundle,m_cvars2d,m_cvars3d,iret)
           qgmr = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km1)
        end if
     enddo
-
-!   convert t to virtual temperature
-    tv=tv*(one+fv*q)
 
     return
 
@@ -514,14 +516,13 @@ subroutine update_halos_(grd,sloc,s)
 
     ! Declare passed variables
     type(sub2grid_info), intent(in   ) :: grd
-    real(r_kind),        intent(  out) :: s(grd%lat2,grd%lon2,grd%num_fields)
-    real(r_kind),        intent(inout) :: sloc(grd%lat2*grd%lon2*grd%num_fields)
+    real(r_single),        intent(  out) :: s(grd%lat2,grd%lon2,grd%num_fields)
+    real(r_single),        intent(inout) :: sloc(grd%lat2*grd%lon2*grd%num_fields)
 
     ! Declare local variables
     integer(i_kind) inner_vars,lat2,lon2,nlat,nlon,nvert,kbegin_loc,kend_alloc
-    integer(i_kind) ii,i,j,k
-    real(r_kind),allocatable,dimension(:,:,:,:) :: work
-    real(r_kind),dimension(grd%lat2*grd%lon2*grd%num_fields) :: s2
+    real(r_single),allocatable,dimension(:,:,:) :: work
+    real(r_single),dimension(grd%lat2*grd%lon2*grd%num_fields) :: s2
 
     lat2=grd%lat2
     lon2=grd%lon2
@@ -532,9 +533,7 @@ subroutine update_halos_(grd,sloc,s)
     kbegin_loc=grd%kbegin_loc
     kend_alloc=grd%kend_alloc
 
-
-
-    allocate(work(inner_vars,nlat,nlon,kbegin_loc:kend_alloc))
+    allocate(work(nlat,nlon,kbegin_loc:kend_alloc))
     call general_sub2grid(grd,sloc,work)
 
     call general_grid2sub(grd,work,s2)
@@ -550,30 +549,26 @@ subroutine update_edges(grd,sloc,s)
 
     ! Declare passed variables
     type(sub2grid_info), intent(in   ) :: grd
-    real(r_kind),        intent(  out) :: s(grd%lat2,grd%lon2,grd%num_fields)
-    real(r_kind),        intent(inout) :: sloc(grd%lat2*grd%lon2*grd%num_fields)
+    real(r_single),        intent(  out) :: s(grd%lat2,grd%lon2,grd%num_fields)
+    real(r_single),        intent(inout) :: sloc(grd%lat2*grd%lon2*grd%num_fields)
 
     ! Declare local variables
     integer(i_kind) lat2,lon2,nvert
-    integer(i_kind) ii,i,j,k
+    integer(i_kind) i,j,k
 
     lat2=grd%lat2
     lon2=grd%lon2
     nvert=grd%num_fields
 
-    ii=0
+    s=reshape(sloc,(/lat2,lon2,nvert/))
     do k=1,nvert
-       do j=1,lon2
-          do i=1,lat2
-             ii=ii+1
-             s(i,j,k)=sloc(ii)
-          enddo
-       enddo
        do j=2,lon2-1
           s(1,j,k)=s(2,j,k)
+          s(lat2,j,k)=s(lat2-1,j,k)
        end do
        do i=1,lat2
           s(i,1,k)=s(i,2,k)
+          s(i,lon2,k)=s(i,lon2-1,k)
        end do
     enddo
 

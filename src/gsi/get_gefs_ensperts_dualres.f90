@@ -78,7 +78,7 @@ subroutine get_gefs_ensperts_dualres
 ! real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon):: sst_full,dum
   real(r_kind),pointer,dimension(:,:,:):: p3
   real(r_kind),pointer,dimension(:,:):: x2
-  type(gsi_bundle),allocatable,dimension(:) :: en_read
+  type(gsi_bundle),allocatable,dimension(:) :: en_real8
   type(gsi_bundle):: en_bar
 ! type(gsi_grid)  :: grid_ens
   real(r_kind) bar_norm,sig_norm,kapr,kap1
@@ -93,7 +93,8 @@ subroutine get_gefs_ensperts_dualres
 ! integer(i_kind) il,jl
   logical ice,hydrometeor 
   type(sub2grid_info) :: grd_tmp
-  integer(i_kind) :: ig
+  real(r_kind),parameter :: r0_001 = 0.001_r_kind
+
 
 ! Create perturbations grid and get variable names from perturbations
   if(en_perts(1,1,1)%grid%im/=grd_ens%lat2.or. &
@@ -133,14 +134,14 @@ subroutine get_gefs_ensperts_dualres
   if ( istatus /= 0 ) &
      call die('get_gefs_ensperts_dualres',': trouble creating en_bar bundle, istatus =',istatus)
 
-  ! Allocate bundle used for reading members
-  allocate(en_read(n_ens))
+  ! Allocate bundle used for real*8 version of members
+  allocate(en_real8(n_ens))
   do n=1,n_ens
-     call gsi_bundlecreate(en_read(n),en_perts(1,1,1)%grid,'ensemble member',istatus,names2d=cvars2d,names3d=cvars3d)
+     call gsi_bundlecreate(en_real8(n),en_perts(1,1,1)%grid,'ensemble member',istatus,names2d=cvars2d,names3d=cvars3d)
      if ( istatus /= 0 ) &
-        call die('get_gefs_ensperts_dualres',': trouble creating en_read bundle, istatus =',istatus)
-     en_read(n) = zero
+        call die('get_gefs_ensperts_dualres',': trouble creating en_real8 bundle, istatus =',istatus)
   end do
+
 
 ! allocate(z(im,jm))
 ! allocate(sst2(im,jm))
@@ -150,7 +151,7 @@ subroutine get_gefs_ensperts_dualres
 
   ntlevs_ens_loop: do m=1,ntlevs_ens
 
-     call gsi_enscoupler_get_user_Nens(grd_tmp,n_ens,m,en_read,iret)
+     call gsi_enscoupler_get_user_Nens(grd_tmp,n_ens,m,en_perts(:,1,m),iret)
 
      ! Check read return code.  Revert to static B if read error detected
      if ( iret /= 0 ) then
@@ -169,18 +170,30 @@ subroutine get_gefs_ensperts_dualres
        allocate(qs(im,jm,km))
      end if
      do n=1,n_ens
+       do i=1,nelen
+          en_real8(n)%values(i)=real(en_perts(n,1,m)%valuesr4(i),r_kind)
+       end do
 
-       call gsi_bundlegetpointer(en_read(n),'q' ,q ,ier);istatus=istatus+ier
+       call gsi_bundlegetpointer(en_real8(n),'q' ,q ,ier);istatus=istatus+ier
+       call gsi_bundlegetpointer(en_real8(n),'t' ,tv,ier);istatus=istatus+ier
+       call gsi_bundlegetpointer(en_real8(n),'ps',ps,ier);istatus=ier
+!   Convert to real from single and convert tv to virtual temperature
+       do j=1,jm
+          do i=1,im
+             ps(i,j)=r0_001*ps(i,j)
+          end do
+       end do
        do k=1,km
           do j=1,jm
              do i=1,im
                 q(i,j,k)=max(q(i,j,k),zero)
+                tsen(i,j,k)=tv(i,j,k)
+                tv(i,j,k)= tv(i,j,k)*(one+fv*q(i,j,k))
              end do
           end do
        end do
        if (.not.q_hyb_ens) then !use RH
-         call gsi_bundlegetpointer(en_read(n),'ps',ps,ier);istatus=ier
-         call gsi_bundlegetpointer(en_read(n),'t' ,tv,ier);istatus=istatus+ier
+         
 ! Compute RH
 ! Get 3d pressure field now on interfaces
          call general_getprs_glb(ps,tv,pri)
@@ -194,7 +207,6 @@ subroutine get_gefs_ensperts_dualres
                   do i=1,im
                      prsl(i,j,k)=((pri(i,j,k)**kap1-pri(i,j,k+1)**kap1)/&
                              (kap1*(pri(i,j,k)-pri(i,j,k+1))))**kapr
-                     tsen(i,j,k)= tv(i,j,k)/(one+fv*q(i,j,k))
                   end do
                end do
             end do
@@ -204,7 +216,6 @@ subroutine get_gefs_ensperts_dualres
                do j=1,jm
                   do i=1,im
                      prsl(i,j,k)=(pri(i,j,k)+pri(i,j,k+1))*half
-                     tsen(i,j,k)= tv(i,j,k)/(one+fv*q(i,j,k))
                   end do
                end do
             end do
@@ -220,10 +231,11 @@ subroutine get_gefs_ensperts_dualres
                end do
             end do
          end do
+
        end if
 
 
-!$omp parallel do schedule(dynamic,1) private(i,k,j,ic3,hydrometeor,istatus,p3)
+! ! !$omp parallel do schedule(dynamic,1) private(i,k,j,ic3,hydrometeor,istatus,p3)
        do ic3=1,nc3d
 
           hydrometeor = trim(cvars3d(ic3))=='cw' .or. trim(cvars3d(ic3))=='ql' .or. &
@@ -234,7 +246,7 @@ subroutine get_gefs_ensperts_dualres
 
 
           if ( hydrometeor ) then                
-             call gsi_bundlegetpointer(en_read(n),trim(cvars3d(ic3)),p3,istatus)
+             call gsi_bundlegetpointer(en_real8(n),trim(cvars3d(ic3)),p3,istatus)
              if(istatus/=0) then
                 write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' from read in member ',n,m
                 call stop2(999)
@@ -248,7 +260,7 @@ subroutine get_gefs_ensperts_dualres
              end do
 
           else if ( trim(cvars3d(ic3)) == 'oz' .and. oz_univ_static ) then
-             call gsi_bundlegetpointer(en_read(n),trim(cvars3d(ic3)),p3,istatus)
+             call gsi_bundlegetpointer(en_real8(n),trim(cvars3d(ic3)),p3,istatus)
              if(istatus/=0) then
                 write(6,*)' error retrieving pointer to ',trim(cvars3d(ic3)),' from read in member ',n,m
                 call stop2(999)
@@ -258,7 +270,7 @@ subroutine get_gefs_ensperts_dualres
 
        end do !c3d
        do i=1,nelen
-          en_bar%values(i)=en_bar%values(i)+en_read(n)%values(i)*bar_norm
+          en_bar%values(i)=en_bar%values(i)+en_real8(n)%values(i)*bar_norm
        end do
 
 
@@ -297,7 +309,7 @@ subroutine get_gefs_ensperts_dualres
 !$omp parallel do schedule(dynamic,1) private(n,i,ic3,ipic,k,j)
      do n=1,n_ens
         do i=1,nelen
-           en_perts(n,1,m)%valuesr4(i)=en_read(n)%values(i)-en_bar%values(i)
+           en_perts(n,1,m)%valuesr4(i)=en_real8(n)%values(i)-en_bar%values(i)
         end do
         if(.not. q_hyb_ens) then
           do ic3=1,nc3d
@@ -318,22 +330,21 @@ subroutine get_gefs_ensperts_dualres
            en_perts(n,1,m)%valuesr4(i)=en_perts(n,1,m)%valuesr4(i)*sig_norm
         end do
      end do
+     if(nsclgrp > 1 .and. global_spectral_filter_sd) then
+        call apply_scaledepwgts(m,grd_ens,sp_ens)
+     end if
   end do  ntlevs_ens_loop !end do over bins
 
-  call gsi_bundledestroy(en_bar,istatus)
   do n=n_ens,1,-1
-     call gsi_bundledestroy(en_read(n),istatus)
+     call gsi_bundledestroy(en_real8(n),istatus)
      if ( istatus /= 0 ) &
-        call die('get_gefs_ensperts_dualres',': trouble destroying en_read bundle, istatus = ', istatus)
+        call die('get_gefs_ensperts_dualres',': trouble destroying en_real8 bundle, istatus = ', istatus)
   end do
-  deallocate(en_read)
+  deallocate(en_real8)
 
-  if(nsclgrp > 1 .and. global_spectral_filter_sd) then
-     do m=1,ntlevs_ens
-        call apply_scaledepwgts(m,grd_ens,sp_ens)
-     end do
-     call destroy_mult_spc_wgts
-  endif
+  call gsi_bundledestroy(en_bar,istatus)
+
+  if(nsclgrp > 1 .and. global_spectral_filter_sd) call destroy_mult_spc_wgts
 
   call gsi_enscoupler_destroy_sub2grid_info(grd_tmp)
 
