@@ -2078,7 +2078,8 @@ end subroutine qc_saphir
 subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs,                         &
      cris,iasi,hirs,zsges,cenlat,cenlon,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise, &
      wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity,chan_level,emissivity_k,ts,tsim,                   &
-     land_fraction,id_qc,aivals,errf,varinv,varinv_use,cloudp,cldp,zero_irjaco3_pole)
+     land_fraction,id_qc,aivals,errf,varinv,varinv_use,cloudp,cldp,zero_irjaco3_pole,cluster_fraction,    &
+     cluster_bt, chan_stdev, model_bt)
 !    id_qc,aivals,errf,varinv,varinv_use,cloudp,cldp,zero_irjaco3_pole,radmod) ! all-sky
 
 !$$$ subprogram documentation block
@@ -2144,6 +2145,10 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 !     cld          - cloud fraction
 !     cldp         - cloud pressure
 !     zero_irjaco3_pole - logical to control use of ozone jacobians near poles
+!     cluster_fraction - size of imager derived cluster to determine clear cloudy profiles, used by CADS
+!     cluster_bt   - imager brightness temperature of each cluster, used by CADS
+!     chan_stdev   - standard deviation of cluster mean temperatures, used by CADS
+!     model_bt     _ brightness temperature derived from the model's clear profile. used by CADS
 !
 ! attributes:
 !     language: f90
@@ -2174,6 +2179,9 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
   real(r_kind),dimension(nsig,nchanl),intent(in   ) :: ptau5,temp,wmix
   real(r_kind),dimension(nsig),       intent(in   ) :: prsltmp,tvp
   real(r_kind),dimension(nchanl),     intent(inout) :: errf,varinv,varinv_use
+  real(r_kind),                       intent(in   ) :: cluster_fraction(:)
+  real(r_kind),dimension(2,7),        intent(in   ) :: cluster_bt
+  real(r_kind),dimension(2),          intent(in   ) :: chan_stdev, model_bt
 
 ! Declare local parameters
 
@@ -2193,6 +2201,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 ! for cloud_aerosol_detect
   integer(i_kind) :: I_Sensor_ID
   integer(i_kind),dimension(nchanl) :: chan_array, i_flag_cloud
+  integer(i_kind),dimension(2) :: imager_chans
   integer(i_kind) :: boundary_layer_pres, tropopause_height
   integer(i_kind) :: ichan_10_micron, ichan_12_micron
   real(r_kind),dimension(nchanl) :: cloud_detect_ht, tb_bc
@@ -2294,12 +2303,14 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
       tb_bc = tbc + tsim                        ! observation BT with bias correction
       boundary_layer_pres = nint(0.8_r_kind*prsltmp(1))  !  boundary layer set to be 80% of surface pressure
       tropopause_height = nint(trop5)
+      imager_chans = (/15,16/)                    ! imager channel numbers (from satinfo)
       isurface_chan = 501                       ! surface channel
       ichan_10_micron = 458                     ! ~10.7 micron channel for low level cloud test
       ichan_12_micron = 295                     ! ~12.0 micron channel for low level cloud test
 
       call cloud_aerosol_detection( I_Sensor_ID, nchanl, chan_array, cenlon, cenlat, land_fraction, &
-             tropopause_height, boundary_layer_pres, tb_bc, tsim, chan_level, i_flag_cloud, cldp )
+             tropopause_height, boundary_layer_pres, tb_bc, tsim, chan_level, imager_chans, cluster_fraction, &
+             cluster_bt, chan_stdev, model_bt, i_flag_cloud, cldp )
 
   elseif ( iasi .and. iasi_cads ) then
       I_Sensor_ID = 16
@@ -2307,12 +2318,14 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
       tb_bc = tbc + tsim                        ! observation BT with bias correction
       boundary_layer_pres = nint(0.8_r_kind*prsltmp(1))  !  boundary layer set to be 80% of surface pressure
       tropopause_height = nint(trop5)
+      imager_chans = (/2,3/)                    ! imager channel numbers (from satinfo)
       isurface_chan = 1271                      ! surface channel
       ichan_10_micron = 1173                    ! ~10.7 micron channel for low level cloud test
       ichan_12_micron = 756                     ! ~12.0 micron channel for low level cloud test
       
       call cloud_aerosol_detection( I_Sensor_ID, nchanl, chan_array, cenlon, cenlat, land_fraction, &
-             tropopause_height, boundary_layer_pres, tb_bc, tsim, chan_level, i_flag_cloud, cldp )
+             tropopause_height, boundary_layer_pres, tb_bc, tsim, chan_level, imager_chans, cluster_fraction, &
+             cluster_bt, chan_stdev, model_bt, i_flag_cloud, cldp )
 
   elseif ( airs .and. airs_cads ) then
       I_Sensor_ID = 11
@@ -2321,11 +2334,13 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
       boundary_layer_pres = nint(0.8_r_kind*prsltmp(1))  !  boundary layer set to be 80% of surface pressure
       tropopause_height = nint(trop5)
       isurface_chan = 914                       ! surface channel
+      imager_chans = (/0,0/)                    ! imager channel numbers (from satinfo)
       ichan_10_micron = 843                     ! ~10.7 micron channel for low level cloud test
       ichan_12_micron = 587                     ! ~12.0 micron channel for low level cloud test
 
       call cloud_aerosol_detection( I_Sensor_ID, nchanl, chan_array, cenlon, cenlat, land_fraction, &
-             tropopause_height, boundary_layer_pres, tb_bc, tsim, chan_level, i_flag_cloud, cldp )
+             tropopause_height, boundary_layer_pres, tb_bc, tsim, chan_level, imager_chans, cluster_fraction, &
+             cluster_bt, chan_stdev, model_bt, i_flag_cloud, cldp )
 
   else
      call emc_legacy_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,ptau5,lcloud,cloudp,cldp)

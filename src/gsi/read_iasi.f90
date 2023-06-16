@@ -213,7 +213,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  :: i, j, l, iskip, ifovn, bad_line, ksatid, kidsat, llll
   integer(i_kind)  :: nreal, isflg
   integer(i_kind)  :: itx, k, nele, itt, n
-  integer(i_kind):: iexponent,maxinfo, bufr_nchan
+  integer(i_kind):: iexponent,maxinfo, bufr_nchan, dval_info
   integer(i_kind):: idomsfc(1)
   integer(i_kind):: ntest
   integer(i_kind):: error_status, irecx,ierr
@@ -222,7 +222,16 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)   :: sfc_channel_index
   integer(i_kind),allocatable, dimension(:) :: channel_number, sc_index, bufr_index
   integer(i_kind),allocatable, dimension(:) :: bufr_chan_test
-  character(len=20),dimension(1):: sensorlist
+  character(len=20),dimension(2):: sensorlist
+
+! Imager clouser information for CADS
+  integer(i_kind) :: sensorindex_imager, cads_info
+  integer(i_kind),dimension(7) :: imager_cluster_index
+  logical,dimension(7)         :: imager_cluster_flag
+  real(r_kind),dimension(33,7) :: imager_info
+  real(r_kind),dimension(7)    :: imager_cluster_size
+  real(r_kind),dimension(2)    :: imager_mean, imager_std_dev
+  real(r_kind)                 :: imager_cluster_tot
 
 ! Set standard parameters
   character(8),parameter:: fov_flag="crosstrk"
@@ -248,8 +257,11 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   maxinfo    =  31
   disterrmax=zero
   ntest=0
-  if(dval_use) maxinfo=maxinfo+2
-  nreal  = maxinfo + nstinfo
+  dval_info = 0
+  if(dval_use) dval_info = 2
+  cads_info = 0
+  if(iasi_cads) cads_info = 23
+  nreal  = maxinfo + cads_info + dval_info + nstinfo
 
   ndata = 0
   nodata = 0
@@ -316,6 +328,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! load spectral coefficient structure  
   quiet=.not. verbose
   sensorlist(1)=sis
+  sensorlist(2) = 'avhrr3_'//trim(jsatid)
 
   if( crtm_coeffs_path /= "" ) then
      if(mype_sub==mype_root .and. print_verbose) write(6,*)'READ_IASI: crtm_spccoeff_load() on path "'//trim(crtm_coeffs_path)//'"'
@@ -350,8 +363,18 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   if ( sc(1)%sensor_id(1:4) == 'iasi' ) then
      sensorindex_iasi = 1
   else
-     write(6,*)'READ_IASI: sensorindex_iasi not set  NO IASI DATA USED'
+     write(6,*)'READ_IASI: ***ERROR*** sensorindex_iasi not set  NO IASI DATA USED'
      write(6,*)'READ_IASI: We are looking for ', sc(1)%sensor_id, '   TERMINATE PROGRAM EXECUTION'
+     call stop2(71)
+  end if
+
+!  find imager sensorindex
+  sensorindex_imager = 0
+  if ( sc(2)%sensor_id(1:4) == 'avhr' ) then
+     sensorindex_imager = 2
+  else
+     write(6,*)'READ_IASI: ***ERROR*** sensorindex_imager is not set  NO IASI DATA USED'
+     write(6,*)'READ_IASI: We are looking for ', sc(2)%sensor_id, '   TERMINATE PROGRAM EXECUTION'
      call stop2(71)
   end if
 
@@ -741,7 +764,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
            crit1=crit1 + ten*float(iskip)
 
-!          If the surface channel exists (~960.0 cm-1) and the AVHRR cloud information is missing, use an
+!          If the surface channel exists (~960.0 cm-1) and the imager cloud information is missing, use an
 !          estimate of the surface temperature to determine if the profile may be clear.
            if (.not. cloud_info) then
               pred = tsavg*0.98_r_kind - temperature(sfc_channel_index)
@@ -757,7 +780,77 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
               call finalcheck(one,crit1,itx,iuse)
            endif
            if(.not. iuse)cycle read_loop
+!   Read the imager cluster information for the Cloud and Aerosol Detection Software.
+!   Only channels 4 and 5 are used.
+           if ( iasi_cads ) then
+             call ufbseq(lnbufr,imager_info,33,7,iret,'IASIL1CS')
+             if (iret == 7 ) then  ! if imager cluster info exists
+               imager_mean = zero
+               imager_std_dev = zero
+               imager_cluster_tot = zero
+               imager_cluster_flag = .TRUE.
+               imager_cluster_size = imager_info(3,1:7)
+               imager_cluster_size(:) = imager_cluster_size(:) / sum(imager_cluster_size(:))
 
+!  Order clusters from largest (1) to smallest (7)
+               imager_cluster_sort: do i=1,7
+                 j = maxloc(imager_cluster_size,dim=1,mask=imager_cluster_flag)
+                 imager_cluster_index(i) = j
+                 imager_cluster_flag(j) = .FALSE.
+               end do imager_cluster_sort
+
+!   Convert from radiance to brightness temperature for mean and standard deviation used by CADS.
+!   Imager cluster info added to data_all array
+
+               imager_cluster_info: do j=1,7
+                 i = imager_cluster_index(j)
+
+                 data_all(maxinfo+j,itx) =  imager_cluster_size(i)                ! Imager cluster fraction
+                 imager_cluster_tot = imager_cluster_tot + imager_info(3,i)
+
+                 iexponent = -(nint(imager_info(25,i))-5 )                        ! channel 4 radiance for each cluster.
+                 imager_info(26,i) =  imager_info(26,i) * (ten ** iexponent)
+
+                 iexponent = -(nint(imager_info(27,i))-5 )                        ! channel 4 radiance std dev for each cluster.
+                 imager_info(28,i) =  imager_info(28,i) * (ten ** iexponent)
+
+                 call crtm_planck_temperature(sensorindex_imager,2,imager_info(26,i),data_all(maxinfo+7+j,itx))
+                 data_all(maxinfo+7+j,itx) = max(data_all(maxinfo+7+j,itx),zero)
+
+                 iexponent = -(nint(imager_info(30,i))-5 )                        ! channel 5 radiance for each cluster
+                 imager_info(31,i) =  imager_info(31,i) * (ten ** iexponent)
+
+                 iexponent = -(nint(imager_info(32,i))-5 )                        ! channel 5 radiance std dev for each cluser.
+                 imager_info(33,i) =  imager_info(33,i) * (ten ** iexponent)
+
+                 call crtm_planck_temperature(sensorindex_imager,3,imager_info(31,i),data_all(maxinfo+14+j,itx))
+                 data_all(maxinfo+14+j,itx) = max(data_all(maxinfo+14+j,itx),zero)
+
+               end do imager_cluster_info
+
+! Compute cluster averages for each channel
+
+               imager_mean(1) = sum(imager_cluster_size(:) * imager_info(26,:))      ! Channel 4 radiance cluster average
+               imager_std_dev(1) = sum(imager_cluster_size(:) * (imager_info(26,:)**2 + imager_info(28,:)**2)) - imager_mean(1)**2
+               imager_std_dev(1) = sqrt(max(imager_std_dev(1),zero))                 ! Channel 4 radiance RMSE
+               call crtm_planck_temperature(sensorindex_imager,2,(imager_std_dev(1) + imager_mean(1)),imager_std_dev(1))
+               call crtm_planck_temperature(sensorindex_imager,2,imager_mean(1),imager_mean(1))    ! Channel 4 average BT
+               imager_std_dev(1) = imager_std_dev(1) - imager_mean(1)                ! Channel 4 BT std dev
+               data_all(maxinfo+22,itx) = imager_std_dev(1)
+
+               imager_mean(2) = sum(imager_cluster_size(:) * imager_info(31,:))      ! Channel 5 radiance cluster average
+               imager_std_dev(2) = sum(imager_cluster_size(:) * (imager_info(31,:)**2 + imager_info(33,:)**2)) - imager_mean(1)**2
+               imager_std_dev(2) = sqrt(max(imager_std_dev(1),zero))                 ! Channel 5 radiance RMSE
+               call crtm_planck_temperature(sensorindex_imager,3,(imager_std_dev(2) + imager_mean(2)),imager_std_dev(2))
+               call crtm_planck_temperature(sensorindex_imager,3,imager_mean(2),imager_mean(2))     ! Channel 5 average BT
+               imager_std_dev(2) = imager_std_dev(2) - imager_mean(2)                ! Channel 5 BT std dev
+               data_all(maxinfo+23,itx) = imager_std_dev(2)
+
+             else  ! Imager cluster information is missing.  Set everything to zero
+               data_all(maxinfo+1 : maxinfo+25,itx) = zero
+             endif
+           endif ! iasi_cads = .true.
+!
 !          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
            if ( nst_gsi > 0 ) then
@@ -804,15 +897,15 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            data_all(31,itx)= dlat_earth_deg            ! earth relative latitude (degrees)
 
            if(dval_use)then
-              data_all(32,itx)= val_iasi
-              data_all(33,itx)= itt
+              data_all(32+cads_info,itx)= val_iasi
+              data_all(33+cads_info,itx)= itt
            end if
 
            if ( nst_gsi > 0 ) then
-              data_all(maxinfo+1,itx) = tref         ! foundation temperature
-              data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
-              data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
-              data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
+              data_all(maxinfo+cads_info+dval_info+1,itx) = tref         ! foundation temperature
+              data_all(maxinfo+cads_info+dval_info+2,itx) = dtw          ! dt_warm at zob
+              data_all(maxinfo+cads_info+dval_info+3,itx) = dtc          ! dt_cool at zob
+              data_all(maxinfo+cads_info+dval_info+4,itx) = tz_tr        ! d(Tz)/d(Tr)
            endif
 
 !          Put satinfo defined channel temperatures into data array

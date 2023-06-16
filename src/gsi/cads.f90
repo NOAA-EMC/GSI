@@ -36,8 +36,8 @@ module cads
             N__Num_Imager_Clusters,N__Imager_Chans,R__Stddev_Threshold,R__Coverage_Threshold, &
             R__FG_Departure_Threshold
 
-    INTEGER(i_kind)         :: M__Sensor                 ! Unique ID for sensor
-    INTEGER(i_kind)         :: N__Num_Bands              ! Number of channel bands
+    INTEGER(i_kind)          :: M__Sensor                ! Unique ID for sensor
+    INTEGER(i_kind)          :: N__Num_Bands             ! Number of channel bands
     INTEGER(i_kind), POINTER :: N__GradChkInterval(:)    ! Window width used in gradient calculation
     INTEGER(i_kind), POINTER :: N__Band_Size(:)          ! Number of channels in each band
     INTEGER(i_kind), POINTER :: N__Bands(:,:)            ! Channel lists
@@ -121,8 +121,8 @@ module cads
   END TYPE Aerosol_Detect_Type
 
   TYPE Cloud_Detect_Type
-    INTEGER(i_kind)         :: M__Sensor                 ! Unique ID for sensor
-    INTEGER(i_kind)         :: N__Num_Bands              ! Number of channel bands
+    INTEGER(i_kind)          :: M__Sensor                ! Unique ID for sensor
+    INTEGER(i_kind)          :: N__Num_Bands             ! Number of channel bands
     INTEGER(i_kind), POINTER :: N__GradChkInterval(:)    ! Window width used in gradient calculation
     INTEGER(i_kind), POINTER :: N__Band_Size(:)          ! Number of channels in each band
     INTEGER(i_kind), POINTER :: N__Bands(:,:)            ! Channel lists
@@ -213,7 +213,9 @@ SUBROUTINE CADS_Abort(String)
 END SUBROUTINE CADS_Abort
 
 subroutine cloud_aerosol_detection( I__Sensor_ID, I__Num_Chans, I__Chan_ID, Z__Longitude, Z__Latitude, Z__Land_Fraction, &
-                  I__Min_Level, I__Max_Level, Z__BT_Obser, Z__BT_Model, Z__Chan_Height, I__Flag_Cloud, Z__Cloud_Level )
+                                    I__Min_Level, I__Max_Level, Z__BT_Obser, Z__BT_Model, Z__Chan_Height, K__Chan_ID_Imager, &
+                                    Z__Cluster_Fraction, Z__BT_in_Cluster, Z__BT_Overall_SDev, Z__BT_Model_Imager, &
+                                    I__Flag_Cloud, Z__Cloud_Level )
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -266,25 +268,16 @@ subroutine cloud_aerosol_detection( I__Sensor_ID, I__Num_Chans, I__Chan_ID, Z__L
   real(r_kind),                           intent(in   ) :: Z__Longitude 
   real(r_kind),                           intent(in   ) :: Z__Latitude
   real(r_kind),                           intent(in   ) :: Z__Land_Fraction
-  real(r_kind),dimension(I__Num_Chans),   intent(in   ) :: Z__BT_Obser !Observation BT
-  real(r_kind),dimension(I__Num_Chans),   intent(in   ) :: Z__BT_Model !Model derived BT
-  real(r_kind),dimension(I__Num_Chans),   intent(in   ) :: Z__Chan_Height !Channel height assignment
+  real(r_kind),                           intent(in   ) :: Z__BT_Obser(:)  !Observation BT
+  real(r_kind),                           intent(in   ) :: Z__BT_Model(:) !Model derived BT
+  real(r_kind),                           intent(in   ) :: Z__Chan_Height(:) !Channel height assignmenta
+  integer(i_kind),                        intent(in   ) :: K__Chan_ID_Imager(:) ! imager channel numbers
+  real(r_kind),                           intent(in   ) :: Z__Cluster_Fraction(:)
+  real(r_kind),                           intent(in   ) :: Z__BT_in_Cluster(:,:)
+  real(r_kind),                           intent(in   ) :: Z__BT_Overall_SDev(:)
+  real(r_kind),                           intent(in   ) :: Z__BT_Model_Imager(:)
   real(r_kind),                           intent(  out) :: Z__Cloud_Level  ! cloud height assignment
-
   integer(i_kind),dimension(I__Num_Chans),intent(  out) :: I__Flag_Cloud      ! cloud use flag
-!  integer(i_kind),dimension(I__Num_Chans),intent(  out) :: I__Flag_Aerosol    !aerosol use flag
-!  integer(i_kind),dimension(I__Num_Chans),intent(  out) :: I__Flag_Trace_Gas  !trace gas use flag
-!  integer(i_kind),dimension(I__Num_Chans),intent(  out) :: I__Flag_Land_Sens  !land sensitivity flag
-!  integer(i_kind),                        intent(  out) :: I__Aerosol_Type    !aerosol type index
-
-! imager cluster information (will be intent in)
-  integer(i_kind) :: I__Num_Imager_Chans
-  integer(i_kind) :: I__Num_Imager_Clusters
-  integer(i_kind), allocatable :: I__Chan_ID_Imager(:)
-  real(r_kind), allocatable :: Z__Cluster_Fraction(:)
-  real(r_kind), allocatable :: Z__BT_in_Cluster(:,:)
-  real(r_kind), allocatable :: Z__BT_Overall_SDev(:)
-  real(r_kind), allocatable :: Z__BT_Model_Imager(:)
 
 ! Interim prodcts
   character(len=200) :: C__Error_Message     ! Message output for abort
@@ -294,14 +287,14 @@ subroutine cloud_aerosol_detection( I__Sensor_ID, I__Num_Chans, I__Chan_ID, Z__L
   real(r_kind)    :: Z__Per_Aerosol          ! Aerosol
   real(r_kind)    :: Z__Per_Tracegas         ! Trace gas
   real(r_kind)    :: Z__Per_Land             ! Land sensitivity
-
+  integer(i_kind) :: i
 ! Input/Output file management
 
+  N__Num_Imager_Chans = S__CADS_Setup_Cloud(I__Sensor_ID) % N__Num_Imager_Chans
+  N__Num_Imager_Clusters = S__CADS_Setup_Cloud(I__Sensor_ID) % N__Num_Imager_Clusters
 
-  integer(i_kind) :: i
-
-  CALL CADS_Detect_Cloud( I__Sensor_ID, I__Num_Chans, I__Chan_ID,I__Min_Level, I__Max_Level, I__Num_Imager_Chans, &
-                 I__Chan_ID_Imager, I__Num_Imager_Clusters, I__Flag_Cloud, Z__BT_Obser, Z__BT_Model, Z__Chan_Height, &
+  CALL CADS_Detect_Cloud( I__Sensor_ID, I__Num_Chans, I__Chan_ID,I__Min_Level, I__Max_Level, N__Num_Imager_Chans, &
+                 K__Chan_ID_Imager, N__Num_Imager_Clusters, I__Flag_Cloud, Z__BT_Obser, Z__BT_Model, Z__Chan_Height, &
                  Z__Cluster_Fraction, Z__BT_in_Cluster, Z__BT_Overall_SDev, Z__BT_Model_Imager, Z__Cloud_Level )
   
 end subroutine cloud_aerosol_detection
@@ -483,9 +476,6 @@ SUBROUTINE CADS_Setup_Cloud
       N__GradChkInterval(1:N__Num_Bands) = (/ 5,5,5,5,5 /)
 
       N__Window_Width(:) = 0
-      N__GradChkInterval(1:N__Num_Bands) = (/ 5,5,5,5,5 /)
-
-      N__Window_Width(:) = 0
       N__Window_Width(1:N__Num_Bands) = (/ 14,6,8,5,8 /)
 
       N__Window_Bounds(:,:) = 0
@@ -626,10 +616,10 @@ SUBROUTINE CADS_Setup_Cloud
 
       N__Imager_Chans(1:N__Num_Imager_Chans) = (/ 2, 3 /)
 
-      R__Stddev_Threshold(1:N__Num_Imager_Chans) = (/ 0.75, 0.80 /)
+      R__Stddev_Threshold(1:N__Num_Imager_Chans) = (/ 0.75_r_kind, 0.80_r_kind /)
 
-      R__Coverage_Threshold = 0.03
-      R__FG_Departure_Threshold = 1.0
+      R__Coverage_Threshold = 0.03_r_kind
+      R__FG_Departure_Threshold = 1.0_r_kind
 
 
     CASE(INST_ID_CRIS)
@@ -709,9 +699,6 @@ SUBROUTINE CADS_Setup_Cloud
       N__Window_Bounds(1,2) = 549
 
       R__BT_Threshold(:) = 0.0_r_kind
-      R__BT_Threshold(1:N__Num_Bands) = (/ 0.3_r_kind, 0.5_r_kind, 0.5_r_kind, 0.5_r_kind, 0.5_r_kind /)
-
-      R__Grad_Threshold(:) = 0.0_r_kind
       R__BT_Threshold(1:N__Num_Bands) = (/ 0.5_r_kind, 0.5_r_kind, 0.5_r_kind, 0.5_r_kind, 0.5_r_kind /)
 
       R__Grad_Threshold(:) = 0.0_r_kind
@@ -919,7 +906,10 @@ SUBROUTINE CADS_Setup_Cloud
        FILE=TRIM(CL__Cloud_Detection_File), IOSTAT=IOS)
   IF (IOS == 0) THEN
     READ(INIU1,nml=Cloud_Detect_Coeffs,IOSTAT=IOS)
-    IF (IOS /= 0) THEN
+    IF (IOS == 0) THEN
+      WRITE(*,'(3X,A)') TRIM(CL__InstrumentName) // &
+           ' CLOUD DETECTION FILE READ OK'
+    ELSE
       CALL CADS_Abort('PROBLEM READING '//TRIM(CL__InstrumentName)//&
                      'CLOUD DETECTION FILE')
     ENDIF
@@ -934,7 +924,7 @@ SUBROUTINE CADS_Setup_Cloud
                                  'detection - increase JP__Max_Channels')
 
 
-    M__Sensor = J__Sensor
+    M__Sensor = J__SENSOR
 
   !------------------------------------------------------------------
   ! Set up the S__CADS_Setup_Cloud structure for current sensor
@@ -1381,7 +1371,6 @@ SUBROUTINE CADS_Detect_Cloud_Imager( K__Sensor,  K__Nchans,  K__Chanid, K__Nclus
 !         K__Chanid      : Provided channel IDs
 !         K__Nclust      : Highest possible number of clusters
 !         K__Cloud_Flag  : Output cloud flag (0-7, 0=clear)
-!         K__Cloud_Flag  : Output cloud flag (0-7, 0=clear)
 !         P__Cl_Fraction : Fractional coverage of each cluster within FOV
 !         P__Cl_Mean     : Cluster-mean brightness temperature (BT) on each
 !                          channel
@@ -1427,7 +1416,8 @@ SUBROUTINE CADS_Detect_Cloud_Imager( K__Sensor,  K__Nchans,  K__Chanid, K__Nclus
 !* Additional local variables
   INTEGER(i_kind) :: I, J, IK, I_Temp_Flag, ICOUNT
   INTEGER(i_kind) :: I__Chan_Index(K__Nchans)
-  REAL(r_kind) :: Z__Wsqdev, Z__Sqdev(K__Nclust), Z__Intercluster
+  REAL(r_kind) :: Z__Wsqdev, Z__Intercluster
+  REAL(r_kind),dimension(K__Nclust) :: Z__Sqdev
 
 
 
@@ -1478,7 +1468,6 @@ SUBROUTINE CADS_Detect_Cloud_Imager( K__Sensor,  K__Nchans,  K__Chanid, K__Nclus
         Z__Sqdev(J) = Z__Sqdev(J) + (P__Cl_Mean(I,J)-P__FG_BT(I))**2
       ENDDO
     ENDDO
-
 
 !* 2.1 Homogeneity check: Do not diagnose presence of cloud if BT
 !      standard deviation falls below given threshold on at least one

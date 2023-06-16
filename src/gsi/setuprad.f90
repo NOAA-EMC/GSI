@@ -296,6 +296,7 @@ contains
   use radinfo, only: iland_det, isnow_det, iwater_det, imix_det, iice_det, &
                       iomg_det, itopo_det, isst_det,iwndspeed_det, optconv
   use qcmod, only: setup_tzr_qc,ifail_scanedge_qc,ifail_outside_range
+  use qcmod, only: iasi_cads, cris_cads
   use state_vectors, only: svars3d, levels, svars2d, ns3d
   use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
   use correlated_obsmod, only: corr_adjust_jacobian, idnames
@@ -440,6 +441,27 @@ contains
   type(fptr_obsdiagNode),dimension(nchanl):: odiags
 
   logical:: muse_ii
+
+! variables added for CADS
+  integer(i_kind) :: itmp1_cads, itmp2_cads, nchanl_cads
+  integer(i_kind),allocatable,dimension(:) :: ich_cads
+  real(r_kind),allocatable,dimension(:) :: tsim_cads, emissivity_cads, chan_level_cads
+  real(r_kind),allocatable,dimension(:) :: ts_cads, emissivity_k_cads,data_s_cads
+  real(r_kind),allocatable,dimension(:,:) :: ptau5_cads, temp_cads, wmix_cads, jacobian_cads
+  real(r_kind),dimension(7)   :: imager_cluster_fraction
+  real(r_kind),dimension(2,7) :: imager_cluster_bt
+  real(r_kind),dimension(2)   :: imager_chan_stdev, imager_model_bt
+  character(20) :: isis_cads
+  character(10) :: obstype_cads
+
+! Notations in use: for a single obs. or a single obs. type
+! nchanl        : a known channel count of a given type obs stream
+! nchanl_diag   : a subset of "iuse"
+! icc, iii      : a subset of "(varinv(i)>tiny_r_kind) .and. iuse)" or qc-passed
+
+! And for all instruments
+! jpch_rad      : sum(nchanl)
+! nchanl_total  : subset of jpch_rad, sum(icc)
 
   radhead => obsLL(:)
 
@@ -776,6 +798,12 @@ contains
      call dtime_check(dtime, in_curbin, in_anybin)
      if(.not.in_anybin) cycle
 
+! Initialize variables needed for the infrared cloud and aerosol detections softwre.
+     imager_cluster_fraction = zero
+     imager_cluster_bt = zero
+     imager_chan_stdev = zero
+     imager_model_bt = zero
+
      if(in_curbin) then
 
         id_qc = igood_qc
@@ -925,6 +953,66 @@ contains
           total_cloud_cover = tcc(1)
           cld = total_cloud_cover
         else
+
+!  If not allsky
+
+!  Generate model derived imager values for IASI or CrIS for CADS
+
+          if ((iasi_cads .and. iasi) .or. (cris_cads .and. cris)) then
+               call destroy_crtm
+               itmp1_cads = len(trim(obstype))
+               itmp2_cads = len(trim(isis))
+             if ( iasi ) then
+               isis_cads = 'avhrr3'//isis(itmp1_cads+1:itmp2_cads)
+               obstype_cads = 'avhrr'
+               nchanl_cads = 3   ! CRTM channels 3 - 5
+             elseif ( cris ) then
+!!               isis_cads = 'viirs-m'//isis(itmp1+1:itmp2)
+               if ( isis == 'cris-fsr_npp' ) isis_cads = 'viirs-m_npp'
+               if ( isis == 'cris-fsr_n20' ) isis_cads = 'viirs-m_j1'
+               if ( isis == 'cris-fsr_n21' ) isis_cads = 'viirs-m_j2'
+               obstype_cads = 'viirs-m'
+               nchanl_cads = 5   !CRTM channels 12 - 16
+             endif
+             allocate(data_s_cads(nreal+nchanl_cads),ich_cads(nchanl_cads),tsim_cads(nchanl_cads),emissivity_cads(nchanl_cads), &
+                    chan_level_cads(nchanl_cads),ptau5_cads(nsig,nchanl_cads), ts_cads(nchanl_cads),emissivity_k_cads(nchanl_cads), &
+                    temp_cads(nsig,nchanl_cads),wmix_cads(nsig,nchanl_cads), jacobian_cads(nsigradjac,nchanl_cads))
+
+             jc = 0
+             do k=1,jpch_rad
+               if (isis_cads == nusis(k)) then
+                 jc = jc +1
+                 ich_cads(jc) = k
+               endif
+             end do
+
+             data_s_cads = data_s(1:nreal+nchanl_cads,n)
+             call init_crtm(init_pass,-99,mype,nchanl_cads,nreal,isis_cads,obstype_cads,radmod)
+
+             call call_crtm(obstype_cads,dtime,data_s_cads(:),nchanl_cads,nreal,ich_cads, &
+                tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+                trop5,tzbgr,dtsavg,sfc_speed, &
+                tsim_cads,emissivity_cads,chan_level_cads,ptau5_cads,ts_cads,emissivity_k_cads, &
+                temp_cads,wmix_cads,jacobian_cads,error_status)
+
+!  Transfer imager data to arrays for qc_irsnd
+
+             imager_cluster_fraction = data_s(32:38,n)
+             imager_cluster_bt(1,:) = data_s(39:45,n)
+             imager_cluster_bt(2,:) = data_s(46:52,n)
+             imager_chan_stdev = data_s(53:54,n)
+             imager_model_bt = tsim_cads(nchanl_cads-1:nchanl_cads)
+
+             deallocate(data_s_cads,ich_cads,tsim_cads,emissivity_cads, &
+                      chan_level_cads,ptau5_cads, ts_cads,emissivity_k_cads, &
+                      temp_cads,wmix_cads, jacobian_cads)
+              call destroy_crtm
+
+!  Re-initialize the crtm for the current instrument
+              call init_crtm(init_pass,iwrmype,mype,nchanl,nreal,isis,obstype,radmod)
+
+            endif  ! end of section for colocated imagers,
+
           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
              tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
@@ -1368,10 +1456,11 @@ contains
               end if
            end do
 
-           call qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),goessndr,airs,                   &
-              cris,iasi,hirs,zsges,cenlat,cenlon,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise, &
-              wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity,chan_level,emissivity_k,ts,tsim,                 &
-              data_s(ifrac_lnd,n),id_qc,aivals,errf,varinv,varinv_use,cld,cldp,zero_irjaco3_pole(n))
+           call qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),goessndr,airs,cris,iasi,      &
+              hirs,zsges,cenlat,cenlon,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise, &
+              wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity,chan_level,emissivity_k,ts,tsim,         &
+              data_s(ifrac_lnd,n),id_qc,aivals,errf,varinv,varinv_use,cld,cldp,zero_irjaco3_pole(n),     &
+              imager_cluster_fraction, imager_cluster_bt, imager_chan_stdev, imager_model_bt)
 
 !  --------- MSU -------------------
 !       QC MSU data
