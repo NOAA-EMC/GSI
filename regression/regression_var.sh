@@ -4,6 +4,12 @@
 #  To run with hybrid ensemble option on, change HYBENS_GLOBAL and/or HYBENS_REGIONAL from "false" to "true".
 #  These are located at the end of this script.
 
+export ptmp="/scratch2/BMC/gsienkf/Clara.Draper/tmp/"
+export group="gsienkf"
+export accnt="gsienkf"
+
+
+
 if [ "$#" = 7 ] ; then
   export basedir=$1
   export builddir=$2
@@ -21,8 +27,8 @@ if [ "$#" = 7 ] ; then
   export ptmpName="${dir_root##*/}"
 else
   # Name of the branch being tested
-  updat="XXXXXXXX"
-  contrl="XXXXXXXX"
+  updat="mine"
+  contrl="develop"
   export cmaketest="false"
   export clean="false"
   export ptmpName=""

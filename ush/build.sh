@@ -5,6 +5,9 @@ set -eux
 # Get the root of the cloned GSI directory
 readonly DIR_ROOT=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}" )" )/.." && pwd -P)
 
+BUILD_CLEAN="NO"
+#BUILD_TYPE="Debug"
+
 # User Options
 BUILD_TYPE=${BUILD_TYPE:-"Release"}
 CMAKE_OPTS=${CMAKE_OPTS:-}

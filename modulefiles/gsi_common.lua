@@ -11,10 +11,10 @@ local sp_ver=os.getenv("sp_ver") or "2.3.3"
 local ip_ver=os.getenv("ip_ver") or "3.3.3"
 local sigio_ver=os.getenv("sigio_ver") or "2.3.2"
 local sfcio_ver=os.getenv("sfcio_ver") or "1.4.1"
-local nemsio_ver=os.getenv("nemsio_ver") or "2.5.2"
+local nemsio_ver=os.getenv("nemsio_ver") or "2.5.4"
 local wrf_io_ver=os.getenv("wrf_io_ver") or "1.2.0"
 local ncio_ver=os.getenv("ncio_ver") or "1.1.2"
-local crtm_ver=os.getenv("crtm_ver") or "2.4.0"
+local crtm_ver=os.getenv("crtm_ver") or "2.3.0"
 local ncdiag_ver=os.getenv("ncdiag_ver") or "1.0.0"
 
 load(pathJoin("netcdf", netcdf_ver))

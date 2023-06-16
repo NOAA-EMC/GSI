@@ -264,7 +264,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   logical tob,qob,uvob,spdob,sstob,pwob,psob,gustob,visob,tdob,mxtmob,mitmob,pmob,howvob,cldchob
   logical metarcldobs,goesctpobs,tcamtob,lcbasob
   logical outside,driftl,convobs,inflate_error
-  logical sfctype, global_2m_land
+  logical sfctype, global_2m_land, obs_is_sonde
   logical luse,ithinp,windcorr
   logical patch_fog
   logical aircraftset,aircraftobs,aircraftobst,aircrafttype
@@ -1618,6 +1618,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !          187, 181, and 183 are the screen-level obs over land
 !          note: don't need the hofx_2m_sfcfile if set usage in convinfo, and qm updated in the input file
            global_2m_land = ( (kx==187 .or. kx==181 .or. kx==183) .and. hofx_2m_sfcfile )
+           obs_is_sonde =  ( kx==120 .or. kx==132 .or. kx == 133) ! 133 is aircraft
 
 !          If temperature ob, extract information regarding virtual
 !          versus sensible temperature
@@ -1929,9 +1930,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                      pqm(k)=2 ! otherwise, type 183 will be discarded.
                      qm=2
                      tqm(k)=2
-                     if (kx==187) obserr(3,k)=2.2
-                     if (kx==181) obserr(3,k)=1.5
-                     if (kx==183) obserr(3,k)=2.6
+                     if (kx==187) obserr(3,k)=2.0
+                     if (kx==181) obserr(3,k)=2.0
+                     if (kx==183) obserr(3,k)=2.0
                 endif
                 if (qob .and. qm == 9 ) then 
                      qm = 2
@@ -1939,8 +1940,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                      if (kx==187) obserr(2,k)=1.0
                      if (kx==181) obserr(2,k)=1.0
                      if (kx==183) obserr(2,k)=1.0
+                   !if (tqm(k) < lim_tqm) write (6,*) 'CSD - have q, no t'
                 endif
-
+              endif
+              if (obs_is_sonde .and. qob ) then 
+                if(qm < lim_qm )  then
+                   obserr(2,k)=1.0
+                endif
               endif
 !             Set usage variable              
               usage = zero
