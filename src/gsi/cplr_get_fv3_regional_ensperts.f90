@@ -52,7 +52,7 @@ contains
      use constants, only: zero,one,half,zero_single,rd_over_cp,one_tenth
      use mpimod, only: mpi_comm_world,ierror,mype,npe
      use hybrid_ensemble_parameters, only: n_ens,grd_ens,parallelization_over_ensmembers
-     use hybrid_ensemble_parameters, only: l_both_fv3sar_gfs_ens, n_ens_gfs,n_ens_fv3sar
+     use hybrid_ensemble_parameters, only: l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,weight_ens_fv3sar
      use hybrid_ensemble_parameters, only: ntlevs_ens,ensemble_path
      use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
      use gsi_bundlemod, only: gsi_bundlecreate
@@ -674,7 +674,7 @@ contains
  !
  !
  ! CONVERT ENSEMBLE MEMBERS TO ENSEMBLE PERTURBATIONS
-        sig_norm=sqrt(one/max(one,n_ens_fv3sar-one))
+        sig_norm=sqrt(weight_ens_fv3sar/max(one,n_ens_fv3sar-one))
  
         do n=imem_start,n_ens
            do i=1,nelen
@@ -1021,7 +1021,7 @@ contains
     use netcdf, only: nf90_inq_dimid,nf90_inquire_dimension
     use netcdf, only: nf90_inq_varid,nf90_inquire_variable,nf90_get_var
     use kinds, only: r_kind,r_single,i_kind
-    use gridmod, only: eta1_ll,eta2_ll
+    use gridmod, only: eta1_ll
     use constants, only: zero,one,fv,zero_single,one_tenth,h300
     use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens
     use hybrid_ensemble_parameters, only: fv3sar_ensemble_opt 
@@ -1036,14 +1036,11 @@ contains
     use gsi_rfv3io_mod, only: gsi_fv3ncdf_readuv
     use gsi_rfv3io_mod, only: gsi_fv3ncdf_readuv_v1
     use gsi_rfv3io_mod, only: gsi_fv3ncdf2d_read_v1
-    use directDA_radaruse_mod, only: l_use_dbz_directDA
     use gsi_bundlemod, only: gsi_gridcreate
     use gsi_bundlemod, only: gsi_grid
     use gsi_bundlemod, only: gsi_bundlecreate,gsi_bundledestroy
     use gsi_bundlemod, only: gsi_bundlegetvar
     use obsmod, only: if_model_dbz
-    use directDA_radaruse_mod, only: l_use_cvpqx, cvpqx_pval, cld_nt_updt
-    use directDA_radaruse_mod, only: l_cvpnr, cvpnr_pval
     use gsi_rfv3io_mod, only: gsi_fv3ncdf_read_ens_parallel_over_ens,gsi_fv3ncdf_readuv_ens_parallel_over_ens
 
 
@@ -1085,7 +1082,6 @@ contains
     character(len=:),allocatable :: tracers   !='fv3_tracer'
     character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
     character(len=:),allocatable :: couplerres!='coupler.res'
-    integer (i_kind) ier,istatus
 
     
     associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
@@ -1205,7 +1201,7 @@ contains
     use hybrid_ensemble_parameters, only: grd_ens
     use mpimod, only: mpi_comm_world,ierror,mpi_rtype
     use kinds, only: r_kind,r_single,i_kind
-    use gridmod,only: itotsub
+    use constants, only: half,zero
    
     implicit none
 
@@ -1234,6 +1230,7 @@ contains
   ! transfer data from root to subdomains on each task
   ! scatterv used, since full grids exist only on root task.
     allocate(wrk_send_2d(grd_ens%itotsub))
+    g_oz=zero
   ! first PS (output from fill_regional_2d is a column vector with a halo)
     if(mype==iope) call this%fill_regional_2d(gg_ps,wrk_send_2d)
     call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &

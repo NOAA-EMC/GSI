@@ -24,7 +24,7 @@
 
   use obsmod, only: doradaroneob,oneoblat,oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,&
      radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
-     rmesh_vr,zmesh_dbz,zmesh_vr,if_vterminal, if_model_dbz,if_vrobs_raw,&
+     rmesh_vr,zmesh_dbz,zmesh_vr,if_vterminal, if_model_dbz,if_vrobs_raw,if_use_w_vr,&
      minobrangedbz,maxobrangedbz,maxobrangevr,maxtiltvr,missing_to_nopcp,&
      ntilt_radarfiles,whichradar,&
      minobrangevr,maxtiltdbz,mintiltvr,mintiltdbz,l2rwthin,hurricane_radar 
@@ -99,7 +99,7 @@
      factv,factl,factp,factg,factw10m,facthowv,factcldch,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,cwoption,switch_on_derivatives,tendsflag,jiterstart,jiterend,R_option,&
      bcoption,diurnalbc,print_diag_pcg,tsensible,diag_precon,step_start,pseudo_q2,&
-     clip_supersaturation,cnvw_option
+     clip_supersaturation,cnvw_option,hofx_2m_sfcfile
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,&
      nrf_var,lcalc_gfdl_cfrac,incvars_to_zero,incvars_zero_strat,incvars_efold 
@@ -151,10 +151,10 @@
                          readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens,i_en_perts_io, &
                          l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens, &
                          ntotensgrp,nsclgrp,naensgrp,ngvarloc,ntlevs_ens,naensloc, &
-                         i_ensloccov4tim,i_ensloccov4var,i_ensloccov4scl,l_timloc_opt,&
+                         r_ensloccov4tim,r_ensloccov4var,r_ensloccov4scl,l_timloc_opt,&
                          vdl_scale,vloc_varlist,&
                          global_spectral_filter_sd,assign_vdl_nml,parallelization_over_ensmembers
-  use hybrid_ensemble_parameters,only : l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar
+  use hybrid_ensemble_parameters,only : l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,weight_ens_gfs,weight_ens_fv3sar
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
                             metar_impact_radius_lowcloud,l_gsd_terrain_match_surftobs, &
@@ -765,7 +765,7 @@
        oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,&
        rmesh_vr,zmesh_dbz,zmesh_vr, ntilt_radarfiles, whichradar,&
        radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
-       minobrangevr, maxtiltdbz, mintiltvr,mintiltdbz,if_vterminal,if_vrobs_raw,&
+       minobrangevr, maxtiltdbz, mintiltvr,mintiltdbz,if_vterminal,if_vrobs_raw,if_use_w_vr,&
        if_model_dbz,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,aircraft_recon,diag_version,&
        write_fv3_incr,incvars_to_zero,incvars_zero_strat,incvars_efold,diag_version,&
        cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef,cnvw_option,l2rwthin,hurricane_radar,&
@@ -1047,7 +1047,7 @@
 !      l_foreaft_thin -   separate TDR fore/aft scan for thinning
 
   namelist/obs_input/dmesh,time_window_max,time_window_rad, &
-       ext_sonde,l_foreaft_thin
+       ext_sonde,l_foreaft_thin,hofx_2m_sfcfile
 
 ! SINGLEOB_TEST (one observation test case setup):
 !      maginnov   - magnitude of innovation for one ob
@@ -1368,23 +1368,28 @@
 !     l_timloc_opt - if true, then turn on time-dependent localization
 !     ngvarloc - number of variable-dependent localization lengths
 !     naensloc - total number of spatial localization lengths and scale separation lengths (should be naensgrp+nsclgrp-1)
-!     i_ensloccov4tim - flag of cross-temporal localization
-!                         =0: cross-temporal covariance is retained
-!                         =1: cross-temporal covariance is zero
-!     i_ensloccov4var - flag of cross-variable localization
-!                         =0: cross-variable covariance is retained
-!                         =1: cross-variable covariance is zero
-!     i_ensloccov4scl - flag of cross-scale localization
-!                         =0: cross-scale covariance is retained
-!                         =1: cross-scale covariance is zero
-!
+!     r_ensloccov4tim - factor multiplying to cross-time covariance
+!                         For example,
+!                         =0.0: cross-time covariance is decreased to zero
+!                         =0.5: cross-time covariance is decreased to half
+!                         =1.0: cross-time covariance is retained
+!     r_ensloccov4var - factor multiplying to cross-variable covariance
+!                         For example,
+!                         =0.0: cross-variable covariance is decreased to zero
+!                         =0.5: cross-variable covariance is decreased to half
+!                         =1.0: cross-variable covariance is retained
+!     r_ensloccov4scl - factor multiplying to cross-scale covariance
+!                         For example,
+!                         =0.0: cross-scale covariance is decreased to zero
+!                         =0.5: cross-scale covariance is decreased to half
+!                         =1.0: cross-scale covariance is retained
 !     global_spectral_filter_sd - if true, use spectral filter function for
 !                                 scale decomposition in the global application (Huang et al. 2021)
 !     assign_vdl_nml - if true, vdl_scale, and vloc_varlist will be used for
 !                      assigning variable-dependent localization upon SDL in gsiparm.anl.
 !                      This method described in (Wang and Wang 2022, JAMES) is
 !                      equivalent to, but different from the method associated
-!                      with the parameter i_ensloccov4var.
+!                      with the parameter r_ensloccov4var.
 !     vloc_varlist - list of control variables using the same localization length,
 !                     effective only with assign_vdl_nml=.true. For example,
 !                     vloc_varlist(1,:) = 'sf','vp','ps','t',
@@ -1408,13 +1413,14 @@
 !                 s_ens_h  = v1L1  v2L1  v3L1  v1L2 v2L2
 !                 Then localization lengths will be assigned as above.
 !
-  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,nlon_ens,nlat_ens,jcap_ens,&
+  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,&
+                l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,weight_ens_gfs,weight_ens_fv3sar,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,fv3sar_bg_opt,fv3sar_ensemble_opt,full_ensemble,pwgtflg,&
                 jcap_ens_test,beta_s0,beta_e0,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
                 grid_ratio_ens, &
                 oz_univ_static,write_ens_sprd,use_localization_grid,use_gfs_ens, &
                 i_en_perts_io,l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens, &
-                nsclgrp,l_timloc_opt,ngvarloc,naensloc,i_ensloccov4tim,i_ensloccov4var,i_ensloccov4scl,&
+                nsclgrp,l_timloc_opt,ngvarloc,naensloc,r_ensloccov4tim,r_ensloccov4var,r_ensloccov4scl,&
                 vdl_scale,vloc_varlist,&
                 global_spectral_filter_sd,assign_vdl_nml,parallelization_over_ensmembers
 
@@ -1819,9 +1825,10 @@
        n_ens_gfs=n_ens
        n_ens_fv3sar=0
     else 
-       write(6,*)'n_ens_gfs and n_ens_fv3sar won"t be used if not regional_ensemble_option==5' 
+       if(mype == 0)write(6,*)'n_ens_gfs and n_ens_fv3sar won"t be used if not regional_ensemble_option==5' 
     endif
-    
+    weight_ens_gfs=one
+    weight_ens_fv3sar=one
   endif
   if(ltlint) then
      if(vqc .or. njqc .or. nvqc)then
@@ -2038,15 +2045,17 @@
      baldiag_inc =.false.
   end if
 
-! If reflectivity is intended to be assimilated, beta_s0 should be zero.
+! Warning of reflectivity assimilation with static B
   if ( beta_s0 > 0.0_r_kind )then
     ! skipped in case of direct reflectivity DA because it works in Envar and hybrid
     if ( l_use_rw_columntilt .or. l_use_dbz_directDA) then
        do i=1,ndat
           if ( if_model_dbz .and. (index(dtype(i), 'dbz') /= 0) )then
-             write(6,*)'beta_s0 needs to be set to zero in this GSI version, when reflectivity is directly assimilated. &
-                        Static B extended for radar reflectivity assimilation will be included in future version.'
-             call stop2(8888)
+             if (mype==0) then
+                write(6,*)'GSIMOD:  ***WARNING*** static B for reflectivity is regarded as zero in this GSI version &
+                           even though beta_s0 =',beta_s0
+                write(6,*)'Static B extended for radar reflectivity assimilation will be included in future version.'
+             end if
           end if
        end do
     end if

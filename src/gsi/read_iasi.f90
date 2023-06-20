@@ -175,7 +175,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=4)  :: senname
   character(len=80) :: allspotlist
   character(len=40) :: infile2
-  integer(i_kind)   :: jstart
   integer(i_kind)   :: iret,ireadsb,ireadmg,irec,next, nrec_startx
   integer(i_kind),allocatable,dimension(:) :: nrec
 
@@ -202,6 +201,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),dimension(0:3) :: ts
   real(r_kind),dimension(10) :: sscale
   real(crtm_kind),allocatable,dimension(:) :: temperature
+  real(r_kind),allocatable,dimension(:) :: scalef
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00
 
@@ -238,7 +238,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind),parameter :: ilon = 3
   integer(i_kind),parameter :: ilat = 4
   real(r_kind)    :: ptime,timeinflat,crit0
-  integer(i_kind) :: ithin_time,n_tbin,it_mesh
+  integer(i_kind) :: ithin_time,n_tbin,it_mesh,jstart
   logical print_verbose
 
   print_verbose=.false.
@@ -396,6 +396,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   allocate(temperature(1))   ! dependent on # of channels in the bufr file
   allocate(allchan(2,1))     ! actual values set after ireadsb
   allocate(bufr_chan_test(1))! actual values set after ireadsb
+  allocate(scalef(1))
 
 ! Big loop to read data file
   next=0
@@ -442,10 +443,11 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            bufr_size = size(temperature,1)
            if ( bufr_size /= bufr_nchan ) then ! Re-allocation if number of channels has changed
 !             Allocate the arrays needed for the channel and radiance array
-              deallocate(temperature,allchan,bufr_chan_test)
+              deallocate(temperature,allchan,bufr_chan_test,scalef)
               allocate(temperature(bufr_nchan))   ! dependent on # of channels in the bufr file
               allocate(allchan(2,bufr_nchan))
               allocate(bufr_chan_test(bufr_nchan))
+              allocate(scalef(bufr_nchan))
               bufr_chan_test(:)=0
            endif       !  allocation if
 
@@ -675,6 +677,18 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !          Read IASI channel number(CHNM) and radiance (SCRA)
            call ufbseq(lnbufr,allchan,2,bufr_nchan,iret,'IASICHN')
+           jstart=1
+           scalef=one
+           do i=1,bufr_nchan
+               scaleloop: do j=jstart,10
+                  if(allchan(1,i) >= cscale(1,j) .and. allchan(1,i) <= cscale(2,j))then
+                     scalef(i) = sscale(j)
+                     jstart=j
+                     exit scaleloop
+                  end if
+               end do scaleloop
+           end do
+         
            if (iret /= bufr_nchan) then
               write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
                  iret, ' CH DATA IS READ INSTEAD OF ',bufr_nchan
@@ -703,51 +717,46 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
              cycle read_loop
            endif
 
-           iskip = 0
-           jstart=1
+!$omp parallel do schedule(dynamic,1) private(i,sc_chan,bufr_chan,radiance)
            channel_loop: do i=1,satinfo_nchan
-              sc_chan = sc_index(i)
-              if ( bufr_index(i) == 0 ) cycle channel_loop
               bufr_chan = bufr_index(i)
+              if (bufr_chan > 0 ) then
 !             check that channel number is within reason
-              if (( allchan(2,bufr_chan) > zero .and. allchan(2,bufr_chan) < 99999._r_kind)) then  ! radiance bounds
-                 radiance = allchan(2,bufr_chan)
-                 scaleloop: do j=jstart,10
-                    if(allchan(1,bufr_chan) >= cscale(1,j) .and. allchan(1,bufr_chan) <= cscale(2,j))then
-                       radiance = allchan(2,bufr_chan)*sscale(j)
-                       jstart=j
-                       exit scaleloop
-                    end if
-                 end do scaleloop
-                 call crtm_planck_temperature(sensorindex,sc_chan,radiance,temperature(bufr_chan))
-              else
-                 temperature(bufr_chan) = tbmin
-              endif
+                if (( allchan(2,bufr_chan) > zero .and. allchan(2,bufr_chan) < 99999._r_kind)) then  ! radiance bounds
+                  radiance = allchan(2,bufr_chan)*scalef(bufr_chan)
+                  sc_chan = sc_index(i)
+                  call crtm_planck_temperature(sensorindex,sc_chan,radiance,temperature(bufr_chan))
+                else
+                   temperature(bufr_chan) = tbmin
+                endif
+              end if
            end do channel_loop
 
 !          Check for reasonable temperature values
+           iskip = 0
            skip_loop: do i=1,satinfo_nchan
               if ( bufr_index(i) == 0 ) cycle skip_loop
               bufr_chan = bufr_index(i)
               if(temperature(bufr_chan) <= tbmin .or. temperature(bufr_chan) > tbmax ) then
-                 temperature(bufr_chan) = min(tbmax,max(zero,temperature(bufr_chan)))
+                 temperature(bufr_chan) = min(tbmax,max(tbmin,temperature(bufr_chan)))
                  if(iuse_rad(ioff+i) >= 0)iskip = iskip + 1
               endif
            end do skip_loop
 
-           if(iskip > 0 .and. print_verbose)write(6,*) ' READ_IASI : iskip > 0 ',iskip
-           if( iskip > 0 )cycle read_loop 
+           if(iskip > 0)then
+              if(print_verbose)write(6,*) ' READ_IASI : iskip > 0 ',iskip
+              cycle read_loop 
+           end if
 
-           crit1=crit1 + ten*float(iskip)
+!          crit1=crit1 + ten*float(iskip)
 
 !          If the surface channel exists (~960.0 cm-1) and the AVHRR cloud information is missing, use an
 !          estimate of the surface temperature to determine if the profile may be clear.
            if (.not. cloud_info) then
               pred = tsavg*0.98_r_kind - temperature(sfc_channel_index)
               pred = max(pred,zero)
+              crit1=crit1 + pred
            endif
-
-           crit1=crit1 + pred
 
 !          Map obs to grids
            if (pred == zero) then
@@ -818,11 +827,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          Put satinfo defined channel temperatures into data array
            do l=1,satinfo_nchan
               i = bufr_index(l)
-              if ( bufr_index(l) /= 0 ) then
-                 data_all(l+nreal,itx) = temperature(i)   ! brightness temerature
-              else
-                 data_all(l+nreal,itx) = tbmin
-              endif
+              data_all(l+nreal,itx) = temperature(i)   ! brightness temerature
            end do
            nrec(itx)=irec
 
@@ -835,7 +840,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   end do ears_db_loop
 
-  deallocate(temperature, allchan, bufr_chan_test)
+  deallocate(temperature, allchan, bufr_chan_test,scalef)
   deallocate(channel_number,sc_index)
   deallocate(bufr_index)
 ! deallocate crtm info

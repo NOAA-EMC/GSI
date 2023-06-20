@@ -294,7 +294,7 @@ for type in $listdiag; do
    date=`echo $diag_file | cut -d'.' -f2`
    $UNCOMPRESS $diag_file
    fnameanl=$(echo $fname|sed 's/_ges//g')
-   mv $fname.$date $fnameanl
+   mv ${fname}.${date} $fnameanl
 done
 
 # Run GSI
