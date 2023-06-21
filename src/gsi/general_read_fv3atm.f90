@@ -255,6 +255,7 @@ subroutine general_read_fv3atm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
       call stop2(999)
    endif
    istatus=0
+   istatus1=0
    call gsi_bundlegetpointer(gfs_bundle,'ps',g_ps  ,ier);istatus = istatus + ier
    call gsi_bundlegetpointer(gfs_bundle,'q' ,g_q   ,ier);istatus = istatus + ier
    call gsi_bundlegetpointer(gfs_bundle,'oz',g_oz  ,ier);istatus = istatus + ier
