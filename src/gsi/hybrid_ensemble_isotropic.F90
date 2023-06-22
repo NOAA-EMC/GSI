@@ -1,4 +1,4 @@
-#define LATER
+#gdefine LATER
 module hybrid_ensemble_isotropic
 !$$$   module documentation block
 !                .      .    .                                       .

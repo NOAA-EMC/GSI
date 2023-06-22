@@ -406,11 +406,11 @@ subroutine move2bundle_(grd3d,sloc,atm_bundle,m_cvars2d,m_cvars3d,iret)
 !    reasonable values (nearby points) so that computations on edge points do
 !    not fail.  
 
-!   if(nsclgrp > 1 .and. global_spectral_filter_sd) then
-!     call update_edges(grd3d,sloc,en_loc3)
-!   else
+    if(nsclgrp > 1 .and. global_spectral_filter_sd) then
+      call update_edges(grd3d,sloc,en_loc3)
+    else
       call update_halos_(grd3d,sloc,en_loc3)
-!   end if
+    end if
 
     ! Check hydrometeors in control variables 
     icw=getindex(cvars3d,'cw')
@@ -548,7 +548,7 @@ subroutine update_edges(grd,sloc,s)
     implicit none
 
     ! Declare passed variables
-    type(sub2grid_info), intent(in   ) :: grd
+    type(sub2grid_info),   intent(in   ) :: grd
     real(r_single),        intent(  out) :: s(grd%lat2,grd%lon2,grd%num_fields)
     real(r_single),        intent(inout) :: sloc(grd%lat2*grd%lon2*grd%num_fields)
 

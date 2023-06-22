@@ -188,7 +188,7 @@ subroutine get_gefs_ensperts_dualres
              do i=1,im
                 q(i,j,k)=max(q(i,j,k),zero)
                 tsen(i,j,k)=tv(i,j,k)
-                tv(i,j,k)= tv(i,j,k)*(one+fv*q(i,j,k))
+                tv(i,j,k)= tsen(i,j,k)*(one+fv*q(i,j,k))
              end do
           end do
        end do
@@ -235,7 +235,7 @@ subroutine get_gefs_ensperts_dualres
        end if
 
 
-! ! !$omp parallel do schedule(dynamic,1) private(i,k,j,ic3,hydrometeor,istatus,p3)
+! !$omp parallel do schedule(dynamic,1) private(i,k,j,ic3,hydrometeor,istatus,p3)
        do ic3=1,nc3d
 
           hydrometeor = trim(cvars3d(ic3))=='cw' .or. trim(cvars3d(ic3))=='ql' .or. &
@@ -318,8 +318,8 @@ subroutine get_gefs_ensperts_dualres
                 do k=1,km
                    do j=1,jm
                       do i=1,im
-                         en_perts(n,1,m)%r3(ipic)%qr4(i,j,k) = min(en_perts(n,1,m)%r3(ipic)%qr4(i,j,k),limqens)
-                         en_perts(n,1,m)%r3(ipic)%qr4(i,j,k) = max(en_perts(n,1,m)%r3(ipic)%qr4(i,j,k),-limqens)
+                         en_perts(n,1,m)%r3(ipic)%qr4(i,j,k) = &
+                             max(min(en_perts(n,1,m)%r3(ipic)%qr4(i,j,k),limqens),-limqens)
                       end do
                    end do
                 end do
