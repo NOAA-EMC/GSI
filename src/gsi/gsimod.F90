@@ -2213,7 +2213,7 @@
   endif
 
 ! Set up directories (or pe specific filenames)
-  call init_directories(mype)
+  call init_directories(mype,npe)
 
 ! Initialize space for qc
   call create_qcvars

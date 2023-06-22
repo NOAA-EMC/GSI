@@ -105,27 +105,17 @@ case $machine in
   ;;      
   Hera)
 
-    export local_or_default="${local_or_default:-/scratch1/NCEPDEV/da/$LOGNAME}"
-    if [ -d $local_or_default ]; then
-      export noscrub="$local_or_default/noscrub"
-    elif [ -d /scratch1/NCEPDEV/global/$LOGNAME ]; then
-      export noscrub="/scratch1/NCEPDEV/global/$LOGNAME/noscrub"
-     elif [ -d /scratch2/BMC/gsienkf/$LOGNAME ]; then
-      export noscrub="/scratch2/BMC/gsienkf/$LOGNAME"
-    fi
+    export noscrub="/scratch1/NESDIS/nesdis-rdo2/David.Huber/noscrub"
 
     export group="${group:-global}"
     export queue="${queue:-batch}"
-    if [[ "$cmaketest" = "false" ]]; then
-      export basedir="/scratch1/NCEPDEV/da/$LOGNAME/git/gsi"
-    fi
 
-    export ptmp="${ptmp:-/scratch1/NCEPDEV/stmp2/$LOGNAME/$ptmpName}"
+    export ptmp="/scratch1/NESDIS/nesdis-rdo2/David.Huber/para/ptmp_intel"
 
     export casesdir="/scratch1/NCEPDEV/da/Russ.Treadon/CASES/regtest"
 
     export check_resource="no"
-    export accnt="${accnt:-da-cpu}"
+    export accnt="epic"
 
     #  On Hera, there are no scrubbers to remove old contents from stmp* directories.
     #  After completion of regression tests, will remove the regression test subdirecories
