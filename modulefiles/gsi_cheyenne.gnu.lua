@@ -9,7 +9,7 @@ load("mpt/2.22")
 load("ncarcompilers/0.5.0")
 unload("netcdf")
 
-prepend_path("MODULEPATH", "/glade/work/epicufsrt/GMTB/tools/gnu/10.1.0/hpc-stack-v1.2.0/modulefiles/stack")
+prepend_path("MODULEPATH", "/glade/work/epicufsrt/contrib/hpc-stack/gnu10.1.0/modulefiles/stack")
 
 load("hpc/1.2.0")
 load("hpc-gnu/10.1.0")

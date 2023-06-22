@@ -7,7 +7,6 @@ local netcdf_ver=os.getenv("netcdf_ver") or "4.7.4"
 local bufr_ver=os.getenv("bufr_ver") or "11.7.0"
 local bacio_ver=os.getenv("bacio_ver") or "2.4.1"
 local w3emc_ver=os.getenv("w3emc_ver") or "2.9.2"
-local w3nco_ver=os.getenv("w3nco_ver") or "2.4.1"
 local sp_ver=os.getenv("sp_ver") or "2.3.3"
 local ip_ver=os.getenv("ip_ver") or "3.3.3"
 local sigio_ver=os.getenv("sigio_ver") or "2.3.2"
@@ -32,4 +31,7 @@ load(pathJoin("nemsio", nemsio_ver))
 load(pathJoin("wrf_io", wrf_io_ver))
 load(pathJoin("ncio", ncio_ver))
 load(pathJoin("crtm", crtm_ver))
-load(pathJoin("ncdiag",ncdiag_ver))
+--load(pathJoin("ncdiag",ncdiag_ver))
+
+setenv("ncdiag_ROOT", "/scratch1/NESDIS/nesdis-rdo2/David.Huber/GSI/ncdiag/1.1.1")
+setenv("ncdiag_VERSION", "1.1.1")
