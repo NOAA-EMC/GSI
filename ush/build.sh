@@ -30,12 +30,13 @@ set -x
 
 # Set CONTROLPATH variable to user develop installation
 CONTROLPATH="$DIR_ROOT/../develop/install/bin"
-
+CMAKELIBS=".so .a"
+CMAKE_OPTS+=" -DCMAKE_FIND_LIBRARY_SUFFIXES=${CMAKELIBS}"
 # Collect BUILD Options
 CMAKE_OPTS+=" -DCMAKE_BUILD_TYPE=$BUILD_TYPE"
 
 # Install destination for built executables, libraries, CMake Package config
-CMAKE_OPTS+=" -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX"
+CMAKE_OPTS+=" -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX}"
 
 # Configure for GSI and EnKF
 CMAKE_OPTS+=" -DGSI_MODE=$GSI_MODE -DENKF_MODE=${ENKF_MODE}"
@@ -44,7 +45,7 @@ CMAKE_OPTS+=" -DGSI_MODE=$GSI_MODE -DENKF_MODE=${ENKF_MODE}"
 [[ ${REGRESSION_TESTS} =~ [yYtT] ]] && CMAKE_OPTS+=" -DBUILD_REG_TESTING=ON -DCONTROLPATH=${CONTROLPATH:-}"
 
 # Re-use or create a new BUILD_DIR (Default: create new BUILD_DIR)
-[[ ${BUILD_CLEAN:-"YES"} =~ [yYtT] ]] && rm -rf $BUILD_DIR
+[[ ${BUILD_CLEAN:-"YES"} =~ [yYtT] ]] && rm -rf $BUILD_DIR && echo "Removing $BUILD_DIR"
 mkdir -p $BUILD_DIR && cd $BUILD_DIR
 
 # Configure, build, install

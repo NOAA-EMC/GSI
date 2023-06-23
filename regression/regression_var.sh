@@ -49,6 +49,20 @@ fi
 echo "Running Regression Tests on '$machine'";
 
 case $machine in
+  Gaea)
+    export queue="batch"
+    export noscrub="/lustre/f2/scratch/$LOGNAME/gsi_tmp/noscrub"
+    export ptmp="/lustre/f2/scratch/$LOGNAME/gsi_tmp/ptmp"
+    export casesdir="/lustre/f2/dev/role.epic/contrib/GSI_data/CASES/regtest"
+
+    export group="global"
+    if [[ "$cmaketest" = "false" ]]; then
+      export basedir="/lustre/f2/dev/$LOGNAME/sandbox/GSI"
+    fi
+
+    export check_resource="no"
+    export accnt="nggps_emc"
+  ;;
   Cheyenne)
     export queue="economy"
     export noscrub="/glade/scratch/$LOGNAME"
