@@ -10,6 +10,7 @@ if [ -d "$config_path" ]; then
     source $config_path/local_vars.sh
 fi
 
+
 # source the necessary files to setup
 if [ "$#" -eq 2 ]; then
   export regdir=$2
@@ -41,7 +42,7 @@ for jn in `seq ${RSTART} ${REND}`; do
    fi
    rm -f ${job[$jn]}.out
 
-   /bin/sh $ush/$sub_cmd -q $queue -j ${job[$jn]} -t ${topts[$jn]} -p ${popts[$jn]} -r ${ropts[$jn]} $scripts/${regtest}.sh
+   /bin/sh $ush/$sub_cmd -q $queue -j ${job[$jn]} -t ${topts[$jn]} -p ${popts[$jn]} -r ${ropts[$jn]} $scripts/${regtest}.sh >&  $ush/sub_cmd.${job[$jn]}.out
 
    if [ $debug == ".true." ]; then break; fi
    $scripts/regression_wait.sh ${job[$jn]} ${rcname} $check_resource
