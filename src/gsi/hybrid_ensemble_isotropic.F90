@@ -1,4 +1,4 @@
-#gdefine LATER
+#define LATER
 module hybrid_ensemble_isotropic
 !$$$   module documentation block
 !                .      .    .                                       .
@@ -3342,6 +3342,7 @@ subroutine sf_xy(ig,f,k_start,k_end)
   if(.not.use_localization_grid) then
 
     if(ig>naensgrp) then
+!$omp parallel do schedule(dynamic,1) private(k,g)
        do k=k_start,k_end
           call general_g2s0(grd_ens,sp_loc,g,f(:,:,k))
           g(:)=g(:)*spectral_filter(ig,:,k_index(k))
@@ -3358,6 +3359,7 @@ subroutine sf_xy(ig,f,k_start,k_end)
 
     vector=.false.
     if(ig>naensgrp) then
+!$omp parallel do schedule(dynamic,1) private(k,g,work)
        do k=k_start,k_end
           call g_agrid2egrid(p_sploc2ens,work,f(:,:,k:k),k,k,vector(k:k))
           call general_g2s0(grd_ens,sp_loc,g,f(:,:,k))
@@ -3426,6 +3428,7 @@ subroutine sqrt_sf_xy(ig,z,f,k_start,k_end)
 
   if(.not.use_localization_grid) then
 
+!$omp parallel do schedule(dynamic,1) private(k,g)
     do k=k_start,k_end
        g(:)=z(:,k)*sqrt_spectral_filter(ig,:,k_index(k))
        call general_s2g0(grd_ens,sp_loc,g,f(:,:,k))
@@ -3434,6 +3437,7 @@ subroutine sqrt_sf_xy(ig,z,f,k_start,k_end)
   else
 
      vector=.false.
+!$omp parallel do schedule(dynamic,1) private(k,g,work)
      do k=k_start,k_end
         g(:)=z(:,k)*sqrt_spectral_filter(ig,:,k_index(k))
         call general_s2g0(grd_sploc,sp_loc,g,work)
@@ -3493,6 +3497,7 @@ subroutine sqrt_sf_xy_ad(ig,z,f,k_start,k_end)
 
   if(.not.use_localization_grid) then
 
+!$omp parallel do schedule(dynamic,1) private(k,g)
     do k=k_start,k_end
        call general_s2g0_ad(grd_ens,sp_loc,g,f(:,:,k))
        z(:,k)=g(:)*sqrt_spectral_filter(ig,:,k_index(k))
@@ -3501,6 +3506,7 @@ subroutine sqrt_sf_xy_ad(ig,z,f,k_start,k_end)
   else
 
      vector=.false.
+!$omp parallel do schedule(dynamic,1) private(k,g,work)
      do k=k_start,k_end
         call g_egrid2agrid_ad(p_sploc2ens,work,f(:,:,k:k),k,k,vector(k:k))
         call general_s2g0_ad(grd_sploc,sp_loc,g,work)
@@ -3942,9 +3948,10 @@ subroutine ckgcov_a_en_new_factorization_ad(ig,z,a_en)
   endif
 
 ! Apply vertical smoother on each ensemble member
+  iadvance=1 ; iback=2
+!$omp parallel do schedule(static,1) private(k)
   do k=1,n_ens
 
-     iadvance=1 ; iback=2
      call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
  
   enddo
