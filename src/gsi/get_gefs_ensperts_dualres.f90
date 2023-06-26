@@ -95,7 +95,7 @@ subroutine get_gefs_ensperts_dualres
 ! integer(i_kind) il,jl
   logical ice,hydrometeor 
   type(sub2grid_info) :: grd_tmp
-  integer(i_kind) :: ig0,ig
+  integer(i_kind) :: ig
 
 ! Create perturbations grid and get variable names from perturbations
   if(en_perts(1,1,1)%grid%im/=grd_ens%lat2.or. &
