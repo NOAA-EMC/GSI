@@ -816,8 +816,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
                imager_cluster_flag = .TRUE.
                imager_cluster_size = imager_info(3,1:7)
                imager_cluster_size(:) = imager_cluster_size(:) / sum(imager_cluster_size(:))
-               imager_conversion(1) = one / (sc(sensorindex_imager)%wavenumber(4) **2) * 1.0e6_r_kind
-               imager_conversion(2) = one / (sc(sensorindex_imager)%wavenumber(5) **2) * 1.0e6_r_kind
+               imager_conversion(1) = one / (sc(sensorindex_imager)%wavenumber(4) **2) 
+               imager_conversion(2) = one / (sc(sensorindex_imager)%wavenumber(5) **2)
 
 !  Order clusters from largest (1) to smallest (7)
                imager_cluster_sort:  do i=1,7
@@ -835,20 +835,21 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
                  data_all(maxinfo+j,itx) =  imager_cluster_size(i)                ! Imager cluster fraction
                  imager_cluster_tot = imager_cluster_tot + imager_info(3,i)
 
-                 iexponent = -(nint(imager_info(75,i))-5 )                        ! channel 15 radiance for each cluster
-                 imager_info(76,i) =  imager_info(76,i) * (ten ** iexponent) * imager_conversion(1)
+                 iexponent = -(nint(imager_info(75,i)) -11)                        ! channel 15 radiance for each cluster
+                 imager_info(76,i) =  imager_info(76,i) * imager_conversion(1) * (ten ** iexponent) 
 
-                 iexponent = -(nint(imager_info(77,i))-5 )                        ! channel 15 radiance std dev for each cluster.
-                 imager_info(78,i) =  imager_info(78,i) * (ten ** iexponent) * imager_conversion(1)
+                 iexponent = -(nint(imager_info(77,i)) -11)                        ! channel 15 radiance std dev for each cluster.
+                 imager_info(78,i) =  imager_info(78,i) * imager_conversion(1) * (ten ** iexponent) 
 
                  call crtm_planck_temperature(sensorindex_imager,4,imager_info(76,i),data_all(maxinfo+7+j,itx))
                  data_all(maxinfo+7+j,itx) = max(data_all(maxinfo+7+j,itx),zero)
 
-                 iexponent = -(nint(imager_info(80,i))-5 )                        ! channel 16 radiance for each cluster
-                 imager_info(81,i) =  imager_info(81,i) * (ten ** iexponent) * imager_conversion(2)
+                 iexponent = -(nint(imager_info(80,i)) -11)                        ! channel 16 radiance for each cluster
+                 imager_info(81,i) =  imager_info(81,i) * imager_conversion(2) * (ten ** iexponent)
 
-                 iexponent = -(nint(imager_info(82,i))-5 )                        ! channel 16 radiance std dev for each cluster.
-                 imager_info(83,i) =  imager_info(83,i) * (ten ** iexponent) * imager_conversion(2)
+!                 iexponent = -(nint(imager_info(82,i))-5 )                        ! channel 16 radiance std dev for each cluster.
+                 iexponent = -(nint(imager_info(82,i)) -11)                        ! channel 16 radiance std dev for each cluster.
+                 imager_info(83,i) =  imager_info(83,i) * imager_conversion(2) * (ten ** iexponent)
 
                  call crtm_planck_temperature(sensorindex_imager,5,imager_info(81,i),data_all(maxinfo+14+j,itx))
                  data_all(maxinfo+14+j,itx) = max(data_all(maxinfo+14+j,itx),zero)
