@@ -64,18 +64,18 @@ case $machine in
     export accnt="nggps_emc"
   ;;
   Cheyenne)
-    export queue="economy"
-    export noscrub="/glade/scratch/$LOGNAME"
+    export queue="regular"
+    export noscrub="/glade/scratch/$LOGNAME/tmp_gsi/noscrub"
     export group="global"
     if [[ "$cmaketest" = "false" ]]; then
-      export basedir="/glade/scratch/$LOGNAME/gsi"
+      export basedir="/glade/scratch/$LOGNAME/tmp_gsi"
     fi
-    export ptmp="/glade/scratch/$LOGNAME/$ptmpName"
+    export ptmp="/glade/scratch/$LOGNAME/tmp_gsi/ptmp"
 
-    export casesdir="/glade/p/ral/jntp/tools/CASES"
+    export casesdir="/glade/work/epicufsrt/contrib/GSI_data/CASES/regtest"
 
     export check_resource="no"
-    export accnt="p48503002"
+    export accnt="NRAL0032"
   ;;
   wcoss2)
       export local_or_default="${local_or_default:-/lfs/h2/emc/da/noscrub/$LOGNAME}"
@@ -98,7 +98,7 @@ case $machine in
       export accnt="${accnt:-GFS-DEV}"
   ;;      
   Orion)
-      export local_or_default="${local_or_default:-/work/noaa/da/$LOGNAME}"
+      export local_or_default="${local_or_default:-/work/noaa/epic-ps/$LOGNAME}"
       if [ -d $local_or_default ]; then
           export noscrub="$local_or_default/noscrub"
       elif [ -d /work/noaa/global/$LOGNAME ]; then
@@ -108,14 +108,14 @@ case $machine in
       export queue="${queue:-batch}"
       export group="${group:-global}"
       if [[ "$cmaketest" = "false" ]]; then
-	  export basedir="/work/noaa/da/$LOGNAME/gsi"
+	  export basedir="/work/noaa/epic-ps/$LOGNAME/gsi"
       fi
-      export ptmp="${ptmp:-/work/noaa/stmp/$LOGNAME/$ptmpName}"
+      export ptmp="${ptmp:-/work/noaa/epic-ps/$LOGNAME/ptmp}"
 
       export casesdir="/work/noaa/da/rtreadon/CASES/regtest"
 
       export check_resource="no"
-      export accnt="${accnt:-da-cpu}"
+      export accnt="${accnt:-epic}"
   ;;      
   Hera)
 
