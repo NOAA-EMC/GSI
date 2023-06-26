@@ -111,7 +111,7 @@ echo "#SBATCH --time=$timew"                                                    
 echo "#SBATCH --nodes=$nodes --ntasks-per-node=$procs --cpus-per-task=$threads"    >> $cfile
 echo "#SBATCH --account=$accnt"                                                    >> $cfile
 echo "#SBATCH --mem=0"                                                             >> $cfile
-echo "#SBATCH --partition=xjet"                                                    >> $cfile
+echo "#SBATCH --partition=kjet"                                                    >> $cfile
 
 echo "" >>$cfile
 echo "export ntasks=$(( $nodes * $procs ))" >> $cfile

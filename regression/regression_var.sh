@@ -65,12 +65,12 @@ case $machine in
   ;;
   Cheyenne)
     export queue="regular"
-    export noscrub="/glade/scratch/$LOGNAME/tmp_gsi/noscrub"
+    export noscrub="/glade/scratch/$LOGNAME/noscrub"
     export group="global"
     if [[ "$cmaketest" = "false" ]]; then
-      export basedir="/glade/scratch/$LOGNAME/tmp_gsi"
+      export basedir="/glade/scratch/$LOGNAME"
     fi
-    export ptmp="/glade/scratch/$LOGNAME/tmp_gsi/ptmp"
+    export ptmp="/glade/scratch/$LOGNAME/$ptmpName"
 
     export casesdir="/glade/work/epicufsrt/contrib/GSI_data/CASES/regtest"
 
@@ -98,7 +98,7 @@ case $machine in
       export accnt="${accnt:-GFS-DEV}"
   ;;      
   Orion)
-      export local_or_default="${local_or_default:-/work/noaa/epic-ps/$LOGNAME}"
+      export local_or_default="${local_or_default:-/work/noaa/da/$LOGNAME}"
       if [ -d $local_or_default ]; then
           export noscrub="$local_or_default/noscrub"
       elif [ -d /work/noaa/global/$LOGNAME ]; then
@@ -108,14 +108,14 @@ case $machine in
       export queue="${queue:-batch}"
       export group="${group:-global}"
       if [[ "$cmaketest" = "false" ]]; then
-	  export basedir="/work/noaa/epic-ps/$LOGNAME/gsi"
+	  export basedir="/work/noaa/da/$LOGNAME/gsi"
       fi
-      export ptmp="${ptmp:-/work/noaa/epic-ps/$LOGNAME/ptmp}"
+      export ptmp="${ptmp:-/work/noaa/stmp/$LOGNAME/$ptmpName}"
 
       export casesdir="/work/noaa/da/rtreadon/CASES/regtest"
 
       export check_resource="no"
-      export accnt="${accnt:-epic}"
+      export accnt="${accnt:-da-cpu}"
   ;;      
   Hera)
 
