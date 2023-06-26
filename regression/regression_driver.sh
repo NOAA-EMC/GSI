@@ -10,7 +10,6 @@ if [ -d "$config_path" ]; then
     source $config_path/local_vars.sh
 fi
 
-
 # source the necessary files to setup
 if [ "$#" -eq 2 ]; then
   export regdir=$2
