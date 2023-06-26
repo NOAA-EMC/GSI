@@ -305,7 +305,12 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
 
 ! scatter to subdomains:
 
+    call mpi_allreduce(m_cvars2dw,m_cvars2d,nc2d,mpi_integer4,mpi_max,mpi_comm_world,ierror)
+    call mpi_allreduce(m_cvars3dw,m_cvars3d,nc3d,mpi_integer4,mpi_max,mpi_comm_world,ierror)
+    deallocate(m_cvars2dw,m_cvars3dw)
+
 !   en_loc=zero
+
     allocate(en_loc(ibsm:ibemz,jbsm:jbemz,kbsm:kbemz,mbsm:mbemz))
     call genex(s_a2b,en_full,en_loc)
 
@@ -316,9 +321,6 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
 
     call create_grd23d_(grd3d,nc2d+nc3d*grd%nsig)
 
-    call mpi_allreduce(m_cvars2dw,m_cvars2d,nc2d,mpi_integer4,mpi_max,mpi_comm_world,ierror)
-    call mpi_allreduce(m_cvars3dw,m_cvars3d,nc3d,mpi_integer4,mpi_max,mpi_comm_world,ierror)
-    deallocate(m_cvars2dw,m_cvars3dw)
 
     allocate(sloc(lat2in*lon2in*(nc2d+nc3d*nsig)))
     iret=0
@@ -629,7 +631,7 @@ subroutine ens_io_partition_(n_ens,io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,io_pe0,i
 
 end subroutine ens_io_partition_
 
-subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig, &
+subroutine parallel_read_nemsio_state_(en_full,m_cvars2dw,m_cvars3d,nlon,nlat,nsig, &
                                         ias,jas,mas, &
                                         iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
                                         filename,init_head,filenamesfc)
@@ -651,7 +653,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
    integer(i_kind),  intent(in   ) :: nlon,nlat,nsig
    integer(i_kind),  intent(in   ) :: ias,jas,mas
    integer(i_kind),  intent(in   ) :: iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz
-   integer(i_kind),  intent(inout) :: m_cvars2d(nc2d),m_cvars3d(nc3d)
+   integer(i_kind),  intent(inout) :: m_cvars2dw(nc2d),m_cvars3d(nc3d)
    real(r_single),   intent(inout) :: en_full(iasm:iaemz,jasm:jaemz,kasm:kaemz,masm:maemz)
    character(len=*), intent(in   ) :: filename
    character(len=*), optional, intent(in) :: filenamesfc
@@ -877,7 +879,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
 
 !  move temp2 to en_full
    do k2=1,nc2d
-      m_cvars2d(k2)=kf+1
+      m_cvars2dw(k2)=kf+1
       kf=kf+1
       jj=jas-1
       do j=1,nlon
@@ -894,7 +896,7 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsi
 
 end subroutine parallel_read_nemsio_state_
 
-subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig, &
+subroutine parallel_read_gfsnc_state_(en_full,m_cvars2dw,m_cvars3d,nlon,nlat,nsig, &
                                         ias,jas,mas, &
                                         iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz, &
                                         filename)
@@ -922,7 +924,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
    integer(i_kind),  intent(in   ) :: nlon,nlat,nsig
    integer(i_kind),  intent(in   ) :: ias,jas,mas
    integer(i_kind),  intent(in   ) :: iasm,iaemz,jasm,jaemz,kasm,kaemz,masm,maemz
-   integer(i_kind),  intent(inout) :: m_cvars2d(nc2d),m_cvars3d(nc3d)
+   integer(i_kind),  intent(inout) :: m_cvars2dw(nc2d),m_cvars3d(nc3d)
    real(r_single),   intent(inout) :: en_full(iasm:iaemz,jasm:jaemz,kasm:kaemz,masm:maemz)
    character(len=*), intent(in   ) :: filename
 
@@ -1034,6 +1036,7 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
    end do
 
 !  move temp3 to en_full
+   en_full=zero
 !$omp parallel do  schedule(dynamic,1) private(k3,k,kf,j,jj,i,ii) 
    do k3=1,nc3d
       if(k3 /= k3u .and. k3 /= k3v)then
@@ -1066,22 +1069,20 @@ subroutine parallel_read_gfsnc_state_(en_full,m_cvars2d,m_cvars3d,nlon,nlat,nsig
          call read_vardata(atmges, 'pressfc', rwork2d)
          call move1_(rwork2d,temp2,nlon,nlat)
          call fillpoles_ss_(temp2,nlon,nlat)
-      else
-         temp2=zero
-      endif
 
 !  move temp2 to en_full
-      kf=kf+1
-      m_cvars2d(k2)=kf
-      jj=jas-1
-      do j=1,nlon
-         jj=jj+1
-         ii=ias-1
-         do i=1,nlat
-            ii=ii+1
-            en_full(ii,jj,kf,mas)=temp2(i,j)
+         kf=kf+1
+         m_cvars2dw(k2)=kf
+         jj=jas-1
+         do j=1,nlon
+            jj=jj+1
+            ii=ias-1
+            do i=1,nlat
+               ii=ii+1
+               en_full(ii,jj,kf,mas)=temp2(i,j)
+            enddo
          enddo
-      enddo
+      end if
    enddo
    call close_dataset(atmges)
 
@@ -1182,7 +1183,7 @@ subroutine fillpoles_sv_(tempu,tempv,nlon,nlat,clons,slons)
    real(r_single), intent(inout) :: tempu(nlat,nlon),tempv(nlat,nlon)
    real(r_kind),   intent(in   ) :: clons(nlon),slons(nlon)
 
-   integer(i_kind) i
+   integer(i_kind) i,nlatm
    real(r_kind) polnu,polnv,polsu,polsv
 
 !  Compute mean along southern and northern latitudes
@@ -1190,11 +1191,12 @@ subroutine fillpoles_sv_(tempu,tempv,nlon,nlat,clons,slons)
    polnv=zero
    polsu=zero
    polsv=zero
+   nlatm=nlat-1
    do i=1,nlon
-      polnu=polnu+tempu(nlat-1,i)*clons(i)-tempv(nlat-1,i)*slons(i)
-      polnv=polnv+tempu(nlat-1,i)*slons(i)+tempv(nlat-1,i)*clons(i)
-      polsu=polsu+tempu(2,i     )*clons(i)+tempv(2,i     )*slons(i)
-      polsv=polsv+tempu(2,i     )*slons(i)-tempv(2,i     )*clons(i)
+      polnu=polnu+tempu(nlatm,i)*clons(i)-tempv(nlatm,i)*slons(i)
+      polnv=polnv+tempu(nlatm,i)*slons(i)+tempv(nlatm,i)*clons(i)
+      polsu=polsu+tempu(2,i    )*clons(i)+tempv(2,i    )*slons(i)
+      polsv=polsv+tempu(2,i    )*slons(i)-tempv(2,i    )*clons(i)
    end do
    polnu=polnu/float(nlon)
    polnv=polnv/float(nlon)

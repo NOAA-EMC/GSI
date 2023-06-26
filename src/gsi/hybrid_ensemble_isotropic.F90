@@ -2865,11 +2865,11 @@ subroutine sqrt_beta_e_mult_cvec(grady)
 
   ! multiply by sqrt_beta_e
 !$omp parallel do schedule(dynamic,1) private(nn,k,j,i,ii,ig)
-  do j=1,grd_ens%lon2
+  do nn=1,n_ens
      do ii=1,nsubwin
         do ig=1,naensgrp
-           do nn=1,n_ens
-              do k=1,nsig
+           do k=1,nsig
+              do j=1,grd_ens%lon2
                  do i=1,grd_ens%lat2
                     grady%aens(ii,ig,nn)%r3(1)%q(i,j,k) = sqrt_beta_e(k)*grady%aens(ii,ig,nn)%r3(1)%q(i,j,k)
                  enddo
@@ -2931,11 +2931,11 @@ subroutine sqrt_beta_e_mult_bundle(aens)
   call timer_ini('sqrt_beta_e_mult')
 
   ! multiply by sqrt_beta_e
-!$omp parallel do schedule(dynamic,1) private(nn,k,j,i,ig)
-  do j=1,grd_ens%lon2
+!$omp parallel do schedule(static,1) private(nn,k,j,i,ig)
+  do nn=1,n_ens
      do ig=1,naensgrp
-        do nn=1,n_ens
-           do k=1,nsig
+        do k=1,nsig
+           do j=1,grd_ens%lon2
               do i=1,grd_ens%lat2
                  aens(ig,nn)%r3(1)%q(i,j,k) = sqrt_beta_e(k)*aens(ig,nn)%r3(1)%q(i,j,k)
               enddo
@@ -3619,7 +3619,7 @@ subroutine bkerror_a_en(grady)
 ! Declare local variables
   integer(i_kind) ii,ip,istatus,k,ig,ig2
   real(r_kind),allocatable,dimension(:,:) :: z
-  real(r_kind),allocatable,dimension(:) :: ztmp
+  real(r_kind),allocatable,dimension(:) :: z2
 
 ! Initialize timer
   call timer_ini('bkerror_a_en')
@@ -3635,34 +3635,30 @@ subroutine bkerror_a_en(grady)
   call sqrt_beta_e_mult(grady)
 
 ! Apply variances, as well as vertical & horizontal parts of background error
-!   !$omp parallel do schedule(dynamic,1) private(ii)
-  do ii=1,nsubwin
-     if (naensgrp==1) then
+  if (naensgrp==1) then
+!$omp parallel do schedule(dynamic,1) private(ii)
+     do ii=1,nsubwin
         call bkgcov_a_en_new_factorization(1,grady%aens(ii,1,1:n_ens))
-     else
-        allocate(z(naensgrp,nval_lenz_en))
+     end do
+  else
+     allocate(z(nval_lenz_en,naensgrp))
+     allocate(z2(nval_lenz_en))
+     do ii=1,nsubwin
         do ig=1,naensgrp
-           call ckgcov_a_en_new_factorization_ad(ig,z(ig,:),grady%aens(ii,ig,1:n_ens))
+           call ckgcov_a_en_new_factorization_ad(ig,z(1,ig),grady%aens(ii,ig,1:n_ens))
         enddo
-        allocate(ztmp(naensgrp))
-        do k=1,nval_lenz_en
-           ztmp=zero
-           do ig=1,naensgrp
-              do ig2=1,naensgrp
-                 ztmp(ig) = ztmp(ig) + z(ig2,k) * alphacvarsclgrpmat(ig,ig2)  
+        do ig=1,naensgrp
+           z2=zero
+           do ig2=1,naensgrp
+              do k=1,nval_lenz_en
+                 z2(k) = z2(k) + z(k,ig2) * alphacvarsclgrpmat(ig2,ig)  
               enddo
            enddo
-           do ig=1,naensgrp
-              z(ig,k) = ztmp(ig)
-           enddo
+           call ckgcov_a_en_new_factorization(ig,z2,grady%aens(ii,ig,1:n_ens))
         enddo
-        deallocate(ztmp)
-        do ig=1,naensgrp
-           call ckgcov_a_en_new_factorization(ig,z(ig,:),grady%aens(ii,ig,1:n_ens))
-        enddo
-        deallocate(z)
-     endif
-  enddo
+     enddo
+     deallocate(z,z2)
+  endif
 
 !  multiply by sqrt_beta_e_mult
   call sqrt_beta_e_mult(grady)
@@ -3876,9 +3872,10 @@ subroutine ckgcov_a_en_new_factorization(ig,z,a_en)
   deallocate(a_en_work)
 
 ! Apply vertical smoother on each ensemble member
+  iadvance=2 ; iback=1
+!$omp parallel do schedule(static,1) private(k)
   do k=1,n_ens
 
-     iadvance=2 ; iback=1
      call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
 
   enddo
