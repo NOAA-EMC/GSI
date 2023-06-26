@@ -895,7 +895,7 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
      m3d=xcv%step(1)%n3d
      m2d=xcv%step(1)%n2d
      itot=max(m3d,0)+max(m2d,0)
-     if(l_hyb_ens)itot=itot+n_ens
+     if(l_hyb_ens)itot=itot+n_ens*naensgrp
      allocate(partsum(itot))
      do ii=1,nsubwin
 !$omp parallel do  schedule(dynamic,1) private(i)

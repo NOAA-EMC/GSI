@@ -313,7 +313,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 
         endif
 
-!$omp parallel do schedule(dynamic,1) private(nn,ic,mm,ncr,k,kk,rad,val,val2,cg_rad,wnotgross,wgross)
+! !$omp parallel do schedule(dynamic,1) private(nn,ic,mm,ncr,k,kk,rad,val,val2,cg_rad,wnotgross,wgross)
         do nn=1,radptr%nchan
 
            if(nstep > 0)then

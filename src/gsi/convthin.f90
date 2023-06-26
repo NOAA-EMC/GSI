@@ -464,8 +464,7 @@ contains
 
     real(r_kind) dlat1,dlon1,pob1
     real(r_kind) dx,dy,dp
-    real(r_kind) dxx,dyy,dpp
-    real(r_kind) crit!,dist1
+    real(r_kind) crit  !,dist1
 
     logical foreswp, aftswp
 

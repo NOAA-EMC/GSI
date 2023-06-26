@@ -35,6 +35,7 @@
 !               a required input for EFSO calculations
 !   2019-03-13  Add precipitation components
 !   2019-07-10  Add convective clouds
+!   2022-07-21  Draper: added read/write for sfc file for nc io (writeincrements, and readgridata)
 !
 ! attributes:
 !   language: f95
@@ -100,12 +101,21 @@
   logical ice
   logical use_full_hydro
   integer(i_kind), allocatable, dimension(:) :: mem_pe, lev_pe1, lev_pe2, iocomms
-  integer(i_kind) :: iope, ionumproc, iolevs, krev
+  integer(i_kind) :: iope, ionumproc, iolevs, krev, ierr
   integer(i_kind) :: ncstart(3), nccount(3)
 
   ! mpi gatherv things
   integer(i_kind), allocatable, dimension(:) :: recvcounts, displs
   real(r_single), dimension(nlons,nlats,nlevs) :: ug3d_0, vg3d_0
+  logical :: read_sfc_file, read_atm_file
+
+  call set_ncio_file_flags(vars3d, n3d, vars2d, n2d, read_sfc_file, read_atm_file)
+
+   if (read_sfc_file) then
+      print *,'paranc not supported for reading surface files'
+      call mpi_barrier(mpi_comm_world,ierr)
+      call mpi_finalize(ierr)
+   endif
 
   ! figure out what member to read and do MPI sub-communicator things
   allocate(mem_pe(0:numproc-1))
@@ -554,7 +564,7 @@
   type(sigio_head)   :: sighead
   type(sigio_data)   :: sigdata
   type(nemsio_gfile) :: gfile
-  type(Dataset) :: dset
+  type(Dataset) :: dset, dset_sfc
   type(Dimension) :: londim,latdim,levdim
   type(nemsio_gfile) :: gfilesfc
 
@@ -562,13 +572,19 @@
   integer(i_kind) :: qr_ind, qs_ind, qg_ind
   integer(i_kind) :: tsen_ind, ql_ind, qi_ind, prse_ind
   integer(i_kind) :: ps_ind, pst_ind, sst_ind
+  integer(i_kind) :: tmp2m_ind, spfh2m_ind, soilt1_ind, soilt2_ind, soilt3_ind
+  integer(i_kind) :: soilt4_ind,slc1_ind, slc2_ind, slc3_ind, slc4_ind
 
   integer(i_kind) :: k,iunitsig,iret,nb,i,idvc,nlonsin,nlatsin,nlevsin,ne,nanal
   integer(i_kind) :: nlonsin_sfc,nlatsin_sfc
   logical ice
   logical use_full_hydro
+  logical read_sfc_file, read_atm_file
 
   use_full_hydro = .false.
+
+  ! determine which files will be read in
+  call set_ncio_file_flags(vars3d, n3d, vars2d, n2d, read_sfc_file, read_atm_file)
 
   ne = 0
   ensmemloop: do nanal=nanal1,nanal2
@@ -662,6 +678,7 @@
 !    print *, 'ql: ', ql_ind, ', prse: ', prse_ind
 !    print *, 'ps: ', ps_ind, ', pst: ', pst_ind, ', sst: ', sst_ind
 !  endif
+  if (read_atm_file) then
 
   if (.not. isinitialized) call init_spec_vars(nlons,nlats,ntrunc,4)
 
@@ -731,7 +748,7 @@
         pressi(:,k) = 0.01_r_kind*ak(nlevs-k+2)+bk(nlevs-k+2)*psg
         if (nanal .eq. 1) print *,'netcdf, min/max pressi',k,minval(pressi(:,k)),maxval(pressi(:,k))
      enddo
-     deallocate(ak,bk,values_2d)
+     deallocate(ak,bk)
   else
      vrtspec = sigdata%ps
      call sptez_s(vrtspec,psg,1)
@@ -1100,9 +1117,133 @@
   deallocate(pressi,pslg)
   deallocate(psg)
   if (pst_ind > 0) deallocate(vmassdiv,pstend)
+  endif ! read_atm_file
+
   if (use_gfs_nemsio) call nemsio_close(gfile,iret=iret)
   if (use_gfs_ncio) call close_dataset(dset)
   if (use_gfs_nemsio) call nemsio_close(gfilesfc,iret=iret)
+
+  if ( read_sfc_file ) then
+
+     if ( .not.  use_gfs_ncio ) then
+        write(6,*) 'griddio/griddata for sfc update vars only coded for nc io'
+        call stop2(23)
+     endif
+     if ( reducedgrid ) then
+        write(6,*) "reducedgrid=T interpolation not valid for writing sfc files"
+        call stop2(22)
+     endif
+
+     ! land sfc DA variables
+     tmp2m_ind  = getindex(vars2d, 't2m')
+     spfh2m_ind = getindex(vars2d, 'q2m')
+     soilt1_ind = getindex(vars2d, 'st1')
+     slc1_ind = getindex(vars2d, 'sl1')
+     soilt2_ind = getindex(vars2d, 'st2')
+     slc2_ind = getindex(vars2d, 'sl2')
+     soilt3_ind = getindex(vars2d, 'st3')
+     slc3_ind = getindex(vars2d, 'sl3')
+     soilt4_ind = getindex(vars2d, 'st4')
+     slc4_ind = getindex(vars2d, 'sl4')
+
+     dset_sfc = open_dataset(filenamesfc)
+     ! read in sfc vars, if requested
+     if (tmp2m_ind > 0) then
+        call read_vardata(dset_sfc, 'tmp2m', values_2d, errcode=iret)
+        if (iret /= 0) then
+                print *,'error reading tmp2m'
+                call stop2(22)
+        endif
+        ug = reshape(values_2d,(/nlons*nlats/))
+        call copytogrdin(ug,grdin(:,levels(n3d) + tmp2m_ind,nb,ne))
+     endif
+     if (spfh2m_ind > 0) then
+        call read_vardata(dset_sfc, 'spfh2m', values_2d, errcode=iret)
+        if (iret /= 0) then
+                print *,'error reading spfh2m'
+                call stop2(22)
+        endif
+        ug = reshape(values_2d,(/nlons*nlats/))
+        call copytogrdin(ug,grdin(:,levels(n3d) + spfh2m_ind,nb,ne))
+     endif
+     if (soilt1_ind > 0) then
+        call read_vardata(dset_sfc, 'soilt1', values_2d, errcode=iret)
+        if (iret /= 0) then
+                print *,'error reading soilt1'
+                call stop2(22)
+        endif
+        ug = reshape(values_2d,(/nlons*nlats/))
+        call copytogrdin(ug,grdin(:,levels(n3d) + soilt1_ind,nb,ne))
+     endif
+     if (soilt2_ind > 0) then
+        call read_vardata(dset_sfc, 'soilt2', values_2d, errcode=iret)
+        if (iret /= 0) then
+                print *,'error reading soilt2'
+                call stop2(22)
+        endif
+        ug = reshape(values_2d,(/nlons*nlats/))
+        call copytogrdin(ug,grdin(:,levels(n3d) + soilt2_ind,nb,ne))
+     endif
+     if (soilt3_ind > 0) then
+        call read_vardata(dset_sfc, 'soilt3', values_2d, errcode=iret)
+        if (iret /= 0) then
+                print *,'error reading soilt3'
+                call stop2(22)
+        endif
+        ug = reshape(values_2d,(/nlons*nlats/))
+        call copytogrdin(ug,grdin(:,levels(n3d) + soilt3_ind,nb,ne))
+     endif
+     if (soilt4_ind > 0) then
+        call read_vardata(dset_sfc, 'soilt4', values_2d, errcode=iret)
+        if (iret /= 0) then
+                print *,'error reading soilt2'
+                call stop2(22)
+        endif
+        ug = reshape(values_2d,(/nlons*nlats/))
+        call copytogrdin(ug,grdin(:,levels(n3d) + soilt4_ind,nb,ne))
+     endif
+     if (slc1_ind > 0) then
+        call read_vardata(dset_sfc, 'slc1', values_2d, errcode=iret)
+        if (iret /= 0) then
+                print *,'error reading slc1'
+                call stop2(22)
+        endif
+        ug = reshape(values_2d,(/nlons*nlats/))
+        call copytogrdin(ug,grdin(:,levels(n3d) + slc1_ind,nb,ne))
+     endif
+     if (slc2_ind > 0) then
+        call read_vardata(dset_sfc, 'slc2', values_2d, errcode=iret)
+        if (iret /= 0) then
+                print *,'error reading slc2'
+                call stop2(22)
+        endif
+        ug = reshape(values_2d,(/nlons*nlats/))
+        call copytogrdin(ug,grdin(:,levels(n3d) + slc2_ind,nb,ne))
+     endif
+     if (slc3_ind > 0) then
+        call read_vardata(dset_sfc, 'slc3', values_2d, errcode=iret)
+        if (iret /= 0) then
+                print *,'error reading slc3'
+                call stop2(22)
+        endif
+        ug = reshape(values_2d,(/nlons*nlats/))
+        call copytogrdin(ug,grdin(:,levels(n3d) + slc3_ind,nb,ne))
+     endif
+     if (slc4_ind > 0) then
+        call read_vardata(dset_sfc, 'slc4', values_2d, errcode=iret)
+        if (iret /= 0) then
+                print *,'error reading slc2'
+                call stop2(22)
+        endif
+        ug = reshape(values_2d,(/nlons*nlats/))
+        call copytogrdin(ug,grdin(:,levels(n3d) + slc4_ind,nb,ne))
+     endif
+
+     call close_dataset(dset_sfc)
+
+  endif ! sfc read
+
+  if ( allocated(values_2d) )  deallocate(values_2d)
 
   end do backgroundloop ! loop over backgrounds to read in
   end do ensmemloop ! loop over ens members to read in
@@ -1998,6 +2139,15 @@
   integer k,krev,nt,ierr,iunitsig,nb,i,ne,nanal
 
   logical :: nocompress
+  logical :: write_sfc_file, write_atm_file
+
+  call set_ncio_file_flags(vars3d, n3d, vars2d, n2d, write_sfc_file, write_atm_file)
+
+  if (write_sfc_file .and. nproc==0 ) then
+        ! adding the sfc increments requires adjusting several other variables. This is done is a separate
+        ! program.
+        write(6,*)'gridio/writegriddata: not coded to write sfc analysis, use separate add_incr program instead'
+  endif
 
   nocompress = .true.
   if (nccompress) nocompress = .false.
@@ -3402,7 +3552,7 @@
  subroutine writeincrement(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
   use netcdf
   use params, only: nbackgrounds,incfileprefixes,fgfileprefixes,reducedgrid,&
-                    datestring,nhr_anal,write_ensmean
+                    datestring,nhr_anal,write_ensmean, fgsfcfileprefixes,incsfcfileprefixes
   use constants, only: grav
   use mpi
   use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
@@ -3438,7 +3588,12 @@
   integer(i_kind) :: ncid_out, lon_dimid, lat_dimid, lev_dimid, ilev_dimid
   integer(i_kind) :: lonvarid, latvarid, levvarid, pfullvarid, ilevvarid, &
                      hyaivarid, hybivarid, uvarid, vvarid, delpvarid, delzvarid, &
-                     tvarid, sphumvarid, liqwatvarid, o3varid, icvarid
+                     tvarid, sphumvarid, liqwatvarid, o3varid, icvarid, &
+                     tmp2mvarid, spfh2mvarid, soilt1varid, soilt2varid, &
+                     soilt3varid, soilt4varid, slc1varid, slc2varid, &
+                     slc3varid, slc4varid, maskvarid
+  integer(i_kind) :: tmp2m_ind, spfh2m_ind, soilt1_ind, soilt2_ind, soilt3_ind, &
+                     soilt4_ind,slc1_ind, slc2_ind, slc3_ind, slc4_ind
   integer(i_kind) :: iadateout
 
   ! fixed fields such as lat, lon, levs
@@ -3450,10 +3605,17 @@
   ! increment
   real(r_kind), dimension(nlons*nlats) :: psinc, inc, ug, vg, work
   real(r_single), allocatable, dimension(:,:,:) :: inc3d, inc3d2, inc3dout
+  real(r_single), allocatable, dimension(:,:) :: inc2d,  inc2dout
   real(r_single), allocatable, dimension(:,:,:) :: tv, tvanl, tmp, tmpanl, q, qanl
   real(r_kind), allocatable, dimension(:,:) :: values_2d
   real(r_kind), allocatable, dimension(:) :: psges, delzb, values_1d
+  ! soil / snow mask (not fixed)
+  integer(i_kind), dimension(nlons,nlats) :: mask
+  logical :: write_sfc_file, write_atm_file
 
+  call set_ncio_file_flags(vars3d, n3d, vars2d, n2d, write_sfc_file, write_atm_file)
+
+  if ( write_atm_file) then
   use_full_hydro = .false.
   clip = tiny_r_kind
   read(datestring,*) iadateout
@@ -3774,13 +3936,266 @@
   call nccheck_incr(nf90_put_var(ncid_out, icvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
+  call close_dataset(dsfg,errcode=iret)
+  if (iret/=0) then
+    write(6,*)'gridio/writeincrement gfs model: problem closing netcdf fg dataset, iret=',iret
+    call stop2(23)
+  endif
   ! deallocate things
   deallocate(inc3d,inc3d2,inc3dout)
   deallocate(tmp,tv,q,tmpanl,tvanl,qanl)
-  deallocate(delzb,psges)
+  if (allocated(delzb))  deallocate(delzb)
+  if (allocated(psges)) deallocate(psges)
 
   end do backgroundloop ! loop over backgrounds to read in
   end do ensmemloop ! loop over ens members to read in
+
+  endif ! write_atm_file
+
+  if (write_sfc_file) then
+
+     ne = 0
+     sfcensmemloop: do nanal=nanal1,nanal2
+     ne = ne + 1
+     write(charnanal,'(i3.3)') nanal
+     sfcbackgroundloop: do nb=1,nbackgrounds
+
+     if (nanal == 0 .and. write_ensmean) then
+        filenamein = trim(adjustl(datapath))//trim(adjustl(fgsfcfileprefixes(nb)))//"ensmean"
+        filenameout = trim(adjustl(datapath))//trim(adjustl(incsfcfileprefixes(nb)))//"ensmean"
+     else
+        if(no_inflate_flag) then
+          filenameout = trim(adjustl(datapath))//trim(adjustl(incsfcfileprefixes(nb)))//"nimem"//charnanal
+        else
+          filenameout = trim(adjustl(datapath))//trim(adjustl(incsfcfileprefixes(nb)))//"mem"//charnanal
+        end if
+        filenamein = trim(adjustl(datapath))//trim(adjustl(fgsfcfileprefixes(nb)))//"mem"//charnanal
+     endif
+
+     ! create the output netCDF increment file
+     call nccheck_incr(nf90_create(path=trim(filenameout), cmode=nf90_netcdf4, ncid=ncid_out))
+
+     ! create dimensions based on analysis resolution, not guess
+     call nccheck_incr(nf90_def_dim(ncid_out, "longitude", nlons, lon_dimid))
+     call nccheck_incr(nf90_def_dim(ncid_out, "latitude", nlats, lat_dimid))
+     ! create variables
+     call nccheck_incr(nf90_def_var(ncid_out, "longitude", nf90_real, (/lon_dimid/), lonvarid))
+     call nccheck_incr(nf90_def_var(ncid_out, "latitude", nf90_real, (/lat_dimid/), latvarid))
+     call nccheck_incr(nf90_def_var(ncid_out, "tmp2m_inc", nf90_real, dimids3(1:2), tmp2mvarid))
+     call nccheck_incr(nf90_def_var(ncid_out, "spfh2m_inc", nf90_real, dimids3(1:2), spfh2mvarid))
+     call nccheck_incr(nf90_def_var(ncid_out, "soilt1_inc", nf90_real, dimids3(1:2), soilt1varid))
+     call nccheck_incr(nf90_def_var(ncid_out, "soilt2_inc", nf90_real, dimids3(1:2), soilt2varid))
+     call nccheck_incr(nf90_def_var(ncid_out, "soilt3_inc", nf90_real, dimids3(1:2), soilt3varid))
+     call nccheck_incr(nf90_def_var(ncid_out, "soilt4_inc", nf90_real, dimids3(1:2), soilt4varid))
+     call nccheck_incr(nf90_def_var(ncid_out, "slc1_inc", nf90_real, dimids3(1:2), slc1varid))
+     call nccheck_incr(nf90_def_var(ncid_out, "slc2_inc", nf90_real, dimids3(1:2), slc2varid))
+     call nccheck_incr(nf90_def_var(ncid_out, "slc3_inc", nf90_real, dimids3(1:2), slc3varid))
+     call nccheck_incr(nf90_def_var(ncid_out, "slc4_inc", nf90_real, dimids3(1:2), slc4varid))
+     call nccheck_incr(nf90_def_var(ncid_out, "soilsnow_mask", nf90_int, dimids3(1:2), maskvarid))
+     ! place global attributes to serial calc_increment output
+     call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "source", "GSI EnKF"))
+     call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "comment", &
+                       "global landsfc anal increment from writeincrement"))
+     call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "analysis_time", iadateout))
+     call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "IAU_hour_from_guess", nhr_anal(nb)))
+     ! add units to lat/lon because that's what the calc_increment utility has
+     call nccheck_incr(nf90_put_att(ncid_out, lonvarid, "units", "degrees_east"))
+     call nccheck_incr(nf90_put_att(ncid_out, latvarid, "units", "degrees_north"))
+     ! end the netCDF file definition
+     call nccheck_incr(nf90_enddef(ncid_out))
+
+     tmp2m_ind  = getindex(vars2d, 't2m')   !< indices in the state or control var arrays
+     spfh2m_ind = getindex(vars2d, 'q2m')
+     soilt1_ind = getindex(vars2d, 'st1')
+     slc1_ind = getindex(vars2d, 'sl1')
+     soilt2_ind = getindex(vars2d, 'st2')
+     slc2_ind = getindex(vars2d, 'sl2')
+     soilt3_ind = getindex(vars2d, 'st3')
+     slc3_ind = getindex(vars2d, 'sl3')
+     soilt4_ind = getindex(vars2d, 'st4')
+     slc4_ind = getindex(vars2d, 'sl4')
+
+     dsfg = open_dataset(filenamein)
+
+     ! longitudes
+     call read_vardata(dsfg, 'grid_xt', values_1d, errcode=iret)
+     deglons(:) = values_1d
+     call nccheck_incr(nf90_put_var(ncid_out, lonvarid, deglons, &
+                          start = (/1/), count = (/nlons/)))
+
+     call read_vardata(dsfg, 'grid_yt', values_1d, errcode=iret)
+     ! latitudes
+     do j=1,nlats
+       deglats(nlats-j+1) = values_1d(j)
+     end do
+
+     call nccheck_incr(nf90_put_var(ncid_out, latvarid, deglats, &
+                          start = (/1/), count = (/nlats/)))
+
+     ! construct mask (1 - soil, 2 - snow, 0 - not snow)
+     ! note: same logic/threshold used in global_cycle to produce
+     ! mask on model grid.
+
+     call read_vardata(dsfg, 'slc1', values_2d, errcode=iret)
+
+     mask = 0
+     do j=1,nlats
+       do i = 1, nlons
+           if (values_2d(i,j) .LT. 1.0) then
+           mask(i,nlats-j+1) = 1
+           endif
+       enddo
+     end do
+
+     call read_vardata(dsfg, 'weasd', values_2d, errcode=iret)
+     do j=1,nlats
+       do i = 1, nlons
+           if (values_2d(i,j) .GT. 0.001) then
+           mask(i,nlats-j+1) = 2
+           endif
+       enddo
+     end do
+     call nccheck_incr(nf90_put_var(ncid_out, maskvarid, mask, &
+                       start = ncstart(1:2), count = nccount(1:2)))
+
+     allocate(inc2d(nlons,nlats))
+     allocate(inc2dout(nlons,nlats))
+
+     ! tmp2m increment
+     inc(:) = zero
+     if (tmp2m_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(n3d) + tmp2m_ind,nb,ne),inc)
+     endif
+     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+     do j=1,nlats
+       inc2dout(:,nlats-j+1) = inc2d(:,j)
+     end do
+     call nccheck_incr(nf90_put_var(ncid_out, tmp2mvarid, sngl(inc2dout), &
+                         start = ncstart(1:2), count = nccount(1:2)))
+     ! spfh2m increment
+     inc(:) = zero
+     if (spfh2m_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(n3d)+spfh2m_ind,nb,ne),inc)
+     endif
+     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+     do j=1,nlats
+       inc2dout(:,nlats-j+1) = inc2d(:,j)
+     end do
+     call nccheck_incr(nf90_put_var(ncid_out, spfh2mvarid, sngl(inc2dout), &
+                         start = ncstart(1:2), count = nccount(1:2)))
+     ! soilt1 increment
+     inc(:) = zero
+     if (soilt1_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(n3d)+soilt1_ind,nb,ne),inc)
+     endif
+     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+     inc2dout=0.
+     do j=1,nlats
+       do i = 1, nlons
+           if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+       enddo
+     end do
+     call nccheck_incr(nf90_put_var(ncid_out, soilt1varid, sngl(inc2dout), &
+                         start = ncstart(1:2), count = nccount(1:2)))
+     ! soilt2 increment
+     inc(:) = zero
+     if (soilt2_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(n3d)+soilt2_ind,nb,ne),inc)
+     endif
+     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+     inc2dout=0.
+     do j=1,nlats
+       do i = 1, nlons
+           if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+       enddo
+     end do
+     call nccheck_incr(nf90_put_var(ncid_out, soilt2varid, sngl(inc2dout), &
+                         start = ncstart(1:2), count = nccount(1:2)))
+     ! soilt3 increment
+     inc(:) = zero
+     if (soilt3_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(n3d)+soilt3_ind,nb,ne),inc)
+     endif
+     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+     inc2dout=0.
+     do j=1,nlats
+       do i = 1, nlons
+           if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+       enddo
+     end do
+     call nccheck_incr(nf90_put_var(ncid_out, soilt3varid, sngl(inc2dout), &
+                         start = ncstart(1:2), count = nccount(1:2)))
+     ! soilt4 increment
+     inc(:) = zero
+     if (soilt4_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(n3d)+soilt4_ind,nb,ne),inc)
+     endif
+     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+     inc2dout=0.
+     do j=1,nlats
+       do i = 1, nlons
+           if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+       enddo
+     end do
+     call nccheck_incr(nf90_put_var(ncid_out, soilt4varid, sngl(inc2dout), &
+                         start = ncstart(1:2), count = nccount(1:2)))
+     ! slc1 increment
+     inc(:) = zero
+     if (slc1_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(n3d)+slc1_ind,nb,ne),inc)
+     endif
+     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+     do j=1,nlats
+       inc2dout(:,nlats-j+1) = inc2d(:,j)
+     end do
+     call nccheck_incr(nf90_put_var(ncid_out, slc1varid, sngl(inc2dout), &
+                         start = ncstart(1:2), count = nccount(1:2)))
+     ! slc2 increment
+     inc(:) = zero
+     if (slc2_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(n3d)+slc2_ind,nb,ne),inc)
+     endif
+     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+     do j=1,nlats
+       inc2dout(:,nlats-j+1) = inc2d(:,j)
+     end do
+     call nccheck_incr(nf90_put_var(ncid_out, slc2varid, sngl(inc2dout), &
+                         start = ncstart(1:2), count = nccount(1:2)))
+     ! slc3 increment
+     inc(:) = zero
+     if (slc3_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(n3d)+slc3_ind,nb,ne),inc)
+     endif
+     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+     do j=1,nlats
+       inc2dout(:,nlats-j+1) = inc2d(:,j)
+     end do
+     call nccheck_incr(nf90_put_var(ncid_out, slc3varid, sngl(inc2dout), &
+                         start = ncstart(1:2), count = nccount(1:2)))
+     ! slc4 increment
+     inc(:) = zero
+     if (slc4_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(n3d)+slc4_ind,nb,ne),inc)
+     endif
+     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+     do j=1,nlats
+       inc2dout(:,nlats-j+1) = inc2d(:,j)
+     end do
+     call nccheck_incr(nf90_put_var(ncid_out, slc4varid, sngl(inc2dout), &
+                       start = ncstart(1:2), count = nccount(1:2)))
+
+     call close_dataset(dsfg,errcode=iret)
+     if (iret/=0) then
+       write(6,*)'gridio/writeincrement gfs model: problem closing netcdf sfc fg dataset, iret=',iret
+       call stop2(23)
+     endif
+     ! deallocate things
+     deallocate(inc2d,inc2dout)
+
+  end do sfcbackgroundloop ! loop over backgrounds to read in
+  end do sfcensmemloop ! loop over ens members to read in
+
+  endif ! write_sfc_file
 
   return
 
@@ -4378,6 +4793,64 @@
  end subroutine copyfromgrdin
 
  end subroutine writeincrement_pnc
+
+ subroutine set_ncio_file_flags(vars3d, n3d, vars2d, n2d, sfc_file, atm_file)
+ ! determine if variables are in sfc and/or atm file, for ncio case.
+  character(len=max_varname_length), dimension(n2d), intent(in) :: vars2d
+  character(len=max_varname_length), dimension(n3d), intent(in) :: vars3d
+  integer, intent(in) :: n2d, n3d
+  logical, intent(out) :: sfc_file, atm_file
+
+  integer(i_kind) :: u_ind, v_ind, tv_ind, q_ind, oz_ind, cw_ind
+  integer(i_kind) :: qr_ind, qs_ind, qg_ind
+  integer(i_kind) :: tsen_ind, ql_ind, qi_ind, prse_ind
+  integer(i_kind) :: ps_ind, pst_ind, sst_ind
+  integer(i_kind) :: tmp2m_ind, spfh2m_ind, soilt1_ind, soilt2_ind, soilt3_ind
+  integer(i_kind) :: soilt4_ind,slc1_ind, slc2_ind, slc3_ind, slc4_ind
+
+ ! atmos file variables
+  u_ind   = getindex(vars3d, 'u')   !< indices in the state or control var arrays
+  v_ind   = getindex(vars3d, 'v')   ! U and V (3D)
+  tv_ind  = getindex(vars3d, 'tv')  ! Tv (3D)
+  q_ind   = getindex(vars3d, 'q')   ! Q (3D)
+  oz_ind  = getindex(vars3d, 'oz')  ! Oz (3D)
+  cw_ind  = getindex(vars3d, 'cw')  ! CW (3D)
+  tsen_ind = getindex(vars3d, 'tsen') !sensible T (3D)
+  ql_ind  = getindex(vars3d, 'ql')  ! QL (3D)
+  qi_ind  = getindex(vars3d, 'qi')  ! QI (3D)
+  prse_ind = getindex(vars3d, 'prse')
+  qr_ind  = getindex(vars3d, 'qr')  ! QR (3D)
+  qs_ind  = getindex(vars3d, 'qs')  ! QS (3D)
+  qg_ind  = getindex(vars3d, 'qg')  ! QG (3D)
+  ps_ind  = getindex(vars2d, 'ps')  ! Ps (2D)
+  pst_ind = getindex(vars2d, 'pst') ! Ps tendency (2D)   // equivalent of
+                                     ! old logical massbal_adjust, if non-zero
+  sst_ind = getindex(vars2d, 'sst') ! is this really in the atmos file?
+
+  ! for nc gfs io determine if requested variables are in sfc and/or atmos file
+  atm_file = ( u_ind>0 .or. v_ind>0 .or. tv_ind>0 .or. q_ind>0 .or. sst_ind>0 .or. &
+                  oz_ind>0 .or. cw_ind>0 .or. tsen_ind>0 .or. ql_ind>0 .or. &
+                  qi_ind>0 .or. prse_ind>0 .or. qr_ind>0 .or. qs_ind>0 .or. qg_ind>0 )
+
+  ! sfc file variables
+  tmp2m_ind  = getindex(vars2d, 't2m')
+  spfh2m_ind = getindex(vars2d, 'q2m')
+  soilt1_ind = getindex(vars2d, 'st1')
+  slc1_ind = getindex(vars2d, 'sl1')
+  soilt2_ind = getindex(vars2d, 'st2')
+  slc2_ind = getindex(vars2d, 'sl2')
+  soilt3_ind = getindex(vars2d, 'st3')
+  slc3_ind = getindex(vars2d, 'sl3')
+  soilt4_ind = getindex(vars2d, 'st4')
+  slc4_ind = getindex(vars2d, 'sl4')
+
+  sfc_file = ( tmp2m_ind > 0 .or. spfh2m_ind > 0 .or. soilt1_ind > 0 .or. &
+       slc1_ind > 0 .or. soilt2_ind > 0 .or. slc2_ind > 0 .or.    &
+       soilt3_ind > 0 .or. slc3_ind > 0 .or. soilt4_ind > 0 .or.  &
+       slc4_ind  > 0 )
+
+ end subroutine set_ncio_file_flags
+
 
  logical function checkfield(field,fields,nrec) result(hasfield)
    use nemsio_module, only: nemsio_charkind

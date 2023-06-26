@@ -781,7 +781,9 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
            end if
            exit stepsize
         else if(ii == istp_iter)then
-           write(iout_iter,*) ' early termination due to no decrease in penalty ',cx,stp(ii)
+           if(mype == minmype)then
+              write(iout_iter,*) ' early termination due to no decrease in penalty ',cx,stp(ii)
+           end if
            stp(istp_use)=zero
            end_iter = .true.
            exit stepsize
