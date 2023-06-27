@@ -99,7 +99,7 @@
      factv,factl,factp,factg,factw10m,facthowv,factcldch,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,cwoption,switch_on_derivatives,tendsflag,jiterstart,jiterend,R_option,&
      bcoption,diurnalbc,print_diag_pcg,tsensible,diag_precon,step_start,pseudo_q2,&
-     clip_supersaturation,cnvw_option
+     clip_supersaturation,cnvw_option,hofx_2m_sfcfile
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,&
      nrf_var,lcalc_gfdl_cfrac,incvars_to_zero,incvars_zero_strat,incvars_efold 
@@ -1047,7 +1047,7 @@
 !      l_foreaft_thin -   separate TDR fore/aft scan for thinning
 
   namelist/obs_input/dmesh,time_window_max,time_window_rad, &
-       ext_sonde,l_foreaft_thin
+       ext_sonde,l_foreaft_thin,hofx_2m_sfcfile
 
 ! SINGLEOB_TEST (one observation test case setup):
 !      maginnov   - magnitude of innovation for one ob
@@ -2213,7 +2213,7 @@
   endif
 
 ! Set up directories (or pe specific filenames)
-  call init_directories(mype)
+  call init_directories(mype,npe)
 
 ! Initialize space for qc
   call create_qcvars

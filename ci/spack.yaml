@@ -19,7 +19,7 @@ spack:
   - wrf-io@1.2.0
   - ncio@1.1.2
   - crtm@2.4.0
-  - gsi-ncdiag@1.0.0
+  - gsi-ncdiag@1.1.0
   view: true
   concretizer:
     unify: true

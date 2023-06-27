@@ -60,6 +60,8 @@ elif [[ $MACHINE_ID = gaea* ]] ; then
     fi
     source /lustre/f2/dev/role.epic/contrib/Lmod_init.sh
 
+    source /lustre/f2/dev/role.epic/contrib/Lmod_init.sh
+
 elif [[ $MACHINE_ID = expanse* ]]; then
     # We are on SDSC Expanse
     if ( ! eval module help > /dev/null 2>&1 ) ; then
