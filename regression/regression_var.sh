@@ -50,7 +50,7 @@ echo "Running Regression Tests on '$machine'";
 
 case $machine in
   Gaea)
-    export queue="batch"
+    export queue="normal"
     export noscrub="/lustre/f2/scratch/$LOGNAME/gsi_tmp/noscrub"
     export ptmp="/lustre/f2/scratch/$LOGNAME/gsi_tmp/ptmp"
     export casesdir="/lustre/f2/dev/role.epic/contrib/GSI_data/CASES/regtest"

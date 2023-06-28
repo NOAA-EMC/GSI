@@ -109,7 +109,7 @@ echo "#!/bin/bash -l"                                                           
 echo ""                                                                            >> $cfile
 echo "#SBATCH --output=$output"                                                    >> $cfile
 echo "#SBATCH --job-name=$jobname"                                                 >> $cfile
-echo "#SBATCH --qos=normal"                                                        >> $cfile
+echo "#SBATCH --qos=$queue"                                                        >> $cfile
 echo "#SBATCH --clusters=c4"                                                       >> $cfile
 echo "#SBATCH --time=$timew"                                                       >> $cfile
 echo "#SBATCH --nodes=$nodes --ntasks-per-node=$procs --cpus-per-task=$threads"    >> $cfile
