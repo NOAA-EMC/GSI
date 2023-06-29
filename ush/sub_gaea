@@ -88,6 +88,9 @@ output=${output:-$jobname.out}
 myuser=$LOGNAME
 myhost=$(hostname)
 
+if [ -d /lustre/f2/scratch/$LOGNAME ]; then
+  DATA=/lustre/f2/scratch/$LOGNAME/tmp
+fi
 DATA=${DATA:-$ptmp/tmp}
 
 mkdir -p $DATA
@@ -102,16 +105,16 @@ threads=${rcpu:-1}
 export TZ=GMT
 cfile=$DATA/sub$$
 > $cfile
-echo "#!/bin/sh --login"                                                           >> $cfile
+echo "#!/bin/bash -l"                                                           >> $cfile
 echo ""                                                                            >> $cfile
 echo "#SBATCH --output=$output"                                                    >> $cfile
 echo "#SBATCH --job-name=$jobname"                                                 >> $cfile
 echo "#SBATCH --qos=$queue"                                                        >> $cfile
+echo "#SBATCH --clusters=c4"                                                       >> $cfile
 echo "#SBATCH --time=$timew"                                                       >> $cfile
 echo "#SBATCH --nodes=$nodes --ntasks-per-node=$procs --cpus-per-task=$threads"    >> $cfile
 echo "#SBATCH --account=$accnt"                                                    >> $cfile
 echo "#SBATCH --mem=0"                                                             >> $cfile
-echo "#SBATCH --partition=kjet"                                                    >> $cfile
 
 echo "" >>$cfile
 echo "export ntasks=$(( $nodes * $procs ))" >> $cfile
@@ -124,11 +127,10 @@ echo "" >>$cfile
 echo ". "$(awk '{ print $1, $2, $3, $4, $5, $6, $7, $8, $9 }' $regdir/regression_var.out)  >>$cfile
 echo "" >>$cfile
 
-echo ". /apps/lmod/lmod/init/sh"                           >> $cfile
-echo "module purge"                                        >> $cfile
-echo "module use $gsisrc/modulefiles"                      >> $cfile
-echo "module load gsi_jet" >> $cfile
-echo "module list"                                         >> $cfile
+echo "source /lustre/f2/dev/role.epic/contrib/Lmod_init.sh"  >> $cfile
+echo "module use $gsisrc/modulefiles"                        >> $cfile
+echo "module load gsi_gaea" >> $cfile
+echo "module list"                                           >> $cfile
 echo "" >>$cfile
 
 cat $exec >> $cfile
@@ -140,7 +142,6 @@ elif [[ $verbose = YES ]];then
   set -x
   cat $cfile
 fi
-
 
 if [[ $stdin = YES ]];then
   cat
@@ -157,7 +158,7 @@ sbatch=${sbatch:-sbatch}
 ofile=$DATA/subout$$
 >$ofile
 chmod 777 $ofile
-$sbatch $cfile >$ofile
+$sbatch  --export=ALL $cfile >$ofile
 rc=$?
 cat $ofile
 if [[ -w $SUBLOG ]];then

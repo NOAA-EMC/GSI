@@ -58,6 +58,7 @@ elif [[ $MACHINE_ID = gaea* ]] ; then
         source /etc/profile
         __ms_source_etc_profile=yes
     fi
+    source /lustre/f2/dev/role.epic/contrib/Lmod_init.sh
 
     source /lustre/f2/dev/role.epic/contrib/Lmod_init.sh
 
