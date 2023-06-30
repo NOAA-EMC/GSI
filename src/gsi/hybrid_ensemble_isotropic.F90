@@ -591,7 +591,7 @@ subroutine new_factorization_rf_x(f,iadvance,iback,nlevs,ig)
   ny=grd_loc%nlat ; nx=grd_loc%nlon ; nz=nlevs
 
   if(vvlocal)then
-!$omp parallel do schedule(dynamic,1) private(k,j,i,l)
+!$omp parallel do schedule(static,1) private(k,j,i,l)
      do k=1,nz
 
         if(iadvance == 1) then
@@ -634,7 +634,7 @@ subroutine new_factorization_rf_x(f,iadvance,iback,nlevs,ig)
 
      enddo
   else 
-!$omp parallel do schedule(dynamic,1) private(k,j,i,l)
+!$omp parallel do schedule(static,1) private(k,j,i,l)
      do k=1,nz
 
         if(iadvance == 1) then
@@ -1607,7 +1607,7 @@ end subroutine normal_new_factorization_rf_y
     real(r_kind) zloc1(ny,nx)
     integer(i_kind) i,ii,j,jj,k
 
-!$omp parallel do schedule(dynamic,1) private(j,k,i,jj,ii,zloc1)
+!$omp parallel do schedule(static,1) private(j,k,i,jj,ii,zloc1)
     do j=1,nscl
        do k=1,nnnn1o
           i=0
@@ -1686,7 +1686,7 @@ end subroutine normal_new_factorization_rf_y
     end if
     do m=1,ntlevs_ens
        do ig=1,ntotensgrp
-!$omp parallel do schedule(dynamic,1) private(n,i,j,k,w3,istatus)
+!$omp parallel do schedule(static,1) private(n,i,j,k,w3,istatus)
           do n=1,n_ens
              call gsi_bundlegetpointer(en_perts(n,ig,m),'q',w3,istatus)
              if(istatus/=0) then
@@ -1835,7 +1835,7 @@ end subroutine normal_new_factorization_rf_y
  
     ipx=1
 
-!$omp parallel do schedule(dynamic,1) private(j,n,ic3,k,i,ipic,ig,iaens)
+!$omp parallel do schedule(static,1) private(j,n,ic3,k,i,ipic,ig,iaens)
     do k=1,km
        do ic3=1,nc3d
           ipic=ipc3d(ic3)
@@ -1860,7 +1860,6 @@ end subroutine normal_new_factorization_rf_y
        enddo
     enddo
 
-!$omp parallel do schedule(dynamic,1) private(j,n,k,i,ic2,ipic,ig,iaens)
     do ic2=1,nc2d
        ipic=ipc2d(ic2)
        do j=1,jm
@@ -2012,7 +2011,7 @@ end subroutine normal_new_factorization_rf_y
     im=work_ens%grid%im
     jm=work_ens%grid%jm
     km=work_ens%grid%km
-!$omp parallel do schedule(dynamic,1) private(j,n,ic3,k,i,ipic,ig,iaens)
+!$omp parallel do schedule(static,1) private(j,n,ic3,k,i,ipic,ig,iaens)
     do k=1,km
        do ic3=1,nc3d
           ipic=ipc3d(ic3)
@@ -2036,7 +2035,6 @@ end subroutine normal_new_factorization_rf_y
           enddo
        enddo
     enddo
-!$omp parallel do schedule(dynamic,1) private(j,n,k,i,ic2,ipic,ig,iaens)
     do ic2=1,nc2d
        ipic=ipc2d(ic2)
        do j=1,jm
@@ -2189,7 +2187,7 @@ end subroutine normal_new_factorization_rf_y
     endif
 
     ipx=1
-!$omp parallel do schedule(dynamic,1) private(j,n,ic3,k,i,ic2,ipic,ig,iaens)
+!$omp parallel do schedule(static,1) private(j,n,ic3,k,i,ic2,ipic,ig,iaens)
     do n=1,n_ens
        do ig=1,ntotensgrp
           do ic3=1,nc3d
@@ -2354,7 +2352,7 @@ end subroutine normal_new_factorization_rf_y
     im=a_en(1,1)%grid%im
     jm=a_en(1,1)%grid%jm
     km=a_en(1,1)%grid%km
-!$omp parallel do schedule(dynamic,1) private(j,n,ic3,k,i,ic2,ipic,ig,iaens)
+!$omp parallel do schedule(static,1) private(j,n,ic3,k,i,ic2,ipic,ig,iaens)
     do n=1,n_ens
        do ig=1,ntotensgrp
           do ic3=1,nc3d
@@ -2686,7 +2684,7 @@ subroutine sqrt_beta_s_mult_cvec(grady)
   endif
 
   ! multiply by sqrt_beta_s
-!$omp parallel do schedule(dynamic,1) private(ic3,ic2,k,j,i,ii)
+!$omp parallel do schedule(static,1) private(ic3,ic2,k,j,i,ii)
   do j=1,lon2
      do ii=1,nsubwin
         do ic3=1,nc3d
@@ -2784,7 +2782,7 @@ subroutine sqrt_beta_s_mult_bundle(grady)
   endif
 
   ! multiply by sqrt_beta_s
-!$omp parallel do schedule(dynamic,1) private(ic3,ic2,k,j,i)
+!$omp parallel do schedule(static,1) private(ic3,ic2,k,j,i)
   do j=1,lon2
      do ic3=1,nc3d
         ! check for ozone and skip if oz_univ_static = true
@@ -2864,7 +2862,7 @@ subroutine sqrt_beta_e_mult_cvec(grady)
   call timer_ini('sqrt_beta_e_mult')
 
   ! multiply by sqrt_beta_e
-!$omp parallel do schedule(dynamic,1) private(nn,k,j,i,ii,ig)
+!$omp parallel do schedule(static,1) private(nn,k,j,i,ii,ig)
   do nn=1,n_ens
      do ii=1,nsubwin
         do ig=1,naensgrp
@@ -3212,7 +3210,7 @@ subroutine init_sf_xy(jcap_in)
 !       correct spectrum by dividing by pn0_npole
 
 !       obtain pn0_npole
-!$omp parallel do schedule(dynamic,1) private(n,gtemp,f)
+!$omp parallel do schedule(static,1) private(n,gtemp,f)
         do n=0,sp_loc%jcap
            gtemp=zero
            gtemp(2*n+1)=one
@@ -3252,11 +3250,11 @@ subroutine init_sf_xy(jcap_in)
   deallocate(g,gtemp)
 
 ! Compute sqrt(spectral_filter).  Ensure spectral_filter >=0 zero
-!$omp parallel do schedule(dynamic,1) private(k,i)
+!$omp parallel do schedule(static,1) private(k,i)
   do ig=1,naensloc
      do k=1,grd_sploc%nsig
         do i=1,sp_loc%nc
-           if (spectral_filter(ig,i,k) < zero) spectral_filter(ig,i,k)=zero
+           spectral_filter(ig,i,k) = max(spectral_filter(ig,i,k),zero)
            sqrt_spectral_filter(ig,i,k) = sqrt(spectral_filter(ig,i,k))
         end do
      end do
@@ -3342,14 +3340,14 @@ subroutine sf_xy(ig,f,k_start,k_end)
   if(.not.use_localization_grid) then
 
     if(ig>naensgrp) then
-!$omp parallel do schedule(dynamic,1) private(k,g)
+!$omp parallel do schedule(static,1) private(k,g)
        do k=k_start,k_end
           call general_g2s0(grd_ens,sp_loc,g,f(:,:,k))
           g(:)=g(:)*spectral_filter(ig,:,k_index(k))
           call general_s2g0(grd_ens,sp_loc,g,f(:,:,k))
        enddo
     else
-!$omp parallel do schedule(dynamic,1) private(k)
+!$omp parallel do schedule(static,1) private(k)
        do k=k_start,k_end
           call sfilter(grd_ens,sp_loc,spectral_filter(ig,:,k_index(k)),f(1,1,k))
        enddo
@@ -3359,7 +3357,7 @@ subroutine sf_xy(ig,f,k_start,k_end)
 
     vector=.false.
     if(ig>naensgrp) then
-!$omp parallel do schedule(dynamic,1) private(k,g,work)
+!$omp parallel do schedule(static,1) private(k,g,work)
        do k=k_start,k_end
           call g_agrid2egrid(p_sploc2ens,work,f(:,:,k:k),k,k,vector(k:k))
           call general_g2s0(grd_ens,sp_loc,g,f(:,:,k))
@@ -3368,7 +3366,7 @@ subroutine sf_xy(ig,f,k_start,k_end)
           call g_egrid2agrid(p_sploc2ens,work,f(:,:,k:k),k,k,vector(k:k))
        enddo
     else
-!$omp parallel do schedule(dynamic,1) private(k,work)
+!$omp parallel do schedule(static,1) private(k,work)
        do k=k_start,k_end
           call g_egrid2agrid_ad(p_sploc2ens,work,f(:,:,k:k),k,k,vector(k:k))
           call sfilter(grd_ens,sp_loc,spectral_filter(ig,:,k_index(k)),f(1,1,k))
@@ -3428,7 +3426,7 @@ subroutine sqrt_sf_xy(ig,z,f,k_start,k_end)
 
   if(.not.use_localization_grid) then
 
-!$omp parallel do schedule(dynamic,1) private(k,g)
+!$omp parallel do schedule(static,1) private(k,g)
     do k=k_start,k_end
        g(:)=z(:,k)*sqrt_spectral_filter(ig,:,k_index(k))
        call general_s2g0(grd_ens,sp_loc,g,f(:,:,k))
@@ -3437,7 +3435,7 @@ subroutine sqrt_sf_xy(ig,z,f,k_start,k_end)
   else
 
      vector=.false.
-!$omp parallel do schedule(dynamic,1) private(k,g,work)
+!$omp parallel do schedule(static,1) private(k,g,work)
      do k=k_start,k_end
         g(:)=z(:,k)*sqrt_spectral_filter(ig,:,k_index(k))
         call general_s2g0(grd_sploc,sp_loc,g,work)
@@ -3497,7 +3495,7 @@ subroutine sqrt_sf_xy_ad(ig,z,f,k_start,k_end)
 
   if(.not.use_localization_grid) then
 
-!$omp parallel do schedule(dynamic,1) private(k,g)
+!$omp parallel do schedule(static,1) private(k,g)
     do k=k_start,k_end
        call general_s2g0_ad(grd_ens,sp_loc,g,f(:,:,k))
        z(:,k)=g(:)*sqrt_spectral_filter(ig,:,k_index(k))
@@ -3506,7 +3504,7 @@ subroutine sqrt_sf_xy_ad(ig,z,f,k_start,k_end)
   else
 
      vector=.false.
-!$omp parallel do schedule(dynamic,1) private(k,g,work)
+!$omp parallel do schedule(static,1) private(k,g,work)
      do k=k_start,k_end
         call g_egrid2agrid_ad(p_sploc2ens,work,f(:,:,k:k),k,k,vector(k:k))
         call general_s2g0_ad(grd_sploc,sp_loc,g,work)
@@ -3636,7 +3634,6 @@ subroutine bkerror_a_en(grady)
 
 ! Apply variances, as well as vertical & horizontal parts of background error
   if (naensgrp==1) then
-!$omp parallel do schedule(dynamic,1) private(ii)
      do ii=1,nsubwin
         call bkgcov_a_en_new_factorization(1,grady%aens(ii,1,1:n_ens))
      end do
@@ -3732,7 +3729,7 @@ subroutine bkgcov_a_en_new_factorization(ig,a_en)
      call stop2(999)
   endif
   iadvance=1 ; iback=2
-!$omp parallel do schedule(dynamic,1) private(k,ii,is,ie)
+!$omp parallel do schedule(static,1) private(k,ii,is,ie)
   do k=1,n_ens
      call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
      ii=(k-1)*a_en(1)%ndim
@@ -3762,7 +3759,7 @@ subroutine bkgcov_a_en_new_factorization(ig,a_en)
 ! Retrieve ensemble components from long vector
 ! Apply vertical smoother on each ensemble member
   iadvance=2 ; iback=1
-!$omp parallel do schedule(dynamic,1) private(k,ii,is,ie)
+!$omp parallel do schedule(static,1) private(k,ii,is,ie)
   do k=1,n_ens
      ii=(k-1)*a_en(1)%ndim
      is=ii+1

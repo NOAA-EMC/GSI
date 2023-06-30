@@ -81,9 +81,9 @@ subroutine get_gefs_ensperts_dualres
   type(gsi_bundle),allocatable,dimension(:) :: en_real8
   type(gsi_bundle):: en_bar
 ! type(gsi_grid)  :: grid_ens
-  real(r_kind) bar_norm,sig_norm,kapr,kap1
+  real(r_kind) bar_norm,sig_norm
 ! real(r_kind),allocatable,dimension(:,:):: z,sst2
-  real(r_kind),allocatable,dimension(:,:,:) :: tsen,prsl,pri,qs
+  real(r_kind),allocatable,dimension(:,:,:) :: tsen,prsl,qs
 
 ! integer(i_kind),dimension(grd_ens%nlat,grd_ens%nlon):: idum
   integer(i_kind) istatus,iret,i,ic3,j,k,n,iderivative,im,jm,km,m,ipic
@@ -165,7 +165,6 @@ subroutine get_gefs_ensperts_dualres
 
      en_bar%values=zero
      if (.not.q_hyb_ens) then !use RH
-       allocate(pri(im,jm,km+1))
        allocate(prsl(im,jm,km),tsen(im,jm,km))
        allocate(qs(im,jm,km))
      end if
@@ -196,30 +195,7 @@ subroutine get_gefs_ensperts_dualres
          
 ! Compute RH
 ! Get 3d pressure field now on interfaces
-         call general_getprs_glb(ps,tv,pri)
-! Get sensible temperature and 3d layer pressure
-         if (idsl5 /= 2) then
-            kap1=rd_over_cp+one
-            kapr=one/rd_over_cp
-!$omp parallel do schedule(dynamic,1) private(k,j,i)
-            do k=1,km
-               do j=1,jm
-                  do i=1,im
-                     prsl(i,j,k)=((pri(i,j,k)**kap1-pri(i,j,k+1)**kap1)/&
-                             (kap1*(pri(i,j,k)-pri(i,j,k+1))))**kapr
-                  end do
-               end do
-            end do
-         else
-!$omp parallel do schedule(dynamic,1) private(k,j,i)
-            do k=1,km
-               do j=1,jm
-                  do i=1,im
-                     prsl(i,j,k)=(pri(i,j,k)+pri(i,j,k+1))*half
-                  end do
-               end do
-            end do
-         end if
+         call general_getprs_glb(ps,tv,prsl)
 
          ice=.true.
          iderivative=0
@@ -282,7 +258,6 @@ subroutine get_gefs_ensperts_dualres
 
      end do  ! end do over ensembles
      if (.not.q_hyb_ens) then !use RH
-       deallocate(pri)
        deallocate(tsen,prsl)
        deallocate(qs)
      end if
@@ -664,7 +639,7 @@ subroutine write_spread_dualres(ibin,bundle)
   return
 end subroutine write_spread_dualres
 
-subroutine general_getprs_glb(ps,tv,prs)
+subroutine general_getprs_glb(ps,tv,prsl)
 ! subprogram:    getprs       get 3d pressure or 3d pressure deriv
 !   prgmmr: kleist           org: np20                date: 2005-09-29
 !
@@ -696,65 +671,26 @@ subroutine general_getprs_glb(ps,tv,prs)
 
   use kinds,only: r_kind,i_kind
   use constants,only: zero,half,one_tenth,rd_over_cp,one
-  use gridmod,only: nsig,ak5,bk5,ck5,tref5,idvc5
+  use gridmod,only: nsig,ak5,bk5,ck5,tref5,idvc5,idsl5
   use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll,&
        regional,wrf_mass_regional,twodvar_regional,fv3_regional
   use hybrid_ensemble_parameters, only: grd_ens
   implicit none
 
 ! Declare passed variables
-  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2)       ,intent(in   ) :: ps
-  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,nsig)  ,intent(in   ) :: tv
-  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,nsig+1),intent(  out) :: prs
+  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2)     ,intent(in   ) :: ps
+  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,nsig),intent(in   ) :: tv
+  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,nsig),intent(  out) :: prsl
 
 ! Declare local variables
-  real(r_kind) kapr,trk
+  real(r_kind) kapr,trk,kap1
+  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,nsig+1) :: prs
   integer(i_kind) i,j,k,k2    ! ,it
 
 ! Declare local parameter
   real(r_kind),parameter:: ten = 10.0_r_kind
 
 
-  if (regional) then
-     if(wrf_nmm_regional.or.nems_nmmb_regional) then
-        do k=1,nsig+1
-           do j=1,grd_ens%lon2
-              do i=1,grd_ens%lat2
-                 prs(i,j,k)=one_tenth* &
-                      (eta1_ll(k)*pdtop_ll + &
-                      eta2_ll(k)*(ten*ps(i,j)-pdtop_ll-pt_ll) + &
-                      pt_ll)
-              end do
-           end do
-        end do
-     elseif (fv3_regional) then
-        do k=1,nsig+1
-           do j=1,grd_ens%lon2
-              do i=1,grd_ens%lat2
-                 prs(i,j,k)=eta1_ll(k)+ eta2_ll(k)*ps(i,j)
-              end do
-           end do
-        end do
-
-     elseif (twodvar_regional) then
-        do k=1,nsig+1
-           do j=1,grd_ens%lon2
-              do i=1,grd_ens%lat2
-                 prs(i,j,k)=one_tenth*(eta1_ll(k)*(ten*ps(i,j)-pt_ll) + pt_ll)
-              end do
-           end do
-        end do
-     elseif (wrf_mass_regional) then
-        do k=1,nsig+1
-           do j=1,grd_ens%lon2
-              do i=1,grd_ens%lat2
-                 prs(i,j,k)=one_tenth*(eta1_ll(k)*(ten*ps(i,j)-pt_ll) + &
-                                       eta2_ll(k) + pt_ll)
-              end do
-           end do
-        end do
-     endif
-  else
      if (idvc5 /= 3) then
 !$omp parallel do schedule(dynamic,1) private(k,j,i)
         do k=1,nsig
@@ -796,7 +732,29 @@ subroutine general_getprs_glb(ps,tv,prs)
            end if
         end do
      end if
-  end if
+! Get sensible temperature and 3d layer pressure
+     if (idsl5 /= 2) then
+        kap1=rd_over_cp+one
+        kapr=one/rd_over_cp
+!$omp parallel do schedule(dynamic,1) private(k,j,i)
+        do k=1,nsig
+           do j=1,grd_ens%lon2
+              do i=1,grd_ens%lat2
+                 prsl(i,j,k)=((prs(i,j,k)**kap1-prs(i,j,k+1)**kap1)/&
+                         (kap1*(prs(i,j,k)-prs(i,j,k+1))))**kapr
+              end do
+           end do
+        end do
+     else
+!$omp parallel do schedule(dynamic,1) private(k,j,i)
+        do k=1,nsig
+           do j=1,grd_ens%lon2
+              do i=1,grd_ens%lat2
+                 prsl(i,j,k)=(prs(i,j,k)+prs(i,j,k+1))*half
+              end do
+           end do
+        end do
+     end if
 
   return
 end subroutine general_getprs_glb
