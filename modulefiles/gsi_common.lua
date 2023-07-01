@@ -31,7 +31,4 @@ load(pathJoin("nemsio", nemsio_ver))
 load(pathJoin("wrf_io", wrf_io_ver))
 load(pathJoin("ncio", ncio_ver))
 load(pathJoin("crtm", crtm_ver))
---load(pathJoin("ncdiag",ncdiag_ver))
-
-setenv("ncdiag_ROOT", "/scratch1/NESDIS/nesdis-rdo2/David.Huber/GSI/ncdiag/1.1.1")
-setenv("ncdiag_VERSION", "1.1.1")
+load(pathJoin("ncdiag",ncdiag_ver))
