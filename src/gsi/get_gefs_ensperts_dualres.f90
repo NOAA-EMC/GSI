@@ -26,7 +26,7 @@ subroutine get_gefs_ensperts_dualres
 !
 !                         get_gefs_ensperts_dualres.f90(182): error #6460: This is not a field name that
 !                                 is defined in the encompassing structure.   [LAT2]
-!                         call genqsat(qs,tsen,prsl,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice,iderivative)
+!                         call genqsat2(qs,tsen,prsl,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig,ice)
 !   2014-11-30  todling - partially generalized to handle any control vector
 !                         (GFS hook needs further attention)
 !                       - also, take SST from members of ensemble
@@ -86,7 +86,7 @@ subroutine get_gefs_ensperts_dualres
   real(r_kind),allocatable,dimension(:,:,:) :: tsen,prsl,qs
 
 ! integer(i_kind),dimension(grd_ens%nlat,grd_ens%nlon):: idum
-  integer(i_kind) istatus,iret,i,ic3,j,k,n,iderivative,im,jm,km,m,ipic
+  integer(i_kind) istatus,iret,i,ic3,j,k,n,im,jm,km,m,ipic
 ! integer(i_kind) mm1
   integer(i_kind) ipc3d(nc3d),ipc2d(nc2d)
   integer(i_kind) ier
@@ -198,15 +198,7 @@ subroutine get_gefs_ensperts_dualres
          call general_getprs_glb(ps,tv,prsl)
 
          ice=.true.
-         iderivative=0
-         call genqsat(qs,tsen,prsl,im,jm,km,ice,iderivative)
-         do k=1,km
-            do j=1,jm
-               do i=1,im
-                  q(i,j,k)=q(i,j,k)/qs(i,j,k)
-               end do
-            end do
-         end do
+         call genqsat2(q,tsen,prsl,im,jm,km,ice)
 
        end if
 
@@ -758,3 +750,138 @@ subroutine general_getprs_glb(ps,tv,prsl)
 
   return
 end subroutine general_getprs_glb
+subroutine genqsat2(q,tsen,prsl,lat2,lon2,nsig,ice)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    genqsat
+!   prgmmr: derber           org: np23                date: 1998-01-14
+!
+! abstract: obtain saturation specific humidity for given temperature.
+!
+! program history log:
+!   1998-01-14  derber
+!   1998-04-05  weiyu yang
+!   1999-08-24  derber, j., treadon, r., yang, w., first frozen mpp version
+!   1903-10-07  Wei Gu, bug fixes,if qs<0,then set qs=0; merge w/ GSI by R Todling
+!   2003-12-23  kleist, use guess pressure, adapt module framework
+!   2004-05-13  kleist, documentation
+!   2004-06-03  treadon, replace ggrid_g3 array with ges_* arrays
+!   2005-02-23  wu, output dlnesdtv
+!   2005-11-21  kleist, derber  add dmax array to decouple moisture from temp and
+!               pressure for questionable qsat
+!   2006-02-02  treadon - rename prsl as ges_prsl
+!   2006-09-18  derber - modify to limit saturated values near top
+!   2006-11-22  derber - correct bug:  es<esmax should be es<=esmax
+!   2008-06-04  safford - rm unused vars
+!   2010-03-23  derber - simplify and optimize
+!   2010-03-24  derber - generalize so that can be used for any lat,lon,nsig and any tsen and prsl (for hybrid)
+!   2010-12-17  pagowski - add cmaq
+!   2011-08-15  gu/todling - add pseudo-q2 options
+!   2014-12-03  derber - add additional threading
+!   2018-02-15  wu - add code for fv3_regional option
+!
+!   input argument list:
+!     tsen      - input sensibile temperature field (lat2,lon2,nsig)
+!     prsl      - input layer mean pressure field (lat2,lon2,nsig)
+!     lat2      - number of latitudes                              
+!     lon2      - number of longitudes                             
+!     nsig      - number of levels                              
+!     ice       - logical flag:  T=include ice and ice-water effects,
+!                 depending on t, in qsat calcuations.
+!                 otherwise, compute qsat with respect to water surface
+!
+!   output argument list:
+!     qsat      - saturation specific humidity (output)
+!
+! remarks: see modules used
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_kind,i_kind
+  use constants, only: xai,tmix,xb,omeps,eps,xbi,one,zero,&
+       xa,psat,ttp,half,one_tenth,qmin
+  implicit none
+
+  logical                               ,intent(in   ) :: ice
+  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: q
+  real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: tsen,prsl
+  integer(i_kind)                       ,intent(in   ) :: lat2,lon2,nsig
+
+
+  integer(i_kind) k,j,i
+  real(r_kind) pw,tdry,tr,es,qs
+  real(r_kind) w,onep3,esmax
+  real(r_kind) esi,esw
+  real(r_kind),dimension(lat2):: mint,estmax
+  integer(i_kind),dimension(lat2):: lmint
+
+
+  onep3 = 1.e3_r_kind
+
+!$omp parallel do  schedule(dynamic,1) private(k,j,i,tdry,tr,es,esw,esi,w) &
+!$omp private(pw,esmax,qs,mint,lmint,estmax)
+  do j=1,lon2
+     do i=1,lat2
+        mint(i)=340._r_kind
+        lmint(i)=1
+     end do
+     do k=1,nsig
+        do i=1,lat2
+           if((prsl(i,j,k) < 30._r_kind .and.  &
+               prsl(i,j,k) > 2._r_kind) .and.  &
+               tsen(i,j,k) < mint(i))then
+              lmint(i)=k
+              mint(i)=tsen(i,j,k)
+           end if
+        end do
+     end do
+     do i=1,lat2
+        tdry = mint(i)
+        tr = ttp/tdry
+        if (tdry >= ttp .or. .not. ice) then
+           estmax(i) = psat * (tr**xa) * exp(xb*(one-tr))
+        elseif (tdry < tmix) then
+           estmax(i) = psat * (tr**xai) * exp(xbi*(one-tr))
+        else
+           w  = (tdry - tmix) / (ttp - tmix)
+           estmax(i) =  w * psat * (tr**xa) * exp(xb*(one-tr)) &
+                   + (one-w) * psat * (tr**xai) * exp(xbi*(one-tr))
+        endif
+     end do
+
+     do k = 1,nsig
+        do i = 1,lat2
+           tdry = tsen(i,j,k)
+           tr = ttp/tdry
+           if (tdry >= ttp .or. .not. ice) then
+              es = psat * (tr**xa) * exp(xb*(one-tr))
+           elseif (tdry < tmix) then
+              es = psat * (tr**xai) * exp(xbi*(one-tr))
+           else
+              esw = psat * (tr**xa) * exp(xb*(one-tr)) 
+              esi = psat * (tr**xai) * exp(xbi*(one-tr)) 
+              w  = (tdry - tmix) / (ttp - tmix)
+              es =  w * esw + (one-w) * esi
+!             es =  w * psat * (tr**xa) * exp(xb*(one-tr)) &
+!                      + (one-w) * psat * (tr**xai) * exp(xbi*(one-tr))
+
+           endif
+
+           pw = onep3*prsl(i,j,k)
+           if(lmint(i) < k)then
+              esmax=0.1_r_kind*pw
+              esmax=min(esmax,estmax(i))
+              es=min(es,esmax)
+           end if
+           qs = max(qmin, eps * es / (pw - omeps * es))
+           q(i,j,k) = q(i,j,k)/qs
+
+        end do
+     end do
+  end do
+  return
+end subroutine genqsat2
+
