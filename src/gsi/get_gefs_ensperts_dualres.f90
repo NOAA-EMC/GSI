@@ -83,7 +83,7 @@ subroutine get_gefs_ensperts_dualres
 ! type(gsi_grid)  :: grid_ens
   real(r_kind) bar_norm,sig_norm
 ! real(r_kind),allocatable,dimension(:,:):: z,sst2
-  real(r_kind),allocatable,dimension(:,:,:) :: tsen,prsl,qs
+  real(r_kind),allocatable,dimension(:,:,:) :: tsen,prsl
 
 ! integer(i_kind),dimension(grd_ens%nlat,grd_ens%nlon):: idum
   integer(i_kind) istatus,iret,i,ic3,j,k,n,im,jm,km,m,ipic
@@ -164,9 +164,9 @@ subroutine get_gefs_ensperts_dualres
      endif
 
      en_bar%values=zero
+     allocate(tsen(im,jm,km))
      if (.not.q_hyb_ens) then !use RH
-       allocate(prsl(im,jm,km),tsen(im,jm,km))
-       allocate(qs(im,jm,km))
+       allocate(prsl(im,jm,km))
      end if
      do n=1,n_ens
        do i=1,nelen
@@ -198,7 +198,7 @@ subroutine get_gefs_ensperts_dualres
          call general_getprs_glb(ps,tv,prsl)
 
          ice=.true.
-         call genqsat2(q,tsen,prsl,im,jm,km,ice)
+         call genqsat2(q,tsen,prsl,ice)
 
        end if
 
@@ -250,9 +250,9 @@ subroutine get_gefs_ensperts_dualres
 
      end do  ! end do over ensembles
      if (.not.q_hyb_ens) then !use RH
-       deallocate(tsen,prsl)
-       deallocate(qs)
+       deallocate(prsl)
      end if
+     deallocate(tsen)
 
 ! Before converting to perturbations, get ensemble spread
      !!! it is not clear of the next statement is thread/$omp safe.
@@ -664,8 +664,6 @@ subroutine general_getprs_glb(ps,tv,prsl)
   use kinds,only: r_kind,i_kind
   use constants,only: zero,half,one_tenth,rd_over_cp,one
   use gridmod,only: nsig,ak5,bk5,ck5,tref5,idvc5,idsl5
-  use gridmod,only: wrf_nmm_regional,nems_nmmb_regional,eta1_ll,eta2_ll,pdtop_ll,pt_ll,&
-       regional,wrf_mass_regional,twodvar_regional,fv3_regional
   use hybrid_ensemble_parameters, only: grd_ens
   implicit none
 
@@ -676,81 +674,54 @@ subroutine general_getprs_glb(ps,tv,prsl)
 
 ! Declare local variables
   real(r_kind) kapr,trk,kap1
-  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,nsig+1) :: prs
+  real(r_kind),dimension(grd_ens%lat2,nsig+1) :: prs
   integer(i_kind) i,j,k,k2    ! ,it
 
-! Declare local parameter
-  real(r_kind),parameter:: ten = 10.0_r_kind
 
 
-     if (idvc5 /= 3) then
-!$omp parallel do schedule(dynamic,1) private(k,j,i)
-        do k=1,nsig
-           if(k == 1)then
-              k2=nsig+1
-              do j=1,grd_ens%lon2
-                do i=1,grd_ens%lat2
-                  prs(i,j,k)=ps(i,j)
-                  prs(i,j,k2)=zero
-                end do
-              end do
-           else
-              do j=1,grd_ens%lon2
-                 do i=1,grd_ens%lat2
-                    prs(i,j,k)=ak5(k)+bk5(k)*ps(i,j)
-                 end do
-              end do
-           end if
+     k2=nsig+1
+     kap1=rd_over_cp+one
+     kapr=one/rd_over_cp
+!$omp parallel do schedule(dynamic,1) private(k,j,i,trk,prs)
+     do j=1,grd_ens%lon2
+        do i=1,grd_ens%lat2
+           prs(i,1)=ps(i,j)
+           prs(i,k2)=zero
         end do
-     else
-        kapr=one/rd_over_cp
-!$omp parallel do schedule(dynamic,1) private(k,j,i,trk)
-        do k=1,nsig
-           if(k == 1)then
-              k2=nsig+1
-              do j=1,grd_ens%lon2
-                do i=1,grd_ens%lat2
-                  prs(i,j,k)=ps(i,j)
-                  prs(i,j,k2)=zero
-                end do
+        if (idvc5 /= 3) then
+           do k=2,nsig
+              do i=1,grd_ens%lat2
+                 prs(i,k)=ak5(k)+bk5(k)*ps(i,j)
               end do
-           else
-              do j=1,grd_ens%lon2
-                 do i=1,grd_ens%lat2
-                    trk=(half*(tv(i,j,k-1)+tv(i,j,k))/tref5(k))**kapr
-                    prs(i,j,k)=ak5(k)+(bk5(k)*ps(i,j))+(ck5(k)*trk)
-                 end do
+           end do
+        else
+           do k=1,nsig
+              do i=1,grd_ens%lat2
+                 trk=(half*(tv(i,j,k-1)+tv(i,j,k))/tref5(k))**kapr
+                 prs(i,k)=ak5(k)+(bk5(k)*ps(i,j))+(ck5(k)*trk)
               end do
-           end if
-        end do
-     end if
+           end do
+        end if
 ! Get sensible temperature and 3d layer pressure
-     if (idsl5 /= 2) then
-        kap1=rd_over_cp+one
-        kapr=one/rd_over_cp
-!$omp parallel do schedule(dynamic,1) private(k,j,i)
-        do k=1,nsig
-           do j=1,grd_ens%lon2
+        if (idsl5 /= 2) then
+           do k=1,nsig
               do i=1,grd_ens%lat2
-                 prsl(i,j,k)=((prs(i,j,k)**kap1-prs(i,j,k+1)**kap1)/&
-                         (kap1*(prs(i,j,k)-prs(i,j,k+1))))**kapr
+                 prsl(i,j,k)=((prs(i,k)**kap1-prs(i,k+1)**kap1)/&
+                         (kap1*(prs(i,k)-prs(i,k+1))))**kapr
               end do
            end do
-        end do
-     else
-!$omp parallel do schedule(dynamic,1) private(k,j,i)
-        do k=1,nsig
-           do j=1,grd_ens%lon2
+        else
+           do k=1,nsig
               do i=1,grd_ens%lat2
-                 prsl(i,j,k)=(prs(i,j,k)+prs(i,j,k+1))*half
+                 prsl(i,j,k)=(prs(i,k)+prs(i,k+1))*half
               end do
            end do
-        end do
-     end if
+        end if
+     end do
 
   return
 end subroutine general_getprs_glb
-subroutine genqsat2(q,tsen,prsl,lat2,lon2,nsig,ice)
+subroutine genqsat2(q,tsen,prsl,ice)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    genqsat
@@ -803,33 +774,34 @@ subroutine genqsat2(q,tsen,prsl,lat2,lon2,nsig,ice)
   use kinds, only: r_kind,i_kind
   use constants, only: xai,tmix,xb,omeps,eps,xbi,one,zero,&
        xa,psat,ttp,half,one_tenth,qmin
+  use gridmod,only: nsig
+  use hybrid_ensemble_parameters, only: grd_ens
   implicit none
 
   logical                               ,intent(in   ) :: ice
-  real(r_kind),dimension(lat2,lon2,nsig),intent(inout) :: q
-  real(r_kind),dimension(lat2,lon2,nsig),intent(in   ) :: tsen,prsl
-  integer(i_kind)                       ,intent(in   ) :: lat2,lon2,nsig
+  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,nsig),intent(inout) :: q
+  real(r_kind),dimension(grd_ens%lat2,grd_ens%lon2,nsig),intent(in   ) :: tsen,prsl
 
 
   integer(i_kind) k,j,i
   real(r_kind) pw,tdry,tr,es,qs
   real(r_kind) w,onep3,esmax
   real(r_kind) esi,esw
-  real(r_kind),dimension(lat2):: mint,estmax
-  integer(i_kind),dimension(lat2):: lmint
+  real(r_kind),dimension(grd_ens%lat2):: mint,estmax
+  integer(i_kind),dimension(grd_ens%lat2):: lmint
 
 
   onep3 = 1.e3_r_kind
 
 !$omp parallel do  schedule(dynamic,1) private(k,j,i,tdry,tr,es,esw,esi,w) &
 !$omp private(pw,esmax,qs,mint,lmint,estmax)
-  do j=1,lon2
-     do i=1,lat2
+  do j=1,grd_ens%lon2
+     do i=1,grd_ens%lat2
         mint(i)=340._r_kind
         lmint(i)=1
      end do
      do k=1,nsig
-        do i=1,lat2
+        do i=1,grd_ens%lat2
            if((prsl(i,j,k) < 30._r_kind .and.  &
                prsl(i,j,k) > 2._r_kind) .and.  &
                tsen(i,j,k) < mint(i))then
@@ -838,7 +810,7 @@ subroutine genqsat2(q,tsen,prsl,lat2,lon2,nsig,ice)
            end if
         end do
      end do
-     do i=1,lat2
+     do i=1,grd_ens%lat2
         tdry = mint(i)
         tr = ttp/tdry
         if (tdry >= ttp .or. .not. ice) then
@@ -853,7 +825,7 @@ subroutine genqsat2(q,tsen,prsl,lat2,lon2,nsig,ice)
      end do
 
      do k = 1,nsig
-        do i = 1,lat2
+        do i = 1,grd_ens%lat2
            tdry = tsen(i,j,k)
            tr = ttp/tdry
            if (tdry >= ttp .or. .not. ice) then
