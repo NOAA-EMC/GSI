@@ -80,6 +80,7 @@ module qcmod
 !   2019-09-29  X.Su   - add troflg and lat_c for hilbert curve tunning
 !   2019-04-19  eliu    - add QC flag for cold-air outbreak 
 !   2021-04-29  Jung/Collard - Fix numerics for emissivity check
+!   2023-07-05  ejones  - remove ifail_2400_qc and ifail_2000_qc checks in qc_irsnd
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -298,17 +299,12 @@ module qcmod
   integer(i_kind),parameter:: ifail_krain_saphir_qc=50
 
 ! QC_IRSND        
-!  Reject because wavenumber > 2400 in subroutine qc_irsnd
-  integer(i_kind),parameter:: ifail_2400_qc=50
-!  Reject because wavenumber > 2000 in subroutine qc_irsnd
-  integer(i_kind),parameter:: ifail_2000_qc=51
+!  Reject because of sun glint in subroutine qc_irsnd
+  integer(i_kind),parameter:: ifail_glint_irqc=50
 !  Reject because goes sounder and satellite zenith angle > 60 in subroutine qc_irsnd
-  integer(i_kind),parameter:: ifail_satzen_qc=52
+  integer(i_kind),parameter:: ifail_satzen_qc=51
 !  Reject because of surface emissivity/temperature influence in subroutine qc_irsnd                                     
-  integer(i_kind),parameter:: ifail_sfcir_qc=53
-!  Reject because of sun glint in subroutine qc_irsnd 
-  integer(i_kind),parameter:: ifail_glint_irqc=54
-
+  integer(i_kind),parameter:: ifail_sfcir_qc=52
 
 ! QC_AMSUA          
 !  Reject because factch6 > limit in subroutine qc_amsua
@@ -365,12 +361,14 @@ module qcmod
   integer(i_kind),parameter:: ifail_tzr_qc=10
 !  Reject because abs(sfc hgt) > 0.01m above water.
   integer(i_kind),parameter:: ifail_sfchgt=60
+!  Reject because wavenumber > 2400 in subroutine qc_avhrr
+  integer(i_kind),parameter:: ifail_2400_qc=50
+!  Reject because wavenumber > 2000 in subroutine qc_avhrr
+  integer(i_kind),parameter:: ifail_2000_qc=51
 
 ! Also used (shared w/ other qc-codes):
-!  ifail_2400_qc=50
-!  ifail_2000_qc=51
+!  ifail_sfcir_qc=52
 !  ifail_cloud_qc=7
-!  ifail_sfcir_qc=53
 !  ifail_sfchgt=60
 
 ! QC_goesimg          
@@ -2092,6 +2090,9 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr, &
 !                        These qc are optional.(On/off by depending on the number in satinfo table)
 !     2019-07-20  ejones Add sun glint check for CrIS SW obs
 !     2019-07-24  ejones Add cris_sw logic so observations aren't counted twice in aivals stats 
+!     2023-07-05  ejones Generalize sun glint check for all hyperspectral IR SW channels;
+!                        Remove check for SW observations over water in daytime
+!                        (removes flags ifail_2400_qc and ifail_2000_qc for qc_irsnd)
 !
 ! input argument list:
 !     nchanl       - number of channels per obs
@@ -2197,39 +2198,24 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr, &
         if(luse)aivals(9,is) = aivals(9,is) + one
      endif
      do i=1,nchanl
-!    check for sun glint for CrIS at wavenumbers shortward of 2386.88     
-        if(cris)then
-           if(wavenumber(i) > 2386.88)then
-              ! calculate sun glint
-              ! pangs, solazi, satazi need conversion to radians
-              ! zasat passed from reader in radians, take abs avalue
-              pangs_rad=pangs*deg2rad
-              solazi_rad=solazi*deg2rad
-              satazi_rad=satazi*deg2rad
-              relazi_rad=(180.0+solazi-satazi)*deg2rad
-              glint_rad=acos(cos(abs(zasat))*cos(pangs_rad)+sin(abs(zasat))*sin(pangs_rad)*cos(relazi_rad))
-              glint=glint_rad*rad2deg
-              ! QC low peaking CrIS SW obs with sun glint less than or equal to 15deg
-              if (glint <= 15.0) then
-                 varinv(i)=zero
-                 varinv_use(i)=zero
-                 if(id_qc(i) == igood_qc)id_qc(i)=ifail_glint_irqc
-              endif
-           endif
-        else if(wavenumber(i) > r2000)then
-           if(wavenumber(i) > r2400)then
+!    check for sun glint for SW at wavenumbers shortward of 2386.88     
+        if(wavenumber(i) > 2386.88)then
+           ! calculate sun glint
+           ! pangs, solazi, satazi need conversion to radians
+           ! zasat passed from reader in radians, take abs avalue
+           pangs_rad=pangs*deg2rad
+           solazi_rad=solazi*deg2rad
+           satazi_rad=satazi*deg2rad
+           relazi_rad=(180.0+solazi-satazi)*deg2rad
+           glint_rad=acos(cos(abs(zasat))*cos(pangs_rad)+sin(abs(zasat))*sin(pangs_rad)*cos(relazi_rad))
+           glint=glint_rad*rad2deg
+           ! QC low peaking SW obs with sun glint less than or equal to 15 deg
+           if (glint <= 15.0) then
               varinv(i)=zero
               varinv_use(i)=zero
-              if(id_qc(i) == igood_qc)id_qc(i)=ifail_2400_qc
-              irday(i) = 0
-           else
-              tmp=one-(wavenumber(i)-r2000)*ptau5(1,i)&
-                 *max(zero,cos(pangs*deg2rad))*oneover400
-              varinv(i)=tmp*varinv(i)
-              varinv_use(i)=tmp*varinv_use(i)
-              if(id_qc(i) == igood_qc)id_qc(i)=ifail_2000_qc
-           end if
-        end if
+              if(id_qc(i) == igood_qc)id_qc(i)=ifail_glint_irqc
+           endif
+        endif
      end do
   endif
 
@@ -2255,7 +2241,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr, &
   if (qc_noirjaco3_pole .and. (abs(cenlat)>r60)) zero_irjaco3_pole=.true.
 
 ! If GOES and lza > 60. do not use
-  if( goessndr .and. zasat*rad2deg > r60 .and. (.not. cris_sw)) then
+  if( goessndr .and. zasat*rad2deg > r60 ) then
 !    QC5 in statsrad
      if(luse)aivals(12,is) = aivals(12,is) + one
      do i=1,nchanl
