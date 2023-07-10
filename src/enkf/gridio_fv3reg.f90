@@ -42,7 +42,7 @@ module gridio
   use params,   only: nlevs, cliptracers, datapath, arw, nmm, datestring
   use params,   only: nx_res,ny_res,nlevs,ntiles,l_fv3reg_filecombined,&
                   fv3_io_layout_nx,fv3_io_layout_ny,nanals
-  use params,   only:  pseudo_rh, l_use_enkf_directZDA
+  use params,   only:  pseudo_rh
   use mpeu_util, only: getindex
   use read_fv3regional_restarts,only:read_fv3_restart_data1d,read_fv3_restart_data2d
   use read_fv3regional_restarts,only:read_fv3_restart_data3d,read_fv3_restart_data4d
@@ -694,7 +694,7 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
     
     ps_ind  = getindex(vars2d, 'ps')  ! Ps (2D)
 
-
+    clip=tiny(clip)
     !----------------------------------------------------------------------
     if (nbackgrounds > 1) then
        write(6,*)'gridio/writegriddata: writing multiple backgrounds not yet supported'
@@ -853,6 +853,8 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
               varstrname = 'sphum'
               call fv3lamfile%get_idfn(varstrname,file_id,fv3filename)
               call read_fv3_restart_data3d(varstrname,fv3filename,file_id,qworkvar3d)
+              !enforce lower positive bound (clip) to replace negative hydrometers
+              if ( cliptracers ) where (qworkvar3d < clip) qworkvar3d = clip
               tvworkvar3d=tsenworkvar3d*(one+fv*qworkvar3d)
               tvworkvar3d=tvworkvar3d+workinc3d
               if(q_ind > 0) then
@@ -866,6 +868,8 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
                    enddo
                  enddo
                  qworkvar3d=qworkvar3d+workinc3d   
+                 !enforce lower positive bound (clip) to replace negative q 
+                 if ( cliptracers ) where (qworkvar3d < clip) qworkvar3d = clip
               endif
               tsenworkvar3d=tvworkvar3d/(one+fv*qworkvar3d)
               varstrname = 'T'
@@ -932,10 +936,7 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
                 enddo
              enddo
              workvar3d=workvar3d+workinc3d
-             if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                 clip = tiny(workvar3d(1,1,1))
-                 where (workvar3d < clip) workvar3d = clip
-             end if
+             if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
              call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
 
           endif
@@ -955,10 +956,7 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
                 enddo
               enddo
               workvar3d=workvar3d+workinc3d
-              if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                 clip = tiny(workvar3d(1,1,1))
-                 where (workvar3d < clip) workvar3d = clip
-              end if
+              if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
               call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
 
           endif
@@ -978,10 +976,7 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
                enddo
              enddo
              workvar3d=workvar3d+workinc3d
-             if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                 clip = tiny(workvar3d(1,1,1))
-                 where (workvar3d < clip) workvar3d = clip
-             end if
+             if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
              call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
 
           endif
@@ -1001,10 +996,7 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
                enddo
              enddo
              workvar3d=workvar3d+workinc3d
-             if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                 clip = tiny(workvar3d(1,1,1))
-                 where (workvar3d < clip) workvar3d = clip
-             end if
+             if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
              call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
 
           endif
@@ -1024,10 +1016,7 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
                 enddo
              enddo
              workvar3d=workvar3d+workinc3d
-             if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                 clip = tiny(workvar3d(1,1,1))
-                 where (workvar3d < clip) workvar3d = clip
-             end if
+             if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
              call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
 
           endif
@@ -1046,10 +1035,7 @@ subroutine writegriddata(nanal1,nanal2,vars3d,vars2d,n3d,n2d,levels,ndim,vargrid
                enddo
              enddo
              workvar3d=workvar3d+workinc3d
-             if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                 clip = tiny(workvar3d(1,1,1))
-                 where (workvar3d < clip) workvar3d = clip
-             end if
+             if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
              call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
 
           endif
@@ -1888,7 +1874,7 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
     
     ps_ind  = getindex(vars2d, 'ps')  ! Ps (2D)
 
-
+    clip=tiny(clip)
     allocate(my_neb(4))
     !----------------------------------------------------------------------
     if (nbackgrounds > 1) then
@@ -2173,6 +2159,7 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
                 enddo
        
                 if(iope ==0 ) then
+                  if ( cliptracers ) where (qworkvar3d < clip) qworkvar3d = clip
                   tvworkvar3d=tsenworkvar3d*(one+fv*qworkvar3d)
                   tvworkvar3d=tvworkvar3d+workinc3d
                   if(q_ind > 0) then
@@ -2186,6 +2173,7 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
                        enddo
                      enddo
                      qworkvar3d=qworkvar3d+workinc3d   
+                     if ( cliptracers ) where (qworkvar3d < clip) qworkvar3d = clip
                   endif
                   tsenworkvar3d=tvworkvar3d/(one+fv*qworkvar3d)
                 endif
@@ -2281,10 +2269,7 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
                    enddo
                 enddo
                 workvar3d=workvar3d+workinc3d
-                if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                     clip = tiny(workvar3d(1,1,1))
-                     where (workvar3d < clip) workvar3d = clip
-                end if
+                if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
               endif
               do k=1,nlevs
                  call mpi_scatterv(workvar3d(:,:,k),recvcounts2d,displs2d,mpi_real4,&
@@ -2315,10 +2300,7 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
                    enddo
                 enddo
                 workvar3d=workvar3d+workinc3d
-                 if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                     clip = tiny(workvar3d(1,1,1))
-                     where (workvar3d < clip) workvar3d = clip
-                 end if
+                 if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
               endif
               do k=1,nlevs
                  call mpi_scatterv(workvar3d(:,:,k),recvcounts2d,displs2d,mpi_real4,&
@@ -2349,10 +2331,7 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
                    enddo
                 enddo
                 workvar3d=workvar3d+workinc3d
-                 if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                     clip = tiny(workvar3d(1,1,1))
-                     where (workvar3d < clip) workvar3d = clip
-                 end if
+                 if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
               endif
               do k=1,nlevs
                  call mpi_scatterv(workvar3d(:,:,k),recvcounts2d,displs2d,mpi_real4,&
@@ -2383,10 +2362,7 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
                    enddo
                 enddo
                 workvar3d=workvar3d+workinc3d
-                 if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                     clip = tiny(workvar3d(1,1,1))
-                     where (workvar3d < clip) workvar3d = clip
-                 end if
+                 if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
               endif
               do k=1,nlevs
                  call mpi_scatterv(workvar3d(:,:,k),recvcounts2d,displs2d,mpi_real4,&
@@ -2417,10 +2393,7 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
                    enddo
                 enddo
                 workvar3d=workvar3d+workinc3d
-                if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                     clip = tiny(workvar3d(1,1,1))
-                     where (workvar3d < clip) workvar3d = clip
-                end if
+                if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
               endif
               do k=1,nlevs
                  call mpi_scatterv(workvar3d(:,:,k),recvcounts2d,displs2d,mpi_real4,&
@@ -2450,10 +2423,7 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
                    enddo
                 enddo
                 workvar3d=workvar3d+workinc3d
-                if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                     clip = tiny(workvar3d(1,1,1))
-                     where (workvar3d < clip) workvar3d = clip
-                end if
+                if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
               endif
               do k=1,nlevs
                  call mpi_scatterv(workvar3d(:,:,k),recvcounts2d,displs2d,mpi_real4,&

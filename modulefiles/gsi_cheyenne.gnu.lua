@@ -15,9 +15,6 @@ load("hpc/1.2.0")
 load("hpc-gnu/10.1.0")
 load("hpc-mpt/2.22")
 
--- Preload w3nco to work around nemsio "find_dependency(w3nco)" hpc-stack bug
-load("w3nco/2.4.1")
-
 load("gsi_common")
 
 local prod_util_ver=os.getenv("prod_util_ver") or "1.2.2"
