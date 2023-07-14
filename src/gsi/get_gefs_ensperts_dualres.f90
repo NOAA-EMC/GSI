@@ -176,18 +176,22 @@ subroutine get_gefs_ensperts_dualres
        call gsi_bundlegetpointer(en_real8(n),'q' ,q ,ier);istatus=istatus+ier
        call gsi_bundlegetpointer(en_real8(n),'t' ,tv,ier);istatus=istatus+ier
        call gsi_bundlegetpointer(en_real8(n),'ps',ps,ier);istatus=ier
-!   Convert to real from single and convert tv to virtual temperature
+!   Convert ps to correct units
        do j=1,jm
           do i=1,im
              ps(i,j)=r0_001*ps(i,j)
           end do
        end do
+!   Convert to real from single and convert tv to virtual temperature
        do k=1,km
           do j=1,jm
              do i=1,im
+                tv(i,j,k)= tv(i,j,k)*(one+fv*q(i,j,k))
                 q(i,j,k)=max(q(i,j,k),zero)
-                tsen(i,j,k)=tv(i,j,k)
-                tv(i,j,k)= tsen(i,j,k)*(one+fv*q(i,j,k))
+                tsen(i,j,k)=tv(i,j,k)/(one+fv*q(i,j,k))
+!               q(i,j,k)=max(q(i,j,k),zero)
+!               tsen(i,j,k)=tv(i,j,k)
+!               tv(i,j,k)= tsen(i,j,k)*(one+fv*q(i,j,k))
              end do
           end do
        end do
