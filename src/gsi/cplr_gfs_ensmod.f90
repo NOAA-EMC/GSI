@@ -29,6 +29,7 @@ module get_gfs_ensmod_mod
     integer(i_kind) :: kas,kae,kasm,kaem,kaemz,mas,mae,masm,maem,maemz
     integer(i_kind) :: ibs,ibe,ibsm,ibem,ibemz,jbs,jbe,jbsm,jbem,jbemz
     integer(i_kind) :: kbs,kbe,kbsm,kbem,kbemz,mbs,mbe,mbsm,mbem,mbemz
+    integer(i_kind) :: icw,iql,iqi,iqr,iqs,iqg  
     integer(i_kind) :: n2d
     type(genex_info) :: s_a2b
 
@@ -180,13 +181,13 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     use gsi_4dvar, only: ens_fhrlevs
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only : assignment(=)
-    use hybrid_ensemble_parameters, only: n_ens,grd_ens
+    use hybrid_ensemble_parameters, only: n_ens,grd_ens,ntlevs_ens
     use hybrid_ensemble_parameters, only: ensemble_path
-    use control_vectors, only: nc2d,nc3d
-    !use control_vectors, only: cvars2d,cvars3d
+    use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
     use genex_mod, only: genex_create_info,genex,genex_destroy_info
     use gridmod, only: use_gfs_nemsio
     use jfunc, only: cnvw_option
+    use mpeu_util, only: getindex  
 
     implicit none
 
@@ -206,7 +207,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     integer(i_kind) :: io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,i_ens
     integer(i_kind) :: ip
     integer(i_kind) :: nlon,nlat,nsig
-    integer(i_kind),dimension(n_ens) :: io_pe0
+    integer(i_kind),dimension(n_ens) :: io_pe0,iretx
     real(r_single),allocatable,dimension(:,:,:,:) :: en_full,en_loc
     real(r_single),allocatable,dimension(:,:,:) :: sloc
     integer(i_kind),allocatable,dimension(:) :: m_cvars2dw,m_cvars3dw
@@ -314,6 +315,14 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     call mpi_allreduce(m_cvars3dw,m_cvars3d,nc3d,mpi_integer4,mpi_max,mpi_comm_world,ierror)
     deallocate(m_cvars2dw,m_cvars3dw)
 
+    ! Check hydrometeors in control variables 
+    icw=getindex(cvars3d,'cw')
+    iql=getindex(cvars3d,'ql')
+    iqi=getindex(cvars3d,'qi')
+    iqr=getindex(cvars3d,'qr')
+    iqs=getindex(cvars3d,'qs')
+    iqg=getindex(cvars3d,'qg')
+
 !   en_loc=zero
 
     allocate(en_loc(ibsm:ibemz,jbsm:jbemz,kbsm:kbemz,mbsm:mbemz))
@@ -321,14 +330,15 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
 
     deallocate(en_full)
 
-!   call genex_destroy_info(s_a2b)  ! check on actual routine name
+    if(ntindex == ntlevs_ens)call genex_destroy_info(s_a2b)  
 
 
     call create_grd23d_(grd3d,nc2d+nc3d*grd%nsig)
 
 
     allocate(sloc(grd3d%lat2,grd3d%lon2,grd3d%num_fields))
-    iret=0
+    iretx=0
+!$omp parallel do  schedule(dynamic,1) private(n,k,j,i,sloc) 
     do n=1,n_ens
        do k=1,grd3d%num_fields
           do j=1,grd3d%lon2
@@ -337,8 +347,12 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
              enddo
           enddo
        enddo
-       call move2bundle_(grd3d,sloc,atm_bundle(n),m_cvars2d,m_cvars3d,iret)
+       call move2bundle_(grd3d,sloc,atm_bundle(n),m_cvars2d,m_cvars3d,iretx(n))
     enddo
+    iret=iretx(1)
+    do n=2,n_ens
+       iret=iret+iretx(n)
+    end do
     deallocate(en_loc,sloc)
     call general_sub2grid_destroy_info(grd3d,grd)
 
@@ -379,7 +393,6 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
     use gsi_bundlemod, only: gsi_bundle
     use gsi_bundlemod, only: gsi_bundlegetpointer
     use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
-    use mpeu_util, only: getindex  
 
     implicit none
 
@@ -395,25 +408,14 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
 
     integer(i_kind) :: ierr,i,j
     integer(i_kind) :: km1,m
-    integer(i_kind) :: icw,iql,iqi,iqr,iqs,iqg  
     real(r_single),pointer,dimension(:,:) :: ps
     !real(r_kind),pointer,dimension(:,:) :: sst
     real(r_single),pointer,dimension(:,:,:) :: u,v,tv,q,oz,cwmr
     real(r_single),pointer,dimension(:,:,:) :: qlmr,qimr,qrmr,qsmr,qgmr   
 
-
-
-    ! Check hydrometeors in control variables 
-    icw=getindex(cvars3d,'cw')
-    iql=getindex(cvars3d,'ql')
-    iqi=getindex(cvars3d,'qi')
-    iqr=getindex(cvars3d,'qr')
-    iqs=getindex(cvars3d,'qs')
-    iqg=getindex(cvars3d,'qg')
-
 !   atm_bundle to zero done earlier
 
-    call gsi_bundlegetpointer(atm_bundle,'ps',ps,  ierr); iret = iret+ierr
+    call gsi_bundlegetpointer(atm_bundle,'ps',ps,  ierr); iret = ierr
     !call gsi_bundlegetpointer(atm_bundle,'sst',sst, ierr); iret = iret+ierr
 
     call gsi_bundlegetpointer(atm_bundle,'sf',u ,  ierr); iret = ierr + iret
@@ -444,7 +446,6 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
     enddo
 
     km1 = en_perts(1,1,1)%grid%km - 1
-!$omp parallel do  schedule(dynamic,1) private(m) 
     do m=1,nc3d
        if(trim(cvars3d(m))=='sf')then
           u    = en_loc3(:,:,m_cvars3d(m):m_cvars3d(m)+km1)
