@@ -54,11 +54,11 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   use gridmod, only: nsig,twodvar_regional,regional
   use gridmod, only: get_ijk,pt_ll
-  use jfunc, only: jiter,last,jiterstart,miter
+  use jfunc, only: jiter,last,jiterstart,miter,hofx_2m_sfcfile
 
   use guess_grids, only: nfldsig, hrdifsig,ges_lnprsl,&
        geop_hgtl,ges_tsen,pbl_height
-  use state_vectors, only: svars3d, levels
+  use state_vectors, only: svars3d, levels, ns3d, svars2d
 
   use constants, only: zero, one, four,t0c,rd_over_cp,three,rd_over_cp_mass,ten
   use constants, only: tiny_r_kind,half,two
@@ -228,6 +228,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !                         for 3D-RTMA (if l_obsprvdiag is true).
 !   2022-03-15  Hu  change all th2 to t2m to indicate that 2m temperature 
 !                   is sensible instead of potentionl temperature
+!   2023-03-21 Draper added option to interpolate screen-level T from model 2m output.
+!              (hofx_2m_sfcfile)
 !
 ! !REMARKS:
 !   language: f90
@@ -309,7 +311,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   logical,dimension(nobs):: luse,muse
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
-  logical sfctype
+  logical sfctype, landsfctype
   logical iqtflg
   logical aircraftobst
   logical duplogic
@@ -342,6 +344,18 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   integer(i_kind):: ich0
 
   type(obsLList),pointer,dimension(:):: thead
+
+  real(r_kind) :: delta_z,  lapse_error
+  real(r_kind), parameter :: T_lapse = -0.0045 ! standard lapse rate, K/m
+! use 4.5 K/km, in place of more standard 6.5 K/km, following
+! https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2019EA000984
+! lapse_error_frac around 0.5 ~ 2K/km, from Figure 2 of above.
+  real(r_kind), parameter :: lapse_error_frac = 0.5 ! inflation factor for obs error when vertically interpolating
+  real(r_kind), parameter :: max_delta_z = 300. ! max. vertical mismatch allowed
+
+! CSD - move this to where the namelists are read in.
+  if (i_use_2mt4b>0)  hofx_2m_sfcfile=.false.
+
   thead => obsLL(:)
 
   save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
@@ -432,8 +446,11 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   hr_offset=min_offset/60.0_r_kind
   dup=one
   do k=1,nobs
+     ikx=nint(data(ikxx,k))
+     itype=ictype(ikx)
+     landsfctype =( itype==181 .or. itype==183 .or. itype==187 .or. itype==188 )
      do l=k+1,nobs
-        if (twodvar_regional) then
+        if (twodvar_regional .or. (hofx_2m_sfcfile .and. landsfctype) ) then
            duplogic=data(ilat,k) == data(ilat,l) .and.  &
            data(ilon,k) == data(ilon,l) .and.  &
            data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
@@ -465,6 +482,10 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   end do
 
 ! Run a buddy-check
+! Note: buddy check crashes for hofx_2m_sfcfile option.
+! Ccurrent params have buddy radius of 108 km, max diff of 8 K.
+! The gross error check removes O-F > 7., so this is probably removing
+! most obs that fail the buddy check already
   if (twodvar_regional .and. buddycheck_t) call buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
 
 ! If requested, save select data for output to diagnostic file
@@ -521,6 +542,10 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         rstation_id     = data(id,i)
         prest=r10*exp(dpres)     ! in mb
         sfctype=(itype>179.and.itype<190).or.(itype>=192.and.itype<=199)
+!       hofx_2m_sfcfile option to calculate hofx from 2m model output (rather than LML)
+!       is restricted to landsfctype only. GDAS assimilates 180 and 182 over ocean,
+!       should we also use 2m model output for the over-ocean obs?
+        landsfctype =( itype==181 .or. itype==183 .or. itype==187 )
   
         iqtflg=nint(data(iqt,i)) == 0
         var_jb=data(ijb,i)
@@ -654,17 +679,22 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
 
-     drpx=zero
-     if(sfctype .and. .not.twodvar_regional) then
-        drpx=abs(one-((one/exp(dpres-log(psges))))**rd_over_cp)*t0c
-     end if
+     drpx = zero
+     if ( hofx_2m_sfcfile .and. landsfctype) then
+        dpres = one  ! put obs at surface
+     else
+        if(sfctype .and. .not.twodvar_regional) then
+            drpx=abs(one-((one/exp(dpres-log(psges))))**rd_over_cp)*t0c
+        end if
 
-!    Put obs pressure in correct units to get grid coord. number
-     call grdcrd1(dpres,prsltmp(1),nsig,-1)
+!       Put obs pressure in correct units to get grid coord. number
+        call grdcrd1(dpres,prsltmp(1),nsig,-1)
+     endif
 
 ! Implementation of forward model ----------
 
-     if(sfctype.and.sfcmodel) then
+!    SCENARIO 1: If obs is sfctype, and sfcmodel is requested. Outdated.
+     if(sfctype .and. sfcmodel) then
         tgges=data(iskint,i)
         roges=data(isfcr,i)
 
@@ -694,8 +724,47 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
              f10ges,u10ges,v10ges, t2ges, q2ges, regime, iqtflg)
         tges = t2ges
 
+!    SCENARIO 2: obs is sfctype, and hofx_2m_sfcfile  scheme is on.
+!    2m forecast has been read from the sfc guess files
+     elseif (landsfctype .and. hofx_2m_sfcfile ) then
+
+!         mask: 0 - sea, 1 - land, 2-ice, >= 3 mixed
+!         for now, use only pure land
+          if (int(data(idomsfc,i)) .NE. 1  ) muse(i) = .false.
+
+          call tintrp2a11(ges_t2m,tges2m,dlat,dlon,dtime,hrdifsig,&
+            mype,nfldsig)
+
+!         correct obs to model terrain height using a standard lapse rate.
+!         Later: look into updating with lapse-rate from the model (similar to gsd_terrain_match)
+
+          delta_z = data(izz,i) -  data(istnelv,i)
+          tob = tob + delta_z*T_lapse
+          !update the station elevation
+          data(istnelv,i) = data(izz,i)
+
+          if(save_jacobian) then
+             t_ind = getindex(svars2d, 't2m')
+             if (t_ind < 0) then
+                 print *, 'Error: no variable t2m in state vector.Exiting.'
+                 call stop2(1300)
+             endif
+             dhx_dx%st_ind(1) = sum(levels(1:ns3d))  + t_ind
+             dhx_dx%end_ind(1) = sum(levels(1:ns3d)) + t_ind
+             dhx_dx%val(1) = one
+             dhx_dx%val(2) = zero ! in this case, there is no vertical interp
+                                  ! and nnz (=dim(dhx_dx%val)) should be one,
+                                  ! but nnz is a file attribute, so need to use
+                                  ! same value as for vertical profile obs. Get
+                                  ! around this by setting val(2) to zero.
+          endif
+
+!    SCENARIO 3: obs is sfctype, and neither sfcmodel nor hofx_2m_sfcfile  is chosen
+!    .or. obs is not sfctype. Interpoate hofx from model levels.
      else
+
         if(iqtflg)then
+!          SCENARIO 3a: obs is a virtual temp.
 !          Interpolate guess tv to observation location and time
            call tintrp31(ges_tv,tges,dlat,dlon,dpres,dtime, &
                 hrdifsig,mype,nfldsig)
@@ -717,6 +786,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               dhx_dx%val(2) = delz               ! weight for iz+1's level
            endif
         else
+!          SCENARIO 3b: obs is a sensible temp.
 !          Interpolate guess tsen to observation location and time
            call tintrp31(ges_tsen,tges,dlat,dlon,dpres,dtime, &
                 hrdifsig,mype,nfldsig)
@@ -739,6 +809,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            endif
         end if
 
+
+!       SCENARIO 4: obs is sfctype, and i_use_2mt4b flag is on (turns on regional sfc DA)
         if(i_use_2mt4b>0 .and. sfctype) then
 
            if(i_coastline==1 .or. i_coastline==3) then
@@ -773,17 +845,23 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      call grdcrd1(sfcchk,prsltmp(1),nsig,-1)
 
 !    Check to see if observations is above the top of the model (regional mode)
-     if(sfctype)then
+     if(sfctype .and. .not. (hofx_2m_sfcfile .and. landsfctype) )then
         if(abs(dpres)>four) drpx=1.0e10_r_kind
         pres_diff=prest-r10*psges
         if (twodvar_regional .and. abs(pres_diff)>=r1000) drpx=1.0e10_r_kind
      end if
-     rlow=max(sfcchk-dpres,zero)
-! linear variation of observation ramp [between grid points 1(~3mb) and 15(~45mb) below the surface]
-     if(l_sfcobserror_ramp_t) then
-        ramp=min(max(((rlow-1.0_r_kind)/(15.0_r_kind-1.0_r_kind)),0.0_r_kind),1.0_r_kind)
+
+     if (.not. (hofx_2m_sfcfile  .and. landsfctype) ) then
+         rlow=max(sfcchk-dpres,zero)
+!        linear variation of observation ramp [between grid points 1(~3mb) and 15(~45mb) below the surface]
+         if(l_sfcobserror_ramp_t) then
+            ramp=min(max(((rlow-1.0_r_kind)/(15.0_r_kind-1.0_r_kind)),0.0_r_kind),1.0_r_kind)
+         else
+            ramp=rlow
+         endif
      else
-        ramp=rlow
+        rlow  = zero
+        ramp  = zero
      endif
 
      rhgh=max(zero,dpres-rsigp-r0_001)
@@ -795,12 +873,26 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         if(rlow/=zero) awork(2) = awork(2) + one
         if(rhgh/=zero) awork(3) = awork(3) + one
      end if
-     
-     ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+r8*ramp)
+
+!    inflate error for uncertainty in the terrain adjustment
+     lapse_error = 0.
+     if  ( hofx_2m_sfcfile  .and. landsfctype) then
+        if (abs(delta_z)<max_delta_z) then  ! if height discrepency >max_delta_z do not assim.
+                ! inflate obs error to account for error in lapse_rate
+                ! also include some representativity error here (assuming
+                ! delta_z ~ heterogeneity)
+                lapse_error = abs(lapse_error_frac*T_lapse*delta_z)
+        else
+                muse(i)=.false.
+        endif
+     endif
+
+     ratio_errors=error/(data(ier,i)+drpx+1.0e6_r_kind*rhgh+r8*ramp + lapse_error) 
 
 ! Compute innovation
-     if(i_use_2mt4b>0 .and. sfctype) then
+     if( (sfctype .and. i_use_2mt4b>0) .or. (hofx_2m_sfcfile .and. landsfctype) ) then
         ddiff = tob-tges2m
+        if (hofx_2m_sfcfile) tges=tges2m
      else
         ddiff = tob-tges
      endif
@@ -1411,7 +1503,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
      endif
-     if(i_use_2mt4b>0) then
+     if(i_use_2mt4b>0 .or. hofx_2m_sfcfile) then
 !    get t2m ...
         varname='t2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
@@ -1430,6 +1522,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
             write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
             call stop2(999)
         endif
+
 !    get q2m ...
         varname='q2m'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
@@ -1676,8 +1769,10 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
     call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
     call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
+! this is the obs height after being interpolated to the model (=model height)
     call nc_diag_metadata("Station_Elevation",       sngl(data(istnelv,i))  )
     call nc_diag_metadata("Pressure",                sngl(prest)            )
+! this is the original obs height (= stn elevation,  before being interpolated)
     call nc_diag_metadata("Height",                  sngl(data(iobshgt,i))  )
     call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
     call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
@@ -1693,11 +1788,13 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)     )
     call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
     call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
-    call nc_diag_metadata("Observation",             sngl(data(itob,i))     )
+    if (hofx_2m_sfcfile ) then
+      call nc_diag_metadata("Observation",             sngl(tob)    )
+    else
+      call nc_diag_metadata("Observation",             sngl(data(itob,i))     )
+    endif
     call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)      )
     call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(tob-tges)   )
-    call nc_diag_metadata("Forecast_unadjusted",     sngl(tges))
-    call nc_diag_metadata("Forecast_adjusted",       sngl(data(itob,i)-ddiff))
 
     if (aircraft_t_bc_pof .or. aircraft_t_bc .or. aircraft_t_bc_ext) then
        call nc_diag_metadata("Data_Pof",             sngl(data(ipof,i))     )
@@ -1750,9 +1847,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
     endif
 
-    ! need additional arrays for GeoVaLs for T2
-    call nc_diag_data2d("atmosphere_pressure_coordinate", sngl(exp(prsltmp)*r1000))
-
   end subroutine contents_netcdf_diag_
 
   subroutine contents_netcdf_diagp_(odiag)
@@ -1789,8 +1883,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("Observation",             sngl(data(itob,i))     )
     call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)      )
     call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(ddiff)      )
-    call nc_diag_metadata("Forecast_unadjusted",     sngl(data(itob,i)-ddiff))
-    call nc_diag_metadata("Forecast_adjusted",       sngl(data(itob,i)-ddiff))
 
 !----
     if (lobsdiagsave) then
@@ -1821,9 +1913,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
        call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
     endif
-
-    ! need additional arrays for GeoVaLs for T2
-    call nc_diag_data2d("atmosphere_pressure_coordinate", sngl(exp(prsltmp)*r1000))
 
   end subroutine contents_netcdf_diagp_
 

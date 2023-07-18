@@ -1832,14 +1832,10 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               call nc_diag_metadata("u_Observation",                              sngl(uob_e)           )
               call nc_diag_metadata("u_Obs_Minus_Forecast_adjusted",              sngl(dudiff_e)        )
               call nc_diag_metadata("u_Obs_Minus_Forecast_unadjusted",            sngl(uob_e-uges_e)    )
-              call nc_diag_metadata("u_Forecast_adjusted",                        sngl(uob_e-dudiff_e))
-              call nc_diag_metadata("u_Forecast_unadjusted",                      sngl(uges_e))
 
               call nc_diag_metadata("v_Observation",                              sngl(vob_e)           )
               call nc_diag_metadata("v_Obs_Minus_Forecast_adjusted",              sngl(dvdiff_e)        )
               call nc_diag_metadata("v_Obs_Minus_Forecast_unadjusted",            sngl(vob_e-vges_e)    )
-              call nc_diag_metadata("v_Forecast_adjusted",                        sngl(vob_e-dvdiff_e))
-              call nc_diag_metadata("v_Forecast_unadjusted",                      sngl(vges_e))
            endif
 
            if (lobsdiagsave) then
@@ -1878,8 +1874,6 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               call nc_diag_data2d("v_Observation_Operator_Jacobian_endind", dhx_dx_v%end_ind)
               call nc_diag_data2d("v_Observation_Operator_Jacobian_val", real(dhx_dx_v%val,r_single))
            endif
-
-           call nc_diag_data2d("atmosphere_pressure_coordinate", exp(prsltmp)*r1000)
 
   end subroutine contents_netcdf_diag_
 

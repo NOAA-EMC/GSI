@@ -148,6 +148,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !
 !   2020-05-04  wu      - no rotate_wind for fv3_regional
 !   2020-09-05  CAPS(C. Tong) - add flag for new vadwind obs to assimilate around the analysis time only
+!   2023-03-23  draper  - add code for processing T2m and q2m for global system
 
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -212,7 +213,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use hilbertcurve,only: init_hilbertcurve, accum_hilbertcurve, &
                          apply_hilbertcurve,destroy_hilbertcurve
   use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
-  use jfunc, only: tsensible
+  use jfunc, only: tsensible, hofx_2m_sfcfile
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_deter
@@ -263,7 +264,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   logical tob,qob,uvob,spdob,sstob,pwob,psob,gustob,visob,tdob,mxtmob,mitmob,pmob,howvob,cldchob
   logical metarcldobs,goesctpobs,tcamtob,lcbasob
   logical outside,driftl,convobs,inflate_error
-  logical sfctype
+  logical sfctype, global_2m_land
   logical luse,ithinp,windcorr
   logical patch_fog
   logical aircraftset,aircraftobs,aircraftobst,aircrafttype
@@ -1614,10 +1615,15 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               pmq(k)=nint(qcmark(8,k))
            end do
 
+!          181, 183, 187, and 188 are the screen-level obs over land
+           global_2m_land = ( (kx==181 .or. kx==183 .or. kx==188 .or. kx==188 ) .and. hofx_2m_sfcfile )
+
 !          If temperature ob, extract information regarding virtual
 !          versus sensible temperature
            if(tob) then
-              if (.not. twodvar_regional .or. .not.tsensible) then
+              ! use tvirtual if tsensible flag not set, and not in either 2Dregional or global_2m DA mode
+              if ( (.not. tsensible)  .and. .not. (twodvar_regional .or. global_2m_land) ) then
+
                  do k=1,levs
                     tvflg(k)=one                               ! initialize as sensible
                     do j=1,20
@@ -1914,6 +1920,26 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Missing Values ==>  Cycling! In this case for howv only.  #ww3 
               if (howvob  .and. owave(1,k) > r0_1_bmiss) cycle LOOP_K_LEVS
 
+!             Over-ride QM=9 and hard-wire errors for land obs and hofx_sfc_file option
+!             Can be deleted once prepbufr processing updated.
+              if ( global_2m_land ) then
+                if (tob .and. qm==9 ) then
+                     pqm(k)=2 ! otherwise, type 183 will be discarded.
+                     qm=2
+                     tqm(k)=2
+                     if (kx==187) obserr(3,k)=2.2
+                     if (kx==181) obserr(3,k)=1.5
+                     if (kx==183) obserr(3,k)=2.6
+                endif
+                if (qob .and. qm == 9 ) then 
+                     qm = 2
+                     ! qob err specified as fraction of qsat, multiplied by 10.
+                     if (kx==187) obserr(2,k)=1.0
+                     if (kx==181) obserr(2,k)=1.0
+                     if (kx==183) obserr(2,k)=1.0
+                endif
+
+              endif
 !             Set usage variable              
               usage = zero
               if(icuse(nc) <= 0)usage=100._r_kind
@@ -1957,6 +1983,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     if(obsdat(12,k) > 32.2_r_kind) usage=118._r_kind  ! > 90F
                  endif
               endif
+              ! to-do: should we add qob checks from above for landsfctype too?
 
               if ((kx>129.and.kx<140).or.(kx>229.and.kx<240) ) then
                  call get_aircraft_usagerj(kx,obstype,c_station_id,usage)

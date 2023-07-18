@@ -20,4 +20,6 @@ load(pathJoin("prod_util", prod_util_ver))
 
 pushenv("MKLROOT", "/apps/oneapi/mkl/2022.0.2")
 
+pushenv("GSI_BINARY_SOURCE_DIR", "/scratch1/NCEPDEV/global/glopara/fix/gsi/20230601")
+
 whatis("Description: GSI environment on Hera with GNU Compilers")

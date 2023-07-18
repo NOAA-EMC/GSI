@@ -131,6 +131,7 @@ module gridmod
   public :: vectosub
   public :: reload
   public :: strip_periodic
+  public :: minmype
 
 ! set passed variables to public
   public :: nnnn1o,iglobal,itotsub,ijn,ijn_s,lat2,lon2,lat1,lon1,nsig,nsig_soil
@@ -269,6 +270,7 @@ module gridmod
   integer(i_kind) jcap              ! spectral triangular truncation of ncep global analysis
   integer(i_kind) jcap_b            ! spectral triangular truncation of ncep global background
   integer(i_kind) nthreads          ! number of threads used (currently only used in calctends routines)
+  integer(i_kind) minmype           ! processor with minimum size subdomain
 
 
   logical periodic                              ! logical flag for periodic e/w domains
@@ -578,7 +580,7 @@ contains
     integer(i_kind) n3d,n2d,nvars,tid,nth
     integer(i_kind) ipsf,ipvp,jpsf,jpvp,isfb,isfe,ivpb,ivpe
     integer(i_kind) istatus,icw,iql,iqi
-    integer(i_kind) icw_cv,iql_cv,iqi_cv
+    integer(i_kind) icw_cv,iql_cv,iqi_cv,minmax
     logical,allocatable,dimension(:):: vector
     logical print_verbose
 
@@ -691,6 +693,8 @@ contains
 
     periodic=grd_a%periodic
 
+    minmype=0
+    minmax=grd_a%ilat1(1)*grd_a%jlon1(1)
     do i=1,npe
        istart(i)    =grd_a%istart(i)
        jstart(i)    =grd_a%jstart(i)
@@ -703,7 +707,12 @@ contains
        displs_s(i)  =grd_a%displs_s(i)
        ijn(i)       =grd_a%ijn(i)
        displs_g(i)  =grd_a%displs_g(i)
+       if(grd_a%ilat1(i)*grd_a%jlon1(i)< minmax)then
+         minmax=grd_a%ilat1(i)*grd_a%jlon1(i)
+         minmype=i-1
+       end if
     end do
+    if(mype == minmype) write(6,*) ' minmype = ',minmype
 
 !#omp parallel private(nth,tid)
     nth = omp_get_max_threads()

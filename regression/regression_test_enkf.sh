@@ -32,17 +32,18 @@ cd $tmpdir
 # Other required constants for regression testing
 maxtime=1200
 maxmem=${maxmem:-3400000} # set in regression_param
+maxmem=$((${memnode:-64}*1024*1024))
 
-# Copy stdout and sanl files 
+# Copy stdout and incr files 
 # from $savdir to $tmpdir
 list="$exp1 $exp2 $exp3"
 for exp in $list; do
    $ncp $savdir/$exp/stdout ./stdout.$exp
-   nmem=20
+   nmem=10
    imem=1
    while [[ $imem -le $nmem ]]; do
       member="_mem"`printf %03i $imem`
-      $ncp $savdir/$exp/sanl_${global_enkf_T62_adate}_fhr06$member $tmpdir/sanl$member.$exp
+      $ncp $savdir/$exp/incr_${global_adate}_fhr06$member $tmpdir/incr$member.$exp
       (( imem = $imem + 1 ))
    done
 done
@@ -62,9 +63,6 @@ diff increment.$exp1.txt increment.$exp3.txt > increment.${exp1}-${exp3}.txt
 # Give location of additional output files for scalability testing
 exp1_scale=$2
 exp2_scale=$4
-
-#exp1_scale=$global_T62_updat_exp2
-#exp2_scale=$global_T62_contrl_exp2
 
 # Copy stdout for additional scalability testing
 list="$exp1_scale $exp2_scale"
@@ -280,14 +278,17 @@ fi
 } >> $output
    else
 {
-nmem=20
+nmem=10
 imem=1
 while [[ $imem -le $nmem ]]; do
    member="_mem"`printf %03i $imem`
-   if ! cmp -s sanl$member.${exp1} sanl$member.${exp2} 
-then
-   echo 'sanl'$member'.'${exp1}' sanl'$member'.'${exp2}' are NOT identical'
-fi
+   ncdump incr$member.${exp1} > incr$member.${exp1}.out
+   ncdump incr$member.${exp2} > incr$member.${exp2}.out
+   if [ ! diff incr$member.${exp1}.out incr$member.${exp2}.out ]; then
+       echo 'incr'$member'.'${exp1}' incr'$member'.'${exp2}' are NOT identical'
+   else
+       rm -f incr$member.${exp1}.out incr$member.${exp2}.out
+   fi
    (( imem = $imem + 1 ))
 done
 echo
@@ -377,15 +378,18 @@ else
       else
 
 {
-   nmem=20
+   nmem=10
    imem=1
    while [[ $imem -le $nmem ]]; do
       member="_mem"`printf %03i $imem`
-      if ! cmp -s sanl$member.${exp1} sanl$member.${exp3}
-      then
-      echo 'sanl'$member'.'${exp1}' sanl'$member'.'${exp3}' are NOT identical'
+      ncdump incr$member.${exp1} > incr$member.${exp1}.out
+      ncdump incr$member.${exp3} > incr$member.${exp3}.out
+      if [ ! diff incr$member.${exp1}.out incr$member.${exp3}.out ]; then
+          echo 'incr'$member'.'${exp1}' incr'$member'.'${exp3}' are NOT identical'
+      else
+          rm -f incr$member.${exp1}.out incr$member.${exp3}.out
       fi
-   (( imem = $imem + 1 ))
+      (( imem = $imem + 1 ))
    done
    echo
 } >> $output
@@ -413,11 +417,20 @@ mkdir -p $vfydir
 
 $ncp $output                        $vfydir/
 
+# Final check for any failed tests
+count=$(grep -i "fail" $output |wc -l)
+if [ $count -gt 0 ]; then
+    (( failed_test = $failed_test + $count ))
+fi
+
+# Remove job log files is no failures detected
 cd $scripts
-rm -f ${exp1}.out
-rm -f ${exp2}.out
-rm -f ${exp3}.out
-rm -f ${exp2_scale}.out
+if [ $count -eq 0 ]; then
+    rm -f ${exp1}.out
+    rm -f ${exp2}.out
+    rm -f ${exp3}.out
+    rm -f ${exp2_scale}.out
+fi
 
 if [[ "$clean" = ".true." ]]; then
    rm -rf $savdir

@@ -26,7 +26,7 @@ if(NOT CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU|Intel)$")
 endif()
 
 # User options
-option(OPENMP "Enable OpenMP Threading" ON)
+option(OPENMP "Enable OpenMP Threading" OFF)
 option(ENABLE_MKL "Use MKL for LAPACK implementation (if available)" ON)
 option(BUILD_GSDCLOUD "Build GSD Cloud Analysis Library" OFF)
 option(BUILD_GSI "Build GSI" ON)
@@ -43,6 +43,11 @@ message(STATUS "BUILD_REG_TESTING ...... ${BUILD_REG_TESTING}")
 
 # Build components
 add_subdirectory(src)
+
+# Download and copy binary fix files if submodule has been cloned
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/fix/CMakeLists.txt)
+  add_subdirectory(fix)
+endif()
 
 if(BUILD_REG_TESTING)
   add_subdirectory(regression)

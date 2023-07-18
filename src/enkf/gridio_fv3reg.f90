@@ -20,6 +20,8 @@ module gridio
   !                   -- add code to update 'delp' directly 
   !                      from analysis icnrements
   !   2022-06- Ting   --  Implement paranc=.true. for fv3-lam 
+  !   2022-04-01 Yongming Wang and X. Wang:  Add interface for read in dBZ
+  !                poc: xuguang.wang@ou.edu
   ! attributes:
   !   language:  f95
   !
@@ -36,7 +38,7 @@ module gridio
   use params,   only: nlevs, cliptracers, datapath, arw, nmm, datestring
   use params,   only: nx_res,ny_res,nlevs,ntiles,l_fv3reg_filecombined,&
                   fv3_io_layout_nx,fv3_io_layout_ny,nanals
-  use params,   only:  pseudo_rh, l_use_enkf_directZDA
+  use params,   only:  pseudo_rh
   use mpeu_util, only: getindex
   use read_fv3regional_restarts,only:read_fv3_restart_data1d,read_fv3_restart_data2d
   use read_fv3regional_restarts,only:read_fv3_restart_data3d,read_fv3_restart_data4d
@@ -56,17 +58,19 @@ module gridio
 
   !-------------------------------------------------------------------------
   
-  integer(i_kind) ,parameter:: ndynvarslist=6, ntracerslist=8
+  integer(i_kind) ,parameter:: ndynvarslist=6, ntracerslist=8, nphysicslist=1
   character(len=max_varname_length), parameter, dimension(ndynvarslist) :: &
     vardynvars = [character(len=max_varname_length) :: &
       'u', 'v', 'T', 'W', 'DZ', 'delp']
   character(len=max_varname_length), parameter, dimension(ntracerslist) :: &
     vartracers = [character(len=max_varname_length) :: &
       'sphum','o3mr', 'liq_wat','ice_wat','rainwat','snowwat','graupel','rain_nc']
+  character(len=max_varname_length), parameter, dimension(nphysicslist) :: &
+    varphysics = [character(len=max_varname_length) :: 'ref_f3d']
   type type_fv3lamfile 
        logical l_filecombined
-       character(len=max_varname_length), dimension(2):: fv3lamfilename
-       integer (i_kind), dimension(2):: fv3lam_fileid(2)
+       character(len=max_varname_length), dimension(3):: fv3lamfilename
+       integer (i_kind), dimension(3):: fv3lam_fileid
        contains
          procedure, pass(this) :: setupfile => type_bound_setupfile
          procedure, pass(this):: get_idfn => type_bound_getidfn
@@ -100,9 +104,9 @@ contains
 
     ! Define local variables 
     character(len=500) :: filename
-    character(len=:),allocatable :: fv3filename,fv3filename1
+    character(len=:),allocatable :: fv3filename,fv3filename1,fv3filename2
     character(len=7)   :: charnanal
-    integer(i_kind) file_id,file_id1
+    integer(i_kind) file_id,file_id1,file_id2
     real(r_single), dimension(:,:,:), allocatable ::workvar3d,uworkvar3d,&
                         vworkvar3d,tvworkvar3d,tsenworkvar3d,&
                         workprsi,qworkvar3d
@@ -119,6 +123,7 @@ contains
     integer(i_kind) :: nlevsp1
     integer (i_kind):: i,j, k,nn,ntile,nn_tile0, nb,nanal,ne
     integer(i_kind) :: u_ind, v_ind, tv_ind,tsen_ind, q_ind,delp_ind, oz_ind
+    integer(i_kind) :: dbz_ind
     integer(i_kind) :: w_ind, ql_ind, qi_ind, qr_ind, qs_ind, qg_ind, qnr_ind
     integer (i_kind):: ps_ind, sst_ind
     integer (i_kind):: tmp_ind,ifile
@@ -143,6 +148,7 @@ contains
     qs_ind  = getindex(vars3d, 'qs')   ! Q snow (3D)
     qg_ind  = getindex(vars3d, 'qg')   ! Q graupel (3D)
     qnr_ind  = getindex(vars3d, 'qnr') ! N rain (3D)    
+    dbz_ind  = getindex(vars3d, 'dbz')   ! Reflectivity (3D)
 
     ps_ind  = getindex(vars2d, 'ps')  ! Ps (2D)
     sst_ind = getindex(vars2d, 'sst') ! SST (2D)
@@ -187,9 +193,19 @@ contains
               fv3filename1=trim(adjustl(filename))//"_tracer"
               call nc_check( nf90_open(trim(adjustl(fv3filename1)),nf90_nowrite,file_id1),&
                          myname_,'open: '//trim(adjustl(fv3filename1)) )
-              call fv3lamfile%setupfile(fileid1=file_id,fv3fn1=trim(adjustl(fv3filename))  , &
-                                            fileid2=file_id1,fv3fn2=trim(adjustl(fv3filename1)) )
-              
+              if(dbz_ind > 0) then
+                 fv3filename2=trim(adjustl(filename))//"_phyvar"
+                 call nc_check(nf90_open(trim(adjustl(fv3filename2)),nf90_nowrite,file_id2),&
+                      myname_,'open: '//trim(adjustl(fv3filename2)) )
+              endif
+              if(dbz_ind > 0) then
+                 call fv3lamfile%setupfile(fileid1=file_id,fv3fn1=trim(adjustl(fv3filename))  , &
+                                         fileid2=file_id1,fv3fn2=trim(adjustl(fv3filename1)),&
+                                         fileid3=file_id2,fv3fn3=trim(adjustl(fv3filename2)))
+              else
+                 call fv3lamfile%setupfile(fileid1=file_id,fv3fn1=trim(adjustl(fv3filename))  , &
+                                         fileid2=file_id1,fv3fn2=trim(adjustl(fv3filename1)))
+              endif
            endif 
 
          !----------------------------------------------------------------------
@@ -474,6 +490,27 @@ contains
 
            endif
            
+           if (dbz_ind > 0) then
+               varstrname = 'ref_f3d'
+               call fv3lamfile%get_idfn(varstrname,file_id,fv3filename)
+               call read_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+               do k=1,nlevs
+                   nn = nn_tile0
+                   do j=1,ny_res
+                     do i=1,nx_res
+                       nn=nn+1
+                       vargrid(nn,levels(dbz_ind-1)+k,nb,ne)=max(workvar3d(i,j,nlevs+1-k),0.0_r_kind)
+                     enddo
+                   enddo
+               enddo
+               do k = levels(dbz_ind-1)+1, levels(dbz_ind)
+                   if (nproc .eq. 0)                                               &
+                      write(6,*) 'READFVregional : dbz ',                           &
+                          & k, minval(vargrid(:,k,nb,ne)), maxval(vargrid(:,k,nb,ne))
+               enddo
+
+           endif
+
             ! set SST to zero for now
            if (sst_ind > 0) then
                vargrid(:,levels(n3d)+sst_ind,nb,ne) = zero
@@ -557,7 +594,8 @@ contains
                call nc_check( nf90_close(file_id),&
                  myname_,'close '//trim(filename) )
            else
-              do ifile=1,2
+              do ifile=1,3
+                if(dbz_ind <= 0 .and. ifile == 3) cycle
                 file_id=fv3lamfile%fv3lam_fileid(ifile)
                 filename=fv3lamfile%fv3lamfilename(ifile)
                 call nc_check( nf90_close(file_id),&
@@ -604,15 +642,15 @@ contains
     !----------------------------------------------------------------------
     ! Define variables computed within subroutine
     character(len=500)  :: filename
-    character(len=:),allocatable :: fv3filename,fv3filename1
+    character(len=:),allocatable :: fv3filename,fv3filename1,fv3filename2
     character(len=7)    :: charnanal
 
     !----------------------------------------------------------------------
-    integer(i_kind) :: u_ind, v_ind, tv_ind, tsen_ind,q_ind, delp_ind,ps_ind,oz_ind
-    integer(i_kind) :: w_ind 
+    integer(i_kind) :: u_ind, v_ind, tv_ind, tsen_ind, q_ind, delp_ind, ps_ind, oz_ind, dbz_ind
+    integer(i_kind) :: w_ind, cw_ind, ph_ind
     integer(i_kind) :: ql_ind, qi_ind, qr_ind, qs_ind, qg_ind, qnr_ind
 
-    integer(i_kind) file_id,file_id1
+    integer(i_kind) file_id,file_id1,file_id2
     real(r_single), dimension(:,:), allocatable ::pswork
     real(r_single), dimension(:,:,:), allocatable ::workvar3d,workinc3d,workinc3d2,uworkvar3d,&
                         vworkvar3d,tvworkvar3d,tsenworkvar3d,&
@@ -654,9 +692,11 @@ contains
     qs_ind  = getindex(vars3d, 'qs')  ! QS (3D) for FV3
     qg_ind  = getindex(vars3d, 'qg')  ! QG (3D) for FV3
     qnr_ind  = getindex(vars3d, 'qnr')  ! QNR (3D) for FV3
+    dbz_ind  = getindex(vars3d, 'dbz')   ! Reflectivity (3D)
     
     ps_ind  = getindex(vars2d, 'ps')  ! Ps (2D)
 
+    clip=tiny(clip)
     !----------------------------------------------------------------------
     if (nbackgrounds > 1) then
        write(6,*)'gridio/writegriddata: writing multiple backgrounds not yet supported'
@@ -700,6 +740,15 @@ contains
                call fv3lamfile%setupfile(fileid1=file_id,fv3fn1=trim(adjustl(fv3filename))  , &
                                              fileid2=file_id1,fv3fn2=trim(adjustl(fv3filename1)) )
                
+               if(dbz_ind > 0) then
+                  call fv3lamfile%setupfile(fileid1=file_id,fv3fn1=trim(adjustl(fv3filename))  , &
+                                         fileid2=file_id1,fv3fn2=trim(adjustl(fv3filename1)),&
+                                         fileid3=file_id2,fv3fn3=trim(adjustl(fv3filename2)))
+               else
+                  call fv3lamfile%setupfile(fileid1=file_id,fv3fn1=trim(adjustl(fv3filename))  , &
+                                         fileid2=file_id1,fv3fn2=trim(adjustl(fv3filename1)))
+               endif
+
             endif 
 
 
@@ -831,12 +880,28 @@ contains
               call fv3lamfile%get_idfn(varstrname,file_id,fv3filename)
               call read_fv3_restart_data3d(varstrname,fv3filename,file_id,tsenworkvar3d)
               if(.not. (q_ind > 0)) then !to read in sphum 
-                   varstrname = 'sphum'
-                   call fv3lamfile%get_idfn(varstrname,file_id,fv3filename)
-                   call read_fv3_restart_data3d(varstrname,fv3filename,file_id,qworkvar3d)
+                 varstrname = 'sphum'
+                 call fv3lamfile%get_idfn(varstrname,file_id,fv3filename)
+                 call read_fv3_restart_data3d(varstrname,fv3filename,file_id,qworkvar3d)
               endif
+              !enforce lower positive bound (clip) to replace negative hydrometers
+              if ( cliptracers ) where (qworkvar3d < clip) qworkvar3d = clip
               tvworkvar3d=tsenworkvar3d*(one+fv*qworkvar3d)
               tvworkvar3d=tvworkvar3d+workinc3d
+              if(q_ind > 0) then
+                do k=1,nlevs
+                   nn = nn_tile0
+                   do j=1,ny_res
+                     do i=1,nx_res
+                       nn=nn+1
+                       workinc3d(i,j,k)=vargrid(nn,levels(q_ind-1)+k,nb,ne) 
+                     enddo
+                   enddo
+                 enddo
+                 qworkvar3d=qworkvar3d+workinc3d   
+                 !enforce lower positive bound (clip) to replace negative q 
+                 if ( cliptracers ) where (qworkvar3d < clip) qworkvar3d = clip
+              endif
               tsenworkvar3d=tvworkvar3d/(one+fv*qworkvar3d)
               varstrname = 'T'
               call fv3lamfile%get_idfn(varstrname,file_id,fv3filename)
@@ -888,10 +953,7 @@ contains
                 enddo
              enddo
              workvar3d=workvar3d+workinc3d
-             if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                 clip = tiny(workvar3d(1,1,1))
-                 where (workvar3d < clip) workvar3d = clip
-             end if
+             if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
              call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
 
           endif
@@ -911,10 +973,7 @@ contains
                 enddo
               enddo
               workvar3d=workvar3d+workinc3d
-              if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                 clip = tiny(workvar3d(1,1,1))
-                 where (workvar3d < clip) workvar3d = clip
-              end if
+              if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
               call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
 
           endif
@@ -934,10 +993,7 @@ contains
                enddo
              enddo
              workvar3d=workvar3d+workinc3d
-             if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                 clip = tiny(workvar3d(1,1,1))
-                 where (workvar3d < clip) workvar3d = clip
-             end if
+             if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
              call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
 
           endif
@@ -957,10 +1013,7 @@ contains
                enddo
              enddo
              workvar3d=workvar3d+workinc3d
-             if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                 clip = tiny(workvar3d(1,1,1))
-                 where (workvar3d < clip) workvar3d = clip
-             end if
+             if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
              call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
 
           endif
@@ -980,10 +1033,7 @@ contains
                 enddo
              enddo
              workvar3d=workvar3d+workinc3d
-             if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                 clip = tiny(workvar3d(1,1,1))
-                 where (workvar3d < clip) workvar3d = clip
-             end if
+             if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
              call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
 
           endif
@@ -1002,10 +1052,26 @@ contains
                enddo
              enddo
              workvar3d=workvar3d+workinc3d
-             if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                 clip = tiny(workvar3d(1,1,1))
-                 where (workvar3d < clip) workvar3d = clip
-             end if
+             if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
+             call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+
+          endif
+
+          if (dbz_ind > 0) then
+             varstrname = 'ref_f3d'
+             call fv3lamfile%get_idfn(varstrname,file_id,fv3filename)
+             call read_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
+             do k=1,nlevs
+                nn = nn_tile0
+                do j=1,ny_res
+                   do i=1,nx_res
+                      nn=nn+1
+                      workinc3d(i,j,nlevs+1-k)=vargrid(nn,levels(dbz_ind-1)+k,nb,ne)
+                   enddo
+                enddo
+             enddo
+             workvar3d=workvar3d+workinc3d
+             where (workvar3d < 0.0_r_kind) workvar3d = 0.0_r_kind
              call write_fv3_restart_data3d(varstrname,fv3filename,file_id,workvar3d)
 
           endif
@@ -1075,7 +1141,8 @@ contains
             call nc_check( nf90_close(file_id),&
               myname_,'close '//trim(filename) )
           else
-            do ifile=1,2
+            do ifile=1,3
+              if(dbz_ind <=0 .and. ifile == 3) cycle
               file_id=fv3lamfile%fv3lam_fileid(ifile)
               filename=fv3lamfile%fv3lamfilename(ifile)
               call nc_check( nf90_close(file_id),&
@@ -1873,7 +1940,7 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
     
     ps_ind  = getindex(vars2d, 'ps')  ! Ps (2D)
 
-
+    clip=tiny(clip)
     allocate(my_neb(4))
     !----------------------------------------------------------------------
     if (nbackgrounds > 1) then
@@ -2188,6 +2255,7 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
                 endif
        
                 if(iope ==0 ) then
+                  if ( cliptracers ) where (qworkvar3d < clip) qworkvar3d = clip
                   tvworkvar3d=tsenworkvar3d*(one+fv*qworkvar3d)
                   tvworkvar3d=tvworkvar3d+workinc3d
                   if(q_ind > 0) then
@@ -2201,6 +2269,7 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
                        enddo
                      enddo
                      qworkvar3d=qworkvar3d+workinc3d   
+                     if ( cliptracers ) where (qworkvar3d < clip) qworkvar3d = clip
                   endif
                   tsenworkvar3d=tvworkvar3d/(one+fv*qworkvar3d)
                 endif
@@ -2277,10 +2346,7 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
                    enddo
                 enddo
                 workvar3d=workvar3d+workinc3d
-                if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                     clip = tiny(workvar3d(1,1,1))
-                     where (workvar3d < clip) workvar3d = clip
-                end if
+                if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
               endif
               do k=1,nlevs
                  call mpi_scatterv(workvar3d(:,:,k),recvcounts2d,displs2d,mpi_real4,&
@@ -2311,10 +2377,7 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
                    enddo
                 enddo
                 workvar3d=workvar3d+workinc3d
-                 if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                     clip = tiny(workvar3d(1,1,1))
-                     where (workvar3d < clip) workvar3d = clip
-                 end if
+                 if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
               endif
               do k=1,nlevs
                  call mpi_scatterv(workvar3d(:,:,k),recvcounts2d,displs2d,mpi_real4,&
@@ -2345,10 +2408,7 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
                    enddo
                 enddo
                 workvar3d=workvar3d+workinc3d
-                 if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                     clip = tiny(workvar3d(1,1,1))
-                     where (workvar3d < clip) workvar3d = clip
-                 end if
+                 if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
               endif
               do k=1,nlevs
                  call mpi_scatterv(workvar3d(:,:,k),recvcounts2d,displs2d,mpi_real4,&
@@ -2379,10 +2439,7 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
                    enddo
                 enddo
                 workvar3d=workvar3d+workinc3d
-                 if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                     clip = tiny(workvar3d(1,1,1))
-                     where (workvar3d < clip) workvar3d = clip
-                 end if
+                 if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
               endif
               do k=1,nlevs
                  call mpi_scatterv(workvar3d(:,:,k),recvcounts2d,displs2d,mpi_real4,&
@@ -2413,10 +2470,7 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
                    enddo
                 enddo
                 workvar3d=workvar3d+workinc3d
-                if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                     clip = tiny(workvar3d(1,1,1))
-                     where (workvar3d < clip) workvar3d = clip
-                end if
+                if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
               endif
               do k=1,nlevs
                  call mpi_scatterv(workvar3d(:,:,k),recvcounts2d,displs2d,mpi_real4,&
@@ -2446,10 +2500,7 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
                    enddo
                 enddo
                 workvar3d=workvar3d+workinc3d
-                if ( l_use_enkf_directZDA .and. cliptracers ) then ! set cliptracers to remove negative hydrometers
-                     clip = tiny(workvar3d(1,1,1))
-                     where (workvar3d < clip) workvar3d = clip
-                end if
+                if ( cliptracers ) where (workvar3d < clip) workvar3d = clip
               endif
               do k=1,nlevs
                  call mpi_scatterv(workvar3d(:,:,k),recvcounts2d,displs2d,mpi_real4,&
@@ -2558,19 +2609,23 @@ subroutine writegriddata_pnc(vars3d,vars2d,n3d,n2d,levels,ndim,vargrid,no_inflat
     ! Return calculated values
     return
 end subroutine writegriddata_pnc
-subroutine type_bound_setupfile(this,fileid1,fv3fn1,fileid2,fv3fn2)
+subroutine type_bound_setupfile(this,fileid1,fv3fn1,fileid2,fv3fn2,fileid3,fv3fn3)
        implicit none
        class (type_fv3lamfile) :: this  
        integer(i_kind) fileid1
-       integer(i_kind), optional :: fileid2
+       integer(i_kind), optional :: fileid2,fileid3
        character(len=*)::fv3fn1
-       character(len=*),optional ::fv3fn2
+       character(len=*),optional ::fv3fn2,fv3fn3
        if (present (fileid2)) then
          this%l_filecombined=.false. 
          this%fv3lamfilename(1)=trim(fv3fn1)
          this%fv3lamfilename(2)=trim(fv3fn2)
          this%fv3lam_fileid(1)=fileid1
          this%fv3lam_fileid(2)=fileid2
+         if (present (fileid3)) then
+            this%fv3lamfilename(3)=trim(fv3fn3)
+            this%fv3lam_fileid(3)=fileid3
+         endif
        else
          this%l_filecombined=.true. 
          this%fv3lamfilename(1)=fv3fn1
@@ -2589,6 +2644,9 @@ subroutine type_bound_getidfn(this,vnamloc,fileid,fv3fn)
          else if(ifindstrloc(vartracers,vnamloc)> 0)  then  
            fv3fn=trim(this%fv3lamfilename(2))
            fileid=this%fv3lam_fileid(2)
+         else if(ifindstrloc(varphysics,vnamloc)> 0)  then  
+           fv3fn=trim(this%fv3lamfilename(3))
+           fileid=this%fv3lam_fileid(3)
          else
            write(6,*)"the varname ",trim(vnamloc)," is not recognized in the ype_bound_getidfn, stop"
            call stop2(23)

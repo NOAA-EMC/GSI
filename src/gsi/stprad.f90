@@ -110,7 +110,7 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   use gsi_metguess_mod, only: gsi_metguess_get
   use mpeu_util, only: getindex
   use intradmod, only: luseu,lusev,luset,luseq,lusecw,luseoz,luseqg,luseqh,luseqi,luseql, &
-          luseqr,luseqs
+          luseqr,luseqs,lusesst
   use intradmod, only: itsen,iqv,ioz,icw,ius,ivs,isst,iqg,iqh,iqi,iql,iqr,iqs,lgoback
   use m_obsNode, only: obsNode
   use m_radNode, only: radNode
@@ -128,14 +128,15 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   type(gsi_bundle),intent(in) :: xval
 
 ! Declare local variables
-  integer(i_kind) istatus
-  integer(i_kind) nn,n,ic,k,nx,j1,j2,j3,j4,kk, mm, ic1,ncr
+  integer(i_kind) istatus,icx
+  integer(i_kind) nn,n,ic,k,nx,j1,j2,j3,j4,kk,mm,ncr
   real(r_kind) val2,val,w1,w2,w3,w4
   real(r_kind),dimension(nsigradjac):: tdir,rdir
   real(r_kind) cg_rad,wgross,wnotgross
   integer(i_kind),dimension(nsig) :: j1n,j2n,j3n,j4n
-  real(r_kind),dimension(max(1,nstep)) :: term,rad
+  real(r_kind),dimension(max(1,nstep)) :: rad
   type(radNode), pointer :: radptr
+  real(r_kind),allocatable,dimension(:,:) :: term
   real(r_kind),allocatable,dimension(:) :: biasvects 
   real(r_kind),allocatable,dimension(:) :: biasvectr
   real(r_kind),pointer,dimension(:) :: rt,rq,rcw,roz,ru,rv,rqg,rqh,rqi,rql,rqr,rqs
@@ -150,34 +151,59 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
 
   if(lgoback)return
 
-! Retrieve pointers
-  call gsi_bundlegetpointer(xval,'u',  su, istatus)
-  call gsi_bundlegetpointer(xval,'v',  sv, istatus)
-  call gsi_bundlegetpointer(xval,'tsen' ,st, istatus)
-  call gsi_bundlegetpointer(xval,'q',  sq, istatus)
-  call gsi_bundlegetpointer(xval,'cw' ,scw,istatus)
-  call gsi_bundlegetpointer(xval,'oz' ,soz,istatus)
-  call gsi_bundlegetpointer(xval,'sst',sst,istatus)
-  call gsi_bundlegetpointer(xval,'qg' ,sqg,istatus)
-  call gsi_bundlegetpointer(xval,'qh' ,sqh,istatus)
-  call gsi_bundlegetpointer(xval,'qi' ,sqi,istatus)
-  call gsi_bundlegetpointer(xval,'ql' ,sql,istatus)
-  call gsi_bundlegetpointer(xval,'qr' ,sqr,istatus)
-  call gsi_bundlegetpointer(xval,'qs' ,sqs,istatus)
-
-  call gsi_bundlegetpointer(dval,'u',  ru, istatus)
-  call gsi_bundlegetpointer(dval,'v',  rv, istatus)
-  call gsi_bundlegetpointer(dval,'tsen' ,rt, istatus)
-  call gsi_bundlegetpointer(dval,'q',  rq, istatus)
-  call gsi_bundlegetpointer(dval,'cw' ,rcw,istatus)
-  call gsi_bundlegetpointer(dval,'oz' ,roz,istatus)
-  call gsi_bundlegetpointer(dval,'sst',rst,istatus)
-  call gsi_bundlegetpointer(dval,'qg' ,rqg,istatus)
-  call gsi_bundlegetpointer(dval,'qh' ,rqh,istatus)
-  call gsi_bundlegetpointer(dval,'qi' ,rqi,istatus)
-  call gsi_bundlegetpointer(dval,'ql' ,rql,istatus)
-  call gsi_bundlegetpointer(dval,'qr' ,rqr,istatus)
-  call gsi_bundlegetpointer(dval,'qs' ,rqs,istatus)
+! Retrieve pointers for used variables
+  if(luseu)then
+    call gsi_bundlegetpointer(dval,'u',  ru, istatus)
+    call gsi_bundlegetpointer(xval,'u',  su, istatus)
+  end if
+  if(lusev)then
+    call gsi_bundlegetpointer(xval,'v',  sv, istatus)
+    call gsi_bundlegetpointer(dval,'v',  rv, istatus)
+  end if
+  if(luset)then
+    call gsi_bundlegetpointer(xval,'tsen' ,st, istatus)
+    call gsi_bundlegetpointer(dval,'tsen' ,rt, istatus)
+  end if
+  if(luseq)then
+    call gsi_bundlegetpointer(xval,'q',  sq, istatus)
+    call gsi_bundlegetpointer(dval,'q',  rq, istatus)
+  end if
+  if(lusecw)then
+    call gsi_bundlegetpointer(xval,'cw' ,scw,istatus)
+    call gsi_bundlegetpointer(dval,'cw' ,rcw,istatus)
+  end if
+  if(luseoz)then
+    call gsi_bundlegetpointer(xval,'oz' ,soz,istatus)
+    call gsi_bundlegetpointer(dval,'oz' ,roz,istatus)
+  end if
+  if(lusesst)then
+    call gsi_bundlegetpointer(xval,'sst',sst,istatus)
+    call gsi_bundlegetpointer(dval,'sst',rst,istatus)
+  end if
+  if(luseqg)then
+    call gsi_bundlegetpointer(xval,'qg' ,sqg,istatus)
+    call gsi_bundlegetpointer(dval,'qg' ,rqg,istatus)
+  end if
+  if(luseqh)then
+    call gsi_bundlegetpointer(xval,'qh' ,sqh,istatus)
+    call gsi_bundlegetpointer(dval,'qh' ,rqh,istatus)
+  end if
+  if(luseqi)then
+    call gsi_bundlegetpointer(xval,'qi' ,sqi,istatus)
+    call gsi_bundlegetpointer(dval,'qi' ,rqi,istatus)
+  end if
+  if(luseql)then
+    call gsi_bundlegetpointer(xval,'ql' ,sql,istatus)
+    call gsi_bundlegetpointer(dval,'ql' ,rql,istatus)
+  end if
+  if(luseqr)then
+    call gsi_bundlegetpointer(xval,'qr' ,sqr,istatus)
+    call gsi_bundlegetpointer(dval,'qr' ,rqr,istatus)
+  end if
+  if(luseqs)then
+    call gsi_bundlegetpointer(xval,'qs' ,sqs,istatus)
+    call gsi_bundlegetpointer(dval,'qs' ,rqs,istatus)
+  end if
 
 
   tdir=zero
@@ -187,118 +213,117 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
   do while(associated(radptr))
      if(radptr%luse)then
         if(nstep > 0)then
-           j1=radptr%ij(1)
-           j2=radptr%ij(2)
-           j3=radptr%ij(3)
-           j4=radptr%ij(4)
            w1=radptr%wij(1)
            w2=radptr%wij(2)
            w3=radptr%wij(3)
            w4=radptr%wij(4)
-           if(luseu)then
-              tdir(ius+1)=w1* su(j1) + w2* su(j2) + w3* su(j3) + w4* su(j4)
-              rdir(ius+1)=w1* ru(j1) + w2* ru(j2) + w3* ru(j3) + w4* ru(j4)
-           endif
-           if(lusev)then
-              tdir(ivs+1)=w1* sv(j1) + w2* sv(j2) + w3* sv(j3) + w4* sv(j4)
-              rdir(ivs+1)=w1* rv(j1) + w2* rv(j2) + w3* rv(j3) + w4* rv(j4)
-           endif
-           if (isst>=0) then
-              tdir(isst+1)=w1*sst(j1) + w2*sst(j2) + w3*sst(j3) + w4*sst(j4)   
-              rdir(isst+1)=w1*rst(j1) + w2*rst(j2) + w3*rst(j3) + w4*rst(j4)   
-           end if
 
-           j1n(1) = j1
-           j2n(1) = j2
-           j3n(1) = j3
-           j4n(1) = j4
+           j1n(1) = radptr%ij(1)
+           j2n(1) = radptr%ij(2)
+           j3n(1) = radptr%ij(3)
+           j4n(1) = radptr%ij(4)
            do n=2,nsig
               j1n(n) = j1n(n-1)+latlon11
               j2n(n) = j2n(n-1)+latlon11
               j3n(n) = j3n(n-1)+latlon11
               j4n(n) = j4n(n-1)+latlon11
            enddo
-           do n=1,nsig
-              j1 = j1n(n)
-              j2 = j2n(n)
-              j3 = j3n(n)
-              j4 = j4n(n)
-  
-!             Input state vector
-!             Input search direction vector
-              if(luset)then
-                 tdir(itsen+n)=w1* st(j1) +w2* st(j2) + w3* st(j3) +w4*  st(j4)
-                 rdir(itsen+n)=w1* rt(j1) +w2* rt(j2) + w3* rt(j3) +w4*  rt(j4)
-              endif
-              if(luseq)then
-                 tdir(iqv+n)=w1* sq(j1) +w2* sq(j2) + w3* sq(j3) +w4*  sq(j4)
-                 rdir(iqv+n)=w1* rq(j1) +w2* rq(j2) + w3* rq(j3) +w4*  rq(j4)
-              endif
-              if (luseoz) then
-                 tdir(ioz+n)=w1*soz(j1)+w2*soz(j2)+ w3*soz(j3)+w4*soz(j4)
-                 rdir(ioz+n)=w1*roz(j1)+w2*roz(j2)+ w3*roz(j3)+w4*roz(j4)
-              end if
-              if (lusecw) then
-                 tdir(icw+n)=w1*scw(j1)+w2*scw(j2)+ w3*scw(j3)+w4*scw(j4)
-                 rdir(icw+n)=w1*rcw(j1)+w2*rcw(j2)+ w3*rcw(j3)+w4*rcw(j4)
-              end if
-              if (luseqg) then
-                 tdir(iqg+n)=w1*sqg(j1)+w2*sqg(j2)+ w3*sqg(j3)+w4*sqg(j4)
-                 rdir(iqg+n)=w1*rqg(j1)+w2*rqg(j2)+ w3*rqg(j3)+w4*rqg(j4)
-              end if
-              if (luseqh) then
-                 tdir(iqh+n)=w1*sqh(j1)+w2*sqh(j2)+ w3*sqh(j3)+w4*sqh(j4)
-                 rdir(iqh+n)=w1*rqh(j1)+w2*rqh(j2)+ w3*rqh(j3)+w4*rqh(j4)
-              end if
-              if (luseqi) then
-                 tdir(iqi+n)=w1*sqi(j1)+w2*sqi(j2)+ w3*sqi(j3)+w4*sqi(j4)
-                 rdir(iqi+n)=w1*rqi(j1)+w2*rqi(j2)+ w3*rqi(j3)+w4*rqi(j4)
-              end if
-              if (luseql) then
-                 tdir(iql+n)=w1*sql(j1)+w2*sql(j2)+ w3*sql(j3)+w4*sql(j4)
-                 rdir(iql+n)=w1*rql(j1)+w2*rql(j2)+ w3*rql(j3)+w4*rql(j4)
-              end if
-              if (luseqr) then
-                 tdir(iqr+n)=w1*sqr(j1)+w2*sqr(j2)+ w3*sqr(j3)+w4*sqr(j4)
-                 rdir(iqr+n)=w1*rqr(j1)+w2*rqr(j2)+ w3*rqr(j3)+w4*rqr(j4)
-              end if
-              if (luseqs) then
-                 tdir(iqs+n)=w1*sqs(j1)+w2*sqs(j2)+ w3*sqs(j3)+w4*sqs(j4)
-                 rdir(iqs+n)=w1*rqs(j1)+w2*rqs(j2)+ w3*rqs(j3)+w4*rqs(j4)
-              end if
+           allocate(biasvects(radptr%nchan))
+           allocate(biasvectr(radptr%nchan))
+           allocate(term(max(1,nstep),radptr%nchan))
 
+!$omp parallel do schedule(dynamic,1) private(n,j1,j2,j3,j4,icx,vals_quad,valr_quad,nx)
+           do n=1,max(nsig,radptr%nchan)
+              if(n <= nsig)then
+                j1 = j1n(n)
+                j2 = j2n(n)
+                j3 = j3n(n)
+                j4 = j4n(n)
+                if(n == 1)then
+                   if(luseu)then
+                      tdir(ius+1)=w1* su(j1) + w2* su(j2) + w3* su(j3) + w4* su(j4)
+                      rdir(ius+1)=w1* ru(j1) + w2* ru(j2) + w3* ru(j3) + w4* ru(j4)
+                   endif
+                   if(lusev)then
+                      tdir(ivs+1)=w1* sv(j1) + w2* sv(j2) + w3* sv(j3) + w4* sv(j4)
+                      rdir(ivs+1)=w1* rv(j1) + w2* rv(j2) + w3* rv(j3) + w4* rv(j4)
+                   endif
+                   if (lusesst) then
+                      tdir(isst+1)=w1*sst(j1) + w2*sst(j2) + w3*sst(j3) + w4*sst(j4)   
+                      rdir(isst+1)=w1*rst(j1) + w2*rst(j2) + w3*rst(j3) + w4*rst(j4)   
+                   end if
+                end if
+    
+!               Input state vector
+!               Input search direction vector
+                if(luset)then
+                   tdir(itsen+n)=w1* st(j1) +w2* st(j2) + w3* st(j3) +w4*  st(j4)
+                   rdir(itsen+n)=w1* rt(j1) +w2* rt(j2) + w3* rt(j3) +w4*  rt(j4)
+                endif
+                if(luseq)then
+                   tdir(iqv+n)=w1* sq(j1) +w2* sq(j2) + w3* sq(j3) +w4*  sq(j4)
+                   rdir(iqv+n)=w1* rq(j1) +w2* rq(j2) + w3* rq(j3) +w4*  rq(j4)
+                endif
+                if (luseoz) then
+                   tdir(ioz+n)=w1*soz(j1)+w2*soz(j2)+ w3*soz(j3)+w4*soz(j4)
+                   rdir(ioz+n)=w1*roz(j1)+w2*roz(j2)+ w3*roz(j3)+w4*roz(j4)
+                end if
+                if (lusecw) then
+                   tdir(icw+n)=w1*scw(j1)+w2*scw(j2)+ w3*scw(j3)+w4*scw(j4)
+                   rdir(icw+n)=w1*rcw(j1)+w2*rcw(j2)+ w3*rcw(j3)+w4*rcw(j4)
+                end if
+                if (luseqg) then
+                   tdir(iqg+n)=w1*sqg(j1)+w2*sqg(j2)+ w3*sqg(j3)+w4*sqg(j4)
+                   rdir(iqg+n)=w1*rqg(j1)+w2*rqg(j2)+ w3*rqg(j3)+w4*rqg(j4)
+                end if
+                if (luseqh) then
+                   tdir(iqh+n)=w1*sqh(j1)+w2*sqh(j2)+ w3*sqh(j3)+w4*sqh(j4)
+                   rdir(iqh+n)=w1*rqh(j1)+w2*rqh(j2)+ w3*rqh(j3)+w4*rqh(j4)
+                end if
+                if (luseqi) then
+                   tdir(iqi+n)=w1*sqi(j1)+w2*sqi(j2)+ w3*sqi(j3)+w4*sqi(j4)
+                   rdir(iqi+n)=w1*rqi(j1)+w2*rqi(j2)+ w3*rqi(j3)+w4*rqi(j4)
+                end if
+                if (luseql) then
+                   tdir(iql+n)=w1*sql(j1)+w2*sql(j2)+ w3*sql(j3)+w4*sql(j4)
+                   rdir(iql+n)=w1*rql(j1)+w2*rql(j2)+ w3*rql(j3)+w4*rql(j4)
+                end if
+                if (luseqr) then
+                   tdir(iqr+n)=w1*sqr(j1)+w2*sqr(j2)+ w3*sqr(j3)+w4*sqr(j4)
+                   rdir(iqr+n)=w1*rqr(j1)+w2*rqr(j2)+ w3*rqr(j3)+w4*rqr(j4)
+                end if
+                if (luseqs) then
+                   tdir(iqs+n)=w1*sqs(j1)+w2*sqs(j2)+ w3*sqs(j3)+w4*sqs(j4)
+                   rdir(iqs+n)=w1*rqs(j1)+w2*rqs(j2)+ w3*rqs(j3)+w4*rqs(j4)
+                end if
+              end if
+              if(n <= radptr%nchan)then
+                icx=radptr%icx(n)
+                vals_quad = zero_quad
+                valr_quad = zero_quad
+                do nx=1,npred
+                  vals_quad = vals_quad + spred(nx,icx)*radptr%pred(nx,n)
+                  valr_quad = valr_quad + rpred(nx,icx)*radptr%pred(nx,n)
+                end do
+                biasvects(n) = vals_quad
+                biasvectr(n) = valr_quad
+              end if
 
            end do
-        end if
 
-        if(nstep > 0)then
-            allocate(biasvects(radptr%nchan))
-            allocate(biasvectr(radptr%nchan))
-            do nn=1,radptr%nchan
-              ic1=radptr%icx(nn)
-              vals_quad = zero_quad
-              valr_quad = zero_quad
-              do nx=1,npred
-                vals_quad = vals_quad + spred(nx,ic1)*radptr%pred(nx,nn)
-                valr_quad = valr_quad + rpred(nx,ic1)*radptr%pred(nx,nn)
-              end do
-              biasvects(nn) = vals_quad
-              biasvectr(nn) = valr_quad
-            end do
         endif
 
-        ncr=0
+! !$omp parallel do schedule(dynamic,1) private(nn,ic,mm,ncr,k,kk,rad,val,val2,cg_rad,wnotgross,wgross)
         do nn=1,radptr%nchan
-
-           val2=-radptr%res(nn)
 
            if(nstep > 0)then
               val = zero
+              val2=-radptr%res(nn)
 !             contribution from bias corection
               ic=radptr%icx(nn)
               if(radptr%use_corr_obs) then
                  do mm=1,nn
-                    ncr=ncr+1
+                    ncr=radptr%iccerr(nn)+mm
                     val2=val2+radptr%rsqrtinv(ncr)*biasvects(mm)
                     val =val +radptr%rsqrtinv(ncr)*biasvectr(mm)
                  end do
@@ -318,12 +343,12 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
                  rad(kk)=val2+sges(kk)*val
               end do
            else
-              rad(kk)= val2
+              rad(1)= -radptr%res(nn)
            end if
         
 !          calculate contribution to J
            do kk=1,max(1,nstep)
-              term(kk)  = radptr%err2(nn)*rad(kk)*rad(kk)
+              term(kk,nn)  = radptr%err2(nn)*rad(kk)*rad(kk)
            end do
 
 !          Modify penalty term if nonlinear QC
@@ -333,18 +358,23 @@ subroutine stprad(radhead,dval,xval,rpred,spred,out,sges,nstep)
               wnotgross= one-pg_rad(ic)*varqc_iter
               wgross = varqc_iter*pg_rad(ic)*cg_rad/wnotgross
               do kk=1,max(1,nstep)
-                 term(kk)  = -two*log((exp(-half*term(kk) ) + wgross)/(one+wgross))
+                 term(kk,nn)  = -two*log((exp(-half*term(kk,nn) ) + wgross)/(one+wgross))
               end do
            endif
 
-           out(1) = out(1) + term(1)*radptr%raterr2(nn)
+        end do
+
+        deallocate(biasvects, biasvectr)
+
+        do nn=1,radptr%nchan
+           out(1) = out(1) + term(1,nn)*radptr%raterr2(nn)
            do kk=2,nstep
-              out(kk) = out(kk) + (term(kk)-term(1))*radptr%raterr2(nn)
+              out(kk) = out(kk) + (term(kk,nn)-term(1,nn))*radptr%raterr2(nn)
            end do
 
         end do
 
-        if(nstep > 0) deallocate(biasvects, biasvectr)
+        deallocate(term)
 
      end if
 

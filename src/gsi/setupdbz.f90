@@ -426,6 +426,7 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
      if (lobsdiagsave) nreal=nreal+4*miter+1
      if (.not.allocated(cdiagbuf)) allocate(cdiagbuf(nobs))
      if (.not.allocated(rdiagbuf)) allocate(rdiagbuf(nreal,nobs))
+     if(netcdf_diag) call init_netcdf_diag_
   end if
   mm1=mype+1
   scale=one
@@ -1447,35 +1448,42 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
 
 ! Release memory of local guess arrays
   call final_vars_
-
 ! Write information to diagnostic file
-  if(radardbz_diagsave  .and. ii>0 )then
+  if(radardbz_diagsave .and. netcdf_diag) call nc_diag_write
+  if(radardbz_diagsave .and. binary_diag .and. ii>0  )then
 
-     write(string,600) jiter
-600  format('radardbz_',i2.2)
-     diag_file=trim(dirname) // trim(string)
-     if(init_pass) then
-        open(newunit=lu_diag,file=trim(diag_file),form='unformatted',status='unknown',position='rewind')
+     if( .not. l_use_dbz_directDA .and. .not. if_model_dbz )then
+        write(7)'dbz',nchar,nreal,ii,mype,ioff0
+        write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
+        deallocate(cdiagbuf,rdiagbuf)
      else
-        inquire(file=trim(diag_file),exist=diagexist)
-        if (diagexist) then
-           open(lu_diag,file=trim(diag_file),form='unformatted',status='old',position='append')
-        else
-           open(lu_diag,file=trim(diag_file),form='unformatted',status='unknown',position='rewind')
-        endif
-     endif
-     if(init_pass .and. mype == 0) then
-        if ( .not. l_use_dbz_directDA ) then    ! EnKF uses these diagnostics and EnKF uses single OBS file for now.
-           write(lu_diag) ianldate          ! So do not write analysis date for binary in case of using direct reflectivity DA.
-        end if
-        write(6,*)'SETUPDBZ:   write time record to file ',&
-                trim(diag_file), ' ',ianldate
-     endif
 
-     write(lu_diag)'dbz',nchar,nreal,ii,mype,ioff0
-     write(lu_diag)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
-     deallocate(cdiagbuf,rdiagbuf)
-     close(lu_diag)
+        write(string,600) jiter
+600     format('radardbz_',i2.2)
+        diag_file=trim(dirname) // trim(string)
+        if(init_pass) then
+           open(newunit=lu_diag,file=trim(diag_file),form='unformatted',status='unknown',position='rewind')
+        else
+           inquire(file=trim(diag_file),exist=diagexist)
+           if (diagexist) then
+              open(lu_diag,file=trim(diag_file),form='unformatted',status='old',position='append')
+           else
+              open(lu_diag,file=trim(diag_file),form='unformatted',status='unknown',position='rewind')
+           endif
+        endif
+        if(init_pass .and. mype == 0) then
+           if ( .not. l_use_dbz_directDA ) then    ! EnKF uses these diagnostics and EnKF uses single OBS file for now.
+              write(lu_diag) ianldate          ! So do not write analysis date for binary in case of using direct reflectivity DA.
+           end if
+           write(6,*)'SETUPDBZ:   write time record to file ',&
+                   trim(diag_file), ' ',ianldate
+        endif
+
+        write(lu_diag)'dbz',nchar,nreal,ii,mype,ioff0
+        write(lu_diag)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
+        deallocate(cdiagbuf,rdiagbuf)
+        close(lu_diag)
+     end if
   end if
   write(6,*)'mype, irefsmlobs,irejrefsmlobs are ',mype,' ',irefsmlobs, ' ',irejrefsmlobs
 ! close(52) !simulated obs
@@ -1773,7 +1781,7 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
      end if
 
      call nc_diag_init(diag_conv_file, append=append_diag)
-
+    
      if (.not. append_diag) then ! don't write headers on append - the module will break?
         call nc_diag_header("date_time",ianldate )
         call nc_diag_header("Number_of_state_vars", nsdim          )

@@ -64,6 +64,7 @@ module general_specmod
 ! set subroutines to public
   public :: general_init_spec_vars
   public :: general_destroy_spec_vars
+  public :: general_spec_multwgt
 ! set passed variables to public
   public :: spec_vars
   public :: spec_cut
@@ -305,6 +306,36 @@ contains
 
     return
   end subroutine general_init_spec_vars
+
+  subroutine general_spec_multwgt(sp,spcwrk,spcwgt)
+!   2017-03-30  J. Kay, X. Wang - add general_spec_multwgt for scale-dependent
+!   weighting of mixed resolution ensemble,
+!                                 POC: xuguang.wang@ou.edu
+!
+    implicit none
+    type(spec_vars),intent(in) :: sp
+    real(r_kind),dimension(sp%nc),intent(inout) :: spcwrk
+    real(r_kind),dimension(0:sp%jcap),intent(in) :: spcwgt
+
+    integer(i_kind) l,jmax,ks,n
+
+!! Code borrowed from spvar in splib
+    jmax=sp%jcap
+
+    do n=0,jmax
+       ks=2*n
+       spcwrk(ks+1)=spcwrk(ks+1)*spcwgt(n)
+    end do
+    do n=0,jmax
+       do l=MAX(1,n-jmax),MIN(n,jmax)
+          ks=l*(2*jmax+(-1)*(l-1))+2*n
+          spcwrk(ks+1) = spcwrk(ks+1)*spcwgt(n)
+          spcwrk(ks+2) = spcwrk(ks+2)*spcwgt(n)
+       end do
+    end do
+
+    return
+  end subroutine general_spec_multwgt
 
   subroutine general_destroy_spec_vars(sp)
 !$$$  subprogram documentation block

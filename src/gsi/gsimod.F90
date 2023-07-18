@@ -24,7 +24,7 @@
 
   use obsmod, only: doradaroneob,oneoblat,oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,&
      radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
-     rmesh_vr,zmesh_dbz,zmesh_vr,if_vterminal, if_model_dbz,if_vrobs_raw,&
+     rmesh_vr,zmesh_dbz,zmesh_vr,if_vterminal, if_model_dbz,if_vrobs_raw,if_use_w_vr,&
      minobrangedbz,maxobrangedbz,maxobrangevr,maxtiltvr,missing_to_nopcp,&
      ntilt_radarfiles,whichradar,&
      minobrangevr,maxtiltdbz,mintiltvr,mintiltdbz,l2rwthin,hurricane_radar 
@@ -99,7 +99,7 @@
      factv,factl,factp,factg,factw10m,facthowv,factcldch,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,cwoption,switch_on_derivatives,tendsflag,jiterstart,jiterend,R_option,&
      bcoption,diurnalbc,print_diag_pcg,tsensible,diag_precon,step_start,pseudo_q2,&
-     clip_supersaturation,cnvw_option
+     clip_supersaturation,cnvw_option,hofx_2m_sfcfile
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,&
      nrf_var,lcalc_gfdl_cfrac,incvars_to_zero,incvars_zero_strat,incvars_efold 
@@ -149,8 +149,12 @@
                          beta_s0,beta_e0,s_ens_h,s_ens_v,init_hybrid_ensemble_parameters,&
                          readin_localization,write_ens_sprd,eqspace_ensgrid,grid_ratio_ens,&
                          readin_beta,use_localization_grid,use_gfs_ens,q_hyb_ens,i_en_perts_io, &
-                         l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens
-  use hybrid_ensemble_parameters,only : l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar
+                         l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens, &
+                         ntotensgrp,nsclgrp,naensgrp,ngvarloc,ntlevs_ens,naensloc, &
+                         r_ensloccov4tim,r_ensloccov4var,r_ensloccov4scl,l_timloc_opt,&
+                         vdl_scale,vloc_varlist,&
+                         global_spectral_filter_sd,assign_vdl_nml,parallelization_over_ensmembers
+  use hybrid_ensemble_parameters,only : l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,weight_ens_gfs,weight_ens_fv3sar
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
                             metar_impact_radius_lowcloud,l_gsd_terrain_match_surftobs, &
@@ -181,7 +185,7 @@
        oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname, &
        laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue, lread_ext_aerosol, &
-       laeroana_fv3cmaq,crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
+       laeroana_fv3cmaq,laeroana_fv3smoke,pm2_5_innov_threshold,crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
        icvt_cmaq_fv3, raod_radius_mean_scale,raod_radius_std_scale 
 
   use chemmod, only : wrf_pm2_5,aero_ratios
@@ -497,6 +501,7 @@
 !                           2. fv3_regional =      .true.  
 !                           3. fv3_cmaq_regional = .true. 
 !                           4. berror_fv3_cmaq_regional = .true. 
+!  09-15-2022 yokota  - add scale/variable/time-dependent localization
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -760,7 +765,7 @@
        oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,&
        rmesh_vr,zmesh_dbz,zmesh_vr, ntilt_radarfiles, whichradar,&
        radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
-       minobrangevr, maxtiltdbz, mintiltvr,mintiltdbz,if_vterminal,if_vrobs_raw,&
+       minobrangevr, maxtiltdbz, mintiltvr,mintiltdbz,if_vterminal,if_vrobs_raw,if_use_w_vr,&
        if_model_dbz,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,aircraft_recon,diag_version,&
        write_fv3_incr,incvars_to_zero,incvars_zero_strat,incvars_efold,diag_version,&
        cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef,cnvw_option,l2rwthin,hurricane_radar,&
@@ -1042,7 +1047,7 @@
 !      l_foreaft_thin -   separate TDR fore/aft scan for thinning
 
   namelist/obs_input/dmesh,time_window_max,time_window_rad, &
-       ext_sonde,l_foreaft_thin
+       ext_sonde,l_foreaft_thin,hofx_2m_sfcfile
 
 ! SINGLEOB_TEST (one observation test case setup):
 !      maginnov   - magnitude of innovation for one ob
@@ -1309,9 +1314,19 @@
 !     beta_e0 - default weight given to ensemble background error covariance
 !               (if .not. readin_beta). if beta_e0<0, then it is set to
 !               1.-beta_s0 (this is the default)
-!     s_ens_h             - homogeneous isotropic horizontal ensemble localization scale (km)
-!     s_ens_v             - vertical localization scale (grid units for now)
-!                              s_ens_h, s_ens_v, and beta_s0 are tunable parameters.
+!     s_ens_h - horizontal localization correlation length of Gaussian exp(-0.5*(r/L)**2)
+!               (units of km), default = 2828.0
+!     s_ens_v - vertical localization correlation length of Gaussian exp(-0.5*(r/L)**2)
+!               (grid units if s_ens_v>=0, or units of ln(p) if s_ens_v<0), default = 30.0
+!                  in scale/variable/time-dependent localization (SDL/VDL/TDL),
+!                  localization length for i-th scale, j-th variable, and k-th time is
+!                     s_ens_[hv]( i + nsclgrp*(j-1) + nsclgrp*ngvarloc*(k-1) )
+!                        in SDL(nsclgrp>1),         i = 1(largest scale)  .. nsclgrp(smallest scale)
+!                        in VDL(ngvarloc=2),        j = 1(itracer<=10)    .. 2(itracer>=11)
+!                        in TDL(l_timloc_opt=true), k = 1(first time bin) .. ntlevs_ens(last time bin)
+!                  in SDL, scale separation length for i-th scale is also set here as
+!                     s_ens_[hv]( naensgrp+i ) - naensgrp is the total number of localization lengths for SDL/VDL/TDL
+!                        in applying SDL only horizontally, set s_ens_v(naensgrp+i)=0.0
 !     use_gfs_ens  - controls use of global ensemble: .t. use GFS (default); .f. uses user-defined ens
 !     readin_localization - flag to read (.true.)external localization information file
 !     readin_beta         - flag to read (.true.) the vertically varying beta parameters beta_s and beta_e
@@ -1349,14 +1364,65 @@
 !     ensemble_path - path to ensemble members; default './'
 !     ens_fast_read - read ensemble in parallel; default '.false.'
 !     sst_staticB - use only static background error covariance for SST statistic
-!              
-!                         
-  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,nlon_ens,nlat_ens,jcap_ens,&
+!     nsclgrp - number of scale-dependent localization lengths
+!     l_timloc_opt - if true, then turn on time-dependent localization
+!     ngvarloc - number of variable-dependent localization lengths
+!     naensloc - total number of spatial localization lengths and scale separation lengths (should be naensgrp+nsclgrp-1)
+!     r_ensloccov4tim - factor multiplying to cross-time covariance
+!                         For example,
+!                         =0.0: cross-time covariance is decreased to zero
+!                         =0.5: cross-time covariance is decreased to half
+!                         =1.0: cross-time covariance is retained
+!     r_ensloccov4var - factor multiplying to cross-variable covariance
+!                         For example,
+!                         =0.0: cross-variable covariance is decreased to zero
+!                         =0.5: cross-variable covariance is decreased to half
+!                         =1.0: cross-variable covariance is retained
+!     r_ensloccov4scl - factor multiplying to cross-scale covariance
+!                         For example,
+!                         =0.0: cross-scale covariance is decreased to zero
+!                         =0.5: cross-scale covariance is decreased to half
+!                         =1.0: cross-scale covariance is retained
+!     global_spectral_filter_sd - if true, use spectral filter function for
+!                                 scale decomposition in the global application (Huang et al. 2021)
+!     assign_vdl_nml - if true, vdl_scale, and vloc_varlist will be used for
+!                      assigning variable-dependent localization upon SDL in gsiparm.anl.
+!                      This method described in (Wang and Wang 2022, JAMES) is
+!                      equivalent to, but different from the method associated
+!                      with the parameter r_ensloccov4var.
+!     vloc_varlist - list of control variables using the same localization length,
+!                     effective only with assign_vdl_nml=.true. For example,
+!                     vloc_varlist(1,:) = 'sf','vp','ps','t',
+!                     vloc_varlist(2,:) = 'q',
+!                     vloc_varlist(3,:) = 'qr','qs','qg','dbz','w','ql','qi',
+!                     vloc_varlist(4,:) = 'sf','vp','ps','t','q',
+!                     vloc_varlist(5,:) = 'qr','qs','qg','dbz','w','ql','qi',
+!                     This example indicates that 3 variable-groups will be adopted for VDL. 
+!                     'sf','vp','ps','t' will share the same localization length of v1L1; 
+!                     'q' will have the localization lenth of v2L1
+!                     'qr','qs','qg','dbz','w','ql','qi', use the same localization length of v3L1
+!
+!                     For L2, a different configuration of VDL can be applied:
+!                               ~~~~~~~~~
+!                     'sf','vp','ps','t','q' will share the same localization length of v2L2; 
+!                     'qr','qs','qg','dbz','w','ql','qi', use the same localization length of v2L2
+!     vdl_scale - number of variables in each variable-group, effective only with assign_vdl_nml=.true.
+!                 if 3 variable-groups with 2 separated scale is set, 
+!                 vdl_scale = 3,    3,    3,   2,    2
+!                             ^     ^     ^    ^     ^ 
+!                 s_ens_h  = v1L1  v2L1  v3L1  v1L2 v2L2
+!                 Then localization lengths will be assigned as above.
+!
+  namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,&
+                l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,weight_ens_gfs,weight_ens_fv3sar,nlon_ens,nlat_ens,jcap_ens,&
                 pseudo_hybens,merge_two_grid_ensperts,regional_ensemble_option,fv3sar_bg_opt,fv3sar_ensemble_opt,full_ensemble,pwgtflg,&
                 jcap_ens_test,beta_s0,beta_e0,s_ens_h,s_ens_v,readin_localization,eqspace_ensgrid,readin_beta,&
                 grid_ratio_ens, &
                 oz_univ_static,write_ens_sprd,use_localization_grid,use_gfs_ens, &
-                i_en_perts_io,l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens
+                i_en_perts_io,l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens, &
+                nsclgrp,l_timloc_opt,ngvarloc,naensloc,r_ensloccov4tim,r_ensloccov4var,r_ensloccov4scl,&
+                vdl_scale,vloc_varlist,&
+                global_spectral_filter_sd,assign_vdl_nml,parallelization_over_ensmembers
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
 !                             enhancement for RR appilcation  ):
@@ -1542,9 +1608,9 @@
        oneob_type_chem,oblat_chem,oblon_chem,obpres_chem,&
        diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname,&
-       laeroana_gocart, laeroana_fv3cmaq,l_aoderr_table, aod_qa_limit, &
+       laeroana_gocart, laeroana_fv3cmaq,laeroana_fv3smoke,l_aoderr_table, aod_qa_limit, &
        crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
-       icvt_cmaq_fv3, &
+       icvt_cmaq_fv3,pm2_5_innov_threshold, &
        raod_radius_mean_scale,raod_radius_std_scale, luse_deepblue,&
        aero_ratios,wrf_pm2_5, lread_ext_aerosol
 
@@ -1759,9 +1825,10 @@
        n_ens_gfs=n_ens
        n_ens_fv3sar=0
     else 
-       write(6,*)'n_ens_gfs and n_ens_fv3sar won"t be used if not regional_ensemble_option==5' 
+       if(mype == 0)write(6,*)'n_ens_gfs and n_ens_fv3sar won"t be used if not regional_ensemble_option==5' 
     endif
-    
+    weight_ens_gfs=one
+    weight_ens_fv3sar=one
   endif
   if(ltlint) then
      if(vqc .or. njqc .or. nvqc)then
@@ -1806,6 +1873,18 @@
      write(6,*)'gsimod: analysis error estimate requires congrad',jsiga,lcongrad
      call stop2(137)
   endif
+
+  ntotensgrp=nsclgrp*ngvarloc
+  if(l_timloc_opt) then
+     naensgrp=ntotensgrp*ntlevs_ens
+  else
+     naensgrp=ntotensgrp
+  endif
+  if( (.not. global_spectral_filter_sd) .and. (.not. assign_vdl_nml) .and. naensloc<naensgrp+nsclgrp-1) then
+     naensloc=naensgrp+nsclgrp-1
+  end if
+  if(mype==0) write(6,*) 'in gsimod: naensgrp,ntotensgrp,nsclgrp,ngvarloc,ntlevs_ens= ', &
+                          naensgrp,ntotensgrp,nsclgrp,ngvarloc,ntlevs_ens
 
   call gsi_4dcoupler_setservices(rc=ier)
   if(ier/=0) call die(myname_,'gsi_4dcoupler_setServices(), rc =',ier)
@@ -1966,15 +2045,17 @@
      baldiag_inc =.false.
   end if
 
-! If reflectivity is intended to be assimilated, beta_s0 should be zero.
+! Warning of reflectivity assimilation with static B
   if ( beta_s0 > 0.0_r_kind )then
     ! skipped in case of direct reflectivity DA because it works in Envar and hybrid
-    if ( .not.l_use_rw_columntilt .or. .not.l_use_dbz_directDA) then
+    if ( l_use_rw_columntilt .or. l_use_dbz_directDA) then
        do i=1,ndat
-          if ( index(dtype(i), 'dbz') /= 0 )then
-             write(6,*)'beta_s0 needs to be set to zero in this GSI version, when reflectivity is directly assimilated. &
-                        Static B extended for radar reflectivity assimilation will be included in future version.'
-             call stop2(8888)
+          if ( if_model_dbz .and. (index(dtype(i), 'dbz') /= 0) )then
+             if (mype==0) then
+                write(6,*)'GSIMOD:  ***WARNING*** static B for reflectivity is regarded as zero in this GSI version &
+                           even though beta_s0 =',beta_s0
+                write(6,*)'Static B extended for radar reflectivity assimilation will be included in future version.'
+             end if
           end if
        end do
     end if

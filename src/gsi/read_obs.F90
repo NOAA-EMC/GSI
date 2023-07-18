@@ -221,9 +221,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
          lexist=.false.
       end if
       if(lexist)then
-       if(jsatid == '')then
-         kidsat=0
-       else if(jsatid == 'metop-a')then
+       kidsat=0
+       if(jsatid == 'metop-a')then
          kidsat=4
        else if(jsatid == 'metop-b')then
          kidsat=3
@@ -335,8 +334,6 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
 !         kidsat = 288
        else if ( jsatid == 'meghat' ) then
          kidsat = 440
-       else
-         kidsat = 0
        end if
 
        call closbf(lnbufr)
@@ -346,8 +343,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
        call datelen(10)
 
        if(kidsat /= 0)then
-        lexist = .false.
-        satloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+         lexist = .false.
+         satloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
            if(ireadsb(lnbufr)==0)then
               call ufbint(lnbufr,satid,1,1,iret,'SAID')
            end if
@@ -356,8 +353,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
              exit satloop
            end if
            nread = nread + 1
-        end do satloop
-       else if(trim(filename) == 'prepbufr')then  ! RTod: wired-in filename is not a good idea
+         end do satloop
+       else if(trim(filename) == 'prepbufr')then  
          lexist = .false.
          fileloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
           do while(ireadsb(lnbufr)>=0)

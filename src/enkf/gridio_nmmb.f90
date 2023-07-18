@@ -50,7 +50,6 @@ integer :: u_ind, v_ind, t_ind, tsen_ind, q_ind, oz_ind, cw_ind, prse_ind,&
            ql_ind, qr_ind, qi_ind, qli_ind, dbz_ind, w_ind
 integer :: ps_ind, sst_ind
 !integer(nemsio_intkind) :: idvc
-write(6,*)'test'
 
 u_ind    = getindex(vars3d, 'u')   !< indices in the state var arrays
 v_ind    = getindex(vars3d, 'v')   ! U and V (3D)

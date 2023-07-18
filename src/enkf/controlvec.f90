@@ -131,7 +131,7 @@ do ii=1,nvars
       cvars3d(nc3d) = trim(adjustl(var))
       clevels(nc3d) = ilev + clevels(nc3d-1)
    else 
-      if (nproc .eq. 0) print *,'Error: only ', nlevs, ' and ', nlevs+1,' number of levels is supported in current version, got ',ilev
+      if (nproc .eq. 0) print *,'Error controlvec: only ', nlevs, ' and ', nlevs+1,' number of levels is supported in current version, got ',ilev
       call stop2(503)
    endif
 enddo
@@ -163,17 +163,16 @@ do i = 1, nc2d
       print *,'Error: 2D variable ', cvars2d(i), ' is not supported in current version.'
       print *,'Supported variables: ', vars2d_supported
     endif
-    call stop2(5021)
+    call stop2(502)
   endif
 enddo
-
 do i = 1, nc3d
   if (getindex(vars3d_supported, cvars3d(i))<0) then
     if (nproc .eq. 0) then 
        print *,'Error: 3D variable ', cvars3d(i), ' is not supported in current version.'
        print *,'Supported variables: ', vars3d_supported
     endif
-    call stop2(5022)
+    call stop2(502)
   endif
 enddo
 
@@ -213,7 +212,10 @@ end if
 ! read in whole control vector on i/o procs - keep in memory 
 ! (needed in write_ensemble)
 allocate(grdin(npts,ncdim,nbackgrounds,nanals_per_iotask))
-allocate(qsat(npts,nlevs,nbackgrounds,nanals_per_iotask))
+! if only updating the sfc fields, qsat will not be calculated in readgriddata
+! only allocate if needed.
+q_ind = getindex(cvars3d, 'q')
+if (q_ind > 0)  allocate(qsat(npts,nlevs,nbackgrounds,nanals_per_iotask))
 if (paranc) then
    if (nproc == 0) t1 = mpi_wtime()
    call readgriddata_pnc(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,nbackgrounds, &
@@ -226,7 +228,8 @@ if (nproc <= ntasks_io-1) then
            fgfileprefixes,fgsfcfileprefixes,reducedgrid,grdin,qsat)
    end if
    !print *,'min/max qsat',nanal,'=',minval(qsat),maxval(qsat)
-   if (use_qsatensmean) then
+   q_ind = getindex(cvars3d, 'q')
+   if (use_qsatensmean .and. q_ind>0 ) then
        allocate(qsatmean(npts,nlevs,nbackgrounds))
        allocate(qsat_tmp(npts))
        ! compute ensemble mean qsat
@@ -258,7 +261,6 @@ if (nproc <= ntasks_io-1) then
    !   print *,'min/max qsatmean proc',nproc,'=',&
    !            minval(qsatmean(:,:,nbackgrounds/2+1)),maxval(qsatmean(:,:,nbackgrounds/2+1))
    !endif
-   q_ind = getindex(cvars3d, 'q')
    if (pseudo_rh .and. q_ind > 0) then
       if (use_qsatensmean) then
          do ne=1,nanals_per_iotask
@@ -290,7 +292,7 @@ implicit none
 logical, intent(in) :: no_inflate_flag
 
 real(r_double)  :: t1,t2
-integer(i_kind) :: nb, nvar, ne
+integer(i_kind) :: nb, nvar,ne,nn
 integer(i_kind) :: q_ind, ierr
 real(r_single), allocatable, dimension(:,:) :: grdin_mean_tmp
 real(r_single), allocatable, dimension(:,:,:,:) :: grdin_mean
@@ -310,11 +312,21 @@ if (nproc <= ntasks_io-1) then
          print *,'--------------'
       endif
       ! gather ensmean increment on root.
-      do ne=1,nanals_per_iotask
-         call mpi_reduce(grdin(:,:,nb,ne), grdin_mean_tmp, npts*ncdim, mpi_real4,&
-                         mpi_sum,0,mpi_comm_io,ierr)
-         if (nproc == 0) grdin_mean(:,:,nb,1) = grdin_mean(:,:,nb,1) + grdin_mean_tmp
-      enddo
+      if (real(npts)*real(ncdim) < 2_r_kind**32/2_r_kind - 1_r_kind) then
+         do ne=1,nanals_per_iotask
+            call mpi_reduce(grdin(:,:,nb,ne), grdin_mean_tmp, npts*ncdim, mpi_real4,&
+                            mpi_sum,0,mpi_comm_io,ierr)
+            if (nproc == 0) grdin_mean(:,:,nb,1) = grdin_mean(:,:,nb,1) + grdin_mean_tmp
+         enddo
+      else
+         do nn=1,ncdim
+         do ne=1,nanals_per_iotask
+            call mpi_reduce(grdin(:,nn,nb,ne), grdin_mean_tmp(:,nn), npts, mpi_real4,&
+                            mpi_sum,0,mpi_comm_io,ierr)
+            if (nproc == 0) grdin_mean(:,nn,nb,1) = grdin_mean(:,nn,nb,1) + grdin_mean_tmp(:,nn)
+         enddo
+         enddo
+      endif
       ! print out ens mean increment info
       if (nproc == 0) then
          grdin_mean(:,:,nb,1) = grdin_mean(:,:,nb,1)/real(nanals)
