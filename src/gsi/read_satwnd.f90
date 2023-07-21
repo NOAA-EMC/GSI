@@ -278,8 +278,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   ntx(ntread)=0
   ntxall=0
   do nc=1,nconvtype
-     if( (trim(ioctype(nc)) == 'uv' .or. trim(ioctype(nc)) == 'wspd10m' .or. trim(ioctype(nc)) == 'uwnd10m' .or. trim(ioctype(nc)) == 'vwnd10m') .and.  ictype(nc) >=240 &
-             .and. ictype(nc) <=265) then
+     if((trim(ioctype(nc)) == 'uv' .or. trim(ioctype(nc)) == 'wspd10m' .or. trim(ioctype(nc)) == 'uwnd10m' .or. &
+        trim(ioctype(nc)) == 'vwnd10m') .and. ictype(nc) >=240 .and. ictype(nc) <=265) then
         ntmatch=ntmatch+1
         ntxall(ntmatch)=nc
         ithin=ithin_conv(nc)
@@ -289,6 +289,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         end if
      end if
   end do
+
   if(ntmatch == 0)then
      write(6,*) ' READ_SATWND: no matching obstype found in obsinfo ',obstype
      return
@@ -301,7 +302,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   call getcount_bufr(infile,nmsgmax,mxtb)
 
   allocate(lmsg(nmsgmax,ntread),tab(mxtb,3),nrep(nmsgmax))
-
  
   lmsg = .false.
   maxobs=0
@@ -599,10 +599,9 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   ilat=3
   rusage=101.0_r_kind
 
-! Open, then read date from bufr data
-!!  read satellite winds one type a time
-
   loop_convinfo: do nx=1,ntread 
+
+     ! set parameters for processing the next satwind type
      use_all = .true.
      use_all_tm = .true.
      ithin=0
@@ -644,8 +643,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         endif
      endif
 
+     ! Open and read the file once for each satwnd type   
      call closbf(lunin)
-     close(lunin)
      open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
      call datelen(10)
@@ -680,7 +679,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            qify=r110
            qm=2
 
-!          Test for BUFR version using lat/lon mnemonics
+           ! test for BUFR version using lat/lon mnemonics
            call ufbint(lunin,hdrdat_test,2,1,iret, 'CLAT CLON')
            if ( hdrdat_test(1) > 100000000.0_r_kind .and. hdrdat_test(2) > 100000000.0_r_kind ) then
               call ufbint(lunin,hdrdat,13,1,iret,hdrtr_v2) 
@@ -690,20 +689,19 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               call ufbint(lunin,obsdat,4,1,iret,obstr_v1)
            endif
 
-! run qc if the ob has qc information
-
+           ! reject data with missing pressure or wind
            ppb=obsdat(2)
-           if (ppb > 100000000.0_r_kind .or. &
-               hdrdat(3) >100000000.0_r_kind .or. &
-               obsdat(4) > 100000000.0_r_kind) cycle loop_readsb
-           if(ppb >r10000) ppb=ppb/r100
+           if (ppb>rmiss .or.  hdrdat(3)>rmiss .or.  obsdat(4)>rmiss) cycle loop_readsb
+           ppb=ppb/r100
+
+           ! reject date above 125mb (or 850 for regional)
            if (ppb <r125) cycle loop_readsb    !  reject data above 125mb
-           if(hdrdat(13) == 12.0_r_kind .or. hdrdat(13) == 14.0_r_kind) cycle loop_readsb
            if (twodvar_regional .and. ppb <r850) cycle loop_readsb
-!   reject the data with bad quality mark from SDM
+
+           ! reject data with bad quality mark from SDM
            if(hdrdat(13) == 12.0_r_kind .or. hdrdat(13) == 14.0_r_kind) cycle loop_readsb      
-!   Compare relative obs time with window.  If obs 
-!   falls outside of window, don't use this obs
+
+           ! reject data outside time window
            idate5(1) = hdrdat(4)     !year
            idate5(2) = hdrdat(5)     ! month
            idate5(3) = hdrdat(6)     ! day
@@ -720,6 +718,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            endif
            iosub=0
 
+           ! reject data with bad lat/lon
            if(abs(hdrdat(2)) >r90 ) cycle loop_readsb 
            if( hdrdat(3) <zero) hdrdat(3) = hdrdat(3) + r360
            if( hdrdat(3) == r360) hdrdat(3) = hdrdat(3) - r360
@@ -728,7 +727,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            iobsub=int(hdrdat(1))
            write(stationid,'(i3)') iobsub
 
-           ! count the satwnd types
+           ! countier for satwnd types
            if(itype>=240.and.itype<=279) icnt(itype)=icnt(itype)+1             
 
            ! test for PCCF or MANDATORY QC - if none exists skip over the extra blocks
