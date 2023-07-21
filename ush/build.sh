@@ -31,6 +31,12 @@ set -x
 # Set CONTROLPATH variable to user develop installation
 CONTROLPATH="$DIR_ROOT/../develop/install/bin"
 
+if [[ "$MACHINE_ID" == "gaea" ]] ; then
+    # Disable MKL by default on GAEA. Putting this at the beginning of CMAKE_OPTS allows
+    # the caller to override it by putting it in the CMAKE_OPTS before running build.sh
+    CMAKE_OPTS="-DENABLE_MKL=OFF${CMAKE_OPTS:+ $CMAKE_OPTS}"
+fi
+
 # Collect BUILD Options
 CMAKE_OPTS+=" -DCMAKE_BUILD_TYPE=$BUILD_TYPE"
 
