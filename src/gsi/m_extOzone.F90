@@ -1039,7 +1039,7 @@ subroutine ozlev_ncread_(dfile,dtype,ozout,nmrecs,ndata,nodata, gstime,twind)
            if (ozone(ilev, iprof) < -900.0_r_kind) cycle            ! undefined
            if (err(ilev, iprof) < -900.0_r_kind) cycle              ! undefined
            if (iuse_oz(ipos(ilev)) < 0) then
-              usage = 10000._r_kind
+              usage = 100._r_kind
            else
               usage = zero
            endif

@@ -554,7 +554,7 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
            if (ozone_diagsave .and. luse(i)) then
               rdiagbuf(1,k,ii) = ozobs(k)
               rdiagbuf(2,k,ii) = ozone_inv(k)           ! obs-ges
-              errorinv = sqrt(varinv4diag(k)*rat_err2)
+              errorinv = sqrt(varinv4diag(k)*rat_err4diag)
               rdiagbuf(3,k,ii) = errorinv               ! inverse observation error
               if (obstype == 'gome' .or. obstype == 'omieff'  .or. &
                   obstype == 'omi'  .or. obstype == 'tomseff' .or. &
