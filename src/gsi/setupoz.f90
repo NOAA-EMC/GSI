@@ -197,9 +197,9 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   
   real(r_kind) omg,rat_err2,dlat,dtime,dlon
   real(r_kind) cg_oz,wgross,wnotgross,wgt,arg,exp_arg,term
-  real(r_kind) psi,errorinv
+  real(r_kind) psi,errorinv,rat_err4diag
   real(r_kind),dimension(nlevs):: ozges,varinv3,ozone_inv,ozobs,varinv4diag
-  real(r_kind),dimension(nlevs):: ratio_errors,error,rat_err4diag
+  real(r_kind),dimension(nlevs):: ratio_errors,error
   real(r_kind),dimension(nlevs-1):: ozp
   real(r_kind),dimension(nloz_omi) :: ozp_omi
   real(r_kind),dimension(nlevs):: pobs,gross,tnoise
