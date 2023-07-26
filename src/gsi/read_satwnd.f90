@@ -691,8 +691,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
            ! reject data with missing pressure or wind
            ppb=obsdat(2)
-           if (ppb>rmiss .or.  hdrdat(3)>rmiss .or.  obsdat(4)>rmiss) cycle loop_readsb
-           ppb=ppb/r100
+           if(ppb>rmiss .or.  hdrdat(3)>rmiss .or.  obsdat(4)>rmiss) cycle loop_readsb
+           if(ppb>r10000) ppb=ppb/r100 ! ppb<10000 may indicate data reported in daPa or hPa
 
            ! reject date above 125mb (or 850 for regional)
            if (ppb <r125) cycle loop_readsb    !  reject data above 125mb
@@ -727,7 +727,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            iobsub=int(hdrdat(1))
            write(stationid,'(i3)') iobsub
 
-           ! countier for satwnd types
+           ! counter for satwnd types
            if(itype>=240.and.itype<=279) icnt(itype)=icnt(itype)+1             
 
            ! test for PCCF or MANDATORY QC - if none exists skip over the extra blocks
