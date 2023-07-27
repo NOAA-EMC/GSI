@@ -681,10 +681,6 @@ if (nproc == 0) then
        letkf_flag) then
      print *,'warning: no time localization in LETKF!'
    endif
-   if ((write_ensmean .and. pseudo_rh) .and. .not. use_qsatensmean) then
-      print *,'write_ensmean=T requires use_qsatensmean=T when pseudo_rh=T'
-      call stop2(19)
-   endif
 
 
    print *, trim(adjustl(datapath))
