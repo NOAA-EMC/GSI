@@ -1,27 +1,20 @@
 help([[
 ]])
 
+prepend_path("MODULEPATH", "/scratch1/NCEPDEV/nems/role.epic/spack-stack/spack-stack-1.4.1/envs/unified-env/install/modulefiles/Core")
 prepend_path("MODULEPATH", "/scratch1/NCEPDEV/jcsda/jedipara/spack-stack/modulefiles")
-prepend_path("MODULEPATH", "/scratch1/NCEPDEV/stmp4/Cameron.Book/dave_gsi/envs/gsi_test/install/modulefiles/Core")
 
-local spack_python_ver=os.getenv("spack_python_ver") or "3.9.12"
-local spack_intel_ver=os.getenv("spack_intel_ver") or "2021.5.0"
-local spack_impi_ver=os.getenv("spack_impi_ver") or "2021.5.1"
-local spack_python_ver=os.getenv("spack_impi_ver") or "3.9.12"
-local ecflow_ver=os.getenv("ecflow_ver") or "5.5.3"
-local mysql_ver=os.getenv("mysql_ver") or "8.0.31"
+local stack_python_ver=os.getenv("stack_python_ver") or "3.9.12"
+local stack_intel_ver=os.getenv("stack_intel_ver") or "2021.5.0"
+local stack_impi_ver=os.getenv("stack_impi_ver") or "2021.5.1"
+local cmake_ver=os.getenv("cmake_ver") or "3.23.1"
 
-load(pathJoin("miniconda", spack_python_ver))
-load(pathJoin("ecflow", ecflow_ver))
-load(pathJoin("mysql", mysql_ver))
-load(pathJoin("stack-intel", spack_intel_ver))
-load(pathJoin("stack-intel-oneapi-mpi", spack_impi_ver))
-load(pathJoin("stack-python", spack_python_ver))
+load(pathJoin("stack-intel", stack_intel_ver))
+load(pathJoin("stack-intel-oneapi-mpi", stack_impi_ver))
+load(pathJoin("stack-python", stack_python_ver))
+load(pathJoin("cmake", cmake_ver))
 
-load("ufs-srw-app-env/unified-dev")
-load("gsi-ncdiag/1.1.1")
-load("ncio/1.1.2")
-load("bufr/12.0.0")
+load("gsi_common")
 
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
