@@ -1,11 +1,11 @@
 help([[
 ]])
 
-prepend_path("MODULEPATH", "/work/noaa/epic-ps/role-epic-ps/miniconda3/modulefiles")
+prepend_path("MODULEPATH", "/work/noaa/epic/role-epic/contrib/orion/miniconda3/modulefiles")
 miniconda3_ver=os.getenv("miniconda3_ver") or "4.12.0"
 load(pathJoin("miniconda3", miniconda3_ver))
 
-prepend_path("MODULEPATH", "/work/noaa/epic-ps/role-epic-ps/hpc-stack/libs/intel-2022.1.2/modulefiles/stack")
+prepend_path("MODULEPATH", "/work/noaa/epic/role-epic/contrib/orion/hpc-stack/intel-2022.1.2/modulefiles/stack")
 
 local hpc_ver=os.getenv("hpc_ver") or "1.2.0"
 local hpc_intel_ver=os.getenv("hpc_intel_ver") or "2022.1.2"

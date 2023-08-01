@@ -18,7 +18,7 @@ elif [[ $MACHINE_ID = hera* ]] ; then
 elif [[ $MACHINE_ID = orion* ]] ; then
     # We are on Orion
     if ( ! eval module help > /dev/null 2>&1 ) ; then
-        source /apps/lmod/init/bash
+        source /apps/lmod/lmod/init/bash
     fi
     module purge
 
@@ -58,7 +58,6 @@ elif [[ $MACHINE_ID = gaea* ]] ; then
         source /etc/profile
         __ms_source_etc_profile=yes
     fi
-    source /lustre/f2/dev/role.epic/contrib/Lmod_init.sh
 
     source /lustre/f2/dev/role.epic/contrib/Lmod_init.sh
 
