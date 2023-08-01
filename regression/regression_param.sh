@@ -349,13 +349,13 @@ if [[ "$machine" = "Hera" ]]; then
    export APRUN="srun"
 elif [[ "$machine" = "Orion" ]]; then
    export OMP_STACKSIZE=2048M
-   export APRUN="srun --label -n \$ntasks"
+   export APRUN="srun -n \$ntasks"
 elif [[ "$machine" = "Jet" ]]; then
    export OMP_STACKSIZE=1024M
    export MPI_BUFS_PER_PROC=256
    export MPI_BUFS_PER_HOST=256
    export MPI_GROUP_MAX=256
-   export APRUN="srun --label -n \$ntasks --cpus-per-task=\$threads"
+   export APRUN="srun -n \$ntasks --cpus-per-task=\$threads"
 elif [[ "$machine" = "Gaea" ]]; then
    export OMP_STACKSIZE=1024M
    export MPI_BUFS_PER_PROC=256
