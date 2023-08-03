@@ -64,7 +64,6 @@ private
 public :: read_control, write_control, controlvec_cleanup, init_controlvec
 real(r_single), public, allocatable, dimension(:,:,:,:) :: grdin
 real(r_double), public, allocatable, dimension(:,:,:,:) :: qsat
-real(r_double), public, allocatable, dimension(:,:,:) :: qsatmean
 
 integer(i_kind), public :: nc2d, nc3d, ncdim
 character(len=max_varname_length), allocatable, dimension(:), public :: cvars3d
@@ -192,7 +191,6 @@ subroutine read_control()
 ! read ensemble members on IO tasks
 implicit none
 real(r_double)  :: t1,t2
-real(r_double), allocatable, dimension(:) :: qsat_tmp
 integer(i_kind) :: nb,nlev,ne
 integer(i_kind) :: q_ind
 integer(i_kind) :: ierr
@@ -373,7 +371,6 @@ if (allocated(clevels)) deallocate(clevels)
 if (allocated(index_pres)) deallocate(index_pres)
 if (allocated(grdin)) deallocate(grdin)
 if (allocated(qsat)) deallocate(qsat)
-if (allocated(qsatmean)) deallocate(qsatmean)
 call gridinfo_cleanup()
 end subroutine controlvec_cleanup
 
