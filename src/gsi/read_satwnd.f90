@@ -156,7 +156,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind),parameter:: r1200= 1200.0_r_kind
   real(r_kind),parameter:: r10000= 10000.0_r_kind
 
-  real(r_double),parameter:: rmiss=10d8 
+  real(r_double),parameter:: rmiss=10d7 
 
 ! Declare local variables
   logical outside,inflate_error
@@ -170,7 +170,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   character(8) c_prvstg,c_sprvstg
   character(8) c_station_id,stationid
   
-  integer(i_kind) mxtb,nmsgmax
+  integer(i_kind) mxtb,nmsgmax,qcret
   integer(i_kind) ireadmg,ireadsb,iuse
   integer(i_kind) i,maxobs,idomsfc,nsattype,ncount
   integer(i_kind) nc,nx,isflg,itx,j,nchanl
@@ -728,19 +728,20 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            write(stationid,'(i3)') iobsub
 
            ! counter for satwnd types
-           if(itype>=240.and.itype<=279) icnt(itype)=icnt(itype)+1             
+           !if(itype>=240.and.itype<=279) icnt(itype)=icnt(itype)+1             
 
-           ! test for PCCF or MANDATORY QC - if none exists skip over the extra blocks
-           call ufbrep(lunin,qcdat,1,1,iret,'PCCF')
+           ! test for QCSTR or MANDATORY QC - if not skip over the extra blocks
+           call ufbrep(lunin,qcdat,3,12,qcret,qcstr)
            do_qc = subset(1:7)=='NC00503'.and.nint(hdrdat(1))>=270
+           do_qc = do_qc.or.subset(1:7)=='NC00501'
            do_qc = do_qc.or.subset=='NC005081'.or.subset=='NC005091'
-           do_qc = do_qc.or.qcdat(1,1)<rmiss
-           if(.not.do_qc) goto 99
+	   do_qc = do_qc.or.qcret==0            
            
-           itype=-1
+           ! assign types and get quality info: start
 
-           ! assign types and get quality info : start
-           if(trim(subset) == 'NC005064' .or. trim(subset) == 'NC005065' .or. &  
+           if(.not.do_qc) then 
+              continue
+           else if(trim(subset) == 'NC005064' .or. trim(subset) == 'NC005065' .or. &  
               trim(subset) == 'NC005066') then
               if( hdrdat(1) <r80 .and. hdrdat(1) >= r50) then    ! the range of EUMETSAT satellite IDs      
                  c_prvstg='EUMETSAT'
@@ -1293,11 +1294,10 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               cycle loop_readsb             
            endif
 
-           if ( itype == -1 ) cycle loop_readsb ! unassigned itype
-
            ! assign types and get quality info : end
 
-99         continue
+           if ( itype == -1 ) cycle loop_readsb ! unassigned itype
+
            if ( qify == zero) qify=r110
            if ( qifn == zero) qifn=r110
            if ( ee == zero)   ee=r110
@@ -1666,12 +1666,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   deallocate(lmsg,tab,nrep)
 ! Close unit to bufr file
   call closbf(lunin)
-
-
-do i=1,1000
-if(icnt(i)>0) print'(2i10)',i,icnt(i)
-enddo
- 
 
   ! Write header record and data to output file for further processing
   allocate(iloc(ndata))
