@@ -969,6 +969,8 @@ contains
              elseif ( cris ) then
 !!               isis_cads = 'viirs-m'//isis(itmp1+1:itmp2)
                if ( isis == 'cris-fsr_npp' ) isis_cads = 'viirs-m_npp'
+!               if ( isis == 'cris-fsr_n20' ) isis_cads = 'viirs-m_n20'
+!               if ( isis == 'cris-fsr_n21' ) isis_cads = 'viirs-m_n21'
                if ( isis == 'cris-fsr_n20' ) isis_cads = 'viirs-m_j1'
                if ( isis == 'cris-fsr_n21' ) isis_cads = 'viirs-m_j2'
                obstype_cads = 'viirs-m'
