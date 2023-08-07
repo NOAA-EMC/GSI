@@ -321,6 +321,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) ntime,itime 
   integer(i_kind) ierr_ps,ierr_q,ierr_t,ierr_uv,ierr_pw !  the position of error table collum
   integer(i_kind) idummy1,idummy2,glret,lindx !glret>0 means GLERL code exists.Others are dummy variables
+  integer(i_kind) ivtcd,iglcd
   real(r_kind) time,timex,time_drift,timeobs,toff,t4dv,zeps
   real(r_kind) qtflg,tdry,rmesh,ediff,usage,ediff_ps,ediff_q,ediff_t,ediff_uv,ediff_pw
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
@@ -807,14 +808,16 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !------------------------------------------------------------------------
 
 ! Obtain program code (VTCD) associated with "VIRTMP" step
-  call ufbqcd(lunin,'VIRTMP',vtcd)
+  call ufbqcd(lunin,'VIRTMP',ivtcd)
+  vtcd = ivtcd
 
 !see if file contains GLERL program code (GLCD)
 !Obtain code if it exists.  Otherwise set to missing (-999)
   call status(lunin,lindx,idummy1,idummy2)
   call nemtab(lindx,'GLERL',idummy1,cdummy,glret)
   if (glret /= 0) then
-     call ufbqcd(lunin,'GLERL',glcd)
+     call ufbqcd(lunin,'GLERL',iglcd)
+     glcd = iglcd
   else
      !warn that GLERL adjustment is not available.
      print*, "WARNING: GLERL program code not in this file."
