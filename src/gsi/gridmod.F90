@@ -93,7 +93,6 @@ module gridmod
 !   2019-09-23  martin  - add use_gfs_ncio to read global first guess from netCDF file
 !   2020-12-18  Hu      - add grid_type_fv3_regional
 !   2021-12-30  Hu      - add fv3_io_layout_y
-!   2022-03-01  X.Lu & X.Wang - add corresponding variables for dual ens for HAFS. POC: xuguang.wang@ou.edu
 !
 !                        
 !
@@ -147,7 +146,6 @@ module gridmod
   public :: regional_fhr,region_dyi,coeffx,region_dxi,coeffy,nsig_hlf,regional_fmin
   public :: nsig2,wgtlats,corlats,rbs2,ncepgfs_headv,regional_time,wgtfactlats
   public :: nlat_regional,nlon_regional,update_regsfc,half_grid,gencode
-  public :: nlat_regionalens,nlon_regionalens
   public :: diagnostic_reg,nmmb_reference_grid,filled_grid
   public :: grid_ratio_nmmb,isd_g,isc_g,dx_gfs,lpl_gfs,nsig5,nmmb_verttype
   public :: grid_ratio_fv3_regional,fv3_io_layout_y,fv3_regional,fv3_cmaq_regional,grid_type_fv3_regional
@@ -331,7 +329,7 @@ module gridmod
   real(r_kind) rlon_min_dd,rlon_max_dd,rlat_min_dd,rlat_max_dd
   real(r_kind) dt_ll,pdtop_ll,pt_ll
 
-  integer(i_kind) nlon_regional,nlat_regional,nlon_regionalens,nlat_regionalens
+  integer(i_kind) nlon_regional,nlat_regional
   real(r_kind) regional_fhr,regional_fmin
   integer(i_kind) regional_time(6)
   integer(i_kind) jcap_gfs,nlat_gfs,nlon_gfs
@@ -487,8 +485,6 @@ contains
     update_regsfc = .false.
     nlon_regional = 0
     nlat_regional = 0
-    nlon_regionalens = 0
-    nlat_regionalens = 0
 
     msig = nsig
     do k=1,size(nlayers)

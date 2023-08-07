@@ -142,7 +142,6 @@ subroutine load_balance()
 ! Uses "Graham's rule", which simply
 ! stated, assigns each new work item to the task that currently has the 
 ! smallest load.
-use params, only: ldo_enscalc_option 
 implicit none
 integer(i_kind), allocatable, dimension(:) :: rtmp,numobs
 !real(r_single), allocatable, dimension(:) :: buffer
@@ -180,7 +179,6 @@ rtmp = 0
 numptsperproc = 0
 np = 0
 test_loadbal = .false. ! simple partition for testing
-if(ldo_enscalc_option .ne. 0 ) test_loadbal=.true.
 do n=1,npts
    if (test_loadbal) then
        ! use simple partition (does not use estimated workload) for testing
@@ -242,8 +240,7 @@ do i=1,numptsperproc(nproc+1)
 end do
 
 ! for serial filter, partition obs for observation space update.
-!cltorg if (.not. letkf_flag .or. lupd_obspace_serial) then
-if ((.not. letkf_flag .or. lupd_obspace_serial).and.ldo_enscalc_option==0)  then
+if (.not. letkf_flag .or. lupd_obspace_serial) then
    allocate(numobsperproc(numproc))
    allocate(iprocob(nobstot))
    ! default is to partition obs simply, since
@@ -349,7 +346,6 @@ subroutine scatter_chunks
 ! decomposition from load_balance
 use controlvec, only: ncdim, grdin
 use params, only: nbackgrounds, ntasks_io, nanals_per_iotask
-use params, only: ldo_enscalc_option 
 implicit none
 
 integer(i_kind), allocatable, dimension(:) :: scounts, displs, rcounts
@@ -479,102 +475,23 @@ allocate(ensmean_chunk(npts_max,ncdim,nbackgrounds))
 allocate(ensmean_chunk_prior(npts_max,ncdim,nbackgrounds))
 ensmean_chunk = 0_r_single
 
-! send and receive buffers.
-do nb=1,nbackgrounds ! loop over time levels in background
-
-  if (nproc <= ntasks_io-1) then
-     ! fill up send buffer.
-     do np=1,numproc
-      do ne=1,nanals_per_iotask
-        do nn=1,ncdim
-         do i=1,numptsperproc(np)
-          n = ((np-1)*ncdim*nanals_per_iotask + (ne-1)*ncdim + (nn-1))*npts_max + i
-          sendbuf(n) = grdin(indxproc(np,i),nn,nb,ne)
-        enddo
-       enddo
-      enddo
-     enddo
-  end if
-  call mpi_alltoallv(sendbuf, scounts, displs, mpi_real4, recvbuf, rcounts, displs,&
-                     mpi_real4, mpi_comm_world, ierr)
-  
-  !==> compute ensemble of first guesses on each task, remove mean from anal.
-  !$omp parallel do schedule(dynamic,1)  private(nn,i,nanal,n)
+!==> compute mean, remove it from anal_chunk
+!$omp parallel do schedule(dynamic,1)  private(nn,i,n,nb)
+do nb=1,nbackgrounds
   do nn=1,ncdim
      do i=1,numptsperproc(nproc+1)
+        ensmean_chunk(i,nn,nb) = sum(anal_chunk(:,i,nn,nb))/float(nanals)
+        ensmean_chunk_prior(i,nn,nb) = ensmean_chunk(i,nn,nb)
+        ! remove mean from ensemble.
         do nanal=1,nanals
-           n = ((nanal-1)*ncdim + (nn-1))*npts_max + i
-           anal_chunk(nanal,i,nn,nb) = recvbuf(n)
-        enddo
-     end do
-  end do
-  !$omp end parallel do
-enddo ! loop over nbackgrounds
-
-if(ldo_enscalc_option ==0)  then !regular enkf run
-!==> compute ensemble of first guesses on each task, remove mean from anal.
-!$omp parallel do schedule(dynamic,1)  private(nn,i,n,nb)
-  do nb=1,nbackgrounds
-    do nn=1,ncdim
-       do i=1,numptsperproc(nproc+1)
-          ensmean_chunk(i,nn,nb) = sum(anal_chunk(:,i,nn,nb))/float(nanals)
-          ensmean_chunk_prior(i,nn,nb) = ensmean_chunk(i,nn,nb)
-! remove mean from ensemble.
-          do nanal=1,nanals
-             anal_chunk(nanal,i,nn,nb) = anal_chunk(nanal,i,nn,nb)-ensmean_chunk(i,nn,nb)
-             anal_chunk_prior(nanal,i,nn,nb)=anal_chunk(nanal,i,nn,nb)
-          end do
+           anal_chunk(nanal,i,nn,nb) = anal_chunk(nanal,i,nn,nb)-ensmean_chunk(i,nn,nb)
+           anal_chunk_prior(nanal,i,nn,nb)=anal_chunk(nanal,i,nn,nb)
         end do
      end do
-   enddo ! loop over nbackgrounds
-!$omp end parallel do
-
-  
-else if (ldo_enscalc_option ==1 ) then !to calculate ensemble mean
-!$omp parallel do schedule(dynamic,1)  private(nn,i,n,nb)
-do nb=1,nbackgrounds
-   do nn=1,ncdim
-      do i=1,numptsperproc(nproc+1)
-         ensmean_chunk(i,nn,nb) = sum(anal_chunk(:,i,nn,nb))/float(nanals)
-         ensmean_chunk_prior(i,nn,nb) = ensmean_chunk(i,nn,nb)
-         do nanal=2,nanals
-            anal_chunk(nanal,i,nn,nb) = anal_chunk(nanal,i,nn,nb)-ensmean_chunk(i,nn,nb)
-            anal_chunk_prior(nanal,i,nn,nb)=anal_chunk(nanal,i,nn,nb)
-         end do
-             anal_chunk(1,i,nn,nb) =ensmean_chunk(i,nn,nb)- anal_chunk(1,i,nn,nb)
-             anal_chunk_prior(1,i,nn,nb)=0.0_r_kind
-       end do
-    end do
-end do
-!$omp end parallel do
-
-else if (ldo_enscalc_option ==2 ) then !to recentter , the first member is the control run 
-!$omp parallel do schedule(dynamic,1)  private(nn,i,n,nb)
-do nb=1,nbackgrounds
-  do nn=1,ncdim
-   do i=1,numptsperproc(nproc+1)
-      ensmean_chunk(i,nn,nb) = sum(anal_chunk(2:nanals,i,nn,nb))/float(nanals-1)
-      ensmean_chunk_prior(i,nn,nb) = ensmean_chunk(i,nn,nb)
-! remove mean from ensemble.
-      do nanal=2,nanals
-         anal_chunk(nanal,i,nn,nb) =  (anal_chunk(1,i,nn,nb)-ensmean_chunk(i,nn,nb))
-      end do
-      do nanal=2,nanals
-         anal_chunk_prior(nanal,i,nn,nb)=0.0_r_kind 
-      enddo
-         anal_chunk(1,i,nn,nb) = ensmean_chunk(i,nn,nb)-anal_chunk(1,i,nn,nb) 
-         anal_chunk_prior(1,i,nn,nb)=0.0_r_kind  
-   end do
   end do
 end do
 !$omp end parallel do
 
-else 
-write(6,*)'this ldo_enscalc_option = ',ldo_enscalc_option,' is not available now'
-
-endif
-
-deallocate(sendbuf, recvbuf)
 
 end subroutine scatter_chunks
 

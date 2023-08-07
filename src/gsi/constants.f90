@@ -31,7 +31,6 @@ module constants
 !   2016-02-15 Johnson, Y. Wang, X. Wang - define additional constant values for
 !                                          radar DA, POC: xuguang.wang@ou.edu
 !   2019-09-25  X.Su     - put stndrd_atmos_ps constant values
-!   2022-03-01  X.Lu & X.Wang  - increased max_varname_length for HAFS dual ens. POC: xuguang.wang@ou.edu
 !
 ! Subroutines Included:
 !   sub init_constants_derived - compute derived constants
@@ -91,7 +90,7 @@ module constants
 
 ! Declare derived constants
   integer(i_kind):: huge_i_kind
-  integer(i_kind), parameter :: max_varname_length=36 !20
+  integer(i_kind), parameter :: max_varname_length=20
   real(r_single):: tiny_single, huge_single
   real(r_kind):: xai, xa, xbi, xb, dldt, rozcon,ozcon,fv, tpwcon,eps, rd_over_g
   real(r_kind):: el2orc, g_over_rd, rd_over_cp, cpr, omeps, epsm1, factor2

@@ -38,7 +38,6 @@ contains
   !
   !   2021-08-10  lei     - modify for fv3-lam ensemble spread output
   !   2021-11-01  lei     - modify for fv3-lam parallel IO
-  !   2022-03-01  X.Lu & X.Wang - modify for hafs dual ens. POC: xuguang.wang@ou.edu
   !   input argument list:
   !
   !   output argument list:
@@ -742,7 +741,7 @@ contains
     use gridmod, only: eta1_ll,eta2_ll
     use constants, only: zero,one,fv,zero_single,one_tenth,h300
     use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens
-    use hybrid_ensemble_parameters, only: fv3sar_ensemble_opt,dual_res
+    use hybrid_ensemble_parameters, only: fv3sar_ensemble_opt 
 
     use mpimod, only: mpi_comm_world,mpi_rtype
     use gsi_rfv3io_mod,only: type_fv3regfilenameg
@@ -850,24 +849,24 @@ contains
 
      
     if(fv3sar_ensemble_opt == 0 ) then  
-      call gsi_fv3ncdf_readuv(grd_fv3lam_ens_uv,g_u,g_v,fv3_filenameginput,dual_res)
+      call gsi_fv3ncdf_readuv(grd_fv3lam_ens_uv,g_u,g_v,fv3_filenameginput)
     else
-      call gsi_fv3ncdf_readuv_v1(grd_fv3lam_ens_uv,g_u,g_v,fv3_filenameginput,dual_res)
+      call gsi_fv3ncdf_readuv_v1(grd_fv3lam_ens_uv,g_u,g_v,fv3_filenameginput)
     endif
     if(fv3sar_ensemble_opt == 0) then
       call gsi_fv3ncdf_read(grd_fv3lam_ens_dynvar_io_nouv,gsibundle_fv3lam_ens_dynvar_nouv,&
-                            fv3_filenameginput%dynvars,fv3_filenameginput,dual_res)
+                            fv3_filenameginput%dynvars,fv3_filenameginput)
       call gsi_fv3ncdf_read(grd_fv3lam_ens_tracer_io_nouv,gsibundle_fv3lam_ens_tracer_nouv,&
-                            fv3_filenameginput%tracers,fv3_filenameginput,dual_res)
+                            fv3_filenameginput%tracers,fv3_filenameginput)
       if( if_model_dbz ) then
          call gsi_fv3ncdf_read(grd_fv3lam_ens_phyvar_io_nouv,gsibundle_fv3lam_ens_phyvar_nouv,&
-                               fv3_filenameginput%phyvars,fv3_filenameginput,dual_res)
+                               fv3_filenameginput%phyvars,fv3_filenameginput)
       end if
     else
       call gsi_fv3ncdf_read_v1(grd_fv3lam_ens_dynvar_io_nouv,gsibundle_fv3lam_ens_dynvar_nouv,&
-                               fv3_filenameginput%dynvars,fv3_filenameginput,dual_res)
+                               fv3_filenameginput%dynvars,fv3_filenameginput)
       call gsi_fv3ncdf_read_v1(grd_fv3lam_ens_tracer_io_nouv,gsibundle_fv3lam_ens_tracer_nouv,&
-                               fv3_filenameginput%tracers,fv3_filenameginput,dual_res)
+                               fv3_filenameginput%tracers,fv3_filenameginput)
     endif
     ier=0
     call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_dynvar_nouv, 'tsen' ,g_tsen ,istatus );ier=ier+istatus
