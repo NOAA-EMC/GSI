@@ -784,7 +784,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !   Only channels 4 and 5 are used.
            if ( iasi_cads ) then
              call ufbseq(lnbufr,imager_info,33,7,iret,'IASIL1CS')
-             if (iret == 7 ) then  ! if imager cluster info exists
+             if (iret == 7 .and. imager_info(3,1) <= 100.0_r_kind .and. &
+                  imager_info(3,1) >= zero ) then   ! if imager cluster info exists
                imager_mean = zero
                imager_std_dev = zero
                imager_cluster_tot = zero

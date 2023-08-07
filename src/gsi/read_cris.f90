@@ -137,6 +137,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_double),dimension(13) :: allspot
   real(r_double),allocatable,dimension(:,:) :: allchan
   real(r_double),dimension(2):: cloud_properties
+  real(r_double) :: gcrchn_val
   character(len=3) :: char_mtyp
   
   real(r_kind)      :: step, start
@@ -321,7 +322,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Load spectral coefficient structure  
   quiet=.not. verbose
   sensorlist(1)=sis
-!JAJ  sensorlist(2) = 'viirs-m_'//trim(jsatid)        !when viirs naming conventions becomes standardized
+!  sensorlist(2) = 'viirs-m_'//trim(jsatid)        !when viirs naming conventions becomes standardized
   sensorlist(2) = 'viirs-m_j1'
 
   if( crtm_coeffs_path /= "" ) then
@@ -477,6 +478,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
               allocate(bufr_chan_test(bufr_nchan))
               bufr_chan_test(:)=0
            endif    ! allocation if
+
+!JAJ           call ufbint(lnbufr,gcrchn_val,1,1,iret, '{GCRCHN}')
+!JAJ      if (gcrchn_val /= 12.0_r_kind) write(*,*) 'JAJ gcrchn', gcrchn_val,iret
 
 !          CRIS field-of-view ranges from 1 to 9, corresponding to the 9 sensors measured
 !          per field-of-regard.  The field-of-regard ranges from 1 to 30.  For reference, FOV 
@@ -809,7 +813,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
            if ( cris_cads ) then
              call ufbseq(lnbufr,imager_info,83,7,iret,'CRISCS')
-             if ( iret == 7 ) then   ! if VIIRS cluster info exists
+             if ( iret == 7 .and. imager_info(3,1) <= 100.0_r_kind .and. &
+                  imager_info(3,1) >= zero ) then   ! if imager cluster info exists
                imager_mean = zero
                imager_std_dev = zero
                imager_cluster_tot = zero
