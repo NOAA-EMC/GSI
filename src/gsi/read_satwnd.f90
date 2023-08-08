@@ -735,7 +735,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            do_qc = subset(1:7)=='NC00503'.and.nint(hdrdat(1))>=270
            do_qc = do_qc.or.subset(1:7)=='NC00501'
            do_qc = do_qc.or.subset=='NC005081'.or.subset=='NC005091'
-	   do_qc = do_qc.or.qcret==0            
+	   do_qc = do_qc.or.qcret>0            
            
            ! assign types and get quality info: start
 
