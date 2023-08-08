@@ -782,10 +782,10 @@ subroutine oztot_ncread_(dfile,dtype,dsis, ozout,nmrecs,ndata,nodata, &
            ozout(7,itx)=real(toqf)         ! - total ozone quality code (not used)
            ozout(8,itx)=real(sza)          ! solar zenith angle
            ozout(9,itx)=binary(10)         ! row anomaly flag, is actually fixed to 0
-           ozout(10,itx)=0.                ! - cloud amount (not used)
-           ozout(11,itx)=0.                ! - vzan (not used)
-           ozout(12,itx)=0.                ! - aerosol index (not used)
-           ozout(13,itx)=0.                ! - ascending/descending (not used)
+           ozout(10,itx)=zero              ! - cloud amount (not used)
+           ozout(11,itx)=zero              ! - vzan (not used)
+           ozout(12,itx)=zero              ! - aerosol index (not used)
+           ozout(13,itx)=zero              ! - ascending/descending (not used)
            ozout(14,itx)=real(fovn)        ! scan position
                                            ! "(not used)" flags above imply that they
                                            ! are not used in setupozlay().
@@ -1623,7 +1623,7 @@ subroutine ozlev_bufrread_(dfile,dtype,dsis, ozout,nmrecs,ndata,nodata, &
      nodata = 0
      read_loop1: do iprof = 1, nprofs
         do ilev = 1, levs
-           if (ozone(ilev, iprof) .lt. -900.0) cycle ! undefined
+           if (ozone(ilev, iprof) .lt. -900.0_r_kind) cycle ! undefined
         end do
 !!$           if (iuse_oz(ipos(ilev)) < 0) then
 !!$              usage = 10000._r_kind
@@ -1699,8 +1699,8 @@ subroutine ozlev_bufrread_(dfile,dtype,dsis, ozout,nmrecs,ndata,nodata, &
            ozout(4,ndata)=dlat               ! grid relative latitude
            ozout(5,ndata)=dlon_earth_deg     ! earth relative longitude (degrees)
            ozout(6,ndata)=dlat_earth_deg     ! earth relative latitude (degrees)
-           ozout(7,ndata)=0.                 ! total ozone error flag
-           ozout(8,ndata)=0.                 ! profile ozone error flag
+           ozout(7,ndata)=zero               ! total ozone error flag
+           ozout(8,ndata)=zero               ! profile ozone error flag
            ozout(9,ndata)=sza(iprof)         ! solar zenith angle
            do k=1,levs+1
               ozout(k+9,ndata)=poz(k)

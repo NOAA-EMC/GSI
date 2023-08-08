@@ -311,10 +311,6 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 
         call ufbrep(lnbufr,mirad,1,nchanl*nscan,iret,str2)
 
-        !print*,mirad
-        !call bort('mirad test')
-
-
         ij=0
         scan_loop:   do js=1,nscan
 
