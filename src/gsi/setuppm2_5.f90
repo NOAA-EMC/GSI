@@ -94,8 +94,8 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   
   use gridmod, only : get_ij,get_ijk
-  
   use guess_grids, only : nfldsig,hrdifsig
+  use guess_grids, only : veg_type
   use gsi_bundlemod, only : gsi_bundlegetpointer,GSI_BundlePrint
   use gsi_chemguess_mod, only : gsi_chemguess_get,gsi_chemguess_bundle
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
@@ -115,7 +115,8 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   use chemmod, only: naero_gocart_wrf,aeronames_gocart_wrf,&
       upper2lower,lower2upper,laeroana_gocart,wrf_pm2_5
   use chemmod, only: naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,laeroana_fv3cmaq
-  use chemmod, only: naero_smoke_fv3,aeronames_smoke_fv3,laeroana_fv3smoke,pm2_5_innov_threshold 
+  use chemmod, only: naero_smoke_fv3,aeronames_smoke_fv3,laeroana_fv3smoke
+  use chemmod, only: pm2_5_innov_threshold,pm2_5_urban_innov_threshold,pm2_5_bg_threshold
   use gridmod, only : cmaq_regional,wrf_mass_regional,fv3_cmaq_regional 
   implicit none
   
@@ -146,7 +147,7 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   real(r_kind) :: pm2_5ges
   real(r_kind) :: ratio_errors,error
   real(r_kind) :: innov,innov_error2,rwgt,valqc,tfact,innov_error,elevges,&
-        elevdiff,conc,elevobs,ps_ges,site_id,tv_ges
+        elevdiff,conc,elevobs,ps_ges,site_id,tv_ges,veg_type_ges
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final
 
@@ -278,7 +279,7 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            call stop2(453)
         endif
 
-        do i=2,naero_smoke_fv3
+        do i=2,naero_smoke_fv3-1 ! remove contribution from coarsepm
            aeroname=trim(aeronames_smoke_fv3(i))
            call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
              rank3,ier)
@@ -705,13 +706,18 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
         if (wrf_mass_regional .or. fv3_cmaq_regional .or. laeroana_fv3smoke) then
            call tintrp2a11(ges_ps,ps_ges,dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
-
            call tintrp2a11(ges_tv(:,:,1,nfldsig),tv_ges,dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
            conc=conc/(ps_ges*r1000/(rd*tv_ges))
         endif
-
-
+!
+        if (laeroana_fv3smoke) then
+          if (.not. allocated(veg_type)) then 
+             print*,"VEG_TYPE NOT ALLOCATED",mype 
+          else
+             call intrp2a11(veg_type(:,:,1),veg_type_ges,dlat,dlon,mype)
+          endif
+        endif
 
 !if elevobs is known than calculate difference otherwise
 !assume that difference is acceptable
@@ -740,17 +746,21 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
                 mype,nfldsig)
            innov = conc - pm2_5ges
            if (laeroana_fv3smoke) then
-              if ( -1.0*innov >= pm2_5_innov_threshold .or. & 
-                  (innov > pm2_5_innov_threshold .and. pm2_5ges >=1.0_r_kind).or. &
-                  (conc >= 40.0_r_kind .and. pm2_5ges >=1.0_r_kind).or. &
-                   conc >= 100.0_r_kind ) then
-                 innov = innov
+              if ( veg_type_ges == 13.0_r_kind ) then 
+                 print*,"PM25_urban_found"
+                 if (abs(innov) < pm2_5_urban_innov_threshold) then
+                    muse(i)=.false.
+                 end if 
               else 
-                 innov = 0.0_r_kind 
+                 if (abs(innov) < pm2_5_innov_threshold) then
+                    muse(i)=.false.
+                 end if  
+              end if
+
+              if (pm2_5ges < pm2_5_bg_threshold) then 
                  muse(i)=.false.
               end if
               if (tv_ges-273.15_r_kind < 5.0_r_kind) then
-                 innov = 0.0_r_kind
                  muse(i)=.false.
               end if
 
@@ -770,19 +780,28 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
                 mype,nfldsig)
           call tintrp2a11(pm25wc(:,:,:,2,nfldsig),pm25wc_ges(2),dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
-
-          if (pm25wc_ges(1) >= 1.0_r_kind) then
+          !write(6,"(A,L3,F8.3,1x,F8.3,F6.2,4F7.2)")"OBS_INF ",muse(i),data(ilate,i),data(ilone,i),veg_type_ges,pm2_5ges,innov,pm25wc_ges(1),pm25wc_ges(2)
+          if (pm25wc_ges(1) >= 2.0_r_kind) then
             pm25wc_ges(1)=1.0_r_kind
           else
-            pm25wc_ges(2)=0.0_r_kind
+            pm25wc_ges(1)=0.0_r_kind
           end if
-          if (pm25wc_ges(2) >= 1.0_r_kind) then
+          if (pm25wc_ges(2) >= 2.0_r_kind) then
             pm25wc_ges(2)=1.0_r_kind
           else
             pm25wc_ges(2)=0.0_r_kind
           end if
+          if ( (pm25wc_ges(1)+pm25wc_ges(2)) < 1.0_r_kind ) then
+            muse(i) = .false. 
+          end if
+          write(6,"(A,L3,F8.3,1x,F8.3,5F7.2)")"PM2_5_INF",muse(i),data(ilate,i),data(ilone,i),pm2_5ges,innov,pm25wc_ges(1:2),veg_type_ges
         else
           pm25wc_ges = 0.0_r_kind
+        end if
+
+        if (oneobtest_chem) then
+           pm25wc_ges=1.0_r_kind
+           muse(i) = .true.
         end if
 
         error=one/data(ierror,i)
@@ -1115,6 +1134,7 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            call nc_diag_metadata("Latitude",                data(ilate,i)          )
            call nc_diag_metadata("Longitude",               data(ilone,i)          )
            call nc_diag_metadata("Station_Elevation",       data(ielev,i)          )
+           call nc_diag_metadata("Station_Veg_Type",        veg_type_ges           )
            call nc_diag_metadata("Pressure",                ps_ges                 )
            call nc_diag_metadata("Height",                  data(ielev,i)          )
            call nc_diag_metadata("Time",                    dtime-time_offset      )
