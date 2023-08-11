@@ -50,7 +50,9 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
         iconc,ierror,ilat,ilon,itime,iid,ielev,isite,iikx,ilate,ilone,&
         elev_missing,site_scale,tunable_error,&
         code_pm25_ncbufr,code_pm25_anowbufr,&
-        code_pm10_ncbufr,code_pm10_anowbufr
+        code_pm10_ncbufr,code_pm10_anowbufr,&
+        anowbufr_ext,pm10_da_scheme,pm2_5_teom_max,pm10_teom_max
+
   use mpimod, only: npe
 
   implicit none
@@ -71,6 +73,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
         nyob=3,ndhr=4,ntyp=5,ncopopm=6
 !see headr input format below
   integer(i_kind), parameter :: nfields=6
+  integer(i_kind), parameter :: nfields_b=12
 !output format parameters
   integer(i_kind), parameter:: nchanl=0,nreal=ilone
 
@@ -96,8 +99,10 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
   real(r_kind), dimension(5)  :: rinc
   character(len=8) :: subset
   character(len=80) :: headr
+  character(len=80) :: obstr
 
   real(r_double), dimension(nfields) :: indata
+  real(r_double), dimension(nfields_b) :: indata_a,indata_b
 
   real(r_kind) :: tdiff,obstime,t4dv
   real(r_kind) :: dlat,dlon,error_1,error_2,obserror,dlat_earth,dlon_earth
@@ -141,7 +146,6 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
 ! reading each report from bufr
 
   do while (ireadmg(lunin,subset,idate) == 0)
-
      if (trim(obstype)=='pm2_5') then
         
         if ( (subset == 'NC008031') .or. (subset == 'NC008032' ) ) then
@@ -149,9 +153,16 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
            ncbufr=.true.
            write(6,*)'READ_PM2_5:  AIRNOW data type, subset=',subset
         else if (subset == 'ANOWPM') then
-           headr='SID XOB YOB DHR TYP COPOPM'
-           anowbufr=.true.
-           write(6,*)'READ_PM2_5:  AIRNOW data type, subset=',subset
+           if (.not. anowbufr_ext) then
+              headr='SID XOB YOB DHR TYP COPOPM'
+              anowbufr=.true.
+              write(6,*)'READ_PM2_5:  AIRNOW data type, subset=',subset
+           else
+              headr='SID XOB YOB DHR TYP T29 SQN PROCN RPT CAT TYPO TSIG'
+              obstr='TPHR QCIND COPOPM ELV COPOPM10 COPOCO'
+              anowbufr=.true.
+              write(6,*)'READ_PM2_5:  AIRNOW data type, subset=',subset
+           end if
         else
            cycle
         endif
@@ -162,6 +173,17 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
            headr='PTID CLONH CLATH TPHR TYPO COPOPM'
            ncbufr=.true.
            write(6,*)'READ_PM10:  AIRNOW data type, subset=',subset
+        else if (subset == 'ANOWPM') then
+           if (.not. anowbufr_ext) then
+              headr='SID XOB YOB DHR TYP COPOPM'
+              anowbufr=.true.
+              write(6,*)'READ_PM10:  AIRNOW data type, subset=',subset
+           else 
+              headr='SID XOB YOB DHR TYP T29 SQN PROCN RPT CAT TYPO TSIG'
+              obstr='TPHR QCIND COPOPM ELV COPOPM10 COPOCO'
+              anowbufr=.true.
+              write(6,*)'READ_PM10:  AIRNOW data type, subset=',subset
+           end if
         else
            cycle
         endif
@@ -176,8 +198,16 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
      imin=0
 
      do while (ireadsb(lunin) == 0)
-        call ufbint(lunin,indata,nfields,1,iret,headr)
-        
+           if (.not. anowbufr_ext) then
+              call ufbint(lunin,indata,nfields,1,iret,headr)
+           else
+              call ufbint(lunin,indata_a,nfields_b,1,iret,headr)
+              indata(1:5) = indata_a(1:5)
+              call ufbint(lunin,indata_b,nfields_b,1,iret,obstr)
+              if (trim(obstype)=='pm2_5') indata(ncopopm)=indata_b(3)
+              if (trim(obstype)=='pm10')  indata(ncopopm)=indata_b(5)
+              site_elev = indata_b(4)
+           end if
         if (anowbufr) then
            kx=indata(ntyp)
            read(sid,'(Z8)')site_id
@@ -198,9 +228,10 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
         
         nread = nread + 1
         conc=indata(ncopopm)
-        
         if ( iret > 0 .and. (conc < conc_missing ) .and. &
                (conc >= zero)) then
+           if(indata(nxob) > r360)cycle 
+           if(indata(nyob) > 0.5_r_kind*r360)cycle
            
            if(indata(nxob) >= r360)  indata(nxob) = indata(nxob) - r360
            if(indata(nxob) <  zero)  indata(nxob) = indata(nxob) + r360
