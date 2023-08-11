@@ -713,7 +713,7 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !
         if (laeroana_fv3smoke) then
           if (.not. allocated(veg_type)) then 
-             print*,"VEG_TYPE NOT ALLOCATED",mype 
+             print*,"VEG_TYPE NOT ALLOCATED, WILL NOT BE USED IN PM2.5 DA FOR RRFS_SD",mype 
           else
              call intrp2a11(veg_type(:,:,1),veg_type_ges,dlat,dlon,mype)
           endif
@@ -747,7 +747,6 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            innov = conc - pm2_5ges
            if (laeroana_fv3smoke) then
               if ( veg_type_ges == 13.0_r_kind ) then 
-                 print*,"PM25_urban_found"
                  if (abs(innov) < pm2_5_urban_innov_threshold) then
                     muse(i)=.false.
                  end if 
