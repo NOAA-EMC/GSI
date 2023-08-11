@@ -180,12 +180,15 @@
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
   use chemmod, only : init_chem,berror_chem,berror_fv3_cmaq_regional,oneobtest_chem,&
+       berror_fv3_sd_regional,&
        maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,&
+       anowbufr_ext,&
        oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname, &
        laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue, lread_ext_aerosol, &
-       laeroana_fv3cmaq,laeroana_fv3smoke,pm2_5_innov_threshold,crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
+       laeroana_fv3cmaq,laeroana_fv3smoke,pm2_5_innov_threshold,pm2_5_urban_innov_threshold,pm2_5_bg_threshold,&
+       crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
        icvt_cmaq_fv3, raod_radius_mean_scale,raod_radius_std_scale 
 
   use chemmod, only : wrf_pm2_5,aero_ratios
@@ -1583,6 +1586,12 @@
 ! chem(options for gsi chem analysis) :
 !     berror_chem       - .true. when background  for chemical species that require
 !                          conversion to lower case and/or species names longer than 5 chars
+!     berror_fv3_cmaq_regional   - .true. use background error stat for online
+!                                         RRFS_CMAQ model. Control variable
+!                                         names extended up to 10 chars
+!     berror_fv3_sd_regional     - .true. use background error stat for online
+!                                         RRFS_SD model. Control variable
+!                                         names extended up to 10 chars
 !     oneobtest_chem    - one-ob trigger for chem constituent analysis
 !     maginnov_chem     - O-B make-believe residual for one-ob chem test
 !     magoberr_chem     - make-believe obs error for one-ob chem test
@@ -1604,13 +1613,15 @@
 !     luse_deepblue     - whether to use MODIS AOD from the deepblue   algorithm
 !     lread_ext_aerosol - if true, reads aerfNN file for aerosol arrays rather than sigfNN (NGAC NEMS IO)
 
-  namelist/chem/berror_chem,berror_fv3_cmaq_regional,oneobtest_chem,maginnov_chem,magoberr_chem,&
+  namelist/chem/berror_chem,berror_fv3_cmaq_regional,berror_fv3_sd_regional,& 
+       oneobtest_chem,anowbufr_ext,maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,oblon_chem,obpres_chem,&
        diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname,&
        laeroana_gocart, laeroana_fv3cmaq,laeroana_fv3smoke,l_aoderr_table, aod_qa_limit, &
        crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
        icvt_cmaq_fv3,pm2_5_innov_threshold, &
+       pm2_5_innov_threshold,pm2_5_urban_innov_threshold,pm2_5_bg_threshold,&
        raod_radius_mean_scale,raod_radius_std_scale, luse_deepblue,&
        aero_ratios,wrf_pm2_5, lread_ext_aerosol
 
