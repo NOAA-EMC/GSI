@@ -189,7 +189,7 @@ subroutine general_reload(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz,g_cwmr,
 
 end subroutine general_reload
 subroutine general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-           g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vdflag,g_cf)
+           g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vdflag,g_ni,g_nr,g_cf)
 
 ! !USES:
 
@@ -211,7 +211,8 @@ subroutine general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
   real(r_kind),dimension(grd%lat2,grd%lon2),         intent(  out) :: g_ps
   real(r_kind),dimension(grd%lat2,grd%lon2),         intent(inout) :: g_z
   real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig),intent(  out) :: g_u,g_v,&
-       g_vor,g_div,g_q,g_oz,g_tv,g_ql,g_qi,g_qr,g_qs,g_qg
+       g_vor,g_div,g_q,g_oz,g_tv,g_ql,g_qi,g_qr,g_qs,g_qg,g_ni,g_nr
+
   real(r_kind),dimension(grd%lat2,grd%lon2,grd%nsig),intent(  out),optional :: g_cf
 
 
@@ -392,7 +393,25 @@ subroutine general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
                g_qg(i,j,klev)=sub(ij,k)
             enddo
          enddo
-      elseif ( iflag(k) == 15 .and. present(g_cf) ) then  
+      elseif ( iflag(k) == 15 ) then
+         klev=ilev(k)
+         ij=0
+         do j=1,grd%lon2
+            do i=1,grd%lat2
+               ij=ij+1
+               g_ni(i,j,klev)=sub(ij,k)
+            enddo
+         enddo
+      elseif ( iflag(k) == 16 ) then
+         klev=ilev(k)
+         ij=0
+         do j=1,grd%lon2
+            do i=1,grd%lat2
+               ij=ij+1
+               g_nr(i,j,klev)=sub(ij,k)
+            enddo
+         enddo
+      elseif ( iflag(k) == 17 .and. present(g_cf) ) then 
          klev=ilev(k)
          ij=0
          do j=1,grd%lon2
@@ -476,6 +495,7 @@ subroutine general_reload_sfc(grd,g_t2m, g_q2m,g_ps,icount,iflag,work)
    enddo ! do k=1,icount
 
    icount=0
+
    iflag=0
 
    return
@@ -2827,7 +2847,7 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
    real(r_kind),pointer,dimension(:,:)       :: g_t2m, g_q2m
    real(r_kind),pointer,dimension(:,:,:)     :: g_vor,g_div,&
                                                 g_q,g_oz,g_tv
-   real(r_kind),pointer,dimension(:,:,:)     :: g_ql,g_qi,g_qr,g_qs,g_qg
+   real(r_kind),pointer,dimension(:,:,:)     :: g_ql,g_qi,g_qr,g_qs,g_qg,g_ni,g_nr
 
    real(r_kind),allocatable,dimension(:,:)   :: g_z
    real(r_kind),allocatable,dimension(:,:,:) :: g_u,g_v
@@ -3037,6 +3057,8 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
        call gsi_bundlegetpointer(gfs_bundle,'qs',g_qs  ,ier);istatus1=istatus1+ier
        call gsi_bundlegetpointer(gfs_bundle,'qg',g_qg  ,ier);istatus1=istatus1+ier
     !  call gsi_bundlegetpointer(gfs_bundle,'cf',g_cf  ,ier);istatus1=istatus1+ier
+       call gsi_bundlegetpointer(gfs_bundle,'ni',g_ni  ,ier);istatus1=istatus1+ier
+       call gsi_bundlegetpointer(gfs_bundle,'nr',g_nr  ,ier);istatus1=istatus1+ier
        if ( istatus1 /= 0 ) then
           if ( mype == 0 ) then
              write(6,*) 'general_read_gfsatm_allhydro_nc: ERROR'
@@ -3099,7 +3121,7 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
       endif
       if ( icount == icm ) then
          call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-              g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag)
+              g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
       endif
    endif
 
@@ -3134,7 +3156,7 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
        endif
        if ( icount == icm ) then
           call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-               g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag)
+               g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
        endif
 
        !   Thermodynamic variable:  s-->g transform, communicate to all tasks
@@ -3171,7 +3193,7 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
           endif
           if ( icount == icm ) then
              call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag)
+                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
           endif
        end do
 
@@ -3228,7 +3250,7 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
              endif
              if ( icount == icm ) then
                 call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-                     g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag)
+                     g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
              endif
           end do
           do k=1,nlevs
@@ -3284,7 +3306,7 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
              endif
              if ( icount == icm ) then
                 call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-                     g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag)
+                     g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
              endif
 
           end do
@@ -3320,7 +3342,7 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
              endif
              if ( icount == icm ) then
                 call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-                     g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag)
+                     g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
              endif
 
              icount=icount+1
@@ -3351,7 +3373,7 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
              endif
              if ( icount == icm ) then
                 call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-                     g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag)
+                     g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
              endif
           end do
        endif ! if ( uvflag )
@@ -3382,7 +3404,7 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
           endif
           if ( icount == icm ) then
              call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag)
+                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
           endif
        end do
       
@@ -3413,7 +3435,7 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
           endif
           if ( icount == icm ) then
              call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag)
+                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
           endif
        end do
 
@@ -3444,7 +3466,7 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
 
           if ( icount == icm ) then
              call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag)
+                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
           endif
        enddo ! do k=1,nlevs
 
@@ -3474,7 +3496,7 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
           endif
           if ( icount == icm ) then
              call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag)
+                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
           endif
        enddo ! do k=1,nlevs
 
@@ -3504,7 +3526,7 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
           endif
           if ( icount == icm ) then
              call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag)
+                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
           endif
        enddo ! do k=1,nlevs
 
@@ -3534,7 +3556,7 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
           endif
           if ( icount == icm ) then
              call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag)
+                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
           endif
        enddo ! do k=1,nlevs
 
@@ -3564,13 +3586,73 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
           endif
           if ( icount == icm .or. k==nlevs) then
              call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag)
+                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
+      endif
+   enddo ! do k=1,nlevs
+
+   do k=1,nlevs
+      icount=icount+1
+      iflag(icount)=15
+      ilev(icount)=k
+      kr = levs+1-k ! netcdf is top to bottom, need to flip
+
+      if (mype==mype_use(icount)) then
+         call read_vardata(filges, 'nccice', rwork3d0, nslice=kr, slicedim=3)
+         ! cloud ice water number concentration.
+         if ( diff_res ) then
+            grid_b=rwork3d0(:,:,1)
+            vector(1)=.false.
+            call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+            call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+            do kk=1,grd%itotsub
+               i=grd%ltosi_s(kk)
+               j=grd%ltosj_s(kk)
+               work(kk)=grid2(i,j,1)
+            enddo
+         else
+            grid=rwork3d0(:,:,1)
+            call general_fill_ns(grd,grid,work)
+         endif
+      endif
+      if ( icount == icm .or. k==nlevs ) then
+         call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
+              g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
+      endif
+   enddo ! do k=1,nlevs
+
+   do k=1,nlevs
+      icount=icount+1
+      iflag(icount)=16
+      ilev(icount)=k
+      kr = levs+1-k ! netcdf is top to bottom, need to flip
+
+      if (mype==mype_use(icount)) then
+         call read_vardata(filges, 'nconrd', rwork3d0, nslice=kr, slicedim=3)
+         ! rain number concentration.
+         if ( diff_res ) then
+            grid_b=rwork3d0(:,:,1)
+            vector(1)=.false.
+            call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+            call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+            do kk=1,grd%itotsub
+               i=grd%ltosi_s(kk)
+               j=grd%ltosj_s(kk)
+               work(kk)=grid2(i,j,1)
+            enddo
+         else
+            grid=rwork3d0(:,:,1)
+            call general_fill_ns(grd,grid,work)
+         endif
+      endif
+      if ( icount == icm .or. k==nlevs) then
+         call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
+              g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
           endif
        enddo ! do k=1,nlevs
 
 !   do k=1,nlevs
 !      icount=icount+1
-!      iflag(icount)=15
+!      iflag(icount)=17
 !      ilev(icount)=k
 !      kr = levs+1-k ! netcdf is top to bottom, need to flip
 !

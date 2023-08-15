@@ -169,7 +169,8 @@ public isazi_ang2           ! = 37 index of solar azimuth angle (degrees)
   real(r_kind)   , save ,allocatable,dimension(:,:) :: cloudefr     ! effective radius of cloud type in CRTM
   real(r_kind)   , save ,allocatable,dimension(:,:) :: cloud_cont   ! cloud content fed into CRTM 
   real(r_kind)   , save ,allocatable,dimension(:,:) :: cloud_efr    ! effective radius of cloud type in CRTM
-  real(r_kind)   , save ,allocatable,dimension(:)   :: cf           ! effective radius of cloud type in CRTM 
+  real(r_kind)   , save ,allocatable,dimension(:)   :: cf           ! effective radius of cloud type in CRTM
+  real(r_kind)   , save ,allocatable,dimension(:)   :: ni,nr        ! effective radius of cloud type in CRTM  
   real(r_kind)   , save ,allocatable,dimension(:)   :: hwp_guess    ! column total for each hydrometeor  
   real(r_kind)   , save ,allocatable,dimension(:)  :: table,table2,tablew ! GFDL saturation water vapor pressure tables
   real(r_kind)   , save ,allocatable,dimension(:)  :: des2,desw           ! GFDL saturation water vapor presure
@@ -435,13 +436,17 @@ subroutine init_crtm(init_pass,mype_diaghdr,mype,nchanl,nreal,isis,obstype,radmo
     allocate(cloud(nsig,n_clouds_fwd))
     allocate(cloudefr(nsig,n_clouds_fwd))
     allocate(icloud(n_actual_clouds))
-    allocate(cf(nsig))  
+    allocate(cf(nsig))
+    allocate(ni(nsig))   
+    allocate(nr(nsig))     
     allocate(hwp_guess(n_clouds_fwd))   
     cloud_cont=zero
     cloud_efr =zero
     cloud     =zero
     cloudefr  =zero
-    cf        =zero  
+    cf        =zero
+    ni        =zero
+    nr        =zero  
     hwp_guess =zero    
 
     call gsi_bundlegetpointer(gsi_metguess_bundle(1),cloud_names,icloud,ier)
@@ -860,8 +865,11 @@ endif
  endif ! regional or IGBP
     
 ! Initial GFDL saturation water vapor pressure tables
+
+!Option for Thompson microphysics !Azadeh
+
   if (use_gfdl_qsat) then
-     if (n_actual_aerosols_wk>0 .or. n_clouds_fwd_wk>0 .and. imp_physics==11) then
+     if (n_actual_aerosols_wk>0 .or. n_clouds_fwd_wk>0 .and. imp_physics==11 .or. imp_physics==08) then
 
         if (mype==0) write(6,*)myname_,':initial and load GFDL saturation water vapor pressure tables'
   
@@ -965,7 +973,9 @@ subroutine destroy_crtm
   if(allocated(jcloud)) deallocate(jcloud)
   if(allocated(cloud_cont)) deallocate(cloud_cont)
   if(allocated(cloud_efr)) deallocate(cloud_efr)
-  if(allocated(cf)) deallocate(cf)  
+  if(allocated(cf)) deallocate(cf)
+  if(allocated(ni)) deallocate(ni)   
+  if(allocated(nr)) deallocate(nr)    
   if(allocated(hwp_guess)) deallocate(hwp_guess)   
   if(allocated(icw)) deallocate(icw)
   if(allocated(lcloud4crtm_wk)) deallocate(lcloud4crtm_wk)
@@ -1077,6 +1087,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   use obsmod, only: iadate
   use aeroinfo, only: nsigaerojac
   use chemmod, only: lread_ext_aerosol !for separate aerosol input file
+  use jfunc, only: jiter  
+
   use crtm_cloudcover_define, only: cloudcover_maximum_overlap, &
                                     cloudcover_random_overlap,  &
                                     cloudcover_maxran_overlap,  &
@@ -1131,11 +1143,14 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   integer(i_kind):: i_minus, i_plus, j_minus, j_plus
   integer(i_kind):: itsig,itsigp,itsfc,itsfcp,itaer,itaerp
   integer(i_kind):: istyp00,istyp01,istyp10,istyp11
-  integer(i_kind):: iqs,iozs,icfs 
+  integer(i_kind):: iqs,iozs,icfs
+  integer(i_kind):: inis,inrs   
   integer(i_kind):: error_status_clr
   integer(i_kind):: idx700,dprs,dprs_min  
   integer(i_kind),dimension(8)::obs_time,anal_time
   integer(i_kind),dimension(msig) :: klevel
+  real(r_kind),dimension(nsig) :: qsat
+  real(r_kind),dimension(nsig) :: qcond  
 
 ! ****************************** 
 ! Constrained indexing for lai
@@ -1183,7 +1198,13 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),pointer,dimension(:,:,:)::aeroges_itsig =>NULL()
   real(r_kind),pointer,dimension(:,:,:)::aeroges_itsigp=>NULL()
   real(r_kind),pointer,dimension(:,:,:)::cfges_itsig =>NULL()  
-  real(r_kind),pointer,dimension(:,:,:)::cfges_itsigp=>NULL()  
+  real(r_kind),pointer,dimension(:,:,:)::cfges_itsigp=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::niges_itsig =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::niges_itsigp=>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::nrges_itsig =>NULL()
+  real(r_kind),pointer,dimension(:,:,:)::nrges_itsigp=>NULL()  
+  logical  :: lmfdeep2
+  real(r_kind) , parameter:: xrc3=200.0_r_kind
 
   logical :: sea,icmask
 
@@ -1208,6 +1229,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      cloud_efr = zero
      cloudefr = zero
      cf = zero
+     ni = zero 
+     nr = zero 
   endif
 
   dx  = data_s(ilat)                 ! grid relative latitude
@@ -1354,6 +1377,15 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   icfs=istatus
   call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'cf',cfges_itsigp,icfs)
   icfs=icfs+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(itsig ),'ni',niges_itsig,istatus)
+  inis=istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'ni',niges_itsigp,istatus)
+  inis=inis+istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(itsig ),'nr',nrges_itsig,istatus)
+  inrs=istatus
+  call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'nr',nrges_itsigp,istatus)
+  inrs=inrs+istatus
+
 
 ! Space-time interpolation of temperature (h) and q fields from sigma files
 !$omp parallel do  schedule(dynamic,1) private(k,ii,iii)
@@ -1728,6 +1760,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
             ges_qsat (ixp,iy ,k, itsigp)*w10+ &
             ges_qsat (ix ,iyp,k, itsigp)*w01+ &
             ges_qsat (ixp,iyp,k, itsigp)*w11)*dtsigp
+   rh(k) = q(k)/qsat(k)  !added for cloud fraction computation
      c3(k)=r1000/(one-q(k))
      qmix(k)=q(k)*c3(k)  !convert specific humidity to mixing ratio
 ! Space-time interpolation of ozone(poz)
@@ -1760,6 +1793,38 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
          cf(k)=min(max(zero,cf(k)),one)
      endif ! cf
+
+! Space-time interpolation of cloud fraction (cf)
+     if (n_clouds_fwd_wk>0 .and. inis==0) then
+         ni(k)=((niges_itsig (ix ,iy ,k)*w00+ &
+                 niges_itsig (ixp,iy ,k)*w10+ &
+                 niges_itsig (ix ,iyp,k)*w01+ &
+                 niges_itsig (ixp,iyp,k)*w11)*dtsig + &
+                (niges_itsigp(ix ,iy ,k)*w00+ &
+                 niges_itsigp(ixp,iy ,k)*w10+ &
+                 niges_itsigp(ix ,iyp,k)*w01+ &
+                 niges_itsigp(ixp,iyp,k)*w11)*dtsigp)
+
+!        Ensure ozone is greater than ozsmall
+
+         ni(k)=max(zero,ni(k))
+     endif ! ni
+
+! Space-time interpolation of cloud fraction (cf)
+     if (n_clouds_fwd_wk>0 .and. inrs==0) then
+         nr(k)=((nrges_itsig (ix ,iy ,k)*w00+ &
+                 nrges_itsig (ixp,iy ,k)*w10+ &
+                 nrges_itsig (ix ,iyp,k)*w01+ &
+                 nrges_itsig (ixp,iyp,k)*w11)*dtsig + &
+                (nrges_itsigp(ix ,iy ,k)*w00+ &
+                 nrges_itsigp(ixp,iy ,k)*w10+ &
+                 nrges_itsigp(ix ,iyp,k)*w01+ &
+                 nrges_itsigp(ixp,iyp,k)*w11)*dtsigp)
+
+!        Ensure ozone is greater than ozsmall
+
+         nr(k)=max(zero,nr(k))
+     endif ! nr
 ! Quantities required for MW cloudy radiance calculations
 
      if (n_clouds_fwd_wk>0) then
@@ -1820,6 +1885,15 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      end do
   endif
 
+
+  ! Calculate Thompson effective radius for each hydrometeor 
+  if ( icmask .and. n_clouds_fwd_wk > 0 .and. imp_physics==08 .and. lprecip_wk) then
+     do ii = 1, n_clouds_fwd_wk
+        iii=jcloud(ii)
+       call calc_thompson_reff(rho_air,h,cloud(:,ii),cloud_names(iii),cloudefr(:,ii))
+     end do
+  endif
+
   ! Calculate GFDL cloud fraction (if no cf in metguess table) based on PDF scheme 
 ! if ( icmask .and. n_clouds_fwd_wk > 0 .and. imp_physics==11 .and.  lcalc_gfdl_cfrac ) then
   if ( icmask .and. n_clouds_fwd_wk > 0 .and. imp_physics==11 .and.  lprecip_wk ) then
@@ -1828,6 +1902,18 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      cf   = cf_calc
      icfs = 0        ! load cloud fraction into CRTM 
   endif
+
+
+  ! Calculate Thompson cloud fraction !Azadeh
+  if ( icmask .and. n_clouds_fwd_wk > 0 .and. imp_physics==08 .and.  lprecip_wk ) then
+     cf_calc  = zero
+! sum of the cloud condensate amount for all 5 hydrometeos (ql + qi + qs + qg + qh + qr) !Azadeh
+         qcond(:) = cloud(:,1) + cloud(:,2) + cloud(:,3) + cloud(:,4) + cloud(:,5)
+        call calc_thompson_cloudfrac (nsig , lmfdeep2, xrc3, prsl, qcond(:), rh, qsat,cf_calc)
+     cf   = cf_calc
+     icfs = 0        ! load cloud fraction into CRTM
+  endif
+
 
 ! Interpolate level pressure to observation point for top interface
   prsi(nsig+1)=(ges_prsi(ix ,iy ,nsig+1,itsig )*w00+ &
@@ -2044,11 +2130,21 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
               do ii=1,n_clouds_fwd_wk
                 !cloud_cont(k,ii)=cloud(kk2,ii)*kgkg_kgm2 
                  cloud_cont(k,ii)=cloud(kk2,ii)*c6(k)
-                 if (imp_physics==11 .and. lprecip_wk .and.  cloud_cont(k,ii) > 1.0e-6_r_kind) then
+                !Option for Thompson added
+                 if (imp_physics==11 .or. imp_physics==08 .and. lprecip_wk .and.  cloud_cont(k,ii) > 1.0e-6_r_kind) then
                     cloud_efr(k,ii)=cloudefr(kk2,ii)
                  else
                     cloud_efr(k,ii)=zero
                  endif
+                 if (trim(cloud_names_fwd(ii))=='ni' .and.  atmosphere(1)%temperature(k)<t0c) then
+                     cloud_cont(k,ii)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,ii))
+                     cloud_efr(k,ii)=max(5.001_r_kind, cloud_efr(k,ii))
+                 endif
+                 if (trim(cloud_names_fwd(ii))=='nr' .and.  atmosphere(1)%temperature(k)<t0c) then
+                     cloud_cont(k,ii)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,ii))
+                     cloud_efr(k,ii)=max(5.001_r_kind, cloud_efr(k,ii))
+                 endif
+
               enddo
             
 !             In CRTM, if cloud fraction of the layer < 1.0E-12, set cloud content and
@@ -2583,6 +2679,185 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   end subroutine calc_gfdl_reff
 
+  subroutine calc_thompson_reff(rho_air,tsen,qxmr,cloud_name,reff)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    calc_thompson_reff:  calculate effective radius based on Thompson scheme
+!   prgmmr:      Azadeh.Gholoubi
+!
+! program history log:
+!
+!   2023-01-24
+!
+!   language: f90
+!
+!$$$
+!--------
+  use constants, only: zero, pi
+  implicit none
+
+! Declare passed variables
+  character(10)                 ,intent(in   ) :: cloud_name
+  real(r_kind), dimension(nsig) ,intent(in   ) :: rho_air   ! [ kg/m3  ]
+  real(r_kind), dimension(nsig) ,intent(in   ) :: tsen      ! [ K      ]
+  real(r_kind), dimension(nsig) ,intent(in   ) :: qxmr      ! [ kg/kg  ]
+  real(r_kind), dimension(nsig) ,intent(inout) :: reff      ! [ micron ]
+
+! Declare local variables
+  character(len=*), parameter :: myname_ = 'calc_thompson_reff'
+  integer(i_kind) :: k
+  integer(i_kind) :: j
+  real(r_kind)    :: qx
+  real(r_kind)    :: reff_min, reff_max
+  real(r_kind):: lam_i,lam_w,lam_s,lam_r, lam_g,lam_exp, am_r,am_w,am_i,am_g, N_0r ,N_0i,N_0w,mu_w
+
+  ! Parameters
+  real(r_kind), parameter :: qmin = 1.0e-12_r_kind          ! [kg/kg ]
+  !.. droplet number concentration.
+  real, parameter :: Nt_c = 100.E6  ![m-3]
+
+  ! Parameters for water cloud
+  real(r_kind), parameter :: ccn        =  1.0e8_r_kind
+  real(r_kind), parameter :: rho_w      = 1000.0_r_kind     ! [kg/m3 ]
+  real(r_kind), parameter :: reff_w_min =    2.0_r_kind     ! previous value was 5.0_r_kind
+  real(r_kind), parameter :: reff_w_max =   25.0_r_kind     ! previous value was 10.0_r_kind
+
+  ! Parameters for ice cloud (Hemisfield and mcFarquhar 1996)
+  real(r_kind), parameter :: rho_i      = 890.0_r_kind      ! [kg/m3 ]
+  real(r_kind), parameter :: reff_i_min =    2.5_r_kind     ! previous value was 10_r_kind
+  real(r_kind), parameter :: reff_i_max = 250.0_r_kind      ! previous value was 150_r_kind
+  real(r_kind), parameter:: mu_i = 0.0
+
+  ! Parameters for  rain (Lin 1983)
+  real(r_kind), parameter :: rho_r      =    1000.0_r_kind  ! [kg/m3 ]
+  real(r_kind), parameter :: reff_r_min =       50.0_r_kind  ! [micron] ! previous value was 0.0_r_kind
+  real(r_kind), parameter :: reff_r_max =   1000.0_r_kind  ! [micron] ! previous value was 10000.0_r_kind
+  real(r_kind), parameter:: mu_r = 0.0
+  ! Parameters for snow
+  real(r_kind), parameter :: reff_s_min =       50.0_r_kind  ! [micron] ! previous value was 0.0_r_kind
+  real(r_kind), parameter :: reff_s_max =   1000.0_r_kind  ! [micron] ! previous value was 10000.0_r_kind
+
+!For snow moments conversions  (from Field et al. 2005)
+  real, dimension(10), parameter:: &
+      sa = (/ 5.065339, -0.062659, -3.032362, 0.029469, -0.000285,      &
+     &        0.31255,   0.000204,  0.003199, 0.0,      -0.015952/)
+      real, dimension(10), parameter:: &
+      sb = (/ 0.476221, -0.015896,  0.165977, 0.007468, -0.000141,      &
+     &        0.060366,  0.000079,  0.000594, 0.0,      -0.003577/)
+  real(r_kind), parameter :: am_s      =     0.069_r_kind
+  real(r_kind), parameter :: bm_s = 2.0_r_kind
+  real, dimension(1), parameter :: cse = (/ bm_s + 1. /)
+  real :: tc0, smo2, smob, smoc, smoz, a_, b_, loga_
+
+  ! Parameters for graupel  (Lin 1983)
+  real(r_kind), parameter :: rho_g      =     500.0_r_kind  ! [kg/m3 ]
+  real(r_kind), parameter :: reff_g_min =       150.0_r_kind  ! [micron] ! previous value was 0.0_r_kind
+  real(r_kind), parameter :: reff_g_max =   5000.0_r_kind  ! [micron] ! previous value was 10000.0_r_kind
+  real(r_kind), parameter:: mu_g = 0.0
+  real(r_kind), parameter :: no_exp     =  1.0e-4_r_kind
+
+!cloud water
+  if (trim(cloud_name)=='ql') then
+     am_w = rho_w*pi/6.0
+     reff_min = reff_w_min
+     reff_max = reff_w_max
+     do k = 1, nsig
+        qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
+        if (qx > qmin) then
+                mu_w = MAX(2, MIN((NINT(1000.E6/Nt_c) + 2), 15))
+               lam_w=exp(1.0_r_kind / 3.0_r_kind * log ((am_w*Nt_c *gamma(mu_w + 3.0_r_kind + 1))/(qx*gamma(mu_w+1))))
+
+               reff(k) = 0.5_r_kind * ((3.0_r_kind+mu_w)/lam_w)*1.0e6_r_kind
+       reff(k) = max(reff_min, min(reff_max, reff(k)))
+        else
+           reff(k) = zero
+        endif
+     enddo
+
+  ! Cloud Ice
+  else if (trim(cloud_name)=='qi') then
+     am_i = rho_i*pi/6.0
+     reff_min = reff_i_min
+     reff_max = reff_i_max
+     do k = 1, nsig
+        qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
+        if (qx > qmin) then
+       lam_i=exp(1.0_r_kind / 3.0_r_kind * log((am_i*ni(k) *gamma(mu_i + 3.0_r_kind + 1))/(qx*gamma(mu_i+1))))
+       reff(k) = 0.5_r_kind * (3.0_r_kind /lam_i)*1.0e6_r_kind
+       reff(k) = max(reff_min, min(reff_max, reff(k)))
+        else
+            reff(k) = zero
+        endif
+     enddo
+  !Rain
+  else if (trim(cloud_name)=='qr') then
+     am_r = rho_r*pi/6.0
+     reff_min = reff_r_min
+     reff_max = reff_r_max
+     do k = 1, nsig
+        qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
+        if (qx > qmin) then
+           lam_r=exp(1.0_r_kind / 3.0_r_kind * log ((am_r*nr(k) *gamma(mu_r + 3.0_r_kind + 1))/(qx*gamma(mu_r+1))))
+          reff(k) = 0.5_r_kind *(3.0_r_kind/lam_r)*1.0e6_r_kind
+          reff(k) = max(reff_min, min(reff_max, reff(k)))
+        else
+           reff(k) = zero
+        endif
+     enddo
+
+! Snow (Field et al. 2005)
+
+  else if (trim(cloud_name)=='qs') then
+     reff_min = reff_s_min
+     reff_max = reff_s_max
+     do k = 1, nsig
+!..Calculate bm_s+1 (th) moment, smoc.  Useful for diameter calcs.
+        tc0 = MIN(-0.1, tsen(k)-273.15)
+        qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
+        if (qx > qmin) then
+            smob =qx/am_s
+            loga_ = sa(1) + sa(2)*tc0 + sa(3)*cse(1) &
+                  + sa(4)*tc0*cse(1) + sa(5)*tc0*tc0 &
+                  + sa(6)*cse(1)*cse(1) + sa(7)*tc0*tc0*cse(1) &
+                  + sa(8)*tc0*cse(1)*cse(1) + sa(9)*tc0*tc0*tc0 &
+                  + sa(10)*cse(1)*cse(1)*cse(1)
+            a_ = 10.0**loga_
+            b_ = sb(1)+ sb(2)*tc0 + sb(3)*cse(1) + sb(4)*tc0*cse(1) &
+              + sb(5)*tc0*tc0 + sb(6)*cse(1)*cse(1) &
+              + sb(7)*tc0*tc0*cse(1) + sb(8)*tc0*cse(1)*cse(1) &
+              + sb(9)*tc0*tc0*tc0 + sb(10)*cse(1)*cse(1)*cse(1)
+           smoc = a_ * smob**b_
+           reff(k) = MAX(2.51E-6, MIN(0.5*(smoc/smob), 1999.E-6))
+       reff(k) = max(reff_min, min(reff_max, reff(k)*1.0e6_r_kind))
+        else
+           reff(k) = zero
+        endif
+     enddo
+
+  ! Graupel
+  else if (trim(cloud_name)=='qg') then
+     reff_min = reff_g_min
+     reff_max = reff_g_max
+     am_g = rho_g*pi/6.0
+     do k = 1, nsig
+        qx = qxmr(k)*rho_air(k)    ! convert mixing ratio (kg/kg) to water content (kg/m3)
+        if (qx > qmin) then
+           lam_exp = no_exp* exp(1/(3.0_r_kind+1) * log ((am_g*gamma(3.0_r_kind +1))/qx))
+          lam_g=lam_exp*exp(1/3.0_r_kind*log(gamma(3.0_r_kind+mu_g+1)/((3.0_r_kind+mu_g+1)*(mu_g+1))))
+           reff(k) = 3.0_r_kind/ lam_g
+           reff(k) = max(reff_min, min(reff_max, reff(k)))
+        else
+           reff(k) = zero
+        endif
+     enddo
+
+  ! Mysterious
+  else
+     call die(myname_,"cannot recognize cloud name <"//trim(myname_)//">")
+  endif
+
+  end subroutine calc_thompson_reff
+
   subroutine calc_gfdl_cloudfrac(den,pt1,qv,cloud,hs,area,qsat,cfrac)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -2795,6 +3070,82 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      cfrac(k) = qa
   enddo !k-loop
   end subroutine calc_gfdl_cloudfrac
+
+  subroutine calc_thompson_cloudfrac(nsig, lmfdeep2, xrc3, prsl, clwf, rhly, qstl,cldtot)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    calc_thompson_cloudfrac  calculate cloud fractions from cloud using Thompson scheme
+!
+!   prgmmr:      Azadeh.Gholoubi
+!
+! abstract:
+!
+! program history log:
+!
+!   2023-01-24  
+!
+!   language: f90
+!   
+!  ====================  definition of variables  ====================  !
+! input variables:                                                      !
+!   prsl  (msig) : model layer mean pressure in cb                      !
+!   qstl  (nsig) : layer saturate humidity in gm/gm                     !
+!   rhly  (nsig) : layer relative humidity (=qlyr/qstl)                 !
+!   nsig         : vertical layer/level dimensions                      !
+!   lmfdeep2     : logical - true for mass flux deep convection         !
+!   clwf         : sum of the all 5 Hydrometeors                        !
+!   lmfdeep2     : scale-aware mass-flux deep conv scheme flag          !                                                        !
+! output variables:                                                     !
+!   cldtot (nsig) - layer total cloud fraction                          !
+!  ====================    end of description    =====================  !
+!$$$
+!--------
+  use constants
+  implicit none
+
+!  ---  inputs:
+      integer(i_kind), intent(in) :: nsig
+      real(r_kind) , dimension(nsig), intent(in) :: prsl, clwf, rhly, qstl  
+      logical, intent(in) :: lmfdeep2
+      real(r_kind) , intent(in):: xrc3
+
+!  ---  outputs
+      real(r_kind) , dimension(nsig), intent(inout) :: cldtot
+
+!  ---  local variables:
+       real(r_kind)  :: clwmin, clwm, clwt, onemrh, value, tem1, tem2
+       integer(i_kind) :: k
+	   
+!> - Compute layer cloud fraction.
+        clwmin = 0.0
+        do k = 1, nsig-1
+! converting prsl from cb to bar     
+          clwt = 1.0e-10 * (prsl(k)*0.01)
+          if (clwf(k) > clwt) then
+            if(rhly(k) > 0.99) then
+              cldtot(k) = 1.
+            else
+              onemrh= max( 1.e-10, 1.0-rhly(k) )
+              clwm  = clwmin / max( 0.01, prsl(k)*0.01 )
+
+              tem1  = min(max((onemrh*qstl(k))**0.49,0.0001),1.0) 
+              if (lmfdeep2) then
+                tem1  = xrc3 / tem1
+              else
+                tem1  = 100.0 / tem1
+              endif 
+
+              value = max( min( tem1*(clwf(k)-clwm), 50.0 ), 0.0 )
+              tem2  = sqrt( sqrt(rhly(k)) )
+              cldtot(k) = max( tem2*(1.0-exp(-value)), 0.0 )
+            endif
+          else
+            cldtot(k) = 0.0
+          endif
+        enddo
+
+      end subroutine calc_thompson_cloudfrac
+!............................................ 
 
 subroutine qs_table(n)
 !$$$  subprogram documentation block
