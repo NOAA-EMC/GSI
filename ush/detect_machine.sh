@@ -37,6 +37,15 @@ case $(hostname -f) in
   discover3[1-5].prv.cube) MACHINE_ID=discover ;; ### discover31-35
 esac
 
+case $(echo ${PW_CSP:-}) in
+
+  aws) MACHINE_ID=aws ;; ### parallelworks aws
+  google)  MACHINE_ID=gcp ;; ### parallelworks gcp
+  azure)  MACHINE_ID=azure ;; ### parallelworks azure
+
+esac
+[[ ${MACHINE_ID} =~ "aws" || ${MACHINE_ID} =~ "gcp" || ${MACHINE_ID} =~ "azure" ]] && MACHINE_ID=noaacloud
+
 # Overwrite auto-detect with MACHINE if set
 MACHINE_ID=${MACHINE:-${MACHINE_ID}}
 
