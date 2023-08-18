@@ -479,38 +479,6 @@ allocate(ensmean_chunk(npts_max,ncdim,nbackgrounds))
 allocate(ensmean_chunk_prior(npts_max,ncdim,nbackgrounds))
 ensmean_chunk = 0_r_single
 
-! send and receive buffers.
-do nb=1,nbackgrounds ! loop over time levels in background
-
-  if (nproc <= ntasks_io-1) then
-     ! fill up send buffer.
-     do np=1,numproc
-      do ne=1,nanals_per_iotask
-        do nn=1,ncdim
-         do i=1,numptsperproc(np)
-          n = ((np-1)*ncdim*nanals_per_iotask + (ne-1)*ncdim + (nn-1))*npts_max + i
-          sendbuf(n) = grdin(indxproc(np,i),nn,nb,ne)
-        enddo
-       enddo
-      enddo
-     enddo
-  end if
-  call mpi_alltoallv(sendbuf, scounts, displs, mpi_real4, recvbuf, rcounts, displs,&
-                     mpi_real4, mpi_comm_world, ierr)
-  
-  !==> compute ensemble of first guesses on each task, remove mean from anal.
-  !$omp parallel do schedule(dynamic,1)  private(nn,i,nanal,n)
-  do nn=1,ncdim
-     do i=1,numptsperproc(nproc+1)
-        do nanal=1,nanals
-           n = ((nanal-1)*ncdim + (nn-1))*npts_max + i
-           anal_chunk(nanal,i,nn,nb) = recvbuf(n)
-        enddo
-     end do
-  end do
-  !$omp end parallel do
-enddo ! loop over nbackgrounds
-
 if(ldo_enscalc_option ==0)  then !regular enkf run
 !==> compute ensemble of first guesses on each task, remove mean from anal.
 !$omp parallel do schedule(dynamic,1)  private(nn,i,n,nb)
@@ -574,7 +542,6 @@ write(6,*)'this ldo_enscalc_option = ',ldo_enscalc_option,' is not available now
 
 endif
 
-deallocate(sendbuf, recvbuf)
 
 end subroutine scatter_chunks
 
