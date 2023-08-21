@@ -14,6 +14,7 @@ if [ "$#" = 7 ] ; then
   export enkfexec_contrl=$7
   export fixgsi="$gsisrc/fix"
   export scripts="$gsisrc/regression"
+  export modulefiles="$gsisrc/modulefiles"
   export ush="$gsisrc/ush"
   export cmaketest="true"
   export clean="false"
