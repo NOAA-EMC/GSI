@@ -313,6 +313,8 @@ end subroutine berror_read_bal_reg
       use mpeu_util,only: getindex
       use radiance_mod, only: icloud_cv,n_clouds_fwd,cloud_names_fwd
       use chemmod, only: berror_fv3_cmaq_regional
+      use rapidrefresh_cldsurf_mod, only: l_tuneBE_howv
+      use hybrid_ensemble_parameters, only: l_hyb_ens
 
       implicit none
 
@@ -368,6 +370,8 @@ end subroutine berror_read_bal_reg
 !                         vertical length scale from 1/layer to 1/sigma
 !       2022-05-24 ESRL(H.Wang) - Add B for reginal FV3-CMAQ
 !                        (berror_fv3_cmaq_regional=.true.) . 
+!       2023-07-30 Zhao - added code for tuning the static BE of howv in hybrid
+!                         run (since ensemble of howv is not available yet).
 !
 !EOP ___________________________________________________________________
 
@@ -415,6 +419,7 @@ end subroutine berror_read_bal_reg
   !real(r_kind), parameter :: corz_default=one,hwll_default=27000.00000000,vz_default=one*10
   logical :: print_verbose
   real(r_kind) ,dimension(mlat,1,2) :: cov_dum
+  real(r_kind)    :: b_howv
 !  character(256) :: filename 
 !  filename = 'howv_var_berr.bin'
 
@@ -870,16 +875,29 @@ end subroutine berror_read_bal_reg
            hwllp(i,n)=hwllp(i,nrf2_ps)
         end do
      else if (n==nrf2_howv) then
-         call read_howv_stats(mlat,1,2,cov_dum)
+         call read_howv_stats(mlat,1,2,cov_dum,mype)     ! static B for howv
          do i=1,mlat
             corp(i,n)=cov_dum(i,1,1)     !#ww3
             hwllp(i,n) = cov_dum(i,1,2) 
          end do
          hwllp(0,n) = hwllp(1,n)
          hwllp(mlat+1,n) = hwllp(mlat,n)
-
-         if (mype==0) print*, 'corp(i,n) = ', corp(:,n)
-         if (mype==0) print*, ' hwllp(i,n) = ',  hwllp(:,n)
+         if (mype==0) then
+            print*, myname_, ' static BE corp( :,n) (for ', trim(adjustl(cvars2d(n))), ')= ', corp(:,n)
+            print*, myname_, ' static BE hwllp(:,n) (for ', trim(adjustl(cvars2d(n))), ')= ', hwllp(:,n)
+         end if
+!---     tuning the static BE of howv in hybrid run
+         if ( (.not. twodvar_regional) .and. l_hyb_ens ) then
+           b_howv = one
+           call get_factor_tuneBE_howv(mype, b_howv)
+           if ( l_tuneBE_howv ) then
+             corp(:,n) = corp(:,n) * b_howv
+             if (mype==0) then
+               write(6,'(1x,A,A,A,A,1x,F7.4)') myname_, ' Tuning factor of static BE corp( :,n) (for ', trim(adjustl(cvars2d(n))), ')= ', b_howv
+               write(6,*) myname_, ' Tuned static BE corp( :,n) (for ', trim(adjustl(cvars2d(n))), ')= ', corp(:,n)
+             end if
+           end if
+         end if        
 !         corp(:,n)=cov_dum(:,1)
         !do i=1,mlat
         !   corp(i,n)=0.4_r_kind     !#ww3
@@ -1055,7 +1073,7 @@ end subroutine berror_read_bal_reg
 end subroutine berror_read_wgt_reg
 
 !++++
-subroutine read_howv_stats(nlat,nlon,npar,arrout)
+subroutine read_howv_stats(nlat,nlon,npar,arrout,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram: read_howv_stats   
@@ -1090,6 +1108,9 @@ subroutine read_howv_stats(nlat,nlon,npar,arrout)
 ! program history log:
 !   2016-08-03  stelios
 !   2016-08-26  stelios : Compatible with GSI.
+!   2023-07-30  Zhao    - added code to set the background error 
+!                         standard deviation (corp_howv) and de-correlation
+!                         length scale (hwllp_howv) for non-2DRTMA run
 !   input argument list:
 !     filename -  The name of the file 
 !   output argument list:
@@ -1102,10 +1123,14 @@ subroutine read_howv_stats(nlat,nlon,npar,arrout)
 !$$$ end documentation block
 !
    use kinds,only : r_kind, i_kind
+   use gridmod, only : twodvar_regional
+   use rapidrefresh_cldsurf_mod, only : corp_howv, hwllp_howv
+   use gsi_io, only : verbose
 !
    implicit none
 ! Declare passed variables
    integer(i_kind),   intent(in   )::nlat,nlon,npar
+   integer(i_kind),   intent(in   ) :: mype  ! "my" processor ID
    real(r_kind), dimension(nlat ,nlon, npar),  intent(  out)::arrout
 ! Declare local variables
    integer(i_kind) :: reclength,i,j,i_npar
@@ -1114,15 +1139,25 @@ subroutine read_howv_stats(nlat,nlon,npar,arrout)
    integer(i_kind), parameter :: lun34=34
    character(len=256),dimension(npar) :: filename
    integer(i_kind), parameter :: dp1 = kind(1D0)
+   logical :: print_verbose
+!
+   print_verbose=.false.
+   if(verbose)print_verbose=.true.
 !
    filename(1) = 'howv_var_berr.bin'
    filename(2) = 'howv_lng_berr.bin'
-!
-   arrout(:,:,1)=0.42_r_kind
-   arrout(:,:,2)=50000.0_r_kind
+!-- first, assign the pre-defined values to corp and hwllp
+   if ( twodvar_regional  ) then
+      arrout(:,:,1)=0.42_r_kind           ! values were specified by Manuel and Stelio for 2DRTMA
+      arrout(:,:,2)=50000.0_r_kind        ! values were specified by Manuel and Stelio for 2DRTMA
+   else
+      arrout(:,:,1) = corp_howv           ! 0.42_r_kind used in 3dvar (default) if not read in namelist
+      arrout(:,:,2) = hwllp_howv          ! 17000.0_r_kind used in 3dvar (default) if not read in namelist
+   end if
 
    reclength=nlat*r_kind
-!
+!-- secondly, if files for corp and hwllp are available, then read them in for
+!     corp and hwllp. If the files are not found, then use the pre-defined values.
    do i_npar = 1,npar
       inquire(file=trim(filename(i_npar)), exist=file_exists)
       if (file_exists)then
@@ -1132,11 +1167,141 @@ subroutine read_howv_stats(nlat,nlon,npar,arrout)
             read(unit=lun34 ,rec=j) (arrout(i,j,i_npar), i=1,nlat)
          enddo
          close(unit=lun34)
+         if (print_verbose .and. mype .eq. 0) then         
+           print*,trim(adjustl(myname)), trim(filename(i_npar)) // ' is used for background error of howv.'
+         end if
 
       else 
-         print*,myname, trim(filename(i_npar)) // ' does not exist'
+         if (print_verbose .and. mype .eq. 0) then         
+           print*,trim(adjustl(myname)), trim(filename(i_npar)) // ' does not exist for static BE of howv.'
+           print*,trim(adjustl(myname)), '::using pre-defined corp_howv=',corp_howv, ' hwllp_howv=',hwllp_howv, ' for howv.'
+         end if
       end if
    end do
 end subroutine read_howv_stats
+!++++
+subroutine get_factor_tuneBE_howv(mype, b_factor)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram: get_factor_tuneBE_howv
+! prgmmr: Zhao, Gang          org: ncep/emc                date: 2023-07-30
+!
+! abstract:
+!           read in the weights of static BE(beta_s0, or beta_s) and ensemble
+!           BE (beta_e) used in hybrid envar, then compute the b_factor which
+!           is used to tune the static BE of howv.
+!           Because there is no ensemble of howv by far, so the contribution of
+!           ensemble to total BE of howv is zero, then due to the weight of
+!           static BE (beta_s) < 1.0, then the total BE of howv in hybrid run is
+!           smaller than the BE of howv used in pure 3dvar run. To make the
+!           analysis of howv in hybrid run is similar to the analysis of howv in
+!           pure 3dvar run, in hybrid run the staic BE of howv needs to be
+!           tuned (actually inflated since beta_s < 1.0).
+! note: 
+!           the name of file with ensemble weights and localisation
+!           information is 'hybens_info'. If it is changed to other name, user
+!           need to change it here, following the file name definition in
+!           subroutine hybens_localization_setup in hybrid_ensemble_isotropic.F90.
+!
+!     
+! program history log:
+!   2023-07-30  Zhao    - initialize the code. It adopts some lines of code from
+!                         the subroutine hybens_localization_setup in
+!                         hybrid_ensemble_isotropic.F90 to read in the beta_s
+!                         and beta_e from file "hybens_info".
+!
+!   input argument list:
+!     mype -  pe number of this task run
+!   output argument list:
+!     b_factor - the factor used to tune the static BE of howv
+!
+! attributes:
+!   language: f90
+!   machine: theia/gyre 
+!
+!$$$ end documentation block
+!
+   use hybrid_ensemble_parameters, only: readin_beta, readin_localization
+   use hybrid_ensemble_parameters, only: beta_s0,beta_e0
+   use rapidrefresh_cldsurf_mod,   only: l_tuneBE_howv
+   use gsi_io, only : verbose
+!
+   implicit none
+! Declare passed variables
+   integer(i_kind),   intent(in   ) :: mype  ! "my" processor ID
+   real(r_kind),      intent(inout) :: b_factor
+! Declare local variables
+   integer(i_kind),parameter   :: lunin = 49
+   character(len=40),parameter :: fname = 'hybens_info'
+   integer(i_kind)    :: istat, msig
+   real(r_kind)       :: beta
+   real(r_kind)       :: b_s, b_e, s_hv, s_vv
+
+   logical :: lexist
+   logical :: print_verbose
+!----------------------------------------------------
+   print_verbose=.false.
+   if(verbose)print_verbose=.true.
+
+   if ( readin_localization .or. readin_beta ) then ! read info from file
+
+      inquire(file=trim(fname),exist=lexist)
+      if ( lexist ) then 
+         open(lunin,file=trim(fname),form='formatted')
+         rewind(lunin)
+         read(lunin,100,iostat=istat) msig
+         if ( istat /= 0 ) then
+            l_tuneBE_howv = .false.
+            beta = one
+            if (mype == 0) then
+              write(6,'(1x,A,A,A,I4)') 'get_factor_tuneBE_howv: error reading file ',trim(fname),' iostat = ',istat
+              write(6,'(1x,A)') 'get_factor_tuneBE_howv: skipping reading beta_s and No tuning static BE of howv'
+            end if
+         else
+            read(lunin,101) s_hv, s_vv, b_s, b_e   ! read the value for lowest level only
+            beta = b_s/(b_s + b_e)            ! in case b_s + b_e /= 1
+            if(mype==0 .and. print_verbose) then
+               write(6,*) "get_factor_tuneBE_howv: read in BETA_S, BETA_E at level 1: ", b_s, b_e
+               write(6,*) "get_factor_tuneBE_howv: used beta= ", beta
+            end if
+         end if
+      else
+         l_tuneBE_howv = .false.
+         beta = one
+         if (mype == 0) then
+            write(6,'(1x,A,A)') 'get_factor_tuneBE_howv: could NOT find file ',trim(fname)
+            write(6,'(1x,A)')   'get_factor_tuneBE_howv: skipping reading beta_s and No tuning static BE of howv'
+         end if
+      end if
+
+    else
+
+       beta = beta_s0
+       if(mype==0 .and. print_verbose) then
+          write(6,*) "get_factor_tuneBE_howv: the universal BETA_S0 : ", beta_s0, ' (no localisation file)'
+          write(6,*) "get_factor_tuneBE_howv: used beta= ", beta
+       end if
+
+    end if
+
+    close(lunin)
+
+    if ( beta >= 0.001_r_kind ) then
+       b_factor = sqrt(one/beta)
+    else
+       b_factor = one                     ! actually in this case, b_factor should be a huge value
+                                          ! since it is using pure ensemble in hybrid envar run
+       l_tuneBE_howv = .false.            ! for pure ensemble run, no tuning of static BE of howv
+    end if
+
+100 format(I4)
+!101 format(F8.1,3x,F5.1,2(3x,F8.4))
+101 format(F8.1,3x,F8.3,F8.4,3x,F8.4)
+
+300 continue
+
+    return
+
+end subroutine get_factor_tuneBE_howv
 
 end module m_berror_stats_reg

@@ -33,6 +33,9 @@ subroutine setuphowv(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
 !                       . Remove my_node with corrected typecast().
 !   2018-01-08  pondeca - addd option l_closeobs to use closest obs to analysis
 !                                     time in analysis
+!   2023-07-30  Zhao    - using the option i_howv_in_data to control the usage of 
+!                         obs of howv in setuphowv only if honw is available
+!                         in figrstguess (i_howv_in_data=1). (not applied for 2DRTMA)
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -84,6 +87,7 @@ subroutine setuphowv(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use rapidrefresh_cldsurf_mod, only: l_closeobs
+  use rapidrefresh_cldsurf_mod, only: i_howv_in_data
   implicit none
 
 ! Declare passed variables
@@ -323,6 +327,14 @@ subroutine setuphowv(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
         ratio_errors=one
         muse(i) = .true.
      endif
+
+!--  Note:
+!         The following if-block must NOT be applied for 2DRTMA (ie. twodvar_regional=.false.),
+!         because 2DRTMA does NOT check the existence of howv in firstguess,
+!         so no defnition of i_howv_in_data in 2DRTMA.
+!         In the analysis of non-2DRTMA, if there is no howv data in firstguess,
+!         (i_howv_in_data /= 1), then do not use the obs of howv. (set muse = .false.)
+     if ( (.not. twodvar_regional) .and. (i_howv_in_data /= 1) ) muse(i) = .false.
 
      if (nobskeep>0 .and. luse_obsdiag) call obsdiagNode_get(my_diag, jiter=nobskeep,muse=muse(i))
 

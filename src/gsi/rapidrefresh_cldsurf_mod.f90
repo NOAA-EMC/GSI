@@ -28,7 +28,13 @@ module rapidrefresh_cldsurf_mod
 !                       option for checking and adjusting the profile of Qr/Qs/Qg/Qnr
 !                       retrieved through cloud analysis to reduce the background
 !                       reflectivity ghost in analysis. (default is 0)
-!
+!   2023-07-30 Zhao     added options for analysis of significant wave
+!                       height(SWH, aka howv in GSI code):
+!                         corp_howv:   to set the static background error of howv
+!                         hwllp_howv:  to set the de-correlation length scale
+!                         l_tuneBE_howv: on/off the tuning of static BE of howv (in hyrid run)
+!                         i_howv_in_anav: check if howv is in anavinfo
+!                         i_howv_in_data: check if howv is in firstguess file
 ! 
 ! Subroutines Included:
 !   sub init_rapidrefresh_cldsurf  - initialize RR related variables to default values
@@ -181,6 +187,24 @@ module rapidrefresh_cldsurf_mod
 !                          = 2(clean Qg as in 1, and adjustment to the retrieved Qr/Qs/Qnr throughout the whole profile)
 !                          = 3(similar to 2, but adjustment to Qr/Qs/Qnr only below maximum reflectivity level
 !                           and where the dbz_obs is missing);
+!      corp_howv      - namelist real, static BE of howv (standard error deviation)
+!      hwllp_howv     - namelist real, static BE de-correlation length scale of howv
+!      i_howv_in_anav - integer, check if howv is found in anavinfo as state/analysis variable
+!                          = 0 if "howv" is not in anavinfo as state/analysis variable
+!                          = 1 if "howv" is found in anavinfo as state/analysis variable
+!      i_howv_in_data - integer, check if "howv" is found in firstguess data file
+!                          = 0 if "howv" is not in firstguess data file
+!                          = 1 if "howv" is found in firstgues file
+!      l_tunBE_howv   - namelist logical, on/off the tuning of static BE of howv ONLY in hybrid run
+!                       = .true., (default) tuning the static BE of howv background error of howv
+!                       note: in hybrid envar run, the static BE is redueced by beta_s (<1.0),
+!                             since there is no howv ensemble, there is no
+!                             ensemble contribution to the total BE of howv,
+!                             then the total BE of howv is just the reduced
+!                             static BE of howv. To make the analysis of howv
+!                             in hyrbid run is as similar as the analysis of
+!                             howv in pure 3dvar run, the static BE of howv used
+!                             in hybrid run needs to be tuned (inflated actually).
 !
 ! attributes:
 !   language: f90
@@ -252,6 +276,9 @@ module rapidrefresh_cldsurf_mod
   public :: l_saturate_bkCloud
   public :: l_rtma3d
   public :: i_precip_vertical_check
+  public :: corp_howv, hwllp_howv
+  public :: i_howv_in_anav, i_howv_in_data
+  public :: l_tuneBE_howv
 
   logical l_hydrometeor_bkio
   real(r_kind)  dfi_radar_latent_heat_time_period
@@ -310,6 +337,9 @@ module rapidrefresh_cldsurf_mod
   logical              l_saturate_bkCloud
   logical              l_rtma3d
   integer(i_kind)      i_precip_vertical_check
+  real(r_kind)      :: corp_howv, hwllp_howv
+  integer(i_kind)   :: i_howv_in_anav, i_howv_in_data
+  logical           :: l_tuneBE_howv
 
 contains
 
@@ -325,6 +355,8 @@ contains
 !   2008-06-03  Hu        initial build for cloud analysis
 !   2010-03-29  Hu        change names to init_rapidrefresh_cldsurf
 !   2011--5-04  Todling   inquire MetGuess for presence of hyrometeors & set default
+!   2023-07-30  Zhao      added code for initialization of some variables used
+!                         in analysis of significant wave height
 !
 !   input argument list:
 !
@@ -337,8 +369,12 @@ contains
 !$$$
     use kinds, only: i_kind 
     use gsi_metguess_mod, only: gsi_metguess_get
+    use mpimod, only: mype
+    use state_vectors, only: ns2d,svars2d
+
     implicit none
     integer(i_kind) ivar,i,ier
+    integer(i_kind) i2
     logical have_hmeteor(5)
     character(len=2),parameter :: hydrometeors(5) = (/ 'qi', &
                                                        'ql', &
@@ -418,6 +454,21 @@ contains
     l_saturate_bkCloud= .true.
     l_rtma3d            = .false.                     ! turn configuration for rtma3d off          
     i_precip_vertical_check = 0                       ! No check and adjustment to retrieved Qr/Qs/Qg (default)
+    corp_howv           = 0.42_r_kind                 ! 0.42 meters (default)
+    hwllp_howv          = 170000.0_r_kind             ! 170,000.0 meters (170km as default for 3DRTMA, 50km is used in 2DRTMA)
+    l_tuneBE_howv       = .false.                     ! no tuning the static BE of howv in hybrid run (default)
+    i_howv_in_data      = 0                           ! no significant wave height (howv) in firstguess data file (default)
+    i_howv_in_anav      = 0                           ! no howv in anavinfo (default)
+
+!-- searching for speficif variable in state variable list (reading from anavinfo)
+    do i2=1,ns2d
+      if (trim(svars2d(i2))=='howv' .or. trim(svars2d(i2))=='HOWV') then
+        i_howv_in_anav = 1
+        if (mype == 0 ) then
+          write(6,'(1x,A,1x,A8,1x,A)')"init_rapidrefresh_cldsurf: anavinfo svars2d (state variable): ",trim(adjustl(svars2d(i2))), " is found in anavinfo."
+        end if
+      end if
+    end do ! i2 : looping over 2-D anasv
 
     return
   end subroutine init_rapidrefresh_cldsurf

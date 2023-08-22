@@ -22,6 +22,8 @@ module gsi_rfv3io_mod
 !                         used as background for surface observation operator
 !   2022-04-15  Wang    - add IO for regional FV3-CMAQ (RRFS-CMAQ) model 
 !   2022-08-10  Wang    - add IO for regional FV3-SMOKE (RRFS-SMOKE) model 
+!   2023-07-30  Zhao    - add IO for the analysis of the significant wave height
+!                         (SWH, aka howv in GSI) in fv3-lam based DA (eg., RRFS-3DRTMA)
 !
 ! subroutines included:
 !   sub gsi_rfv3io_get_grid_specs
@@ -56,6 +58,7 @@ module gsi_rfv3io_mod
   use rapidrefresh_cldsurf_mod, only: i_use_2mq4b,i_use_2mt4b
   use chemmod, only: naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,laeroana_fv3cmaq
   use chemmod, only: naero_smoke_fv3,aeronames_smoke_fv3,laeroana_fv3smoke  
+  use rapidrefresh_cldsurf_mod, only: i_howv_in_anav, i_howv_in_data
 
   implicit none
   public type_fv3regfilenameg
@@ -134,6 +137,7 @@ module gsi_rfv3io_mod
   public :: mype_qi,mype_qr,mype_qs,mype_qg,mype_qnr,mype_w
   public :: k_slmsk,k_tsea,k_vfrac,k_vtype,k_stype,k_zorl,k_smc,k_stc
   public :: k_snwdph,k_f10m,mype_2d,n2d,k_orog,k_psfc,k_t2m,k_q2m
+  public :: k_howv                  ! index for the significant wave height (aka howv in GSI)
   public :: ijns,ijns2d,displss,displss2d,ijnz,displsz_g
   public :: fv3lam_io_dynmetvars3d_nouv,fv3lam_io_tracermetvars3d_nouv
   public :: fv3lam_io_tracerchemvars3d_nouv,fv3lam_io_tracersmokevars3d_nouv
@@ -145,6 +149,7 @@ module gsi_rfv3io_mod
 
   integer(i_kind) k_slmsk,k_tsea,k_vfrac,k_vtype,k_stype,k_zorl,k_smc,k_stc
   integer(i_kind) k_snwdph,k_f10m,mype_2d,n2d,k_orog,k_psfc,k_t2m,k_q2m
+  integer(i_kind) k_howv            ! index for the significant wave height (aka howv in GSI)
   parameter(                   &  
     k_f10m =1,                  &   !fact10
     k_stype=2,                  &   !soil_type
@@ -159,7 +164,10 @@ module gsi_rfv3io_mod
     k_t2m =11,                 & ! 2 m T
     k_q2m  =12,                 & ! 2 m Q
     k_orog =13,                 & !terrain
-    n2d=13                   )
+    k_howv =14,                 &   ! significant wave height (aka howv in GSI)
+    n2d=14                   )      ! It might be better if n2d is a variable
+                                    ! depending on the variables in the list of
+                                    ! anavinfo, instead of a constant parameter.
   logical :: grid_reverse_flag
   character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_io_dynmetvars3d_nouv 
                                     ! copy of cvars3d excluding uv 3-d fields   
@@ -767,6 +775,8 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 !      2022-04-01 Y. Wang and X. Wang - add capability to read reflectivity
 !                                       for direct radar EnVar DA using reflectivity as state 
 !                                       variable, poc: xuguang.wang@ou.edu
+!      2023-07-30 Zhao   - added code to read significant wave height (howv) field 
+!                          from the 2D fv3-lam firstguess file (fv3_sfcdata).
 ! attributes:
 !   language: f90
 !   machine:  ibm RS/6000 SP
@@ -816,6 +826,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     real(r_kind),pointer,dimension(:,:,:):: ges_delp  =>NULL()
     real(r_kind),dimension(:,:),pointer::ges_t2m=>NULL()
     real(r_kind),dimension(:,:),pointer::ges_q2m=>NULL()
+    real(r_kind),dimension(:,:),pointer::ges_howv=>NULL()       ! --> howv
 
     real(r_kind),dimension(:,:,:),pointer::ges_ql=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_qi=>NULL()
@@ -1093,6 +1104,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
              if(mype == 0) write(6,*)'the metvarname ',trim(vartem),' will be dealt separately'
           else if(trim(vartem)=='t2m') then
           else if(trim(vartem)=='q2m') then
+          else if(trim(vartem)=='howv') then                    ! ??
           else 
             write(6,*)'the metvarname2 ',trim(vartem),' has not been considered yet, stop'
             call stop2(333)
@@ -1110,7 +1122,8 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
       do i=1,size(name_metvars2d)
         vartem=trim(name_metvars2d(i))
         if(.not.( (trim(vartem)=='ps'.and.fv3sar_bg_opt==0).or.(trim(vartem)=="z") &
-                  .or.(trim(vartem)=="t2m").or.(trim(vartem)=="q2m")))  then !z is treated separately
+                  .or.(trim(vartem)=="t2m").or.(trim(vartem)=="q2m")               &
+                  .or.(trim(vartem)=="howv")))  then ! z is treated separately
           if (ifindstrloc(vardynvars,trim(vartem)) > 0) then
             jdynvar=jdynvar+1
             fv3lam_io_dynmetvars2d_nouv(jdynvar)=trim(vartem)
@@ -1365,6 +1378,13 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it),'t2m',ges_t2m,istatus );ier=ier+istatus
             if (ier/=0) call die(trim(myname),'cannot get pointers for t2m,ier=',ier)
          endif
+
+!---     significant wave height (howv)
+         if ( i_howv_in_anav == 1 ) then
+            call GSI_BundleGetPointer(GSI_MetGuess_Bundle(it),'howv',ges_howv,istatus ); ier=ier+istatus
+            if (ier/=0) call die(trim(myname),'cannot get pointers for howv, ier=',ier)
+         endif
+
          if(mype == 0 ) then
            call check(nf90_open(fv3filenamegin(it)%dynvars,nf90_nowrite,loc_id))
            call check(nf90_inquire(loc_id,formatNum=ncfmt))
@@ -1546,7 +1566,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
          endif
 
 
-         call gsi_fv3ncdf2d_read(fv3filenamegin(it),it,ges_z,ges_t2m,ges_q2m)
+         call gsi_fv3ncdf2d_read(fv3filenamegin(it),it,ges_z,ges_t2m,ges_q2m,ges_howv)   ! adding code to read howv
 
          if(i_use_2mq4b > 0 .and. i_use_2mt4b > 0 ) then
 ! Convert 2m guess mixing ratio to specific humidity
@@ -1782,7 +1802,7 @@ end subroutine gsi_bundlegetpointer_fv3lam_tracerchem_nouv
 
 end subroutine read_fv3_netcdf_guess
 
-subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m)
+subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    gsi_fv3ncdf2d_read       
@@ -1792,6 +1812,8 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m)
 !                Scatter the field to each PE 
 ! program history log:
 !   2023-02-14  Hu   -  Bug fix for read in subdomain surface restart files
+!   2023-07-30  Zhao -  added IO to read significant wave height (howv) from 2D FV3-LAM
+!                         firstguess file (fv3_sfcdata)
 !
 !   input argument list:
 !     it    - time index for 2d fields
@@ -1806,6 +1828,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m)
 !$$$  end documentation block
     use kinds, only: r_kind,i_kind
     use mpimod, only: ierror,mpi_comm_world,npe,mpi_rtype,mype
+    use mpimod, only: mpi_itype             ! used to broadcast an integer
     use guess_grids, only: fact10,soil_type,veg_frac,veg_type,sfc_rough, &
          sfct,sno,soil_temp,soil_moi,isli
     use gridmod, only: lat2,lon2,itotsub,ijn_s
@@ -1813,8 +1836,11 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m)
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
     use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inquire_variable
+    use netcdf, only: nf90_inq_varid
+    use netcdf, only: nf90_noerr
     use mod_fv3_lola, only: fv3_h_to_ll,nxa,nya
     use constants, only: grav
+    use constants, only: zero
 
     implicit none
 
@@ -1822,6 +1848,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m)
     real(r_kind),intent(in),dimension(:,:),pointer::ges_z
     real(r_kind),intent(in),dimension(:,:),pointer::ges_t2m
     real(r_kind),intent(in),dimension(:,:),pointer::ges_q2m
+    real(r_kind),intent(in),dimension(:,:),pointer::ges_howv        ! --> howv
     type (type_fv3regfilenameg),intent(in) :: fv3filenamegin
     character(len=max_varname_length) :: name
     integer(i_kind),allocatable,dimension(:):: dim
@@ -1835,6 +1862,9 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m)
     integer(i_kind) kk,n,ns,j,ii,jj,mm1
       character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
       character(len=:),allocatable :: dynvars   !='fv3_dynvars'
+! for checking the existence of howv in firstguess file
+    integer(i_kind) id_howv, iret_howv
+    integer(i_kind) iret_bcast
 
 ! for io_layout > 1
     real(r_kind),allocatable,dimension(:,:):: sfc_fulldomain
@@ -1849,6 +1879,9 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m)
     allocate(a(nya,nxa))
     allocate(work(itotsub*n2d))
     allocate( sfcn2d(lat2,lon2,n2d))
+
+!-- initialisation of the array for howv
+    sfcn2d(:,:,k_howv) = zero
 
     if(mype==mype_2d ) then
        allocate(sfc_fulldomain(nx,ny))
@@ -1877,6 +1910,19 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m)
           iret=nf90_inquire_dimension(gfile_loc,k,name,len)
           dim(k)=len
        enddo
+
+!---   check the existence of significant wave height (howv) in 2D FV3-LAM firstguess file
+       if ( i_howv_in_anav == 1 ) then
+         iret_howv = nf90_inq_varid(gfile_loc,'howv',id_howv)
+         if ( iret_howv /= nf90_noerr ) then
+           i_howv_in_data = 0                ! howv does not exist in firstguess
+           write(6,'(1x,A,1x,A,1x,A,1x,I4,1x,A,1x,I4.4,A)') 'subroutine gsi_fv3ncdf2d_read:: howv is NOT found in firstguess ', trim(sfcdata), ', iret = ',iret_howv, ' (on pe: ', mype,')'
+         else
+           i_howv_in_data = 1                ! howv is found in firstguess
+           write(6,'(1x,A,1x,A,1x,A,1x,I4,1x,I4,1x,A,1x,I4.4,A)') 'subroutine gsi_fv3ncdf2d_read:: Found howv in firstguess ', trim(sfcdata), ', iret, varid = ',iret_howv, id_howv,' (on pe: ', mype,')'
+         end if
+       end if
+
    !!!!!!!!!!!! read in 2d variables !!!!!!!!!!!!!!!!!!!!!!!!!!
        do i=ndimensions+1,nvariables
           iret=nf90_inquire_variable(gfile_loc,i,name,len)
@@ -1904,6 +1950,8 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m)
              k=k_t2m
           else if( trim(name)=='Q2M'.or.trim(name)=='q2m' ) then
              k=k_q2m
+          else if( trim(name)=='HOWV'.or.trim(name)=='howv' ) then  ! howv (read if howv exists in firstguess, but no check on its existence.)
+             k=k_howv
           else
              cycle 
           endif
@@ -2036,6 +2084,8 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m)
        if(allocated(sfc_fulldomain)) deallocate (sfc_fulldomain)
     endif  ! mype
 
+!-- broadcast i_howv_in_data to all tasks (!!!!)
+    call mpi_bcast(i_howv_in_data, 1, mpi_itype, mype_2d, mpi_comm_world, iret_bcast)
 
 !!!!!!! scatter !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     call mpi_scatterv(work,ijns2d,displss2d,mpi_rtype,&
@@ -2057,6 +2107,10 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m)
     if(i_use_2mq4b > 0 .and. i_use_2mt4b > 0 ) then
        ges_t2m(:,:)=sfcn2d(:,:,k_t2m)
        ges_q2m(:,:)=sfcn2d(:,:,k_q2m)
+    endif
+    if ( i_howv_in_anav == 1 ) then
+       ges_howv(:,:)=sfcn2d(:,:,k_howv)    !howv: even no howv in firstguess, sfcn2d(:,:,k_howv)
+                                           !      is still allocated and filled with initial values.
     endif
     deallocate (sfcn2d,a)
     return
@@ -3131,6 +3185,8 @@ subroutine wrfv3_netcdf(fv3filenamegin)
 !   2019-11-22  CAPS(C. Tong) - modify "add_saved" to properly output analyses
 !   2021-01-05  x.zhang/lei  - add code for updating delz analysis in regional da
 !   2022-04-01  Y. Wang and X. Wang - add code for updating reflectivity
+!   2023-07-30  Zhao         - added code for the output of the analysis of
+!                                significant wave height (howv)
 !
 !   input argument list:
 !
@@ -3173,6 +3229,7 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     real(r_kind),pointer,dimension(:,:,:):: ges_q   =>NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_t2m =>NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_q2m  =>NULL()
+    real(r_kind),pointer,dimension(:,:  ):: ges_howv =>NULL()     ! --> howv
    
     integer(i_kind) i,k
 
@@ -3288,6 +3345,10 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     if(i_use_2mq4b > 0 .and. i_use_2mt4b > 0 ) then
        call GSI_BundleGetPointer (GSI_MetGuess_Bundle(it),'q2m',ges_q2m,istatus); ier=ier+istatus
        call GSI_BundleGetPointer (GSI_MetGuess_Bundle(it),'t2m',ges_t2m,istatus );ier=ier+istatus
+    endif
+!-- howv
+    if ( i_howv_in_anav == 1 ) then
+       call GSI_BundleGetPointer (GSI_MetGuess_Bundle(it),'howv',ges_howv,istatus); ier=ier+istatus
     endif
     if (ier/=0) call die('wrfv3_netcdf','cannot get pointers for fv3 met-fields, ier =',ier)
 
@@ -3497,6 +3558,10 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     if(i_use_2mq4b > 0 .and. i_use_2mt4b > 0 ) then
       call gsi_fv3ncdf_write_sfc(fv3filenamegin,'t2m',ges_t2m,add_saved)
       call gsi_fv3ncdf_write_sfc(fv3filenamegin,'q2m',ges_q2m,add_saved)
+    endif
+!-- output analysis of howv only if howv is already in firstguess, i.e. i_howv_in_data = 1
+    if ( i_howv_in_anav == 1 .and. i_howv_in_data == 1 ) then
+      call gsi_fv3ncdf_write_sfc(fv3filenamegin,'howv',ges_howv,add_saved)
     endif
 
     if(allocated(g_prsi)) deallocate(g_prsi)
