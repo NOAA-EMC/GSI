@@ -1340,7 +1340,7 @@ subroutine statsconv(mype,&
      if(nread > 0)then
         if(first)then
            open(iout_fed)
-           else
+        else
            open(iout_fed,position='append')
         end if
 

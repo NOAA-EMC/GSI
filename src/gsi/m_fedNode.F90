@@ -36,27 +36,21 @@ module m_fedNode
   public:: fedNode
 
   type,extends(obsNode):: fedNode
-     !type(td_ob_type),pointer :: llpoint => NULL()
      type(obs_diag), pointer :: diags => NULL() 
      real(r_kind)    :: res           !  flash extent density residual
      real(r_kind)    :: err2          !  flash extent density error squared
      real(r_kind)    :: raterr2       !  square of ratio of final obs error 
                                       !  to original obs error
-     !real(r_kind)    :: time          !  observation time in sec     
      real(r_kind)    :: b             !  variational quality control parameter
      real(r_kind)    :: pg            !  variational quality control parameter
      real(r_kind)    :: jb            !  variational quality control parameter
      real(r_kind)    :: wij(8)        !  horizontal interpolation weights
      real(r_kind)    :: fedpertb        !  random number adding to the obs
-!     logical         :: luse          !  flag indicating if ob is used in pen.
      integer(i_kind) :: k1            !  level of errtable 1-33
      integer(i_kind) :: kx            !  ob type
      integer(i_kind) :: ij(8)         !  horizontal locations
 
-!     integer(i_kind) :: idv,iob	      ! device id and obs index for sorting
      real   (r_kind) :: dlev            ! reference to the vertical grid
-     !real   (r_kind) :: elat, elon      ! earth lat-lon for redistribution
-     !real   (r_kind) :: dlat, dlon      ! earth lat-lon for redistribution
   contains
     procedure,nopass::  mytype
     procedure::  setHop => obsNode_setHop_
@@ -65,10 +59,6 @@ module m_fedNode
     procedure:: isvalid => obsNode_isvalid_
     procedure::  gettlddp => gettlddp_
 
-    ! procedure, nopass:: headerRead  => obsHeader_read_
-    ! procedure, nopass:: headerWrite => obsHeader_write_
-    ! procedure:: init  => obsNode_init_
-    ! procedure:: clean => obsNode_clean_
   end type fedNode
 
   public:: fedNode_typecast
@@ -81,8 +71,6 @@ module m_fedNode
 
   character(len=*),parameter:: MYNAME="m_fedNode"
 
-!#define CHECKSUM_VERBOSE
-!#define DEBUG_TRACE
 #include "myassert.H"
 #include "mytrace.H"
 contains
@@ -92,14 +80,11 @@ function typecast_(aNode) result(ptr_)
   implicit none
   type(fedNode),pointer:: ptr_
   class(obsNode),pointer,intent(in):: aNode
-!  character(len=*),parameter:: myname_=MYNAME//"::typecast_"
   ptr_ => null()
   if(.not.associated(aNode)) return
   select type(aNode)
-  type is(fedNode)
-    ptr_ => aNode
-!  class default
-!    call die(myname_,'unexpected type, aNode%mytype() =',aNode%mytype())
+    type is(fedNode)
+      ptr_ => aNode
   end select
 return
 end function typecast_
@@ -171,7 +156,6 @@ _ENTRY_(myname_)
                                 aNode%b         , &
                                 aNode%pg        , &
                                 aNode%jb        , &
-     !                           aNode%fedpertb    , &
                                 aNode%k1        , &
                                 aNode%kx        , &
                                 aNode%dlev      , &
@@ -210,7 +194,6 @@ _ENTRY_(myname_)
                                 aNode%b         , &
                                 aNode%pg        , &
                                 aNode%jb        , &
-      !                          aNode%fedpertb    , &
                                 aNode%k1        , &
                                 aNode%kx        , &
                                 aNode%dlev      , &

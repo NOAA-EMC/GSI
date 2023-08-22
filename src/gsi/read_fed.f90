@@ -370,8 +370,8 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
       allocate(cdata_out(nreal,ndata))
 !
 !
-      DO i=1,numfed
-          DO k=1,maxlvl
+      do i=1,numfed
+          do k=1,maxlvl
 
 !             DCD 1 July 2021
               if (fed3d_column(k+2,i) .gt. fed_highbnd) fed3d_column(k+2,i) = fed_highbnd 
@@ -381,7 +381,7 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
 
       write(6,*) ' ------- check max and min value of OBS: bufr fed -------'
       write(6,*) ' level      maxval(fed)       minval(fed)'
-      DO k=1,maxlvl
+      do k=1,maxlvl
           write(6,*) k,maxval(fed3d_column(k+2,:)),minval(fed3d_column(k+2,:))
       end do
 
@@ -392,8 +392,8 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
       kint_maxloc=-1
       fed_max=-999.99
       ndata2=0 
-      DO i=1,numfed
-        DO k=1,maxlvl
+      do i=1,numfed
+        do k=1,maxlvl
           if( fed3d_column(k+2,i) >= fed_lowbnd2 .or. fed3d_column(k+2,i) == fed_lowbnd) then !Rong Kong
             dlon_earth = fed3d_column(1,i)                ! longitude (degrees) of observation
                                                        ! ilone=18    ! index of longitude (degrees)

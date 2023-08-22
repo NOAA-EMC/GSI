@@ -193,26 +193,26 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
 
 !------------------------------------------------!
 
-  integer(i_kind)   :: ibgn, iend, jbgn, jend, ips,ipe,jps,jpe,itmp,jtmp,ktmp
+  integer(i_kind) :: ibgn, iend, jbgn, jend, ips,ipe,jps,jpe,itmp,jtmp,ktmp
   character(256) :: binfilename
 
   integer(i_kind), parameter :: ntimesfed=1
-  character(256) ::fedfilename
-  integer(i_kind),parameter   :: nxfed=99, nyfed=99, nzfed=1, nfldfed=3
+  character(256) :: fedfilename
+  integer(i_kind),parameter :: nxfed=99, nyfed=99, nzfed=1, nfldfed=3
   real(4) :: a(ntimesfed,nfldfed,nzfed,nyfed,nxfed)
   real(4) :: gga(ntimesfed,nfldfed,nzfed,nyfed,nxfed)
   integer(i_kind) irec1, irec2, irec3, irec4, itot
-  integer(i_kind)  ::  la, iobs, lt, nnnnn
+  integer(i_kind) :: la, iobs, lt, nnnnn
   real(r_kind),dimension(nobs) :: FEDMdiag,FEDMdiagTL
   real(r_kind),dimension(nobs) :: FEDMdiag2D
-  integer(i_kind)   ::  npt
-  integer(i_kind)     :: nobsfed
-  real(r_kind)  ::  dlat_earth,dlon_earth
-  logical  :: outside
+  integer(i_kind) :: npt
+  integer(i_kind) :: nobsfed
+  real(r_kind) :: dlat_earth,dlon_earth
+  logical :: outside
 
 ! YPW added the next lines
-  logical  :: l_set_oerr_ratio_fed=.False.
-  logical  :: l_gpht2gmht = .True.
+  logical :: l_set_oerr_ratio_fed=.False.
+  logical :: l_gpht2gmht = .True.
   integer(i_kind) :: ncid,status,x_dimid,y_dimid,z_dimid,varid,x_varid,y_varid
   integer(i_kind),dimension(3):: dimids
   integer(i_kind),dimension(2):: dimids_2d
@@ -341,8 +341,8 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
                     rp(j,i,jj)=rp(j,i,jj) + ges_qg(jtmp,itmp,k,jj)* &
                                dx_m*dy_m*(ges_prsi(jtmp,itmp,k,jj)-ges_prsi(jtmp,itmp,k+1,jj))*&
                                tpwcon * r10
-                enddo   !igx
-              enddo  !jgy
+                end do   !igx
+              end do  !jgy
            end do !j
         end do !i
      end do !k
@@ -419,7 +419,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
         ibin = NINT( dtime/hr_obsbin ) + 1
      else
         ibin = 1
-     endif
+     end if
 
      IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
@@ -438,7 +438,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
                  miter = miter          )
         if(.not.associated(my_diag)) call die(myname, &
                 'obsdiagLList_nextNode(), create =',.not.lobsdiag_allocated)
-     endif
+     end if
 
 !     Interpolate terrain height(model elevation) to obs location.
       call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&    
@@ -641,7 +641,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
            term = exp_arg
            wgt  = wgtlim
            rwgt = wgt/wgtlim
-        endif
+        end if
         valqc = -two*rat_err2*term
        
 !     print*,'Compute penalty terms'
@@ -718,19 +718,19 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
                  if(presq > ptabl(k+1) .and. presq <= ptabl(k)) then
                     my_head%k1=k
                     exit k_loop
-                 endif
-              enddo k_loop
-           endif
-        endif
+                 end if
+              end do k_loop
+           end if
+        end if
 !-------------------------------------------------
 
         if(luse_obsdiag)then
             call obsdiagNode_assert(my_diag,my_head%idv,my_head%iob,1,myname,'my_diag:my_head')
             my_head%diags => my_diag
-        endif
+        end if
 
         my_head => null()
-     endif
+     end if
 
 !    Save select output for diagnostic file
      if(.not.luse(i))write(6,*)' luse, mype',luse(i),mype
@@ -743,7 +743,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
            err_final = one/(ratio_errors*error)
         else
            err_final = huge_single
-        endif
+        end if
         errinv_input = huge_single
         errinv_adjst = huge_single
         errinv_final = huge_single
@@ -775,13 +775,13 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
            open(66,file=trim(diag_file),form='unformatted',status='old',position='append')
         else
            open(66,file=trim(diag_file),form='unformatted',status='unknown',position='rewind')
-        endif
-     endif
+        end if
+     end if
      if(init_pass .and. mype == 0) then
         write(66) ianldate
         write(6,*)'SETUPFED:   write time record to file ',&
                 trim(diag_file), ' ',ianldate
-     endif
+     end if
 
 !     call dtime_show(myname,'diagsave:fed',i_fed_ob_type)
      write(66)'fed',nchar,nreal,ii,mype,ioff0
@@ -849,17 +849,17 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
          if(allocated(ges_ps))then
             write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
             call stop2(999)
-         endif
+         end if
          allocate(ges_ps(size(rank2,1),size(rank2,2),nfldsig))
          ges_ps(:,:,1)=rank2
          do ifld=2,nfldsig
             call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
             ges_ps(:,:,ifld)=rank2
-         enddo
+         end do
      else
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
-     endif
+     end if
 !    get z ...
      varname='z'
      call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
@@ -867,17 +867,17 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
          if(allocated(ges_z))then
             write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
             call stop2(999)
-         endif
+         end if
          allocate(ges_z(size(rank2,1),size(rank2,2),nfldsig))
          ges_z(:,:,1)=rank2
          do ifld=2,nfldsig
             call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
             ges_z(:,:,ifld)=rank2
-         enddo
+         end do
      else
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
-     endif
+     end if
 !    get q ...
      varname='q'
      call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
@@ -885,17 +885,17 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
          if(allocated(ges_q))then
             write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
             call stop2(999)
-         endif
+         end if
          allocate(ges_q(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
          ges_q(:,:,:,1)=rank3
          do ifld=2,nfldsig
             call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
             ges_q(:,:,:,ifld)=rank3
-         enddo
+         end do
      else
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
-     endif
+     end if
 !    get tv ...
 !    varname='tv'
 !    call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
@@ -903,18 +903,18 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
 !        if(allocated(ges_tv))then
 !           write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
 !           call stop2(999)
-!        endif
+!        end if
 !        allocate(ges_tv(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
 !        ges_tv(:,:,:,1)=rank3
 !        do ifld=2,nfldsig
 !           call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
 !           ges_tv(:,:,:,ifld)=rank3
 !           ges_tv(:,:,:,ifld)=rank3
-!        enddo
+!        end do
 !    else
 !        write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
 !        call stop2(999)
-!    endif
+!    end if
 !    get qr ...
 !    get qg ...
      varname='qg'
@@ -923,26 +923,26 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
          if(allocated(ges_qg))then
             write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
             call stop2(999)
-         endif
+         end if
          allocate(ges_qg(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
          if(.not. allocated(ges_qg_mask))then
            allocate(ges_qg_mask(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
-         endif
+         end if
 
          ges_qg(:,:,:,1)=rank3
          do ifld=2,nfldsig
             call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
             ges_qg(:,:,:,ifld)=rank3
-         enddo
+         end do
      else
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
-     endif
+     end if
   else
      write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
                  nfldsig,size(gsi_metguess_bundle)
      call stop2(999)
-  endif
+  end if
   end subroutine init_vars_
 
   subroutine init_netcdf_diag_
@@ -967,7 +967,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
         else
            if(verbose) print *,'file ' // trim(diag_conv_file) // ' exists but contains no obs.  Not appending. nobs,mype=',ncd_nobs,mype
            append_diag = .false. ! if there are no obs in existing file, then do not try to append                                          
-        endif
+        end if
      end if
 
      call nc_diag_init(diag_conv_file, append=append_diag)
@@ -975,7 +975,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
      if (.not. append_diag) then ! don't write headers on append - the module will break?                                                   
         call nc_diag_header("date_time",ianldate )
         call nc_diag_header("Number_of_state_vars", nsdim          )
-     endif
+     end if
   end subroutine init_netcdf_diag_
   subroutine contents_binary_diag_(odiag)
   type(obs_diag),pointer,intent(in):: odiag
@@ -999,7 +999,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
            rdiagbuf(12,ii) = one             ! analysis usage flag (1=use, -1=not used)
         else
            rdiagbuf(12,ii) = -one
-        endif
+        end if
 
         rdiagbuf(13,ii) = rwgt                 ! nonlinear qc relative weight
         rdiagbuf(14,ii) = errinv_input         ! prepbufr inverse obs error (dBZ)**-1
@@ -1028,21 +1028,21 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
                  rdiagbuf(ioff,ii) = one
               else
                  rdiagbuf(ioff,ii) = -one
-              endif
-           enddo
+              end if
+           end do
            do jj=1,miter+1
               ioff=ioff+1
               rdiagbuf(ioff,ii) = odiag%nldepart(jj)
-           enddo
+           end do
            do jj=1,miter
               ioff=ioff+1
               rdiagbuf(ioff,ii) = odiag%tldepart(jj)
-           enddo
+           end do
            do jj=1,miter
               ioff=ioff+1
               rdiagbuf(ioff,ii) = odiag%obssen(jj)
-           enddo
-        endif
+           end do
+        end if
 
   end subroutine contents_binary_diag_
   subroutine contents_netcdf_diag_(odiag)
@@ -1068,7 +1068,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
               call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)           )
            else
               call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)          )
-           endif
+           end if
 
            call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)  )
            call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)  )
@@ -1083,14 +1083,14 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
                        obsdiag_iuse(jj) =  one
                  else
                        obsdiag_iuse(jj) = -one
-                 endif
-              enddo
+                 end if
+              end do
 
               call nc_diag_data2d("ObsDiagSave_iuse",     obsdiag_iuse              )
               call nc_diag_data2d("ObsDiagSave_nldepart", odiag%nldepart )
               call nc_diag_data2d("ObsDiagSave_tldepart", odiag%tldepart )
               call nc_diag_data2d("ObsDiagSave_obssen"  , odiag%obssen   )
-           endif
+           end if
 
   end subroutine contents_netcdf_diag_
 
