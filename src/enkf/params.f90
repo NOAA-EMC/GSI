@@ -226,12 +226,6 @@ logical,public :: efsoi_cycling = .false.
 ! EFSOI calculation applications
 logical,public :: efsoi_flag = .false.
 
-! if true, use ensemble mean qsat in definition of
-! normalized humidity analysis variable (instead of
-! qsat for each member, which is the default behavior
-! when pseudo_rh=.true.  If pseudo_rh=.false, use_qsatensmean
-! is ignored.
-logical,public :: use_qsatensmean = .false.
 logical,public :: write_spread_diag = .false.
 ! if true, use jacobian from GSI stored in diag file to compute
 ! ensemble perturbations in observation space.
@@ -261,7 +255,7 @@ logical,public :: write_ensmean = .false.
 namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
                    mincorrlength_fact,corrlengthnh,corrlengthtr,corrlengthsh,&
-                   varqc,huber,nlons,nlats,smoothparm,use_qsatensmean,&
+                   varqc,huber,nlons,nlats,smoothparm,&
                    readin_localization, zhuberleft,zhuberright,&
                    obtimelnh,obtimeltr,obtimelsh,reducedgrid,&
                    lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
@@ -680,10 +674,6 @@ if (nproc == 0) then
    if ((obtimelnh < 1.e10 .or. obtimeltr < 1.e10 .or. obtimelsh < 1.e10) .and. &
        letkf_flag) then
      print *,'warning: no time localization in LETKF!'
-   endif
-   if ((write_ensmean .and. pseudo_rh) .and. .not. use_qsatensmean) then
-      print *,'write_ensmean=T requires use_qsatensmean=T when pseudo_rh=T'
-      call stop2(19)
    endif
 
 
