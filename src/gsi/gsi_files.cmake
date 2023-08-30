@@ -125,7 +125,6 @@ constants.f90
 control2model.f90
 control2model_ad.f90
 control2state.f90
-control2state_ad.f90
 control_vectors.f90
 convb_ps.f90
 convb_q.f90

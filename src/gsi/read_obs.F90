@@ -221,9 +221,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
          lexist=.false.
       end if
       if(lexist)then
-       if(jsatid == '')then
-         kidsat=0
-       else if(jsatid == 'metop-a')then
+       kidsat=0
+       if(jsatid == 'metop-a')then
          kidsat=4
        else if(jsatid == 'metop-b')then
          kidsat=3
@@ -335,8 +334,6 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
 !         kidsat = 288
        else if ( jsatid == 'meghat' ) then
          kidsat = 440
-       else
-         kidsat = 0
        end if
 
        call closbf(lnbufr)
@@ -346,8 +343,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
        call datelen(10)
 
        if(kidsat /= 0)then
-        lexist = .false.
-        satloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+         lexist = .false.
+         satloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
            if(ireadsb(lnbufr)==0)then
               call ufbint(lnbufr,satid,1,1,iret,'SAID')
            end if
@@ -356,8 +353,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
              exit satloop
            end if
            nread = nread + 1
-        end do satloop
-       else if(trim(filename) == 'prepbufr')then  ! RTod: wired-in filename is not a good idea
+         end do satloop
+       else if(trim(filename) == 'prepbufr')then  
          lexist = .false.
          fileloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
           do while(ireadsb(lnbufr)>=0)
@@ -894,6 +891,7 @@ subroutine read_obs(ndata,mype)
        if(obstype == 'mls20' ) nmls_type=nmls_type+1
        if(obstype == 'mls22' ) nmls_type=nmls_type+1
        if(obstype == 'mls30' ) nmls_type=nmls_type+1
+       if(obstype == 'mls55' ) nmls_type=nmls_type+1
        if(nmls_type>1) then
           write(6,*) '******ERROR***********: there is more than one MLS data type, not allowed, please check'
           call stop2(339)
@@ -937,6 +935,7 @@ subroutine read_obs(ndata,mype)
            .or. obstype == 'ompsnp' &
            .or. obstype == 'gome' &
            .or. index(obstype, 'omps') /= 0 &
+           .or. index(obstype, 'omi' ) /= 0 &
            .or. mls &
            ) then
           ditype(i) = 'ozone'
@@ -1083,7 +1082,12 @@ subroutine read_obs(ndata,mype)
           if (ii>npem1) ii=0
           if(mype==ii)then
              call gsi_inquire(lenbytes,lexist,trim(dfile(i)),mype)
-             call read_obs_check (lexist,trim(dfile(i)),dplat(i),dtype(i),minuse,read_rec1(i))
+
+             if (is_extOzone(dfile(i),obstype,dplat(i))) then
+                print*,'reading ',trim(dfile(i)),' ',obstype,' ',trim(dplat(i)),lexist,lenbytes
+             else
+                call read_obs_check (lexist,trim(dfile(i)),dplat(i),dtype(i),minuse,read_rec1(i))
+             endif
              
 !   If no data set starting record to be 999999.  Note if this is not large
 !   enough code should still work - just does a bit more work.
