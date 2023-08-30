@@ -2003,6 +2003,93 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! don't use MESONET psfc obs if  8th character of station id is "x")
               if( kx==188 .and. psob .and. sidchr(8)=='x' ) usage=r100
 
+!             Set inflate_error logical based on qm flag
+              inflate_error=.false.
+              if (qm==3 .or. qm==7) inflate_error=.true.
+
+              if(uvob) then 
+                 if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
+                    call errormod_aircraft(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
+                 else
+                    call errormod(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
+                 end if
+                 woe=obserr(5,k)*errout
+                 if (inflate_error) woe=woe*r1_2
+                 if(obsdat(1,k) < r50)woe=woe*r1_2
+                 selev=stnelev
+                 oelev=obsdat(4,k)
+                 if(kx >= 280 .and. kx < 300 )then
+                    if (twodvar_regional.and.(kx==288.or.kx==295)) then
+                       oelev=windsensht+selev !windsensht: read in from prepbufr
+                    else
+                       oelev=r10+selev
+                    endif
+                    if (kx == 280 )then
+                       it29=nint(hdr(8))
+                       if(it29 == 522 .or. it29 == 523 .or. it29 == 531)then
+!                         oelev=r20+selev
+                          oelev=r20
+                       end if
+                    end if
+ 
+                    if (kx == 282) oelev=r20+selev
+                    if (kx == 285 .or. kx == 289 .or. kx == 290) then
+                       oelev=selev
+                       selev=zero
+                    endif
+                 else
+                    if((kx >= 221 .and.  kx <= 229) &
+                       .and. selev >= oelev) oelev=r10+selev
+                 end if
+
+!                Rotate winds to rotated coordinate
+                 uob=obsdat(5,k)
+                 vob=obsdat(6,k)
+                 !* thin new VAD wind and generate VAD superob
+                 if(kx==224.and.newvad)then
+                    klev=k+5 !*average over 6 points
+                  !  klev=k    !* no average
+                    if(klev>levs) cycle loop_readsb
+                    diffuu=obsdat(5,k)-fcstdat(1,k)
+                    diffvv=obsdat(6,k)-fcstdat(2,k)
+                    if(sqrt(diffuu**2+diffvv**2)>10.0_r_kind) cycle loop_k_levs
+                    if(abs(diffvv)>8.0_r_kind) cycle loop_k_levs
+                   !if(abs(diffvv)>5.0.and.oelev<5000.0.and.fcstdat(3,k)>276.3) cycle loop_k_levs
+                    if(oelev>7000.0_r_kind) cycle loop_k_levs
+                    if(abs(diffvv)>5.0_r_kind.and.oelev<5000.0_r_kind) cycle loop_k_levs
+                   ! write(6,*)'sliu diffuu,vv::',diffuu, diffvv
+                    uob=0.0
+                    vob=0.0
+                    oelev=0.0
+                    tkk=0
+                    do ikkk=k,klev
+                      diffhgt=obsdat(4,ikkk)-obsdat(4,k)
+                      if(diffhgt<301.0_r_kind)then
+                      uob=uob+obsdat(5,ikkk)
+                      vob=vob+obsdat(6,ikkk)
+                      oelev=oelev+obsdat(4,ikkk)
+                      tkk=tkk+1
+                      end if
+                    end do
+                    uob=uob/tkk
+                    vob=vob/tkk
+                    oelev=oelev/tkk
+
+                    diffuu=5.0_r_kind;diffvv=5.0_r_kind
+                    diffhgt=0.0_r_kind
+                    do ikkk=k,klev
+                      diffuu=abs(obsdat(5,ikkk)-uob)
+                      if(diffhgt<diffuu)diffhgt=diffuu
+                      diffvv=abs(obsdat(6,ikkk)-vob)
+                      if(diffhgt<diffvv)diffhgt=diffvv
+                    end do
+
+                    if(diffhgt>5.0_r_kind)cycle LOOP_K_LEVS !* if u-u_avg>5.0, reject
+                    if(tkk<3) cycle LOOP_K_LEVS      !* obs numb<3, reject
+                    !* unreasonable observation, will fix this in QC package
+                    if(sqrt(uob**2+vob**2)>60.0_r_kind)cycle LOOP_readsb
+                 end if
+              end if
 
 ! Get information from surface file necessary for conventional data here
 
@@ -2088,9 +2175,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Extract pressure level and quality marks
               dlnpob=log(plevs(k))  ! ln(pressure in cb)
 
-!             Set inflate_error logical based on qm flag
-              inflate_error=.false.
-              if (qm==3 .or. qm==7) inflate_error=.true.
  
 !             Temperature
               if(tob) then
@@ -2143,99 +2227,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             Winds 
               else if(uvob) then 
-                 if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
-                    call errormod_aircraft(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
-                 else
-                    call errormod(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
-                 end if
-                 woe=obserr(5,k)*errout
-                 if (inflate_error) woe=woe*r1_2
-                 if(obsdat(1,k) < r50)woe=woe*r1_2
-                 selev=stnelev
-                 oelev=obsdat(4,k)
-                 if(kx >= 280 .and. kx < 300 )then
-                    if (twodvar_regional.and.(kx==288.or.kx==295)) then
-                       oelev=windsensht+selev !windsensht: read in from prepbufr
-                    else
-                       oelev=r10+selev
-                    endif
-                    if (kx == 280 )then
-                       it29=nint(hdr(8))
-                       if(it29 == 522 .or. it29 == 523 .or. it29 == 531)then
-!                         oelev=r20+selev
-                          oelev=r20
-                       end if
-                    end if
- 
-                    if (kx == 282) oelev=r20+selev
-                    if (kx == 285 .or. kx == 289 .or. kx == 290) then
-                       oelev=selev
-                       selev=zero
-                    endif
-                 else
-                    if((kx >= 221 .and.  kx <= 229) &
-                       .and. selev >= oelev) oelev=r10+selev
-                 end if
-
-!                Rotate winds to rotated coordinate
-                 uob=obsdat(5,k)
-                 vob=obsdat(6,k)
-                 !* thin new VAD wind and generate VAD superob
-                 if(kx==224.and.newvad)then
-                         klev=k+5 !*average over 6 points
-                       !  klev=k    !* no average
-                         if(klev>levs) cycle loop_readsb
-                         diffuu=obsdat(5,k)-fcstdat(1,k)
-                         diffvv=obsdat(6,k)-fcstdat(2,k)
-                         if(sqrt(diffuu**2+diffvv**2)>10.0_r_kind) cycle loop_k_levs
-                         if(abs(diffvv)>8.0_r_kind) cycle loop_k_levs
-                        !if(abs(diffvv)>5.0.and.oelev<5000.0.and.fcstdat(3,k)>276.3) cycle loop_k_levs
-                         if(oelev>7000.0_r_kind) cycle loop_k_levs
-                         if(abs(diffvv)>5.0_r_kind.and.oelev<5000.0_r_kind) cycle loop_k_levs
-                        ! write(6,*)'sliu diffuu,vv::',diffuu, diffvv
-                         uob=0.0
-                         vob=0.0
-                         oelev=0.0
-                         tkk=0
-                         do ikkk=k,klev
-                           diffhgt=obsdat(4,ikkk)-obsdat(4,k)
-                           if(diffhgt<301.0_r_kind)then
-                           uob=uob+obsdat(5,ikkk)
-                           vob=vob+obsdat(6,ikkk)
-                           oelev=oelev+obsdat(4,ikkk)
-                           tkk=tkk+1
-                           end if
-                         end do
-                         uob=uob/tkk
-                         vob=vob/tkk
-                         oelev=oelev/tkk
-
-                         diffuu=5.0_r_kind;diffvv=5.0_r_kind
-                         diffhgt=0.0_r_kind
-                         do ikkk=k,klev
-                           diffuu=abs(obsdat(5,ikkk)-uob)
-                           if(diffhgt<diffuu)diffhgt=diffuu
-                           diffvv=abs(obsdat(6,ikkk)-vob)
-                           if(diffhgt<diffvv)diffhgt=diffvv
-                         end do
-
-                     if(diffhgt>5.0_r_kind)cycle LOOP_K_LEVS !* if u-u_avg>5.0, reject
-                     if(tkk<3) cycle LOOP_K_LEVS      !* obs numb<3, reject
-                     !* unreasonable observation, will fix this in QC package
-                     if(sqrt(uob**2+vob**2)>60.0_r_kind)cycle LOOP_readsb
-                 end if
-
-                 if(regional .and. .not. fv3_regional)then
-                    u0=uob
-                    v0=vob
-                    call rotate_wind_ll2xy(u0,v0,uob,vob,dlon_earth,dlon,dlat)
-                    if(diagnostic_reg) then
-                       call rotate_wind_xy2ll(uob,vob,u00,v00,dlon_earth,dlon,dlat)
-                       nvtest=nvtest+1
-                       disterr=sqrt((u0-u00)**2+(v0-v00)**2)
-                       vdisterrmax=max(vdisterrmax,disterr)
-                    end if
-                 endif
 
                  cdata_all(1,iout)=woe                     ! wind error
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
