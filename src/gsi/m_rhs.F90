@@ -17,6 +17,8 @@ module m_rhs
 !                         through an enum block.
 !                       - removed external dimension argument aworkdim2 of
 !                         rhs_alloc().
+!   2022-03-15  K. Apodaca - add GNSS-R L2 ocean wind speed index (i_gnssrspd)
+!   2023-03-15  K. Apodaca - add GNSS-R Doppler Delay Map index (i_gnssrddm)
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -47,6 +49,7 @@ module m_rhs
   public:: rhs_stats_oz
   public:: rhs_stats_co
   public:: rhs_toss_gps
+  public:: rhs_split_gps
 
   ! variable indices to rhs_awork(:,i_work).  e.g.
   !   ps_awork(:) => rhs_awork(:,i_ps)
@@ -66,6 +69,8 @@ module m_rhs
   public:: i_vis
   public:: i_pblh
   public:: i_wspd10m
+  public:: i_gnssrspd
+  public:: i_gnssrddm
   public:: i_td2m
   public:: i_mxtm
   public:: i_mitm
@@ -112,6 +117,7 @@ module m_rhs
   real(r_kind),allocatable,dimension(:,:    ),save:: rhs_stats_oz
   real(r_kind),allocatable,dimension(:,:    ),save:: rhs_stats_co
   real(r_kind),allocatable,dimension(:      ),save:: rhs_toss_gps
+  integer(i_kind),allocatable,dimension(:    ),save:: rhs_split_gps
 
   enum, bind(C)
     enumerator:: i_zero = 0
@@ -132,6 +138,8 @@ module m_rhs
     enumerator:: i_vis
     enumerator:: i_pblh
     enumerator:: i_wspd10m
+    enumerator:: i_gnssrspd
+    enumerator:: i_gnssrddm 
     enumerator:: i_td2m
     enumerator:: i_mxtm
     enumerator:: i_mitm
@@ -205,7 +213,6 @@ _ENTRY_(myname_)
   allocate(rhs_stats_oz(9,jpch_oz))
 
   allocate(rhs_toss_gps(max(1,nprof_gps)))
-
   rhs_awork    =zero
   rhs_bwork    =zero
   rhs_aivals   =zero
@@ -234,6 +241,7 @@ _ENTRY_(myname_)
   deallocate(rhs_stats_oz)
 
   deallocate(rhs_toss_gps)
+  deallocate(rhs_split_gps)
 _EXIT_(myname_)
 end subroutine rhs_dealloc
 

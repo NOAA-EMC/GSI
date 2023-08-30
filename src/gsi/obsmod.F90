@@ -160,6 +160,8 @@ module obsmod
 !   2021-11-16 Zhao      - add option l_obsprvdiag (if true) to trigger the output of
 !                          observation provider and sub-provider information into
 !                          obsdiags files (used for AutoObsQC)
+!  2022-03-15  K. Apodaca - add GNSS-R L2 ocean wind speed observations (CYGNSS, Spire) 
+!  2023-03-15  K. Apodaca - add GNSS-R Doppler Delay Map observations 
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -435,8 +437,8 @@ module obsmod
   public :: iout_pcp,iout_rad,iadate,iadatemn,write_diag,reduce_diag,oberrflg,bflag,ndat,dthin,dmesh,l_do_adjoint
   public :: diag_radardbz
   public :: lsaveobsens
-  public :: iout_cldch, mype_cldch
-  public :: nprof_gps,time_offset,ianldate,tcp_box
+  public ::                  iout_cldch, mype_cldch
+  public ::          nprof_gps,time_offset,ianldate,tcp_box
   public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,tcp_posmatch,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
   public :: lobsdiagsave,lobsdiag_forenkf,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
@@ -453,8 +455,8 @@ module obsmod
   public :: iout_lag,iout_uv,iout_gps,iout_ps,iout_light,mype_light
   public :: mype_gust,mype_vis,mype_pblh,iout_gust,iout_vis,iout_pblh
   public :: mype_tcamt,mype_lcbas,iout_tcamt,iout_lcbas
-  public :: mype_wspd10m,mype_td2m,iout_wspd10m,iout_td2m
-  public :: mype_uwnd10m,mype_vwnd10m,iout_uwnd10m,iout_vwnd10m
+  public :: mype_wspd10m,mype_gnssrspd,mype_td2m,iout_wspd10m,iout_gnssrspd,iout_td2m
+  public :: mype_uwnd10m,mype_vwnd10m,mype_gnssrddm,iout_uwnd10m,iout_vwnd10m,iout_gnssrddm 
   public :: mype_mxtm,mype_mitm,iout_mxtm,iout_mitm
   public :: mype_pmsl,mype_howv,iout_pmsl,iout_howv
   public :: mype_swcp,mype_lwcp,iout_swcp,iout_lwcp
@@ -470,7 +472,7 @@ module obsmod
   ! ==== DBZ DA ===
   public :: ntilt_radarfiles
   public :: whichradar
-  public :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, if_use_w_vr, l2rwthin
+  public :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, l2rwthin 
 
   public :: doradaroneob,oneoblat,oneoblon
   public :: oneobddiff,oneobvalue,oneobheight,oneobradid
@@ -582,14 +584,14 @@ module obsmod
   integer(i_kind) iout_dw,iout_gps,iout_sst,iout_tcp,iout_lag
   integer(i_kind) iout_co,iout_gust,iout_vis,iout_pblh,iout_tcamt,iout_lcbas
   integer(i_kind) iout_cldch
-  integer(i_kind) iout_wspd10m,iout_td2m,iout_mxtm,iout_mitm,iout_pmsl,iout_howv
-  integer(i_kind) iout_uwnd10m,iout_vwnd10m
+  integer(i_kind) iout_wspd10m,iout_gnssrspd,iout_td2m,iout_mxtm,iout_mitm,iout_pmsl,iout_howv
+  integer(i_kind) iout_uwnd10m,iout_vwnd10m,iout_gnssrddm   
   integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, &
                   mype_rw,mype_dw,mype_gps,mype_sst, &
                   mype_tcp,mype_lag,mype_co,mype_gust,mype_vis,mype_pblh, &
-                  mype_wspd10m,mype_td2m,mype_mxtm,mype_mitm,mype_pmsl,mype_howv,&
+                  mype_wspd10m,mype_gnssrspd,mype_td2m,mype_mxtm,mype_mitm,mype_pmsl,mype_howv,&
                   mype_uwnd10m,mype_vwnd10m, mype_tcamt,mype_lcbas, mype_dbz
-  integer(i_kind) mype_cldch
+  integer(i_kind) mype_cldch,mype_gnssrddm
   integer(i_kind) iout_swcp, iout_lwcp
   integer(i_kind) mype_swcp, mype_lwcp
   integer(i_kind) nlaero, iout_aero, mype_aero
@@ -617,7 +619,7 @@ module obsmod
 
   logical ::  ta2tb
   logical ::  doradaroneob
-  logical :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, if_use_w_vr, l2rwthin
+  logical :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, l2rwthin
   character(4) :: whichradar,oneobradid
   real(r_kind) :: oneoblat,oneoblon,oneobddiff,oneobvalue,oneobheight
   logical :: radar_no_thinning
@@ -747,8 +749,7 @@ contains
     if_vterminal=.false.
     l2rwthin    =.false.  
     if_vrobs_raw=.false.
-    if_use_w_vr=.true.
-    if_model_dbz=.false.
+    if_model_dbz=.true.
     inflate_obserr=.false.
     whichradar="KKKK"
 
@@ -853,7 +854,8 @@ contains
     iout_lwcp=236  ! liquid-water content path
     iout_light=237 ! lightning
     iout_dbz=238 ! radar reflectivity
-
+    iout_gnssrspd=239   ! GNSS-R wind speed
+    iout_gnssrddm=240   ! GNSS-R DDM
     mype_ps = npe-1          ! surface pressure
     mype_t  = max(0,npe-2)   ! temperature
     mype_q  = max(0,npe-3)   ! moisture
@@ -887,7 +889,8 @@ contains
     mype_lwcp=max(0,npe-31)  ! liquid-water content path
     mype_light=max(0,npe-32)! GOES/GLM lightning
     mype_dbz=max(0,npe-33)   ! radar reflectivity
-
+    mype_gnssrspd= max(0,npe-34) ! surface speed
+    mype_gnssrddm= max(0,npe-35) ! Doppler delay map 
 
 !   Initialize arrays used in namelist obs_input 
     time_window_max = three ! set maximum time window to +/-three hours

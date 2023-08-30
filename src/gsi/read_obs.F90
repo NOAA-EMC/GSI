@@ -141,6 +141,9 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
 !   2019-08-21  H. Shao  - add METOPC-C, COSMIC-2 and PAZ to the GPS check list                           
 !   2020-05-21  H. Shao  - add commercial GNSSRO (Spire, PlanetIQ, GeoOptics) and other existing missions to the check list                           
 !   2021-02-20  X.Li      - add viirs-m and get_hsst
+!   2022-03-12  K. Apodaca - Enable CYGNSS ocean wind speed reading capability 
+!   2023-03-12  K. Apodaca - Enable GNSS-R L2 ocean wind speed reading (CYGNSS, Spire)
+!   2023-03-12  K. Apodaca - Enable GNSS-R DDM reading capability 
 !
 !   input argument list:
 !    lexist    - file status
@@ -485,6 +488,27 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
             endif
             nread = nread + 1
          end do loop_hdob
+       else if(trim(filename) == 'gnssrwndbufr')then
+         lexist = .false.
+         gnssrwndloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+           if (trim(dtype)=='gnssrspd') then
+               lexist = .true.
+               exit gnssrwndloop
+           endif
+         end do gnssrwndloop
+
+<<<<<<< HEAD
+=======
+       else if(trim(filename) == 'gnssrwndbufr')then
+         lexist = .false.
+         gnssrwndloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+           if (trim(dtype)=='gnssrspd') then
+               lexist = .true.
+               exit gnssrwndloop
+           endif
+         end do gnssrwndloop
+  
+>>>>>>> 73607cb9e23ec953a101b870d183fac5301be54f
        else if(trim(dtype) == 'pm2_5')then
           if (oneobtest_chem .and. oneob_type_chem=='pm2_5') then
              lexist=.true.
@@ -899,7 +923,7 @@ subroutine read_obs(ndata,mype)
        if (obstype == 't'  .or. obstype == 'uv' .or. &
            obstype == 'q'  .or. obstype == 'ps' .or. &
            obstype == 'pw' .or. obstype == 'spd'.or. &
-           obstype == 'sst'.or. &
+           obstype == 'sst'.or. obstype == 'gnssrspd'.or. obstype == 'gnssrddm' .or. &
            obstype == 'tcp'.or. obstype == "lag".or. &
            obstype == 'dw' .or. obstype == 'rw' .or. &
            obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &
@@ -1442,8 +1466,14 @@ subroutine read_obs(ndata,mype)
                    call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                         prsl_full,nobs_sub1(1,i),read_rec(i))
                    string='READ_PREPBUFR'
-
                 endif
+
+             else if (obstype == 'gnssrspd' .and. index(infile,'gnssrwndbufr') /=0 ) then
+                write(6,*) " Before read_gnssrspd: ndat=",ndat," nread=",nread," npuse=",npuse," nouse=",nouse
+                call read_gnssrspd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis, &
+                      nobs_sub1(1,i))
+                string='READ_GNSSRSPD'
+             
              else if(obstype == 'howv') then
                  if ( index(infile,'satmar') /=0) then
                    
