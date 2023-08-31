@@ -2078,9 +2078,9 @@ end subroutine qc_saphir
 subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs,                         &
      cris,iasi,hirs,zsges,cenlat,cenlon,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise, &
      wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity,chan_level,emissivity_k,ts,tsim,                   &
-     land_fraction,id_qc,aivals,errf,varinv,varinv_use,cloudp,cldp,zero_irjaco3_pole,cluster_fraction,    &
+     land_fraction,id_qc,aivals,errf,varinv,varinv_use,cloudp,cldp,kmax,zero_irjaco3_pole,cluster_fraction,    &
      cluster_bt, chan_stdev, model_bt)
-!    id_qc,aivals,errf,varinv,varinv_use,cloudp,cldp,zero_irjaco3_pole,radmod) ! all-sky
+!    id_qc,aivals,errf,varinv,varinv_use,cloudp,cldp,kmax,zero_irjaco3_pole,radmod) ! all-sky
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -2169,6 +2169,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
   integer(i_kind),                    intent(in   ) :: nsig,nchanl,ndat,is
   integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
+  integer(i_kind),dimension(nchanl),  intent(in   ) :: kmax
   real(r_kind),                       intent(in   ) :: zsges,cenlat,cenlon,frac_sea,pangs,trop5
   real(r_kind),                       intent(in   ) :: tzbgr,tsavg5,zasat,land_fraction
   real(r_kind),                       intent(  out) :: cloudp,cldp
@@ -4520,7 +4521,7 @@ subroutine qc_geocsr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
   integer(i_kind),                  intent(in   ) :: nchanl,ndat,nsig,is
   integer(i_kind),dimension(nchanl),intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),intent(inout) :: id_qc
-  integer(i_kind),dimension(nchanl),  intent(in   ) :: kmax
+  integer(i_kind),dimension(nchanl),intent(in   ) :: kmax
   real(r_kind),                     intent(in   ) :: zsges
   real(r_kind),                     intent(in   ) :: tzbgr
   real(r_kind),dimension(40,ndat),  intent(inout) :: aivals
