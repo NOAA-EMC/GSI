@@ -2417,10 +2417,25 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 !     Default cloud quality control ( if not CADS )
   if (.not. ((cris .and. cris_cads) .or. (iasi .and. iasi_cads) .or. (airs .and. airs_cads))) then 
     if ( lcloud > 0 ) then
-!       If more than 2% of the transmittance comes from the cloud layer,
-!       reject the channel (0.02 is a tunable parameter)
-      do i=1, nchanl
+
+     do i=1,nchanl
+
+!       reject channels with iuse_rad(j)=-1 when they are peaking below the
+!       cloud
         j=ich(i)
+        if (passive_bc .and. iuse_rad(j)==-1) then
+           if (lcloud .ge. kmax(i)) then
+              if(luse)aivals(11,is)   = aivals(11,is) + one
+              varinv(i) = zero
+              varinv_use(i) = zero
+              if(id_qc(i) == igood_qc)id_qc(i)=ifail_cloud_qc
+              cycle
+           end if
+        end if
+
+!       If more than 2% of the transmittance comes from the cloud layer,
+!          reject the channel (0.02 is a tunable parameter)
+
         if ( ptau5(lcloud,i) > 0.02_r_kind) then
 !          QC4 in statsrad
            if(luse) aivals(11,is) = aivals(11,is) + one
