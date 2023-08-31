@@ -2008,14 +2008,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if (qm==3 .or. qm==7) inflate_error=.true.
 
               if(uvob) then 
-                 if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
-                    call errormod_aircraft(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
-                 else
-                    call errormod(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
-                 end if
-                 woe=obserr(5,k)*errout
-                 if (inflate_error) woe=woe*r1_2
-                 if(obsdat(1,k) < r50)woe=woe*r1_2
                  selev=stnelev
                  oelev=obsdat(4,k)
                  if(kx >= 280 .and. kx < 300 )then
@@ -2227,6 +2219,27 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             Winds 
               else if(uvob) then 
+
+                 if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
+                    call errormod_aircraft(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
+                 else
+                    call errormod(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
+                 end if
+                 woe=obserr(5,k)*errout
+                 if (inflate_error) woe=woe*r1_2
+                 if(obsdat(1,k) < r50)woe=woe*r1_2
+                 if(regional .and. .not. fv3_regional)then
+                    u0=uob
+                    v0=vob
+                    call rotate_wind_ll2xy(u0,v0,uob,vob,dlon_earth,dlon,dlat)
+                    if(diagnostic_reg) then
+                       call rotate_wind_xy2ll(uob,vob,u00,v00,dlon_earth,dlon,dlat)
+                       nvtest=nvtest+1
+                       disterr=sqrt((u0-u00)**2+(v0-v00)**2)
+                       vdisterrmax=max(vdisterrmax,disterr)
+                    end if
+                 endif
+
 
                  cdata_all(1,iout)=woe                     ! wind error
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
