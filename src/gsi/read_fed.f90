@@ -29,14 +29,13 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
 !_____________________________________________________________________
 !
   use kinds, only: r_kind,r_double,i_kind
-  use constants, only: zero,one,rad2deg,deg2rad
-  use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
-        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
+  use constants, only: zero,one,deg2rad
+  use convinfo, only: nconvtype,ctwind,icuse,ioctype
   use gsi_4dvar, only: l4dvar,l4densvar,winlen
   use gridmod, only: tll2xy
   use mod_wrfmass_to_a, only: wrfmass_obs_to_a8
   use mpimod, only: npe
-  use obsmod, only: perturb_obs,iadatemn,time_window
+  use obsmod, only: perturb_obs,iadatemn
 
   use netcdf
   implicit none
@@ -67,7 +66,6 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
 
   integer(i_kind) ifn,i
  
-  real(r_kind)  :: maxfed
   integer(i_kind) :: ilon,ilat
 
   logical :: fedobs, fedob
@@ -97,7 +95,7 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
     integer(i_kind)  :: ireadmg,ireadsb
 
     integer(i_kind)  ::  maxlvl
-    integer(i_kind)  ::  numlvl,numfed,numobsa,nmsgmax,maxobs
+    integer(i_kind)  ::  numlvl,numfed,nmsgmax,maxobs
     integer(i_kind)  ::  k,iret
     integer(i_kind)  ::  nmsg,ntb
 
@@ -119,9 +117,8 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
     integer      :: unit_table
 
 !  for read netcdf   
-    integer(i_kind)    :: idate5(5), sec70,mins_an,mins_ob
+    integer(i_kind)    :: sec70,mins_an
     integer(i_kind)    :: varID, ncdfID, status
-    character(4)       :: idate5s(5)
     real(r_kind)       :: timeb,twindm,rmins_an,rmins_ob
     
 
