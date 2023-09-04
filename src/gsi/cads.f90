@@ -906,12 +906,12 @@ SUBROUTINE CADS_Setup_Cloud
        FILE=TRIM(CL__Cloud_Detection_File), IOSTAT=IOS)
   IF (IOS == 0) THEN
     READ(INIU1,nml=Cloud_Detect_Coeffs,IOSTAT=IOS)
-    IF (IOS == 0) THEN
-      WRITE(*,'(3X,A)') TRIM(CL__InstrumentName) // &
-           ' CLOUD DETECTION FILE READ OK'
-    ELSE
+    IF (IOS /= 0) THEN
       CALL CADS_Abort('PROBLEM READING '//TRIM(CL__InstrumentName)//&
                      'CLOUD DETECTION FILE')
+!    ELSE
+!      WRITE(*,'(3X,A)') TRIM(CL__InstrumentName) // &
+!           ' CLOUD DETECTION FILE READ OK'
     ENDIF
   ELSE
     WRITE(*,'(3X,A)') 'NO '//TRIM(CL__InstrumentName) // &

@@ -189,16 +189,18 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind):: error_status, irecx,ierr
   integer(i_kind):: radedge_min, radedge_max
   integer(i_kind):: bufr_size
-  character(len=20),dimension(2):: sensorlist
+  character(len=20),allocatable,dimension(:) :: sensorlist
 
 ! Imager cluster information for CADS
-   integer(i_kind)              :: iexponent, sensorindex_imager, cads_info
-   integer(i_kind),dimension(7) :: imager_cluster_index
-   logical,dimension(7)         :: imager_cluster_flag
-   real(r_kind),dimension(83,7) :: imager_info
-   real(r_kind),dimension(7)    :: imager_cluster_size
-   real(r_kind),dimension(2)    :: imager_mean, imager_std_dev, imager_conversion
-   real(r_kind)                 :: imager_cluster_tot
+  integer(i_kind)              :: iexponent, sensorindex_imager, cads_info
+  integer(i_kind),dimension(7) :: imager_cluster_index
+  logical                      :: imager_coeff
+  logical,dimension(7)         :: imager_cluster_flag
+  character(len=80)            :: spc_filename
+  real(r_kind),dimension(83,7) :: imager_info
+  real(r_kind),dimension(7)    :: imager_cluster_size
+  real(r_kind),dimension(2)    :: imager_mean, imager_std_dev, imager_conversion
+  real(r_kind)                 :: imager_cluster_tot
 
 ! bufr error codes
 !   real(r_kind),dimension(7,3)  :: error_codes
@@ -321,37 +323,33 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Load spectral coefficient structure  
   quiet=.not. verbose
-  sensorlist(1)=sis
-!  sensorlist(2) = 'viirs-m_'//trim(jsatid)        !when viirs naming conventions becomes standardized
-  sensorlist(2) = 'viirs-m_j1'
+
+  imager_coeff = .false. 
+  spc_filename = 'viirs-m_j1.SpcCoeff.bin' 
+  inquire(file=trim(spc_filename), exist=imager_coeff)
+  if ( imager_coeff ) then
+     allocate( sensorlist(2))
+     sensorlist(1) = sis
+!    sensorlist(2) = 'viirs-m_'//trim(jsatid)        !when viirs naming conventions becomes standardized
+     sensorlist(2) = 'viirs-m_j1'
+  else 
+     allocate( sensorlist(1))
+     sensorlist(1) = sis
+  endif
 
   if( crtm_coeffs_path /= "" ) then
      if(mype_sub==mype_root .and. print_verbose) write(6,*)'READ_CRIS: crtm_spccoeff_load() on path "'//trim(crtm_coeffs_path)//'"'
      error_status = crtm_spccoeff_load(sensorlist,&
-        File_Path = crtm_coeffs_path,quiet=quiet )
+        File_Path = crtm_coeffs_path,quiet=quiet)
   else
      error_status = crtm_spccoeff_load(sensorlist,quiet=quiet)
   endif
 
   if (error_status /= success) then
      write(6,*)'READ_CRIS:  ***ERROR*** crtm_spccoeff_load error_status=',error_status,&
-        '   TERMINATE PROGRAM EXECUTION'
+           '   TERMINATE PROGRAM EXECUTION'
      call stop2(71)
   endif
-
-! Find the channels being used (from satinfo file) in the spectral coef. structure.
-  do i=subset_start,subset_end
-     channel_number(i -subset_start +1) = nuchan(i)
-  end do
-  sc_index(:) = 0
-  satinfo_chan: do i=1,satinfo_nchan
-     spec_coef: do l=1,sc(1)%n_channels
-        if ( channel_number(i) == sc(1)%sensor_channel(l) ) then
-           sc_index(i) = l
-           exit spec_coef
-        endif
-     end do spec_coef
-  end do  satinfo_chan
 
 !  find CRIS sensorindex. 
   sensorindex_cris = 0
@@ -365,13 +363,30 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !  find imager sensorindex. 
   sensorindex_imager = 0
-  if ( sc(2)%sensor_id(1:4) == 'viir' )then
-     sensorindex_imager = 2
-  else
-     write(6,*)'READ_CRIS: ***ERROR*** sensorindex_imager not set  NO CRIS DATA USED'
-     write(6,*)'READ_CRIS: We are looking for ', sc(2)%sensor_id, '   TERMINATE PROGRAM EXECUTION'
-     call stop2(71)
-  end if
+  if ( cris_cads .and. imager_coeff ) then
+     if ( sc(2)%sensor_id(1:4) == 'viir' )then
+        sensorindex_imager = 2
+     else
+        write(6,*)'READ_CRIS: ***ERROR*** sensorindex_viirs not set  NO CRIS DATA USED'
+        write(6,*)'READ_CRIS: We are looking for ', sc(1)%sensor_id, '   TERMINATE PROGRAM EXECUTION'
+     end if
+   else
+     imager_coeff = .false.
+   end if
+
+! Find the channels being used (from satinfo file) in the spectral coef. structure.
+  do i=subset_start,subset_end
+     channel_number(i -subset_start +1) = nuchan(i)
+  end do
+  sc_index(:) = 0
+  satinfo_chan: do i=1,satinfo_nchan
+     spec_coef: do l=1,sc(sensorindex_cris)%n_channels
+        if ( channel_number(i) == sc(sensorindex_cris)%sensor_channel(l) ) then
+           sc_index(i) = l
+           exit spec_coef
+        endif
+     end do spec_coef
+  end do  satinfo_chan
 
 ! Calculate parameters needed for FOV-based surface calculation.
   if (isfcalc==1)then
@@ -814,7 +829,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            if ( cris_cads ) then
              call ufbseq(lnbufr,imager_info,83,7,iret,'CRISCS')
              if ( iret == 7 .and. imager_info(3,1) <= 100.0_r_kind .and. &
-                  imager_info(3,1) >= zero ) then   ! if imager cluster info exists
+                  imager_info(3,1) >= zero .and. imager_coeff ) then   ! if imager cluster info exists
                imager_mean = zero
                imager_std_dev = zero
                imager_cluster_tot = zero

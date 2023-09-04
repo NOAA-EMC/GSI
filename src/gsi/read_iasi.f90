@@ -222,12 +222,14 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)   :: sfc_channel_index
   integer(i_kind),allocatable, dimension(:) :: channel_number, sc_index, bufr_index
   integer(i_kind),allocatable, dimension(:) :: bufr_chan_test
-  character(len=20),dimension(2):: sensorlist
+  character(len=20),allocatable, dimension(:):: sensorlist
 
 ! Imager clouser information for CADS
-  integer(i_kind) :: sensorindex_imager, cads_info
+  integer(i_kind)              :: sensorindex_imager, cads_info
   integer(i_kind),dimension(7) :: imager_cluster_index
+  logical                      :: imager_coeff
   logical,dimension(7)         :: imager_cluster_flag
+  character(len=80)            :: spc_filename
   real(r_kind),dimension(33,7) :: imager_info
   real(r_kind),dimension(7)    :: imager_cluster_size
   real(r_kind),dimension(2)    :: imager_mean, imager_std_dev
@@ -327,8 +329,18 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! load spectral coefficient structure  
   quiet=.not. verbose
-  sensorlist(1)=sis
-  sensorlist(2) = 'avhrr3_'//trim(jsatid)
+
+  imager_coeff = .false.
+  spc_filename = 'avhrr3_'//trim(jsatid)//'.SpcCoeff.bin'
+  inquire(file=trim(spc_filename), exist=imager_coeff)
+  if ( imager_coeff ) then
+    allocate( sensorlist(2))
+    sensorlist(1) = sis
+    sensorlist(2) = 'avhrr3_'//trim(jsatid)
+  else
+    allocate( sensorlist(1))
+    sensorlist(1) = sis
+  endif
 
   if( crtm_coeffs_path /= "" ) then
      if(mype_sub==mype_root .and. print_verbose) write(6,*)'READ_IASI: crtm_spccoeff_load() on path "'//trim(crtm_coeffs_path)//'"'
@@ -344,20 +356,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
      call stop2(71)
   endif
 
-! Find the channels being used (from satinfo file) in the spectral coef. structure.
-  do i=subset_start,subset_end
-     channel_number(i -subset_start +1) = nuchan(i)
-  end do
-  sc_index(:) = 0
-  satinfo_chan: do i=1,satinfo_nchan
-     spec_coef: do l=1,sc(1)%n_channels
-        if ( channel_number(i) == sc(1)%sensor_channel(l) ) then
-           sc_index(i) = l
-           exit spec_coef
-        endif
-     end do spec_coef
-  end do  satinfo_chan
-
 !  find IASI sensorindex
   sensorindex_iasi = 0
   if ( sc(1)%sensor_id(1:4) == 'iasi' ) then
@@ -370,13 +368,32 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !  find imager sensorindex
   sensorindex_imager = 0
-  if ( sc(2)%sensor_id(1:4) == 'avhr' ) then
-     sensorindex_imager = 2
+  if ( iasi_cads .and. imager_coeff ) then
+     if ( sc(2)%sensor_id(1:4) == 'avhr' ) then
+        sensorindex_imager = 2
+        imager_coeff = .true.
+     else
+        write(6,*)'READ_IASI: ***ERROR*** sensorindex_imager is not set  NO IASI DATA USED'
+        write(6,*)'READ_IASI: We are looking for ', sc(2)%sensor_id
+        imager_coeff = .false.
+     end if
   else
-     write(6,*)'READ_IASI: ***ERROR*** sensorindex_imager is not set  NO IASI DATA USED'
-     write(6,*)'READ_IASI: We are looking for ', sc(2)%sensor_id, '   TERMINATE PROGRAM EXECUTION'
-     call stop2(71)
+     imager_coeff = .false.
   end if
+
+! Find the channels being used (from satinfo file) in the spectral coef. structure.
+  do i=subset_start,subset_end
+     channel_number(i -subset_start +1) = nuchan(i)
+  end do
+  sc_index(:) = 0
+  satinfo_chan: do i=1,satinfo_nchan
+     spec_coef: do l=1,sc(1)%n_channels
+        if ( channel_number(i) == sc(sensorindex_iasi)%sensor_channel(l) ) then
+           sc_index(i) = l
+           exit spec_coef
+        endif
+     end do spec_coef
+  end do  satinfo_chan
 
 ! Calculate parameters needed for FOV-based surface calculation.
   if (isfcalc==1)then
@@ -789,12 +806,14 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
               call finalcheck(one,crit1,itx,iuse)
            endif
            if(.not. iuse)cycle read_loop
+
 !   Read the imager cluster information for the Cloud and Aerosol Detection Software.
 !   Only channels 4 and 5 are used.
+
            if ( iasi_cads ) then
              call ufbseq(lnbufr,imager_info,33,7,iret,'IASIL1CS')
              if (iret == 7 .and. imager_info(3,1) <= 100.0_r_kind .and. &
-                  imager_info(3,1) >= zero ) then   ! if imager cluster info exists
+                  imager_info(3,1) >= zero .and. imager_coeff ) then   ! if imager cluster info exists
                imager_mean = zero
                imager_std_dev = zero
                imager_cluster_tot = zero
