@@ -325,13 +325,18 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   quiet=.not. verbose
 
   imager_coeff = .false. 
-  spc_filename = 'viirs-m_j1.SpcCoeff.bin' 
+!  spc_filename = 'viirs-m_'//trim(jsatid)//'.SpcCoeff.bin'  ! when viirs naming convention becomes standarized
+  if ( trim(jsatid) == 'npp' ) spc_filename = 'viirs-m_npp.SpcCoeff.bin'
+  if ( trim(jsatid) == 'n20' ) spc_filename = 'viirs-m_j1.SpcCoeff.bin' 
+  if ( trim(jsatid) == 'n21' ) spc_filename = 'viirs-m_j2.SpcCoeff.bin' 
   inquire(file=trim(spc_filename), exist=imager_coeff)
   if ( imager_coeff ) then
      allocate( sensorlist(2))
      sensorlist(1) = sis
 !    sensorlist(2) = 'viirs-m_'//trim(jsatid)        !when viirs naming conventions becomes standardized
-     sensorlist(2) = 'viirs-m_j1'
+     if ( trim(jsatid) == 'npp' ) sensorlist(2) = 'viirs-m_npp'
+     if ( trim(jsatid) == 'n20' ) sensorlist(2) = 'viirs-m_j1'
+     if ( trim(jsatid) == 'n21' ) sensorlist(2) = 'viirs-m_j2'
   else 
      allocate( sensorlist(1))
      sensorlist(1) = sis
@@ -367,8 +372,9 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
      if ( sc(2)%sensor_id(1:4) == 'viir' )then
         sensorindex_imager = 2
      else
-        write(6,*)'READ_CRIS: ***ERROR*** sensorindex_viirs not set  NO CRIS DATA USED'
-        write(6,*)'READ_CRIS: We are looking for ', sc(1)%sensor_id, '   TERMINATE PROGRAM EXECUTION'
+        write(6,*)'READ_CRIS: ***ERROR*** sensorindex_viirs not set  NO VIIRS CLUSTER INFO USED BY CADS'
+        write(6,*)'READ_CRIS: We are looking for ', sc(2)%sensor_id, '   TERMINATE PROGRAM EXECUTION'
+        imager_coeff = .false.
      end if
    else
      imager_coeff = .false.
