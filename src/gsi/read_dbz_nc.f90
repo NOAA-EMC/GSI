@@ -74,6 +74,7 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
   use obsmod, only: iadate,doradaroneob,oneoblat,oneoblon,oneobheight, &
                     mintiltdbz,maxtiltdbz,minobrangedbz,maxobrangedbz,&
                     static_gsi_nopcp_dbz,rmesh_dbz,zmesh_dbz
+  use gsi_4dvar, only: iwinbgn
   use hybrid_ensemble_parameters,only : l_hyb_ens
   use obsmod,only: radar_no_thinning,missing_to_nopcp
   use convinfo, only: nconvtype,ctwind,icuse,ioctype
@@ -147,7 +148,7 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
   integer(i_kind) :: maxobs,nchanl,ilat,ilon,scount
   
   real(r_kind) :: thistiltr,thisrange,this_stahgt,thishgt                           
-  real(r_kind) :: thisazimuthr,t4dv, &
+  real(r_kind) :: thisazimuthr, &
                   dlat,dlon,thiserr,thislon,thislat, &
                   timeb
   real(r_kind) :: radartwindow
@@ -337,6 +338,7 @@ fileopen: if (if_input_exist) then
 
   call w3fs21(iadate,mins_an)  !mins_an -integer number of mins snce 01/01/1978
   rmins_an=mins_an             !convert to real number
+  timeb=real(mins_an-iwinbgn,r_kind)  !assume all observations are at the analysis time
  
   ivar = 1
   
@@ -452,7 +454,7 @@ fileopen: if (if_input_exist) then
      
      
            ntmp=ndata  ! counting moved to map3gridS
-           timedif=abs(t4dv) !don't know about this
+           timedif=zero  ! assume all observations are at the analysis time
            crit1 = timedif/r6+half
      
            call map3grids(1,zflag,zl_thin,nlevz,thislat,thislon,&
@@ -490,7 +492,7 @@ fileopen: if (if_input_exist) then
          cdata_all(5,iout) = dbzQC(i,j,k)                      ! radar reflectivity factor 
          cdata_all(6,iout) = thisazimuthr                  ! 90deg-azimuth angle (radians)
 
-         cdata_all(7,iout) = timeb*r60inv                  ! obs time (analyis relative hour)
+         cdata_all(7,iout) = timeb*r60inv                  ! obs time (relative hour from beginning of the DA window)
          cdata_all(8,iout) = ikx                           ! type                  
          cdata_all(9,iout) = thistiltr                     ! tilt angle (radians)
          cdata_all(10,iout)= this_stahgt                   ! station elevation (m)
@@ -520,7 +522,6 @@ fileopen: if (if_input_exist) then
   !---all looping done now print diagnostic output
   
   write(6,*)'READ_dBZ: Reached eof on radar reflectivity file'
-  write(6,*)'READ_dBZ: # volumes in input file             =',nvol
   write(6,*)'READ_dBZ: # read in obs. number               =',nread
   write(6,*)'READ_dBZ: # elevations outside time window    =',numbadtime
   write(6,*)'READ_dBZ: # of noise obs to no precip obs     =',num_nopcp
