@@ -204,7 +204,7 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
 
             ! Extract type, date, and location information from BUFR file
             call ufbint(lunin,hdr,5,1,iret,hdrstr)
-            if(hdr(3) .gt. 90 ) write(6,*) "Inside read_fed.f90, hdr(2)=",hdr(2),"hdr(3)=",hdr(3)
+            if(hdr(3) .gt. r90 ) write(6,*) "Inside read_fed.f90, hdr(2)=",hdr(2),"hdr(3)=",hdr(3)
             if ( l_latlon_fedobs ) then
 	    	if(abs(hdr(3))>r90 .or. abs(hdr(2))>r360) cycle loop_report
            	if(hdr(2)== r360)hdr(2)=hdr(2)-r360
@@ -399,6 +399,7 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
            !-Check format of longitude and correct if necessary
            if(dlon_earth>=r360) dlon_earth=dlon_earth-r360
            if(dlon_earth<zero ) dlon_earth=dlon_earth+r360
+           if(dlon_earth>=r360 .or. dlat_earth >90.0_r_kind) cycle
 
            !-Convert back to radians                         
             rlon00 = dlon_earth*deg2rad
