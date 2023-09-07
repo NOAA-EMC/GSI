@@ -29,14 +29,13 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
 !_____________________________________________________________________
 !
   use kinds, only: r_kind,r_double,i_kind
-  use constants, only: zero,one,rad2deg,deg2rad
-  use convinfo, only: nconvtype,ctwind,cgross,cermax,cermin,cvar_b,cvar_pg, &
-        ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype
+  use constants, only: zero,one,deg2rad
+  use convinfo, only: nconvtype,ctwind,icuse,ioctype
   use gsi_4dvar, only: l4dvar,l4densvar,winlen
   use gridmod, only: tll2xy
   use mod_wrfmass_to_a, only: wrfmass_obs_to_a8
   use mpimod, only: npe
-  use obsmod, only: perturb_obs,iadatemn,time_window
+  use obsmod, only: perturb_obs,iadatemn
 
   use netcdf
   implicit none
@@ -67,7 +66,6 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
 
   integer(i_kind) ifn,i
  
-  real(r_kind)  :: maxfed
   integer(i_kind) :: ilon,ilat
 
   logical :: fedobs, fedob
@@ -97,7 +95,7 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
     integer(i_kind)  :: ireadmg,ireadsb
 
     integer(i_kind)  ::  maxlvl
-    integer(i_kind)  ::  numlvl,numfed,numobsa,nmsgmax,maxobs
+    integer(i_kind)  ::  numlvl,numfed,nmsgmax,maxobs
     integer(i_kind)  ::  k,iret
     integer(i_kind)  ::  nmsg,ntb
 
@@ -119,9 +117,8 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
     integer      :: unit_table
 
 !  for read netcdf   
-    integer(i_kind)    :: idate5(5), sec70,mins_an,mins_ob
+    integer(i_kind)    :: sec70,mins_an
     integer(i_kind)    :: varID, ncdfID, status
-    character(4)       :: idate5s(5)
     real(r_kind)       :: timeb,twindm,rmins_an,rmins_ob
     
 
@@ -207,7 +204,7 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
 
             ! Extract type, date, and location information from BUFR file
             call ufbint(lunin,hdr,5,1,iret,hdrstr)
-            if(hdr(3) .gt. 90 ) write(6,*) "Inside read_fed.f90, hdr(2)=",hdr(2),"hdr(3)=",hdr(3)
+            if(hdr(3) .gt. r90 ) write(6,*) "Inside read_fed.f90, hdr(2)=",hdr(2),"hdr(3)=",hdr(3)
             if ( l_latlon_fedobs ) then
 	    	if(abs(hdr(3))>r90 .or. abs(hdr(2))>r360) cycle loop_report
            	if(hdr(2)== r360)hdr(2)=hdr(2)-r360
@@ -402,6 +399,7 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
            !-Check format of longitude and correct if necessary
            if(dlon_earth>=r360) dlon_earth=dlon_earth-r360
            if(dlon_earth<zero ) dlon_earth=dlon_earth+r360
+           if(dlon_earth>=r360 .or. dlat_earth >90.0_r_kind) cycle
 
            !-Convert back to radians                         
             rlon00 = dlon_earth*deg2rad

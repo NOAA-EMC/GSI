@@ -41,16 +41,16 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: oneobtest,maginnov,magoberr
   use guess_grids, only: hrdifsig,nfldsig,ges_prsi
-  use guess_grids, only: ges_lnprsl, ges_prsl, ges_tsen, geop_hgtl
+  use guess_grids, only: ges_lnprsl, geop_hgtl
   use gridmod, only: lat2, lon2
-  use gridmod, only: nsig, get_ij,get_ijk,regional,tll2xy
+  use gridmod, only: nsig, get_ij,get_ijk,tll2xy
   use constants, only: flattening,semi_major_axis,grav_ratio,zero,grav,wgtlim
   use constants, only: half,one,two,grav_equator,eccentricity,somigliana
-  use constants, only: rad2deg,deg2rad,r60,tiny_r_kind,cg_term,huge_single
+  use constants, only: deg2rad,r60,tiny_r_kind,cg_term,huge_single
   use constants, only: r10,r100,r1000
-  use constants, only: rd,grav,tpwcon
-  use qcmod, only: npres_print,ptop,pbot,ptopq,pbotq,dfact,dfact1
-  use jfunc, only: jiter,last,jiterstart,miter
+  use constants, only: grav,tpwcon
+  use qcmod, only: npres_print,ptopq,pbotq
+  use jfunc, only: jiter,last,miter
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
   use converr, only: ptabl 
@@ -100,8 +100,6 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
   real(r_kind),parameter:: D608=0.608_r_kind 
   character(len=*),parameter:: myname='setupfed'
 
-  real(r_kind)              :: Cs_tmp, Cg_tmp              ! temporary coefficients for check-up
-
 ! Declare external calls for code analysis
   external:: tintrp2a1
   external:: tintrp2a11
@@ -112,10 +110,8 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
 
 ! Declare local variables
   real(r_kind) rlow,rhgh,rsig
-  real(r_kind) dz,denom
+  real(r_kind) dz
   real(r_kind) jqg_num,jqg
-  real(r_kind) wgt_dry, wgt_wet
-  real(r_kind) jqg_num_dry, jqg_num_wet
   real(r_kind) dlnp,pobl,zob
   real(r_kind) sin2,termg,termr,termrg
   real(r_kind) psges,zsges
@@ -129,13 +125,9 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
   real(r_double) rstation_id
   real(r_kind) dlat,dlon,dtime,dpres,ddiff,error,slat,dlat8km,dlon8km
   real(r_kind) ratio_errors
-  real(r_kind) qgges,rhoges
-  real(r_kind) Ze,rdBZ,presw,fednoise,fednoise_runits
-  real(r_kind) Ze_orig, Zer, Zes, Zeg
-  real(r_kind) Zeg_dry, Zeg_wet
+  real(r_kind) presw
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final
-  real(r_kind) qgexp
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(lat2,lon2,nfldsig)::rp
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
@@ -145,29 +137,22 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_qg,ges_qg_mask
 
   real(r_kind) :: presq
-  real(r_kind) :: P1D,T1D,Q1D,RHO
-  real(r_kind) :: qges,tsenges       ! used to calculate tv - virtual temperature
-  real(r_kind) :: lnprslges          ! use log(p) for vertical interpolation
-  real(r_kind) :: qg_min
+  real(r_kind) :: T1D,RHO
   real(r_kind) :: glmcoeff = 2.088_r_kind*10.0**(-8.0)   ! Allen et al. (2016,MWR)
   real(r_kind) :: CM = 0.5_r_kind    ! tuning factor in eq. 14 of Kong et al. 2020
 
-  integer(i_kind) i,nchar,nreal,k,j,k1,ii,nii,jj,im,jm,km
-  integer(i_kind) mm1,k2,isli
+  integer(i_kind) i,nchar,nreal,k,j,k1,ii,jj
+  integer(i_kind) mm1,k2
   integer(i_kind) jsig,ikxx,nn,ibin,ioff,ioff0
-  integer(i_kind) ier,ilat,ilon,ihgt,ifedob,ikx,itime,iuse
-  integer(i_kind) ielev,id,itilt,iazm,ilone,ilate,irange
-  integer(i_kind) ier2,ifednoise,it,istatus
-  integer(i_kind) ier_b
-  integer(i_kind) ijk
+  integer(i_kind) ier,ilat,ilon,ifedob,ikx,itime,iuse
+  integer(i_kind) id,ilone,ilate
+  integer(i_kind) ier2
 
-  integer(i_kind) i4,j4,k4,n4
   integer(i_kind) nlat_ll,nlon_ll,nsig_ll,nfld_ll
 
   integer(i_kind) ipres,iqmax,iqc,icat,itemp
   integer(i_kind) istnelv,iobshgt,izz,iprvd,isprvd,iptrb
   integer(i_kind) idomsfc,iskint,isfcr,iff10
-  integer(i_kind) nguess
  
   character(8) station_id
   character(8),allocatable,dimension(:):: cdiagbuf
@@ -179,11 +164,8 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
   logical proceed
 
   equivalence(rstation_id,station_id)
-  real(r_kind) wrange
-  integer(i_kind) numequal,numnotequal,kminmin,kmaxmax,istat
+  integer(i_kind) numequal,numnotequal
  
-  logical:: in_curbin, in_anybin
-
   type(fedNode),pointer:: my_head
   type(obs_diag),pointer:: my_diag
   type(obs_diags),pointer:: my_diagLL
@@ -193,33 +175,18 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
 
 !------------------------------------------------!
 
-  integer(i_kind) :: ibgn, iend, jbgn, jend, ips,ipe,jps,jpe,itmp,jtmp,ktmp
-  character(256) :: binfilename
+  integer(i_kind) :: itmp,jtmp
 
   integer(i_kind), parameter :: ntimesfed=1
-  character(256) :: fedfilename
   integer(i_kind),parameter :: nxfed=99, nyfed=99, nzfed=1, nfldfed=3
-  real(4) :: a(ntimesfed,nfldfed,nzfed,nyfed,nxfed)
-  real(4) :: gga(ntimesfed,nfldfed,nzfed,nyfed,nxfed)
-  integer(i_kind) irec1, irec2, irec3, irec4, itot
-  integer(i_kind) :: la, iobs, lt, nnnnn
   real(r_kind),dimension(nobs) :: FEDMdiag,FEDMdiagTL
-  real(r_kind),dimension(nobs) :: FEDMdiag2D
   integer(i_kind) :: npt
-  integer(i_kind) :: nobsfed
   real(r_kind) :: dlat_earth,dlon_earth
-  logical :: outside
 
 ! YPW added the next lines
   logical :: l_set_oerr_ratio_fed=.False.
   logical :: l_gpht2gmht = .True.
-  integer(i_kind) :: ncid,status,x_dimid,y_dimid,z_dimid,varid,x_varid,y_varid
-  integer(i_kind),dimension(3):: dimids
-  integer(i_kind),dimension(2):: dimids_2d
-  character(256) :: outfile
   real(r_kind),dimension(nobs) :: dlatobs,dlonobs
-  real(r_kind),dimension(4):: wgrd
-  integer(i_kind),dimension(4):: jgrd
   integer(i_kind):: ngx,ngy,igx,jgy
   real(r_kind):: dx_m, dy_m
 
@@ -318,7 +285,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
   ngy = 2
   dx_m = 3000.
   dy_m = 3000.
-  print*,'Operator start here!,ngx=',ngx,'ngy=',ngy
+  print*,'FED Operator start here!,ngx=',ngx,'ngy=',ngy
   rp=zero
 
   print*, 'mype = ', mype
@@ -377,10 +344,6 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
      end if
      write(6,*) 'fed_highbnd=',fed_highbnd
      write(6,*) 'maxval(ges_qg)=',maxval(ges_qg),'pe=',mype
-!     write(6,*) 'maxval(geop_hgtl)=',maxval(geop_hgtl(:,:,:,it))
-     write(6,*) 'maxval(ges_tsen)=',maxval(ges_tsen(:,:,:,it))
-     write(6,*) 'maxval(FED)=',maxval(rp)   
-     write(6,*) 'ges_prsi',ges_prsi(100,100,1,1),ges_prsi(100,100,nsig,1)
 
 
  !============================================================================================
@@ -412,8 +375,6 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
         dlon_earth = data(ilone,i)                 !the lontitude and latitude on the obs pts.
         dlat_earth = data(ilate,i)
                                                    ! geometric hgh (hges --> zges below)
-!  print*,'i,mype,dlat,dlon,dlon8km,dlat8km',i,mype,dlat,dlon,dlon8km,dlat8km,&
-!         dlon_earth,dlat_earth,dpres,data(ifedob,i)
 
      if (nobs_bins>1) then
         ibin = NINT( dtime/hr_obsbin ) + 1
@@ -693,14 +654,11 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
         my_head%elat= data(ilate,i)
         my_head%elon= data(ilone,i)
 
-        if (istat/=0) write(6,*)'MAKECOBS:  allocate error for fedtail_dzg,istat=',istat
-
         my_head%dlev= dpres
-        call get_ijk(mm1,dlat,dlon,dpres,my_head%ij,my_head%wij)  
+        call get_ijk(mm1,dlat,dlon,dpres,my_head%ij,my_head%wij) 
         my_head%res     = ddiff                            ! Observation - ges
         my_head%err2    = error**2
         my_head%raterr2 = ratio_errors**2
-!        my_head%jqg     = jqg                              ! for TL and ADJ
         my_head%time    = dtime
         my_head%b       = cvar_b(ikx)
         my_head%pg      = cvar_pg(ikx)
@@ -806,28 +764,18 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
 ! Check to see if required guess fields are available
   call gsi_metguess_get ('var::ps', ivar, istatus )
   proceed=ivar>0
-  print*,'For ps, proceed=',proceed
   call gsi_metguess_get ('var::z' , ivar, istatus )
   proceed=proceed.and.ivar>0
-  print*,'For z, proceed=',proceed
   call gsi_metguess_get ('var::q' , ivar, istatus )
   proceed=proceed.and.ivar>0
-  print*,'For q, proceed=',proceed
 ! call gsi_metguess_get ('var::tv' , ivar, istatus )
 ! proceed=proceed.and.ivar>0
   call gsi_metguess_get ('var::qs', ivar, istatus )
   proceed=proceed.and.ivar>0
-  print*,'For qs, proceed=',proceed
   call gsi_metguess_get ('var::qg', ivar, istatus )
   proceed=proceed.and.ivar>0
-  print*,'For qg, proceed=',proceed
   call gsi_metguess_get ('var::qr', ivar, istatus )
   proceed=proceed.and.ivar>0
-  print*,'For qr, proceed=',proceed
-!  if ( mphyopt == 108 ) then                             ! comment out by YPW
-!      proceed=proceed.and.ivar>0                         !  comment out by YPW
-!      print*,'For qnr, proceed=',proceed                 !  comment out by YPW
-!  end if                                                 !  comment out by YPW
   end subroutine check_vars_
 
 
