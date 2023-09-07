@@ -46,8 +46,9 @@ public :: init_wrf_vars
 ! common block variables
 public :: w_exist
 public :: dbz_exist
+public :: fed_exist
 
-logical,save :: w_exist, dbz_exist
+logical,save :: w_exist, dbz_exist, fed_exist
 contains
 
 subroutine init_wrf_vars
@@ -55,10 +56,12 @@ integer(i_kind) ii
 
 w_exist=.false.
 dbz_exist=.false.
+fed_exist=.false.
 do ii=1,nc3d
   if(mype == 0 ) write(6,*)"anacv cvars3d is ",cvars3d(ii)
   if(trim(cvars3d(ii)) == 'w'.or.trim(cvars3d(ii))=='W') w_exist=.true.
   if(trim(cvars3d(ii))=='dbz'.or.trim(cvars3d(ii))=='DBZ') dbz_exist=.true.
+  if(trim(cvars3d(ii))=='fed'.or.trim(cvars3d(ii))=='FED') fed_exist=.true.
 enddo
 
 end subroutine init_wrf_vars
