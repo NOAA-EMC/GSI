@@ -780,6 +780,8 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
           call tintrp2a11(pm25wc(:,:,:,2,nfldsig),pm25wc_ges(2),dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
           if (pm25wc_ges(1) >= pm2_5_bg_threshold) then
+            pm25wc_ges(1)=1.0_r_kind
+          else
             pm25wc_ges(1)=0.0_r_kind
           end if
           if (pm25wc_ges(2) >= pm2_5_bg_threshold) then

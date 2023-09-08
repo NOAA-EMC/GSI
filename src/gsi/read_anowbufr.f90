@@ -232,8 +232,6 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
         conc=indata(ncopopm)
         if ( iret > 0 .and. (conc < conc_missing ) .and. &
                (conc >= zero)) then
-           if(indata(nxob) > r360)cycle 
-           if(indata(nyob) > 0.5_r_kind*r360)cycle
            
            if(indata(nxob) >= r360)  indata(nxob) = indata(nxob) - r360
            if(indata(nxob) <  zero)  indata(nxob) = indata(nxob) + r360
