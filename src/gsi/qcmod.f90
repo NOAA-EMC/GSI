@@ -2077,8 +2077,8 @@ end subroutine qc_saphir
 
 subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs,                         &
      cris,iasi,hirs,zsges,cenlat,cenlon,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise, &
-     wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity,chan_level,emissivity_k,ts,tsim,                   &
-     land_fraction,id_qc,aivals,errf,varinv,varinv_use,cloudp,cldp,kmax,zero_irjaco3_pole,cluster_fraction,    &
+     wavenumber,ptau5,prsltmp,tvp,temp,wmix,chan_level,emissivity_k,ts,tsim,                   &
+     id_qc,aivals,errf,varinv,varinv_use,cloudp,cldp,kmax,zero_irjaco3_pole,cluster_fraction,    &
      cluster_bt, chan_stdev, model_bt)
 !    id_qc,aivals,errf,varinv,varinv_use,cloudp,cldp,kmax,zero_irjaco3_pole,radmod) ! all-sky
 
@@ -2171,10 +2171,10 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
   integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
   integer(i_kind),dimension(nchanl),  intent(in   ) :: kmax
   real(r_kind),                       intent(in   ) :: zsges,cenlat,cenlon,frac_sea,pangs,trop5
-  real(r_kind),                       intent(in   ) :: tzbgr,tsavg5,zasat,land_fraction
+  real(r_kind),                       intent(in   ) :: tzbgr,tsavg5,zasat
   real(r_kind),                       intent(  out) :: cloudp,cldp
   real(r_kind),dimension(40,ndat),    intent(inout) :: aivals
-  real(r_kind),dimension(nchanl),     intent(in   ) :: tbc,emissivity_k,emissivity,ts,wavenumber,tb_obs,tbcnob
+  real(r_kind),dimension(nchanl),     intent(in   ) :: tbc,emissivity_k,ts,wavenumber,tb_obs,tbcnob
   real(r_kind),dimension(nchanl),     intent(in   ) :: chan_level
   real(r_kind),dimension(nchanl),     intent(in   ) :: tnoise,tsim
   real(r_kind),dimension(nsig,nchanl),intent(in   ) :: ptau5,temp,wmix
@@ -2190,10 +2190,8 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 
 
   real(r_kind) :: demisf,dtempf,efact,dtbf,term,cenlatx,sfchgtfact
-  real(r_kind) :: sum1,sum2,sum3,tmp,dts,delta,cloud_threshold
-  real(r_kind),dimension(nchanl) :: dtb
-  integer(i_kind) :: i,j,k,kk,lcloud,m,isurface_chan
-  integer(i_kind), dimension(2,5) :: ichan_pairs
+  real(r_kind) :: sum1,sum2,sum3,tmp,dts,delta
+  integer(i_kind) :: i,j,lcloud,m,isurface_chan
   integer(i_kind), dimension(nchanl) :: irday
   real(r_kind) :: dtz,ts_ave,xindx,tzchks
   real(r_kind),parameter:: tbmax = 550._r_kind
@@ -2205,7 +2203,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
   integer(i_kind),dimension(2) :: imager_chans
   integer(i_kind) :: boundary_layer_pres, tropopause_height
   integer(i_kind) :: ichan_10_micron, ichan_12_micron
-  real(r_kind),dimension(nchanl) :: cloud_detect_ht, tb_bc
+  real(r_kind),dimension(nchanl) :: tb_bc
   real(r_kind) :: cloud_temperature, radiance_chan, radiance_model, radiance_cloud
   real(r_kind) :: tb_obs_10, tb_obs_12, tb_obs_diff 
 
@@ -2309,7 +2307,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
       ichan_10_micron = 458                     ! ~10.7 micron channel for low level cloud test
       ichan_12_micron = 295                     ! ~12.0 micron channel for low level cloud test
 
-      call cloud_aerosol_detection( I_Sensor_ID, nchanl, chan_array, cenlon, cenlat, land_fraction, &
+      call cloud_aerosol_detection( I_Sensor_ID, nchanl, chan_array, &
              tropopause_height, boundary_layer_pres, tb_bc, tsim, chan_level, imager_chans, cluster_fraction, &
              cluster_bt, chan_stdev, model_bt, i_flag_cloud, cldp )
 
@@ -2324,7 +2322,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
       ichan_10_micron = 1173                    ! ~10.7 micron channel for low level cloud test
       ichan_12_micron = 756                     ! ~12.0 micron channel for low level cloud test
       
-      call cloud_aerosol_detection( I_Sensor_ID, nchanl, chan_array, cenlon, cenlat, land_fraction, &
+      call cloud_aerosol_detection( I_Sensor_ID, nchanl, chan_array, &
              tropopause_height, boundary_layer_pres, tb_bc, tsim, chan_level, imager_chans, cluster_fraction, &
              cluster_bt, chan_stdev, model_bt, i_flag_cloud, cldp )
 
@@ -2339,12 +2337,12 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
       ichan_10_micron = 843                     ! ~10.7 micron channel for low level cloud test
       ichan_12_micron = 587                     ! ~12.0 micron channel for low level cloud test
 
-      call cloud_aerosol_detection( I_Sensor_ID, nchanl, chan_array, cenlon, cenlat, land_fraction, &
+      call cloud_aerosol_detection( I_Sensor_ID, nchanl, chan_array, &
              tropopause_height, boundary_layer_pres, tb_bc, tsim, chan_level, imager_chans, cluster_fraction, &
              cluster_bt, chan_stdev, model_bt, i_flag_cloud, cldp )
 
   else
-     call emc_legacy_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,ptau5,lcloud,cloudp,cldp)
+     call emc_legacy_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,lcloud,cloudp,cldp)
 
   endif
 
@@ -2618,7 +2616,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 
 end subroutine qc_irsnd
 
-subroutine emc_legacy_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,ptau5,lcloud,cloudp,cldp)
+subroutine emc_legacy_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,lcloud,cloudp,cldp)
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -2643,7 +2641,6 @@ subroutine emc_legacy_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,t
 !     tbc          - simulated - observed BT with bias correction
 !     temp         - temperature sensitivity array
 !     varinv_use   - observation weight used (modified obs var error inverse)
-!     ptau5        - transmittances as a function of level and channel
 !     
 ! output argument list:
 !     lcloud       - model layer of cloud
@@ -2665,7 +2662,7 @@ integer(i_kind),                 intent(  out) :: lcloud
 real(r_kind),                    intent(in   ) :: tsavg5, trop5
 real(r_kind),                    intent(  out) :: cloudp, cldp
 real(r_kind), dimension(nchanl), intent(in   ) :: tbc, ts, varinv_use
-real(r_kind), dimension(nsig,nchanl), intent(in   ) :: ptau5,temp
+real(r_kind), dimension(nsig,nchanl), intent(in   ) :: temp
 real(r_kind), dimension(nsig),   intent(in   ) :: tvp, prsltmp
 
 integer(i_kind) :: i, k, kk

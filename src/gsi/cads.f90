@@ -212,7 +212,7 @@ SUBROUTINE CADS_Abort(String)
 
 END SUBROUTINE CADS_Abort
 
-subroutine cloud_aerosol_detection( I__Sensor_ID, I__Num_Chans, I__Chan_ID, Z__Longitude, Z__Latitude, Z__Land_Fraction, &
+subroutine cloud_aerosol_detection( I__Sensor_ID, I__Num_Chans, I__Chan_ID, &
                                     I__Min_Level, I__Max_Level, Z__BT_Obser, Z__BT_Model, Z__Chan_Height, K__Chan_ID_Imager, &
                                     Z__Cluster_Fraction, Z__BT_in_Cluster, Z__BT_Overall_SDev, Z__BT_Model_Imager, &
                                     I__Flag_Cloud, Z__Cloud_Level )
@@ -265,9 +265,6 @@ subroutine cloud_aerosol_detection( I__Sensor_ID, I__Num_Chans, I__Chan_ID, Z__L
   integer(i_kind),dimension(I__Num_Chans),intent(in   ) :: I__Chan_ID 
   integer(i_kind),                        intent(in   ) :: I__Min_Level !tropopause pressure
   integer(i_kind),                        intent(in   ) :: I__Max_Level !boundary layer pressure
-  real(r_kind),                           intent(in   ) :: Z__Longitude 
-  real(r_kind),                           intent(in   ) :: Z__Latitude
-  real(r_kind),                           intent(in   ) :: Z__Land_Fraction
   real(r_kind),                           intent(in   ) :: Z__BT_Obser(:)  !Observation BT
   real(r_kind),                           intent(in   ) :: Z__BT_Model(:) !Model derived BT
   real(r_kind),                           intent(in   ) :: Z__Chan_Height(:) !Channel height assignmenta
@@ -280,14 +277,8 @@ subroutine cloud_aerosol_detection( I__Sensor_ID, I__Num_Chans, I__Chan_ID, Z__L
   integer(i_kind),dimension(I__Num_Chans),intent(  out) :: I__Flag_Cloud      ! cloud use flag
 
 ! Interim prodcts
-  character(len=200) :: C__Error_Message     ! Message output for abort
 
 ! Diagnostics: percentages of positive detections
-  integer(i_kind) :: I__Chan                 ! Channel index
-  real(r_kind)    :: Z__Per_Aerosol          ! Aerosol
-  real(r_kind)    :: Z__Per_Tracegas         ! Trace gas
-  real(r_kind)    :: Z__Per_Land             ! Land sensitivity
-  integer(i_kind) :: i
 ! Input/Output file management
 
   N__Num_Imager_Chans = S__CADS_Setup_Cloud(I__Sensor_ID) % N__Num_Imager_Chans
@@ -1988,7 +1979,7 @@ SUBROUTINE CADS_Detect_Cloud_Separator( K__Sensor, K__Band, K__NumChans, K__Grad
 ! Local variables
   REAL(r_kind), ALLOCATABLE :: Z__DBT_w_Buffer(:) ! Smoothed-ranked DBT
   INTEGER(i_kind) :: I__Buffer                    ! No. of buffer channels
-  INTEGER(i_kind) :: JCH,I
+  INTEGER(i_kind) :: JCH
 
 ! These carry the values in S__CADS_Setup_Cloud
   REAL(r_kind)  :: Z__BT_Threshold          ! Solution contaminated threshold
