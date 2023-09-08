@@ -31,7 +31,7 @@ use gsi_obOperTypeManager, only: obOper_typeInfo
 use gsi_obOperTypeManager, only: &
   iobOper_t,          iobOper_pw,         iobOper_q,                                                    &
                                           iobOper_cldtot,     iobOper_w,          iobOper_dw,           &
-  iobOper_rw,         iobOper_dbz,                                                                      &
+  iobOper_rw,         iobOper_dbz,        iobOper_fed,                                                  &
                       iobOper_spd,        iobOper_oz,         iobOper_o3l,        iobOper_colvk,        &
   iobOper_pm2_5,      iobOper_pm10,       iobOper_ps,         iobOper_tcp,        iobOper_sst,          &
   iobOper_gpsbend,    iobOper_gpsref,                                                                   &
@@ -60,7 +60,7 @@ end interface
 integer(i_kind),parameter,dimension(obOper_count):: ix_obtype = (/ &
   iobOper_t,          iobOper_pw,         iobOper_q,                                                    &
                                           iobOper_cldtot,     iobOper_w,          iobOper_dw,           &
-  iobOper_rw,         iobOper_dbz,                                                                      &
+  iobOper_rw,         iobOper_dbz,        iobOper_fed,                                                  &
                       iobOper_spd,        iobOper_oz,         iobOper_o3l,        iobOper_colvk,        &
   iobOper_pm2_5,      iobOper_pm10,       iobOper_ps,         iobOper_tcp,        iobOper_sst,          &
   iobOper_gpsbend,    iobOper_gpsref,                                                                   &
