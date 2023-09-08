@@ -940,7 +940,11 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          Put satinfo defined channel temperatures into data array
            do l=1,satinfo_nchan
               i = bufr_index(l)
-              data_all(l+nreal,itx) = temperature(i)   ! brightness temerature
+              if ( bufr_index(l) /=0 ) then
+                data_all(l+nreal,itx) = temperature(i)   ! brightness temerature
+              else
+                data_all(l+nreal,itx) = tbmin
+              endif
            end do
            nrec(itx)=irec
 
