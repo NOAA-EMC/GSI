@@ -21,6 +21,7 @@
      lread_obs_save,lread_obs_skip,time_window_rad,tcp_posmatch,tcp_box, &
      neutral_stability_windfact_2dvar,use_similarity_2dvar,ta2tb
   use gsi_dbzOper, only: diag_radardbz
+  use gsi_fedOper, only: diag_fed
 
   use obsmod, only: doradaroneob,oneoblat,oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,&
      radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
@@ -569,6 +570,7 @@
 !     diag_co - logical to turn off or on the diagnostic carbon monoxide file (true=on)
 !     diag_light - logical to turn off or on the diagnostic lightning file (true=on)
 !     diag_radardbz - logical to turn off or on the diagnostic radar reflectivity file (true=on)
+!     diag_fed - logical to turn off or on the diagnostic flash extent density file (true=on)
 !     write_diag - logical to write out diagnostic files on outer iteration
 !     lobsdiagsave - write out additional observation diagnostics
 !     ltlint       - linearize inner loop
@@ -747,8 +749,8 @@
        min_offset,pseudo_q2,&
        iout_iter,npredp,retrieval,&
        tzr_qc,tzr_bufrsave,&
-       diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,diag_light,diag_radardbz,iguess, &
-       write_diag,reduce_diag, &
+       diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,diag_light,diag_radardbz,diag_fed, &
+       iguess,write_diag,reduce_diag, &
        oneobtest,sfcmodel,dtbduv_on,ifact10,l_foto,offtime_data,&
        use_pbl,use_compress,nsig_ext,gpstop,commgpstop, commgpserrinf, &
        perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
@@ -2028,6 +2030,7 @@
      diag_pcp=.false.
      diag_light=.false.
      diag_radardbz=.false.
+     diag_fed=.false.
      use_limit = 0
   end if
   if(reduce_diag) use_limit = 0
