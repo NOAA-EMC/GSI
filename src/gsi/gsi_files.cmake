@@ -218,6 +218,7 @@ gsi_colvkOper.F90
 gsi_dbzOper.F90
 gsi_dwOper.F90
 gsi_enscouplermod.f90
+gsi_fedOper.F90
 gsi_gpsbendOper.F90
 gsi_gpsrefOper.F90
 gsi_gustOper.F90
@@ -339,6 +340,7 @@ m_distance.f90
 m_dtime.F90
 m_dwNode.F90
 m_extOzone.F90
+m_fedNode.F90
 m_find.f90
 m_gpsNode.F90
 m_gpsrhs.F90
@@ -479,6 +481,7 @@ read_cris.f90
 read_dbz_nc.f90
 read_dbz_netcdf.f90
 read_diag.f90
+read_fed.f90
 read_files.f90
 read_fl_hdob.f90
 read_gfs_ozone_for_regional.f90
@@ -533,6 +536,7 @@ setupco.f90
 setupdbz.f90
 setupdbz_lib.f90
 setupdw.f90
+setupfed.f90
 setupgust.f90
 setuphowv.f90
 setuplag.f90

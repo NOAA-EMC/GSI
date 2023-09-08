@@ -48,7 +48,7 @@ module gsi_rfv3io_mod
 
   use kinds, only: r_kind,i_kind
   use gridmod, only: nlon_regional,nlat_regional
-  use constants, only:max_varname_length
+  use constants, only:max_varname_length,max_filename_length
   use gsi_bundlemod, only : gsi_bundle
   use general_sub2grid_mod, only: sub2grid_info
   use gridmod,  only: fv3_io_layout_y
@@ -2207,7 +2207,7 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
     real(r_kind),dimension(1,grd_ionouv%nlat,grd_ionouv%nlon,grd_ionouv%kbegin_loc:grd_ionouv%kend_alloc):: hwork
     character(len=max_varname_length) :: varname,vgsiname
     character(len=max_varname_length) :: name
-    character(len=max_varname_length) :: filenamein2
+    character(len=max_filename_length) :: filenamein2
     real(r_kind),allocatable,dimension(:,:):: uu2d_tmp
     integer(i_kind) :: countloc_tmp(3),startloc_tmp(3)
 
@@ -2381,7 +2381,7 @@ subroutine gsi_fv3ncdf_read_v1(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
     type(gsi_bundle),intent(inout) :: cstate_nouv
     real(r_kind),allocatable,dimension(:,:):: uu2d
     real(r_kind),dimension(1,grd_ionouv%nlat,grd_ionouv%nlon,grd_ionouv%kbegin_loc:grd_ionouv%kend_alloc):: hwork
-    character(len=max_varname_length) :: filenamein2
+    character(len=max_filename_length) :: filenamein2
     character(len=max_varname_length) :: varname,vgsiname
 
 
@@ -2482,7 +2482,7 @@ subroutine gsi_fv3ncdf_readuv(grd_uv,ges_u,ges_v,fv3filenamegin)
     character(:), allocatable:: filenamein
     real(r_kind),allocatable,dimension(:,:):: u2d,v2d
     real(r_kind),allocatable,dimension(:,:):: uc2d,vc2d
-    character(len=max_varname_length) :: filenamein2
+    character(len=max_filename_length) :: filenamein2
     character(len=max_varname_length) :: varname,vgsiname
     real(r_kind),allocatable,dimension(:,:,:,:):: worksub
     integer(i_kind) u_grd_VarId,v_grd_VarId
@@ -2658,7 +2658,7 @@ subroutine gsi_fv3ncdf_readuv_v1(grd_uv,ges_u,ges_v,fv3filenamegin)
     real(r_kind),allocatable,dimension(:,:):: us2d,vw2d
     real(r_kind),allocatable,dimension(:,:):: uorv2d
     real(r_kind),allocatable,dimension(:,:,:,:):: worksub
-    character(len=max_varname_length) :: filenamein2 
+    character(len=max_filename_length) :: filenamein2 
     character(len=max_varname_length) :: varname
     integer(i_kind) nlatcase,nloncase
     integer(i_kind) kbgn,kend
@@ -2778,7 +2778,7 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
     real(r_kind),dimension(nlat,nlon,nsig),intent(out),optional:: delp,tsen,w,q,oz,ql,qr,qs,qi,qg,dbz
     character(len=max_varname_length) :: varname
     character(len=max_varname_length) :: name
-    character(len=max_varname_length), allocatable,dimension(:) :: varname_files
+    character(len=max_filename_length), allocatable,dimension(:) :: varname_files
 
     integer(i_kind) nlatcase,nloncase,nxcase,nycase,countloc(3),startloc(3),countloc_tmp(3),startloc_tmp(3)
     integer(i_kind) ilev,ilevtot,inative,ivar
@@ -4097,7 +4097,7 @@ subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3file
     character(len=:), allocatable, intent(in) :: filenamein
     type (type_fv3regfilenameg),intent (in) :: fv3filenamegin
     real(r_kind),dimension(1,grd_ionouv%nlat,grd_ionouv%nlon,grd_ionouv%kbegin_loc:grd_ionouv%kend_alloc):: hwork
-    character(len=max_varname_length) :: filenamein2 
+    character(len=max_filename_length) :: filenamein2 
     character(len=max_varname_length) :: varname,vgsiname,name
 
     integer(i_kind) nlatcase,nloncase,nxcase,nycase,countloc(3),startloc(3)
@@ -4321,7 +4321,7 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
     character(*),intent(in):: filenamein
     type (type_fv3regfilenameg),intent (in) :: fv3filenamegin
     real(r_kind),dimension(1,grd_ionouv%nlat,grd_ionouv%nlon,grd_ionouv%kbegin_loc:grd_ionouv%kend_alloc):: hwork
-    character(len=max_varname_length) :: filenamein2 
+    character(len=max_filename_length) :: filenamein2 
 
     integer(i_kind) kbgn,kend
     integer(i_kind) inative,ilev,ilevtot
