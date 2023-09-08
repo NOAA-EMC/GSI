@@ -779,13 +779,12 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
                 mype,nfldsig)
           call tintrp2a11(pm25wc(:,:,:,2,nfldsig),pm25wc_ges(2),dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
-          !write(6,"(A,L3,F8.3,1x,F8.3,F6.2,4F7.2)")"OBS_INF ",muse(i),data(ilate,i),data(ilone,i),veg_type_ges,pm2_5ges,innov,pm25wc_ges(1),pm25wc_ges(2)
-          if (pm25wc_ges(1) >= 2.0_r_kind) then
+          if (pm25wc_ges(1) >= pm2_5_bg_threshold) then
             pm25wc_ges(1)=1.0_r_kind
           else
             pm25wc_ges(1)=0.0_r_kind
           end if
-          if (pm25wc_ges(2) >= 2.0_r_kind) then
+          if (pm25wc_ges(2) >= pm2_5_bg_threshold) then
             pm25wc_ges(2)=1.0_r_kind
           else
             pm25wc_ges(2)=0.0_r_kind
@@ -793,7 +792,6 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
           if ( (pm25wc_ges(1)+pm25wc_ges(2)) < 1.0_r_kind ) then
             muse(i) = .false. 
           end if
-          write(6,"(A,L3,F8.3,1x,F8.3,5F7.2)")"PM2_5_INF",muse(i),data(ilate,i),data(ilone,i),pm2_5ges,innov,pm25wc_ges(1:2),veg_type_ges
         else
           pm25wc_ges = 0.0_r_kind
         end if

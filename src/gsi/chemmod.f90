@@ -291,10 +291,15 @@ contains
 !initialiazes default values to &CHEM namelist parameters
     
     berror_chem=.false.
-    berror_fv3_cmaq_regional=.false.  ! Set .true. to use berror for fv3_cmaq_regional, whose cv has 10 characters
-    berror_fv3_sd_regional=.false.    ! Set .true. to use berror for rrfs_sd model, whose cv has 10 characters
+    berror_fv3_cmaq_regional=.false.  ! .False. : Dont perform aerosal DA for the online RRFS_CMAQ model so dont need to read in B for RRFS_CMAQ.  
+                                      ! .true.  : Use berror for fv3_cmaq_regional, whose cv has 10 characters
+    berror_fv3_sd_regional=.false.    ! .False. : Dont perform aerosal DA for the RRFS_SD model so dont need to read in B for RRFS_SD.  
+                                      ! .true. to use berror for rrfs_sd model, whose cv has 10 characters
     oneobtest_chem=.false.
-    anowbufr_ext=.false.
+    anowbufr_ext=.false.              ! .False. : use default anowbufr data
+                                      ! .True.  : use the extented bufr data
+                                      ! that includes PM10, station elevation
+                                      ! etal in addition to pm2.5. 
     maginnov_chem=30_r_kind
     magoberr_chem=2_r_kind
     oneob_type_chem='pm2_5'
