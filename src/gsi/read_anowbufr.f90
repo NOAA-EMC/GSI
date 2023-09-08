@@ -78,6 +78,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
   integer(i_kind), parameter:: nchanl=0,nreal=ilone
 
   real(r_kind),parameter :: r360 = 360.0_r_kind
+  real(r_kind),parameter :: r90 = 90.0_r_kind
   real(r_kind),parameter :: percent=1.e-2_r_kind
 
   real(r_kind), parameter :: anow_missing=1.0e11_r_kind,&
@@ -153,13 +154,13 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
            ncbufr=.true.
            write(6,*)'READ_PM2_5:  AIRNOW data type, subset=',subset
         else if (subset == 'ANOWPM') then
-           if (.not. anowbufr_ext) then
-              headr='SID XOB YOB DHR TYP COPOPM'
-              anowbufr=.true.
-              write(6,*)'READ_PM2_5:  AIRNOW data type, subset=',subset
-           else
+           if (anowbufr_ext) then
               headr='SID XOB YOB DHR TYP T29 SQN PROCN RPT CAT TYPO TSIG'
               obstr='TPHR QCIND COPOPM ELV COPOPM10 COPOCO'
+              anowbufr=.true.
+              write(6,*)'READ_PM2_5_BUFR_EXT:  AIRNOW data type, subset=',subset 
+           else ! default ANOWBUFR Table
+              headr='SID XOB YOB DHR TYP COPOPM'
               anowbufr=.true.
               write(6,*)'READ_PM2_5:  AIRNOW data type, subset=',subset
            end if
@@ -174,13 +175,13 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
            ncbufr=.true.
            write(6,*)'READ_PM10:  AIRNOW data type, subset=',subset
         else if (subset == 'ANOWPM') then
-           if (.not. anowbufr_ext) then
-              headr='SID XOB YOB DHR TYP COPOPM'
-              anowbufr=.true.
-              write(6,*)'READ_PM10:  AIRNOW data type, subset=',subset
-           else 
+           if (anowbufr_ext) then
               headr='SID XOB YOB DHR TYP T29 SQN PROCN RPT CAT TYPO TSIG'
               obstr='TPHR QCIND COPOPM ELV COPOPM10 COPOCO'
+              anowbufr=.true.
+              write(6,*)'READ_PM10_BUFR_EXT:  AIRNOW data type, subset=',subset
+           else
+              headr='SID XOB YOB DHR TYP COPOPM'
               anowbufr=.true.
               write(6,*)'READ_PM10:  AIRNOW data type, subset=',subset
            end if
@@ -198,16 +199,17 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
      imin=0
 
      do while (ireadsb(lunin) == 0)
-           if (.not. anowbufr_ext) then
-              call ufbint(lunin,indata,nfields,1,iret,headr)
-           else
-              call ufbint(lunin,indata_a,nfields_b,1,iret,headr)
-              indata(1:5) = indata_a(1:5)
-              call ufbint(lunin,indata_b,nfields_b,1,iret,obstr)
-              if (trim(obstype)=='pm2_5') indata(ncopopm)=indata_b(3)
-              if (trim(obstype)=='pm10')  indata(ncopopm)=indata_b(5)
-              site_elev = indata_b(4)
-           end if
+        if (anowbufr_ext) then
+           call ufbint(lunin,indata_a,nfields_b,1,iret,headr)
+           indata(1:5) = indata_a(1:5)
+           call ufbint(lunin,indata_b,nfields_b,1,iret,obstr)
+           if (trim(obstype)=='pm2_5') indata(ncopopm)=indata_b(3)
+           if (trim(obstype)=='pm10')  indata(ncopopm)=indata_b(5)
+           site_elev = indata_b(4)
+        else
+           call ufbint(lunin,indata,nfields,1,iret,headr)
+        end if
+
         if (anowbufr) then
            kx=indata(ntyp)
            read(sid,'(Z8)')site_id
@@ -230,11 +232,12 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
         conc=indata(ncopopm)
         if ( iret > 0 .and. (conc < conc_missing ) .and. &
                (conc >= zero)) then
-           if(indata(nxob) > r360)cycle 
-           if(indata(nyob) > 0.5_r_kind*r360)cycle
            
            if(indata(nxob) >= r360)  indata(nxob) = indata(nxob) - r360
            if(indata(nxob) <  zero)  indata(nxob) = indata(nxob) + r360
+
+           if(indata(nxob) > r360)cycle
+           if(indata(nyob) > r90)cycle
 
            dlon_earth_deg=indata(nxob)
            dlat_earth_deg=indata(nyob)
