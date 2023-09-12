@@ -115,7 +115,7 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
   use state_vectors, only: svars3d, levels, nsdim
 
-  use constants, only : zero,half,one,two,tiny_r_kind
+  use constants, only : zero,half,one,two,tiny_r_kind,r_missing
   use constants, only : constoz,rozcon,cg_term,wgtlim,h300,r10,r100,r1000
 
   use m_obsdiagNode, only : obs_diag
@@ -138,7 +138,7 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
-       nc_diag_write, nc_diag_data2d
+       nc_diag_write, nc_diag_data2d, nc_diag_metadata_to_single
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
@@ -609,31 +609,35 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
                                      sngl(prsitmp(1)*r1000) )
               endif
                  call nc_diag_metadata("MPI_Task_Number", mype                      )
-                 call nc_diag_metadata("Latitude",        sngl(data(ilate,i))       )
-                 call nc_diag_metadata("Longitude",       sngl(data(ilone,i))       )
-                 call nc_diag_metadata("Time",            sngl(data(itime,i)-time_offset) )
-                 call nc_diag_metadata("Reference_Pressure",sngl(pobs(k)*r100)            )
+                 call nc_diag_metadata_to_single("Latitude",(data(ilate,i))       )
+                 call nc_diag_metadata_to_single("Longitude",(data(ilone,i))       )
+                 if(isnan(dtime) .or. isnan(time_offset)) then
+                    call nc_diag_metadata("Time",sngl(real(r_missing)))
+                 else
+                    call nc_diag_metadata("Time",sngl(dtime-time_offset))
+                 endif
+                 call nc_diag_metadata_to_single("Reference_Pressure",(pobs(k)*r100))
                  call nc_diag_metadata("Analysis_Use_Flag",      iouse(k)           )
-                 call nc_diag_metadata("Observation",                  sngl(ozobs(k)))
-                 call nc_diag_metadata("Inverse_Observation_Error",    sngl(errorinv))
-                 call nc_diag_metadata("Input_Observation_Error", sngl(error(k)))
-                 call nc_diag_metadata("Obs_Minus_Forecast_adjusted",  sngl(ozone_inv(k)))
-                 call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",sngl(ozone_inv(k)))
-                 call nc_diag_metadata("Forecast_unadjusted", sngl(ozges(k)))
-                 call nc_diag_metadata("Forecast_adjusted",sngl(ozges(k)))
+                 call nc_diag_metadata_to_single("Observation",(ozobs(k)))
+                 call nc_diag_metadata_to_single("Inverse_Observation_Error",(errorinv))
+                 call nc_diag_metadata_to_single("Input_Observation_Error", (error(k)))
+                 call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",(ozone_inv(k)))
+                 call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",(ozone_inv(k)))
+                 call nc_diag_metadata_to_single("Forecast_unadjusted", (ozges(k)))
+                 call nc_diag_metadata_to_single("Forecast_adjusted", (ozges(k)))
                  if (obstype == 'gome' .or. obstype == 'omieff'  .or. &
                      obstype == 'omi'  .or. obstype == 'tomseff' .or. &
                      obstype == 'ompsnmeff' .or. obstype == 'ompsnm') then
-                    call nc_diag_metadata("Solar_Zenith_Angle", sngl(data(isolz,i)) )
-                    call nc_diag_metadata("Scan_Position",      sngl(data(ifovn,i)) )
+                    call nc_diag_metadata_to_single("Solar_Zenith_Angle",(data(isolz,i)) )
+                    call nc_diag_metadata_to_single("Scan_Position",(data(ifovn,i)) )
                  else
-                    call nc_diag_metadata("Solar_Zenith_Angle",        sngl(rmiss) )
-                    call nc_diag_metadata("Scan_Position",             sngl(rmiss) )
+                    call nc_diag_metadata_to_single("Solar_Zenith_Angle",(rmiss) )
+                    call nc_diag_metadata_to_single("Scan_Position",(rmiss) )
                  endif
                  if (obstype == 'omieff' .or. obstype == 'omi' ) then
-                    call nc_diag_metadata("Row_Anomaly_Index", sngl(data(itoqf,i))  )
+                    call nc_diag_metadata_to_single("Row_Anomaly_Index",(data(itoqf,i))  )
                  else
-                    call nc_diag_metadata("Row_Anomaly_Index",         sngl(rmiss)  )
+                    call nc_diag_metadata_to_single("Row_Anomaly_Index",(rmiss)  )
                  endif
                  if (save_jacobian) then
                     call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)
@@ -1085,7 +1089,7 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use obsmod, only: netcdf_diag, binary_diag, dirname
 ! use obsmod, only: wrtgeovals
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
-       nc_diag_write, nc_diag_data2d
+       nc_diag_write, nc_diag_data2d, nc_diag_metadata_to_single
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use m_obsNode, only: obsNode
   use m_o3lNode, only : o3lNode
@@ -1717,25 +1721,26 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
 ! Observation class
   character(7),parameter     :: obsclass = '  ozlev'
   real(r_kind),dimension(miter) :: obsdiag_iuse
-           call nc_diag_metadata("Latitude",                     sngl(data(ilate,i))            )
-           call nc_diag_metadata("Longitude",                    sngl(data(ilone,i))            )
+           call nc_diag_metadata_to_single("Latitude",           data(ilate,i)                  )
+           call nc_diag_metadata_to_single("Longitude",          data(ilone,i)                  )
            call nc_diag_metadata("MPI_Task_Number",              mype                           )
-           call nc_diag_metadata("Time",                         sngl(data(itime,i)-time_offset))
-           call nc_diag_metadata("Inverse_Observation_Error",    sngl(errorinv)                 )
-           call nc_diag_metadata("Observation",                  sngl(ozlv)                     ) 
-           call nc_diag_metadata("Obs_Minus_Forecast_adjusted",  sngl(ozone_inv)                )
-           call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",sngl(ozone_inv)                )
-           call nc_diag_metadata("Reference_Pressure",           sngl(preso3l*r100)             ) ! Pa
+           call nc_diag_metadata_to_single("Time",               dtime,time_offset,'-'          )
+           call nc_diag_metadata_to_single("Inverse_Observation_Error",errorinv                 )
+           call nc_diag_metadata_to_single("Observation",        ozlv                           )
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",ozone_inv              )
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",ozone_inv            )
+           call nc_diag_metadata_to_single("Reference_Pressure", preso3l*r100                   ) ! Pa
            if(luse(i)) then
-             call nc_diag_metadata("Analysis_Use_Flag",          one                            )
+             call nc_diag_metadata_to_single("Analysis_Use_Flag",  one                          )
            else
-             call nc_diag_metadata("Analysis_Use_Flag",          -one                           )
+             call nc_diag_metadata_to_single("Analysis_Use_Flag", -one                          )
            endif
-           call nc_diag_metadata("Input_Observation_Error",      sngl(obserror)                 ) 
+
+           call nc_diag_metadata_to_single("Input_Observation_Error",obserror                   )
            if(obstype =="ompslp")then
-             call nc_diag_metadata("Log10 Air Number Density",   sngl(airnd))
-             call nc_diag_metadata("Log10 Ozone Number Density UV",  sngl(uvnd))
-             call nc_diag_metadata("Log10 Ozone Number Density VIS",sngl(visnd))
+             call nc_diag_metadata_to_single("Log10 Air Number Density",airnd                   )
+             call nc_diag_metadata_to_single("Log10 Ozone Number Density UV",uvnd               )
+             call nc_diag_metadata_to_single("Log10 Ozone Number Density VIS",visnd             )
            endif
            call nc_diag_metadata("Forecast_adjusted", sngl(o3ppmv))
            call nc_diag_metadata("Forecast_unadjusted", sngl(o3ppmv))

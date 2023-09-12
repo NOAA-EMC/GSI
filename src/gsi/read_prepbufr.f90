@@ -690,7 +690,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! identify drifting buoys - TYP=180/280 T29=562 and last three digits of SID between 500 and 999
 !  (see https://www.wmo.int/pages/prog/amp/mmop/wmo-number-rules.html)  Set kx to 199/299
-        if (id_drifter .and. (kx==180 .or. kx==280) .and. nint(hdr(3))==562) then
+        if (id_drifter .and. (kx==180 .or. kx==280) .and. nint(hdr(3),r_double)==562) then
            rstation_id=hdr(4)
            read(c_station_id,*,iostat=ios) iwmo
            if (ios == 0 .and. iwmo > 0) then
@@ -700,7 +700,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            end if
         end if
 
-        if (id_ship .and. (kx==180) .and. (nint(hdr(3))==522 .or. nint(hdr(3))==523)) then
+        if (id_ship .and. (kx==180) .and. (nint(hdr(3),r_double)==522 .or. nint(hdr(3),r_double)==523)) then
            rstation_id=hdr(4)
            kx = kx + 18
         end if
@@ -969,7 +969,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !
 ! identify drifting buoys - TYP=180/280 T29=562 and last three digits of SID between 500 and 999
 !  (see https://www.wmo.int/pages/prog/amp/mmop/wmo-number-rules.html)  Set kx to 199/299
-              if (id_drifter .and. (kx==180 .or. kx==280) .and.  nint(hdr(8))==562 ) then
+              if (id_drifter .and. (kx==180 .or. kx==280) .and. nint(hdr(8),r_double)==562) then
                  rstation_id=hdr(1)
                  read(c_station_id,*,iostat=ios) iwmo
                  if (ios == 0 .and. iwmo > 0) then
@@ -979,7 +979,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  end if
               end if
 
-              if (id_ship .and. (kx==180) .and.  (nint(hdr(8))==522 .or. nint(hdr(8))==523) ) then
+              if (id_ship .and. (kx==180) .and. (nint(hdr(8),r_double)==522 .or. nint(hdr(8),r_double)==523) ) then
                  rstation_id=hdr(1)
                  kx = kx + 18
               end if
@@ -1179,7 +1179,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     enddo
                     do k=1,levs
                        ppb=obsdat(1,k)
-                      cat=nint(min(obsdat(10,k),qcmark_huge))
+                      cat=idnint(min(obsdat(10,k),qcmark_huge))
                        if ( cat /=0 ) cycle 
                        ppb=max(zero,min(ppb,r2000))
                        if(ppb>=etabl_ps(itypex,1,1)) k1_ps=1
@@ -1608,11 +1608,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               plevs(k)=one_tenth*obsdat(1,k)   ! convert mb to cb
               if (kx == 290) plevs(k)=101.0_r_kind  ! Assume 1010 mb = 101.0 cb
               if (goesctpobs) plevs(k)=goescld(1,k)/1000.0_r_kind ! cloud top pressure in cb
-              pqm(k)=nint(qcmark(1,k))
-              qqm(k)=nint(qcmark(2,k))
-              tqm(k)=nint(qcmark(3,k))
-              wqm(k)=nint(qcmark(5,k))
-              pmq(k)=nint(qcmark(8,k))
+              pqm(k)=idnint(qcmark(1,k))
+              qqm(k)=idnint(qcmark(2,k))
+              tqm(k)=idnint(qcmark(3,k))
+              wqm(k)=idnint(qcmark(5,k))
+              pmq(k)=idnint(qcmark(8,k))
            end do
 
 !          181, 183, 187, and 188 are the screen-level obs over land
@@ -1642,14 +1642,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                           if (tpc(k,j)==glcd) then !found GLERL ob - use that and jump out of events stack
                              obsdat(3,k)=tobaux(1,k,j)
                              qcmark(3,k)=min(tobaux(2,k,j),qcmark_huge)
-                             tqm(k)=nint(qcmark(3,k))
+                             tqm(k)=idnint(qcmark(3,k))
                              exit
-                          endif
-                       endif
+                          end if
+                       end if
                        if (tpc(k,j)==vtcd) then
                           obsdat(3,k)=tobaux(1,k,j+1)
                           qcmark(3,k)=min(tobaux(2,k,j+1),qcmark_huge)
-                          tqm(k)=nint(qcmark(3,k))
+                          tqm(k)=idnint(qcmark(3,k))
                        end if
                        if (tpc(k,j)>=bmiss) exit              ! end of stack
                     end do
@@ -1731,11 +1731,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if(obsdat(2,k) > r0_01_bmiss)cycle loop_k_levs
                  qm=qqm(k)
               else if(pwob) then
-                 pwq=nint(qcmark(7,k))
+                 pwq=idnint(qcmark(7,k))
                  qm=pwq
               else if(sstob) then
                  sstq=100
-                 if (k==1) sstq=nint(min(sstdat(4,k),qcmark_huge))
+                 if (k==1) sstq=idnint(min(sstdat(4,k),qcmark_huge))
                  qm=sstq
               else if(gustob) then
                  gustqm=0
@@ -1791,10 +1791,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               end if
 
               if (psob) then
-                 cat=nint(min(obsdat(10,k),qcmark_huge))
+                 cat=idnint(min(obsdat(10,k),qcmark_huge))
                  if ( cat /=0 ) cycle loop_k_levs
                  if ( obsdat(1,k)< r500) qm=100
-                 zqm=nint(qcmark(4,k))
+                 zqm=idnint(qcmark(4,k))
                  if (zqm>=lim_zqm .and. zqm/=15 .and. zqm/=9) qm=9
               endif
 
@@ -1804,7 +1804,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             extract aircraft profile information
               if (aircraft_t_bc .and. acft_profl_file) then
-                 if (nint(obsdat(10,k))==7) cycle LOOP_K_LEVS
+                 if (idnint(obsdat(10,k))==7) cycle LOOP_K_LEVS
                  if(abs(hdr3(2,k))>r90 .or. abs(hdr3(1,k))>r360) cycle LOOP_K_LEVS
                  if(hdr3(1,k)== r360)hdr3(1,k)=hdr3(1,k)-r360
                  if(hdr3(1,k) < zero)hdr3(1,k)=hdr3(1,k)+r360
@@ -3270,7 +3270,7 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
   enddo
 
   do k=1,levs
-     cat(k)=nint(obsdat(10,k))
+     cat(k)=idnint(obsdat(10,k))
   enddo
 
 
@@ -3287,10 +3287,10 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
 
 
   if(kx==120)then
-     pqm(1)=nint(min(qcmark(1,1),10000.0))
-     qqm(1)=nint(min(qcmark(2,1),10000.0))
-     tqm(1)=nint(min(qcmark(3,1),10000.0))
-     zqm(1)=nint(min(qcmark(4,1),10000.0))
+     pqm(1)=idnint(min(qcmark(1,1),10000.0))
+     qqm(1)=idnint(min(qcmark(2,1),10000.0))
+     tqm(1)=idnint(min(qcmark(3,1),10000.0))
+     zqm(1)=idnint(min(qcmark(4,1),10000.0))
      call grdcrd(dpres,levs,prsltmp(1),nsig,-1)
         do k=1,levs
            tvflg(k)=one                               ! initialize as sensible
@@ -3302,10 +3302,10 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
 
         do i=2,levs
            im=i-1
-           pqm(i)=nint(min(qcmark(1,i),10000.0))
-           qqm(i)=nint(min(qcmark(2,i),10000.0))
-           tqm(i)=nint(min(qcmark(3,i),10000.0))
-           zqm(i)=nint(min(qcmark(4,i),10000.0))
+           pqm(i)=idnint(min(qcmark(1,i),10000.0))
+           qqm(i)=idnint(min(qcmark(2,i),10000.0))
+           tqm(i)=idnint(min(qcmark(3,i),10000.0))
+           zqm(i)=idnint(min(qcmark(4,i),10000.0))
            if ( (cat(i)==2 .or. cat(im)==2 .or. cat(i)==5 .or. cat(im)==5) .and. &
            pqm(i)<4 .and.  pqm(im)<4    )then
               ku=dpres(i)-1
@@ -3361,14 +3361,14 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
         enddo !levs
 !!!!!!!!! w (not used) !!!!!!!!!!!!!!!!!!!!!!!!!!!
   elseif(kx==220)then
-     pqm(1)=nint(min(qcmark(1,1),10000.0))
-     wqm(1)=nint(min(qcmark(5,1),10000.0))
+     pqm(1)=idnint(min(qcmark(1,1),10000.0))
+     wqm(1)=idnint(min(qcmark(5,1),10000.0))
      call grdcrd(dpres,levs,prsltmp(1),nsig,-1)
      do i=2,levs
         im=i-1
-        wqm(i)=nint(min(qcmark(5,i),10000.0))
-        zqm(i)=nint(min(qcmark(4,i),10000.0))
-        pqm(i)=nint(min(qcmark(1,i),10000.0))
+        wqm(i)=idnint(min(qcmark(5,i),10000.0))
+        zqm(i)=idnint(min(qcmark(4,i),10000.0))
+        pqm(i)=idnint(min(qcmark(1,i),10000.0))
         if(  wqm(i)<4 .and.  wqm(im)<4 .and.  pqm(i)<4 .and.  pqm(im)<4 .and.&
         (cat(i)==2 .or. cat(im)==2 .or. cat(i)==5 .or. cat(im)==5) )then
            ku=dpres(i)-1
