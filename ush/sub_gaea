@@ -128,7 +128,7 @@ echo ". "$(awk '{ print $1, $2, $3, $4, $5, $6, $7, $8, $9 }' $regdir/regression
 echo "" >>$cfile
 
 echo "source /lustre/f2/dev/role.epic/contrib/Lmod_init.sh"  >> $cfile
-echo "module use $gsisrc/modulefiles"                        >> $cfile
+echo "module use $modulefiles"                        >> $cfile
 echo "module load gsi_gaea" >> $cfile
 echo "module list"                                           >> $cfile
 echo "" >>$cfile

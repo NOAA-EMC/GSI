@@ -125,7 +125,7 @@ echo "" >>$cfile
 echo "cfile = $cfile"
 echo "source /glade/u/apps/ch/modulefiles/default/localinit/localinit.sh >> $cfile"
 echo "module purge"                                        >> $cfile
-echo "module use $gsisrc/modulefiles"                      >> $cfile
+echo "module use $modulefiles"                      >> $cfile
 echo "module load gsi_cheyenne.intel" >> $cfile
 echo "module list" >> $cfile
 
