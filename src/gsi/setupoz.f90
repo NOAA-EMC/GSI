@@ -640,8 +640,9 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
                     call nc_diag_metadata_to_single("Row_Anomaly_Index",(rmiss)  )
                  endif
                  if (save_jacobian) then
-                    call fullarray(dhx_dx, dhx_dx_array)
-                    call nc_diag_data2d("Observation_Operator_Jacobian", dhx_dx_array)
+                    call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)
+                    call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
+                    call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
                  endif
                 !if (wrtgeovals) then
                 !   call nc_diag_data2d("mole_fraction_of_ozone_in_air", sngl(constoz*ozgestmp)) 
