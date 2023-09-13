@@ -160,6 +160,7 @@ module obsmod
 !   2021-11-16 Zhao      - add option l_obsprvdiag (if true) to trigger the output of
 !                          observation provider and sub-provider information into
 !                          obsdiags files (used for AutoObsQC)
+!   2023-07-10  Y. Wang, D. Dowell - add variables for flash extent density
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -186,6 +187,7 @@ module obsmod
 !   def write_diag   - namelist logical array to compute/write (=true) diag files
 !   def diag_radardbz- namelist logical to compute/write (=true) radar
 !                                          reflectiivty diag files
+!   def diag_fed     - namelist logical to compute/write (=true) flash extent density diag files
 !   def reduce_diag  - namelist logical to produce reduced radiance diagnostic files
 !   def use_limit    - parameter set equal to -1 if diag files produced or 0 if not diag files or reduce_diag
 !   def obs_setup    - prefix for files passing pe relative obs data to setup routines
@@ -434,6 +436,7 @@ module obsmod
   public :: ran01dom,dval_use
   public :: iout_pcp,iout_rad,iadate,iadatemn,write_diag,reduce_diag,oberrflg,bflag,ndat,dthin,dmesh,l_do_adjoint
   public :: diag_radardbz
+  public :: diag_fed
   public :: lsaveobsens
   public :: iout_cldch, mype_cldch
   public :: nprof_gps,time_offset,ianldate,tcp_box
@@ -483,7 +486,9 @@ module obsmod
 
   public :: iout_dbz, mype_dbz
   ! --- DBZ DA ---
-  
+
+  public :: iout_fed, mype_fed  
+
   public :: obsmod_init_instr_table
   public :: obsmod_final_instr_table
   public :: nobs_sub
@@ -583,12 +588,12 @@ module obsmod
   integer(i_kind) iout_co,iout_gust,iout_vis,iout_pblh,iout_tcamt,iout_lcbas
   integer(i_kind) iout_cldch
   integer(i_kind) iout_wspd10m,iout_td2m,iout_mxtm,iout_mitm,iout_pmsl,iout_howv
-  integer(i_kind) iout_uwnd10m,iout_vwnd10m
+  integer(i_kind) iout_uwnd10m,iout_vwnd10m,iout_fed
   integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, &
                   mype_rw,mype_dw,mype_gps,mype_sst, &
                   mype_tcp,mype_lag,mype_co,mype_gust,mype_vis,mype_pblh, &
                   mype_wspd10m,mype_td2m,mype_mxtm,mype_mitm,mype_pmsl,mype_howv,&
-                  mype_uwnd10m,mype_vwnd10m, mype_tcamt,mype_lcbas, mype_dbz
+                  mype_uwnd10m,mype_vwnd10m, mype_tcamt,mype_lcbas, mype_dbz, mype_fed
   integer(i_kind) mype_cldch
   integer(i_kind) iout_swcp, iout_lwcp
   integer(i_kind) mype_swcp, mype_lwcp
@@ -638,6 +643,7 @@ module obsmod
   logical lobserver,l_do_adjoint, lobsdiag_forenkf
   logical,dimension(0:50):: write_diag
   logical diag_radardbz 
+  logical diag_fed
   logical reduce_diag
   logical offtime_data
   logical hilbert_curve
@@ -789,6 +795,7 @@ contains
     end do
     write_diag(1)=.true.
     diag_radardbz = .false.
+    diag_fed = .false.
     reduce_diag = .false.
     use_limit = -1
     lobsdiagsave=.false.
@@ -853,6 +860,7 @@ contains
     iout_lwcp=236  ! liquid-water content path
     iout_light=237 ! lightning
     iout_dbz=238 ! radar reflectivity
+    iout_fed=239   ! flash extent density
 
     mype_ps = npe-1          ! surface pressure
     mype_t  = max(0,npe-2)   ! temperature
@@ -887,6 +895,7 @@ contains
     mype_lwcp=max(0,npe-31)  ! liquid-water content path
     mype_light=max(0,npe-32)! GOES/GLM lightning
     mype_dbz=max(0,npe-33)   ! radar reflectivity
+    mype_fed= max(0,npe-34)  ! flash extent density
 
 
 !   Initialize arrays used in namelist obs_input 
@@ -981,7 +990,7 @@ contains
     return
   end subroutine init_obsmod_dflts
   
-  subroutine init_directories(mype)
+  subroutine init_directories(in_pe,num_pe)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    create sub-directories
@@ -1006,20 +1015,42 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$ end documentation block
+#ifdef __INTEL_COMPILER
+    use IFPORT
+#endif
     implicit none
 
-    integer(i_kind),intent(in   ) :: mype
+    integer(i_kind),intent(in   ) :: in_pe
+    integer(i_kind),intent(in   ) :: num_pe
+    logical :: l_mkdir_stat
 
     character(len=144):: command
-    character(len=8):: pe_name
+    character(len=8):: pe_name, loc_pe_name
+    character(len=128):: loc_dirname
+    integer(i_kind) :: i
 
     if (lrun_subdirs) then
-       write(pe_name,'(i4.4)') mype
+       write(pe_name,'(i4.4)') in_pe
        dirname = 'dir.'//trim(pe_name)//'/'
-       command = 'mkdir -p -m 755 ' // trim(dirname)
-       call system(command)
+! Only create directories on one PE
+       if(in_pe == 0) then
+          do i = 0, num_pe
+             write(loc_pe_name,'(i4.4)') i
+             loc_dirname = 'dir.'//trim(loc_pe_name)
+#ifdef __INTEL_COMPILER
+             l_mkdir_stat = MAKEDIRQQ(trim(loc_dirname))
+             if(.not. l_mkdir_stat) then
+                write(6, *) "Failed to create directory ", trim(loc_dirname), " for PE ", loc_pe_name
+                call stop2(678)
+             endif
+#else
+             command = 'mkdir -p -m 755 ' // trim(loc_dirname)
+             call system(command)
+#endif
+          enddo
+       endif
     else
-       write(pe_name,100) mype
+       write(pe_name,100) in_pe
 100 format('pe',i4.4,'.')
        dirname= trim(pe_name)
     end if

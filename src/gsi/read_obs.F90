@@ -192,6 +192,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
   if ( .not. l_use_dbz_directDA) then
      if(trim(dtype) == 'dbz' )return
   end if
+  if(trim(dtype) == 'fed' )return
 
 ! Use routine as usual
 
@@ -911,7 +912,8 @@ subroutine read_obs(ndata,mype)
            obstype == 'mitm' .or. obstype=='pmsl' .or. &
            obstype == 'howv' .or. obstype=='tcamt' .or. &
            obstype=='lcbas' .or. obstype=='cldch' .or. obstype == 'larcglb' .or. &
-           obstype=='uwnd10m' .or. obstype=='vwnd10m' .or. obstype=='dbz' ) then
+           obstype=='uwnd10m' .or. obstype=='vwnd10m' .or. obstype=='dbz' .or. &
+           obstype=='fed') then
           ditype(i) = 'conv'
        else if (obstype == 'swcp' .or. obstype == 'lwcp') then
           ditype(i) = 'wcp'
@@ -1302,6 +1304,10 @@ subroutine read_obs(ndata,mype)
              use_hgtl_full=.true.
              if(belong(i))use_hgtl_full_proc=.true.
           end if
+          if(obstype == 'fed')then
+             use_hgtl_full=.true.
+             if(belong(i))use_hgtl_full_proc=.true.
+          end if
           if(obstype == 'sst')then
             if(belong(i))use_sfc=.true.
           endif
@@ -1520,10 +1526,6 @@ subroutine read_obs(ndata,mype)
                   call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                        prsl_full,nobs_sub1(1,i))
                   string='READ_FL_HDOB'
-                else if (index(infile,'uprair') /=0)then
-                   call read_hdraob(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
-                        prsl_full,hgtl_full,nobs_sub1(1,i),read_rec(i))
-                   string='READ_UPRAIR'
                 else
                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                      prsl_full,nobs_sub1(1,i),read_rec(i))
@@ -1638,6 +1640,12 @@ subroutine read_obs(ndata,mype)
                      string='READ_dbz_mrms_netcdf'
                   endif
                 end if
+
+!            Process flash extent density
+             else if (obstype == 'fed' ) then
+                print *, "calling read_fed"
+                call read_fed(nread,npuse,nouse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
+                string='READ_FED'
 
 !            Process lagrangian data
              else if (obstype == 'lag') then
