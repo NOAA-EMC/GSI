@@ -149,8 +149,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2020-05-04  wu      - no rotate_wind for fv3_regional
 !   2020-09-05  CAPS(C. Tong) - add flag for new vadwind obs to assimilate around the analysis time only
 !   2023-03-23  draper  - add code for processing T2m and q2m for global system
-!   2023-07-30  Zhao    - added code to extract obs of significant wave height (howvob)
-!                         in prepbufr data file (i_howv_in_anav=1 and i_howv_in_data=1)
+!   2023-07-30  Zhao    - added code to extract obs of significant wave height (howvob) for 3D analysis
+!                         in prepbufr data file
 
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -224,7 +224,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use adjust_cloudobs_mod, only: adjust_convcldobs,adjust_goescldobs
   use mpimod, only: npe
   use rapidrefresh_cldsurf_mod, only: i_gsdsfc_uselist,i_gsdqc,i_ens_mean
-  use rapidrefresh_cldsurf_mod, only: i_howv_in_anav, i_howv_in_data
   use gsi_io, only: verbose
   use phil2, only: denest       ! hilbert curve
 
@@ -1135,9 +1134,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if (howvob)             call ufbint(lunin,owave,1,255,levs,owavestr)
               if (cldchob)            call ufbint(lunin,cldceilh,1,255,levs,cldceilhstr)
            endif
-!          Extract obs of howv (significant wave height, aka howv,
-!                               and howv must be listed in anavinfo and in firstguess)
-           if ( i_howv_in_anav == 1 .and. i_howv_in_data == 1 ) then
+!          Extract obs of howv in 3D Analysis
+!            (if-block is to avoid potential issue if reading same dataset twice in 2DRTMA run)
+           if ( .not. twodvar_regional ) then
               if (howvob)             call ufbint(lunin,owave,1,255,levs,owavestr)
            endif
            if(kx==224 .and. newvad) then
