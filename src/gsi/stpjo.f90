@@ -315,7 +315,6 @@ subroutine stpjo(dval,dbias,xval,xbias,sges,pbcjo,nstep)
           call perr(myname_,'                                   stpcnt =',stpcnt)
           call  die(myname_)
         endif
-
     call it_obOper%stpjo(ib,dval(ib),xval(ib),pbcjo(:,ll,ib),sges,nstep,dbias,xbias) 
     call obOper_destroy(it_obOper)
   enddo
@@ -395,6 +394,7 @@ subroutine stpjo_setup(nobs_bins)
           call perr(myname_,'                            obOper_count =',obOper_count)
           call  die(myname_)
         endif
+        !  call perr(myname_,'             setup_obOper_typeInfo(ioper)=',obOper_typeInfo(ll))
 
       do ib = 1,size(it_obOper%obsLL)   ! for all bins
         headNode => obsLList_headNode(it_obOper%obsLL(ib))
@@ -403,7 +403,6 @@ subroutine stpjo_setup(nobs_bins)
         stpcnt = stpcnt +1
         ll_jo(stpcnt) = ll
         ib_jo(stpcnt) = ib
-
       enddo     ! ib
       headNode => null()
       call obOper_destroy(it_obOper)

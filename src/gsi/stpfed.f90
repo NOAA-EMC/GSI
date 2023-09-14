@@ -164,10 +164,10 @@ subroutine stpfed(fedhead,rval,sval,out,sges,nstep)
         
         out(1) = out(1)+pen(1)*fedptr%raterr2
            kk=1
-           print*,"FED_stp: ",kk,out(kk)
+           !print*,"FED_stp: ",kk,out(kk)
         do kk=2,nstep
            out(kk) = out(kk)+(pen(kk)-pen(1))*fedptr%raterr2
-           print*,"FED_stp: ",kk,out(kk)
+           !print*,"FED_stp: ",kk,out(kk)
         end do
      end if
 

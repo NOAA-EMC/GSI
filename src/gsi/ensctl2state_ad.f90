@@ -46,6 +46,8 @@ use cwhydromod, only: cw2hydro_ad
 use cwhydromod, only: cw2hydro_ad_hwrf
 use timermod, only: timer_ini,timer_fnl
 use gridmod, only: nems_nmmb_regional
+  use state_vectors, only : &
+       prt_state_norms
 implicit none
 
 ! Declare passed variables
@@ -239,6 +241,15 @@ do jj=1,ntlevs_ens
          endif
       enddo
    endif
+
+! add fed
+  print*,"FED_ensctl2state_ad.f90"
+  call gsi_bundlegetpointer (eval(jj), 'fed',rv_rank3,istatus)
+  if(istatus/=0) then
+    write(6,*) trim(myname), ': trouble_get_pointer: fed '
+  endif
+  call gsi_bundleputvar     (wbundle_c,'fed',rv_rank3,istatus)
+!          call prt_state_norms(wbundle_c,'weval_ensc2s_ad')
 
 !  Calculate sensible temperature
    if(do_q_copy) then

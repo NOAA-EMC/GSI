@@ -241,6 +241,9 @@ do jj=1,nsubwin
          enddo
       end if
    end if
+! Add fed
+   call gsi_bundlegetpointer (sval(jj),'fed',sv_rank3,istatus)
+   call gsi_bundlegetvar     (wbundle, 'fed',sv_rank3,istatus)
 
 !  destroy temporary bundle
    call gsi_bundledestroy(wbundle,istatus)

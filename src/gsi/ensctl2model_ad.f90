@@ -190,7 +190,10 @@ do jj=1,ntlevs_ens
           call gsi_bundleputvar     (wbundle_c, clouds(ic),rv_rank3,istatus)
       endif
    enddo
-
+! add fed
+  print*,"FED_ensctl2model_ad.f90"
+          call gsi_bundlegetpointer (eval(jj), 'fed',rv_rank3,istatus)
+          call gsi_bundleputvar     (wbundle_c,'fed',rv_rank3,istatus)
 !  Convert RHS calculations for u,v to st/vp
    if (do_getuv) then
       if(uv_hyb_ens) then

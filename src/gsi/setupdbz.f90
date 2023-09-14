@@ -1933,7 +1933,7 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)      )
            call nc_diag_metadata("Latitude",                sngl(data(ilate,i)) )
            call nc_diag_metadata("Longitude",               sngl(data(ilone,i)) )
-           call nc_diag_metadata("Station_Elevation",       sngl(data(ielev,i)) )
+           !call nc_diag_metadata("Station_Elevation",       sngl(data(ielev,i)) )
            call nc_diag_metadata("Pressure",                sngl(presw)         )
            call nc_diag_metadata("Height",                  sngl(data(ihgt,i))  )
            call nc_diag_metadata("Time",                    sngl(dtime-time_offset))

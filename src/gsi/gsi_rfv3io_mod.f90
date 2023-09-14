@@ -94,7 +94,7 @@ module gsi_rfv3io_mod
   type(sub2grid_info) :: grd_fv3lam_tracersmoke_ionouv 
   type(sub2grid_info) :: grd_fv3lam_phyvar_ionouv
   type(sub2grid_info) :: grd_fv3lam_uv 
-  integer(i_kind) ,parameter:: ndynvarslist=13, ntracerslist=8, nphyvarslist=1
+  integer(i_kind) ,parameter:: ndynvarslist=13, ntracerslist=8, nphyvarslist=2
 
   character(len=max_varname_length), dimension(ndynvarslist), parameter :: &
     vardynvars = [character(len=max_varname_length) :: &
@@ -103,13 +103,13 @@ module gsi_rfv3io_mod
     vartracers =  [character(len=max_varname_length) :: &
       'q','oz','ql','qi','qr','qs','qg','qnr',aeronames_cmaq_fv3,'pm25at','pm25ac','pm25co','pm2_5','amassi','amassj','amassk',aeronames_smoke_fv3]
   character(len=max_varname_length), dimension(nphyvarslist), parameter :: &
-    varphyvars = [character(len=max_varname_length) :: 'dbz']
-  character(len=max_varname_length), dimension(16+naero_cmaq_fv3+7+naero_smoke_fv3), parameter :: &
+    varphyvars = [character(len=max_varname_length) :: 'dbz','fed']
+  character(len=max_varname_length), dimension(16+naero_cmaq_fv3+7+naero_smoke_fv3+1), parameter :: &
     varfv3name = [character(len=max_varname_length) :: &
-      'u','v','W','T','delp','sphum','o3mr','liq_wat','ice_wat','rainwat','snowwat','graupel','rain_nc','ref_f3d','ps','DZ', & 
+      'u','v','W','T','delp','sphum','o3mr','liq_wat','ice_wat','rainwat','snowwat','graupel','rain_nc','ref_f3d','flash_extent_density','ps','DZ', & 
       aeronames_cmaq_fv3,'pm25at','pm25ac','pm25co','pm2_5','amassi','amassj','amassk',aeronames_smoke_fv3], &
       vgsiname = [character(len=max_varname_length) :: &
-        'u','v','w','tsen','delp','q','oz','ql','qi','qr','qs','qg','qnr','dbz','ps','delzinc', &
+        'u','v','w','tsen','delp','q','oz','ql','qi','qr','qs','qg','qnr','dbz','fed','ps','delzinc', &
         aeronames_cmaq_fv3,'pm25at','pm25ac','pm25co','pm2_5','amassi','amassj','amassk',aeronames_smoke_fv3]
   character(len=max_varname_length),dimension(:),allocatable:: name_metvars2d
   character(len=max_varname_length),dimension(:),allocatable:: name_metvars3d
@@ -795,7 +795,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     use gsi_metguess_mod, only: gsi_metguess_get
     use netcdf, only:nf90_open,nf90_close,nf90_inquire,nf90_nowrite, nf90_format_netcdf4
     use gsi_chemguess_mod, only: gsi_chemguess_get
-    use obsmod, only: if_model_dbz
+    use obsmod, only: if_model_dbz,if_model_fed
 
     implicit none
 
@@ -826,6 +826,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     real(r_kind),dimension(:,:,:),pointer::ges_qnr=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_w=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_dbz=>NULL()
+    real(r_kind),dimension(:,:,:),pointer::ges_fed=>NULL()
 
     real(r_kind),dimension(:,:,:),pointer::ges_aalj=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_acaj=>NULL()
@@ -1009,9 +1010,19 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
         write(6,*)"the set up for met variable is not as expected, abort"
         call stop2(222)
       endif
-      if ( if_model_dbz ) then 
+      if ( if_model_dbz .and. if_model_fed ) then
+         if( nphyvario3d<=1 ) then
+            write(6,*)"the set up for met variable (dbz and fed in phyvar) is not as expected,abort"
+            !call stop2(223)
+         end if
+      elseif ( if_model_dbz ) then 
          if( nphyvario3d<=0 ) then
-            write(6,*)"the set up for met variable (phyvar) is not as expected, abort"
+            write(6,*)"the set up for met variable (dbz in phyvar) is not as expected, abort"
+            call stop2(223)
+         end if
+     elseif ( if_model_fed ) then
+         if( nphyvario3d<=0 ) then
+            write(6,*)"the set up for met variable (fed in phyvar) is not as expected, abort"
             call stop2(223)
          end if
       endif
@@ -1208,10 +1219,11 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
         ntracerio2d=0
       endif
  
-      if( if_model_dbz )then
+      if( if_model_dbz .or. if_model_fed)then
         call gsi_bundlecreate(gsibundle_fv3lam_phyvar_nouv,GSI_MetGuess_Bundle(it)%grid,'gsibundle_fv3lam_phyvar_nouv',istatus, &
                  names3d=fv3lam_io_phymetvars3d_nouv)
       end if
+
  
       if (laeroana_fv3cmaq) then
         if (allocated(fv3lam_io_tracerchemvars3d_nouv) ) then
@@ -1302,7 +1314,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
 
       endif
 
-      if ( if_model_dbz )then
+      if ( if_model_dbz .or. if_model_fed )then
         inner_vars=1
         numfields=inner_vars*(nphyvario3d*grd_a%nsig)
         deallocate(lnames,names)
@@ -1343,7 +1355,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
          call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tv' ,ges_tv ,istatus );ier=ier+istatus
          call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q'  ,ges_q ,istatus );ier=ier+istatus
          call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'oz'  ,ges_oz ,istatus );ier=ier+istatus
-         if (l_use_dbz_directDA .or. if_model_dbz) then
+         if (l_use_dbz_directDA .or. if_model_dbz .or. if_model_fed) then
             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql' ,ges_ql ,istatus );ier=ier+istatus
             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi' ,ges_qi ,istatus );ier=ier+istatus
             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr' ,ges_qr ,istatus );ier=ier+istatus
@@ -1356,6 +1368,8 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
             end if
             if(if_model_dbz) &
                call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'dbz' , ges_dbz ,istatus );ier=ier+istatus
+            if(if_model_fed) &
+               call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'fed' , ges_fed ,istatus );ier=ier+istatus
          end if
          if (ier/=0) call die(trim(myname),'cannot get pointers for fv3 met-fields, ier =',ier)
    
@@ -1411,7 +1425,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
             & ,fv3filenamegin(it)%dynvars,fv3filenamegin(it))
             call gsi_fv3ncdf_read(grd_fv3lam_tracer_ionouv,gsibundle_fv3lam_tracer_nouv &
             & ,fv3filenamegin(it)%tracers,fv3filenamegin(it))
-            if( if_model_dbz )then
+            if( if_model_dbz .or. if_model_fed )then
                call gsi_fv3ncdf_read(grd_fv3lam_phyvar_ionouv,gsibundle_fv3lam_phyvar_nouv &
                & ,fv3filenamegin(it)%phyvars,fv3filenamegin(it))
             end if
@@ -1511,7 +1525,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
            call gsi_copy_bundle(gsibundle_fv3lam_tracersmoke_nouv,GSI_ChemGuess_Bundle(it))
          endif
 
-         if(if_model_dbz) call gsi_copy_bundle(gsibundle_fv3lam_phyvar_nouv,GSI_MetGuess_Bundle(it))
+         if(if_model_dbz .or. if_model_fed) call gsi_copy_bundle(gsibundle_fv3lam_phyvar_nouv,GSI_MetGuess_Bundle(it))
          call GSI_BundleGetPointer ( gsibundle_fv3lam_dynvar_nouv, 'tsen' ,ges_tsen_readin ,istatus );ier=ier+istatus
      !!  tsen2tv  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          do k=1,nsig
@@ -2273,7 +2287,8 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
       countloc=(/nxcase,nycase,1/)
       ! Variable ref_f3d in phy_data.nc has a smaller domain size than
       ! dynvariables and tracers as well as a reversed order in vertical
-      if ( trim(adjustl(varname)) == 'ref_f3d' )then
+      if ( trim(adjustl(varname)) == 'ref_f3d' .or. trim(adjustl(varname)) == 'flash_extent_density' )then
+         print*,"FED_check_phy_dimensions:",trim(adjustl(varname))
          iret=nf90_inquire_dimension(gfile_loc,1,name,len)
          if(trim(name)=='xaxis_1') nx_phy=len
          if( nx_phy == nxcase )then
@@ -2299,7 +2314,7 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
         enddo
       else
         iret=nf90_inq_varid(gfile_loc,trim(adjustl(varname)),var_id)
-        if ( trim(adjustl(varname)) == 'ref_f3d' )then
+        if ( trim(adjustl(varname)) == 'ref_f3d' .or. trim(adjustl(varname)) == 'flash_extent_density' )then
            uu2d = 0.0_r_kind
            iret=nf90_get_var(gfile_loc,var_id,uu2d_tmp,start=startloc_tmp,count=countloc_tmp)
            where(uu2d_tmp < 0.0_r_kind)
@@ -2733,7 +2748,7 @@ subroutine gsi_fv3ncdf_readuv_v1(grd_uv,ges_u,ges_v,fv3filenamegin)
 end subroutine gsi_fv3ncdf_readuv_v1
 
 subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
-           delp,tsen,w,q,oz,ql,qr,qs,qi,qg,dbz,iope)
+           delp,tsen,w,q,oz,ql,qr,qs,qi,qg,dbz,fed,iope)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    gsi_fv3ncdf_read_ens_parallel_over_ens    
@@ -2775,7 +2790,7 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
     integer(i_kind)   ,intent(in   ) :: iope
     real(r_kind),allocatable,dimension(:,:):: uu2d, uu2d_tmp
     real(r_kind),dimension(nlat,nlon,nsig):: hwork
-    real(r_kind),dimension(nlat,nlon,nsig),intent(out),optional:: delp,tsen,w,q,oz,ql,qr,qs,qi,qg,dbz
+    real(r_kind),dimension(nlat,nlon,nsig),intent(out),optional:: delp,tsen,w,q,oz,ql,qr,qs,qi,qg,dbz,fed
     character(len=max_varname_length) :: varname
     character(len=max_varname_length) :: name
     character(len=max_varname_length), allocatable,dimension(:) :: varname_files
@@ -2824,6 +2839,11 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
           allocate(varname_files(1))
           varname_files = (/'ref_f3d'/)
        end if
+       if( present(fed) )then            ! phyvars: fed 
+          allocate(varname_files(1))
+          varname_files = (/'flash_extent_density'/)
+       end if
+
 
        if(fv3_io_layout_y > 1) then
           allocate(gfile_loc_layout(0:fv3_io_layout_y-1))
@@ -2855,7 +2875,7 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
              varname = trim(varname_files(ivar))
              ! Variable ref_f3d in phy_data.nc has a smaller domain size than
              ! dynvariables and tracers as well as a reversed order in vertical
-             if ( trim(adjustl(varname)) == 'ref_f3d' )then
+             if ( trim(adjustl(varname)) == 'ref_f3d' .or. trim(adjustl(varname)) == 'flash_extent_density' )then
                 iret=nf90_inquire_dimension(gfile_loc,1,name,len)
                 if(trim(name)=='xaxis_1') nx_phy=len
                 if( nx_phy == nxcase )then
@@ -2881,7 +2901,7 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
                 enddo
              else
                 iret=nf90_inq_varid(gfile_loc,trim(adjustl(varname)),var_id)
-                if ( trim(adjustl(varname)) == 'ref_f3d' )then
+                if ( trim(adjustl(varname)) == 'ref_f3d' .or. trim(adjustl(varname)) == 'flash_extent_density' )then
                    uu2d = 0.0_r_kind
                    iret=nf90_get_var(gfile_loc,var_id,uu2d_tmp,start=startloc_tmp,count=countloc_tmp)
                    where(uu2d_tmp < 0.0_r_kind)
@@ -2931,6 +2951,9 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
           end if
           if( present(dbz) )then            ! phyvars: dbz
             dbz = hwork
+          end if
+          if( present(fed) )then            ! phyvars: fed 
+            fed = hwork
           end if
 
        end do
@@ -3157,7 +3180,7 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     use directDA_radaruse_mod, only: l_cvpnr, cvpnr_pval
     use gridmod,  only: eta1_ll,eta2_ll
     use constants, only: one
-    use obsmod, only: if_model_dbz
+    use obsmod, only: if_model_dbz,if_model_fed
 
 
     implicit none
@@ -3184,6 +3207,7 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     real(r_kind),pointer,dimension(:,:,:):: ges_qnr =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_w   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_dbz   =>NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_fed   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_delzinc   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_delp  =>NULL()
     real(r_kind),dimension(:,:  ),allocatable:: ges_ps_write
@@ -3273,7 +3297,7 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'u' , ges_u ,istatus);ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'v' , ges_v ,istatus);ier=ier+istatus
     call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q'  ,ges_q ,istatus);ier=ier+istatus
-    if (l_use_dbz_directDA .or. if_model_dbz) then
+    if (l_use_dbz_directDA .or. if_model_dbz .or.if_model_fed) then
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql' ,ges_ql ,istatus);ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi' ,ges_qi ,istatus);ier=ier+istatus
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr' ,ges_qr ,istatus);ier=ier+istatus
@@ -3284,6 +3308,8 @@ subroutine wrfv3_netcdf(fv3filenamegin)
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'w' , ges_w ,istatus);ier=ier+istatus
        if( if_model_dbz )&
        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'dbz' , ges_dbz ,istatus);ier=ier+istatus
+       if( if_model_fed )&
+       call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'fed' , ges_fed ,istatus);ier=ier+istatus
     end if
     if(i_use_2mq4b > 0 .and. i_use_2mt4b > 0 ) then
        call GSI_BundleGetPointer (GSI_MetGuess_Bundle(it),'q2m',ges_q2m,istatus); ier=ier+istatus
@@ -3414,7 +3440,7 @@ subroutine wrfv3_netcdf(fv3filenamegin)
 
     call gsi_copy_bundle(GSI_MetGuess_Bundle(it),gsibundle_fv3lam_dynvar_nouv) 
     call gsi_copy_bundle(GSI_MetGuess_Bundle(it),gsibundle_fv3lam_tracer_nouv) 
-    if( if_model_dbz )  call gsi_copy_bundle(GSI_MetGuess_Bundle(it),gsibundle_fv3lam_phyvar_nouv)
+    if( if_model_dbz .or. if_model_fed )  call gsi_copy_bundle(GSI_MetGuess_Bundle(it),gsibundle_fv3lam_phyvar_nouv)
     if (laeroana_fv3cmaq) then
       call gsi_copy_bundle(GSI_ChemGuess_Bundle(it),gsibundle_fv3lam_tracerchem_nouv)
     end if
@@ -3467,6 +3493,11 @@ subroutine wrfv3_netcdf(fv3filenamegin)
          call gsi_fv3ncdf_write(grd_fv3lam_phyvar_ionouv,gsibundle_fv3lam_phyvar_nouv,&
                                 add_saved,fv3filenamegin%phyvars,fv3filenamegin)
       end if
+      if( if_model_fed ) then
+         call gsi_fv3ncdf_write(grd_fv3lam_phyvar_ionouv,gsibundle_fv3lam_phyvar_nouv,&
+                                add_saved,fv3filenamegin%phyvars,fv3filenamegin)
+      end if
+
       call gsi_fv3ncdf_writeuv(grd_fv3lam_uv,ges_u,ges_v,add_saved,fv3filenamegin)
       if (laeroana_fv3cmaq) then
         call gsi_fv3ncdf_write(grd_fv3lam_tracerchem_ionouv,gsibundle_fv3lam_tracerchem_nouv, &
@@ -4165,7 +4196,7 @@ subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3file
 
       work_a=hwork(1,:,:,ilevtot)
 
-      if( trim(varname) == 'ref_f3d' )then
+      if( trim(varname) == 'ref_f3d' .or. trim(varname) == 'flash_extent_density' )then
          iret=nf90_inquire_dimension(gfile_loc,1,name,len)
          if(trim(name)=='xaxis_1') nx_phy=len
          if( nx_phy == nxcase )then
@@ -4208,7 +4239,7 @@ subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3file
                 deallocate(work_b_layout)
               enddo
            else
-              if( trim(varname) == 'ref_f3d' )then
+              if( trim(varname) == 'ref_f3d' .or. trim(varname) == 'flash_extent_density' )then
                  work_b = 0.0_r_kind
                  call check( nf90_get_var(gfile_loc,VarId,work_b_tmp,start = startloc_tmp, count = countloc_tmp) )
                  where(work_b_tmp < 0.0_r_kind)
@@ -4241,7 +4272,7 @@ subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3file
            deallocate(work_b_layout)
         enddo
       else
-         if( trim(varname) == 'ref_f3d' )then
+         if( trim(varname) == 'ref_f3d' .or. trim(varname) == 'flash_extent_density' )then
             if(phy_smaller_domain)then
                work_b_tmp = work_b(4:nxcase-3,4:nycase-3)
             else

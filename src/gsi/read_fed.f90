@@ -402,7 +402,7 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
            !-Check format of longitude and correct if necessary
            if(dlon_earth>=r360) dlon_earth=dlon_earth-r360
            if(dlon_earth<zero ) dlon_earth=dlon_earth+r360
-           !if(dlon_earth>=r360 .or. dlat_earth >90.0_r_kind) cycle
+           if(dlon_earth>=r360 .or. dlat_earth >90.0_r_kind) cycle
 
            !-Convert back to radians                         
             rlon00 = dlon_earth*deg2rad
