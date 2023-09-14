@@ -149,8 +149,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2020-05-04  wu      - no rotate_wind for fv3_regional
 !   2020-09-05  CAPS(C. Tong) - add flag for new vadwind obs to assimilate around the analysis time only
 !   2023-03-23  draper  - add code for processing T2m and q2m for global system
-!   2023-07-30  Zhao    - added code to extract obs of significant wave height (howvob) for 3D analysis
-!                         in prepbufr data file
+!   2023-07-30  Zhao    - added code to extract obs of significant wave height (howvob) from bufr record 
+!                         in prepbufr file for 3D analysis
 
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -1135,7 +1135,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if (cldchob)            call ufbint(lunin,cldceilh,1,255,levs,cldceilhstr)
            endif
 !          Extract obs of howv in 3D Analysis
-!            (if-block is to avoid potential issue if reading same dataset twice in 2DRTMA run)
+!            (if-block is to avoid potential issue if decoding the bufr record twice in 2DRTMA run)
            if ( .not. twodvar_regional ) then
               if (howvob)             call ufbint(lunin,owave,1,255,levs,owavestr)
            endif

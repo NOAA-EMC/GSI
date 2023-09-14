@@ -32,7 +32,7 @@ module rapidrefresh_cldsurf_mod
 !                         (SWH, aka howv in GSI code):
 !                         corp_howv:   to set the static background error of howv
 !                         hwllp_howv:  to set the de-correlation length scale
-!                         i_howv_3dda: control the analysis of howv in 3D analysis
+!                         i_howv_3dda: control the analysis of howv in 3D analysis (if howv is in anavinfo)
 ! 
 ! Subroutines Included:
 !   sub init_rapidrefresh_cldsurf  - initialize RR related variables to default values
@@ -450,9 +450,9 @@ contains
 
 !-- searching for speficif variable in state variable list (reading from anavinfo)
     do i2=1,ns2d
-      if ( trim(svars2d(i2))=='howv' ) then
+      if ( trim(svars2d(i2))=='howv' .or. trim(svars2d(i2))=='HOWV'   ) then
         i_howv_3dda = 1
-        if (mype == 0 ) then
+        if ( mype == 0 ) then
           write(6,'(1x,A,1x,A8,1x,A,1x,I4)')"init_rapidrefresh_cldsurf: anavinfo svars2d (state variable): ",trim(adjustl(svars2d(i2))), " is found in anavinfo, set i_howv_3dda = ", i_howv_3dda
         end if
       end if

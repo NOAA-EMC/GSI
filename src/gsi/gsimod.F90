@@ -177,7 +177,7 @@
                             cld_bld_coverage,cld_clr_coverage,&
                             i_cloud_q_innovation,i_ens_mean,DTsTmax,&
                             i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check, &
-                            corp_howv, hwllp_howv, l_tuneBE_howv
+                            corp_howv, hwllp_howv
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
@@ -505,7 +505,7 @@
 !                           4. berror_fv3_cmaq_regional = .true. 
 !  09-15-2022 yokota  - add scale/variable/time-dependent localization
 !  2023-07-30 Zhao    - added namelist options for analysis of significant wave height
-!                       (aka howv in GSI code): corp_howv, hwllp_howv, l_tuneBE_howv
+!                       (aka howv in GSI code): corp_howv, hwllp_howv
 !                       (in namelist session rapidrefresh_cldsurf)
 !
 !EOP
@@ -1568,8 +1568,6 @@
 !                           = 0.42 meters (default)
 !      hwllp_howv    - real, background error de-correlation length scale of howv 
 !                           = 170,000.0 meters (default 170 km)
-!      l_tuneBE_howv - logical, on/off the tuning of static BE of howv
-!                           = .false. (default: turn off tuning the BE of howv)
 !
   namelist/rapidrefresh_cldsurf/dfi_radar_latent_heat_time_period, &
                                 metar_impact_radius,metar_impact_radius_lowcloud, &
@@ -1591,7 +1589,7 @@
                                 cld_bld_coverage,cld_clr_coverage,&
                                 i_cloud_q_innovation,i_ens_mean,DTsTmax, &
                                 i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check, &
-                                corp_howv, hwllp_howv, l_tuneBE_howv
+                                corp_howv, hwllp_howv
 
 ! chem(options for gsi chem analysis) :
 !     berror_chem       - .true. when background  for chemical species that require
