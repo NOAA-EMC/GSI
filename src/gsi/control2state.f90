@@ -283,8 +283,8 @@ do jj=1,nsubwin
       enddo
    end if
 ! Add fed
-   call gsi_bundlegetpointer (sval(jj),'fed',sv_rank3,istatus)
-   call gsi_bundlegetvar     (wbundle, 'fed',sv_rank3,istatus)
+!   call gsi_bundlegetpointer (sval(jj),'fed',sv_rank3,istatus)
+!   call gsi_bundlegetvar     (wbundle, 'fed',sv_rank3,istatus)
 
    call gsi_bundlegetpointer (sval(jj),'ps'  ,sv_ps,  istatus)
    call gsi_bundlegetvar ( wbundle, 'ps' , sv_ps,  istatus )
@@ -735,8 +735,8 @@ do jj=1,nsubwin
       enddo
    end if
 ! Add fed
-   call gsi_bundlegetpointer (rval(jj),'fed',rv_rank3,istatus)
-   call gsi_bundleputvar     (wbundle, 'fed',rv_rank3,istatus)
+!   call gsi_bundlegetpointer (rval(jj),'fed',rv_rank3,istatus)
+!   call gsi_bundleputvar     (wbundle, 'fed',rv_rank3,istatus)
 !  Calculate sensible temperature
    if(do_tv_to_tsen) call tv_to_tsen_ad(cv_t,rv_q,rv_tsen)
 

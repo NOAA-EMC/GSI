@@ -221,8 +221,8 @@ do jj=1,nsubwin
       end if
    end if
 !  Add fed
-   call gsi_bundlegetpointer (rval(jj),'fed',rv_rank3,istatus)
-   call gsi_bundleputvar     (wbundle, 'fed',rv_rank3,istatus)
+!   call gsi_bundlegetpointer (rval(jj),'fed',rv_rank3,istatus)
+!   call gsi_bundleputvar     (wbundle, 'fed',rv_rank3,istatus)
 
 !  Same one-to-one map for chemistry-vars; take care of them together
    do ic=1,ngases
