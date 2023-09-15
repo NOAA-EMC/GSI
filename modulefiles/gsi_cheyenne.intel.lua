@@ -21,6 +21,8 @@ load(pathJoin("stack-python", stack_python_ver))
 load(pathJoin("cmake", cmake_ver))
 
 load("gsi_common")
+load(pathJoin("prod-util", os.getenv("prod_util_ver") or "1.2.2"))
+pushenv("GSI_BINARY_SOURCE_DIR", "/glade/work/epicufsrt/contrib/GSI_data/fix/20230911")
 
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")

@@ -24,6 +24,6 @@ load(pathJoin("openblas", openblas_ver))
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/scratch1/NCEPDEV/global/glopara/fix/gsi/20230601")
+pushenv("GSI_BINARY_SOURCE_DIR", "/scratch1/NCEPDEV/global/glopara/fix/gsi/20230911")
 
 whatis("Description: GSI environment on Hera with GNU Compilers")

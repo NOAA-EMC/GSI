@@ -29,7 +29,7 @@ prepend_path("LD_LIBRARY_PATH",pathJoin(MKLROOT,"lib/intel64"))
 M
 pushenv("MKLROOT", MKLROOT)
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/lustre/f2/dev/role.epic/contrib/GSI_data/fix/20230601")
+pushenv("GSI_BINARY_SOURCE_DIR", "/lustre/f2/dev/role.epic/contrib/GSI_data/fix/20230911")
 
 setenv("CC","cc")
 setenv("CXX","CC")

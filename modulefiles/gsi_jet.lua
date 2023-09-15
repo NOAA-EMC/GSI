@@ -19,6 +19,6 @@ load("gsi_common")
 pushenv("CFLAGS", "-axSSE4.2,AVX,CORE-AVX2")
 pushenv("FFLAGS", "-axSSE4.2,AVX,CORE-AVX2")
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/mnt/lfs4/HFIP/hfv3gfs/glopara/git/fv3gfs/fix/gsi/20230601")
+pushenv("GSI_BINARY_SOURCE_DIR", "/mnt/lfs4/HFIP/hfv3gfs/glopara/git/fv3gfs/fix/gsi/20230911")
 
 whatis("Description: GSI environment on Jet with Intel Compilers")
