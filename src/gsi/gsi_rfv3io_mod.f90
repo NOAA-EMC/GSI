@@ -1100,6 +1100,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
              if(mype == 0) write(6,*)'the metvarname ',trim(vartem),' will be dealt separately'
           else if(trim(vartem)=='t2m') then
           else if(trim(vartem)=='q2m') then
+          else if(trim(vartem)=='howv') then
           else 
             write(6,*)'the metvarname2 ',trim(vartem),' has not been considered yet, stop'
             call stop2(333)
