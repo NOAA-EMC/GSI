@@ -473,7 +473,7 @@ module obsmod
   ! ==== DBZ DA ===
   public :: ntilt_radarfiles
   public :: whichradar
-  public :: vr_dealisingopt, if_vterminal, if_model_dbz,if_model_fed, inflate_obserr, if_vrobs_raw, if_use_w_vr, l2rwthin
+  public :: vr_dealisingopt, if_vterminal, if_model_dbz,if_model_fed, innov_use_model_fed, inflate_obserr, if_vrobs_raw, if_use_w_vr, l2rwthin
 
   public :: doradaroneob,oneoblat,oneoblon
   public :: oneobddiff,oneobvalue,oneobheight,oneobradid
@@ -622,7 +622,7 @@ module obsmod
 
   logical ::  ta2tb
   logical ::  doradaroneob
-  logical :: vr_dealisingopt, if_vterminal, if_model_dbz,if_model_fed, inflate_obserr, if_vrobs_raw, if_use_w_vr, l2rwthin
+  logical :: vr_dealisingopt, if_vterminal, if_model_dbz,if_model_fed, innov_use_model_fed,inflate_obserr, if_vrobs_raw, if_use_w_vr, l2rwthin
   character(4) :: whichradar,oneobradid
   real(r_kind) :: oneoblat,oneoblon,oneobddiff,oneobvalue,oneobheight
   logical :: radar_no_thinning
@@ -756,6 +756,7 @@ contains
     if_use_w_vr=.true.
     if_model_dbz=.false.
     if_model_fed=.false.
+    innov_use_model_fed=.true.
     inflate_obserr=.false.
     whichradar="KKKK"
 
