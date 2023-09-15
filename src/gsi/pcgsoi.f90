@@ -204,10 +204,7 @@ subroutine pcgsoi()
   print_verbose=.false.
   if(verbose)print_verbose=.true.
   if (ladtest) call adtest()
-!Wang
-  print_verbose=.true.
-  print_diag_pcg=.true.
-  !luse_obsdiag  =.true.
+
 ! Set constants.  Initialize variables.
   restart=.false.
   if (jiter==jiterstart .and. (iguess==1 .or. iguess==2)) restart=.true.
@@ -297,19 +294,12 @@ subroutine pcgsoi()
 
      if (diag_print) then
         do ii=1,nobs_bins
-           call prt_state_norms(sval(ii),'sval_1')
-           call prt_state_norms(rval(ii),'rval_1')
+           call prt_state_norms(rval(ii),'rval')
         enddo
      endif
 
 !    Adjoint of control to state
      call c2s_ad(gradx,rval,rbias,llprt)
-     if(print_diag_pcg) call prt_control_norms(gradx,'gradx_1')
-     if (diag_print) then
-        do ii=1,nobs_bins
-           call prt_state_norms(rval(ii),'rval_2')
-        enddo
-     endif
 
 !    Print initial Jo table
      if (iter==0) then
@@ -340,11 +330,8 @@ subroutine pcgsoi()
      end if
 
 !    2. Multiply by background error
-     print*,"FED_before_multb" 
-     if(print_diag_pcg) call prt_control_norms(gradx,'gradx_2')
      call multb(gradx,grady)
-     print*,"FED_after_multb"
-     if(print_diag_pcg) call prt_control_norms(grady,'grady_1')
+
      if(ortho) then
 !       save gradients
         if (iter <= iortho) then
@@ -358,7 +345,6 @@ subroutine pcgsoi()
 
 
 !    3. Calculate new norm of gradients and factors going into b calculation
-     if(print_diag_pcg) call prt_control_norms(gradx,'gradx_3')
      dprod(1) = qdot_prod_sub(gradx,grady)
      if(iter > 0 .and. .not. lanlerr)then
         dprod(3) = qdot_prod_sub(xdiff,grady)
@@ -385,7 +371,7 @@ subroutine pcgsoi()
         end do
         dprod(2) = qdot_prod_sub(xdiff,grady)
         call mpl_allreduce(2,qpvals=dprod)
-        if(print_diag_pcg) call prt_control_norms(grady,'grady_2')
+        if(print_diag_pcg) call prt_control_norms(grady,'grady')
         gnorm(2)=dprod(2)
         gnorm(3)=dprod(2)
 
@@ -451,7 +437,7 @@ subroutine pcgsoi()
            penorig=penalty
         end if
      endif
-     print*,"FED_NORM= ",iter,jiter,jiterstart,gnormorig,gnorm(1)
+
      gnormx=gnorm(1)/gnormorig
      penx=penalty/penorig
 
@@ -863,7 +849,7 @@ subroutine multb(vec1,vec2)
 
   use hybrid_ensemble_parameters,only : l_hyb_ens,aniso_a_en
   use hybrid_ensemble_isotropic, only: bkerror_a_en
-  use control_vectors, only: control_vector,prt_control_norms
+  use control_vectors, only: control_vector
   implicit none
   
   type(control_vector),intent(inout) :: vec1
@@ -872,17 +858,13 @@ subroutine multb(vec1,vec2)
      if(periodic)call periodic_(vec1)
 !   start by setting vec2=vec1 and then operate on vec2 (unless gram_schmidt)
      vec2=vec1
-     call prt_control_norms(vec2,'vec2a')
 !    Multiply by background error
      if(anisotropic) then
         call anbkerror(vec2)
      else
-        print*,"call_bkerror(vec2)"
         call bkerror(vec2)
      end if
 
-     call prt_control_norms(vec2,'vec2b')
-!Wang     vec2=vec1
 !    If hybrid ensemble run, then multiply ensemble control variable a_en 
 !                                    by its localization correlation
      if(l_hyb_ens) then
@@ -895,7 +877,6 @@ subroutine multb(vec1,vec2)
         end if
 
      end if
-     call prt_control_norms(vec2,'vec2c')
      return
 end subroutine multb
 subroutine c2s(hat,val,bias,llprt,ltest)
@@ -996,21 +977,13 @@ subroutine c2s_ad(hat,val,bias,llprt)
   use gsi_bundlemod, only : self_add
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar
   use control2state_mod, only: control2state_ad
-  use state_vectors, only : &
-       prt_state_norms
-  use gsi_4dvar, only: nobs_bins
-
   implicit none
   
   type(control_vector)                     ,intent(inout) :: hat
   type(gsi_bundle)    ,dimension(nobs_bins),intent(inout) :: val
   type(predictors)                         ,intent(inout) :: bias
   logical                                  ,intent(in   ) :: llprt
-  integer :: ii
 
-      do ii=1,nobs_bins
-         call prt_state_norms(val(ii),'val_c2s_ad')
-      enddo
 
 !    Adjoint of convert control var to physical space
      if (l4dvar) then
@@ -1027,7 +1000,6 @@ subroutine c2s_ad(hat,val,bias,llprt)
         if (l_hyb_ens) then
            do ii=1,nobs_bins
               eval(ii)=val(ii)
-              call prt_state_norms(eval(ii),'eval_c2s_ad')
            end do
            call ensctl2state_ad(eval,mval(1),hat)
         else

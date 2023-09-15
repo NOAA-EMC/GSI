@@ -417,7 +417,7 @@ contains
                                                         g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_dbz=dbz)
                   end if
                 end if
-              else !fed_da NOW assign g_fed to dbz values. NEED to be changed !!!!!
+              else !fed_da 
                  if( l_use_dbz_directDA ) then
                     call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
                                                         g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w)
@@ -430,9 +430,7 @@ contains
                  else if( if_model_fed )then
                     call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
                                                         g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_fed=fed)
-                 end if                 
-
-
+                 end if
               end if
            end if
  
@@ -932,8 +930,8 @@ contains
     endif
     ier=0
     call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_dynvar_nouv, 'tsen' ,g_tsen ,istatus );ier=ier+istatus
-    call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'q'  ,g_q ,istatus );ier=ier+istatus
-    call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'oz'  ,g_oz ,istatus );ier=ier+istatus
+    call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'q'    ,g_q ,istatus );ier=ier+istatus
+    call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'oz'   ,g_oz ,istatus );ier=ier+istatus
     if (l_use_dbz_directDA .or. if_model_dbz .or. if_model_fed) then
        call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'ql' ,g_ql ,istatus );ier=ier+istatus
        call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_tracer_nouv, 'qi' ,g_qi ,istatus );ier=ier+istatus
@@ -946,8 +944,7 @@ contains
        if( if_model_dbz )&
        call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_phyvar_nouv, 'dbz' , g_dbz ,istatus );ier=ier+istatus
        if( if_model_fed )&
-       call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_phyvar_nouv, 'fed' , g_fed,istatus );ier=ier+istatus
-
+       call GSI_Bundlegetvar ( gsibundle_fv3lam_ens_phyvar_nouv, 'fed' , g_fed, istatus );ier=ier+istatus
     end if
     
 
@@ -1325,9 +1322,6 @@ contains
           if (mype==iope) call this%fill_regional_2d(gg_w(1,1,k),wrk_send_2d)
           call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype, &
           g_w(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
-          !if (mype==iope) call this%fill_regional_2d(gg_dbz(1,1,k),wrk_send_2d)
-          !call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype,&
-          !g_dbz(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)
           if (mype==iope) call this%fill_regional_2d(gg_qr(1,1,k),wrk_send_2d)
           call mpi_scatterv(wrk_send_2d,grd_ens%ijn_s,grd_ens%displs_s,mpi_rtype,&
           g_qr(1,1,k),grd_ens%ijn_s(mype+1),mpi_rtype,iope,mpi_comm_world,ierror)

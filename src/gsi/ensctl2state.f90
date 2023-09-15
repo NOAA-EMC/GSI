@@ -237,9 +237,9 @@ do jj=1,ntlevs_ens
    endif
 
 ! add fed
-  print*,"FED_ensctl2state.f90"
-          call gsi_bundlegetpointer (eval(jj),'fed',sv_rank3,istatus)
-          call gsi_bundlegetvar     (wbundle_c, 'fed',sv_rank3,istatus)
+!  print*,"FED_ensctl2state.f90"
+!          call gsi_bundlegetpointer (eval(jj),'fed',sv_rank3,istatus)
+!          call gsi_bundlegetvar     (wbundle_c, 'fed',sv_rank3,istatus)
 
 !$omp section
 

@@ -243,12 +243,12 @@ do jj=1,ntlevs_ens
    endif
 
 ! add fed
-  print*,"FED_ensctl2state_ad.f90"
-  call gsi_bundlegetpointer (eval(jj), 'fed',rv_rank3,istatus)
-  if(istatus/=0) then
-    write(6,*) trim(myname), ': trouble_get_pointer: fed '
-  endif
-  call gsi_bundleputvar     (wbundle_c,'fed',rv_rank3,istatus)
+!  print*,"FED_ensctl2state_ad.f90"
+!  call gsi_bundlegetpointer (eval(jj), 'fed',rv_rank3,istatus)
+!  if(istatus/=0) then
+!    write(6,*) trim(myname), ': trouble_get_pointer: fed '
+!  endif
+!  call gsi_bundleputvar     (wbundle_c,'fed',rv_rank3,istatus)
 !          call prt_state_norms(wbundle_c,'weval_ensc2s_ad')
 
 !  Calculate sensible temperature
