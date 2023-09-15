@@ -180,7 +180,6 @@ subroutine intfed_(fedhead,rval,sval)
           rfed(j6)=rfed(j6)+w6*valfed
           rfed(j7)=rfed(j7)+w7*valfed
           rfed(j8)=rfed(j8)+w8*valfed
-          !print*,"FED_ADJ= ",grad,w1,w2,w3,w4
         end if
  
      endif

@@ -2288,7 +2288,6 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin)
       ! Variable ref_f3d in phy_data.nc has a smaller domain size than
       ! dynvariables and tracers as well as a reversed order in vertical
       if ( trim(adjustl(varname)) == 'ref_f3d' .or. trim(adjustl(varname)) == 'flash_extent_density' )then
-         !print*,"FED_check_phy_dimensions:",trim(adjustl(varname))
          iret=nf90_inquire_dimension(gfile_loc,1,name,len)
          if(trim(name)=='xaxis_1') nx_phy=len
          if( nx_phy == nxcase )then
