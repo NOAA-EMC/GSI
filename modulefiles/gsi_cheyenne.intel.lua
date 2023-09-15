@@ -18,7 +18,7 @@ load("mkl/2022.1")
 load("gsi_common")
 
 load(pathJoin("prod_util", os.getenv("prod_util_ver") or "1.2.2"))
-pushenv("GSI_BINARY_SOURCE_DIR", "/glade/work/epicufsrt/contrib/GSI_data/fix/20230601")
+pushenv("GSI_BINARY_SOURCE_DIR", "/glade/work/epicufsrt/contrib/GSI_data/fix/20230911")
 
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
