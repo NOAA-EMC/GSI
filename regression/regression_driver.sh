@@ -35,9 +35,11 @@ for jn in `seq ${RSTART} ${REND}`; do
    if [ $jn -le 2 ]; then
       export scripts=${scripts_updat:-$scripts}
       export fixgsi=${fixgsi_updat:-$fixgsi}
+      export modulefiles=${modulefiles_updat:-$modulefiles}
    else
       export scripts=${scripts_contrl:-$scripts}
       export fixgsi=${fixgsi_contrl:-$fixgsi}
+      export modulefiles=${modulefiles_contrl:-$modulefiles}
    fi
    rm -f ${job[$jn]}.out
 
