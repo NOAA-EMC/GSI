@@ -69,7 +69,7 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
   use kinds, only: r_kind,r_double,i_kind,r_single
   use constants, only: zero,half,one,two,deg2rad,rad2deg, &
                        one_tenth,r1000,r60,r60inv,r100,r400,grav_equator, &
-                       eccentricity,somigliana,grav_ratio,grav,semi_major_axis,flattening 
+                       eccentricity,somigliana,grav_ratio,grav,semi_major_axis,flattening,r_missing
   use gridmod, only: tll2xy,nsig,nlat,nlon
   use obsmod, only: iadate,doradaroneob,oneoblat,oneoblon,oneobheight, &
                     mintiltdbz,maxtiltdbz,minobrangedbz,maxobrangedbz,&
@@ -482,7 +482,10 @@ fileopen: if (if_input_exist) then
      
         !!end modified for thinning
      
-         thisazimuthr=0.0_r_kind
+         thisazimuthr=r_missing
+         thistiltr=r_missing
+         this_stahgt=r_missing
+         thisrange=r_missing
          this_staid=radid                !Via equivalence in declaration, value is propagated
                                                            !  to rstation_id used below.
          cdata_all(1,iout) = thiserr                       ! reflectivity obs error (dB) - inflated/adjusted
