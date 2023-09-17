@@ -2346,7 +2346,6 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 
   endif
 
-! Translate CADS cloudy/clear channels to GSI required infomation.
   if ((cris .and. cris_cads) .or. (iasi .and. iasi_cads) .or. (airs .and. airs_cads)) then
 
 !   Reject channels affected by clouds
