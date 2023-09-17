@@ -958,8 +958,6 @@ contains
           cld = total_cloud_cover
         else
 
-!  If not allsky
-
 !  Generate model derived imager values for IASI or CrIS for CADS
 
           if ((iasi_cads .and. iasi) .or. (cris_cads .and. cris)) then
@@ -971,10 +969,8 @@ contains
                obstype_cads = 'avhrr'
                nchanl_cads = 3   ! CRTM channels 3 - 5
              elseif ( cris ) then
-!!               isis_cads = 'viirs-m'//isis(itmp1+1:itmp2)
+!!               isis_cads = 'viirs-m'//isis(itmp1+1:itmp2) When naming convention becomes standarized with CrIS
                if ( isis == 'cris-fsr_npp' ) isis_cads = 'viirs-m_npp'
-!               if ( isis == 'cris-fsr_n20' ) isis_cads = 'viirs-m_n20'
-!               if ( isis == 'cris-fsr_n21' ) isis_cads = 'viirs-m_n21'
                if ( isis == 'cris-fsr_n20' ) isis_cads = 'viirs-m_j1'
                if ( isis == 'cris-fsr_n21' ) isis_cads = 'viirs-m_j2'
                obstype_cads = 'viirs-m'
@@ -2659,7 +2655,7 @@ contains
 
                  call nc_diag_metadata_to_single("Elevation",zsges                         ) ! model (guess) elevation at observation location
 
-                 call nc_diag_metadata_to_single("Time",dtime,time_offset,'-')
+                 call nc_diag_metadata_to_single("Obs_Time",dtime,time_offset,'-')
 
                  call nc_diag_metadata_to_single("Scan_Position",data_s(iscan_pos,n)           ) ! sensor scan position
                  call nc_diag_metadata_to_single("Sat_Zenith_Angle", zasat,rad2deg,'*') ! satellite zenith angle (degrees)
