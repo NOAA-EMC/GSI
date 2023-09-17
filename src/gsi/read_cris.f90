@@ -137,7 +137,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_double),dimension(13) :: allspot
   real(r_double),allocatable,dimension(:,:) :: allchan
   real(r_double),dimension(2):: cloud_properties
-  real(r_double) :: gcrchn_val
   character(len=3) :: char_mtyp
   
   real(r_kind)      :: step, start
@@ -499,9 +498,6 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
               allocate(bufr_chan_test(bufr_nchan))
               bufr_chan_test(:)=0
            endif    ! allocation if
-
-!JAJ           call ufbint(lnbufr,gcrchn_val,1,1,iret, '{GCRCHN}')
-!JAJ      if (gcrchn_val /= 12.0_r_kind) write(*,*) 'JAJ gcrchn', gcrchn_val,iret
 
 !          CRIS field-of-view ranges from 1 to 9, corresponding to the 9 sensors measured
 !          per field-of-regard.  The field-of-regard ranges from 1 to 30.  For reference, FOV 
