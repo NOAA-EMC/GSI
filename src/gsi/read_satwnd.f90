@@ -541,7 +541,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               itype=247
            else if(trim(subset) == 'NC005099')  then
               itype=241
-              !write(6,*) 'NC005099 readin'
            endif
         else ! wind is not recognised and itype is not assigned
            cycle loop_report
@@ -1221,7 +1220,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     itype=241
                     c_station_id='IR'//stationid
                     c_sprvstg='IR'
-                    !write(6,*)'itype= ',itype
                  endif
 
 !                 call ufbint(lunin,rep_array,1,1,iret, '{AMVAHA}')
