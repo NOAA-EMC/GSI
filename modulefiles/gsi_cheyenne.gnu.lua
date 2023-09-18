@@ -2,8 +2,6 @@ help([[
 ]])
 
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/glade/work/epicufsrt/contrib/GSI_fix/fix")
-
 unload("ncarenv/1.3")
 unload("intel/19.1.1")
 unload("ncarcompilers/0.5.0")
@@ -29,7 +27,6 @@ load("gsi_common")
 
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
-
 pushenv("GSI_BINARY_SOURCE_DIR", "/glade/work/epicufsrt/contrib/GSI_data/fix/20230601")
 
 whatis("Description: GSI environment on Cheyenne with GNU Compilers")

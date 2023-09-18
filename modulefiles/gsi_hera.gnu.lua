@@ -4,7 +4,6 @@ help([[
 prepend_path("MODULEPATH", "/scratch1/NCEPDEV/nems/role.epic/spack-stack/spack-stack-1.4.1/envs/unified-env/install/modulefiles/Core")
 prepend_path("MODULEPATH", "/scratch1/NCEPDEV/jcsda/jedipara/spack-stack/modulefiles")
 
-
 local stack_python_ver=os.getenv("stack_python_ver") or "3.9.12"
 local stack_gnu_ver=os.getenv("stack_gnu_ver") or "9.2.0"
 local stack_openmpi_ver=os.getenv("stack_openmpi_ver") or "4.1.5"
@@ -21,8 +20,6 @@ load("gsi_common")
 
 load(pathJoin("prod-util", prod_util_ver))
 load(pathJoin("openblas", openblas_ver))
-pushenv("CFLAGS", "-xHOST")
-pushenv("FFLAGS", "-xHOST")
 
 pushenv("GSI_BINARY_SOURCE_DIR", "/scratch1/NCEPDEV/global/glopara/fix/gsi/20230911")
 
