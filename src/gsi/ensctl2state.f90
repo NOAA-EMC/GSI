@@ -239,7 +239,6 @@ do jj=1,ntlevs_ens
 !$omp section
 
 !  Get pointers to required state variables
-   call gsi_bundlegetpointer (eval(jj),'oz'  ,sv_oz , istatus)
    call gsi_bundlegetpointer (eval(jj),'sst' ,sv_sst, istatus)
    if(ls_w)then
      call gsi_bundlegetpointer (eval(jj),'w' ,sv_w, istatus)
@@ -248,7 +247,6 @@ do jj=1,ntlevs_ens
      end if
    end if
 !  Copy variables
-   call gsi_bundlegetvar ( wbundle_c, 'oz' , sv_oz,  istatus )
    call gsi_bundlegetvar ( wbundle_c, 'sst', sv_sst, istatus )
    if(lc_w)then
       call gsi_bundlegetvar ( wbundle_c, 'w' , sv_w,  istatus )
@@ -256,6 +254,13 @@ do jj=1,ntlevs_ens
          call gsi_bundlegetvar ( wbundle_c, 'dw' , sv_dw,  istatus )
       end if
    end if
+
+!  Get the ozone vector if it is defined
+   id=getindex(cvars3d,"oz")
+   if(id > 0) then
+      call gsi_bundlegetpointer (eval(jj),'oz'  ,sv_oz , istatus)
+      call gsi_bundlegetvar ( wbundle_c, 'oz' , sv_oz,  istatus )
+   endif
 
 !$omp end parallel sections
 

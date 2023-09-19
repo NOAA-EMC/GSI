@@ -6,9 +6,10 @@ module gsi_fedOper
 ! abstract: an obOper extension for fedNode type
 !
 ! program history log:
-!   2023-04-10  D. Dowell   - moved diag_fed and its description here from
-!                             obsmod.
-!   2023-08-24  H. Wang     - Turned on intfed and stpfed
+!   2023-07-10  D. Dowell - created new module for FED (flash extent
+!                           density); gsi_dbzOper.F90 code used as a
+!                           starting point for developing this new module
+!   2023-08-24  H. Wang   - Turned on intfed and stpfed
 !
 !   input argument list: see Fortran 90 style document below
 !

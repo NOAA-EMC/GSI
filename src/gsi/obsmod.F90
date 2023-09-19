@@ -992,7 +992,7 @@ contains
     return
   end subroutine init_obsmod_dflts
   
-  subroutine init_directories(mype)
+  subroutine init_directories(in_pe,num_pe)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    create sub-directories
@@ -1017,20 +1017,42 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$ end documentation block
+#ifdef __INTEL_COMPILER
+    use IFPORT
+#endif
     implicit none
 
-    integer(i_kind),intent(in   ) :: mype
+    integer(i_kind),intent(in   ) :: in_pe
+    integer(i_kind),intent(in   ) :: num_pe
+    logical :: l_mkdir_stat
 
     character(len=144):: command
-    character(len=8):: pe_name
+    character(len=8):: pe_name, loc_pe_name
+    character(len=128):: loc_dirname
+    integer(i_kind) :: i
 
     if (lrun_subdirs) then
-       write(pe_name,'(i4.4)') mype
+       write(pe_name,'(i4.4)') in_pe
        dirname = 'dir.'//trim(pe_name)//'/'
-       command = 'mkdir -p -m 755 ' // trim(dirname)
-       call system(command)
+! Only create directories on one PE
+       if(in_pe == 0) then
+          do i = 0, num_pe
+             write(loc_pe_name,'(i4.4)') i
+             loc_dirname = 'dir.'//trim(loc_pe_name)
+#ifdef __INTEL_COMPILER
+             l_mkdir_stat = MAKEDIRQQ(trim(loc_dirname))
+             if(.not. l_mkdir_stat) then
+                write(6, *) "Failed to create directory ", trim(loc_dirname), " for PE ", loc_pe_name
+                call stop2(678)
+             endif
+#else
+             command = 'mkdir -p -m 755 ' // trim(loc_dirname)
+             call system(command)
+#endif
+          enddo
+       endif
     else
-       write(pe_name,100) mype
+       write(pe_name,100) in_pe
 100 format('pe',i4.4,'.')
        dirname= trim(pe_name)
     end if
