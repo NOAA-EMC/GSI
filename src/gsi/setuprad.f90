@@ -2575,7 +2575,7 @@ contains
 
                  call nc_diag_metadata_to_single("Elevation",zsges                         ) ! model (guess) elevation at observation location
 
-                 call nc_diag_metadata_to_single("Time",dtime,time_offset,'-')
+                 call nc_diag_metadata_to_single("Obs_Time",dtime,time_offset,'-')
 
                  call nc_diag_metadata_to_single("Scan_Position",data_s(iscan_pos,n)           ) ! sensor scan position
                  call nc_diag_metadata_to_single("Sat_Zenith_Angle", zasat,rad2deg,'*') ! satellite zenith angle (degrees)
