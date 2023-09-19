@@ -844,7 +844,7 @@ contains
          call nc_diag_metadata("Observation_Class",     obsclass)
          call nc_diag_metadata_to_single("Latitude",(cenlat)) ! observation latitude (degrees)
          call nc_diag_metadata_to_single("Longitude",(cenlon)) ! observation longitude (degrees)
-         call nc_diag_metadata_to_single("Obs_Time",(dtime))!-time_offset)) ! observation time (hours relative to analysis time)
+         call nc_diag_metadata_to_single("Time",(dtime))!-time_offset)) ! observation time (hours relative to analysis time)
          call nc_diag_metadata_to_single("Sol_Zenith_Angle",(pangs)) ! solar zenith angle (degrees)
          call nc_diag_metadata_to_single("Sol_Azimuth_Angle",(data_s(isazi_ang,n))) ! solar azimuth angle (degrees)
          call nc_diag_metadata("Surface_type", nint(data_s(istyp,n)))
