@@ -40,14 +40,12 @@ subroutine intfed_(fedhead,rval,sval)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    intfed       apply nonlin qc operator for GLM FED 
-!   prgmmr: derber           org: np23                date: 1991-02-26
 !
 ! abstract: apply observation operator for radar winds
 !             with nonlinear qc operator
 !
 ! program history log:
 !   2023-08-24  H.Wang   - modified based on intdbz.f90 
-!                        - intfedmod is based on intqmod, and intrwmod
 !                        - using tangent linear fed operator 
 
 !
@@ -72,8 +70,6 @@ subroutine intfed_(fedhead,rval,sval)
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_4dvar, only: ladtest_obs
-!  use directDA_radaruse_mod, only: l_use_fed_directDA
-  use radarz_cst, only: mphyopt
   use wrf_vars_mod, only : fed_exist
   implicit none
 

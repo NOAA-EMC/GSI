@@ -34,16 +34,9 @@ subroutine stpfed(fedhead,rval,sval,out,sges,nstep)
 !                            stepsize with nonlinear qc added.
 !   prgmmr: derber           org: np23                date: 1991-02-26
 !
-! abstract: calculate penalty and contribution to stepsize from radar reflectivity
 !
 ! program history log:
-!   1991-02-26  derber
-!   1999-11-22  yang
-!   2004-07-29  treadon - add only to module use, add intent in/out
-!   2004-10-07  parrish - add nonlinear qc option
-!   2016-09-xx  G.Zhao  - fed
-!   2019-07-11  todling - introduced wrf_vars_mod
-!
+!   2019-08-23  H.Wang  - added for FED DA
 !   input argument list:
 !     fedhead
 !     sges     - step size estimates (nstep)

@@ -1013,7 +1013,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
       if ( if_model_dbz .and. if_model_fed ) then
          if( nphyvario3d<=1 ) then
             write(6,*)"the set up for met variable (dbz and fed in phyvar) is not as expected,abort"
-            !call stop2(223)
+            call stop2(223)
          end if
       elseif ( if_model_dbz ) then 
          if( nphyvario3d<=0 ) then

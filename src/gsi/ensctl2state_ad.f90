@@ -46,8 +46,6 @@ use cwhydromod, only: cw2hydro_ad
 use cwhydromod, only: cw2hydro_ad_hwrf
 use timermod, only: timer_ini,timer_fnl
 use gridmod, only: nems_nmmb_regional
-  use state_vectors, only : &
-       prt_state_norms
 implicit none
 
 ! Declare passed variables
