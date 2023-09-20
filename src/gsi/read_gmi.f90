@@ -528,6 +528,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
         flgch = 0
 
         iobs=iobs+1
+        if(iobs>maxobs) exit
      end do read_loop
   end do read_subset
 690 continue
