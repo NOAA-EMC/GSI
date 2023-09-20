@@ -168,6 +168,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
                    i_gust,i_vis,i_pblh,i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv, &
                    i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,i_swcp,i_lwcp
   use m_rhs, only: i_dbz
+  use m_rhs, only: i_fed
   use m_rhs, only: i_light
 
   use m_gpsStats, only: gpsStats_genstats       ! was genstats_gps()
@@ -625,7 +626,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
      call statsconv(mype,&
           i_ps,i_uv,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
           i_gust,i_vis,i_pblh,i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv, &
-          i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,i_swcp,i_lwcp,i_dbz, &
+          i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,i_swcp,i_lwcp,i_fed,i_dbz, &
           size(awork1,2),bwork1,awork1,ndata)
 
 !     Compute and print statistics for "lightning" data
