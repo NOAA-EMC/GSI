@@ -553,22 +553,6 @@ subroutine close_if_(fname,stat)
   endif
 end subroutine close_if_
 
-#ifdef _NEW_CODE_
-!! need to send outputs to variables.
-!! need to set return code (stat=).
-subroutine ls_(files)       ! show information? or just inquire(exists(file))
-  call system("ls "//files)
-end subroutine ls_
-subroutine rm_(files)     ! delete, open();close(status='delete')
-  call system("rm "//files)
-end subroutine rm_
-subroutine mkdir_(dir,mode,parents)
-  call system("mkdir "//files)
-end subroutine mkdir_
-subroutine size_(file)    ! faster access?
-  call system("wc -c "//files)
-end subroutine size_
-#endif
 #endif
 
 function myid_(who)

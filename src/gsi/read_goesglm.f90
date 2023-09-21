@@ -276,6 +276,7 @@ subroutine read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twindin,sis)
         icntpnt=icntpnt+1
 
         ndata=ndata+1
+        if(ndata>maxobs) exit
         nodata=nodata+1
         iout=ndata
         isort(icntpnt)=iout

@@ -152,7 +152,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use obsmod, only: l_obsprvdiag
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
-       nc_diag_write, nc_diag_data2d
+       nc_diag_write, nc_diag_data2d, nc_diag_metadata_to_single
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use gsi_4dvar, only: nobs_bins,hr_obsbin,min_offset
   use oneobmod, only: oneobtest,maginnov,magoberr
@@ -1362,31 +1362,31 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Observation_Class",       obsclass               )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
-           call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
-           call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
+           call nc_diag_metadata_to_single("Latitude",      data(ilate,i)          )
+           call nc_diag_metadata_to_single("Longitude",     data(ilone,i)          )
 ! this is the obs height after being interpolated to the model (=model height)
-           call nc_diag_metadata("Station_Elevation",       sngl(data(istnelv,i))  )
-           call nc_diag_metadata("Pressure",                sngl(presq)            )
+           call nc_diag_metadata_to_single("Station_Elevation",data(istnelv,i)     )
+           call nc_diag_metadata_to_single("Pressure",      presq                  )
 ! this is the original obs height (= stn elevation,  before being interpolated)
-           call nc_diag_metadata("Height",                  sngl(data(iobshgt,i))  )
-           call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
-           call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
-           call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )
-           call nc_diag_metadata("Nonlinear_QC_Var_Jb",     sngl(var_jb)           )
-           call nc_diag_metadata("Nonlinear_QC_Rel_Wgt",    sngl(rwgt)             )                 
+           call nc_diag_metadata_to_single("Height",        data(iobshgt,i)        )
+           call nc_diag_metadata_to_single("Time",          dtime,time_offset,'-'  )
+           call nc_diag_metadata_to_single("Prep_QC_Mark",  data(iqc,i)            )
+           call nc_diag_metadata_to_single("Prep_Use_Flag",data(iuse,i)            )
+           call nc_diag_metadata_to_single("Nonlinear_QC_Var_Jb",var_jb            )
+           call nc_diag_metadata_to_single("Nonlinear_QC_Rel_Wgt",rwgt             )
            if(muse(i)) then
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)              )
+              call nc_diag_metadata("Analysis_Use_Flag",    1.0_r_single           )
            else
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)             )
+              call nc_diag_metadata("Analysis_Use_Flag",    -1.0_r_single          )
            endif
-           call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)     )
-           call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
-           call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
+           call nc_diag_metadata_to_single("Errinv_Input",  errinv_input           )
+           call nc_diag_metadata_to_single("Errinv_Adjust",errinv_adjst            )
+           call nc_diag_metadata_to_single("Errinv_Final",  errinv_final           )
 
-           call nc_diag_metadata("Observation",                   sngl(data(iqob,i)))
-           call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)       )
-           call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(qob-qges)    )
-           call nc_diag_metadata("Forecast_Saturation_Spec_Hum",  sngl(qsges)       )
+           call nc_diag_metadata_to_single("Observation",  data(iqob,i)            )
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",ddiff     )
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",qob,qges,'-')
+           call nc_diag_metadata_to_single("Forecast_Saturation_Spec_Hum",qsges    )
            if (lobsdiagsave) then
               do jj=1,miter
                  if (odiag%muse(jj)) then
@@ -1399,14 +1399,14 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               call nc_diag_data2d("ObsDiagSave_iuse",     obsdiag_iuse                             )
               call nc_diag_data2d("ObsDiagSave_nldepart", odiag%nldepart )
               call nc_diag_data2d("ObsDiagSave_tldepart", odiag%tldepart )
-              call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )             
+              call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )
            endif
 
            if (twodvar_regional .or. l_obsprvdiag) then
               call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i)              )
               call nc_diag_metadata("Model_Terrain",     data(izz,i)                  )
               r_prvstg            = data(iprvd,i)
-              call nc_diag_metadata("Provider_Name",     c_prvstg                     )    
+              call nc_diag_metadata("Provider_Name",     c_prvstg                     )
               r_sprvstg           = data(isprvd,i)
               call nc_diag_metadata("Subprovider_Name",  c_sprvstg                    )
            endif
@@ -1428,29 +1428,29 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Observation_Class",       obsclass               )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
            call nc_diag_metadata("Observation_Subtype",     -1                     )  ! (-1 for pseudo obs sub-type)
-           call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
-           call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
-           call nc_diag_metadata("Station_Elevation",       sngl(data(istnelv,i))  )
-           call nc_diag_metadata("Pressure",                sngl(presq)            )
-           call nc_diag_metadata("Height",                  sngl(data(iobshgt,i))  )
-           call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
-           call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
-           call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )
-           call nc_diag_metadata("Nonlinear_QC_Var_Jb",     sngl(var_jb)           )
-           call nc_diag_metadata("Nonlinear_QC_Rel_Wgt",    sngl(rwgt)             )                 
+           call nc_diag_metadata_to_single("Latitude",      data(ilate,i)          )
+           call nc_diag_metadata_to_single("Longitude",     data(ilone,i)          )
+           call nc_diag_metadata_to_single("Station_Elevation",data(istnelv,i)     )
+           call nc_diag_metadata_to_single("Pressure",      presq                  )
+           call nc_diag_metadata_to_single("Height",        data(iobshgt,i)        )
+           call nc_diag_metadata_to_single("Time",          dtime,time_offset,'-'  )
+           call nc_diag_metadata_to_single("Prep_QC_Mark",  data(iqc,i)            )
+           call nc_diag_metadata_to_single("Prep_Use_Flag", data(iuse,i)           )
+           call nc_diag_metadata_to_single("Nonlinear_QC_Var_Jb",var_jb            )
+           call nc_diag_metadata_to_single("Nonlinear_QC_Rel_Wgt",rwgt             )
            if(muse(i)) then
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)              )
+              call nc_diag_metadata("Analysis_Use_Flag",    1.0_r_single           )
            else
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)             )
+              call nc_diag_metadata("Analysis_Use_Flag",    -1.0_r_single          )
            endif
-           call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)     )
-           call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
-           call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
+           call nc_diag_metadata_to_single("Errinv_Input",  errinv_input           )
+           call nc_diag_metadata_to_single("Errinv_Adjust", errinv_adjst           )
+           call nc_diag_metadata_to_single("Errinv_Final",  errinv_final           )
 
-           call nc_diag_metadata("Observation",                   sngl(data(iqob,i)))
-           call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)       )
-           call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(ddiff)       )
-           call nc_diag_metadata("Forecast_Saturation_Spec_Hum",  sngl(qsges)       )
+           call nc_diag_metadata_to_single("Observation",   data(iqob,i)           )
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",ddiff     )
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",ddiff   )
+           call nc_diag_metadata_to_single("Forecast_Saturation_Spec_Hum",qsges    )
 !----
            if (lobsdiagsave) then
               do jj=1,miter
@@ -1464,14 +1464,14 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               call nc_diag_data2d("ObsDiagSave_iuse",     obsdiag_iuse                             )
               call nc_diag_data2d("ObsDiagSave_nldepart", odiag%nldepart )
               call nc_diag_data2d("ObsDiagSave_tldepart", odiag%tldepart )
-              call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )             
+              call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )
            endif
 
            if (twodvar_regional .or. l_obsprvdiag) then
               call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i)              )
               call nc_diag_metadata("Model_Terrain",     data(izz,i)                  )
               r_prvstg            = data(iprvd,i)
-              call nc_diag_metadata("Provider_Name",     "88888888"                   )    
+              call nc_diag_metadata("Provider_Name",     "88888888"                   )
               r_sprvstg           = data(isprvd,i)
               call nc_diag_metadata("Subprovider_Name",  "88888888"                   )
            endif

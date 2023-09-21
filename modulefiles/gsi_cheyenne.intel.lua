@@ -8,7 +8,7 @@ load("intel/2022.1")
 load("mpt/2.25")
 load("ncarcompilers/0.5.0")
 
-prepend_path("MODULEPATH", "/glade/work/epicufsrt/GMTB/tools/intel/2022.1/hpc-stack-v1.2.0_6eb6/modulefiles/stack")
+prepend_path("MODULEPATH", "/glade/work/epicufsrt/contrib/hpc-stack/intel2022.1/modulefiles/stack")
 
 load("hpc/1.2.0")
 load("hpc-intel/2022.1")
@@ -17,8 +17,8 @@ load("mkl/2022.1")
 
 load("gsi_common")
 
-local prod_util_ver=os.getenv("prod_util_ver") or "1.2.2"
-load(pathJoin("prod_util", prod_util_ver))
+load(pathJoin("prod_util", os.getenv("prod_util_ver") or "1.2.2"))
+pushenv("GSI_BINARY_SOURCE_DIR", "/glade/work/epicufsrt/contrib/GSI_data/fix/20230911")
 
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")

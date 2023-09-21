@@ -270,7 +270,8 @@ contains
   use obsmod, only: luse_obsdiag,dval_use
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
-       nc_diag_write, nc_diag_data2d, nc_diag_chaninfo_dim_set, nc_diag_chaninfo
+       nc_diag_write, nc_diag_data2d, nc_diag_chaninfo_dim_set, &
+       nc_diag_chaninfo, nc_diag_metadata_to_single
   use gsi_4dvar, only: nobs_bins,hr_obsbin,l4dvar
   use gridmod, only: nsig,regional,get_ij
   use satthin, only: super_val1
@@ -551,10 +552,12 @@ contains
         end if
 
 !       Load channel numbers into local array based on satellite type
+        if (iuse_rad(j)==4) then
+           predx(:,j)=zero
+        endif
 
         ich(jc)=j
         do i=1,npred
-           if (iuse_rad(j)==4) predx(i,j)=zero
            predchan(i,jc)=predx(i,j)
         end do
 !
@@ -2569,41 +2572,41 @@ contains
               do i=1,nchanl_diag
                  call nc_diag_metadata("Channel_Index",         i                                   )
                  call nc_diag_metadata("Observation_Class",     obsclass                            )
-                 call nc_diag_metadata("Latitude",              sngl(cenlat)                        ) ! observation latitude (degrees)
-                 call nc_diag_metadata("Longitude",             sngl(cenlon)                        ) ! observation longitude (degrees)
+                 call nc_diag_metadata_to_single("Latitude",cenlat                        ) ! observation latitude (degrees)
+                 call nc_diag_metadata_to_single("Longitude",cenlon                        ) ! observation longitude (degrees)
 
-                 call nc_diag_metadata("Elevation",             sngl(zsges)                         ) ! model (guess) elevation at observation location
+                 call nc_diag_metadata_to_single("Elevation",zsges                         ) ! model (guess) elevation at observation location
 
-                 call nc_diag_metadata("Obs_Time",              sngl(dtime-time_offset)             ) ! observation time (hours relative to analysis time)
+                 call nc_diag_metadata_to_single("Time",dtime,time_offset,'-')
 
-                 call nc_diag_metadata("Scan_Position",         sngl(data_s(iscan_pos,n))           ) ! sensor scan position 
-                 call nc_diag_metadata("Sat_Zenith_Angle",      sngl(zasat*rad2deg)                 ) ! satellite zenith angle (degrees)
-                 call nc_diag_metadata("Sat_Azimuth_Angle",     sngl(data_s(ilazi_ang,n))           ) ! satellite azimuth angle (degrees)
-                 call nc_diag_metadata("Sol_Zenith_Angle",      sngl(pangs)                         ) ! solar zenith angle (degrees)
-                 call nc_diag_metadata("Sol_Azimuth_Angle",     sngl(data_s(isazi_ang,n))           ) ! solar azimuth angle (degrees)
-                 call nc_diag_metadata("Sun_Glint_Angle",       sngl(sgagl)                         ) ! sun glint angle (degrees) (sgagl)
-                 call nc_diag_metadata("Scan_Angle",            sngl(data_s(iscan_ang,n)*rad2deg)   ) ! scan angle
+                 call nc_diag_metadata_to_single("Scan_Position",data_s(iscan_pos,n)           ) ! sensor scan position
+                 call nc_diag_metadata_to_single("Sat_Zenith_Angle", zasat,rad2deg,'*') ! satellite zenith angle (degrees)
+                 call nc_diag_metadata_to_single("Sat_Azimuth_Angle",data_s(ilazi_ang,n)       ) ! satellite azimuth angle (degrees)
+                 call nc_diag_metadata_to_single("Sol_Zenith_Angle",pangs                      ) ! solar zenith angle (degrees)
+                 call nc_diag_metadata_to_single("Sol_Azimuth_Angle",data_s(isazi_ang,n)       ) ! solar azimuth angle (degrees)
+                 call nc_diag_metadata_to_single("Sun_Glint_Angle",sgagl                       ) ! sun glint angle (degrees) (sgagl)
+                 call nc_diag_metadata_to_single("Scan_Angle",data_s(iscan_ang,n),rad2deg,'*'  ) ! scan angle
 
-                 call nc_diag_metadata("Water_Fraction",        sngl(surface(1)%water_coverage)     ) ! fractional coverage by water
-                 call nc_diag_metadata("Land_Fraction",         sngl(surface(1)%land_coverage)      ) ! fractional coverage by land
-                 call nc_diag_metadata("Ice_Fraction",          sngl(surface(1)%ice_coverage)       ) ! fractional coverage by ice
-                 call nc_diag_metadata("Snow_Fraction",         sngl(surface(1)%snow_coverage)      ) ! fractional coverage by snow
+                 call nc_diag_metadata_to_single("Water_Fraction",surface(1)%water_coverage    ) ! fractional coverage by water
+                 call nc_diag_metadata_to_single("Land_Fraction",surface(1)%land_coverage      ) ! fractional coverage by land
+                 call nc_diag_metadata_to_single("Ice_Fraction",surface(1)%ice_coverage        ) ! fractional coverage by ice
+                 call nc_diag_metadata_to_single("Snow_Fraction",surface(1)%snow_coverage      ) ! fractional coverage by snow
 
                  if(.not. retrieval)then
-                    call nc_diag_metadata("Water_Temperature",     sngl(surface(1)%water_temperature) ) ! surface temperature over water (K)
-                    call nc_diag_metadata("Land_Temperature",      sngl(surface(1)%land_temperature)  ) ! surface temperature over land (K)
-                    call nc_diag_metadata("Ice_Temperature",       sngl(surface(1)%ice_temperature)   ) ! surface temperature over ice (K)
-                    call nc_diag_metadata("Snow_Temperature",      sngl(surface(1)%snow_temperature)  ) ! surface temperature over snow (K)
-                    call nc_diag_metadata("Soil_Temperature",      sngl(surface(1)%soil_temperature)  ) ! soil temperature (K)
-                    call nc_diag_metadata("Soil_Moisture",         sngl(surface(1)%soil_moisture_content) ) ! soil moisture
+                    call nc_diag_metadata_to_single("Water_Temperature",surface(1)%water_temperature  ) ! surface temperature over water (K)
+                    call nc_diag_metadata_to_single("Land_Temperature",surface(1)%land_temperature   ) ! surface temperature over land (K)
+                    call nc_diag_metadata_to_single("Ice_Temperature",surface(1)%ice_temperature    ) ! surface temperature over ice (K)
+                    call nc_diag_metadata_to_single("Snow_Temperature",surface(1)%snow_temperature   ) ! surface temperature over snow (K)
+                    call nc_diag_metadata_to_single("Soil_Temperature",surface(1)%soil_temperature   ) ! soil temperature (K)
+                    call nc_diag_metadata_to_single("Soil_Moisture",surface(1)%soil_moisture_content  ) ! soil moisture
                     call nc_diag_metadata("Land_Type_Index",       surface(1)%land_type             ) ! surface land type
                     call nc_diag_metadata("tsavg5",                missing                          ) ! SST first guess used for SST retrieval
-                    call nc_diag_metadata("sstcu",                 missing                          ) ! NCEP SST analysis at t            
-                    call nc_diag_metadata("sstph",                 missing                          ) ! Physical SST retrieval             
-                    call nc_diag_metadata("sstnv",                 missing                          ) ! Navy SST retrieval               
+                    call nc_diag_metadata("sstcu",                 missing                          ) ! NCEP SST analysis at t
+                    call nc_diag_metadata("sstph",                 missing                          ) ! Physical SST retrieval
+                    call nc_diag_metadata("sstnv",                 missing                          ) ! Navy SST retrieval
                     call nc_diag_metadata("dta",                   missing                          ) ! d(ta) corresponding to sstph
                     call nc_diag_metadata("dqa",                   missing                          ) ! d(qa) corresponding to sstph
-                    call nc_diag_metadata("dtp_avh",               missing                          ) ! data type             
+                    call nc_diag_metadata("dtp_avh",               missing                          ) ! data type
                  else
                     call nc_diag_metadata("Water_Temperature",     missing                          ) ! surface temperature over water (K)
                     call nc_diag_metadata("Land_Temperature",      missing                          ) ! surface temperature over land (K)
@@ -2612,27 +2615,27 @@ contains
                     call nc_diag_metadata("Soil_Temperature",      missing                          ) ! soil temperature (K)
                     call nc_diag_metadata("Soil_Moisture",         missing                          ) ! soil moisture
                     call nc_diag_metadata("Land_Type_Index",       imissing                         ) ! surface land type
-                    call nc_diag_metadata("tsavg5",                sngl(tsavg5)                     ) ! SST first guess used for SST retrieval
-                    call nc_diag_metadata("sstcu",                 sngl(sstcu)                      ) ! NCEP SST analysis at t            
-                    call nc_diag_metadata("sstph",                 sngl(sstph)                      ) ! Physical SST retrieval             
-                    call nc_diag_metadata("sstnv",                 sngl(sstnv)                      ) ! Navy SST retrieval               
-                    call nc_diag_metadata("dta",                   sngl(dta)                        ) ! d(ta) corresponding to sstph
-                    call nc_diag_metadata("dqa",                   sngl(dqa)                        ) ! d(qa) corresponding to sstph
-                    call nc_diag_metadata("dtp_avh",               sngl(dtp_avh)                    ) ! data type             
+                    call nc_diag_metadata_to_single("tsavg5",tsavg5                      ) ! SST first guess used for SST retrieval
+                    call nc_diag_metadata_to_single("sstcu",sstcu                       ) ! NCEP SST analysis at t
+                    call nc_diag_metadata_to_single("sstph",sstph                       ) ! Physical SST retrieval
+                    call nc_diag_metadata_to_single("sstnv",sstnv                       ) ! Navy SST retrieval
+                    call nc_diag_metadata_to_single("dta",dta                         ) ! d(ta) corresponding to sstph
+                    call nc_diag_metadata_to_single("dqa",dqa                         ) ! d(qa) corresponding to sstph
+                    call nc_diag_metadata_to_single("dtp_avh",dtp_avh                     ) ! data type
                  endif
 
-                 call nc_diag_metadata("Vegetation_Fraction",   sngl(surface(1)%vegetation_fraction) )
-                 call nc_diag_metadata("Snow_Depth",            sngl(surface(1)%snow_depth)         )
-                 call nc_diag_metadata("tpwc",            sngl(tpwc_obs)                    )
-                 call nc_diag_metadata("clw_guess_retrieval",   sngl(clw_guess_retrieval)           )
+                 call nc_diag_metadata_to_single("Vegetation_Fraction",surface(1)%vegetation_fraction  )
+                 call nc_diag_metadata_to_single("Snow_Depth",surface(1)%snow_depth          )
+                 call nc_diag_metadata_to_single("tpwc",tpwc_obs                     )
+                 call nc_diag_metadata_to_single("clw_guess_retrieval",clw_guess_retrieval            )
 
-                 call nc_diag_metadata("Sfc_Wind_Speed",        sngl(surface(1)%wind_speed)         )
-                 call nc_diag_metadata("Cloud_Frac",            sngl(cld)                           )
-                 call nc_diag_metadata("CTP",                   sngl(cldp)                          )
-                 call nc_diag_metadata("CLW",                   sngl(clw_obs)                           )
-                 call nc_diag_metadata("TPWC",                  sngl(tpwc_obs)                          )
-                 call nc_diag_metadata("clw_obs",               sngl(clw_obs)                       )
-                 call nc_diag_metadata("clw_guess",             sngl(clw_guess)                     )
+                 call nc_diag_metadata_to_single("Sfc_Wind_Speed",surface(1)%wind_speed          )
+                 call nc_diag_metadata_to_single("Cloud_Frac",cld                            )
+                 call nc_diag_metadata_to_single("CTP",cldp                            )
+                 call nc_diag_metadata_to_single("CLW",clw_obs                             )
+                 call nc_diag_metadata_to_single("TPWC",tpwc_obs                            )
+                 call nc_diag_metadata_to_single("clw_obs",clw_obs                         )
+                 call nc_diag_metadata_to_single("clw_guess",clw_guess                       )
 
                  if (nstinfo==0) then
                     data_s(itref,n)  = missing
@@ -2641,21 +2644,21 @@ contains
                     data_s(itz_tr,n) = missing
                  endif
 
-                 call nc_diag_metadata("Foundation_Temperature",   sngl(data_s(itref,n))             )       ! reference temperature (Tr) in NSST
-                 call nc_diag_metadata("SST_Warm_layer_dt",        sngl(data_s(idtw,n))              )       ! dt_warm at zob
-                 call nc_diag_metadata("SST_Cool_layer_tdrop",     sngl(data_s(idtc,n))              )       ! dt_cool at zob
-                 call nc_diag_metadata("SST_dTz_dTfound",          sngl(data_s(itz_tr,n))            )       ! d(Tz)/d(Tr)
+                 call nc_diag_metadata_to_single("Foundation_Temperature",data_s(itref,n)               )       ! reference temperature (Tr) in NSST
+                 call nc_diag_metadata_to_single("SST_Warm_layer_dt",data_s(idtw,n)                )       ! dt_warm at zob
+                 call nc_diag_metadata_to_single("SST_Cool_layer_tdrop",data_s(idtc,n)                )       ! dt_cool at zob
+                 call nc_diag_metadata_to_single("SST_dTz_dTfound",data_s(itz_tr,n)              )       ! d(Tz)/d(Tr)
 
-                 call nc_diag_metadata("Observation",                           sngl(tb_obs0(ich_diag(i)))  )     ! observed brightness temperature (K)
-                 call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",         sngl(tbcnob(ich_diag(i)))  )     ! observed - simulated Tb with no bias correction (K)
-                 call nc_diag_metadata("Obs_Minus_Forecast_adjusted",           sngl(tbc0(ich_diag(i)  ))  )     ! observed - simulated Tb with bias corrrection (K)
+                 call nc_diag_metadata_to_single("Observation",tb_obs0(ich_diag(i))  )     ! observed brightness temperature (K)
+                 call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",tbcnob(ich_diag(i))   )     ! observed - simulated Tb with no bias correction (K)
+                 call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",tbc0(ich_diag(i)   )  )     ! observed - simulated Tb with bias corrrection (K)
                  errinv = sqrt(varinv0(ich_diag(i)))
-                 call nc_diag_metadata("Inverse_Observation_Error",             sngl(errinv)          )
+                 call nc_diag_metadata_to_single("Inverse_Observation_Error",errinv           )
                  if (save_jacobian .and. allocated(idnames)) then
-                 call nc_diag_metadata("Observation_scaled",                    sngl(tb_obs(ich_diag(i)))  )     ! observed brightness temperature (K) scaled by R^{-1/2}
-                 call nc_diag_metadata("Obs_Minus_Forecast_adjusted_scaled",    sngl(tbc(ich_diag(i)  ))  )     ! observed - simulated Tb with bias corrrection (K) scaled by R^{-1/2}
+                 call nc_diag_metadata_to_single("Observation_scaled",tb_obs(ich_diag(i))   )     ! observed brightness temperature (K) scaled by R^{-1/2}
+                 call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted_scaled",tbc(ich_diag(i)  )   )     ! observed - simulated Tb with bias corrrection (K) scaled by R^{-1/2}
                  errinv = sqrt(varinv(ich_diag(i)))
-                 call nc_diag_metadata("Inverse_Observation_Error_scaled",      sngl(errinv)          )
+                 call nc_diag_metadata_to_single("Inverse_Observation_Error_scaled",errinv           )
                  endif
                  if (save_jacobian) then
                     j = 1
@@ -2694,34 +2697,34 @@ contains
                  useflag=one
                  if (iuse_rad(ich(ich_diag(i))) < 1) useflag=-one
 
-                 call nc_diag_metadata("QC_Flag",                               sngl(id_qc(ich_diag(i))*useflag)  )          ! quality control mark or event indicator
+                 call nc_diag_metadata("QC_Flag",sngl(id_qc(ich_diag(i))*useflag))! quality control mark or event indicator
 
-                 call nc_diag_metadata("Emissivity",                            sngl(emissivity(ich_diag(i)))     )           ! surface emissivity
-                 call nc_diag_metadata("Weighted_Lapse_Rate",                   sngl(tlapchn(ich_diag(i)))        )           ! stability index
-                 call nc_diag_metadata("dTb_dTs",                               sngl(ts(ich_diag(i)))             )           ! d(Tb)/d(Ts)
+                 call nc_diag_metadata_to_single("Emissivity",emissivity(ich_diag(i))      )           ! surface emissivity
+                 call nc_diag_metadata_to_single("Weighted_Lapse_Rate",tlapchn(ich_diag(i))         )           ! stability index
+                 call nc_diag_metadata_to_single("dTb_dTs",ts(ich_diag(i))               )           ! d(Tb)/d(Ts)
 
-                 call nc_diag_metadata("BC_Constant",                           sngl(predbias(1,ich_diag(i)))      )             ! constant bias correction term
-                 call nc_diag_metadata("BC_Scan_Angle",                         sngl(predbias(2,ich_diag(i)))      )             ! scan angle bias correction term
-                 call nc_diag_metadata("BC_Cloud_Liquid_Water",                 sngl(predbias(3,ich_diag(i)))      )             ! CLW bias correction term
-                 call nc_diag_metadata("BC_Lapse_Rate_Squared",                 sngl(predbias(4,ich_diag(i)))      )             ! square lapse rate bias correction term
-                 call nc_diag_metadata("BC_Lapse_Rate",                         sngl(predbias(5,ich_diag(i)))      )             ! lapse rate bias correction term
-                 call nc_diag_metadata("BC_Cosine_Latitude_times_Node",         sngl(predbias(6,ich_diag(i)))      )             ! node*cos(lat) bias correction term
-                 call nc_diag_metadata("BC_Sine_Latitude",                      sngl(predbias(7,ich_diag(i)))      )             ! sin(lat) bias correction term
-                 call nc_diag_metadata("BC_Emissivity",                         sngl(predbias(8,ich_diag(i)))      )             ! emissivity sensitivity bias correction term
-                 call nc_diag_metadata("BC_Fixed_Scan_Position",                sngl(predbias(npred+1,ich_diag(i))) )             ! external scan angle
+                 call nc_diag_metadata_to_single("BC_Constant",predbias(1,ich_diag(i))        )             ! constant bias correction term
+                 call nc_diag_metadata_to_single("BC_Scan_Angle",predbias(2,ich_diag(i))        )             ! scan angle bias correction term
+                 call nc_diag_metadata_to_single("BC_Cloud_Liquid_Water",predbias(3,ich_diag(i))        )             ! CLW bias correction term
+                 call nc_diag_metadata_to_single("BC_Lapse_Rate_Squared",predbias(4,ich_diag(i))        )             ! square lapse rate bias correction term
+                 call nc_diag_metadata_to_single("BC_Lapse_Rate",predbias(5,ich_diag(i))        )             ! lapse rate bias correction term
+                 call nc_diag_metadata_to_single("BC_Cosine_Latitude_times_Node",predbias(6,ich_diag(i))        )             ! node*cos(lat) bias correction term
+                 call nc_diag_metadata_to_single("BC_Sine_Latitude",predbias(7,ich_diag(i))        )             ! sin(lat) bias correction term
+                 call nc_diag_metadata_to_single("BC_Emissivity",predbias(8,ich_diag(i))        )             ! emissivity sensitivity bias correction term
+                 call nc_diag_metadata_to_single("BC_Fixed_Scan_Position",predbias(npred+1,ich_diag(i))  )             ! external scan angle
                  if (lwrite_predterms) then
-                    call nc_diag_metadata("BCPred_Constant",                       sngl(pred(1,ich_diag(i)))      )             ! constant bias correction term
-                    call nc_diag_metadata("BCPred_Scan_Angle",                     sngl(pred(2,ich_diag(i)))      )             ! scan angle bias correction term
-                    call nc_diag_metadata("BCPred_Cloud_Liquid_Water",             sngl(pred(3,ich_diag(i)))      )             ! CLW bias correction term
-                    call nc_diag_metadata("BCPred_Lapse_Rate_Squared",             sngl(pred(4,ich_diag(i)))      )             ! square lapse rate bias correction term
-                    call nc_diag_metadata("BCPred_Lapse_Rate",                     sngl(pred(5,ich_diag(i)))      )             ! lapse rate bias correction term
-                    call nc_diag_metadata("BCPred_Cosine_Latitude_times_Node",     sngl(pred(6,ich_diag(i)))      )             ! node*cos(lat) bias correction term
-                    call nc_diag_metadata("BCPred_Sine_Latitude",                  sngl(pred(7,ich_diag(i)))      )             ! sin(lat) bias correction term
-                    call nc_diag_metadata("BCPred_Emissivity",                     sngl(pred(8,ich_diag(i)))      )             ! emissivity sensitivity bias correction term
+                    call nc_diag_metadata_to_single("BCPred_Constant",pred(1,ich_diag(i))        )             ! constant bias correction term
+                    call nc_diag_metadata_to_single("BCPred_Scan_Angle",pred(2,ich_diag(i))        )             ! scan angle bias correction term
+                    call nc_diag_metadata_to_single("BCPred_Cloud_Liquid_Water",pred(3,ich_diag(i))        )             ! CLW bias correction term
+                    call nc_diag_metadata_to_single("BCPred_Lapse_Rate_Squared",pred(4,ich_diag(i))        )             ! square lapse rate bias correction term
+                    call nc_diag_metadata_to_single("BCPred_Lapse_Rate",pred(5,ich_diag(i))        )             ! lapse rate bias correction term
+                    call nc_diag_metadata_to_single("BCPred_Cosine_Latitude_times_Node",pred(6,ich_diag(i))        )             ! node*cos(lat) bias correction term
+                    call nc_diag_metadata_to_single("BCPred_Sine_Latitude",pred(7,ich_diag(i))        )             ! sin(lat) bias correction term
+                    call nc_diag_metadata_to_single("BCPred_Emissivity",pred(8,ich_diag(i))        )             ! emissivity sensitivity bias correction term
                  endif
 
                  if (lwrite_peakwt) then
-                    call nc_diag_metadata("Press_Max_Weight_Function",          sngl(weightmax(ich_diag(i)))       )
+                    call nc_diag_metadata_to_single("Press_Max_Weight_Function",weightmax(ich_diag(i))         )
                  endif
                  if (adp_anglebc) then
                     do j=1, angord

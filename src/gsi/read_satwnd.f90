@@ -18,6 +18,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !            253: EUMETSAT IR winds, 254: EUMETSAT WV deep layer winds
 !            257,258,259: MODIS IR,WV cloud top, WV deep layer winds
 !            260: VIIR IR winds
+!            241: CIMSS enhanced AMV winds
 !            respectively
 !            For satellite subtype: 50-80 from EUMETSAT geostationary satellites(METEOSAT) 
 !                                   100-199 from JMA geostationary satellites(MTSAT)
@@ -77,6 +78,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2021-07-25 Genkova  - added code for Metop-B/C winds in new BUFR,NC005081  !
 !   2022-01-20 Genkova  - added missing station_id for polar winds
 !   2022-01-20 Genkova  - added code for Meteosat and Himawari AMVs in new BUFR
+!   2022-12-10 Bi  - added code for CIMSS enhanced AMVs in new BUFR
 !   
 !
 !   input argument list:
@@ -155,7 +157,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind),parameter:: r799=799.0_r_kind
   real(r_kind),parameter:: r1200= 1200.0_r_kind
   real(r_kind),parameter:: r10000= 10000.0_r_kind
-
   real(r_double),parameter:: rmiss=10d7 
 
 ! Declare local variables
@@ -212,7 +213,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   
   real(r_double),dimension(13):: hdrdat
   real(r_double),dimension(4):: obsdat
-  real(r_double),dimension(2) :: hdrdat_test
+  real(r_double),dimension(2) :: hdrdat_test,hdrdat_005099
   real(r_double),dimension(3,5) :: heightdat
   real(r_double),dimension(6,4) :: derdwdat
   real(r_double),dimension(3,12) :: qcdat
@@ -509,7 +510,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
         !GOES-R section of the 'if' statement over 'subsets' 
         else if(trim(subset) == 'NC005030' .or. trim(subset) == 'NC005031' .or. trim(subset) == 'NC005032' .or. &
-                trim(subset) == 'NC005034' .or. trim(subset) == 'NC005039') then
+                trim(subset) == 'NC005034' .or. trim(subset) == 'NC005039' .or. trim(subset) == 'NC005099') then
 ! Commented out, because we need clarification for SWCM/hdrdat(9) from Yi Song
 ! NOTE: Once it is confirmed that SWCM values are sensible, apply this logic and replace lines 685-702
 !                 if(hdrdat(9) == one)  then
@@ -537,6 +538,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               itype=246
            else if(trim(subset) == 'NC005031')  then            ! WV clear sky/deep layer
               itype=247
+           else if(trim(subset) == 'NC005099')  then
+              itype=241
            endif
         else ! wind is not recognised and itype is not assigned
            cycle loop_report
@@ -735,7 +738,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            do_qc = subset(1:7)=='NC00503'.and.nint(hdrdat(1))>=270
            do_qc = do_qc.or.subset(1:7)=='NC00501'
            do_qc = do_qc.or.subset=='NC005081'.or.subset=='NC005091'
-	   do_qc = do_qc.or.qcret>0            
+           do_qc = do_qc.or.qcret>0            
            
            ! assign types and get quality info: start
 
@@ -1051,7 +1054,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  endif
 !  get quality information THIS SECTION NEEDS TO BE TESTED!!!
                  call ufbint(lunin,rep_array,1,1,iret, '{AMVIVR}')
-                 irep_array = int(rep_array)
+                 irep_array = max(1,int(rep_array))
                  allocate( amvivr(2,irep_array))
                  call ufbrep(lunin,amvivr,2,irep_array,iret, 'TCOV CVWD')
                  pct1 = amvivr(2,1)     ! use of pct1 (a new variable in the BUFR) is introduced by Nebuda/Genkova
@@ -1175,9 +1178,12 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               endif
 ! Extra block for VIIRS NOAA20: End
 ! Extra block for GOES-R winds: Start
-           else if(trim(subset) == 'NC005030' .or. trim(subset) == 'NC005031' .or. trim(subset) == 'NC005032' .or. &  !IR(LW) / CS WV / VIS  GOES-R like winds        
-                   trim(subset) == 'NC005034' .or. trim(subset) == 'NC005039' ) then                                  !CT WV  / IR(SW) GOES-R like winds        
+           else if(trim(subset) == 'NC005030' .or. trim(subset) == 'NC005031' .or. trim(subset) == 'NC005032' .or. &  !IR(LW) / CS WV / VIS  GOES-R like winds
+                   trim(subset) == 'NC005034' .or. trim(subset) == 'NC005039' .or. trim(subset) == 'NC005099') then   !CT WV  / IR(SW) GOES-R like winds
 
+              if ( trim(subset) == 'NC005099' ) then
+                hdrdat(10)=61.23 ! set zenith angle for CIMSS AMVs to 67 to pass QC, no value in origional data
+              end if
               if(hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then  ! the range of NESDIS satellite IDs
                                                                  ! The sample newBUFR has SAID=259 (GOES-15)
                                                                  ! When GOES-R SAID is assigned, pls check
@@ -1209,6 +1215,10 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     c_station_id='WV'//stationid
                     c_sprvstg='WV'
                     !write(6,*)'itype= ',itype
+                 else if(trim(subset) == 'NC005099')  then            ! WV clear sky/deep layer
+                    itype=241
+                    c_station_id='IR'//stationid
+                    c_sprvstg='IR'
                  endif
 
 !                 call ufbint(lunin,rep_array,1,1,iret, '{AMVAHA}')
@@ -1222,6 +1232,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                 allocate( amviii(12,irep_array))
 !                 call ufbrep(lunin,amviii,12,irep_array,iret, 'LTDS SCLF SAID SIID CHNM SCCF ORBN SAZA BEARAZ EHAM PRLC TMDBST')
 !                 deallocate( amviii )
+
+               if (itype /= 241) then
 
                  call ufbint(lunin,rep_array,1,1,iret, '{AMVIVR}')
                  irep_array = int(rep_array)
@@ -1253,7 +1265,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
                  if(wrf_nmm_regional) then
                     ! type 251 has been determine not suitable to be subjected to pct1 range check
-                    if(itype==240 .or. itype==245 .or. itype==246) then
+                    if(itype==240 .or. itype==245 .or. itype==246 .or. itype==241) then
                        if (pct1 < 0.04_r_kind) qm=15
                        if (pct1 > 0.50_r_kind) qm=15
                     elseif (itype==251) then
@@ -1279,6 +1291,16 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     if (isflg == 1 .and. ppb > 850.0_r_kind) qm=15  ! low over land
                  endif
 
+               else ! Assign values for the mnemonics/variables missing in original datafile for type 241
+
+                 call ufbint(lunin,hdrdat_005099,2,1,iret, 'GNAPS PCCF');
+                 qifn=hdrdat_005099(2);
+                 qm=2.0   ! do not reject the wind
+                 pct1=0.4 ! do not reject the wind
+                 ee=1.0   ! do not reject the wind
+
+               endif
+
                  ! winds rejected by qc dont get used
                  if (qm == 15) usage=r100
                  if (qm == 3 .or. qm ==7) woe=woe*r1_2
@@ -1288,9 +1310,12 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  if(itype==246 )  then;  c_prvstg='GOESR' ; c_sprvstg='WVCT'  ; endif
                  if(itype==247 )  then;  c_prvstg='GOESR' ; c_sprvstg='WVCS'  ; endif
                  if(itype==251 )  then;  c_prvstg='GOESR' ; c_sprvstg='VIS'  ; endif
+                 if(itype==241 )  then;  c_prvstg='GOESR' ; c_sprvstg='IR'  ; endif !to be revisited I.Genkova
+
               endif
 ! Extra block for GOES-R winds: End
            else ! wind is not recognised and itype is not assigned
+              write(6,*) 'read_satwnd: WIND IS NOT RECOGNIZEd and we are in hell'
               cycle loop_readsb             
            endif
 
@@ -1338,7 +1363,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !                3 snow
 !                4 mixed
            if( .not. twodvar_regional) then
-              if(itype ==245 .or. itype ==252 .or. itype ==253 .or. itype ==240) then 
+              if(itype ==245 .or. itype ==252 .or. itype ==253 .or. itype ==240 .or. itype ==241) then
                  if(hdrdat(2) >20.0_r_kind) then 
                     call deter_sfc_type(dlat_earth,dlon_earth,t4dv,isflg,tsavg)
                     if(isflg /= 0) cycle loop_readsb 
@@ -1465,7 +1490,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! GOES-R wind are identified/recognised here by subset, but it could be done by itype or SAID
 ! After completing the evaluation of GOES-R winds, REVISE this section!!!
            if(trim(subset) == 'NC005030' .or. trim(subset) == 'NC005031' .or. trim(subset) == 'NC005032' .or. &  
-               trim(subset) == 'NC005034' .or. trim(subset) == 'NC005039' ) then  
+              trim(subset) == 'NC005034' .or. trim(subset) == 'NC005039' .or. trim(subset) == 'NC005099') then
               obserr=obserr/two
            endif
 

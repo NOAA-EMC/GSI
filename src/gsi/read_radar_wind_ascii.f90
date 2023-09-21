@@ -509,6 +509,7 @@ real(r_kind) :: mintilt,maxtilt,maxobrange,minobrange
 !####################       Data thinning       ###################
 
            icntpnt=icntpnt+1
+           if(icntpnt>maxobs) exit
  
            if(ithin > 0)then
               if(zflag == 0)then
