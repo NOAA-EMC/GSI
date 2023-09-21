@@ -342,6 +342,7 @@ SUBROUTINE CADS_Setup_Cloud
 !   16/04/20   R.Eresmaa   3.0   Rename, tidy up.
 
   use kinds, only: i_kind, r_kind
+  use gsi_io, only: verbose
   IMPLICIT NONE
 
 ! Local variables
@@ -900,12 +901,12 @@ SUBROUTINE CADS_Setup_Cloud
     IF (IOS /= 0) THEN
       CALL CADS_Abort('PROBLEM READING '//TRIM(CL__InstrumentName)//&
                      'CLOUD DETECTION FILE')
-!    ELSE
-!      WRITE(*,'(3X,A)') TRIM(CL__InstrumentName) // &
-!           ' CLOUD DETECTION FILE READ OK'
+    ELSE
+      IF ( verbose ) WRITE(*,'(3X,A)') TRIM(CL__InstrumentName) // &
+           ' CLOUD DETECTION FILE READ OK'
     ENDIF
   ELSE
-    WRITE(*,'(3X,A)') 'NO '//TRIM(CL__InstrumentName) // &
+    IF ( verbose ) WRITE(*,'(3X,A)') 'NO '//TRIM(CL__InstrumentName) // &
              ' CLOUD DETECTION FILE : Using Default Values'
   ENDIF
   CLOSE(INIU1)
