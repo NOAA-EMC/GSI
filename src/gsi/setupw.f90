@@ -877,7 +877,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      lowlevelsat=itype==242.or.itype==243.or.itype==245.or.itype==246.or. &
                  itype==247.or.itype==250.or.itype==251.or.itype==252.or. &
                  itype==253.or.itype==254.or.itype==257.or.itype==258.or. &
-                 itype==259
+                 itype==259.or.itype==241
      if (lowlevelsat .and. twodvar_regional) then
          call windfactor(presw,factw)
          data(iuob,i)=factw*data(iuob,i)
@@ -1146,7 +1146,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         if(itype ==244) then   ! AVHRR, use same as MODIS
           qcgross=r0_7*cgross(ikx)
         endif
-        if( itype == 245 .or. itype ==246) then
+        if( itype == 245 .or. itype ==246 .or. itype ==241) then
            if(presw <400.0_r_kind .and. presw >300.0_r_kind ) qcgross=r0_7*cgross(ikx)
         endif
         if(itype == 253 .or. itype ==254) then
