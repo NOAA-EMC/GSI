@@ -585,7 +585,7 @@ subroutine read_files(mype)
   if (nst_gsi > 0 ) call mpi_bcast(time_nst,2*nfldnst,mpi_rtype,npem1,mpi_comm_world,ierror)
 
 ! for external aerosol files
-  if(.not.allocated(time_aer)) allocate(time_aer(nfldaer,2))
+  if(lread_ext_aerosol .and. (.not.allocated(time_aer))) allocate(time_aer(nfldaer,2))
   if (lread_ext_aerosol) call mpi_bcast(time_aer,2*nfldaer,mpi_rtype,npem1,mpi_comm_world,ierror)
 
   call mpi_bcast(iamana,3,mpi_rtype,npem1,mpi_comm_world,ierror)
