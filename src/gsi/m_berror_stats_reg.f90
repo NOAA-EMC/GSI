@@ -313,7 +313,6 @@ end subroutine berror_read_bal_reg
       use mpeu_util,only: getindex
       use radiance_mod, only: icloud_cv,n_clouds_fwd,cloud_names_fwd
       use chemmod, only: berror_fv3_cmaq_regional
-      use hybrid_ensemble_parameters, only: l_hyb_ens
 
       implicit none
 

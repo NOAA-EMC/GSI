@@ -530,7 +530,6 @@
 !          = 342 - setuplight: failure to allocate obsdiags
 !          = 343 - setuplight: failure to allocate obsdiags
 !          = 344 - setuplight: index error
-!          = 345 - gsi_fv3ncdf2d_read: problem in reading variable in 2D firstguess of FV3-LAM
 !          = 899 - foto no longer available
 !
 !

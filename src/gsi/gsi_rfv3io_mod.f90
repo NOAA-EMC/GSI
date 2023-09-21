@@ -1824,6 +1824,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
 !$$$  end documentation block
     use kinds, only: r_kind,i_kind
     use mpimod, only: ierror,mpi_comm_world,npe,mpi_rtype,mype,mpi_itype
+    use mpeu_util, only: die
     use guess_grids, only: fact10,soil_type,veg_frac,veg_type,sfc_rough, &
          sfct,sno,soil_temp,soil_moi,isli
     use gridmod, only: lat2,lon2,itotsub,ijn_s
@@ -1858,7 +1859,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
       character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
       character(len=:),allocatable :: dynvars   !='fv3_dynvars'
 ! for checking the existence of howv in firstguess file
-    integer(i_kind) id_howv, iret_howv
+    integer(i_kind) id_howv
     integer(i_kind) iret_bcast
 
 ! for io_layout > 1
@@ -1910,19 +1911,17 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
 !      if howv is set in anavinfo (as i_howv_3dda=1), then check its existence in firstguess,
 !      but if it is not found in firstguess, then stop GSI run and set i_howv_3dda = 0.
        if ( i_howv_3dda == 1 ) then
-         iret_howv = nf90_inq_varid(gfile_loc,'howv',id_howv)
-         if ( iret_howv /= nf90_noerr ) then
-           iret_howv = nf90_inq_varid(gfile_loc,'HOWV',id_howv) ! double check with name in uppercase
+         iret = nf90_inq_varid(gfile_loc,'howv',id_howv)
+         if ( iret /= nf90_noerr ) then
+           iret = nf90_inq_varid(gfile_loc,'HOWV',id_howv) ! double check with name in uppercase
          end if
-         if ( iret_howv /= nf90_noerr ) then
+         if ( iret /= nf90_noerr ) then
            i_howv_3dda = 0                ! howv does not exist in firstguess, then stop GSI run.
-           write(6,'(1x,A,1x,A,1x,A,1x,I4,1x,A,1x,I4.4,A)') 'subroutine gsi_fv3ncdf2d_read:: howv is NOT found in firstguess ', &
-             trim(sfcdata), ', iret = ',iret_howv, ' (on pe: ', mype,'). Stop running GSI!!!!'
-           call stop2(345)
+           call die('gsi_fv3ncdf2d_read','Warning: CANNOT find howv in firstguess, aborting..., iret = ', iret)
          else
            i_howv_3dda = 1                ! howv does exist in firstguess, running analysis with howv 
-           write(6,'(1x,A,1x,A,1x,A,1x,I4,1x,I4,1x,A,1x,I4.4,A)') 'subroutine gsi_fv3ncdf2d_read:: Found howv in firstguess ',  &
-             trim(sfcdata), ', iret, varid = ',iret_howv, id_howv,' (on pe: ', mype,').'
+           write(6,'(1x,A,1x,A,1x,A,1x,I4,1x,I4,1x,A,1x,I4.4,A)') 'gsi_fv3ncdf2d_read:: Found howv in firstguess ',  &
+             trim(sfcdata), ', iret, varid = ',iret, id_howv,' (on pe: ', mype,').'
          end if
        end if
 
