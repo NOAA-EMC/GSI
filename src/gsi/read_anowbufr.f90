@@ -307,6 +307,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
 
            ndata=ndata+1
            nodata=nodata+1
+           if(ndata>maxobs) exit
 
            cdata_all(iconc,ndata)  = conc                    ! pm2_5 obs     
            cdata_all(ierror,ndata) = obserror                ! pm2_5 obs error

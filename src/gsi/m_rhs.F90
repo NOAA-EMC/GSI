@@ -83,6 +83,7 @@ module m_rhs
   public:: i_lwcp
   public:: i_light
   public:: i_dbz
+  public:: i_fed
   public:: i_cldtot
 
   public:: awork_size
@@ -151,6 +152,7 @@ module m_rhs
     enumerator:: i_lwcp
     enumerator:: i_light
     enumerator:: i_dbz
+    enumerator:: i_fed
     enumerator:: i_cldtot
 
     enumerator:: i_outbound

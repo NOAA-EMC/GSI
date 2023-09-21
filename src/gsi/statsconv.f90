@@ -2,7 +2,7 @@ subroutine statsconv(mype,&
      i_ps,i_uv,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
      i_gust,i_vis,i_pblh,i_wspd10m,i_gnssrspd,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv, & 
      i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,&
-     i_swcp,i_lwcp,i_dbz,i_ref,bwork,awork,ndata)
+     i_swcp,i_lwcp,i_fed,i_dbz,i_ref,bwork,awork,ndata)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    statconv    prints statistics for conventional data
@@ -76,6 +76,7 @@ subroutine statsconv(mype,&
 !     i_vwnd10m- index in awork array holding vwnd10m info
 !     i_swcp   - index in awork array holding swcp info
 !     i_lwcp   - index in awork array holding lwcp info
+!     i_fed    - index in awork array holding fed info
 !     i_dbz    - index in awork array holding dbz info
 !     i_ref    - size of second dimension of awork array
 !     bwork    - array containing information for statistics
@@ -98,12 +99,12 @@ subroutine statsconv(mype,&
        iout_gust,iout_vis,iout_pblh,iout_wspd10m,iout_gnssrspd,iout_td2m,& 
        iout_mxtm,iout_mitm,iout_pmsl,iout_howv,iout_tcamt,iout_lcbas,iout_cldch,&
        iout_uwnd10m,iout_vwnd10m,&
-       iout_dbz,iout_swcp,iout_lwcp,&
+       iout_fed,iout_dbz,iout_swcp,iout_lwcp,&
        mype_dw,mype_rw,mype_sst,mype_gps,mype_uv,mype_ps,&
        mype_t,mype_pw,mype_q,mype_tcp,ndat,dtype,mype_lag,mype_gust,&
        mype_vis,mype_pblh,mype_wspd10m,mype_gnssrspd,mype_td2m,mype_mxtm,mype_mitm,&
        mype_pmsl,mype_howv,mype_tcamt,mype_lcbas,mype_cldch,mype_uwnd10m,mype_vwnd10m,&
-       mype_dbz,mype_swcp,mype_lwcp
+       mype_fed,mype_dbz,mype_swcp,mype_lwcp
   use qcmod, only: npres_print,ptop,pbot,ptopq,pbotq
   use jfunc, only: first,jiter
   use gridmod, only: nsig
@@ -113,8 +114,13 @@ subroutine statsconv(mype,&
 ! Declare passed variables
   integer(i_kind)                                  ,intent(in   ) :: mype,i_ps,i_uv,&
        i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag,i_gust,i_vis,i_pblh,&
+<<<<<<< HEAD
        i_wspd10m,i_gnssrspd,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas,&
        i_cldch,i_uwnd10m,i_vwnd10m,i_swcp,i_lwcp,i_dbz,i_ref
+=======
+       i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv,i_tcamt,i_lcbas,&
+       i_cldch,i_uwnd10m,i_vwnd10m,i_swcp,i_lwcp,i_fed,i_dbz,i_ref
+>>>>>>> upstream/develop
   real(r_kind),dimension(7*nsig+100,i_ref)     ,intent(in   ) :: awork
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(in   ) :: bwork
   integer(i_kind),dimension(ndat,3)                ,intent(in   ) :: ndata
@@ -138,6 +144,7 @@ subroutine statsconv(mype,&
   real(r_kind) dwqcplty,tqcplty,qctt,qctrw,rwqcplty,qctdw,qqcplty,qctgps
   real(r_kind) gpsqcplty,tpw3,pw3,qctq
   real(r_kind) tswcp3,tlwcp3,qctdbz,dbzqcplty
+  real(r_kind) fedmplty,tfed,qctfed,fedqcplty
   real(r_kind),dimension(1):: pbotall,ptopall
   
   logical,dimension(nconvtype):: pflag
@@ -1361,6 +1368,68 @@ subroutine statsconv(mype,&
         close(iout_dbz)
      end if
   end if
+
+! Summary report for flash extent density
+  if(mype==mype_fed) then
+     nread=0
+     nkeep=0
+     do i=1,ndat
+        if(dtype(i)== 'fed')then
+           nread=nread+ndata(i,2)
+           nkeep=nkeep+ndata(i,3)
+           end if
+     end do
+     if(nread > 0)then
+        if(first)then
+           open(iout_fed)
+        else
+           open(iout_fed,position='append')
+        end if
+
+        fedmplty=zero; fedqcplty=zero ; ntot=0
+        tfed=zero ; qctfed=zero
+        if(nkeep > 0)then
+           mesage='current vfit of flash extent density, ranges in flashes per minute$'
+           do j=1,nconvtype
+              pflag(j)=trim(ioctype(j)) == 'fed'
+           end do
+           call dtast(bwork,npres_print,pbot,ptop,mesage,jiter,iout_fed,pflag)
+
+           numgross=nint(awork(4,i_fed))
+           numfailqc=nint(awork(21,i_fed))
+           do k=1,nsig
+              num(k)=nint(awork(k+5*nsig+100,i_fed))
+              rat=zero
+              rat3=zero
+              if(num(k) > 0) then
+                 rat=awork(6*nsig+k+100,i_fed)/float(num(k))
+                 rat3=awork(3*nsig+k+100,i_fed)/float(num(k))
+              end if
+              ntot=ntot+num(k)
+              fedmplty=fedmplty+awork(6*nsig+k+100,i_fed)
+              fedqcplty=fedqcplty+awork(3*nsig+k+100,i_fed)
+              write(iout_fed,240) 'r',num(k),k,awork(6*nsig+k+100,i_fed), &
+                                               awork(3*nsig+k+100,i_fed),rat,rat3
+           end do
+           if(ntot > 0) then
+              tfed=fedmplty/float(ntot)
+              qctfed=fedqcplty/float(ntot)
+           end if
+           write(iout_fed,925) 'fed',numgross,numfailqc
+           numlow       = nint(awork(2,i_fed))
+           numhgh       = nint(awork(3,i_fed))
+           nhitopo      = nint(awork(5,i_fed))
+           ntoodif      = nint(awork(6,i_fed))
+           write(iout_fed,900) 'fed',numhgh,numlow
+           write(iout_fed,905) 'fed',nhitopo,ntoodif
+        end if
+        write(iout_fed,950) 'fed',jiter,nread,nkeep,ntot
+        write(iout_fed,951) 'fed',fedmplty,fedqcplty,tfed,qctfed
+
+        close(iout_fed)
+     end if
+  end if
+
 
   if(mype==mype_tcp) then
      nread=0
