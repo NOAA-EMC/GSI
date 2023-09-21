@@ -497,18 +497,6 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
            endif
          end do gnssrwndloop
 
-<<<<<<< HEAD
-=======
-       else if(trim(filename) == 'gnssrwndbufr')then
-         lexist = .false.
-         gnssrwndloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
-           if (trim(dtype)=='gnssrspd') then
-               lexist = .true.
-               exit gnssrwndloop
-           endif
-         end do gnssrwndloop
-  
->>>>>>> 73607cb9e23ec953a101b870d183fac5301be54f
        else if(trim(dtype) == 'pm2_5')then
           if (oneobtest_chem .and. oneob_type_chem=='pm2_5') then
              lexist=.true.
@@ -923,7 +911,7 @@ subroutine read_obs(ndata,mype)
        if (obstype == 't'  .or. obstype == 'uv' .or. &
            obstype == 'q'  .or. obstype == 'ps' .or. &
            obstype == 'pw' .or. obstype == 'spd'.or. &
-           obstype == 'sst'.or. obstype == 'gnssrspd'.or. obstype == 'gnssrddm' .or. &
+           obstype == 'sst'.or. obstype == 'gnssrspd'.or. &
            obstype == 'tcp'.or. obstype == "lag".or. &
            obstype == 'dw' .or. obstype == 'rw' .or. &
            obstype == 'mta_cld' .or. obstype == 'gos_ctp' .or. &

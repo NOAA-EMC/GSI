@@ -36,7 +36,7 @@ use gsi_obOperTypeManager, only: &
   iobOper_rw,         iobOper_dbz,                                                                      &
   iobOper_spd,        iobOper_gnssrspd,     iobOper_oz,         iobOper_o3l,        iobOper_colvk,      &
   iobOper_pm2_5,      iobOper_pm10,       iobOper_ps,         iobOper_tcp,        iobOper_sst,          &
-  iobOper_gpsbend,    iobOper_gpsref,     iobOper_gnssrddm                                                              &
+  iobOper_gpsbend,    iobOper_gpsref,                                                                   &
                       iobOper_rad,        iobOper_pcp,        iobOper_aero,       iobOper_gust,         &
   iobOper_vis,        iobOper_pblh,       iobOper_wspd10m,    iobOper_td2m,       iobOper_mxtm,         &
   iobOper_mitm,       iobOper_pmsl,       iobOper_howv,       iobOper_tcamt,      iobOper_lcbas,        &
@@ -65,7 +65,7 @@ integer(i_kind),parameter,dimension(obOper_count):: ix_obtype = (/ &
   iobOper_rw,         iobOper_dbz,                                                                      &
   iobOper_spd,        iobOper_gnssrspd,     iobOper_oz,         iobOper_o3l,        iobOper_colvk,      &
   iobOper_pm2_5,      iobOper_pm10,       iobOper_ps,         iobOper_tcp,        iobOper_sst,          &
-  iobOper_gpsbend,    iobOper_gpsref,     iobOper_gnssrddm                                                              &
+  iobOper_gpsbend,    iobOper_gpsref,                                                                   &
                       iobOper_rad,        iobOper_pcp,        iobOper_aero,       iobOper_gust,         &
   iobOper_vis,        iobOper_pblh,       iobOper_wspd10m,    iobOper_td2m,       iobOper_mxtm,         &
   iobOper_mitm,       iobOper_pmsl,       iobOper_howv,       iobOper_tcamt,      iobOper_lcbas,        &

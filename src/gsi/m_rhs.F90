@@ -18,7 +18,6 @@ module m_rhs
 !                       - removed external dimension argument aworkdim2 of
 !                         rhs_alloc().
 !   2022-03-15  K. Apodaca - add GNSS-R L2 ocean wind speed index (i_gnssrspd)
-!   2023-03-15  K. Apodaca - add GNSS-R Doppler Delay Map index (i_gnssrddm)
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -70,7 +69,6 @@ module m_rhs
   public:: i_pblh
   public:: i_wspd10m
   public:: i_gnssrspd
-  public:: i_gnssrddm
   public:: i_td2m
   public:: i_mxtm
   public:: i_mitm
@@ -139,7 +137,6 @@ module m_rhs
     enumerator:: i_pblh
     enumerator:: i_wspd10m
     enumerator:: i_gnssrspd
-    enumerator:: i_gnssrddm 
     enumerator:: i_td2m
     enumerator:: i_mxtm
     enumerator:: i_mitm

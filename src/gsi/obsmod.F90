@@ -456,7 +456,7 @@ module obsmod
   public :: mype_gust,mype_vis,mype_pblh,iout_gust,iout_vis,iout_pblh
   public :: mype_tcamt,mype_lcbas,iout_tcamt,iout_lcbas
   public :: mype_wspd10m,mype_gnssrspd,mype_td2m,iout_wspd10m,iout_gnssrspd,iout_td2m
-  public :: mype_uwnd10m,mype_vwnd10m,mype_gnssrddm,iout_uwnd10m,iout_vwnd10m,iout_gnssrddm 
+  public :: mype_uwnd10m,mype_vwnd10m,iout_uwnd10m,iout_vwnd10m 
   public :: mype_mxtm,mype_mitm,iout_mxtm,iout_mitm
   public :: mype_pmsl,mype_howv,iout_pmsl,iout_howv
   public :: mype_swcp,mype_lwcp,iout_swcp,iout_lwcp
@@ -585,13 +585,13 @@ module obsmod
   integer(i_kind) iout_co,iout_gust,iout_vis,iout_pblh,iout_tcamt,iout_lcbas
   integer(i_kind) iout_cldch
   integer(i_kind) iout_wspd10m,iout_gnssrspd,iout_td2m,iout_mxtm,iout_mitm,iout_pmsl,iout_howv
-  integer(i_kind) iout_uwnd10m,iout_vwnd10m,iout_gnssrddm   
+  integer(i_kind) iout_uwnd10m,iout_vwnd10m   
   integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, &
                   mype_rw,mype_dw,mype_gps,mype_sst, &
                   mype_tcp,mype_lag,mype_co,mype_gust,mype_vis,mype_pblh, &
                   mype_wspd10m,mype_gnssrspd,mype_td2m,mype_mxtm,mype_mitm,mype_pmsl,mype_howv,&
                   mype_uwnd10m,mype_vwnd10m, mype_tcamt,mype_lcbas, mype_dbz
-  integer(i_kind) mype_cldch,mype_gnssrddm
+  integer(i_kind) mype_cldch
   integer(i_kind) iout_swcp, iout_lwcp
   integer(i_kind) mype_swcp, mype_lwcp
   integer(i_kind) nlaero, iout_aero, mype_aero
@@ -855,7 +855,6 @@ contains
     iout_light=237 ! lightning
     iout_dbz=238 ! radar reflectivity
     iout_gnssrspd=239   ! GNSS-R wind speed
-    iout_gnssrddm=240   ! GNSS-R DDM
     mype_ps = npe-1          ! surface pressure
     mype_t  = max(0,npe-2)   ! temperature
     mype_q  = max(0,npe-3)   ! moisture
@@ -890,7 +889,6 @@ contains
     mype_light=max(0,npe-32)! GOES/GLM lightning
     mype_dbz=max(0,npe-33)   ! radar reflectivity
     mype_gnssrspd= max(0,npe-34) ! surface speed
-    mype_gnssrddm= max(0,npe-35) ! Doppler delay map 
 
 !   Initialize arrays used in namelist obs_input 
     time_window_max = three ! set maximum time window to +/-three hours

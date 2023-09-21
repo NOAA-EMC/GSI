@@ -12,7 +12,8 @@ module gsi_obOperTypeManager
 !   2018-07-12  j guo   - a type-manager for all obOper extensions.
 !                       - an enum mapping of obsinput::dtype(:) to obOper type
 !                         extensions.
-!
+!   2022-03-15  k apodaca - add GNSS-R L2 ocean wind speed type-manager
+!   2023-03-20  k apodaca - add GNSS-R DDM type-manager !
 !   input argument list: see Fortran 90 style document below
 !
 !   output argument list: see Fortran 90 style document below
@@ -52,6 +53,7 @@ module gsi_obOperTypeManager
   use gsi_radOper     , only: radOper
   use gsi_rwOper      , only: rwOper
   use gsi_spdOper     , only: spdOper
+  use gsi_gnssrspdOper  , only: gnssrspdOper
   use gsi_sstOper     , only: sstOper
   use gsi_swcpOper    , only: swcpOper
   use gsi_tcamtOper   , only: tcamtOper
@@ -101,6 +103,7 @@ module gsi_obOperTypeManager
   public:: iobOper_w
   public:: iobOper_q
   public:: iobOper_spd
+  public:: iobOper_gnssrspd
   public:: iobOper_rw
   public:: iobOper_dw
   public:: iobOper_sst
@@ -146,6 +149,7 @@ module gsi_obOperTypeManager
     enumerator:: iobOper_w
     enumerator:: iobOper_q
     enumerator:: iobOper_spd
+    enumerator:: iobOper_gnssrspd
     enumerator:: iobOper_rw
     enumerator:: iobOper_dw
     enumerator:: iobOper_sst
@@ -207,6 +211,7 @@ module gsi_obOperTypeManager
   type(      wOper), target, save::        wOper_mold
   type(      qOper), target, save::        qOper_mold
   type(    spdOper), target, save::      spdOper_mold
+  type( gnssrspdOper), target, save::   gnssrspdOper_mold
   type(     rwOper), target, save::       rwOper_mold
   type(     dwOper), target, save::       dwOper_mold
   type(    sstOper), target, save::      sstOper_mold
@@ -260,6 +265,7 @@ function dtype2index_(dtype) result(index_)
 
   case("q"      ,"[qoper]"      ); index_= iobOper_q
   case("spd"    ,"[spdoper]"    ); index_= iobOper_spd
+  case("gnssrspd" ,"[gnssrspdoper]" ); index_= iobOper_gnssrspd
   case("rw"     ,"[rwoper]"     ); index_= iobOper_rw
   case("dw"     ,"[dwoper]"     ); index_= iobOper_dw
   case("sst"    ,"[sstoper]"    ); index_= iobOper_sst
@@ -276,9 +282,6 @@ function dtype2index_(dtype) result(index_)
     case("ompstc8"); index_= iobOper_oz
     case("ompsnp" ); index_= iobOper_oz
     case("ompsnm" ); index_= iobOper_oz
-    case("omieff"   ); index_= iobOper_oz
-    case("tomseff"  ); index_= iobOper_oz
-    case("ompsnmeff"); index_= iobOper_oz
 
   case("o3l"    ,"[o3loper]"    ); index_= iobOper_o3l
     case("o3lev"    ); index_= iobOper_o3l
@@ -286,10 +289,11 @@ function dtype2index_(dtype) result(index_)
     case("mls22"    ); index_= iobOper_o3l
     case("mls30"    ); index_= iobOper_o3l
     case("mls55"    ); index_= iobOper_o3l
-    case("ompslp"   ); index_= iobOper_o3l
+    case("omieff"   ); index_= iobOper_o3l
+    case("tomseff"  ); index_= iobOper_o3l
     case("ompslpuv" ); index_= iobOper_o3l
     case("ompslpvis"); index_= iobOper_o3l
-    case("ompslpnc" ); index_= iobOper_o3l
+    case("ompslp"   ); index_= iobOper_o3l
 
   case("gpsbend","[gpsbendoper]"); index_= iobOper_gpsbend
     case("gps_bnd"); index_= iobOper_gpsbend
@@ -359,7 +363,6 @@ function dtype2index_(dtype) result(index_)
   case("aero"   ,"[aerooper]"   ); index_= iobOper_aero
     case("aod"      ); index_= iobOper_aero
     case("modis_aod"); index_= iobOper_aero
-    case("viirs_aod"); index_= iobOper_aero
 
  !case("aerol"  ,"[aeroloper]"  ); index_= iobOper_aerol
 
@@ -452,6 +455,7 @@ function index2vmold_(iobOper) result(vmold_)
   case(iobOper_w        ); vmold_ =>       wOper_mold
   case(iobOper_q        ); vmold_ =>       qOper_mold
   case(iobOper_spd      ); vmold_ =>     spdOper_mold
+  case(iobOper_gnssrspd   ); vmold_ =>  gnssrspdOper_mold
   case(iobOper_rw       ); vmold_ =>      rwOper_mold
   case(iobOper_dw       ); vmold_ =>      dwOper_mold
   case(iobOper_sst      ); vmold_ =>     sstOper_mold
@@ -567,6 +571,7 @@ subroutine cobstype_config_()
     cobstype(iobOper_w          )  ="wind                " ! w_ob_type
     cobstype(iobOper_q          )  ="moisture            " ! q_ob_type
     cobstype(iobOper_spd        )  ="wind speed          " ! spd_ob_type
+    cobstype(iobOper_gnssrspd   )  ="gnss-r wind speed   " ! gnssrspd_ob_type
     cobstype(iobOper_rw         )  ="radial wind         " ! rw_ob_type
     cobstype(iobOper_dw         )  ="doppler wind        " ! dw_ob_type
     cobstype(iobOper_sst        )  ="sst                 " ! sst_ob_type

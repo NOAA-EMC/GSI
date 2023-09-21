@@ -197,7 +197,7 @@
 !         read_goesglm, read_goesndr, read_gps_ref, read_guess, read_ieeetovs, 
 !         read_lidar, read_obs, read_ozone, read_pcp, read_prepbufr, read_radar, 
 !         read_superwinds, read_wrf_mass_files, read_wrf_mass_guess, 
-!         read_wrf_nmm_files, read_wrf_nmm_guess, read_gnssrspd, read_gnssrddm, rfdpar, rsearch, satthin,
+!         read_wrf_nmm_files, read_wrf_nmm_guess, read_gnssrspd, rfdpar, rsearch, satthin,
 !         setupdw, setupoz, setuppcp, setupps, setuppw, setupq, setuprad,
 !         setupref, setupbend, setuplight, setuprhsall, setuprw, setupspd, setupsst,
 !         setupt, setupw, simpin1, simpin1_init, smooth121, smoothrf,
