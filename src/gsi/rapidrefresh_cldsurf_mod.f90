@@ -187,7 +187,7 @@ module rapidrefresh_cldsurf_mod
 !                           and where the dbz_obs is missing);
 !      corp_howv      - namelist real, static BE of howv (standard error deviation)
 !      hwllp_howv     - namelist real, static BE de-correlation length scale of howv
-!      i_howv_in_3dda - integer, control the analysis of howv in 3D analysis (either var or hybrid)
+!      i_howv_3dda    - integer, control the analysis of howv in 3D analysis (either var or hybrid)
 !                          = 0 (howv-off: default) : no analysis of howv in 3D analysis.
 !                          = 1 (howv-on) : if variable name "howv" is found in anavinfo,
 !                                          set it to be 1 to turn on analysis of howv;
