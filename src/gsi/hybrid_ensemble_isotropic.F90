@@ -2204,6 +2204,7 @@ end subroutine normal_new_factorization_rf_y
                 enddo
              endif ! iaens>0
           enddo
+
           do ic2=1,nc2d
              iaens=ensgrp2aensgrp(ig,ic2+nc3d,ibin)
              if(iaens>0) then
@@ -3648,7 +3649,7 @@ subroutine bkerror_a_en(grady)
            z2=zero
            do ig2=1,naensgrp
               do k=1,nval_lenz_en
-                 z2(k) = z2(k) + z(k,ig2) * alphacvarsclgrpmat(ig2,ig)  
+                 z2(k) = z2(k) + z(k,ig2) * alphacvarsclgrpmat(ig,ig2)  
               enddo
            enddo
            call ckgcov_a_en_new_factorization(ig,z2,grady%aens(ii,ig,1:n_ens))
@@ -3714,11 +3715,7 @@ subroutine bkgcov_a_en_new_factorization(ig,a_en)
   real(r_kind) hwork(grd_loc%inner_vars,grd_loc%nlat,grd_loc%nlon,grd_loc%kbegin_loc:grd_loc%kend_alloc)
   real(r_kind),allocatable,dimension(:):: a_en_work
 
-  call gsi_bundlegetpointer(a_en(1),'a_en',ipnt,istatus)
-  if(istatus/=0) then
-     write(6,*)'bkgcov_a_en_new_factorization: trouble getting pointer to ensemble CV'
-     call stop2(999)
-  endif
+  ipnt=1
 
 ! Apply vertical smoother on each ensemble member
 ! To avoid my having to touch the general sub2grid and grid2sub,

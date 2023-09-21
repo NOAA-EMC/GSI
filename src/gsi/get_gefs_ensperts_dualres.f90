@@ -187,12 +187,12 @@ subroutine get_gefs_ensperts_dualres
           do j=1,jm
              do i=1,im
 !  Use following lines for results identical to previous version
-!               tv(i,j,k)= tv(i,j,k)*(one+fv*q(i,j,k))
-!               q(i,j,k)=max(q(i,j,k),zero)
-!               tsen(i,j,k)=tv(i,j,k)/(one+fv*q(i,j,k))
+                tv(i,j,k)= tv(i,j,k)*(one+fv*q(i,j,k))
                 q(i,j,k)=max(q(i,j,k),zero)
-                tsen(i,j,k)=tv(i,j,k)
-                tv(i,j,k)= tsen(i,j,k)*(one+fv*q(i,j,k))
+                tsen(i,j,k)=tv(i,j,k)/(one+fv*q(i,j,k))
+!               q(i,j,k)=max(q(i,j,k),zero)
+!               tsen(i,j,k)=tv(i,j,k)
+!               tv(i,j,k)= tsen(i,j,k)*(one+fv*q(i,j,k))
              end do
           end do
        end do

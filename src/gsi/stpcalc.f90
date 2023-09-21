@@ -263,7 +263,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
   real(r_quad),parameter:: one_tenth_quad = 0.1_r_quad 
 
 ! Declare local variables
-  integer(i_kind) i,j,mm1,ii,iis,ibin,ipenloc,it
+  integer(i_kind) i,j,mm1,ii,ibin,ipenloc,it
   integer(i_kind) istp_use,nstep,nsteptot,kprt
   real(r_quad),dimension(4,ipen):: pbc
   real(r_quad),dimension(4,nobs_type):: pbcjo 
@@ -429,7 +429,6 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
      pbc=zero_quad
      pjcalc=.false.
      if(iter == 0 .and. kprt >= 2 .and. ii == 1)pjcalc=.true.
-     iis=ii
 !    Delta stepsize
   
      sges(1)= stp(ii-1)
