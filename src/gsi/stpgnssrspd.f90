@@ -1,9 +1,11 @@
 module stpgnssrspdmod
 
+
 !$$$ module documentation block
 !           .      .    .                                       .
 ! module:   stpgnssrspdmod    module for stpgnssrspd and its tangent linear stpgnssrspd_tl
-!  prgmmr:
+!  prgmmr: kapodaca          org: Spire Global, Inc.      date: 2022-03-12
+!   Largely based on other stp_* routines 
 !
 ! abstract: module for stpgnssrspd and its tangent linear stpgnssrspd_tl
 !
@@ -14,7 +16,7 @@ module stpgnssrspdmod
 !   2009-08-12  lueken - update documentation
 !   2010-05-13  todling - uniform interface across stp routines
 !   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
-!
+!   2023-09-21  kapodaca - add documentation
 ! subroutine included:
 !   sub stpgnssrspd
 !

@@ -5,6 +5,7 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,s
 !                .      .    .                                       .
 ! subprogram:  read_gnssrspd            read obs from gnssrspd bufr file
 !   prgmmr: kapodaca          org: Spire Global, Inc.                date: 2022-03-12
+!   Largely based on other read_* routines   
 !
 ! abstract:  This routine reads GNSSRSPD L2 wind speed observations
 !
@@ -17,9 +18,8 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,s
 !   2015-02-26  su      - add njqc as an option to choose new non linear qc
 !   2016-03-15  Su      - modified the code so that the program won't stop when no subtype is found in non 
 !                         linear qc error table and b table
-!   2022-03-12  k apodaca- initial coding
-
 !   2015-10-01  guo      - calc ob location once in deg
+!   2022-03-12  k apodaca- initial coding
 !
 !   input argument list:
 !     infile    - unit from which to read BUFR data
