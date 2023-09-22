@@ -897,21 +897,23 @@ real(r_quad) function qdot_prod_sub(xcv,ycv)
      itot=max(m3d,0)+max(m2d,0)
      if(l_hyb_ens)itot=itot+n_ens*naensgrp
      allocate(partsum(itot))
+     partsum=zero_quad
      do ii=1,nsubwin
 !$omp parallel do  schedule(dynamic,1) private(i)
         do i = 1,m3d
-           partsum(i) = dplevs(xcv%step(ii)%r3(i)%q,ycv%step(ii)%r3(i)%q,ihalo=1)
+           partsum(i) = partsum(i)+dplevs(xcv%step(ii)%r3(i)%q,ycv%step(ii)%r3(i)%q,ihalo=1)
         enddo
 !$omp parallel do  schedule(dynamic,1) private(i)
         do i = 1,m2d
-           partsum(m3d+i) = dplevs(xcv%step(ii)%r2(i)%q,ycv%step(ii)%r2(i)%q,ihalo=1)
+           partsum(m3d+i) = partsum(m3d+i)+dplevs(xcv%step(ii)%r2(i)%q,ycv%step(ii)%r2(i)%q,ihalo=1)
         enddo
         if(l_hyb_ens) then
            do ig=1,naensgrp
               nigtmp=n_ens*(ig-1)
 !$omp parallel do  schedule(dynamic,1) private(i)
               do i = 1,n_ens
-                 partsum(m3d+m2d+nigtmp+i) = dplevs(xcv%aens(ii,ig,i)%r3(1)%q,ycv%aens(ii,ig,i)%r3(1)%q,ihalo=1)
+                 partsum(m3d+m2d+nigtmp+i) = partsum(m3d+m2d+nigtmp+i) + &
+                        dplevs(xcv%aens(ii,ig,i)%r3(1)%q,ycv%aens(ii,ig,i)%r3(1)%q,ihalo=1)
               end do
            end do
         end if
