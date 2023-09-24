@@ -829,7 +829,11 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
               ! Prevent out of bounds reference from temperature
               if ( bufr_index(l) == 0 ) cycle
               i = bufr_index(l)
-              data_all(l+nreal,itx) = temperature(i)   ! brightness temerature
+              if(i /= 0)then
+                 data_all(l+nreal,itx) = temperature(i)   ! brightness temerature
+              else
+                 data_all(l+nreal,itx) = tbmin
+              end if
            end do
            nrec(itx)=irec
 
