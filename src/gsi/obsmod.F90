@@ -1044,7 +1044,7 @@ contains
                 if(.not.l_mkdir_stat) then
                    ierror=GETLASTERRORQQ()
                    write(6, *) "INIT_DIRECTORIES:  ***ERROR** Failed to create directory ", &
-                        trim(loc_dirname)," for PE ", loc_pe_name, ' ierror= '
+                        trim(loc_dirname)," for PE ", loc_pe_name, ' ierror= ', ierror
                    call stop2(678)
                 endif
              endif
