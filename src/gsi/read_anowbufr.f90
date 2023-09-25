@@ -51,7 +51,7 @@ subroutine read_anowbufr(nread,ndata,nodata,gstime,&
         elev_missing,site_scale,tunable_error,&
         code_pm25_ncbufr,code_pm25_anowbufr,&
         code_pm10_ncbufr,code_pm10_anowbufr,&
-        anowbufr_ext,pm10_da_scheme,pm2_5_teom_max,pm10_teom_max
+        anowbufr_ext,pm2_5_teom_max,pm10_teom_max
 
   use mpimod, only: npe
 

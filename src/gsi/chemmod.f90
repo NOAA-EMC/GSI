@@ -42,7 +42,7 @@ module chemmod
 ! fv3smoke
   public :: naero_smoke_fv3,aeronames_smoke_fv3
   public :: pm2_5_innov_threshold,pm2_5_urban_innov_threshold,pm2_5_bg_threshold 
-  public :: pm10_innov_threshold,pm10_urban_innov_threshold,pm10_bg_threshold,pm10_obs_threshold,pm10_da_scheme
+  public :: pm10_innov_threshold,pm10_urban_innov_threshold,pm10_bg_threshold,pm10_obs_threshold
 
   public :: naero_gocart_wrf,aeronames_gocart_wrf
 
@@ -78,7 +78,7 @@ module chemmod
   logical :: luse_deepblue
   character(len=max_varname_length) :: crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file
   integer(i_kind) :: aod_qa_limit  ! qa >=  aod_qa_limit will be retained
-  integer(i_kind) :: icvt_cmaq_fv3,pm10_da_scheme
+  integer(i_kind) :: icvt_cmaq_fv3
   real(r_kind)    :: raod_radius_mean_scale,raod_radius_std_scale
   real(r_kind)    :: ppmv_conv = 96.06_r_kind/28.964_r_kind*1.0e+3_r_kind
   real(r_kind)    :: pm2_5_innov_threshold,pm2_5_urban_innov_threshold,pm2_5_bg_threshold
@@ -326,7 +326,6 @@ contains
     pm10_urban_innov_threshold = 30.0_r_kind
     pm10_bg_threshold = 2.0_r_kind
     pm10_obs_threshold = 140.0_r_kind ! Barry's manuscript
-    pm10_da_scheme = 1            ! 1: Assmilate full PM10; 2: assimilate pm10-pm2.5
     l_aoderr_table = .false.
     icvt_cmaq_fv3   = 1           ! 1: Control variable is individual aerosol specie; 2: CV is total mass per I,J,K mode
     raod_radius_mean_scale = 1.0_r_kind  ! Tune radius of particles when calculating AOD using CRTM
