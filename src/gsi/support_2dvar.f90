@@ -2465,7 +2465,7 @@ subroutine relocsfcob(rlon8,rlat8,cobtypein,cstationin,kxin)
      js=max(1,(jstart-jneighbour))
      je=min((jstart+jneighbour),ny)
 
-     ris=float(is)
+     ris=real(is,r_single)
      rie=float(ie)
      rjs=float(js)
      rje=float(je)

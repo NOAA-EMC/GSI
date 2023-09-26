@@ -123,8 +123,8 @@ subroutine divvort_to_psichi(nx0,ny0,mmax0,nmax0,rld0,qg)
 
       pi = four*atan(one)
 
-      xmax = float(nx-1)
-      ymax = float(ny-1)
+      xmax = real(nx-1,r_kind)
+      ymax = real(ny-1,r_kind)
 !     write(6,*) ' in divvort_to_psichi: xmax,ymax,=',xmax,ymax
 !
 !==> compute trig tables for fft routines.
@@ -134,14 +134,14 @@ subroutine divvort_to_psichi(nx0,ny0,mmax0,nmax0,rld0,qg)
 !
 !==> set up wavenumbers used in fourier differentiation.
       do 100 i=1,nwavesx
-         rk(i) = two*pi*float(i-1)/xmax
+         rk(i) = two*pi*real(i-1,r_kind)/xmax
 100   continue
 
       ny2 = (ny/2)+1
       do 200 j=1,ny
          mm = j/ny2
          m = mm*ny+1
-         wavey = two*pi*float(j-m)/ymax
+         wavey = two*pi*real(j-m,r_kind)/ymax
          if (j<=nmax+1 .or. j>=ny-nmax+1) then
          indx = j-m+nmax+1
          indxy(indx) = j

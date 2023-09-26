@@ -313,10 +313,10 @@ contains
      polsu=polsu+grid3(1 ,ix)*coslon(ix)+grid1(1 ,ix)*sinlon(ix)
      polsv=polsv+grid3(1 ,ix)*sinlon(ix)-grid1(1 ,ix)*coslon(ix)
   end do
-  polnu=polnu/float(nlon)
-  polnv=polnv/float(nlon)
-  polsu=polsu/float(nlon)
-  polsv=polsv/float(nlon)
+  polnu=polnu/real(nlon,r_kind)
+  polnv=polnv/real(nlon,r_kind)
+  polsu=polsu/real(nlon,r_kind)
+  polsv=polsv/real(nlon,r_kind)
 ! work(1 is u, work(2 is v
   do j=1,nlon
      do i=2,nlat-1
@@ -452,7 +452,7 @@ contains
      vor_s = vor_s + grid_vor( 1,ix)
      vor_n = vor_n + grid_vor(ny,ix)
   end do
-  rnlon = one/float(nlon)
+  rnlon = one/real(nlon,r_kind)
   div_s = div_s*rnlon
   div_n = div_n*rnlon
   vor_s = vor_s*rnlon
@@ -758,10 +758,10 @@ end subroutine uv2vordiv
      polnv=polnv+grid3n(ix)*sinlon(ix)+coslon(ix)*grid1n(ix)
      polsv=polsv+grid3s(ix)*sinlon(ix)-coslon(ix)*grid1s(ix)
   end do
-  polnu=polnu/float(nlon)
-  polsu=polsu/float(nlon)
-  polnv=polnv/float(nlon)
-  polsv=polsv/float(nlon)
+  polnu=polnu/real(nlon,r_kind)
+  polsu=polsu/real(nlon,r_kind)
+  polnv=polnv/real(nlon,r_kind)
+  polsv=polsv/real(nlon,r_kind)
   
   do ix=1,nlon
      grid3(ny,ix)=grid3(ny,ix)+polnu*coslon(ix)+polnv*sinlon(ix)
@@ -1357,9 +1357,9 @@ end subroutine uv2vordiv
 ! Load coefficient array
   ri=one/r
   pih=pi/two
-  pi2onx=pi/float(nxh)
+  pi2onx=pi/real(nxh,r_kind)
   do ix=1,nxh
-     coef(lacoy1+ix-1)=(float(ix)-half)*pi2onx
+     coef(lacoy1+ix-1)=(real(ix,r_kind)-half)*pi2onx
   enddo
 
   call cdcoef(nxh,noq,zero,pi,coef(lacoy1),w&
@@ -1980,10 +1980,10 @@ end subroutine uv2vordiv
         polsu=polsu+grid3(1 ,ix)*coslon(ix)
         polsv=polsv+grid3(1 ,ix)*sinlon(ix)
      end do
-     polnu=two*polnu/float(nlon)
-     polnv=two*polnv/float(nlon)
-     polsu=two*polsu/float(nlon)
-     polsv=two*polsv/float(nlon)
+     polnu=two*polnu/real(nlon,r_kind)
+     polnv=two*polnv/real(nlon,r_kind)
+     polsu=two*polsu/real(nlon,r_kind)
+     polsv=two*polsv/real(nlon,r_kind)
      do ix=1,nlon
         grid3n(ix)= polnu*coslon(ix)+polnv*sinlon(ix)
         grid3s(ix)= polsu*coslon(ix)+polsv*sinlon(ix)
@@ -2073,10 +2073,10 @@ end subroutine uv2vordiv
         polsu=polsu+coslon(ix)*grid3s(ix)
         polsv=polsv+sinlon(ix)*grid3s(ix)
      end do
-     polnu=two*polnu/float(nlon)
-     polnv=two*polnv/float(nlon)
-     polsu=two*polsu/float(nlon)
-     polsv=two*polsv/float(nlon)
+     polnu=two*polnu/real(nlon,r_kind)
+     polnv=two*polnv/real(nlon,r_kind)
+     polsu=two*polsu/real(nlon,r_kind)
+     polsv=two*polsv/real(nlon,r_kind)
      do ix=1,nlon
         grid3(ny,ix)=grid3(ny,ix)+coslon(ix)*polnu+sinlon(ix)*polnv
         grid3(1 ,ix)=grid3(1 ,ix)+coslon(ix)*polsu+sinlon(ix)*polsv
@@ -2214,10 +2214,10 @@ end subroutine uv2vordiv
         polsu=polsu+grid4(1 ,ix)*sinlon(ix)
         polsv=polsv-grid4(1 ,ix)*coslon(ix)
      end do
-     polnu=two*polnu/float(nlon)
-     polnv=two*polnv/float(nlon)
-     polsu=two*polsu/float(nlon)
-     polsv=two*polsv/float(nlon)
+     polnu=two*polnu/real(nlon,r_kind)
+     polnv=two*polnv/real(nlon,r_kind)
+     polsu=two*polsu/real(nlon,r_kind)
+     polsv=two*polsv/real(nlon,r_kind)
      do ix=1,nlon
         grid4n(ix)=-polnu*sinlon(ix)+polnv*coslon(ix)
         grid4s(ix)= polsu*sinlon(ix)-polsv*coslon(ix)
@@ -2314,10 +2314,10 @@ end subroutine uv2vordiv
         polsu=polsu+sinlon(ix)*grid4s(ix)
         polsv=polsv-coslon(ix)*grid4s(ix)
      end do
-     polnu=two*polnu/float(nlon)
-     polnv=two*polnv/float(nlon)
-     polsu=two*polsu/float(nlon)
-     polsv=two*polsv/float(nlon)
+     polnu=two*polnu/real(nlon,r_kind)
+     polnv=two*polnv/real(nlon,r_kind)
+     polsu=two*polsu/real(nlon,r_kind)
+     polsv=two*polsv/real(nlon,r_kind)
      do ix=1,nlon
         grid4(ny,ix)=grid4(ny,ix)-sinlon(ix)*polnu+coslon(ix)*polnv
         grid4(1 ,ix)=grid4(1 ,ix)+sinlon(ix)*polsu-coslon(ix)*polsv
