@@ -2368,20 +2368,22 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
         endif
       end do
 
-      do i=1, nchanl                      ! use surface channel to derive cloud amount
-        m = nuchan(ich(i))
-        if ( m == isurface_chan ) then     ! interpolate cloud top temperature
-          cloud_temperature = ((tvp(lcloud) -tvp(lcloud -1)/ log(prsltmp(lcloud) / prsltmp(lcloud - 1))) &
+      if ( lcloud >= 2 ) then
+        do i=1, nchanl                      ! use surface channel to derive cloud amount
+          m = nuchan(ich(i))
+          if ( m == isurface_chan ) then     ! interpolate cloud top temperature
+            cloud_temperature = ((tvp(lcloud) -tvp(lcloud -1)/ log(prsltmp(lcloud) / prsltmp(lcloud - 1))) &
                         *log(cldp/prsltmp(lcloud-1))) + tvp(lcloud-1)
-          call crtm_planck_radiance(1,m,tb_bc(i),radiance_chan)           ! observation radiance. same as tb_obs + bias correction
-          call crtm_planck_radiance(1,m,tsim(i),radiance_model)           ! model derived radiance
-          call crtm_planck_radiance(1,m,cloud_temperature,radiance_cloud) ! cloud top temperature radiance
-          cloudp = (radiance_chan - radiance_model) / (radiance_cloud - radiance_model)
-          cloudp = min(max(cloudp,zero),one)
-          exit
-        endif   ! surface channel
-      end do
-      cldp = cldp * r10
+            call crtm_planck_radiance(1,m,tb_bc(i),radiance_chan)           ! observation radiance. same as tb_obs + bias correction
+            call crtm_planck_radiance(1,m,tsim(i),radiance_model)           ! model derived radiance
+            call crtm_planck_radiance(1,m,cloud_temperature,radiance_cloud) ! cloud top temperature radiance
+            cloudp = (radiance_chan - radiance_model) / (radiance_cloud - radiance_model)
+            cloudp = min(max(cloudp,zero),one)
+            exit
+          endif   ! surface channel
+        end do
+        cldp = cldp * r10
+      endif
     endif
   endif
 
