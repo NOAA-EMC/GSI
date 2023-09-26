@@ -448,7 +448,7 @@ contains
     hwllp_howv          = 170000.0_r_kind             ! 170,000.0 meters (170km as default for 3DRTMA, 50km is used in 2DRTMA)
     i_howv_3dda         = 0                           ! no analysis of significant wave height (howv) in 3D analysis (default)
 
-!-- searching for speficif variable in state variable list (reading from anavinfo)
+!-- searching for specific variable in state variable list (reading from anavinfo)
     do i2=1,ns2d
       if ( trim(svars2d(i2))=='howv' .or. trim(svars2d(i2))=='HOWV'   ) then
         i_howv_3dda = 1

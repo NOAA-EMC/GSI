@@ -1919,7 +1919,6 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
            i_howv_3dda = 0                ! howv does not exist in firstguess, then stop GSI run.
            call die('gsi_fv3ncdf2d_read','Warning: CANNOT find howv in firstguess, aborting..., iret = ', iret)
          else
-           i_howv_3dda = 1                ! howv does exist in firstguess, running analysis with howv 
            write(6,'(1x,A,1x,A,1x,A,1x,I4,1x,I4,1x,A,1x,I4.4,A)') 'gsi_fv3ncdf2d_read:: Found howv in firstguess ',  &
              trim(sfcdata), ', iret, varid = ',iret, id_howv,' (on pe: ', mype,').'
          end if
