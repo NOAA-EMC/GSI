@@ -368,8 +368,8 @@ subroutine sfilter(grd,sp,filter,grid)
 
   call general_sptez_s(sp,spec_work,work,-1)
 
-  gnlon=float(grd%nlon)
-! gnlon=real(grd%nlon,r_kind)
+! gnlon=float(grd%nlon)
+  gnlon=real(grd%nlon,r_kind)
   do i=1,sp%nc
      spec_work(i)=spec_work(i)*gnlon
   end do

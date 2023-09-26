@@ -2057,9 +2057,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     if(oelev>7000.0_r_kind) cycle loop_k_levs
                     if(abs(diffvv)>5.0_r_kind.and.oelev<5000.0_r_kind) cycle loop_k_levs
                    ! write(6,*)'sliu diffuu,vv::',diffuu, diffvv
-                    uob=0.0
-                    vob=0.0
-                    oelev=0.0
+                    uob=zero
+                    vob=zero
+                    oelev=zero
                     tkk=0
                     do ikkk=k,klev
                       diffhgt=obsdat(4,ikkk)-obsdat(4,k)
