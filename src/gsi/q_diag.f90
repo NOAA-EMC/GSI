@@ -147,7 +147,7 @@ subroutine q_diag(it,mype)
      call load_grid(work_pw,grid_pw)
      globps=zero
      globpw=zero
-     rlon=one/float(nlon)
+     rlon=one/real(nlon,r_kind)
      do jj=2,nlat-1
         j=jj-1
         fmeanps=zero

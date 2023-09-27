@@ -835,7 +835,8 @@ contains
          call stop2(101)
       end if
 
-      fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+      fhour = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+            real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
       odate(1) = idate(4)  !hour
       odate(2) = idate(2)  !month
       odate(3) = idate(3)  !day
@@ -1300,7 +1301,8 @@ contains
           call stop2(102)
        end if
 
-       fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+       fhour = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+               real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
        odate(1) = idate(4)  !hour
        odate(2) = idate(2)  !month
        odate(3) = idate(3)  !day
@@ -1699,7 +1701,8 @@ contains
        call stop2(102)
     end if
 
-    fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+    fhour = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+            real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
     odate(1) = idate(4)  !hour
     odate(2) = idate(2)  !month
     odate(3) = idate(3)  !day
@@ -2029,7 +2032,8 @@ contains
           call stop2(istop)
        end if
 
-       fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+       fhour = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+               real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
        odate(1) = idate(4)  !hour
        odate(2) = idate(2)  !month
        odate(3) = idate(3)  !day
@@ -5469,8 +5473,8 @@ contains
      sumn = ain(i,1)    + sumn
      sums = ain(i,latb) + sums
   end do
-  sumn = sumn/float(lonb)
-  sums = sums/float(lonb)
+  sumn = sumn/real(lonb,r_kind)
+  sums = sums/real(lonb,r_kind)
 !  Transfer from local work array to surface guess array
   do j = 1,lonb
      aout(1,j)=sums

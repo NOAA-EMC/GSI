@@ -617,7 +617,7 @@ subroutine polcas(afg,axr,nxem,norm,naxr,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
   do i=0,naxr-1
      valp=valp+axr(i,mr+1)
   end do
-  valp=valp/float(naxr)
+  valp=valp/real(naxr,r_kind)
   do i=0,naxr-1
      axr(i,mr)=valp
   end do
@@ -692,7 +692,7 @@ subroutine polcasa(afg,axr,nxem,norm,naxr,wtaxs,wtxrs,inaxs,inxrs,nf,mr,nr)
   do i=0,naxr-1
      valp=valp+axr(i,mr)
   end do
-  valp=valp/float(naxr)
+  valp=valp/real(naxr,r_kind)
   do i=0,naxr-1
      axr(i,mr)=zero
      axr(i,mr+1)=axr(i,mr+1)+valp
