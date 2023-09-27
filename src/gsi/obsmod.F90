@@ -1044,12 +1044,12 @@ contains
 
     integer(i_kind),intent(in   ) :: in_pe
     integer(i_kind),intent(in   ) :: num_pe
-    logical :: l_mkdir_stat
+    logical :: l_mkdir_stat, l_dir_exist
 
     character(len=144):: command
     character(len=8):: pe_name, loc_pe_name
     character(len=128):: loc_dirname
-    integer(i_kind) :: i
+    integer(i_kind) :: i, ierror
 
     if (lrun_subdirs) then
        write(pe_name,'(i4.4)') in_pe
@@ -1060,10 +1060,15 @@ contains
              write(loc_pe_name,'(i4.4)') i
              loc_dirname = 'dir.'//trim(loc_pe_name)
 #ifdef __INTEL_COMPILER
-             l_mkdir_stat = MAKEDIRQQ(trim(loc_dirname))
-             if(.not. l_mkdir_stat) then
-                write(6, *) "Failed to create directory ", trim(loc_dirname), " for PE ", loc_pe_name
-                call stop2(678)
+             INQUIRE(directory=trim(loc_dirname), exist=l_dir_exist)
+             if (.not.l_dir_exist) then
+                l_mkdir_stat = MAKEDIRQQ(trim(loc_dirname))
+                if(.not.l_mkdir_stat) then
+                   ierror=GETLASTERRORQQ()
+                   write(6, *) "INIT_DIRECTORIES:  ***ERROR** Failed to create directory ", &
+                        trim(loc_dirname)," for PE ", loc_pe_name, ' ierror= ', ierror
+                   call stop2(678)
+                endif
              endif
 #else
              command = 'mkdir -p -m 755 ' // trim(loc_dirname)
