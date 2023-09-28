@@ -646,7 +646,7 @@ contains
         enddo 
  !
  ! CALCULATE ENSEMBLE MEAN
-        bar_norm = one/float(n_ens_fv3sar)
+        bar_norm = one/real(n_ens_fv3sar,r_kind)
         en_bar(m)%values=en_bar(m)%values*bar_norm
  
  ! Copy pbar to module array.  ps_bar may be needed for vertical localization
@@ -1390,7 +1390,7 @@ contains
             call stop2(9999)
          endif
   
-         sp_norm=(one/float(n_ens))
+         sp_norm=one/real(n_ens,r_kind)
   
          sube%values=zero
   !

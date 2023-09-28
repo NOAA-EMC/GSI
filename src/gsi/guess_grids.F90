@@ -1783,7 +1783,7 @@ contains
              k=1
              DO while (abs(pbl_height(i,j,jj)) < 0.0001_r_kind)
                if( thetav(k) > thsfc + 1.0_r_kind ) then
-                 pbl_height(i,j,jj) = float(k) - (thetav(k) - (thsfc + 1.0_r_kind))/   &
+                 pbl_height(i,j,jj) = real(k,r_kind) - (thetav(k) - (thsfc + 1.0_r_kind))/   &
                              max((thetav(k)-thetav(k-1)),0.01_r_kind)
                endif
                k=k+1
@@ -2318,7 +2318,7 @@ contains
          end do
       end do
    end do
-   work_a(nsig+1)=float(lon1*lat1)
+   work_a(nsig+1)=real(lon1*lat1,r_kind)
 
    call mpi_allreduce(work_a,work_a1,nsig+1,mpi_rtype,mpi_sum,&
        mpi_comm_world,ierror)
@@ -2386,7 +2386,7 @@ contains
          work_a(1) = work_a(1) + a(i,j)
       end do
    end do
-   work_a(2)=float(lon1*lat1)
+   work_a(2)=real(lon1*lat1,r_kind)
 
    call mpi_allreduce(work_a,work_a1,2,mpi_rtype,mpi_sum,&
        mpi_comm_world,ierror)

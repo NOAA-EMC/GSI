@@ -748,7 +748,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
               cycle read_loop 
            end if
 
-!          crit1=crit1 + ten*float(iskip)
+!          crit1=crit1 + ten*real(iskip,r_kind)
 
 !          If the surface channel exists (~960.0 cm-1) and the AVHRR cloud information is missing, use an
 !          estimate of the surface temperature to determine if the profile may be clear.

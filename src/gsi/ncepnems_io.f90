@@ -82,7 +82,8 @@ module ncepnems_io
 !                                      nfsecondn  FCST Secs (i_kind) numerator
 !                                      nfsecondd  FCST Secs (i_kind) denominator
 !
-!       %fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+!       %fhour = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+!                real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
 !
 !   nframe     - nframe is the number of grids extend outward from the
 !                edge of modeling domain.
