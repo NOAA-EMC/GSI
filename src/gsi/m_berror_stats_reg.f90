@@ -870,16 +870,17 @@ end subroutine berror_read_bal_reg
            hwllp(i,n)=hwllp(i,nrf2_ps)
         end do
      else if (n==nrf2_howv) then
-         call read_howv_stats(mlat,1,2,cov_dum)
+         call read_howv_stats(mlat,1,2,cov_dum,mype)
          do i=1,mlat
             corp(i,n)=cov_dum(i,1,1)     !#ww3
             hwllp(i,n) = cov_dum(i,1,2) 
          end do
          hwllp(0,n) = hwllp(1,n)
          hwllp(mlat+1,n) = hwllp(mlat,n)
-
-         if (mype==0) print*, 'corp(i,n) = ', corp(:,n)
-         if (mype==0) print*, ' hwllp(i,n) = ',  hwllp(:,n)
+         if (mype==0) then
+            print*, myname_, ' static BE corp( :,n) (for ', trim(adjustl(cvars2d(n))), ')= ', corp(:,n)
+            print*, myname_, ' static BE hwllp(:,n) (for ', trim(adjustl(cvars2d(n))), ')= ', hwllp(:,n)
+         end if
 !         corp(:,n)=cov_dum(:,1)
         !do i=1,mlat
         !   corp(i,n)=0.4_r_kind     !#ww3
@@ -1055,7 +1056,7 @@ end subroutine berror_read_bal_reg
 end subroutine berror_read_wgt_reg
 
 !++++
-subroutine read_howv_stats(nlat,nlon,npar,arrout)
+subroutine read_howv_stats(nlat,nlon,npar,arrout,mype)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram: read_howv_stats   
@@ -1090,6 +1091,9 @@ subroutine read_howv_stats(nlat,nlon,npar,arrout)
 ! program history log:
 !   2016-08-03  stelios
 !   2016-08-26  stelios : Compatible with GSI.
+!   2023-07-30  Zhao    - added code to set the background error 
+!                         standard deviation (corp_howv) and de-correlation
+!                         length scale (hwllp_howv) for non-2DRTMA run
 !   input argument list:
 !     filename -  The name of the file 
 !   output argument list:
@@ -1102,10 +1106,14 @@ subroutine read_howv_stats(nlat,nlon,npar,arrout)
 !$$$ end documentation block
 !
    use kinds,only : r_kind, i_kind
+   use gridmod, only : twodvar_regional
+   use rapidrefresh_cldsurf_mod, only : corp_howv, hwllp_howv
+   use gsi_io, only : verbose
 !
    implicit none
 ! Declare passed variables
    integer(i_kind),   intent(in   )::nlat,nlon,npar
+   integer(i_kind),   intent(in   ) :: mype  ! "my" processor ID
    real(r_kind), dimension(nlat ,nlon, npar),  intent(  out)::arrout
 ! Declare local variables
    integer(i_kind) :: reclength,i,j,i_npar
@@ -1117,12 +1125,18 @@ subroutine read_howv_stats(nlat,nlon,npar,arrout)
 !
    filename(1) = 'howv_var_berr.bin'
    filename(2) = 'howv_lng_berr.bin'
-!
-   arrout(:,:,1)=0.42_r_kind
-   arrout(:,:,2)=50000.0_r_kind
+!-- first, assign the pre-defined values to corp and hwllp
+   if ( twodvar_regional ) then
+      arrout(:,:,1)=0.42_r_kind           ! values were specified by Manuel and Stelio for 2DRTMA
+      arrout(:,:,2)=50000.0_r_kind        ! values were specified by Manuel and Stelio for 2DRTMA
+   else
+      arrout(:,:,1) = corp_howv           ! 0.42_r_kind used in 3dvar (default) if not set in namelist
+      arrout(:,:,2) = hwllp_howv          ! 17000.0_r_kind used in 3dvar (default) if not set in namelist
+   end if
 
    reclength=nlat*r_kind
-!
+!-- secondly, if files for corp and hwllp are available, then read them in for
+!     corp and hwllp. If the files are not found, then use the pre-defined values.
    do i_npar = 1,npar
       inquire(file=trim(filename(i_npar)), exist=file_exists)
       if (file_exists)then
@@ -1132,9 +1146,16 @@ subroutine read_howv_stats(nlat,nlon,npar,arrout)
             read(unit=lun34 ,rec=j) (arrout(i,j,i_npar), i=1,nlat)
          enddo
          close(unit=lun34)
+         if (verbose .and. mype .eq. 0) then         
+           write(6,'(1x,A,1x,A2,1x,A)') trim(adjustl(myname)), '::',    &
+             trim(filename(i_npar))//' is used for background error of howv.'
+         end if
 
       else 
-         print*,myname, trim(filename(i_npar)) // ' does not exist'
+         if (verbose .and. mype .eq. 0) then         
+           write(6,'(1x,A,1x,A2,1x,A)') trim(adjustl(myname)), '::',    &
+             trim(filename(i_npar))//' does not exist for static BE of howv, using pre-defined values.'
+         end if
       end if
    end do
 end subroutine read_howv_stats
