@@ -574,12 +574,14 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
           else
             ddiff = oneobddiff
             data(ifedob,i) = FEDMdiag(i)+ddiff
+            oneobvalue = data(ifedob,i) 
           endif
           write(6,*)"FED_ONEOB: O_Val,B_Val= ",data(ifedob,i),FEDMdiag(i)
           write(6,*)"FED_ONEOB: Innov,Error= ",ddiff,magoberr
         else
-          ddiff = data(ifedob,i) - FEDMdiag(i)
-       end if
+          data(ifedob,i) = oneobvalue
+          ddiff = oneobvalue - FEDMdiag(i)
+        end if 
      end if !oneob
            
 !    Gross error checks
