@@ -12,7 +12,7 @@
       use kinds,only : i_kind,r_kind
       use constants, only: zero,one,max_varname_length,half
       use gridmod, only: nsig
-      use chemmod, only : berror_chem,berror_fv3_cmaq_regional,upper2lower,lower2upper
+      use chemmod, only : berror_chem,berror_fv3_cmaq_regional,berror_fv3_sd_regional,upper2lower,lower2upper
       use m_berror_stats, only: usenewgfsberror,berror_stats
 
       implicit none
@@ -312,7 +312,7 @@ end subroutine berror_read_bal_reg
       use constants, only: zero,one,ten,three
       use mpeu_util,only: getindex
       use radiance_mod, only: icloud_cv,n_clouds_fwd,cloud_names_fwd
-      use chemmod, only: berror_fv3_cmaq_regional
+      use chemmod, only: berror_fv3_cmaq_regional,berror_fv3_sd_regional
 
       implicit none
 
@@ -466,7 +466,7 @@ end subroutine berror_read_bal_reg
         var=upper2lower(varshort)
         if (trim(var) == 'pm25') var = 'pm2_5'
      else 
-        if ( berror_fv3_cmaq_regional) then
+        if ( berror_fv3_cmaq_regional .or. berror_fv3_sd_regional) then
           read(inerr,iostat=istat) varlong, isig
           var=varlong
         else
