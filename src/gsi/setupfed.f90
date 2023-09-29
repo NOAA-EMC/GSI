@@ -18,9 +18,10 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
 !                   work of Sebok and Back (2021, unpublished)
 !                 - capped maximum model FED
 !                Hongli Wang         NOAA GSL    2023-09-14
-!                 - Add option to use fed from background file to cal fed innov
-!                 - fed in BG exist (if_model_fed=.true.), and is used 
-!                    to cal innov (innov_use_model_fed=.true.)
+!                 - Add option to use fed from background file to calculate fed innov
+!                     - The bellow two namelist parameters need to be true
+!                        - if_model_fed=.true.          fed in BG exist
+!                        - innov_use_model_fed=.true.   turn on flag to use FED from BG to cal innov
 !
 !
   use mpeu_util, only: die,perr
@@ -34,7 +35,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
   use obsmod, only: rmiss_single,&
        lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset                                                   
   use obsmod, only: oberror_tune
-  use obsmod, only: if_model_fed,innov_use_model_fed
+  use obsmod, only: if_model_fed,innov_use_model_fed,dofedoneob,oneobddiff,oneobvalue
   use m_obsNode, only: obsNode
   use m_fedNode, only: fedNode
   use m_fedNode, only: fedNode_appendto
@@ -234,6 +235,10 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter
   end do
+
+  if (dofedoneob) then
+    muse=.true.
+  end if
 
   numequal=0
   numnotequal=0
@@ -527,9 +532,9 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
 
      npt = 0
      FEDMdiag(i) = 0.
-     if ( if_model_fed .and. innov_use_model_fed) then
+     if (if_model_fed .and. innov_use_model_fed) then
         !use fed from background file
-        call tintrp2a11(ges_fed(:,:,1,:),FEDMdiag(i),dlat,dlon,dtime,hrdifsig,mype,nfldsig) 
+        call tintrp31(ges_fed,FEDMdiag(i),      dlat,dlon,dpres,dtime,hrdifsig,mype,nfldsig)       
      else
         call tintrp2a11(rp,FEDMdiag(i),dlat,dlon,dtime,hrdifsig,mype,nfldsig)
      end if
@@ -557,24 +562,29 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
      !--------------Calculate departure from observation----------------!
      
      ddiff = data(ifedob,i) - FEDMdiag(i)
-
-!    If requested, setup for single obs test.
-!    Note: do not use this way to run single obs test for fed in the current version. (g.zhao)
-     if (oneobtest) then
-        ddiff=maginnov
-!        if (trim(adjustl(oneob_type))=='fed') then
-!           data(ifedob,i) = maginnov
-!           ddiff = data(ifedob,i) - FEDMdiag(i)
-!        end if
+     if (dofedoneob) then
+        !use magoberr to define obs error, but oneobtest=.false.
+        if(magoberr <= zero) magoberr=1.0_r_kind 
         error=one/(magoberr)
         ratio_errors=one
-     end if
-
+        if (jiter==1) then
+          if (oneobvalue > 0_r_kind) then
+            data(ifedob,i) = oneobvalue
+            ddiff = data(ifedob,i) - FEDMdiag(i) 
+          else
+            ddiff = oneobddiff
+            data(ifedob,i) = FEDMdiag(i)+ddiff
+          endif
+          write(6,*)"FED_ONEOB: O_Val,B_Val= ",data(ifedob,i),FEDMdiag(i)
+          write(6,*)"FED_ONEOB: Innov,Error= ",ddiff,magoberr
+        else
+          ddiff = data(ifedob,i) - FEDMdiag(i)
+       end if
+     end if !oneob
            
 !    Gross error checks
      obserror = one/max(ratio_errors*error,tiny_r_kind)     
      obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
-     
      residual = abs(ddiff)              != y-H(xb)      
      ratio    = residual/obserrlm       != y-H(xb)/sqrt(R)   
      
@@ -836,7 +846,6 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
      !    get fed ....
          varname='fed'
          call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
-         print*,"FED_setupfed: ",istatus
          if (istatus==0) then
            if(allocated(ges_fed))then
             write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '

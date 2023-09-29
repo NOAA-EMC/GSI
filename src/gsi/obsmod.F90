@@ -488,6 +488,7 @@ module obsmod
   ! --- DBZ DA ---
 
   public :: iout_fed, mype_fed  
+  public :: dofedoneob
 
   public :: obsmod_init_instr_table
   public :: obsmod_final_instr_table
@@ -621,7 +622,7 @@ module obsmod
   integer(i_kind) ntilt_radarfiles,tcp_posmatch,tcp_box
 
   logical ::  ta2tb
-  logical ::  doradaroneob
+  logical ::  doradaroneob,dofedoneob
   logical :: vr_dealisingopt, if_vterminal, if_model_dbz,if_model_fed, innov_use_model_fed,inflate_obserr, if_vrobs_raw, if_use_w_vr, l2rwthin
   character(4) :: whichradar,oneobradid
   real(r_kind) :: oneoblat,oneoblon,oneobddiff,oneobvalue,oneobheight
@@ -756,12 +757,13 @@ contains
     if_use_w_vr=.true.
     if_model_dbz=.false.
     if_model_fed=.false.
-    innov_use_model_fed=.true.
+    innov_use_model_fed=.false.
     inflate_obserr=.false.
     whichradar="KKKK"
 
     oneobradid="KKKK"
     doradaroneob=.false.
+    dofedoneob=.false.
     oneoblat=-999_r_kind
     oneoblon=-999_r_kind
     oneobddiff=-999_r_kind

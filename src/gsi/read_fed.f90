@@ -35,7 +35,7 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
   use gridmod, only: tll2xy
   use mod_wrfmass_to_a, only: wrfmass_obs_to_a8
   use mpimod, only: npe
-  use obsmod, only: perturb_obs,iadatemn
+  use obsmod, only: perturb_obs,iadatemn,dofedoneob,oneoblat,oneoblon
 
   use netcdf
   implicit none
@@ -389,6 +389,8 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
       kint_maxloc=-1
       fed_max=-999.99
       ndata2=0 
+
+      ILOOP : &
       do i=1,numfed
         do k=1,maxlvl
           if( fed3d_column(k+2,i) >= fed_lowbnd2 .or. fed3d_column(k+2,i) == fed_lowbnd) then !Rong Kong
@@ -396,6 +398,12 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
                                                        ! ilone=18    ! index of longitude (degrees)
             dlat_earth = fed3d_column(2,i)                ! latitude (degrees) of observation
                                                        ! ilate=19    ! index of latitude (degrees)
+
+           if (dofedoneob) then
+             dlat_earth=oneoblat
+             dlon_earth=oneoblon
+           endif
+
            !-Check format of longitude and correct if necessary
            if(dlon_earth>=r360) dlon_earth=dlon_earth-r360
            if(dlon_earth<zero ) dlon_earth=dlon_earth+r360
@@ -405,6 +413,12 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
             rlon00 = dlon_earth*deg2rad
             rlat00 = dlat_earth*deg2rad
             call tll2xy(rlon00,rlat00,dlon,dlat,outside)
+           if (dofedoneob) then
+             if (outside) then
+               write(6,*)'READ_FED: ONE OB OUTSIDE; STOP2(61) ',dlat_earth,dlon_earth
+               call stop2(61)
+             end if
+           end if
             if (outside) cycle
 
                                            !If observation is outside the domain
@@ -425,7 +439,7 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
             cdata_out( 4,ndata2) = hgt_fed(k)          ! obs absolute height (m) above MSL
                                                        ! ipres=4     ! index of pressure
             cdata_out( 5,ndata2) = fed3d_column(k+2,i) ! FED value
-                                                       ! idbzob=5    ! index of dbz observation
+
             cdata_out( 6,ndata2) = rstation_id         ! station id (charstring equivalent to real double)
                                                        ! id=6        ! index of station id
 
@@ -472,6 +486,7 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
                cdata_out(26,ndata2) = 1.0_r_kind       ! obs perturbation
                                                        ! iptrb=26    ! index of q perturbation
             end if
+
 !          print*,'cdata_out(:,ndata2)=',cdata_out(:,ndata2)
             if(fed3d_column(k+2,i) > fed_max)then
                kint_maxloc=k
@@ -480,9 +495,12 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
                i_maxloc=fed3d_column(1,i)
                fed_max =fed3d_column(k+2,i)
             end if
+
+            if( dofedoneob ) exit ILOOP
+
           endif
-        enddo
-      enddo
+        enddo ! k 
+      enddo ILOOP ! i
 
 !---all looping done now print diagnostic output
   write(6,*)'READ_FED: Reached eof on FED file'
