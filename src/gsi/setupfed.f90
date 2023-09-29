@@ -580,7 +580,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
           write(6,*)"FED_ONEOB: Innov,Error= ",ddiff,magoberr
         else
           data(ifedob,i) = oneobvalue
-          ddiff = oneobvalue - FEDMdiag(i)
+          ddiff = data(ifedob,i) - FEDMdiag(i)
         end if 
      end if !oneob
            
