@@ -176,17 +176,21 @@
                             i_coastline,i_gsdqc,qv_max_inc,ioption,l_precip_clear_only,l_fog_off,&
                             cld_bld_coverage,cld_clr_coverage,&
                             i_cloud_q_innovation,i_ens_mean,DTsTmax,&
-                            i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check
+                            i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check, &
+                            corp_howv, hwllp_howv
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
   use chemmod, only : init_chem,berror_chem,berror_fv3_cmaq_regional,oneobtest_chem,&
+       berror_fv3_sd_regional,&
        maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,&
+       anowbufr_ext,&
        oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname, &
        laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue, lread_ext_aerosol, &
-       laeroana_fv3cmaq,laeroana_fv3smoke,pm2_5_innov_threshold,crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
+       laeroana_fv3cmaq,laeroana_fv3smoke,pm2_5_innov_threshold,pm2_5_urban_innov_threshold,pm2_5_bg_threshold,&
+       crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
        icvt_cmaq_fv3, raod_radius_mean_scale,raod_radius_std_scale 
 
   use chemmod, only : wrf_pm2_5,aero_ratios
@@ -503,6 +507,9 @@
 !                           3. fv3_cmaq_regional = .true. 
 !                           4. berror_fv3_cmaq_regional = .true. 
 !  09-15-2022 yokota  - add scale/variable/time-dependent localization
+!  2023-07-30 Zhao    - added namelist options for analysis of significant wave height
+!                       (aka howv in GSI code): corp_howv, hwllp_howv
+!                       (in namelist session rapidrefresh_cldsurf)
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1560,6 +1567,10 @@
 !                           = 2(clean Qg as in 1, and adjustment to the retrieved Qr/Qs/Qnr throughout the whole profile)
 !                           = 3(similar to 2, but adjustment to Qr/Qs/Qnr only below maximum reflectivity level
 !                             and where the dbz_obs is missing);
+!      corp_howv     - real, static background error of howv (stddev error)
+!                           = 0.42 meters (default)
+!      hwllp_howv    - real, background error de-correlation length scale of howv 
+!                           = 170,000.0 meters (default 170 km)
 !
   namelist/rapidrefresh_cldsurf/dfi_radar_latent_heat_time_period, &
                                 metar_impact_radius,metar_impact_radius_lowcloud, &
@@ -1580,11 +1591,18 @@
                                 i_coastline,i_gsdqc,qv_max_inc,ioption,l_precip_clear_only,l_fog_off,&
                                 cld_bld_coverage,cld_clr_coverage,&
                                 i_cloud_q_innovation,i_ens_mean,DTsTmax, &
-                                i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check
+                                i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check, &
+                                corp_howv, hwllp_howv
 
 ! chem(options for gsi chem analysis) :
 !     berror_chem       - .true. when background  for chemical species that require
 !                          conversion to lower case and/or species names longer than 5 chars
+!     berror_fv3_cmaq_regional   - .true. use background error stat for online
+!                                         RRFS_CMAQ model. Control variable
+!                                         names extended up to 10 chars
+!     berror_fv3_sd_regional     - .true. use background error stat for online
+!                                         RRFS_SD model. Control variable
+!                                         names extended up to 10 chars
 !     oneobtest_chem    - one-ob trigger for chem constituent analysis
 !     maginnov_chem     - O-B make-believe residual for one-ob chem test
 !     magoberr_chem     - make-believe obs error for one-ob chem test
@@ -1606,13 +1624,15 @@
 !     luse_deepblue     - whether to use MODIS AOD from the deepblue   algorithm
 !     lread_ext_aerosol - if true, reads aerfNN file for aerosol arrays rather than sigfNN (NGAC NEMS IO)
 
-  namelist/chem/berror_chem,berror_fv3_cmaq_regional,oneobtest_chem,maginnov_chem,magoberr_chem,&
+  namelist/chem/berror_chem,berror_fv3_cmaq_regional,berror_fv3_sd_regional,& 
+       oneobtest_chem,anowbufr_ext,maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,oblon_chem,obpres_chem,&
        diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname,&
        laeroana_gocart, laeroana_fv3cmaq,laeroana_fv3smoke,l_aoderr_table, aod_qa_limit, &
        crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
        icvt_cmaq_fv3,pm2_5_innov_threshold, &
+       pm2_5_innov_threshold,pm2_5_urban_innov_threshold,pm2_5_bg_threshold,&
        raod_radius_mean_scale,raod_radius_std_scale, luse_deepblue,&
        aero_ratios,wrf_pm2_5, lread_ext_aerosol
 

@@ -419,6 +419,7 @@ fileopen: if (if_input_exist) then
  
  !####################       Data thinning       ###################
         icntpnt=icntpnt+1
+        if(icntpnt>maxobs) exit
 
         if(ithin > 0)then
      

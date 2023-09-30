@@ -134,6 +134,8 @@ module satthin
   use obsmod, only: time_window_max
   use constants, only: deg2rad,rearth_equator,zero,two,pi,half,one,&
        rad2deg,r1000
+  use chemmod, only: laeroana_fv3smoke
+
   implicit none
 
 ! set default to private
@@ -961,7 +963,10 @@ contains
     end if
     if (.not.lobserver) then
        if(allocated(veg_frac)) deallocate(veg_frac)
-       if(allocated(veg_type)) deallocate(veg_type)
+!       veg_type will be used in setuppm2_5.f90 for rrfs_sd PM2.5 DA
+       if(.not. laeroana_fv3smoke )then
+         if(allocated(veg_type)) deallocate(veg_type)
+       endif
        if(allocated(soil_type)) deallocate(soil_type)
        if(allocated(soil_moi)) deallocate(soil_moi)
        if(allocated(sfc_rough)) deallocate(sfc_rough)

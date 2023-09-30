@@ -149,6 +149,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2020-05-04  wu      - no rotate_wind for fv3_regional
 !   2020-09-05  CAPS(C. Tong) - add flag for new vadwind obs to assimilate around the analysis time only
 !   2023-03-23  draper  - add code for processing T2m and q2m for global system
+!   2023-07-30  Zhao    - added code to extract obs of significant wave height (howvob) from bufr record 
+!                         in prepbufr file for 3D analysis
 
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -1132,6 +1134,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if (howvob)             call ufbint(lunin,owave,1,255,levs,owavestr)
               if (cldchob)            call ufbint(lunin,cldceilh,1,255,levs,cldceilhstr)
            endif
+!          Extract obs of howv in 3D Analysis
+!            (if-block is to avoid potential issue if decoding the bufr record twice in 2DRTMA run)
+           if ( .not. twodvar_regional ) then
+              if (howvob)             call ufbint(lunin,owave,1,255,levs,owavestr)
+           endif
            if(kx==224 .and. newvad) then
            call ufbint(lunin,fcstdat,3,255,levs,'UFC VFC TFC ')
            end if
@@ -2050,9 +2057,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     if(oelev>7000.0_r_kind) cycle loop_k_levs
                     if(abs(diffvv)>5.0_r_kind.and.oelev<5000.0_r_kind) cycle loop_k_levs
                    ! write(6,*)'sliu diffuu,vv::',diffuu, diffvv
-                    uob=0.0
-                    vob=0.0
-                    oelev=0.0
+                    uob=zero
+                    vob=zero
+                    oelev=zero
                     tkk=0
                     do ikkk=k,klev
                       diffhgt=obsdat(4,ikkk)-obsdat(4,k)

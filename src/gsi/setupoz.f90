@@ -1720,6 +1720,7 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   type(obs_diag),pointer,intent(in):: odiag
 ! Observation class
   character(7),parameter     :: obsclass = '  ozlev'
+  integer(i_kind),parameter  :: ione = 1
   real(r_kind),dimension(miter) :: obsdiag_iuse
            call nc_diag_metadata_to_single("Latitude",           data(ilate,i)                  )
            call nc_diag_metadata_to_single("Longitude",          data(ilone,i)                  )
@@ -1731,9 +1732,9 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
            call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",ozone_inv            )
            call nc_diag_metadata_to_single("Reference_Pressure", preso3l*r100                   ) ! Pa
            if(luse(i)) then
-             call nc_diag_metadata_to_single("Analysis_Use_Flag",  one                          )
+             call nc_diag_metadata("Analysis_Use_Flag",  ione                                   )
            else
-             call nc_diag_metadata_to_single("Analysis_Use_Flag", -one                          )
+             call nc_diag_metadata("Analysis_Use_Flag", -ione                                   )
            endif
 
            call nc_diag_metadata_to_single("Input_Observation_Error",obserror                   )
