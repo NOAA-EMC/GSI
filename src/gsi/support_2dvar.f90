@@ -2466,7 +2466,7 @@ subroutine relocsfcob(rlon8,rlat8,cobtypein,cstationin,kxin)
      je=min((jstart+jneighbour),ny)
 
      ris=real(is,r_single)
-     rie=real(is,r_single)
+     rie=real(ie,r_single)
      rjs=real(js,r_single)
      rje=real(je,r_single)
 
