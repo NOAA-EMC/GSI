@@ -590,14 +590,17 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
 !    Compute observation pressure (only used for diagnostics)
      dz     = zges(k2)-zges(k1)
      dlnp   = prsltmp(k2)-prsltmp(k1)
-     pobl   = prsltmp(k1) + (dlnp/dz)*(zob-zges(k1))
-
-     presw  = ten*exp(pobl)
-
      if ( l_use_dbz_directDA ) then
-        presq  = presw         
+        pobl   = prsltmp(k1) + (dlnp/dz)*(zob-zges(k1))
+        presw  = ten*exp(pobl)
+        presq  = presw
      else
-        if( (k1 == k2) .and. (k1 == 1) ) presw=ten*exp(prsltmp(k1)) 
+        if( (k1 == k2) .and. (k1 == 1) ) then
+           presw  = ten*exp(prsltmp(k1))
+        else
+           pobl   = prsltmp(k1) + (dlnp/dz)*(zob-zges(k1))
+           presw  = ten*exp(pobl)
+        end if
      end if
 
 !    solution to Nan in some members only for EnKF which causes problem?
