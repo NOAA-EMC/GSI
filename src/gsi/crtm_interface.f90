@@ -1151,11 +1151,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind):: sno00,sno01,sno10,sno11,secant_term
   real(r_kind):: hwp_total,theta_700,theta_sfc,hs
   real(r_kind):: dlon,dlat,dxx,dyy,yy,zz,garea
-  real(r_kind):: radiance_overcast, radiance_ratio
+  real(r_kind):: radiance, radiance_overcast, radiance_ratio
   real(r_kind),dimension(0:3):: wgtavg
   real(r_kind),dimension(nsig,nchanl):: omix
   real(r_kind),dimension(nsig,nchanl,n_aerosols_jac):: jaero
-  real(r_kind),dimension(nchanl) :: uwind_k,vwind_k,radiance
+  real(r_kind),dimension(nchanl) :: uwind_k,vwind_k
   real(r_kind),dimension(msig+1) :: prsi_rtm
   real(r_kind),dimension(msig)  :: prsl_rtm
   real(r_kind),dimension(msig)  :: auxq,auxdp
@@ -2222,7 +2222,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
     chan_level = zero
 
 !$omp parallel do  schedule(dynamic,1) private(i) &
-!$omp private(total_od,k,kk,m,term,ii,cwj)
+!$omp private(total_od,k,kk,m,term,ii,cwj,radiance,radiance_overcast,radiance_ratio)
     do i=1,nchanl
 !   Zero jacobian and transmittance arrays
        do k=1,nsig
@@ -2232,10 +2232,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
          wmix(k,i)=zero
        end do
 
-       radiance(i)=rtsolution(i,1)%radiance
+       radiance=rtsolution(i,1)%radiance
        do k=msig, 1, -1
           radiance_overcast = rtsolution(i,1)%upwelling_overcast_radiance(k)
-          radiance_ratio = abs(radiance_overcast/radiance(i))
+          radiance_ratio = abs(radiance_overcast/radiance)
           if (radiance_ratio < 0.99_r_kind) then
             chan_level(i) = atmosphere(1)%pressure(k) / r10
             exit
