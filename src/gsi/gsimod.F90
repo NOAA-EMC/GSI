@@ -21,10 +21,11 @@
      lread_obs_save,lread_obs_skip,time_window_rad,tcp_posmatch,tcp_box, &
      neutral_stability_windfact_2dvar,use_similarity_2dvar,ta2tb
   use gsi_dbzOper, only: diag_radardbz
+  use gsi_fedOper, only: diag_fed
 
   use obsmod, only: doradaroneob,oneoblat,oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,&
      radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
-     rmesh_vr,zmesh_dbz,zmesh_vr,if_vterminal, if_model_dbz,if_vrobs_raw,&
+     rmesh_vr,zmesh_dbz,zmesh_vr,if_vterminal, if_model_dbz,if_vrobs_raw,if_use_w_vr,&
      minobrangedbz,maxobrangedbz,maxobrangevr,maxtiltvr,missing_to_nopcp,&
      ntilt_radarfiles,whichradar,&
      minobrangevr,maxtiltdbz,mintiltvr,mintiltdbz,l2rwthin,hurricane_radar 
@@ -101,7 +102,7 @@
      factv,factl,factp,factg,factw10m,facthowv,factcldch,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,cwoption,switch_on_derivatives,tendsflag,jiterstart,jiterend,R_option,&
      bcoption,diurnalbc,print_diag_pcg,tsensible,diag_precon,step_start,pseudo_q2,&
-     clip_supersaturation,cnvw_option
+     clip_supersaturation,cnvw_option,hofx_2m_sfcfile
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,&
      nrf_var,lcalc_gfdl_cfrac,incvars_to_zero,incvars_zero_strat,incvars_efold 
@@ -177,17 +178,21 @@
                             i_coastline,i_gsdqc,qv_max_inc,ioption,l_precip_clear_only,l_fog_off,&
                             cld_bld_coverage,cld_clr_coverage,&
                             i_cloud_q_innovation,i_ens_mean,DTsTmax,&
-                            i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check
+                            i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check, &
+                            corp_howv, hwllp_howv
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
   use chemmod, only : init_chem,berror_chem,berror_fv3_cmaq_regional,oneobtest_chem,&
+       berror_fv3_sd_regional,&
        maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,&
+       anowbufr_ext,&
        oblon_chem,obpres_chem,diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname, &
        laeroana_gocart, l_aoderr_table, aod_qa_limit, luse_deepblue, lread_ext_aerosol, &
-       laeroana_fv3cmaq,laeroana_fv3smoke,pm2_5_innov_threshold,crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
+       laeroana_fv3cmaq,laeroana_fv3smoke,pm2_5_innov_threshold,pm2_5_urban_innov_threshold,pm2_5_bg_threshold,&
+       crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
        icvt_cmaq_fv3, raod_radius_mean_scale,raod_radius_std_scale 
 
   use chemmod, only : wrf_pm2_5,aero_ratios
@@ -506,6 +511,9 @@
 !  09-15-2022 yokota  - add scale/variable/time-dependent localization
 !  11-16-2022 Y. Yang, Y. Wang, X. Wang - add the capability of using convective-scale static B.
 !                                         poc: xuguang.wang@ou.edu
+!  2023-07-30 Zhao    - added namelist options for analysis of significant wave height
+!                       (aka howv in GSI code): corp_howv, hwllp_howv
+!                       (in namelist session rapidrefresh_cldsurf)
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -564,6 +572,7 @@
 !     diag_co - logical to turn off or on the diagnostic carbon monoxide file (true=on)
 !     diag_light - logical to turn off or on the diagnostic lightning file (true=on)
 !     diag_radardbz - logical to turn off or on the diagnostic radar reflectivity file (true=on)
+!     diag_fed - logical to turn off or on the diagnostic flash extent density file (true=on)
 !     write_diag - logical to write out diagnostic files on outer iteration
 !     lobsdiagsave - write out additional observation diagnostics
 !     ltlint       - linearize inner loop
@@ -748,8 +757,8 @@
        min_offset,pseudo_q2,&
        iout_iter,npredp,retrieval,&
        tzr_qc,tzr_bufrsave,&
-       diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,diag_light,diag_radardbz,iguess, &
-       write_diag,reduce_diag, &
+       diag_rad,diag_pcp,diag_conv,diag_ozone,diag_aero,diag_co,diag_light,diag_radardbz,diag_fed, &
+       iguess,write_diag,reduce_diag, &
        oneobtest,sfcmodel,dtbduv_on,ifact10,l_foto,offtime_data,&
        use_pbl,use_compress,nsig_ext,gpstop,commgpstop, commgpserrinf, &
        perturb_obs,perturb_fact,oberror_tune,preserve_restart_date, &
@@ -775,7 +784,7 @@
        oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,&
        rmesh_vr,zmesh_dbz,zmesh_vr, ntilt_radarfiles, whichradar,&
        radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
-       minobrangevr, maxtiltdbz, mintiltvr,mintiltdbz,if_vterminal,if_vrobs_raw,&
+       minobrangevr, maxtiltdbz, mintiltvr,mintiltdbz,if_vterminal,if_vrobs_raw,if_use_w_vr,&
        if_model_dbz,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,aircraft_recon,diag_version,&
        write_fv3_incr,incvars_to_zero,incvars_zero_strat,incvars_efold,diag_version,&
        cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef,cnvw_option,l2rwthin,hurricane_radar,&
@@ -1058,7 +1067,7 @@
 !      l_foreaft_thin -   separate TDR fore/aft scan for thinning
 
   namelist/obs_input/dmesh,time_window_max,time_window_rad, &
-       ext_sonde,l_foreaft_thin
+       ext_sonde,l_foreaft_thin,hofx_2m_sfcfile
 
 ! SINGLEOB_TEST (one observation test case setup):
 !      maginnov   - magnitude of innovation for one ob
@@ -1569,6 +1578,10 @@
 !                           = 2(clean Qg as in 1, and adjustment to the retrieved Qr/Qs/Qnr throughout the whole profile)
 !                           = 3(similar to 2, but adjustment to Qr/Qs/Qnr only below maximum reflectivity level
 !                             and where the dbz_obs is missing);
+!      corp_howv     - real, static background error of howv (stddev error)
+!                           = 0.42 meters (default)
+!      hwllp_howv    - real, background error de-correlation length scale of howv 
+!                           = 170,000.0 meters (default 170 km)
 !
   namelist/rapidrefresh_cldsurf/dfi_radar_latent_heat_time_period, &
                                 metar_impact_radius,metar_impact_radius_lowcloud, &
@@ -1589,11 +1602,18 @@
                                 i_coastline,i_gsdqc,qv_max_inc,ioption,l_precip_clear_only,l_fog_off,&
                                 cld_bld_coverage,cld_clr_coverage,&
                                 i_cloud_q_innovation,i_ens_mean,DTsTmax, &
-                                i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check
+                                i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check, &
+                                corp_howv, hwllp_howv
 
 ! chem(options for gsi chem analysis) :
 !     berror_chem       - .true. when background  for chemical species that require
 !                          conversion to lower case and/or species names longer than 5 chars
+!     berror_fv3_cmaq_regional   - .true. use background error stat for online
+!                                         RRFS_CMAQ model. Control variable
+!                                         names extended up to 10 chars
+!     berror_fv3_sd_regional     - .true. use background error stat for online
+!                                         RRFS_SD model. Control variable
+!                                         names extended up to 10 chars
 !     oneobtest_chem    - one-ob trigger for chem constituent analysis
 !     maginnov_chem     - O-B make-believe residual for one-ob chem test
 !     magoberr_chem     - make-believe obs error for one-ob chem test
@@ -1615,13 +1635,15 @@
 !     luse_deepblue     - whether to use MODIS AOD from the deepblue   algorithm
 !     lread_ext_aerosol - if true, reads aerfNN file for aerosol arrays rather than sigfNN (NGAC NEMS IO)
 
-  namelist/chem/berror_chem,berror_fv3_cmaq_regional,oneobtest_chem,maginnov_chem,magoberr_chem,&
+  namelist/chem/berror_chem,berror_fv3_cmaq_regional,berror_fv3_sd_regional,& 
+       oneobtest_chem,anowbufr_ext,maginnov_chem,magoberr_chem,&
        oneob_type_chem,oblat_chem,oblon_chem,obpres_chem,&
        diag_incr,elev_tolerance,tunable_error,&
        in_fname,out_fname,incr_fname,&
        laeroana_gocart, laeroana_fv3cmaq,laeroana_fv3smoke,l_aoderr_table, aod_qa_limit, &
        crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
        icvt_cmaq_fv3,pm2_5_innov_threshold, &
+       pm2_5_innov_threshold,pm2_5_urban_innov_threshold,pm2_5_bg_threshold,&
        raod_radius_mean_scale,raod_radius_std_scale, luse_deepblue,&
        aero_ratios,wrf_pm2_5, lread_ext_aerosol
 
@@ -1988,6 +2010,7 @@
      diag_pcp=.false.
      diag_light=.false.
      diag_radardbz=.false.
+     diag_fed=.false.
      use_limit = 0
   end if
   if(reduce_diag) use_limit = 0
@@ -2056,15 +2079,17 @@
      baldiag_inc =.false.
   end if
 
-! If reflectivity is intended to be assimilated, beta_s0 should be zero.
+! Warning of reflectivity assimilation with static B
   if ( beta_s0 > 0.0_r_kind )then
     ! skipped in case of direct reflectivity DA because it works in Envar and hybrid
     if ( (l_use_rw_columntilt.or.l_use_dbz_directDA) .or. (.not. if_cs_staticB) ) then
        do i=1,ndat
           if ( if_model_dbz .and. (index(dtype(i), 'dbz') /= 0) )then
-             write(6,*)'beta_s0 needs to be set to zero in this GSI version, when reflectivity is directly assimilated. &
-                        Static B extended for radar reflectivity assimilation will be included in future version.'
-             call stop2(8888)
+             if (mype==0) then
+                write(6,*)'GSIMOD:  ***WARNING*** static B for reflectivity is regarded as zero in this GSI version &
+                           even though beta_s0 =',beta_s0
+                write(6,*)'Static B extended for radar reflectivity assimilation will be included in future version.'
+             end if
           end if
        end do
     end if
@@ -2222,7 +2247,7 @@
   endif
 
 ! Set up directories (or pe specific filenames)
-  call init_directories(mype)
+  call init_directories(mype,npe)
 
 ! Initialize space for qc
   call create_qcvars

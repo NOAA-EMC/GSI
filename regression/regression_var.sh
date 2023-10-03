@@ -14,6 +14,7 @@ if [ "$#" = 7 ] ; then
   export enkfexec_contrl=$7
   export fixgsi="$gsisrc/fix"
   export scripts="$gsisrc/regression"
+  export modulefiles="$gsisrc/modulefiles"
   export ush="$gsisrc/ush"
   export cmaketest="true"
   export clean="false"
@@ -49,19 +50,33 @@ fi
 echo "Running Regression Tests on '$machine'";
 
 case $machine in
-  Cheyenne)
-    export queue="economy"
-    export noscrub="/glade/scratch/$LOGNAME"
+  Gaea)
+    export queue="normal"
+    export noscrub="/lustre/f2/scratch/$LOGNAME/gsi_tmp/noscrub"
+    export ptmp="/lustre/f2/scratch/$LOGNAME/gsi_tmp/ptmp"
+    export casesdir="/lustre/f2/dev/role.epic/contrib/GSI_data/CASES/regtest"
+
     export group="global"
     if [[ "$cmaketest" = "false" ]]; then
-      export basedir="/glade/scratch/$LOGNAME/gsi"
+      export basedir="/lustre/f2/dev/$LOGNAME/sandbox/GSI"
+    fi
+
+    export check_resource="no"
+    export accnt="nggps_emc"
+  ;;
+  Cheyenne)
+    export queue="regular"
+    export noscrub="/glade/scratch/$LOGNAME/noscrub"
+    export group="global"
+    if [[ "$cmaketest" = "false" ]]; then
+      export basedir="/glade/scratch/$LOGNAME"
     fi
     export ptmp="/glade/scratch/$LOGNAME/$ptmpName"
 
-    export casesdir="/glade/p/ral/jntp/tools/CASES"
+    export casesdir="/glade/work/epicufsrt/contrib/GSI_data/CASES/regtest"
 
     export check_resource="no"
-    export accnt="p48503002"
+    export accnt="NRAL0032"
   ;;
   wcoss2)
       export local_or_default="${local_or_default:-/lfs/h2/emc/da/noscrub/$LOGNAME}"

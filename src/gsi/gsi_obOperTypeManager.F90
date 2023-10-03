@@ -66,6 +66,7 @@ module gsi_obOperTypeManager
 
   use gsi_lightOper   , only: lightOper
   use gsi_dbzOper     , only: dbzOper
+  use gsi_fedOper     , only: fedOper
   use gsi_cldtotOper  , only: cldtotOper
 
   use kinds     , only: i_kind
@@ -136,6 +137,7 @@ module gsi_obOperTypeManager
   public:: iobOper_lwcp
   public:: iobOper_light
   public:: iobOper_dbz
+  public:: iobOper_fed
   public:: iobOper_cldtot
 
   enum, bind(C)
@@ -181,6 +183,7 @@ module gsi_obOperTypeManager
     enumerator:: iobOper_lwcp
     enumerator:: iobOper_light
     enumerator:: iobOper_dbz
+    enumerator:: iobOper_fed
     enumerator:: iobOper_cldtot
 
     enumerator:: iobOper_extra_
@@ -242,6 +245,7 @@ module gsi_obOperTypeManager
   type(   lwcpOper), target, save::     lwcpOper_mold
   type(  lightOper), target, save::    lightOper_mold
   type(    dbzOper), target, save::      dbzOper_mold
+  type(    fedOper), target, save::      fedOper_mold
   type( cldtotOper), target, save::   cldtotOper_mold
 
 contains
@@ -276,6 +280,9 @@ function dtype2index_(dtype) result(index_)
     case("ompstc8"); index_= iobOper_oz
     case("ompsnp" ); index_= iobOper_oz
     case("ompsnm" ); index_= iobOper_oz
+    case("omieff"   ); index_= iobOper_oz
+    case("tomseff"  ); index_= iobOper_oz
+    case("ompsnmeff"); index_= iobOper_oz
 
   case("o3l"    ,"[o3loper]"    ); index_= iobOper_o3l
     case("o3lev"    ); index_= iobOper_o3l
@@ -283,11 +290,10 @@ function dtype2index_(dtype) result(index_)
     case("mls22"    ); index_= iobOper_o3l
     case("mls30"    ); index_= iobOper_o3l
     case("mls55"    ); index_= iobOper_o3l
-    case("omieff"   ); index_= iobOper_o3l
-    case("tomseff"  ); index_= iobOper_o3l
+    case("ompslp"   ); index_= iobOper_o3l
     case("ompslpuv" ); index_= iobOper_o3l
     case("ompslpvis"); index_= iobOper_o3l
-    case("ompslp"   ); index_= iobOper_o3l
+    case("ompslpnc" ); index_= iobOper_o3l
 
   case("gpsbend","[gpsbendoper]"); index_= iobOper_gpsbend
     case("gps_bnd"); index_= iobOper_gpsbend
@@ -388,6 +394,7 @@ function dtype2index_(dtype) result(index_)
     case("goes_glm" ); index_= iobOper_light
 
   case("dbz"    ,"[dbzoper]"    ); index_= iobOper_dbz
+  case("fed"    ,"[fedoper]"    ); index_= iobOper_fed
 
   case("cldtot" ,"[cldtotoper]" ); index_= iobOper_cldtot
     case("mta_cld"  ); index_= iobOper_cldtot
@@ -485,6 +492,7 @@ function index2vmold_(iobOper) result(vmold_)
   case(iobOper_lwcp     ); vmold_ =>    lwcpOper_mold
   case(iobOper_light    ); vmold_ =>   lightOper_mold
   case(iobOper_dbz      ); vmold_ =>     dbzOper_mold
+  case(iobOper_fed      ); vmold_ =>     fedOper_mold
   case(iobOper_cldtot   ); vmold_ =>  cldtotOper_mold
 
   case( obOper_undef    ); vmold_ => null()
@@ -600,6 +608,7 @@ subroutine cobstype_config_()
     cobstype(iobOper_lwcp       )  ="lwcp                " ! lwcp_ob_type
     cobstype(iobOper_light      )  ="light               " ! light_ob_type
     cobstype(iobOper_dbz        )  ="dbz                 " ! dbz_ob_type
+    cobstype(iobOper_fed        )  ="fed                 " ! fed_ob_type
     cobstype(iobOper_cldtot     )  ="cldtot              " ! using q_ob_type
 
   cobstype_configured_=.true.

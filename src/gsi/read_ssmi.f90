@@ -132,7 +132,8 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   real(r_kind),parameter:: tbmin=70.0_r_kind
   real(r_kind),parameter:: tbmax=320.0_r_kind
   character(80),parameter:: hdr1b='SAID YEAR MNTH DAYS HOUR MINU SECO ORBN'   !use for ufbint()
-  character(40),parameter:: str1='CLAT CLON SFTG POSN SAZA'   !use for ufbint()
+  character(40),parameter:: str1='CLATH CLONH SFTG POSN SAZA'   !use for ufbint() new
+  character(40),parameter:: strx='CLAT  CLON  SFTG POSN SAZA'   !use for ufbint() old
   character(40),parameter:: str2='TMBR'                  !use for ufbrep()
 
 ! Declare local variables
@@ -302,13 +303,13 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 !       SSM/I data are stored in groups of nscan, hence the loop.  
 
         call ufbint(lnbufr,midat,nloc,nscan,iret,str1)
+        if(midat(1,1)>10e8) call ufbint(lnbufr,midat,nloc,nscan,iret,strx)
 
 
 !---    Extract brightness temperature data.  Apply gross check to data. 
 !       If obs fails gross check, reset to missing obs value.
 
         call ufbrep(lnbufr,mirad,1,nchanl*nscan,iret,str2)
-
 
         ij=0
         scan_loop:   do js=1,nscan
@@ -511,7 +512,6 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
      end do read_loop
   end do read_subset
   call closbf(lnbufr)
-  close(lnbufr)
 
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together

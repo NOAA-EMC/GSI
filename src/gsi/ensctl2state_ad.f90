@@ -207,9 +207,7 @@ do jj=1,ntlevs_ens
 
 !$omp section
 
-   call gsi_bundlegetpointer (eval(jj),'oz'  ,rv_oz , istatus)
    call gsi_bundlegetpointer (eval(jj),'sst' ,rv_sst, istatus)
-   call gsi_bundleputvar ( wbundle_c, 'oz',  rv_oz,  istatus )
    call gsi_bundleputvar ( wbundle_c, 'sst', rv_sst, istatus )
    if(wdw_exist)then
      call gsi_bundlegetpointer (eval(jj),'w' ,rv_w, istatus)
@@ -219,6 +217,13 @@ do jj=1,ntlevs_ens
        call gsi_bundleputvar ( wbundle_c, 'dw', rv_dw, istatus )
      end if
    end if
+
+!  Get the ozone vector if it is defined
+   id=getindex(cvars3d,"oz")
+   if(id > 0) then
+      call gsi_bundlegetpointer (eval(jj),'oz'  ,rv_oz , istatus)
+      call gsi_bundleputvar ( wbundle_c, 'oz',  rv_oz,  istatus )
+   endif
 
 !$omp section
 
