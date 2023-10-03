@@ -1077,7 +1077,7 @@ subroutine read_obs(ndata,mype)
                    obstype == 'iasi'  .or. obstype == 'atms') .and. &
                   (dplat(i) == 'n17' .or. dplat(i) == 'n18' .or. & 
                    dplat(i) == 'n19' .or. dplat(i) == 'npp' .or. &
-                   dplat(i) == 'n20' .or. &
+                   dplat(i) == 'n20' .or. dplat(i) == 'n21' .or. &
                    dplat(i) == 'metop-a' .or. dplat(i) == 'metop-b' .or. &
                    dplat(i) == 'metop-c') 
 ! direct broadcast from NESDIS/UW
@@ -1088,7 +1088,7 @@ subroutine read_obs(ndata,mype)
                    obstype == 'iasi') .and. &
                   (dplat(i) == 'n17' .or. dplat(i) == 'n18' .or. & 
                    dplat(i) == 'n19' .or. dplat(i) == 'npp' .or. &
-                   dplat(i) == 'n20' .or. &
+                   dplat(i) == 'n20' .or. dplat(i) == 'n21' .or. &
                    dplat(i) == 'metop-a' .or. dplat(i) == 'metop-b' .or. &
                    dplat(i) == 'metop-c') 
 
