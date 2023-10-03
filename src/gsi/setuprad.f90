@@ -435,7 +435,7 @@ contains
   type(radNode),pointer:: my_head,my_headm
   type(obs_diag),pointer:: my_diag
   type(obs_diags),pointer:: my_diagLL
-  type(rad_obs_type) :: radmod
+  type(rad_obs_type) :: radmod, radmod_cads
 
   type(obsLList),pointer,dimension(:):: radhead
   type(fptr_obsdiagNode),dimension(nchanl):: odiags
@@ -445,8 +445,8 @@ contains
 ! variables added for CADS
   integer(i_kind) :: itmp1_cads, itmp2_cads, nchanl_cads
   integer(i_kind),allocatable,dimension(:) :: ich_cads
-  real(r_kind),allocatable,dimension(:) :: tsim_cads, emissivity_cads, chan_level_cads
-  real(r_kind),allocatable,dimension(:) :: ts_cads, emissivity_k_cads,data_s_cads
+  real(r_kind),allocatable,dimension(:)   :: tsim_cads, emissivity_cads, chan_level_cads
+  real(r_kind),allocatable,dimension(:)   :: ts_cads, emissivity_k_cads,data_s_cads
   real(r_kind),allocatable,dimension(:,:) :: ptau5_cads, temp_cads, wmix_cads, jacobian_cads
   real(r_kind),dimension(7)   :: imager_cluster_fraction
   real(r_kind),dimension(2,7) :: imager_cluster_bt
@@ -790,12 +790,6 @@ contains
      call stop2(275)
   end if
 
-  if (abi2km .and. regional) then
-     abi2km_bc = zero
-     abi2km_bc(2) = 233.5_r_kind
-     abi2km_bc(3) = 241.7_r_kind
-     abi2km_bc(4) = 250.5_r_kind
-  end if
 ! PROCESSING OF SATELLITE DATA
 
 ! Loop over data in this block
@@ -805,12 +799,6 @@ contains
      dtime = data_s(itime,n)
      call dtime_check(dtime, in_curbin, in_anybin)
      if(.not.in_anybin) cycle
-
-! Initialize variables needed for the infrared cloud and aerosol detections softwre.
-     imager_cluster_fraction = zero
-     imager_cluster_bt = zero
-     imager_chan_stdev = zero
-     imager_model_bt = zero
 
      if(in_curbin) then
 
@@ -967,6 +955,9 @@ contains
 !  Generate model derived imager values for IASI or CrIS for CADS
 
           if ((iasi_cads .and. iasi) .or. (cris_cads .and. cris)) then
+
+! Initialize variables needed for the infrared cloud and aerosol detections softwre.
+
                call destroy_crtm
                itmp1_cads = len(trim(obstype))
                itmp2_cads = len(trim(isis))
@@ -982,9 +973,16 @@ contains
                obstype_cads = 'viirs-m'
                nchanl_cads = 5   !CRTM channels 12 - 16
              endif
+
+! Initialize variables needed for the infrared cloud and aerosol detections softwre.
              allocate(data_s_cads(nreal+nchanl_cads),ich_cads(nchanl_cads),tsim_cads(nchanl_cads),emissivity_cads(nchanl_cads), &
                     chan_level_cads(nchanl_cads),ptau5_cads(nsig,nchanl_cads), ts_cads(nchanl_cads),emissivity_k_cads(nchanl_cads), &
-                    temp_cads(nsig,nchanl_cads),wmix_cads(nsig,nchanl_cads), jacobian_cads(nsigradjac,nchanl_cads))
+                    temp_cads(nsig,nchanl_cads),wmix_cads(nsig,nchanl_cads), jacobian_cads(nsigradjac,nchanl_cads)) 
+
+             imager_cluster_fraction = zero
+             imager_cluster_bt = zero
+             imager_chan_stdev = zero
+             imager_model_bt = zero
 
              jc = 0
              do k=1,jpch_rad
@@ -995,7 +993,7 @@ contains
              end do
 
              data_s_cads = data_s(1:nreal+nchanl_cads,n)
-             call init_crtm(init_pass,-99,mype,nchanl_cads,nreal,isis_cads,obstype_cads,radmod)
+             call init_crtm(init_pass,-99,mype,nchanl_cads,nreal,isis_cads,obstype_cads,radmod_cads)
 
              call call_crtm(obstype_cads,dtime,data_s_cads(:),nchanl_cads,nreal,ich_cads, &
                 tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
@@ -1013,7 +1011,7 @@ contains
 
              deallocate(data_s_cads,ich_cads,tsim_cads,emissivity_cads, &
                       chan_level_cads,ptau5_cads, ts_cads,emissivity_k_cads, &
-                      temp_cads,wmix_cads, jacobian_cads)
+                      temp_cads,wmix_cads, jacobian_cads )
               call destroy_crtm
 
 !  Re-initialize the crtm for the current instrument
@@ -1464,7 +1462,7 @@ contains
               hirs,zsges,cenlat,cenlon,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise, &
               wavenumber,ptau5,prsltmp,tvp,temp,wmix,chan_level,emissivity_k,ts,tsim,         &
               id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole(n),     &
-              imager_cluster_fraction, imager_cluster_bt, imager_chan_stdev, imager_model_bt)
+              imager_cluster_fraction, imager_cluster_bt, imager_chan_stdev,imager_model_bt )
 
 !  --------- MSU -------------------
 !       QC MSU data
