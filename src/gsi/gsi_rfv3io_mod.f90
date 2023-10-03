@@ -811,7 +811,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     use netcdf, only:nf90_open,nf90_close,nf90_inquire,nf90_nowrite, nf90_format_netcdf4
     use gsi_chemguess_mod, only: gsi_chemguess_get
     use obsmod, only: if_model_dbz
-    use obsmod,only: if_cs_staticB,adaptive_hybrid
+    use obsmod,only: if_cs_staticB,if_consistency_ratio
 
     implicit none
 
@@ -1418,9 +1418,8 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
          if( if_cs_staticB )then
             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'mask',ges_mask,istatus );ier=ier+istatus
             if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
-            adaptive_hybrid = .true.
          end if
-         if( adaptive_hybrid )then
+         if( if_consistency_ratio )then
             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'maskh',ges_mask1,istatus );ier=ier+istatus
             if (ier/=0) call die(trim(myname),'cannot get pointers for met-fields, ier =',ier)
          end if

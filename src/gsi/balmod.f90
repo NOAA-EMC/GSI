@@ -425,9 +425,7 @@ contains
     real(r_kind),allocatable,dimension(:,:,:,:)  :: evi2
     real(r_kind),allocatable,dimension(:,:,:,:,:):: evi3
 
-    integer(i_kind)          :: extra_vartotnum,ii,jj,kk,varinfulllist,istatus
-    logical                  :: if_exist
-    character(len=1024)      :: varname
+    integer(i_kind)          :: istatus
     real(r_kind),dimension(:,:,:),pointer::ges_mask=>NULL()
 
 !   Set internal parameters to m_berror_stats

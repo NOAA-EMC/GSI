@@ -494,7 +494,6 @@ do_getprs        =lc_ps.and.lc_t .and.ls_prse
 do_normal_rh_to_q=lc_rh.and.lc_t .and.ls_prse.and.ls_q
 do_tv_to_tsen    =lc_t .and.ls_q .and.ls_tsen
 do_getuv         =lc_sf.and.lc_vp.and.ls_u.and.ls_v
-do_uv_copy=.false.
 do_uv_copy          =lc_u .and.lc_v
 
 if( if_cs_staticB .and. ( .not. do_uv_copy ) )then

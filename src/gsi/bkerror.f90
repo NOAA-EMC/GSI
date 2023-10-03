@@ -73,7 +73,7 @@ subroutine bkerror(grady)
 
 ! Declare local variables
   integer(i_kind) i,ii
-  integer(i_kind) ipnts(4),istatus
+  integer(i_kind) ipnts(5),istatus
 ! integer(i_kind) nval_lenz,ndim2d
   real(r_kind),pointer,dimension(:,:,:):: p_t  =>NULL()
   real(r_kind),pointer,dimension(:,:,:):: p_st =>NULL()
@@ -107,14 +107,15 @@ subroutine bkerror(grady)
 
 ! Only need to get pointer for ii=1 - all other are the same
   if( if_cs_staticB )then
-     call gsi_bundlegetpointer ( grady%step(1), (/'t ','u','v','ps'/), &
+     call gsi_bundlegetpointer ( grady%step(1), (/'t ','u','v','ps', 'dbz'/), &
                                  ipnts, istatus )
+     dobal = ipnts(1)>0 .and. ipnts(2)>0 .and. ipnts(3)>0 .and. ipnts(4)>0 .and. ipnts(5)>0
   else
      call gsi_bundlegetpointer ( grady%step(1), (/'t ','sf','vp','ps'/), &
                                  ipnts, istatus )
+     dobal = ipnts(1)>0 .and. ipnts(2)>0 .and. ipnts(3)>0 .and. ipnts(4)>0
   end if
 
-  dobal = ipnts(1)>0 .and. ipnts(2)>0 .and. ipnts(3)>0 .and. ipnts(4)>0
 
 ! if ensemble run, multiply by sqrt_beta_s
   if(l_hyb_ens) call sqrt_beta_s_mult(grady)

@@ -2693,7 +2693,9 @@ subroutine sqrt_beta_s_mult_cvec(grady)
      call stop2(999)
   endif
 
-  call gsi_bundlegetpointer (gsi_metguess_bundle(1),'maskh',ges_mask1,istatus)
+  if(  if_cs_staticB .and. if_consistency_ratio )then
+    call gsi_bundlegetpointer (gsi_metguess_bundle(1),'maskh',ges_mask1,istatus)
+  end if
 
   ! multiply by sqrt_beta_s
 !$omp parallel do schedule(dynamic,1) private(ic3,ic2,k,j,i,ii)
@@ -2806,7 +2808,9 @@ subroutine sqrt_beta_s_mult_bundle(grady)
      call stop2(999)
   endif
 
-  call gsi_bundlegetpointer (gsi_metguess_bundle(1),'maskh',ges_mask1,istatus)
+  if(  if_cs_staticB .and. if_consistency_ratio )then
+    call gsi_bundlegetpointer (gsi_metguess_bundle(1),'maskh',ges_mask1,istatus)
+  end if
 
   ! multiply by sqrt_beta_s
 !$omp parallel do schedule(dynamic,1) private(ic3,ic2,k,j,i)
@@ -2902,7 +2906,9 @@ subroutine sqrt_beta_e_mult_cvec(grady)
   ! Initialize timer
   call timer_ini('sqrt_beta_e_mult')
 
-  call gsi_bundlegetpointer (gsi_metguess_bundle(1),'maskh',ges_mask1,istatus)
+  if(  if_cs_staticB .and. if_consistency_ratio )then
+    call gsi_bundlegetpointer (gsi_metguess_bundle(1),'maskh',ges_mask1,istatus)
+  end if
 
   ! multiply by sqrt_beta_e
 !$omp parallel do schedule(dynamic,1) private(nn,k,j,i,ii,ig)
@@ -2985,7 +2991,9 @@ subroutine sqrt_beta_e_mult_bundle(aens)
   ! Initialize timer
   call timer_ini('sqrt_beta_e_mult')
 
-  call gsi_bundlegetpointer (gsi_metguess_bundle(1),'maskh',ges_mask1,istatus)
+  if(  if_cs_staticB .and. if_consistency_ratio )then
+    call gsi_bundlegetpointer (gsi_metguess_bundle(1),'maskh',ges_mask1,istatus)
+  end if
 
   ! multiply by sqrt_beta_e
 !$omp parallel do schedule(dynamic,1) private(nn,k,j,i,ig)

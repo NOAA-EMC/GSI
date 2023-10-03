@@ -233,8 +233,6 @@ subroutine prewgt_reg(mype)
 ! Read in background error stats and interpolate in vertical to that specified in namelist
   if( if_cs_staticB )then
      call berror_read_wgt_reg_extra(msig,mlat,num_bins2d,corz,corp,hwll,hwllp,vz,rlsig,varq,qoption,varcw,cwoption,mype,inerr)
-     print*,'hwll1',maxval( hwll(:,:,:,1) ), minval( hwll(:,:,:,1) )
-     print*,'hwll2',maxval( hwll(:,:,:,2) ), minval( hwll(:,:,:,2) )
   else
      call berror_read_wgt_reg(msig,mlat,corz(:,:,1,:),corp(:,1,:),hwll(:,:,1,:),hwllp(:,1,:),vz(:,:,1,:),rlsig,varq,qoption,varcw,cwoption,mype,inerr)
   endif
@@ -448,10 +446,12 @@ subroutine prewgt_reg(mype)
      nrf2_loc(ii)=getindex(cvars,cvars2d(ii))
   enddo
 
-  nrf3_dbz =getindex(cvars3d,'dbz')
-  call gsi_bundlegetpointer(gsi_metguess_bundle(1),'mask',ges_mask,istatus)
-  if(istatus/=0 .and. if_cs_staticB ) then
-     call die('prewgt_reg',': missing mask in metguess, aborting',istatus)
+  if( if_cs_staticB )then
+    nrf3_dbz =getindex(cvars3d,'dbz')
+    call gsi_bundlegetpointer(gsi_metguess_bundle(1),'mask',ges_mask,istatus)
+    if(istatus/=0 ) then
+       call die('prewgt_reg',': missing mask in metguess, aborting',istatus)
+    end if
   end if
 
   do n=1,nc3d
@@ -480,21 +480,11 @@ subroutine prewgt_reg(mype)
               dl2=d-float(l)
               dl1=one-dl2
               do k=1,nsig
-                 if( if_cs_staticB )then
-                    if( ges_mask(i,j,k) < -0.5_r_kind )then
-                       dssv(i,j,k,n)=(dl1*ozmzt(l,k)+dl2*ozmzt(l2,k))*dsv(1,k,2,llmin)
-                    else if ( ges_mask(i,j,k) > 0.5_r_kind )then
-                       dssv(i,j,k,n)=(dl1*ozmzt(l,k)+dl2*ozmzt(l2,k))*dsv(1,k,3,llmin)
-                    else
-                       dssv(i,j,k,n)=(dl1*ozmzt(l,k)+dl2*ozmzt(l2,k))*dsv(1,k,1,llmin)
-                    end if
-                 else
-                    dssv(i,j,k,n)=(dl1*ozmzt(l,k)+dl2*ozmzt(l2,k))*dsv(1,k,1,llmin)
-                 end if
+                 dssv(i,j,k,n)=(dl1*ozmzt(l,k)+dl2*ozmzt(l2,k))*dsv(1,k,1,llmin)
               end do
            end do
         end do
-     else if ( l_be_T_dep .and. (n==nrf3_qr .or. n==nrf3_qs .or. n==nrf3_qg .or. n==nrf3_qnr) ) then
+     else if ( (.not. if_cs_staticB) .and. (n==nrf3_qr .or. n==nrf3_qs .or. n==nrf3_qg .or. n==nrf3_qnr) ) then
 
         if ( l_be_T_dep ) then
             if (mype==0) &
@@ -777,7 +767,7 @@ subroutine prewgt_reg(mype)
            if (nn/=nrf3_oz) then
               if (k1 >= ks(k))then
                  l=int(rllat(ny/2,nx/2))
-                 fact=one/hwll(l,k1,1,nn)
+                 fact=one/hwll(l,k1,bin_l,nn)
                  do i=1,nx
                     do j=1,ny
                        slw((i-1)*ny+j,k)=slw((i-1)*ny+j,1)*fact**2
@@ -792,7 +782,7 @@ subroutine prewgt_reg(mype)
                        lp=min0(l+1,llmax)
                        dl2=rllat(j,i)-float(l)
                        dl1=one-dl2
-                       fact=one/(dl1*hwll(l,k1,1,nn)+dl2*hwll(lp,k1,1,nn))
+                       fact=one/(dl1*hwll(l,k1,bin_l,nn)+dl2*hwll(lp,k1,bin_l,nn))
                        slw((i-1)*ny+j,k)=slw((i-1)*ny+j,1)*fact**2
                        sli(j,i,1,k)=sli(j,i,1,1)*fact
                        sli(j,i,2,k)=sli(j,i,2,1)*fact
@@ -832,7 +822,7 @@ subroutine prewgt_reg(mype)
                     lp=min0(l+1,llmax)
                     dl2=rllat(j,i)-float(l)
                     dl1=one-dl2
-                    fact=cc/(dl1*hwllp(l,1,nn)+dl2*hwllp(lp,1,nn))
+                    fact=cc/(dl1*hwllp(l,bin_l,nn)+dl2*hwllp(lp,bin_l,nn))
                     slw((i-1)*ny+j,k)=slw((i-1)*ny+j,1)*fact**2
                     sli(j,i,1,k)=sli(j,i,1,1)*fact
                     sli(j,i,2,k)=sli(j,i,2,1)*fact

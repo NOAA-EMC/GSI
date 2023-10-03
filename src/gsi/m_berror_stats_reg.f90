@@ -343,12 +343,6 @@ end subroutine berror_read_bal_reg
       integer(i_kind)                              ,intent(in   ) :: mype  !"my" processor ID
       integer(i_kind),optional                     ,intent(in   ) :: unit !analternative unit
 
-      ! LOCAL DECLARE
-      integer(i_kind)          :: &
-                                  ii,jj,kk
-      logical                  :: if_exist
-      character(len=1024)      :: varname
-
 ! !REVISION HISTORY:
 !      2022-11-16  Y. Yang, Y. Wang, and X. Wang - changed from berror_read_bal_reg for 
 !                                                  the use of covective-scale static BEC
@@ -501,7 +495,7 @@ end subroutine berror_read_bal_reg_extra
     subroutine berror_read_wgt_reg_extra(msig,mlat,num_bins2d,corz,corp,hwll,hwllp,vz,rlsig,varq,qoption,varcw,cwoption,mype,unit)
 
       use kinds,only : r_single,r_kind
-      use gridmod,only : nsig
+      use gridmod,only : nsig, twodvar_regional
       use control_vectors,only: nrf,nc2d,nc3d,mvars,nvars
       use control_vectors,only: cvars => nrf_var
       use control_vectors,only: cvars2d,cvars3d,cvarsmd
@@ -510,6 +504,7 @@ end subroutine berror_read_bal_reg_extra
       use mpeu_util,only: getindex
       use radiance_mod, only: icloud_cv,n_clouds_fwd,cloud_names_fwd
       use obsmod, only: extra_var2num,extra_var3num
+      use obsmod, only: if_cs_staticB
 
       implicit none
 
@@ -574,9 +569,7 @@ end subroutine berror_read_bal_reg_extra
                              vz_default=one
   real(r_kind) ,dimension(mlat,1,2) :: cov_dum
 
-  integer(i_kind)          :: ii, jj, kk
-  logical                  :: if_exist
-  character(len=1024)      :: varname
+  real(r_kind),dimension(nsig):: dlsig
 
   real(r_single),allocatable,dimension(:,:,:,:)  :: extravi2
   real(r_single),dimension(extra_var3num,0:mlat+1,num_bins2d,msig,msig):: extravi3
@@ -894,9 +887,15 @@ end subroutine berror_read_bal_reg_extra
            corp(i,:,n)=zero_3
         end do
         do i=0,mlat+1
-           hwllp(i,:,n)=hwll(i,1,:,nrf3_sf)
-           hwllp(i,:,nc2d+1)=hwll(i,1,:,nrf3_sf) !not very nice, since it assumes that stl and sti
-           hwllp(i,:,nc2d+2)=hwll(i,1,:,nrf3_sf) !are always the first motley variables in convinfo
+           if( if_cs_staticB )then ! When convective-scale B is used, sf is not available
+              hwllp(i,:,n)=hwll(i,1,:,nrf3_t)
+              hwllp(i,:,nc2d+1)=hwll(i,1,:,nrf3_t)
+              hwllp(i,:,nc2d+2)=hwll(i,1,:,nrf3_t)
+           else
+              hwllp(i,:,n)=hwll(i,1,:,nrf3_sf)
+              hwllp(i,:,nc2d+1)=hwll(i,1,:,nrf3_sf) !not very nice, since it assumes that stl and sti
+              hwllp(i,:,nc2d+2)=hwll(i,1,:,nrf3_sf) !are always the first motley variables in convinfo
+           end if
         end do
      end if
      if (n==nrf2_gust) then
@@ -1118,6 +1117,23 @@ end subroutine berror_read_bal_reg_extra
   enddo
 
   deallocate(nrf3_loc,nrf2_loc,nmotl_loc)
+
+! Normalize vz with del sigmma and convert to vertical grid units!
+  if(.not. twodvar_regional)then
+     dlsig(1)=rlsig(1)-rlsig(2)
+     do k=2,nsig-1
+        dlsig(k)=half*(rlsig(k-1)-rlsig(k+1))
+     enddo
+     dlsig(nsig)=rlsig(nsig-1)-rlsig(nsig)
+
+     do n=1,nc3d
+        do j=0,mlat+1
+           do k=1,nsig
+              vz(k,j,:,n)=vz(k,j,:,n)*dlsig(k)
+           end do
+        end do
+     end do
+  end if
 
   return
 end subroutine berror_read_wgt_reg_extra
