@@ -2078,9 +2078,9 @@ end subroutine qc_saphir
 subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs,                         &
      cris,iasi,hirs,zsges,cenlat,cenlon,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise, &
      wavenumber,ptau5,prsltmp,tvp,temp,wmix,chan_level,emissivity_k,ts,tsim,                   &
-     id_qc,aivals,errf,varinv,varinv_use,cloudp,cldp,kmax,zero_irjaco3_pole,cluster_fraction,    &
+     id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole,cluster_fraction,    &
      cluster_bt, chan_stdev, model_bt)
-!    id_qc,aivals,errf,varinv,varinv_use,cloudp,cldp,kmax,zero_irjaco3_pole,radmod) ! all-sky
+!    id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole,radmod) ! all-sky
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -2172,7 +2172,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
   integer(i_kind),dimension(nchanl),  intent(in   ) :: kmax
   real(r_kind),                       intent(in   ) :: zsges,cenlat,cenlon,frac_sea,pangs,trop5
   real(r_kind),                       intent(in   ) :: tzbgr,tsavg5,zasat
-  real(r_kind),                       intent(  out) :: cloudp,cldp
+  real(r_kind),                       intent(  out) :: cld,cldp
   real(r_kind),dimension(40,ndat),    intent(inout) :: aivals
   real(r_kind),dimension(nchanl),     intent(in   ) :: tbc,emissivity_k,ts,wavenumber,tb_obs,tbcnob
   real(r_kind),dimension(nchanl),     intent(in   ) :: chan_level
@@ -2292,7 +2292,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
   end do
   sum3=0.75_r_kind*sum3
   lcloud=0
-  cloudp=zero
+  cld=zero
   cldp=r10*prsltmp(1)
 
 !  Cloud and aerosol detection routines (ECMWF)
@@ -2342,7 +2342,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
              cluster_bt, chan_stdev, model_bt, i_flag_cloud, cldp )
 
   else
-     call emc_legacy_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,lcloud,cloudp,cldp)
+     call emc_legacy_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,lcloud,cld,cldp)
 
   endif
 
@@ -2360,6 +2360,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
     end do
 
 ! Derive cloud amount for CADS
+    cld = zero
     if ( cldp < prsltmp(1) ) then    ! if cloud in this profile exists 
       do i=2, nsig                   ! determine which layer the cloud exists.
         if (prsltmp(i) < cldp) then
@@ -2377,8 +2378,8 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
             call crtm_planck_radiance(1,m,tb_bc(i),radiance_chan)           ! observation radiance. same as tb_obs + bias correction
             call crtm_planck_radiance(1,m,tsim(i),radiance_model)           ! model derived radiance
             call crtm_planck_radiance(1,m,cloud_temperature,radiance_cloud) ! cloud top temperature radiance
-            cloudp = (radiance_chan - radiance_model) / (radiance_cloud - radiance_model)
-            cloudp = min(max(cloudp,zero),one)
+            cld = (radiance_chan - radiance_model) / (radiance_cloud - radiance_model)
+            cld = min(max(cld,zero),one)
             exit
           endif   ! surface channel
         end do
@@ -2399,7 +2400,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
         tb_obs_diff = tb_obs_10 - tb_obs_12
         if ( tb_obs_diff > 2.20_r_kind ) then  ! Assume a cloud exists
           cldp = prsltmp(1) * r10    ! Assume near surface cloud
-          cloudp = one               ! Assume overcast cloud
+          cld = one               ! Assume overcast cloud
           lcloud = 1
           do i=1, nchanl
 !         If more than 2% of the transmittance comes from the cloud layer,
@@ -2617,7 +2618,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 
 end subroutine qc_irsnd
 
-subroutine emc_legacy_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,lcloud,cloudp,cldp)
+subroutine emc_legacy_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,lcloud,cld,cldp)
 
 !$$$ subprogram documentation block
 !               .      .    .
@@ -2645,7 +2646,7 @@ subroutine emc_legacy_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,t
 !     
 ! output argument list:
 !     lcloud       - model layer of cloud
-!     cloudp       - derived cloud amount
+!     cld          - derived cloud amount
 !     cldp         - model layer pressure (hPa) of cloud 
 !
 ! attributes:
@@ -2661,14 +2662,14 @@ implicit none
 integer(i_kind),                 intent(in   ) :: nchanl, nsig
 integer(i_kind),                 intent(  out) :: lcloud
 real(r_kind),                    intent(in   ) :: tsavg5, trop5
-real(r_kind),                    intent(  out) :: cloudp, cldp
+real(r_kind),                    intent(  out) :: cld, cldp
 real(r_kind), dimension(nchanl), intent(in   ) :: tbc, ts, varinv_use
 real(r_kind), dimension(nsig,nchanl), intent(in   ) :: temp
 real(r_kind), dimension(nsig),   intent(in   ) :: tvp, prsltmp
 
 integer(i_kind) :: i, k, kk
 
-real(r_kind) :: sum, sum2, sum3, tmp
+real(r_kind) :: sum,sum2,sum3,cloudp,tmp
 real(r_kind),dimension(nchanl) :: dtb
 
   sum3=zero
@@ -2677,6 +2678,7 @@ real(r_kind),dimension(nchanl) :: dtb
   end do
   sum3=0.75_r_kind*sum3
   lcloud=0
+  cld=zero
   cldp=r10*prsltmp(1)
 
   do k=1,nsig
@@ -2709,6 +2711,7 @@ real(r_kind),dimension(nchanl) :: dtb
         if(sum < sum3)then
            sum3=sum
            lcloud=k
+           cld=cloudp
            cldp=r10*prsltmp(k)
         end if
      end if
@@ -2810,7 +2813,7 @@ subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 
 
   real(r_kind) :: demisf,dtempf,efact,dtbf,term,cenlatx,sfchgtfact
-  real(r_kind) :: sum1,sum2,sum3,cloudp,tmp,dts
+  real(r_kind) :: sum1,sum2,sum3,tmp,dts
   real(r_kind),dimension(nchanl,nsig) :: dtb
   integer(i_kind) :: i,k,kk,lcloud
   integer(i_kind), dimension(nchanl) :: irday
@@ -2909,18 +2912,17 @@ subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
            end if
         end do
         if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
-        cloudp=min(max(sum1/sum2,zero),one)
+        cld=min(max(sum1/sum2,zero),one)
         sum1=zero
         do i=1,nchanl
            if(varinv_use(i) > tiny_r_kind)then
-             tmp=tbc(i)-cloudp*dtb(i,k)
+             tmp=tbc(i)-cld*dtb(i,k)
              sum1=sum1+tmp*tmp*varinv_use(i)
            end if
         end do
         if(sum1 < sum3)then
            sum3=sum1
            lcloud=k
-           cld=cloudp
            cldp=r10*prsltmp(k)
         end if
      end if
@@ -4535,7 +4537,7 @@ subroutine qc_geocsr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 
 ! Declare local parameters
   real(r_kind) :: demisf,dtempf,sfchgtfact,term,dtbf,efact,vfact
-  real(r_kind) :: sum,sum2,sum3,cloudp,tmp,dts,delta
+  real(r_kind) :: sum,sum2,sum3,tmp,dts,delta
   real(r_kind),dimension(nchanl) :: dtb
   integer(i_kind) :: i,j,k,kk,lcloud
   integer(i_kind), dimension(nchanl) :: irday
@@ -4653,18 +4655,17 @@ subroutine qc_geocsr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
            end if
         end do
         if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
-        cloudp=min(max(sum/sum2,zero),one)
+        cld=min(max(sum/sum2,zero),one)
         sum=zero
         do i=1,nchanl
            if(varinv_use(i) > tiny_r_kind)then
-              tmp=tbc(i)-cloudp*dtb(i)
+              tmp=tbc(i)-cld*dtb(i)
               sum=sum+tmp*tmp*varinv_use(i)
            end if
         end do
         if(sum < sum3)then
            sum3=sum
            lcloud=k
-           cld=cloudp
            cldp=r10*prsltmp(k)
         end if
      end if
