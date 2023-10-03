@@ -684,7 +684,7 @@ contains
 
     enddo ! it 4d loop
  ! CALCULATE ENSEMBLE SPREAD
-    write_ens_sprd=.true.
+    !write_ens_sprd=.true.
     if(write_ens_sprd ) then
         call this%ens_spread_dualres_regional(mype,en_perts,nelen)
         call mpi_barrier(mpi_comm_world,ierror) ! do we need this mpi_barrier here? 
