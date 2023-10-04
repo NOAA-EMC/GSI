@@ -913,6 +913,7 @@ OBS_INPUT::
    ahibufr        ahi         himawari8   ahi_himawari8       0.0     1     0
    abibufr        abi         g16         abi_g16             0.0     1     0
    abibufr        abi         g17         abi_g17             0.0     1     0
+   abibufr        abi         g18         abi_g18             0.0     1     0
    rapidscatbufr  uv          null        uv                  0.0     0     0
    ompsnpbufr     ompsnp      npp         ompsnp_npp          0.0     0     0
    ompslpbufr     ompslp      npp         ompslp_npp          0.0     0     0
@@ -926,6 +927,8 @@ OBS_INPUT::
    sstviirs       viirs-m     j1          viirs-m_j1          0.0     4     0
    ahibufr        ahi         himawari9   ahi_himawari9       0.0     1     0
    sstviirs       viirs-m     j2          viirs-m_j2          0.0     4     0
+   atmsbufr21     atms        n21         atms_n21            0.0     1     0
+   crisfsbufr21   cris-fsr    n21         cris-fsr_n21        0.0     1     0
    ompsnpbufr     ompsnp      n21         ompsnp_n21          0.0     0     0
    ompstcbufr     ompstc8     n21         ompstc8_n21         0.0     2     0
    gomebufr       gome        metop-c     gome_metop-c        0.0     2     0
