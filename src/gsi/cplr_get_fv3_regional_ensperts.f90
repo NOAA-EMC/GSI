@@ -317,7 +317,6 @@ contains
               fv3_filename%sfcdata=trim(ensfilenam_str)//"-fv3_sfcdata"
               fv3_filename%couplerres=trim(ensfilenam_str)//"-coupler.res"
 
-
               if( mype==iope) then
                  allocate(gg_u(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
                  allocate(gg_v(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
@@ -325,32 +324,35 @@ contains
                  allocate(gg_rh(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
                  allocate(gg_oz(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
                  allocate(gg_ps(grd_ens%nlat,grd_ens%nlon))
-                 if ( .not. if_model_dbz .and. .not.if_model_fed ) then
-                    call this%general_read_fv3_regional_parallel_over_ens(iope,fv3_filename,gg_ps,gg_u,gg_v,gg_tv,gg_rh,gg_oz)
-                 else
+
+                 if ( if_model_dbz .or. if_model_fed ) then
                     allocate(gg_w(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-                    !allocate(gg_dbz(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
                     allocate(gg_qr(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
                     allocate(gg_qs(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
                     allocate(gg_qi(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
                     allocate(gg_qg(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
                     allocate(gg_cwmr(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-                    if ( if_model_dbz .and. if_model_fed) then
-                       allocate(gg_dbz(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-                       allocate(gg_fed(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-                       call this%general_read_fv3_regional_parallel_over_ens(iope,fv3_filename,gg_ps,gg_u,gg_v,gg_tv,gg_rh,gg_oz,&
-                                                       g_ql=gg_cwmr,g_qi=gg_qi,g_qr=gg_qr,g_qs=gg_qs,g_qg=gg_qg,g_w=gg_w,g_dbz=gg_dbz,g_fed=gg_fed)
-                    elseif ( if_model_dbz ) then
-                       allocate(gg_dbz(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-                       call this%general_read_fv3_regional_parallel_over_ens(iope,fv3_filename,gg_ps,gg_u,gg_v,gg_tv,gg_rh,gg_oz, &
-                                                       g_ql=gg_cwmr,g_qi=gg_qi,g_qr=gg_qr,g_qs=gg_qs,g_qg=gg_qg,g_w=gg_w,g_dbz=gg_dbz)
-                    elseif ( if_model_fed ) then
-                       allocate(gg_fed(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
-                       call this%general_read_fv3_regional_parallel_over_ens(iope,fv3_filename,gg_ps,gg_u,gg_v,gg_tv,gg_rh,gg_oz, &
-                                                       g_ql=gg_cwmr,g_qi=gg_qi,g_qr=gg_qr,g_qs=gg_qs,g_qg=gg_qg,g_w=gg_w,g_fed=gg_fed)
-                    end if
                  end if
-              end if
+                 if ( if_model_dbz) then
+                     allocate(gg_dbz(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                 end if
+                 if ( if_model_fed) then
+                     allocate(gg_fed(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig))
+                 end if
+
+                 if ( if_model_dbz .and. if_model_fed) then
+                    call this%general_read_fv3_regional_parallel_over_ens(iope,fv3_filename,gg_ps,gg_u,gg_v,gg_tv,gg_rh,gg_oz,&
+                              g_ql=gg_cwmr,g_qi=gg_qi,g_qr=gg_qr,g_qs=gg_qs,g_qg=gg_qg,g_w=gg_w,g_dbz=gg_dbz,g_fed=gg_fed)
+                 elseif ( if_model_dbz ) then
+                    call this%general_read_fv3_regional_parallel_over_ens(iope,fv3_filename,gg_ps,gg_u,gg_v,gg_tv,gg_rh,gg_oz,&
+                              g_ql=gg_cwmr,g_qi=gg_qi,g_qr=gg_qr,g_qs=gg_qs,g_qg=gg_qg,g_w=gg_w,g_dbz=gg_dbz)
+                 elseif ( if_model_fed ) then
+                    call this%general_read_fv3_regional_parallel_over_ens(iope,fv3_filename,gg_ps,gg_u,gg_v,gg_tv,gg_rh,gg_oz,&
+                              g_ql=gg_cwmr,g_qi=gg_qi,g_qr=gg_qr,g_qs=gg_qs,g_qg=gg_qg,g_w=gg_w,g_fed=gg_fed)
+                 else
+                    call this%general_read_fv3_regional_parallel_over_ens(iope,fv3_filename,gg_ps,gg_u,gg_v,gg_tv,gg_rh,gg_oz)
+                 end if
+              end if !mype
            end do
            if(mype==0) then
               write(6,'(I0,A)') mype,': reading ensemble data in parallel is done (parallelization_over_ensmembers=.true.)'
@@ -405,35 +407,25 @@ contains
            if( .not. parallelization_over_ensmembers )then
               if (mype == 0) write(6,'(a,a)') &
                  'CALL READ_FV3_REGIONAL_ENSPERTS FOR ENS DATA with the filename str : ',trim(ensfilenam_str)
-              if (.not. if_model_fed) then !not FED_DA
-                if (.not. (l_use_dbz_directDA .or. if_model_dbz) ) then ! Read additional hydrometers and w for dirZDA
-                  call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz)
-                else
-                  if( l_use_dbz_directDA ) then
-                     call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
-                                                        g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w)
-                  else if( if_model_dbz )then
-                     call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
-                                                        g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_dbz=dbz)
-                  end if
-                end if
-              else !fed_da 
+              if (if_model_fed) then
+                 write(6,*)"This is not implemented for FED Ensemble"
+                 write(6,*)"Please turn on parallelization_over_ensmembers when if_model_fed is .true. STOP(333)!"
+                 call stop2(333)
+              end if
+
+              if (.not. (l_use_dbz_directDA .or. if_model_dbz) ) then ! Read additional hydrometers and w for dirZDA
+                 call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz)
+              else
                  if( l_use_dbz_directDA ) then
                     call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
-                                                        g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w)
-                 else if( if_model_dbz .and. if_model_fed)then
-                    call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
-                                                        g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_dbz=dbz,g_fed=fed)
+                              g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w)
                  else if( if_model_dbz )then
                     call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
-                                                        g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_dbz=dbz)
-                 else if( if_model_fed )then
-                    call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
-                                                        g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_fed=fed)
+                              g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_dbz=dbz)
                  end if
               end if
            end if
- 
+
            if( parallelization_over_ensmembers )then 
               iope=(n_fv3sar-1)*npe/n_ens_fv3sar
               if(mype==iope) then

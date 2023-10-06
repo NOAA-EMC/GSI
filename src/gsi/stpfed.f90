@@ -77,13 +77,13 @@ subroutine stpfed(fedhead,rval,sval,out,sges,nstep)
   integer(i_kind) ier,istatus
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,kk
   real(r_kind) w1,w2,w3,w4,w5,w6,w7,w8
-  real(r_kind) valqr, valqs, valqg, valqnr, valfed
-  real(r_kind) qrcur, qscur, qgcur, qnrcur, fedcur
+  real(r_kind) valfed
+  real(r_kind) fedcur
   real(r_kind) cg_fed,fed,wgross,wnotgross
   real(r_kind),dimension(max(1,nstep))::pen
   real(r_kind) pg_fed
-  real(r_kind),pointer,dimension(:) :: sqr,sqs,sqg,sqnr,sfed
-  real(r_kind),pointer,dimension(:) :: rqr,rqs,rqg,rqnr,rfed
+  real(r_kind),pointer,dimension(:) :: sfed
+  real(r_kind),pointer,dimension(:) :: rfed
   type(fedNode), pointer :: fedptr
 
   out=zero_quad

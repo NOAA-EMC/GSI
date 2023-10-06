@@ -190,6 +190,7 @@ do jj=1,ntlevs_ens
           call gsi_bundleputvar     (wbundle_c, clouds(ic),rv_rank3,istatus)
       endif
    enddo
+
 !  Convert RHS calculations for u,v to st/vp
    if (do_getuv) then
       if(uv_hyb_ens) then

@@ -236,6 +236,7 @@ do jj=1,ntlevs_ens
       enddo
    endif
 
+
 !$omp section
 
 !  Get pointers to required state variables

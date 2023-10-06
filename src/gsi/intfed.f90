@@ -65,7 +65,6 @@ subroutine intfed_(fedhead,rval,sval)
   use constants, only: half,one,tiny_r_kind,cg_term,r3600
   use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter
-  use gridmod, only: wrf_mass_regional, fv3_regional
   use jfunc, only: jiter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -81,11 +80,10 @@ subroutine intfed_(fedhead,rval,sval)
 ! Declare local variables
   integer(i_kind) j1,j2,j3,j4,j5,j6,j7,j8,ier,istatus
 ! real(r_kind) penalty
-  real(r_kind) val,w1,w2,w3,w4,w5,w6,w7,w8,valqr,valqs,valqg,valfed,valqnr
+  real(r_kind) val,w1,w2,w3,w4,w5,w6,w7,w8,valfed
   real(r_kind) cg_fed,p0,grad,wnotgross,wgross,pg_fed
-  real(r_kind) qrtl,qstl, qgtl, qnrtl
-  real(r_kind),pointer,dimension(:) :: sqr,sqs,sqg,sfed,sqnr
-  real(r_kind),pointer,dimension(:) :: rqr,rqs,rqg,rfed,rqnr
+  real(r_kind),pointer,dimension(:) :: sfed
+  real(r_kind),pointer,dimension(:) :: rfed
   type(fedNode), pointer :: fedptr
 
 !  If no fed obs type data return

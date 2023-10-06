@@ -282,7 +282,6 @@ do jj=1,nsubwin
          endif
       enddo
    end if
-
    call gsi_bundlegetpointer (sval(jj),'ps'  ,sv_ps,  istatus)
    call gsi_bundlegetvar ( wbundle, 'ps' , sv_ps,  istatus )
 
@@ -731,7 +730,6 @@ do jj=1,nsubwin
          endif
       enddo
    end if
-
 !  Calculate sensible temperature
    if(do_tv_to_tsen) call tv_to_tsen_ad(cv_t,rv_q,rv_tsen)
 
