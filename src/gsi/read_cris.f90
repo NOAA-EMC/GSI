@@ -869,7 +869,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
                  iexponent = -(nint(imager_info(80,i)) -11)                        ! channel 16 radiance for each cluster
                  imager_info(81,i) =  imager_info(81,i) * imager_conversion(2) * (ten ** iexponent)
 
-!                 iexponent = -(nint(imager_info(82,i))-5 )                        ! channel 16 radiance std dev for each cluster.
+                 iexponent = -(nint(imager_info(82,i))-5 )                        ! channel 16 radiance std dev for each cluster.
                  iexponent = -(nint(imager_info(82,i)) -11)                        ! channel 16 radiance std dev for each cluster.
                  imager_info(83,i) =  imager_info(83,i) * imager_conversion(2) * (ten ** iexponent)
 

@@ -2421,8 +2421,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 
      do i=1,nchanl
 
-!       reject channels with iuse_rad(j)=-1 when they are peaking below the
-!       cloud
+!       reject channels with iuse_rad(j)=-1 when they are peaking below the cloud
         j=ich(i)
         if (passive_bc .and. iuse_rad(j)==-1) then
            if (lcloud .ge. kmax(i)) then
@@ -2811,9 +2810,8 @@ subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 
   real(r_kind),parameter:: oneover400=1.0_r_kind/400.0_r_kind
 
-
   real(r_kind) :: demisf,dtempf,efact,dtbf,term,cenlatx,sfchgtfact
-  real(r_kind) :: sum1,sum2,sum3,tmp,dts
+  real(r_kind) :: sum1,sum2,sum3,cloudp,tmp,dts
   real(r_kind),dimension(nchanl,nsig) :: dtb
   integer(i_kind) :: i,k,kk,lcloud
   integer(i_kind), dimension(nchanl) :: irday
@@ -2912,17 +2910,18 @@ subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
            end if
         end do
         if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
-        cld=min(max(sum1/sum2,zero),one)
+        cloudp=min(max(sum1/sum2,zero),one)
         sum1=zero
         do i=1,nchanl
            if(varinv_use(i) > tiny_r_kind)then
-             tmp=tbc(i)-cld*dtb(i,k)
+             tmp=tbc(i)-cloudp*dtb(i,k)
              sum1=sum1+tmp*tmp*varinv_use(i)
            end if
         end do
         if(sum1 < sum3)then
            sum3=sum1
            lcloud=k
+           cld=cloudp
            cldp=r10*prsltmp(k)
         end if
      end if

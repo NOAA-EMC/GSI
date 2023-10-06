@@ -2242,9 +2242,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
           endif
        enddo
 
-
-
-
 !  Simulated brightness temperatures
        tsim(i)=rtsolution(i,1)%brightness_temperature
 

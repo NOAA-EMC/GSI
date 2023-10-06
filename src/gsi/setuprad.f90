@@ -435,7 +435,7 @@ contains
   type(radNode),pointer:: my_head,my_headm
   type(obs_diag),pointer:: my_diag
   type(obs_diags),pointer:: my_diagLL
-  type(rad_obs_type) :: radmod, radmod_cads
+  type(rad_obs_type) :: radmod
 
   type(obsLList),pointer,dimension(:):: radhead
   type(fptr_obsdiagNode),dimension(nchanl):: odiags
@@ -800,6 +800,12 @@ contains
      call dtime_check(dtime, in_curbin, in_anybin)
      if(.not.in_anybin) cycle
 
+! Initialize variables needed for the infrared cloud and aerosol detections softwre.
+     imager_cluster_fraction = zero
+     imager_cluster_bt = zero
+     imager_chan_stdev = zero
+     imager_model_bt = zero
+
      if(in_curbin) then
 
         id_qc = igood_qc
@@ -952,8 +958,6 @@ contains
           cld = total_cloud_cover
         else
 
-!  Generate model derived imager values for IASI or CrIS for CADS
-
           if ((iasi_cads .and. iasi) .or. (cris_cads .and. cris)) then
 
 ! Initialize variables needed for the infrared cloud and aerosol detections softwre.
@@ -966,7 +970,7 @@ contains
                obstype_cads = 'avhrr'
                nchanl_cads = 3   ! CRTM channels 3 - 5
              elseif ( cris ) then
-!!               isis_cads = 'viirs-m'//isis(itmp1+1:itmp2) When naming convention becomes standarized with CrIS
+!               isis_cads = 'viirs-m'//isis(itmp1+1:itmp2) When naming convention becomes standarized with CrIS
                if ( isis == 'cris-fsr_npp' ) isis_cads = 'viirs-m_npp'
                if ( isis == 'cris-fsr_n20' ) isis_cads = 'viirs-m_j1'
                if ( isis == 'cris-fsr_n21' ) isis_cads = 'viirs-m_j2'
@@ -979,11 +983,6 @@ contains
                     chan_level_cads(nchanl_cads),ptau5_cads(nsig,nchanl_cads), ts_cads(nchanl_cads),emissivity_k_cads(nchanl_cads), &
                     temp_cads(nsig,nchanl_cads),wmix_cads(nsig,nchanl_cads), jacobian_cads(nsigradjac,nchanl_cads)) 
 
-             imager_cluster_fraction = zero
-             imager_cluster_bt = zero
-             imager_chan_stdev = zero
-             imager_model_bt = zero
-
              jc = 0
              do k=1,jpch_rad
                if (isis_cads == nusis(k)) then
@@ -993,7 +992,7 @@ contains
              end do
 
              data_s_cads = data_s(1:nreal+nchanl_cads,n)
-             call init_crtm(init_pass,-99,mype,nchanl_cads,nreal,isis_cads,obstype_cads,radmod_cads)
+             call init_crtm(init_pass,-99,mype,nchanl_cads,nreal,isis_cads,obstype_cads,radmod)
 
              call call_crtm(obstype_cads,dtime,data_s_cads(:),nchanl_cads,nreal,ich_cads, &
                 tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
@@ -1012,12 +1011,12 @@ contains
              deallocate(data_s_cads,ich_cads,tsim_cads,emissivity_cads, &
                       chan_level_cads,ptau5_cads, ts_cads,emissivity_k_cads, &
                       temp_cads,wmix_cads, jacobian_cads )
-              call destroy_crtm
+             call destroy_crtm
 
 !  Re-initialize the crtm for the current instrument
-              call init_crtm(init_pass,iwrmype,mype,nchanl,nreal,isis,obstype,radmod)
+             call init_crtm(init_pass,iwrmype,mype,nchanl,nreal,isis,obstype,radmod)
 
-            endif  ! end of section for colocated imagers,
+           endif  ! end of section for colocated imagers,
 
           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
              tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
