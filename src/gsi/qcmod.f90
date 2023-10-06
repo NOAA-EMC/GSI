@@ -2344,8 +2344,10 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
   else
      call emc_legacy_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,lcloud,cld,cldp)
 
-  endif
+  endif    ! end of which cloud test to use
 
+! compute cloud stats 
+! If using CADS
   if ((cris .and. cris_cads) .or. (iasi .and. iasi_cads) .or. (airs .and. airs_cads)) then
 
 !   Reject channels affected by clouds
@@ -2359,123 +2361,120 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
        endif
     end do
 
-! Derive cloud amount for CADS
+!   Derive cloud amount for CADS
     cld = zero
     if ( cldp < prsltmp(1) ) then    ! if cloud in this profile exists 
-      do i=2, nsig                   ! determine which layer the cloud exists.
+      cloud_layer: do i=2, nsig                   ! determine which layer the cloud exists.
         if (prsltmp(i) < cldp) then
           lcloud = i 
-          exit
-        endif
-      end do
+          do j=1, nchanl                      ! use surface channel to derive cloud amount
+            m = nuchan(ich(j))
+            if ( m == isurface_chan ) then     ! interpolate cloud top temperature
+              cloud_temperature = ((tvp(lcloud) -tvp(lcloud -1)/ log(prsltmp(lcloud) / prsltmp(lcloud - 1))) &
+                  * log(cldp/prsltmp(lcloud-1))) + tvp(lcloud-1)
+              call crtm_planck_radiance(1,m,tb_bc(j),radiance_chan)           ! observation radiance. same as tb_obs + bias correction
+              call crtm_planck_radiance(1,m,tsim(j),radiance_model)           ! model derived radiance
+              call crtm_planck_radiance(1,m,cloud_temperature,radiance_cloud) ! cloud top temperature radiance
+              cld = (radiance_chan - radiance_model) / (radiance_cloud - radiance_model)
+              cld = min(max(cld,zero),one)
+              cldp = cldp * r10
+              exit  cloud_layer ! cloud layer foound and cloud amount computed
+            endif   ! surface channel found
+          end do    !surface_chan
+        endif       ! cloud found  (prsltmp(i) < cldp)
+      end do cloud_layer
 
-      if ( lcloud >= 2 ) then
-        do i=1, nchanl                      ! use surface channel to derive cloud amount
-          m = nuchan(ich(i))
-          if ( m == isurface_chan ) then     ! interpolate cloud top temperature
-            cloud_temperature = ((tvp(lcloud) -tvp(lcloud -1)/ log(prsltmp(lcloud) / prsltmp(lcloud - 1))) &
-                        *log(cldp/prsltmp(lcloud-1))) + tvp(lcloud-1)
-            call crtm_planck_radiance(1,m,tb_bc(i),radiance_chan)           ! observation radiance. same as tb_obs + bias correction
-            call crtm_planck_radiance(1,m,tsim(i),radiance_model)           ! model derived radiance
-            call crtm_planck_radiance(1,m,cloud_temperature,radiance_cloud) ! cloud top temperature radiance
-            cld = (radiance_chan - radiance_model) / (radiance_cloud - radiance_model)
-            cld = min(max(cld,zero),one)
-            exit
-          endif   ! surface channel
-        end do
-        cldp = cldp * r10
-      endif
-    endif
-  endif
-
-!   10.7 - 12 micron test for low level clouds needed for CADS 
-  if (lcloud == 0 .and. &
-      ((cris .and. cris_cads) .or. (iasi .and. iasi_cads) .or. (airs .and. airs_cads))) then 
-        ! 10.7 - 12 micron test for low level clouds
+!     If clear, do a 10.7 - 12 micron test for low level clouds
+    else   ! lcloud = 0
       do i=1, nchanl
         if ( nuchan(ich(i)) == ichan_10_micron ) tb_obs_10 = tb_obs(i)
         if ( nuchan(ich(i)) == ichan_12_micron ) tb_obs_12 = tb_obs(i)
       end do 
       if ( tb_obs_10 > zero .and. tb_obs_12 > zero ) then
-        tb_obs_diff = tb_obs_10 - tb_obs_12
+          tb_obs_diff = tb_obs_10 - tb_obs_12
         if ( tb_obs_diff > 2.20_r_kind ) then  ! Assume a cloud exists
-          cldp = prsltmp(1) * r10    ! Assume near surface cloud
-          cld = one               ! Assume overcast cloud
+          cldp = prsltmp(1) * r10              ! Assume near surface cloud
+          cld = one                            ! Assume overcast cloud
           lcloud = 1
-          do i=1, nchanl
-!         If more than 2% of the transmittance comes from the cloud layer,
-            if ( ptau5(lcloud,i) > 0.02_r_kind) then
-              if(luse) aivals(11,is) = aivals(11,is) + one    ! QC4 in statsrad
-              varinv(i) = zero
-              varinv_use(i) = zero
-              if(id_qc(i) == igood_qc) id_qc(i) = ifail_cloud_qc
-            end if
-          end do
         endif
       endif
-  endif          ! CADS cloud tests 
+    endif
 
-!     Default cloud quality control ( if not CADS )
-  if (.not. ((cris .and. cris_cads) .or. (iasi .and. iasi_cads) .or. (airs .and. airs_cads))) then 
+!   If more than 2% of the transmittance comes from the cloud layer, reject the channel (0.02 is a tunable parameter).
+!   or CADS flagged a channel to have cloud.
+    do i=1, nchanl
+!      if ( (lcloud > 0 .and. ptau5(lcloud,i) > 0.02_r_kind) .or. i_flag_cloud(i) == 1 ) then
+      if ( lcloud > 0 .and. ptau5(lcloud,i) > 0.02_r_kind )  then
+         if(luse) aivals(11,is) = aivals(11,is) + one    ! QC4 in statsrad
+         varinv(i) = zero
+         varinv_use(i) = zero
+        if(id_qc(i) == igood_qc) id_qc(i) = ifail_cloud_qc
+      end if
+    end do
+
+!JAJ  endif   ! if CADS cloud tests
+
+
+!  if (.not. ((cris .and. cris_cads) .or. (iasi .and. iasi_cads) .or. (airs .and. airs_cads))) then 
+! default compute cloud stats ( if not CADS )
+  else  ! emc_legacy_cloud_detect
     if ( lcloud > 0 ) then
 
-     do i=1,nchanl
-
+      do i=1,nchanl
 !       reject channels with iuse_rad(j)=-1 when they are peaking below the cloud
         j=ich(i)
         if (passive_bc .and. iuse_rad(j)==-1) then
-           if (lcloud .ge. kmax(i)) then
-              if(luse)aivals(11,is)   = aivals(11,is) + one
-              varinv(i) = zero
-              varinv_use(i) = zero
-              if(id_qc(i) == igood_qc)id_qc(i)=ifail_cloud_qc
-              cycle
-           end if
+          if (lcloud .ge. kmax(i)) then
+            if(luse)aivals(11,is)   = aivals(11,is) + one
+            varinv(i) = zero
+            varinv_use(i) = zero
+            if(id_qc(i) == igood_qc)id_qc(i)=ifail_cloud_qc
+            cycle
+          end if
         end if
 
 !       If more than 2% of the transmittance comes from the cloud layer,
 !          reject the channel (0.02 is a tunable parameter)
 
         if ( ptau5(lcloud,i) > 0.02_r_kind) then
-!          QC4 in statsrad
-           if(luse) aivals(11,is) = aivals(11,is) + one
-           varinv(i) = zero
-           varinv_use(i) = zero
-           if(id_qc(i) == igood_qc) id_qc(i) = ifail_cloud_qc
+!         QC4 in statsrad
+          if(luse) aivals(11,is) = aivals(11,is) + one
+          varinv(i) = zero
+          varinv_use(i) = zero
+          if(id_qc(i) == igood_qc) id_qc(i) = ifail_cloud_qc
         end if
       end do
 
-     else               ! surface consistency and sensitivity chacks.
-       sum1=zero
-       sum2=zero
-       do i=1,nchanl
-         if ( varinv_use(i) > tiny_r_kind .and. ts(i) > 0.0001_r_kind) then
-           sum1 = sum1 +tbc(i)*ts(i)*varinv_use(i)
-           sum2 = sum2+ts(i)*ts(i)*varinv_use(i)
-         endif
-       end do
-       if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
-       dts=abs(sum1/sum2)
-       if(abs(dts) > one)then
-         if(.not. sea)then
-           dts=min(dtempf,dts)
-         else
-           dts=min(three,dts)
-         end if
-         do i=1,nchanl
-           delta=max(r0_05*tnoise(i),r0_02)
-           if(abs(dts*ts(i)) > delta)then
-!            QC3 in statsrad
-             if(luse .and. varinv(i) > zero) aivals(10,is) = aivals(10,is) + one
-             varinv(i) = zero
-             if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
-           endif
-         enddo
-       endif
-    endif
+    else   ! surface consistency and sensitivity chacks. ( if lcoud = 0 )
+      sum1=zero
+      sum2=zero
+      do i=1,nchanl
+        if ( varinv_use(i) > tiny_r_kind .and. ts(i) > 0.0001_r_kind) then
+          sum1 = sum1 +tbc(i)*ts(i)*varinv_use(i)
+          sum2 = sum2+ts(i)*ts(i)*varinv_use(i)
+        endif
+      end do
+      if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
+      dts=abs(sum1/sum2)
+      if(abs(dts) > one)then
+        if(.not. sea)then
+          dts=min(dtempf,dts)
+        else
+          dts=min(three,dts)
+        end if
+        do i=1,nchanl
+          delta=max(r0_05*tnoise(i),r0_02)
+          if(abs(dts*ts(i)) > delta)then
+!           QC3 in statsrad
+            if(luse .and. varinv(i) > zero) aivals(10,is) = aivals(10,is) + one
+            varinv(i) = zero
+            if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
+          endif
+        enddo
+      endif
+    endif   
 
 ! Temporary additional check for CrIS to reduce influence of land points on window channels (particularly important for bias correction)
-!
     if (cris .and. .not. sea) then
        do i=1,nchanl
           if (ts(i) > 0.2_r_kind) then
@@ -2488,7 +2487,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
        end do
     end if
 
-  endif
+  endif  ! derive cloud stats
 !
 ! Apply Tz retrieval
 !
