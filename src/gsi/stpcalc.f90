@@ -534,142 +534,140 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
            call stplimcldch(dval(1),sval(1),sges,pbc(1,12),nstep)
            if(pjcalc)pj(12,1)=pbc(1,12)+pbc(ipenloc,12)
         end if
-!$omp end parallel sections
 
-        if (ljclimqc) then
-!$omp parallel sections private (ibin,it,j)
+!       if (ljclimqc) then
 !$omp section
-         if (qlpresent) then
-           if(.not.ljc4tlevs) then
-              call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,13),nstep,ntguessig,'ql')
-              if(pjcalc) pj(13,1)=pbc(1,13)+pbc(ipenloc,13)
-           else
-              do ibin=1,nobs_bins
-                 if (nobs_bins /= nfldsig) then
-                    it=ntguessig
-                 else
-                    it=ibin
-                 end if
-                 call stplimqc(dval(ibin),sval(ibin),sges,pbcql(1,ibin),nstep,it,'ql')
-              end do
-              do ibin=1,nobs_bins
-                 do j=1,nstep
-                    pbc(j,13) = pbc(j,13)+pbcql(j,ibin)
-                 end do
-              end do
-              if(pjcalc)then
-                 do ibin=1,nobs_bins
-                    pj(13,ibin)=pj(13,ibin)+pbcql(1,ibin)+pbcql(ipenloc,ibin)
-                 end do
-              end if
-           end if
+       if (qlpresent .and. ljclimqc ) then
+         if(.not.ljc4tlevs) then
+            call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,13),nstep,ntguessig,'ql')
+            if(pjcalc) pj(13,1)=pbc(1,13)+pbc(ipenloc,13)
+         else
+            do ibin=1,nobs_bins
+               if (nobs_bins /= nfldsig) then
+                  it=ntguessig
+               else
+                  it=ibin
+               end if
+               call stplimqc(dval(ibin),sval(ibin),sges,pbcql(1,ibin),nstep,it,'ql')
+            end do
+            do ibin=1,nobs_bins
+               do j=1,nstep
+                  pbc(j,13) = pbc(j,13)+pbcql(j,ibin)
+               end do
+            end do
+            if(pjcalc)then
+               do ibin=1,nobs_bins
+                  pj(13,ibin)=pj(13,ibin)+pbcql(1,ibin)+pbcql(ipenloc,ibin)
+               end do
+            end if
          end if
+       end if
 !$omp section
-         if (qipresent) then
-           if(.not.ljc4tlevs) then
-              call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,14),nstep,ntguessig,'qi')
-              if(pjcalc) pj(14,1)=pbc(1,14)+pbc(ipenloc,14)
-           else
-              do ibin=1,nobs_bins
-                 if (nobs_bins /= nfldsig) then
-                    it=ntguessig
-                 else
-                    it=ibin
-                 end if
-                 call stplimqc(dval(ibin),sval(ibin),sges,pbcqi(1,ibin),nstep,it,'qi')
-              end do
-              do ibin=1,nobs_bins
-                 do j=1,nstep
-                    pbc(j,14) = pbc(j,14)+pbcqi(j,ibin)
-                 end do
-              end do
-              if(pjcalc)then
-                 do ibin=1,nobs_bins
-                    pj(14,ibin)=pj(14,ibin)+pbcqi(1,ibin)+pbcqi(ipenloc,ibin)
-                 end do
-              end if
-           end if
+       if (qipresent .and. ljclimqc ) then
+         if(.not.ljc4tlevs) then
+            call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,14),nstep,ntguessig,'qi')
+            if(pjcalc) pj(14,1)=pbc(1,14)+pbc(ipenloc,14)
+         else
+            do ibin=1,nobs_bins
+               if (nobs_bins /= nfldsig) then
+                  it=ntguessig
+               else
+                  it=ibin
+               end if
+               call stplimqc(dval(ibin),sval(ibin),sges,pbcqi(1,ibin),nstep,it,'qi')
+            end do
+            do ibin=1,nobs_bins
+               do j=1,nstep
+                  pbc(j,14) = pbc(j,14)+pbcqi(j,ibin)
+               end do
+            end do
+            if(pjcalc)then
+               do ibin=1,nobs_bins
+                  pj(14,ibin)=pj(14,ibin)+pbcqi(1,ibin)+pbcqi(ipenloc,ibin)
+               end do
+            end if
          end if
+       end if
 !$omp section
-         if (qrpresent) then
-           if(.not.ljc4tlevs) then
-              call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,15),nstep,ntguessig,'qr')
-              if(pjcalc) pj(15,1)=pbc(1,15)+pbc(ipenloc,15)
-           else
-              do ibin=1,nobs_bins
-                 if (nobs_bins /= nfldsig) then
-                    it=ntguessig
-                 else
-                    it=ibin
-                 end if
-                 call stplimqc(dval(ibin),sval(ibin),sges,pbcqr(1,ibin),nstep,it,'qr')
-              end do
-              do ibin=1,nobs_bins
-                 do j=1,nstep
-                    pbc(j,15) = pbc(j,15)+pbcqr(j,ibin)
-                 end do
-              end do
-              if(pjcalc)then
-                 do ibin=1,nobs_bins
-                    pj(15,ibin)=pj(15,ibin)+pbcqr(1,ibin)+pbcqr(ipenloc,ibin)
-                 end do
-              end if
-           end if
+       if (qrpresent .and. ljclimqc ) then
+         if(.not.ljc4tlevs) then
+            call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,15),nstep,ntguessig,'qr')
+            if(pjcalc) pj(15,1)=pbc(1,15)+pbc(ipenloc,15)
+         else
+            do ibin=1,nobs_bins
+               if (nobs_bins /= nfldsig) then
+                  it=ntguessig
+               else
+                  it=ibin
+               end if
+               call stplimqc(dval(ibin),sval(ibin),sges,pbcqr(1,ibin),nstep,it,'qr')
+            end do
+            do ibin=1,nobs_bins
+               do j=1,nstep
+                  pbc(j,15) = pbc(j,15)+pbcqr(j,ibin)
+               end do
+            end do
+            if(pjcalc)then
+               do ibin=1,nobs_bins
+                  pj(15,ibin)=pj(15,ibin)+pbcqr(1,ibin)+pbcqr(ipenloc,ibin)
+               end do
+            end if
          end if
+       end if
 !$omp section
-         if (qspresent) then
-           if(.not.ljc4tlevs) then
-              call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,16),nstep,ntguessig,'qs')
-              if(pjcalc) pj(16,1)=pbc(1,16)+pbc(ipenloc,16)
-           else
-              do ibin=1,nobs_bins
-                 if (nobs_bins /= nfldsig) then
-                    it=ntguessig
-                 else
-                    it=ibin
-                 end if
-                 call stplimqc(dval(ibin),sval(ibin),sges,pbcqs(1,ibin),nstep,it,'qs')
-              end do
-              do ibin=1,nobs_bins
-                 do j=1,nstep
-                    pbc(j,16) = pbc(j,16)+pbcqs(j,ibin)
-                 end do
-              end do
-              if(pjcalc)then
-                 do ibin=1,nobs_bins
-                    pj(16,ibin)=pj(16,ibin)+pbcqs(1,ibin)+pbcqs(ipenloc,ibin)
-                 end do
-              end if
-           end if
+       if (qspresent .and. ljclimqc ) then
+         if(.not.ljc4tlevs) then
+            call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,16),nstep,ntguessig,'qs')
+            if(pjcalc) pj(16,1)=pbc(1,16)+pbc(ipenloc,16)
+         else
+            do ibin=1,nobs_bins
+               if (nobs_bins /= nfldsig) then
+                  it=ntguessig
+               else
+                  it=ibin
+               end if
+               call stplimqc(dval(ibin),sval(ibin),sges,pbcqs(1,ibin),nstep,it,'qs')
+            end do
+            do ibin=1,nobs_bins
+               do j=1,nstep
+                  pbc(j,16) = pbc(j,16)+pbcqs(j,ibin)
+               end do
+            end do
+            if(pjcalc)then
+               do ibin=1,nobs_bins
+                  pj(16,ibin)=pj(16,ibin)+pbcqs(1,ibin)+pbcqs(ipenloc,ibin)
+               end do
+            end if
          end if
+       end if
 !$omp section
-         if (qgpresent) then
-           if(.not.ljc4tlevs) then
-              call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,17),nstep,ntguessig,'qg')
-              if(pjcalc) pj(17,1)=pbc(1,17)+pbc(ipenloc,17)
-           else
-              do ibin=1,nobs_bins
-                 if (nobs_bins /= nfldsig) then
-                    it=ntguessig
-                 else
-                    it=ibin
-                 end if
-                 call stplimqc(dval(ibin),sval(ibin),sges,pbcqg(1,ibin),nstep,it,'qg')
-              end do
-              do ibin=1,nobs_bins
-                 do j=1,nstep
-                    pbc(j,17) = pbc(j,17)+pbcqg(j,ibin)
-                 end do
-              end do
-              if(pjcalc)then
-                 do ibin=1,nobs_bins
-                    pj(17,ibin)=pj(17,ibin)+pbcqg(1,ibin)+pbcqg(ipenloc,ibin)
-                 end do
-              end if
-           end if
+       if (qgpresent .and. ljclimqc ) then
+         if(.not.ljc4tlevs) then
+            call stplimqc(dval(ibin_anl),sval(ibin_anl),sges,pbc(1,17),nstep,ntguessig,'qg')
+            if(pjcalc) pj(17,1)=pbc(1,17)+pbc(ipenloc,17)
+         else
+            do ibin=1,nobs_bins
+               if (nobs_bins /= nfldsig) then
+                  it=ntguessig
+               else
+                  it=ibin
+               end if
+               call stplimqc(dval(ibin),sval(ibin),sges,pbcqg(1,ibin),nstep,it,'qg')
+            end do
+            do ibin=1,nobs_bins
+               do j=1,nstep
+                  pbc(j,17) = pbc(j,17)+pbcqg(j,ibin)
+               end do
+            end do
+            if(pjcalc)then
+               do ibin=1,nobs_bins
+                  pj(17,ibin)=pj(17,ibin)+pbcqg(1,ibin)+pbcqg(ipenloc,ibin)
+               end do
+            end if
          end if
+       end if
 !$omp end parallel sections
-        end if ! ljclimqc
+!       end if ! ljclimqc
      end if
 
 

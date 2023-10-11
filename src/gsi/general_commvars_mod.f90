@@ -19,8 +19,9 @@ module general_commvars_mod
 !   def s2g_raf - used for subdomain to horizontal grid transfers of full control vector with motley variables
 !   def s2g_cv  - used in bkerror.f90 (full control vector without motley variables)
 !   def s2g2    - used in getprs.f90
-!   def s2g4    - used in get_derivatives2.f90
-!   def s1g4    - used in get_derivatives2.f90 (uv versions)
+!   def s2g4    - used in get_derivatives2.f90 
+!   def s2g4x   - used in get_derivatives2.f90 
+!   def s1g4    - used in get_derivatives2.f90 
 !   def s2guv   - used in getuv.f90
 !   def s2g_d   - used in get_derivatives.f90
 !   def g1      - used in get_derivatives.f90
@@ -49,6 +50,7 @@ module general_commvars_mod
    public :: s2g_cv                  !  structure used in bkerror.f90
    public :: s2g2                    !  structure used in getprs.f90
    public :: s2g4                    !  structure used in get_derivatives2.f90
+   public :: s2g4x                   !  structure used in get_derivatives2.f90
    public :: s1g4                    !  structure used in get_derivatives2.f90 (uv version)
    public :: s2guv                   !  structure used in getuv.f90
    public :: s2g_d                   !  structure used in get_derivatives.f90
@@ -70,7 +72,7 @@ module general_commvars_mod
 
 ! Declare types
 
-   type(sub2grid_info),save :: s2g_raf,s2g_cv,s2g2,s1q4,s1g4,s2g4,s2guv,s2g_d,g1,g3,g33p1
+   type(sub2grid_info),save :: s2g_raf,s2g_cv,s2g2,s1q4,s1g4,s2g4,s2g4x,s2guv,s2g_d,g1,g3,g33p1
 
 contains
 
@@ -123,6 +125,8 @@ contains
       integer(i_kind) lnames2(2,2*nsig+1)
       character(len=64) names3(1,4*nsig+1)
       integer(i_kind) lnames3(1,4*nsig+1)
+      character(len=64) names4(2,nsig)
+      integer(i_kind) lnames4(2,nsig)
 
 
 !  create general_sub2grid structure variable s2g_raf, which is used in sub2grid.f90
@@ -255,7 +259,8 @@ contains
       num_fields=3*nsig+1
       call general_sub2grid_create_info(g33p1,inner_vars,nlat,nlon,nsig,num_fields,regional,s_ref=s2g_raf)
 
-!  create general_sub2grid structure variable s2g4, which is used in get_derivatives2.f90
+!  create general_sub2grid structure variable s2g4, which is used in
+!  get_derivatives2.f90
 
       num_fields=2*nsig+1
       inner_vars=2
@@ -282,6 +287,22 @@ contains
 
       call general_sub2grid_create_info(s2g4,inner_vars,nlat,nlon,nsig,num_fields,regional, &
                                 names=names2,lnames=lnames2,s_ref=s2g_raf)
+
+!  create general_sub2grid structure variable s2g4x, which is used in get_derivatives2.f90
+
+      num_fields=nsig
+      inner_vars=2
+      kk=0
+      do k=1,nsig
+         kk=kk+1
+         names4(1,kk)='u'
+         names4(2,kk)='v'
+         lnames4(1,kk)=k
+         lnames4(2,kk)=k
+      end do
+
+      call general_sub2grid_create_info(s2g4x,inner_vars,nlat,nlon,nsig,num_fields,regional, &
+                                names=names4,lnames=lnames4,s_ref=s2g_raf)
 
 !  create general_sub2grid structure variable s1g4, which is used in get_derivatives2.f90 (uv version)
 
@@ -356,6 +377,7 @@ contains
        call general_sub2grid_destroy_info(s2g_cv,s_ref=s2g_raf)
        call general_sub2grid_destroy_info(s2g2,s_ref=s2g_raf)
        call general_sub2grid_destroy_info(s2g4,s_ref=s2g_raf)
+       call general_sub2grid_destroy_info(s2g4x,s_ref=s2g_raf)
        call general_sub2grid_destroy_info(s2guv,s_ref=s2g_raf)
        call general_sub2grid_destroy_info(s2g_d,s_ref=s2g_raf)
        call general_sub2grid_destroy_info(g1,s_ref=s2g_raf)

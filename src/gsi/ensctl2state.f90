@@ -148,6 +148,9 @@ do_cw_to_hydro = lc_cw .and. ls_ql .and. ls_qi
 do_cw_to_hydro_hwrf = .false.
 do_cw_to_hydro_hwrf = lc_cw.and.ls_ql.and.ls_qi.and.ls_qr.and.ls_qs.and.ls_qg.and.ls_qh
 
+do_tlnmc = lstrong_bk_vars .and. ( (tlnmc_option==3) .or. &
+         (jj==ibin_anl .and. tlnmc_option==2) )
+
 ! Initialize ensemble contribution to zero
 !$omp parallel do schedule(dynamic,1) private(jj)
 do jj=1,ntlevs_ens 
@@ -158,8 +161,6 @@ end do
 
 do jj=1,ntlevs_ens 
 
-   do_tlnmc = lstrong_bk_vars .and. ( (tlnmc_option==3) .or. &
-         (jj==ibin_anl .and. tlnmc_option==2) )
 
 !  Initialize work bundle to first component 
 !  For 4densvar, this is the "3D/Time-invariant contribution from static B"

@@ -180,34 +180,30 @@ subroutine intlimqc(rval,sval,itbin,cldtype)
      call gsi_bundlegetpointer(sval,'ql',sqc,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(rval,'ql',rqc,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(gsi_metguess_bundle(itbin),'ql',ges_qc_it,ier1)
-  endif
-  if (trim(cldtype) == 'qi') then 
+  else if (trim(cldtype) == 'qi') then 
      factqc = factqi
      call gsi_bundlegetpointer(sval,'qi',sqc,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(rval,'qi',rqc,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(gsi_metguess_bundle(itbin),'qi',ges_qc_it,ier1)
-  endif
-  if (trim(cldtype) == 'qr') then 
+  else if (trim(cldtype) == 'qr') then 
      factqc = factqr
      call gsi_bundlegetpointer(sval,'qr',sqc,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(rval,'qr',rqc,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(gsi_metguess_bundle(itbin),'qr',ges_qc_it,ier1)
-  endif
-  if (trim(cldtype) == 'qs') then 
+  else if (trim(cldtype) == 'qs') then 
      factqc = factqs
      call gsi_bundlegetpointer(sval,'qs',sqc,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(rval,'qs',rqc,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(gsi_metguess_bundle(itbin),'qs',ges_qc_it,ier1)
-  endif
-  if (trim(cldtype) == 'qg') then 
+  else if (trim(cldtype) == 'qg') then 
      factqc = factqg
      call gsi_bundlegetpointer(sval,'qg',sqc,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(rval,'qg',rqc,istatus);ier=istatus+ier
      call gsi_bundlegetpointer(gsi_metguess_bundle(itbin),'qg',ges_qc_it,ier1)
   endif
-  if (mype==0) write(6,*) 'intlimqc: factqc  = ', factqc
-  if (mype==0) write(6,*) 'intlimqc: ier ier1= ', ier, ier1 
   if (factqc == zero) return
+  if (mype==0) write(6,*) 'intlimqc: factqc  = ', factqc, trim(cldtype)
+  if (mype==0) write(6,*) 'intlimqc: ier ier1= ', ier, ier1 
   if (ier/=0 .or. ier1/=0) return
 
 !$omp parallel do  schedule(dynamic,1) private(k,j,i,qc)

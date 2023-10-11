@@ -689,13 +689,7 @@ contains
 
 !!   Strong balance constraint
 !!   Pass uvflag=.false.
-    if(lsqrtb) then
-       call strong_bk(st,vp,p,t,.false.)
-     else
-       if(tlnmc_option==1 .or. tlnmc_option==4) call strong_bk(st,vp,p,t,.false.)
-     endif
-
-
+    if(lsqrtb .or. tlnmc_option==1 .or. tlnmc_option==4) call strong_bk(st,vp,p,t,.false.)
 
     return
   end subroutine balance
@@ -777,11 +771,7 @@ contains
   
 !  Adjoint of strong balance constraint
 !  pass uvflag=.false.
-    if(lsqrtb) then
-       call strong_bk_ad(st,vp,p,t,.false.)
-    else
-       if(tlnmc_option==1 .or. tlnmc_option==4) call strong_bk_ad(st,vp,p,t,.false.)
-    endif
+    if(lsqrtb .or. tlnmc_option==1 .or. tlnmc_option==4) call strong_bk_ad(st,vp,p,t,.false.)
 
 !   REGIONAL BRANCH
     if (regional) then

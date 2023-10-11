@@ -266,7 +266,7 @@ subroutine pcgsoi()
 ! Perform inner iteration
   inner_iteration: do iter=0,niter(jiter)
  
-  diag_print= iter <= 1 .and. print_diag_pcg
+     diag_print= iter <= 1 .and. print_diag_pcg
 
 ! Gradually turn on old variational qc to avoid possible convergence problems
      if(vqc) then

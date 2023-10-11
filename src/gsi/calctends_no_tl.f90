@@ -37,7 +37,7 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
 !     v        - meridional wind on subdomain
 !     t        - virtual temperature on subdomain
 !     mype     - task id
-!     uvflag   - logical, set to true for st,vp wind components, instead of stream/potential function
+!     uvflag   - logical, set to true for u,v wind components, instead of stream/potential function
 !
 !   output argument list:
 !     u_t      - time tendency of u

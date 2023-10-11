@@ -291,13 +291,16 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
                 if(n >  0) then
                    rn=real(n,r_kind)
                    del2inv=-rearth**2/(rn*(rn+one))
+                   delvorthat(1,n)=delvorthat(1,n)*del2inv
+                   delvorthat(2,n)=delvorthat(2,n)*del2inv
+                   deldivhat(1,n)=deldivhat(1,n)*del2inv
+                   deldivhat(2,n)=deldivhat(2,n)*del2inv
                 else
-                   del2inv=zero
+                   delvorthat(1,n)=zero
+                   delvorthat(2,n)=zero
+                   deldivhat(1,n)=zero
+                   deldivhat(2,n)=zero
                 end if
-                delvorthat(1,n)=delvorthat(1,n)*del2inv
-                delvorthat(2,n)=delvorthat(2,n)*del2inv
-                deldivhat(1,n)=deldivhat(1,n)*del2inv
-                deldivhat(2,n)=deldivhat(2,n)*del2inv
              end do
           end if
              
@@ -535,13 +538,16 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
               if(n >  0) then
                  rn=real(n,r_kind) 
                  del2inv=-rearth**2/(rn*(rn+one))
+                 delvorthat(1,n)=delvorthat(1,n)*del2inv
+                 delvorthat(2,n)=delvorthat(2,n)*del2inv
+                 deldivhat(1,n)=deldivhat(1,n)*del2inv
+                 deldivhat(2,n)=deldivhat(2,n)*del2inv
               else
-                 del2inv=zero
+                 delvorthat(1,n)=zero
+                 delvorthat(2,n)=zero
+                 deldivhat(1,n)=zero
+                 deldivhat(2,n)=zero
               end if
-              delvorthat(1,n)=delvorthat(1,n)*del2inv
-              delvorthat(2,n)=delvorthat(2,n)*del2inv
-              deldivhat(1,n)=deldivhat(1,n)*del2inv
-              deldivhat(2,n)=deldivhat(2,n)*del2inv
            end do
         end if
         if(mode >  0) then
@@ -1840,15 +1846,13 @@ subroutine inmi_nsuvm2zdm(uvm_ns,zdm_hat)
         do n=m,sp_a%jcap
            spcp(1,n)=zero
            spcp(2,n)=zero
+        end do
+        do n=m,sp_a%jcap+1
            spcu(1,n)=zero
            spcu(2,n)=zero
            spcv(1,n)=zero
            spcv(2,n)=zero
         end do
-        spcu(1,sp_a%jcap+1)=zero
-        spcu(2,sp_a%jcap+1)=zero
-        spcv(1,sp_a%jcap+1)=zero
-        spcv(2,sp_a%jcap+1)=zero
 
         do j=sp_a%jb,sp_a%je
            jsouth=1+j
@@ -2023,10 +2027,6 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
            fv(2,1)=uvm_ns_temp(2,2,jnorth)*c1
            fv(1,2)=uvm_ns_temp(2,1,jsouth)*c1
            fv(2,2)=uvm_ns_temp(2,2,jsouth)*c1
-           fp(1,1)=uvm_ns_temp(3,1,jnorth)
-           fp(2,1)=uvm_ns_temp(3,2,jnorth)
-           fp(1,2)=uvm_ns_temp(3,1,jsouth)
-           fp(2,2)=uvm_ns_temp(3,2,jsouth)
 
 !           create plnloc
 
@@ -2044,10 +2044,6 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
            f21v=fv(2,1)+fv(2,2)
            f12v=fv(1,1)-fv(1,2)
            f22v=fv(2,1)-fv(2,2)
-           f11p=fp(1,1)+fp(1,2)
-           f21p=fp(2,1)+fp(2,2)
-           f12p=fp(1,1)-fp(1,2)
-           f22p=fp(2,1)-fp(2,2)
            do n=m,sp_a%jcap+1,2
               spcu(1,n)=spcu(1,n)+plnloc(n)*f11u
               spcu(2,n)=spcu(2,n)+plnloc(n)*f21u
@@ -2060,6 +2056,15 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
               spcv(1,n)=spcv(1,n)+plnloc(n)*f12v
               spcv(2,n)=spcv(2,n)+plnloc(n)*f22v
            end do
+
+           fp(1,1)=uvm_ns_temp(3,1,jnorth)
+           fp(2,1)=uvm_ns_temp(3,2,jnorth)
+           fp(1,2)=uvm_ns_temp(3,1,jsouth)
+           fp(2,2)=uvm_ns_temp(3,2,jsouth)
+           f11p=fp(1,1)+fp(1,2)
+           f21p=fp(2,1)+fp(2,2)
+           f12p=fp(1,1)-fp(1,2)
+           f22p=fp(2,1)-fp(2,2)
            do n=m,sp_a%jcap,2
               spcp(1,n)=spcp(1,n)+plnloc(n)*f11p
               spcp(2,n)=spcp(2,n)+plnloc(n)*f21p
@@ -2191,10 +2196,6 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat)
            f1vi=zero
            f2vr=zero
            f2vi=zero
-           f1pr=zero
-           f1pi=zero
-           f2pr=zero
-           f2pi=zero
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  synthesis over finite latitude.
 !  for each zonal wavenumber, synthesize terms over total wavenumber.
@@ -2211,6 +2212,11 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat)
               f2vr=f2vr+plnloc(n)*spcv(1,n)
               f2vi=f2vi+plnloc(n)*spcv(2,n)
            enddo
+
+           f1pr=zero
+           f1pi=zero
+           f2pr=zero
+           f2pi=zero
            do n=m,sp_a%jcap,2
               f1pr=f1pr+plnloc(n)*spcp(1,n)
               f1pi=f1pi+plnloc(n)*spcp(2,n)
@@ -2229,10 +2235,6 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat)
            fv(2,1)=f1vi+f2vi
            fv(1,2)=f1vr-f2vr
            fv(2,2)=f1vi-f2vi
-           fp(1,1)=f1pr+f2pr
-           fp(2,1)=f1pi+f2pi
-           fp(1,2)=f1pr-f2pr
-           fp(2,2)=f1pi-f2pi
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 !          scatter back to output pairs of lats
@@ -2246,6 +2248,11 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat)
            uvm_ns(2,2,jnorth,ipair,mm)=fv(2,1)*c1
            uvm_ns(2,1,jsouth,ipair,mm)=fv(1,2)*c1
            uvm_ns(2,2,jsouth,ipair,mm)=fv(2,2)*c1
+
+           fp(1,1)=f1pr+f2pr
+           fp(2,1)=f1pi+f2pi
+           fp(1,2)=f1pr-f2pr
+           fp(2,2)=f1pi-f2pi
            uvm_ns(3,1,jnorth,ipair,mm)=fp(1,1)
            uvm_ns(3,2,jnorth,ipair,mm)=fp(2,1)
            uvm_ns(3,1,jsouth,ipair,mm)=fp(1,2)
@@ -2839,30 +2846,33 @@ end subroutine inmi_nsuvm2zdm_ad
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  compute winds in the spectral domain
 
+!$omp parallel do  schedule(dynamic,1) private(n)
       do n=l,m
          u(1,n)= sp_a%elonn1(ics+n)*d(2,n)
          u(2,n)=-sp_a%elonn1(ics+n)*d(1,n)
          v(1,n)= sp_a%elonn1(ics+n)*z(2,n)
          v(2,n)=-sp_a%elonn1(ics+n)*z(1,n)
-      end do
-      do n=l,m-1
-         u(1,n)=u(1,n)+sp_a%eon(ics+n+1)*z(1,n+1)
-         u(2,n)=u(2,n)+sp_a%eon(ics+n+1)*z(2,n+1)
-         v(1,n)=v(1,n)-sp_a%eon(ics+n+1)*d(1,n+1)
-         v(2,n)=v(2,n)-sp_a%eon(ics+n+1)*d(2,n+1)
-      end do
-      do n=l+1,m
-         u(1,n)=u(1,n)-sp_a%eon(ics+n)*z(1,n-1)
-         u(2,n)=u(2,n)-sp_a%eon(ics+n)*z(2,n-1)
-         v(1,n)=v(1,n)+sp_a%eon(ics+n)*d(1,n-1)
-         v(2,n)=v(2,n)+sp_a%eon(ics+n)*d(2,n-1)
+         if(n < m)then
+            u(1,n)=u(1,n)+sp_a%eon(ics+n+1)*z(1,n+1)
+            u(2,n)=u(2,n)+sp_a%eon(ics+n+1)*z(2,n+1)
+            v(1,n)=v(1,n)-sp_a%eon(ics+n+1)*d(1,n+1)
+            v(2,n)=v(2,n)-sp_a%eon(ics+n+1)*d(2,n+1)
+         end if
+         if(n > l)then
+            u(1,n)=u(1,n)-sp_a%eon(ics+n)*z(1,n-1)
+            u(2,n)=u(2,n)-sp_a%eon(ics+n)*z(2,n-1)
+            v(1,n)=v(1,n)+sp_a%eon(ics+n)*d(1,n-1)
+            v(2,n)=v(2,n)+sp_a%eon(ics+n)*d(2,n-1)
+         end if
+         if(n == m)then
+!            compute winds over top of the spectral domain
+            utop(1)=-sp_a%eontop(l+1)*z(1,m)
+            utop(2)=-sp_a%eontop(l+1)*z(2,m)
+            vtop(1)= sp_a%eontop(l+1)*d(1,m)
+            vtop(2)= sp_a%eontop(l+1)*d(2,m)
+         end if
       end do
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-!  compute winds over top of the spectral domain
-      utop(1)=-sp_a%eontop(l+1)*z(1,m)
-      utop(2)=-sp_a%eontop(l+1)*z(2,m)
-      vtop(1)= sp_a%eontop(l+1)*d(1,m)
-      vtop(2)= sp_a%eontop(l+1)*d(2,m)
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       return
       end subroutine spdz2uv_ns
@@ -2927,31 +2937,32 @@ end subroutine inmi_nsuvm2zdm_ad
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !  compute terms from the spectral domain
 
+!$omp parallel do  schedule(dynamic,1) private(n)
       do n=l,m
          d(1,n)=-sp_a%elonn1(ics+n)*u(2,n)
          d(2,n)= sp_a%elonn1(ics+n)*u(1,n)
          z(1,n)=-sp_a%elonn1(ics+n)*v(2,n)
          z(2,n)= sp_a%elonn1(ics+n)*v(1,n)
-      end do
-      do n=l,m-1
-         d(1,n)=d(1,n)+sp_a%eon(ics+n+1)*v(1,n+1)
-         d(2,n)=d(2,n)+sp_a%eon(ics+n+1)*v(2,n+1)
-         z(1,n)=z(1,n)-sp_a%eon(ics+n+1)*u(1,n+1)
-         z(2,n)=z(2,n)-sp_a%eon(ics+n+1)*u(2,n+1)
-      end do
-      do n=l+1,m
-         d(1,n)=d(1,n)-sp_a%eon(ics+n)*v(1,n-1)
-         d(2,n)=d(2,n)-sp_a%eon(ics+n)*v(2,n-1)
-         z(1,n)=z(1,n)+sp_a%eon(ics+n)*u(1,n-1)
-         z(2,n)=z(2,n)+sp_a%eon(ics+n)*u(2,n-1)
-      end do
-
+         if(n < m)then
+            d(1,n)=d(1,n)+sp_a%eon(ics+n+1)*v(1,n+1)
+            d(2,n)=d(2,n)+sp_a%eon(ics+n+1)*v(2,n+1)
+            z(1,n)=z(1,n)-sp_a%eon(ics+n+1)*u(1,n+1)
+            z(2,n)=z(2,n)-sp_a%eon(ics+n+1)*u(2,n+1)
+         end if
+         if(n > l)then
+            d(1,n)=d(1,n)-sp_a%eon(ics+n)*v(1,n-1)
+            d(2,n)=d(2,n)-sp_a%eon(ics+n)*v(2,n-1)
+            z(1,n)=z(1,n)+sp_a%eon(ics+n)*u(1,n-1)
+            z(2,n)=z(2,n)+sp_a%eon(ics+n)*u(2,n-1)
+         end if
+         if(n == m)then
 !  compute terms from over top of the spectral domain
-      n=m
-      d(1,n)=d(1,n)+sp_a%eontop(l+1)*vtop(1)
-      d(2,n)=d(2,n)+sp_a%eontop(l+1)*vtop(2)
-      z(1,n)=z(1,n)-sp_a%eontop(l+1)*utop(1)
-      z(2,n)=z(2,n)-sp_a%eontop(l+1)*utop(2)
+            d(1,n)=d(1,n)+sp_a%eontop(l+1)*vtop(1)
+            d(2,n)=d(2,n)+sp_a%eontop(l+1)*vtop(2)
+            z(1,n)=z(1,n)-sp_a%eontop(l+1)*utop(1)
+            z(2,n)=z(2,n)-sp_a%eontop(l+1)*utop(2)
+         end if
+      end do
 
       return
       end subroutine spuv2dz_ns
