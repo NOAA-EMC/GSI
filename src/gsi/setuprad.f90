@@ -246,7 +246,7 @@ contains
       npred,jpch_rad,varch,varch_cld,iuse_rad,icld_det,nusis,fbias,retrieval,b_rad,pg_rad,&
       air_rad,ang_rad,adp_anglebc,angord,ssmis_precond,emiss_bc,upd_pred, &
       passive_bc,ostats,rstats,newpc4pred,radjacnames,radjacindxs,nsigradjac,nvarjac, &
-      varch_sea,varch_land,varch_ice,varch_snow,varch_mixed
+      varch_sea,varch_land,varch_ice,varch_snow,varch_mixed,crtm_coeffs_path
   use gsi_nstcouplermod, only: nstinfo
   use read_diag, only: get_radiag,ireal_radiag,ipchan_radiag
   use guess_grids, only: sfcmod_gfs,sfcmod_mm5,comp_fact10
@@ -435,7 +435,7 @@ contains
   type(radNode),pointer:: my_head,my_headm
   type(obs_diag),pointer:: my_diag
   type(obs_diags),pointer:: my_diagLL
-  type(rad_obs_type) :: radmod
+  type(rad_obs_type) :: radmod, radmod_cads
 
   type(obsLList),pointer,dimension(:):: radhead
   type(fptr_obsdiagNode),dimension(nchanl):: odiags
@@ -443,16 +443,18 @@ contains
   logical:: muse_ii
 
 ! variables added for CADS
-  integer(i_kind) :: itmp1_cads, itmp2_cads, nchanl_cads
+  integer(i_kind) :: itmp1_cads, itmp2_cads, nchanl_cads, maxinfo, dval_info, cads_info
   integer(i_kind),allocatable,dimension(:) :: ich_cads
+  logical :: imager_spccoeff, imager_taucoeff
   real(r_kind),allocatable,dimension(:)   :: tsim_cads, emissivity_cads, chan_level_cads
   real(r_kind),allocatable,dimension(:)   :: ts_cads, emissivity_k_cads,data_s_cads
   real(r_kind),allocatable,dimension(:,:) :: ptau5_cads, temp_cads, wmix_cads, jacobian_cads
   real(r_kind),dimension(7)   :: imager_cluster_fraction
   real(r_kind),dimension(2,7) :: imager_cluster_bt
   real(r_kind),dimension(2)   :: imager_chan_stdev, imager_model_bt
-  character(20) :: isis_cads
-  character(10) :: obstype_cads
+  character(len=80) :: spc_filename, tau_filename
+  character(len=20) :: isis_cads
+  character(len=10) :: obstype_cads
 
 ! Notations in use: for a single obs. or a single obs. type
 ! nchanl        : a known channel count of a given type obs stream
@@ -790,6 +792,77 @@ contains
      call stop2(275)
   end if
 
+
+  cads_info = 0
+! If using CADS do some initial checks and setup
+  if ((iasi_cads .and. iasi) .or. (cris_cads .and. cris)) then
+     cads_info = 23
+     itmp1_cads = len(trim(obstype))
+     itmp2_cads = len(trim(isis))
+
+     if ( iasi ) then
+        isis_cads = 'avhrr3'//isis(itmp1_cads+1:itmp2_cads)
+        obstype_cads = 'avhrr'
+!       nchanl_cads = 3    channels 3 - 5
+     elseif ( cris ) then
+!        isis_cads = 'viirs-m'//isis(itmp1+1:itmp2) When naming convention becomes standarized with CrIS
+        if ( isis == 'cris-fsr_npp' .or. isis == 'cris_npp' ) then
+          isis_cads = 'viirs-m_npp'
+        elseif ( isis == 'cris-fsr_n20' ) then
+          isis_cads = 'viirs-m_n20'
+          spc_filename = trim(crtm_coeffs_path)//trim(isis_cads)//'.SpcCoeff.bin'
+          inquire(file=trim(spc_filename), exist=imager_spccoeff)
+          if ( .not. imager_spccoeff ) isis_cads = 'viirs-m_j1'
+        elseif ( isis == 'cris-fsr_n21' ) then
+          isis_cads = 'viirs-m_n21'
+          spc_filename = trim(crtm_coeffs_path)//trim(isis_cads)//'.SpcCoeff.bin'
+          inquire(file=trim(spc_filename), exist=imager_spccoeff)
+          if ( .not. imager_spccoeff ) isis_cads = 'viirs-m_j2'
+        endif
+        obstype_cads = 'viirs-m'
+!        nchanl_cads = 5    channels 12 - 16
+     endif
+
+     spc_filename = trim(crtm_coeffs_path)//trim(isis_cads)//'.SpcCoeff.bin'
+     inquire(file=trim(spc_filename), exist=imager_spccoeff)
+     tau_filename = trim(crtm_coeffs_path)//trim(isis_cads)//'.TauCoeff.bin'
+     inquire(file=trim(tau_filename), exist=imager_taucoeff)
+!     call radiance_obstype_search(obstype_cads,radmod_cads)
+
+! IF the RTM files exist allocage and setup various arrays for the RTM
+     if ( imager_spccoeff .and.  imager_taucoeff) then
+
+       nchanl_cads = 0
+       do i=1,jpch_rad
+         if (trim(isis_cads) == nusis(i)) then
+           nchanl_cads = nchanl_cads +1
+         endif
+       end do
+
+       allocate( ich_cads(nchanl_cads) )
+       jc = 0
+       do i=1,jpch_rad
+         if (trim(isis_cads) == nusis(i)) then
+           jc = jc +1
+           ich_cads(jc) = i
+         endif
+       end do
+
+! Initialize variables needed for the infrared cloud and aerosol detections softwre.
+       allocate(data_s_cads(nreal+nchanl_cads),tsim_cads(nchanl_cads),emissivity_cads(nchanl_cads), &
+                chan_level_cads(nchanl_cads),ptau5_cads(nsig,nchanl_cads), ts_cads(nchanl_cads),emissivity_k_cads(nchanl_cads), &
+                temp_cads(nsig,nchanl_cads),wmix_cads(nsig,nchanl_cads), jacobian_cads(nsigradjac,nchanl_cads)) 
+     else 
+! if the RTM files do not exist, set arrays to zero so CADS will ignore the imager tests.
+       imager_cluster_fraction(:) = zero
+       imager_cluster_bt(:,:) = zero
+       imager_chan_stdev(:) = zero
+       imager_model_bt(:) = zero
+     endif  ! RTM files exist
+
+  endif ! using cads
+
+
 ! PROCESSING OF SATELLITE DATA
 
 ! Loop over data in this block
@@ -799,12 +872,6 @@ contains
      dtime = data_s(itime,n)
      call dtime_check(dtime, in_curbin, in_anybin)
      if(.not.in_anybin) cycle
-
-! Initialize variables needed for the infrared cloud and aerosol detections softwre.
-     imager_cluster_fraction = zero
-     imager_cluster_bt = zero
-     imager_chan_stdev = zero
-     imager_model_bt = zero
 
      if(in_curbin) then
 
@@ -882,11 +949,13 @@ contains
 
 !       Set relative weight value
         val_obs=one
+        dval_info = 0
         if(dval_use)then
            ixx=nint(data_s(nreal-nstinfo,n))
            if (ixx > 0 .and. super_val1(ixx) >= one) then
               val_obs=data_s(nreal-nstinfo-1,n)/super_val1(ixx)
            endif
+           dval_info = 2
         endif
 
         do jc=1,nchanl
@@ -958,65 +1027,44 @@ contains
           cld = total_cloud_cover
         else
 
-          if ((iasi_cads .and. iasi) .or. (cris_cads .and. cris)) then
-
-! Initialize variables needed for the infrared cloud and aerosol detections softwre.
-
-               call destroy_crtm
-               itmp1_cads = len(trim(obstype))
-               itmp2_cads = len(trim(isis))
-             if ( iasi ) then
-               isis_cads = 'avhrr3'//isis(itmp1_cads+1:itmp2_cads)
-               obstype_cads = 'avhrr'
-               nchanl_cads = 3   ! CRTM channels 3 - 5
-             elseif ( cris ) then
-!               isis_cads = 'viirs-m'//isis(itmp1+1:itmp2) When naming convention becomes standarized with CrIS
-               if ( isis == 'cris-fsr_npp' ) isis_cads = 'viirs-m_npp'
-               if ( isis == 'cris-fsr_n20' ) isis_cads = 'viirs-m_j1'
-               if ( isis == 'cris-fsr_n21' ) isis_cads = 'viirs-m_j2'
-               obstype_cads = 'viirs-m'
-               nchanl_cads = 5   !CRTM channels 12 - 16
-             endif
-
-! Initialize variables needed for the infrared cloud and aerosol detections softwre.
-             allocate(data_s_cads(nreal+nchanl_cads),ich_cads(nchanl_cads),tsim_cads(nchanl_cads),emissivity_cads(nchanl_cads), &
-                    chan_level_cads(nchanl_cads),ptau5_cads(nsig,nchanl_cads), ts_cads(nchanl_cads),emissivity_k_cads(nchanl_cads), &
-                    temp_cads(nsig,nchanl_cads),wmix_cads(nsig,nchanl_cads), jacobian_cads(nsigradjac,nchanl_cads)) 
-
-             jc = 0
-             do k=1,jpch_rad
-               if (isis_cads == nusis(k)) then
-                 jc = jc +1
-                 ich_cads(jc) = k
-               endif
-             end do
-
-             data_s_cads = data_s(1:nreal+nchanl_cads,n)
-             call init_crtm(init_pass,-99,mype,nchanl_cads,nreal,isis_cads,obstype_cads,radmod)
-
-             call call_crtm(obstype_cads,dtime,data_s_cads(:),nchanl_cads,nreal,ich_cads, &
-                tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
-                trop5,tzbgr,dtsavg,sfc_speed, &
-                tsim_cads,emissivity_cads,chan_level_cads,ptau5_cads,ts_cads,emissivity_k_cads, &
-                temp_cads,wmix_cads,jacobian_cads,error_status)
+! If using cads, generate the model derived BTs for the imager.
+          if ((iasi_cads .and. iasi) .or. (cris_cads .and. cris) .and. imager_spccoeff .and. imager_taucoeff ) then
 
 !  Transfer imager data to arrays for qc_irsnd
+            maxinfo = nreal - cads_info - dval_info - nstinfo
+            imager_cluster_fraction = data_s(maxinfo+1:maxinfo+7,n)
+            imager_cluster_bt(1,:) = data_s(maxinfo+8:maxinfo+14,n)
+            imager_cluster_bt(2,:) = data_s(maxinfo+15:maxinfo+21,n)
+            imager_chan_stdev = data_s(maxinfo+22:maxinfo+23,n)
 
-             imager_cluster_fraction = data_s(32:38,n)
-             imager_cluster_bt(1,:) = data_s(39:45,n)
-             imager_cluster_bt(2,:) = data_s(46:52,n)
-             imager_chan_stdev = data_s(53:54,n)
-             imager_model_bt = tsim_cads(nchanl_cads-1:nchanl_cads)
+            if ( sum(imager_cluster_fraction(:)) > 0.90_r_kind ) then  ! imager cluster information exists for this profile
+              call destroy_crtm
 
-             deallocate(data_s_cads,ich_cads,tsim_cads,emissivity_cads, &
-                      chan_level_cads,ptau5_cads, ts_cads,emissivity_k_cads, &
-                      temp_cads,wmix_cads, jacobian_cads )
-             call destroy_crtm
+              data_s_cads = data_s(1:nreal+nchanl_cads,n)
+              call init_crtm(init_pass,-99,mype,nchanl_cads,nreal,isis_cads,obstype_cads,radmod_cads)
 
-!  Re-initialize the crtm for the current instrument
-             call init_crtm(init_pass,iwrmype,mype,nchanl,nreal,isis,obstype,radmod)
+              call call_crtm(obstype_cads,dtime,data_s_cads,nchanl_cads,nreal,ich_cads, &
+                 tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+                 trop5,tzbgr,dtsavg,sfc_speed, &
+                 tsim_cads,emissivity_cads,chan_level_cads,ptau5_cads,ts_cads,emissivity_k_cads, &
+                 temp_cads,wmix_cads,jacobian_cads,error_status)
 
-           endif  ! end of section for colocated imagers,
+              imager_model_bt(1:2) = tsim_cads(nchanl_cads-1:nchanl_cads)
+
+! destroy the imager information and re-initialize the sensor information and exit
+              call destroy_crtm
+              call init_crtm(init_pass,iwrmype,mype,nchanl,nreal,isis,obstype,radmod)
+
+            else   ! imager information is missing for this profile
+               imager_cluster_fraction(:) = zero
+               imager_cluster_bt(:,:) = zero
+               imager_chan_stdev(:) = zero
+               imager_model_bt(:) = zero
+            endif
+
+          endif  ! end of section for colocated imagers,
+
+
 
           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
              tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
@@ -2258,6 +2306,9 @@ contains
 ! End of n-loop over obs
   end do
 
+  if ((iasi_cads .and. iasi) .or. (cris_cads .and. cris)) deallocate(data_s_cads,ich_cads,tsim_cads,emissivity_cads,  &
+             chan_level_cads,ptau5_cads, ts_cads,emissivity_k_cads, temp_cads,wmix_cads, jacobian_cads ) 
+
 ! If retrieval, close open bufr sst file (output)
   if (retrieval.and.last_pass) call finish_sst_retrieval
 
@@ -2827,7 +2878,6 @@ contains
     deallocate(predbias_angord)
   endif
   end subroutine contents_netcdf_diag_
-
   subroutine final_binary_diag_
   close(4)
   end subroutine final_binary_diag_

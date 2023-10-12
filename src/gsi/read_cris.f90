@@ -196,6 +196,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   logical                      :: imager_coeff
   logical,dimension(7)         :: imager_cluster_flag
   character(len=80)            :: spc_filename
+  character(len=20)            :: sensorlist_imager
   real(r_kind),dimension(83,7) :: imager_info
   real(r_kind),dimension(7)    :: imager_cluster_size
   real(r_kind),dimension(2)    :: imager_mean, imager_std_dev, imager_conversion
@@ -325,17 +326,28 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   imager_coeff = .false. 
 !  spc_filename = 'viirs-m_'//trim(jsatid)//'.SpcCoeff.bin'  ! when viirs naming convention becomes standarized
-  if ( trim(jsatid) == 'npp' ) spc_filename = 'viirs-m_npp.SpcCoeff.bin'
-  if ( trim(jsatid) == 'n20' ) spc_filename = 'viirs-m_j1.SpcCoeff.bin' 
-  if ( trim(jsatid) == 'n21' ) spc_filename = 'viirs-m_j2.SpcCoeff.bin' 
+  if ( trim(jsatid) == 'npp' ) then
+     spc_filename = 'viirs-m_npp.SpcCoeff.bin'
+     sensorlist_imager = 'viirs-m_npp'
+  elseif ( trim(jsatid) == 'n20' ) then
+     spc_filename = 'viirs-m_n20.SpcCoeff.bin' 
+     sensorlist_imager = 'viirs-m_n20'
+     inquire(file=trim(spc_filename), exist=imager_coeff)
+     if ( .not. imager_coeff ) spc_filename = 'viirs-m_j1.SpcCoeff.bin'
+     sensorlist_imager = 'viirs-m_j1'
+  elseif ( trim(jsatid) == 'n21' ) then
+     spc_filename = 'viirs-m_n21.SpcCoeff.bin' 
+     sensorlist_imager = 'viirs-m_n21'
+     inquire(file=trim(spc_filename), exist=imager_coeff)
+     if ( .not. imager_coeff ) spc_filename = 'viirs-m_j2.SpcCoeff.bin'
+     sensorlist_imager = 'viirs-m_j2'
+  endif   
   inquire(file=trim(spc_filename), exist=imager_coeff)
   if ( imager_coeff ) then
      allocate( sensorlist(2))
      sensorlist(1) = sis
 !    sensorlist(2) = 'viirs-m_'//trim(jsatid)        !when viirs naming conventions becomes standardized
-     if ( trim(jsatid) == 'npp' ) sensorlist(2) = 'viirs-m_npp'
-     if ( trim(jsatid) == 'n20' ) sensorlist(2) = 'viirs-m_j1'
-     if ( trim(jsatid) == 'n21' ) sensorlist(2) = 'viirs-m_j2'
+     sensorlist(2) = trim(sensorlist_imager)
   else 
      allocate( sensorlist(1))
      sensorlist(1) = sis
@@ -947,8 +959,10 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            data_all(31,itx)= dlat_earth_deg         ! earth relative latitude (degrees)
 
            if(dval_use) then
-              data_all(32+cads_info,itx)= val_cris
-              data_all(33+cads_info,itx)= itt
+              data_all(maxinfo+cads_info+1,itx)= val_cris
+              data_all(maxinfo+cads_info+2,itx)= itt
+!              data_all(32+cads_info,itx)= val_cris
+!              data_all(33+cads_info,itx)= itt
            end if
 
            if ( nst_gsi > 0 ) then

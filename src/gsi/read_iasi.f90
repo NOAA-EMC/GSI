@@ -926,8 +926,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            data_all(31,itx)= dlat_earth_deg            ! earth relative latitude (degrees)
 
            if(dval_use)then
-              data_all(32+cads_info,itx)= val_iasi
-              data_all(33+cads_info,itx)= itt
+              data_all(maxinfo+cads_info+1,itx)= val_iasi
+              data_all(maxinfo+cads_info+2,itx)= itt
            end if
 
            if ( nst_gsi > 0 ) then

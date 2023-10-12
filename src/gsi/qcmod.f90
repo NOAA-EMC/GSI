@@ -2302,7 +2302,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
       tb_bc = tbc + tsim                        ! observation BT with bias correction
       boundary_layer_pres = nint(0.8_r_kind*prsltmp(1))  !  boundary layer set to be 80% of surface pressure
       tropopause_height = nint(trop5)
-      imager_chans = (/15,16/)                    ! imager channel numbers (from satinfo)
+      imager_chans = (/15,16/)                  ! imager channel numbers (from satinfo)
       isurface_chan = 501                       ! surface channel
       ichan_10_micron = 458                     ! ~10.7 micron channel for low level cloud test
       ichan_12_micron = 295                     ! ~12.0 micron channel for low level cloud test
@@ -2402,22 +2402,19 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 
 !   If more than 2% of the transmittance comes from the cloud layer, reject the channel (0.02 is a tunable parameter).
 !   or CADS flagged a channel to have cloud.
-    do i=1, nchanl
-!      if ( (lcloud > 0 .and. ptau5(lcloud,i) > 0.02_r_kind) .or. i_flag_cloud(i) == 1 ) then
-      if ( lcloud > 0 .and. ptau5(lcloud,i) > 0.02_r_kind )  then
-         if(luse) aivals(11,is) = aivals(11,is) + one    ! QC4 in statsrad
-         varinv(i) = zero
-         varinv_use(i) = zero
-        if(id_qc(i) == igood_qc) id_qc(i) = ifail_cloud_qc
-      end if
-    end do
+    if ( lcloud > 0 ) then
+      do i=1, nchanl
+        if ( ptau5(lcloud,i) > 0.02_r_kind )  then
+           if(luse) aivals(11,is) = aivals(11,is) + one    ! QC4 in statsrad
+           varinv(i) = zero
+           varinv_use(i) = zero
+          if(id_qc(i) == igood_qc) id_qc(i) = ifail_cloud_qc
+        end if
+      end do
+    endif
 
-!JAJ  endif   ! if CADS cloud tests
-
-
-!  if (.not. ((cris .and. cris_cads) .or. (iasi .and. iasi_cads) .or. (airs .and. airs_cads))) then 
-! default compute cloud stats ( if not CADS )
-  else  ! emc_legacy_cloud_detect
+! default compute cloud stats, emc_legacy_cloud_detect 
+  else  
     if ( lcloud > 0 ) then
 
       do i=1,nchanl
