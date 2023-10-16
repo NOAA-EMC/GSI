@@ -1881,8 +1881,9 @@ end subroutine normal_new_factorization_rf_y
              do ig=1,ntotensgrp
                 iaens=ensgrp2aensgrp(ig,ic2+nc3d,ibin)
                 if(iaens>0) then
-                   do n=1,n_ens
-                      do j=1,jm
+!$omp parallel do schedule(static,1) private(j,n,k,i)
+                   do j=1,jm
+                      do n=1,n_ens
                          do k=1,km_tmp
                             do i=1,im
                                cvec%r2(ipic)%q(i,j)=cvec%r2(ipic)%q(i,j) &
@@ -4078,8 +4079,8 @@ subroutine hybens_grid_setup
         region_lat_ens=region_lat
      end if
   end if
-                 if(mype==0) write(6,*)' dual_res,nlat,nlon,nlat_ens,nlon_ens,r_e,eps=',&
-                                                     dual_res,nlat,nlon,nlat_ens,nlon_ens,r_e,eps
+  if(mype==0) write(6,*)' dual_res,nlat,nlon,nlat_ens,nlon_ens,r_e,eps=',&
+                               dual_res,nlat,nlon,nlat_ens,nlon_ens,r_e,eps
 
   if(nlon_ens<=0 .or. nlat_ens<=0) then
      nlon_ens=nlon ; nlat_ens=nlat
@@ -4207,8 +4208,7 @@ subroutine hybens_localization_setup
    real(r_kind),allocatable:: s_ens_h_gu_x(:,:),s_ens_h_gu_y(:,:)
    logical :: l_read_success
    type(gsi_bundle) :: a_en(n_ens)
-   type(gsi_bundle) :: en_pertstmp(n_ens,ntlevs_ens)
-   type(gsi_bundle) :: en_pertstmp1(n_ens,ntlevs_ens)
+   type(gsi_bundle),allocatable :: en_pertstmp(:,:),en_pertstmp1(:,:)
    type(gsi_grid)  :: grid_ens
    real(r_kind), pointer :: values(:) => NULL()
    integer(i_kind) :: iscl, iv, smooth_scales_num
@@ -4272,8 +4272,6 @@ subroutine hybens_localization_setup
          vvlocal = .true.
          nz = msig
          kl = grd_loc%kend_alloc-grd_loc%kbegin_loc+1
-         if(.not.allocated(s_ens_h_gu_x)) allocate(s_ens_h_gu_x(grd_loc%nsig*n_ens,naensloc))
-         if(.not.allocated(s_ens_h_gu_y)) allocate(s_ens_h_gu_y(grd_loc%nsig*n_ens,naensloc))
       endif
 
    endif ! if ( readin_localization .or. readin_beta )
@@ -4303,8 +4301,6 @@ subroutine hybens_localization_setup
    if ( .not. readin_localization ) then ! assign all levels to same value, s_ens_h, s_ens_v
       nz = 1
       kl = 1
-      if(.not.allocated(s_ens_h_gu_x)) allocate(s_ens_h_gu_x(1,naensloc))
-      if(.not.allocated(s_ens_h_gu_y)) allocate(s_ens_h_gu_y(1,naensloc))
       do ig=1,naensloc
          s_ens_hv(:,ig) = s_ens_h(ig)
          s_ens_vv(:,ig) = s_ens_v(ig)
@@ -4317,6 +4313,8 @@ subroutine hybens_localization_setup
    call normal_new_factorization_rf_z
 
    if ( regional ) then ! convert s_ens_h from km to grid units.
+      allocate(s_ens_h_gu_x(1,naensloc))
+      allocate(s_ens_h_gu_y(1,naensloc))
       if ( vvlocal ) then
          call convert_km_to_grid_units(s_ens_h_gu_x(1:nz,:),s_ens_h_gu_y(1:nz,:),nz)
          do n=2,n_ens
@@ -4335,6 +4333,8 @@ subroutine hybens_localization_setup
       endif
       call normal_new_factorization_rf_x
       call normal_new_factorization_rf_y
+      deallocate(s_ens_h_gu_x)
+      deallocate(s_ens_h_gu_y)
    else
       call init_sf_xy(jcap_ens)
    endif
@@ -4406,6 +4406,8 @@ subroutine hybens_localization_setup
          else ! assign_vdl_nml
             smooth_scales_num = naensloc - naensgrp
             ngvarloc = 1 ! forced to 1 in this option
+            allocate(en_pertstmp(n_ens,ntlevs_ens))
+            allocate(en_pertstmp1(n_ens,ntlevs_ens))
             do n = 1, n_ens
               do m = 1, ntlevs_ens
                  call gsi_bundlecreate(en_pertstmp(n,m),grid_ens,'ensemble2',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_single)
@@ -4496,6 +4498,7 @@ subroutine hybens_localization_setup
                  call gsi_bundledestroy(en_pertstmp1(n,m),istatus)
               end do
             end do
+            deallocate(en_pertstmp,en_pertstmp1)
           end if
           deallocate(values)
        endif
@@ -5436,6 +5439,7 @@ subroutine acceptable_for_essl_fft(nin,nout)
       nout=n_acceptable_table(i)
       if(nout.ge.nin) exit
     enddo
+    deallocate(n_acceptable_table)
     return
 
 end subroutine acceptable_for_essl_fft

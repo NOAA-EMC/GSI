@@ -211,6 +211,7 @@ subroutine glbsoi
 ! Set cost function
   call create_jfunc
 
+! stop
   lunit=0
   lunix=0
   call isetprm('MXMSGL',400000)

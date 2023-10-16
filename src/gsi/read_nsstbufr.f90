@@ -667,6 +667,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 
 ! Close unit to bufr file
 1020 continue
+  deallocate(data_all)
   if (oberrflg) deallocate(etabl)
   call closbf(lunin)
   close(lunin)

@@ -98,15 +98,14 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
    real   (r_kind),parameter  :: r6    =  6.0_r_kind
    real   (r_kind),parameter :: dflt_err = 0.2_r_kind
 !
-   integer(i_kind) :: tot,cnt,cnt1,k,ntmp,iout,iiout
+   integer(i_kind) :: tot,cnt,cnt1,k,ntmp,iout
    integer(i_kind) :: ireadmg,ireadsb,idate
    integer(i_kind) :: iRec,ierr,nc,i1,ilat,ilon,nchanl,nlevp,indsat
    integer(i_kind) :: nmind, nrec
    integer(i_kind) :: thisobtype_usage, iuse
 !  real
-   real(r_kind),allocatable,dimension(:, :) :: data_all,data_out
+   real(r_kind),allocatable,dimension(:, :) :: data_all
    real(r_kind),allocatable,dimension(:):: DumForThin
-   integer(i_kind),allocatable,dimension(:):: isort,iloc
 !   real(r_kind),allocatable,dimension(:   ) :: data_1d
    real(r_kind) :: dlon,dlat
    real(r_kind) :: tdiff,crit1,timedif,toff
@@ -236,8 +235,7 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
    close(lun11)
 !
 ! Allocate Arrays for all the data
-   allocate (data_all (nreal, cnt),isort(cnt))
-   isort = 0
+   allocate (data_all (nreal, cnt))
 !
 !  Loop over file
    open(lun11,file=trim(infile),action='read',form='unformatted')
@@ -403,18 +401,15 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
             crit1 = timedif/r6+half
 !
             call map3grids(-1,0,DumForThin,nlevp,dlat_earth,dlon_earth     &
-                           ,one ,crit1,ndata,iout,nrec,iiout,luse,.false.,.false.)
+                           ,one ,crit1,ndata,iout,luse,.false.,.false.)
                if (.not. luse) cycle
-               if(iiout > 0) isort(iiout)=0
                if (ndata > ntmp) then
                   nodata=nodata+1
                endif
-               isort(nrec)=iout
          else  ! - no thinnning
                ndata=ndata+1
                nodata=nodata+1
                iout=ndata
-               isort(nrec)=iout
          endif
 !
          usage = zero !-  Set usage variable :: practically useless
@@ -462,33 +457,13 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
    enddo read_msg
    call closbf(lun11)
    ! Write header record and data to output file for further processing
-   allocate(iloc(ndata))
-   cnt1 = 0
-   do i1=1,size(data_all,2)
-     if(isort(i1) > 0)then
-       cnt1=cnt1 + 1
-       iloc(cnt1)=isort(i1)
-     end if
-  end do
-  if(ndata /= cnt1)then
-     write(6,*) myname,': ndata and icount do not match STOPPING...ndata,cnt1,cnt ',ndata,cnt1,cnt
-     call stop2(50)
-  end if
 !
-  allocate(data_out(nreal,ndata))
-  do i1=1,ndata
-     iout=iloc(i1)
-     do k=1,nreal
-        data_out(k,i1)=data_all(k,iout)
-     end do
-  end do
-  deallocate(iloc,isort,data_all)
  
-  call count_obs(ndata,nreal,ilat,ilon,data_out,nobs)
+  call count_obs(ndata,nreal,ilat,ilon,data_all,nobs)
  
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
-  write(lunout) data_out
-  deallocate(data_out)
+  write(lunout) ((data_all(k,i1),k=1,nreal),i1=1,ndata)
+  deallocate(data_all)
  
   if (ndata == 0) then
      write(6,*)myname,':  closbf(',lun11,') no data'

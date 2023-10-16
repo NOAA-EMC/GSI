@@ -749,6 +749,7 @@ contains
           write(6,*)' nobs_hrbin=',nobs_hrbin1
           write(6,*)' nrange_max=',nrange_max1
        end if
+       deallocate(icount)
 
 !   Prepare to create superobs and write out.
        open(inbufr,file='radar_supobs_from_level2',form='unformatted',iostat=iret)
@@ -946,6 +947,7 @@ contains
        close(inbufr)
        close(inbufr)
     end if
+    deallocate(indx)
     deallocate(bins_work,bins,ibins2)
     if(l2superob_only) then
        call mpi_finalize(ierror)

@@ -97,18 +97,18 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
         end do
      else
         k2=s2g4%lnames(2,kk)
-        if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
+        if(k2/=0) then          !  p3d level nsig+1 where there is no corresponding t value
            do j=1,s2g4%lon2
               do i=1,s2g4%lat2
                  hwork_sub(1,i,j,kk)=p3d(i,j,k)
-                 hwork_sub(2,i,j,kk)=zero
+                 hwork_sub(2,i,j,kk)=t(i,j,k)
               end do
            end do
         else
            do j=1,s2g4%lon2
               do i=1,s2g4%lat2
                  hwork_sub(1,i,j,kk)=p3d(i,j,k)
-                 hwork_sub(2,i,j,kk)=t(i,j,k)
+                 hwork_sub(2,i,j,kk)=zero
               end do
            end do
         end if
@@ -132,40 +132,24 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
            call psichi2uv_reg(stx,vpx,hwork(1,:,:,k),hwork(2,:,:,k))
         end if
      end do
-!       !$omp parallel do private (k,vector)     ! ??????????fix this later
+!$omp parallel do private (k,vector)     
      do k=s2g4%kbegin_loc,s2g4%kend_loc
         vector=trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp'
-        do j=1,nlon
-           do i=1,nlat
-              stx(i,j)=hwork(1,i,j,k)
-              vpx(i,j)=hwork(2,i,j,k)
-           end do
-        end do
-        call delx_reg(stx,hwork_x(1,:,:,k),vector)
-        call dely_reg(stx,hwork_y(1,:,:,k),vector)
-        call delx_reg(vpx,hwork_x(2,:,:,k),vector)
-        call dely_reg(vpx,hwork_y(2,:,:,k),vector)
+        call delx_reg(hwork(1,i,j,k),hwork_x(1,:,:,k),vector)
+        call dely_reg(hwork(1,i,j,k),hwork_y(1,:,:,k),vector)
+        call delx_reg(hwork(2,i,j,k),hwork_x(2,:,:,k),vector)
+        call dely_reg(hwork(2,i,j,k),hwork_y(2,:,:,k),vector)
      end do
-!        !$omp end parallel do                     ! ?????fix later
 
   else
-     do k=s2g4%kbegin_loc,s2g4%kend_loc
-        if(trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp') then
-           call stvp2uv(hwork(1,1,1,k),s2g4%inner_vars)
-        end if
-     end do
+!$omp parallel do private (k,vector)  
      do k=s2g4%kbegin_loc,s2g4%kend_loc
         vector=trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp'
-!$omp parallel sections
-!$omp section
+        if(vector) call stvp2uv(hwork(1,1,1,k),s2g4%inner_vars)
         call compact_dlon(hwork(1,:,:,k),hwork_x(1,:,:,k),vector)
-!$omp section
         call compact_dlat(hwork(1,:,:,k),hwork_y(1,:,:,k),vector)
-!$omp section
         call compact_dlon(hwork(2,:,:,k),hwork_x(2,:,:,k),vector)
-!$omp section
         call compact_dlat(hwork(2,:,:,k),hwork_y(2,:,:,k),vector)
-!$omp end parallel sections
      end do
   end if
 
@@ -193,9 +177,11 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
         end do
      else
         k2=s2g4%lnames(2,kk)
-        if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
+        if(k2/=0) then          !  p3d level nsig+1 where there is no corresponding t value
            do j=1,s2g4%lon2
               do i=1,s2g4%lat2
+                 t_x(i,j,k)=hwork_subx(2,i,j,kk)
+                 t_y(i,j,k)=hwork_suby(2,i,j,kk)
                  p3d_x(i,j,k)=hwork_subx(1,i,j,kk)
                  p3d_y(i,j,k)=hwork_suby(1,i,j,kk)
               end do
@@ -204,9 +190,7 @@ subroutine get_derivatives2(st,vp,t,p3d,u,v, &
            do j=1,s2g4%lon2
               do i=1,s2g4%lat2
                  p3d_x(i,j,k)=hwork_subx(1,i,j,kk)
-                 t_x(i,j,k)=hwork_subx(2,i,j,kk)
                  p3d_y(i,j,k)=hwork_suby(1,i,j,kk)
-                 t_y(i,j,k)=hwork_suby(2,i,j,kk)
               end do
            end do
         end if
@@ -307,22 +291,22 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
         end do
      else
         k2=s2g4%lnames(2,kk)
-        if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
+        if(k2/=0) then          !  p3d level nsig+1 where there is no corresponding t value
            do j=1,s2g4%lon2
               do i=1,s2g4%lat2
                  hwork_subx(1,i,j,kk)=p3d_x(i,j,k)
-                 hwork_subx(2,i,j,kk)=zero
                  hwork_suby(1,i,j,kk)=p3d_y(i,j,k)
-                 hwork_suby(2,i,j,kk)=zero
+                 hwork_subx(2,i,j,kk)=t_x(i,j,k)
+                 hwork_suby(2,i,j,kk)=t_y(i,j,k)
               end do
            end do
         else
            do j=1,s2g4%lon2
               do i=1,s2g4%lat2
                  hwork_subx(1,i,j,kk)=p3d_x(i,j,k)
-                 hwork_subx(2,i,j,kk)=t_x(i,j,k)
                  hwork_suby(1,i,j,kk)=p3d_y(i,j,k)
-                 hwork_suby(2,i,j,kk)=t_y(i,j,k)
+                 hwork_subx(2,i,j,kk)=zero
+                 hwork_suby(2,i,j,kk)=zero
               end do
            end do
         end if
@@ -341,7 +325,7 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
   call general_sub2grid(s2g4,hwork_sub,hwork)
 
   if(regional)then
-!       !$omp parallel do private (k,vector)     ! ??????????fix this later
+!$omp parallel do private (k,vector,ux,vx)  
      do k=s2g4%kbegin_loc,s2g4%kend_loc
         vector=trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp'
         if(vector) then
@@ -360,22 +344,14 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
         end if
      end do
   else
+!$omp parallel do private (k,vector)  
      do k=s2g4%kbegin_loc,s2g4%kend_loc
         vector=trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp'
-!$omp parallel sections
-!$omp section
         call tcompact_dlon(hwork(1,:,:,k),hwork_x(1,:,:,k),vector)
         call tcompact_dlat(hwork(1,:,:,k),hwork_y(1,:,:,k),vector)
-!$omp section
         call tcompact_dlon(hwork(2,:,:,k),hwork_x(2,:,:,k),vector)
         call tcompact_dlat(hwork(2,:,:,k),hwork_y(2,:,:,k),vector)
-!$omp end parallel sections
-     end do
-!       !$omp end parallel do                        ! ???fix later
-     do k=s2g4%kbegin_loc,s2g4%kend_loc
-       if(trim(s2g4%names(1,k))=='sf'.and.trim(s2g4%names(2,k))=='vp') then
-           call tstvp2uv(hwork(1,1,1,k),s2g4%inner_vars)
-        end if
+        if(vector) call tstvp2uv(hwork(1,1,1,k),s2g4%inner_vars)
      end do
   end if
   deallocate(hwork_x,hwork_y)
@@ -395,17 +371,17 @@ subroutine tget_derivatives2(st,vp,t,p3d,u,v,&
         end do
      else
         k2=s2g4%lnames(2,kk)
-        if(k2==0) then          !  p3d level nsig+1 where there is no corresponding t value
+        if(k2/=0) then          !  p3d level nsig+1 where there is no corresponding t value
            do j=1,s2g4%lon2
               do i=1,s2g4%lat2
                  p3d(i,j,k)=p3d(i,j,k)+hwork_sub(1,i,j,kk)
+                 t(i,j,k)=t(i,j,k)+hwork_sub(2,i,j,kk)
               end do
            end do
         else
            do j=1,s2g4%lon2
               do i=1,s2g4%lat2
                  p3d(i,j,k)=p3d(i,j,k)+hwork_sub(1,i,j,kk)
-                 t(i,j,k)=t(i,j,k)+hwork_sub(2,i,j,kk)
               end do
            end do
         end if
@@ -530,21 +506,19 @@ subroutine get_derivatives2uv(st,vp,t,p3d,u,v, &
 
 ! x  and y derivative
   if(regional)then
+!$omp parallel do private (k,vector)  
      do k=s1g4%kbegin_loc,s1g4%kend_loc
         vector=trim(s1g4%names(1,k))=='u'.or.trim(s1g4%names(1,k))=='v'
-        call delx_reg(hwork(1,:,:,k),hwork_x(1,:,:,k),vector)
-        call dely_reg(hwork(1,:,:,k),hwork_y(1,:,:,k),vector)
+        call delx_reg(hwork(1,1,1,k),hwork_x(1,1,1,k),vector)
+        call dely_reg(hwork(1,1,1,k),hwork_y(1,1,1,k),vector)
      end do
 
   else
+!$omp parallel do private (k,vector)  
      do k=s1g4%kbegin_loc,s1g4%kend_loc
         vector=trim(s1g4%names(1,k))=='u'.or.trim(s1g4%names(1,k))=='v'
-!$omp parallel sections
-!$omp section
-        call compact_dlon(hwork(1,:,:,k),hwork_x(1,:,:,k),vector)
-!$omp section
-        call compact_dlat(hwork(1,:,:,k),hwork_y(1,:,:,k),vector)
-!$omp end parallel sections
+        call compact_dlon(hwork(1,1,1,k),hwork_x(1,1,1,k),vector)
+        call compact_dlat(hwork(1,1,1,k),hwork_y(1,1,1,k),vector)
      end do
   end if
 
@@ -650,7 +624,6 @@ subroutine tget_derivatives2uv(st,vp,t,p3d,u,v,&
   integer(i_kind) k,i,j,kk
   real(r_kind),allocatable,dimension(:,:,:,:) :: hwork_sub,hwork,hwork_x,hwork_y
   real(r_kind),allocatable,dimension(:,:,:,:) :: hwork_suby
-  real(r_kind),dimension(s1g4%nlat,s1g4%nlon) :: tmp1,tmp2
   logical vector
 
   allocate(hwork_sub(1,s1g4%lat2,s1g4%lon2,s1g4%num_fields))
@@ -695,34 +668,23 @@ subroutine tget_derivatives2uv(st,vp,t,p3d,u,v,&
   call general_sub2grid(s1g4,hwork_suby,hwork_y)
   deallocate(hwork_suby)
   allocate(hwork(s1g4%inner_vars,s1g4%nlat,s1g4%nlon,s1g4%kbegin_loc:s1g4%kend_alloc))
+  hwork=zero
 !             initialize hwork to zero, so can accumulate contribution from
 !             all derivatives
 
   if(regional)then
+!$omp parallel do private (k,vector)  
      do k=s1g4%kbegin_loc,s1g4%kend_loc
         vector=trim(s1g4%names(1,k))=='u'.or.trim(s1g4%names(1,k))=='v'
-!$omp parallel sections
-!$omp section
-        tmp1=zero
-        call tdelx_reg(hwork_x(1,:,:,k),tmp1,vector)
-!$omp section
-        tmp2=zero
-        call tdely_reg(hwork_y(1,:,:,k),tmp2,vector)
-!$omp end parallel sections
-        hwork(1,:,:,k)=tmp1(:,:)+tmp2(:,:)
+        call tdelx_reg(hwork_x(1,1,1,k),hwork(1,1,1,k),vector)
+        call tdely_reg(hwork_y(1,1,1,k),hwork(1,1,1,k),vector)
      end do
   else
+!$omp parallel do private (k,vector)  
      do k=s1g4%kbegin_loc,s1g4%kend_loc
         vector=trim(s1g4%names(1,k))=='u'.or.trim(s1g4%names(1,k))=='v'
-!$omp parallel sections
-!$omp section
-        tmp1=zero
-        call tcompact_dlon(tmp1,hwork_x(1,:,:,k),vector)
-!$omp section
-        tmp2=zero
-        call tcompact_dlat(tmp2,hwork_y(1,:,:,k),vector)
-!$omp end parallel sections
-        hwork(1,:,:,k)=tmp1(:,:)+tmp2(:,:)
+        call tcompact_dlon(hwork(1,1,1,k),hwork_x(1,1,1,k),vector)
+        call tcompact_dlat(hwork(1,1,1,k),hwork_y(1,1,1,k),vector)
      end do
   end if
   deallocate(hwork_x,hwork_y)

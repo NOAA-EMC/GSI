@@ -95,9 +95,8 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   integer(i_kind) :: iret,kx,pflag,nlevp,nmind,levs,idomsfc
   integer(i_kind) :: low_cldamt_qc,mid_cldamt_qc,hig_cldamt_qc,tcamt_qc
   integer(i_kind) :: ithin,klat1,klon1,klonp1,klatp1,kk,k,ilat,ilon,nchanl
-  integer(i_kind) :: iout,ntmp,iiout,maxobs,icount,itx,iuse,idate,ierr
+  integer(i_kind) :: iout,ntmp,maxobs,icount,itx,iuse,idate,ierr
   integer(i_kind),dimension(5) :: idate5
-  integer(i_kind),allocatable,dimension(:):: isort,iloc
   real(r_kind) :: dlat,dlon,dlat_earth,dlon_earth,toff,t4dv
   real(r_kind) :: dlat_earth_deg,dlon_earth_deg
   real(r_kind) :: dx,dx1,dy,dy1,w00,w10,w01,w11,crit1,timedif,tdiff
@@ -106,7 +105,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   real(r_kind) :: low_cldamt,mid_cldamt,hig_cldamt,usage,zz,sfcr,rstation_id
   real(r_kind),allocatable,dimension(:):: presl_thin
   real(r_kind),dimension(nsig):: presl
-  real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
+  real(r_kind),allocatable,dimension(:,:):: cdata_all
   real(r_double),dimension(9):: hdr
   real(r_double),dimension(3):: goescld
 
@@ -196,8 +195,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   end do
   maxobs=ntb
 
-  allocate(cdata_all(nreal,maxobs),isort(maxobs))
-  isort = 0
+  allocate(cdata_all(nreal,maxobs))
   cdata_all=zero
   nread=0
   nchanl=0
@@ -320,19 +318,16 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
                endif
                ppb=one_tenth*1013.25_r_kind !number is irrelevant for 2D - set to standard SLP -> 1013.25 and convert from mb to cb
                call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                                 ppb,crit1,ndata,iout,ntb,iiout,luse,.false.,.false.)
+                                 ppb,crit1,ndata,iout,luse,.false.,.false.)
 
                if (.not. luse) cycle loop_readsb
-               if(iiout > 0) isort(iiout)=0
                if (ndata > ntmp) then
                   nodata=nodata+1
                endif
-               isort(ntb)=iout
             else  ! - no thinnning
                ndata=ndata+1
                nodata=nodata+1
                iout=ndata
-               isort(ntb)=iout
          endif
 
          !-  Set usage variable
@@ -390,32 +385,16 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 ! Normal exit
 
 ! Write header record and data to output file for further processing
-  allocate(iloc(ndata))
-  icount=0
-  do i=1,maxobs
-     if(isort(i) > 0)then
-       icount=icount+1
-       iloc(icount)=isort(i)
-     end if
-  end do
   if(ndata /= icount)then
      write(6,*) myname,': ndata and icount do not match STOPPING...ndata,icount ',ndata,icount
      call stop2(50)
   end if
-  allocate(cdata_out(nreal,ndata))
-  do i=1,ndata
-     itx=iloc(i)
-     do k=1,nreal
-        cdata_out(k,i)=cdata_all(k,itx)
-     end do
-  end do
-  deallocate(iloc,isort,cdata_all)
  
-  call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
-  write(lunout) cdata_out
+  write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 
-  deallocate(cdata_out)
+  deallocate(cdata_all)
 
   if (ndata == 0) then 
      write(6,*)myname,'no read_goesimgr_skycover data'

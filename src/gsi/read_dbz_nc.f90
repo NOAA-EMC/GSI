@@ -134,13 +134,12 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
   real(r_kind), allocatable, dimension(:) :: zl_thin
   real(r_kind),dimension(nsig):: hges,zges
   real(r_kind) sin2,termg,termr,termrg,zobs,hgt
-  integer(i_kind) ntmp,iout,iiout,ntdrvr_thin2
+  integer(i_kind) ntmp,iout,ntdrvr_thin2
   real(r_kind) crit1,timedif
   real(r_kind),parameter:: r16000 = 16000.0_r_kind
 
   logical :: luse
   integer(i_kind) maxout,maxdata
-  integer(i_kind),allocatable,dimension(:):: isort
        
   !--General declarations
   integer(i_kind) :: ierror,i,j,k,nvol, &
@@ -218,14 +217,13 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
   maxobs=50000000    !value taken from read_radar.f90 
 
   !--Allocate cdata_all array
-   allocate(cdata_all(maxdat,maxobs),isort(maxobs))
+   allocate(cdata_all(maxdat,maxobs))
    rmesh=rmesh_dbz
    zmesh=zmesh_dbz
 
 
    maxout=0
    maxdata=0
-   isort=0
    ntdrvr_thin2=0
    icntpnt=0
    zflag=0
@@ -303,6 +301,8 @@ fileopen: if (if_input_exist) then
          call ncvgt( cdfid, id_var(ivar), one_read, dims(ivar,:), data_r_3d, rcode )
 
          dbzQC = data_r_3d
+
+         deallocate(data_r_3d)
 
        else if( ivar == 2 )then
          allocate( data_r_1d(dims(ivar,1)) )
@@ -459,8 +459,7 @@ fileopen: if (if_input_exist) then
            crit1 = timedif/r6+half
      
            call map3grids(1,zflag,zl_thin,nlevz,thislat,thislon,&
-              zobs,crit1,ndata,iout,icntpnt,iiout,luse,.false.,.false.)
-     
+              zobs,crit1,ndata,iout,luse,.false.,.false.)
      
            maxout=max(maxout,iout)
            maxdata=max(maxdata,ndata)
@@ -469,16 +468,13 @@ fileopen: if (if_input_exist) then
               ntdrvr_thin2=ntdrvr_thin2+1
               cycle
            endif
-           if(iiout > 0) isort(iiout)=0
            if (ndata > ntmp) then
               nodata=nodata+1
            endif
-           isort(icntpnt)=iout
         else
            ndata =ndata+1
            nodata=nodata+1
            iout=ndata
-           isort(icntpnt)=iout
         endif
      
         !!end modified for thinning
@@ -518,6 +514,7 @@ fileopen: if (if_input_exist) then
       end do    ! k
     end do    ! j
   end do ILOOP    ! i
+  deallocate(dbzQC,lat,lon)                     
 
   if (.not. use_all) then 
     deallocate(zl_thin) 

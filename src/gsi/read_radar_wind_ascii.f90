@@ -182,12 +182,11 @@ real(r_kind) :: rmesh,xmesh,zmesh,dx,dy,dx1,dy1,w00,w01,w10,w11
 real(r_kind), allocatable, dimension(:) :: zl_thin
   real(r_kind),dimension(nsig):: hges,zges
   real(r_kind) sin2,termg,termr,termrg,zobs,height
-  integer(i_kind) ntmp,iout,iiout,ntdrvr_thin2
+  integer(i_kind) ntmp,iout,ntdrvr_thin2
   real(r_kind) crit1,timedif
   real(r_kind),parameter:: r16000 = 16000.0_r_kind
 logical :: luse
   integer(i_kind) maxout,maxdata
-  integer(i_kind),allocatable,dimension(:):: isort
 
 !--General declarations
   integer(i_kind) :: ierror,lunrad,i,j,k,v,na,nb,nelv,nvol, &
@@ -266,7 +265,7 @@ real(r_kind) :: mintilt,maxtilt,maxobrange,minobrange
 
   !--Allocate cdata_all array
 
-  allocate(cdata_all(maxdat,maxobs),isort(maxobs))
+  allocate(cdata_all(maxdat,maxobs))
 
 
   rmesh=rmesh_vr
@@ -274,7 +273,6 @@ real(r_kind) :: mintilt,maxtilt,maxobrange,minobrange
 
   maxout=0
   maxdata=0
-  isort=0
   ntdrvr_thin2=0
   icntpnt=0
   zflag=0
@@ -552,7 +550,7 @@ real(r_kind) :: mintilt,maxtilt,maxobrange,minobrange
               crit1 = timedif/r6+half
  
               call map3grids(1,zflag,zl_thin,nlevz,thislat,thislon,&
-                 zobs,crit1,ndata,iout,icntpnt,iiout,luse, .false., .false.)
+                 zobs,crit1,ndata,iout,luse, .false., .false.)
               maxout=max(maxout,iout)
               maxdata=max(maxdata,ndata)
 
@@ -560,17 +558,14 @@ real(r_kind) :: mintilt,maxtilt,maxobrange,minobrange
                  ntdrvr_thin2=ntdrvr_thin2+1
                  cycle
               endif
-              if(iiout > 0) isort(iiout)=0
               if (ndata > ntmp) then
                  nodata=nodata+1
               endif
-              isort(icntpnt)=iout
 
            else
               ndata =ndata+1
               nodata=nodata+1
               iout=ndata
-              isort(icntpnt)=iout
            endif
 
 		    cdata_all(1,iout) = error		                 ! wind obs error (m/s)

@@ -570,6 +570,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
      if ( nread > 0 ) then
         write(*,'(a,a10,I3,F6.1,3I10)') 'read_avhrr,satid,imesh,amesh,itxmax,nread,ndata_mesh : ',jsatid,imesh,amesh(imesh),itxmax,nread,ndata_mesh
      endif
+     deallocate(amesh,hsst_thd)
 !
 !    get data_all by combining data from all thinning box sizes
 !

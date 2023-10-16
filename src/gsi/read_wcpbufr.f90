@@ -85,7 +85,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   character(8) c_station_id
   character(1) sidchr(8)
 
-  integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2,icount,iiout
+  integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2
   integer(i_kind) lunin,i,maxobs,nmsgmax,mxtb
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nc,nx,ntread,itx,ii,ncsave
@@ -105,7 +105,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind),dimension(255):: pqm
   integer(i_kind),dimension(nconvtype)::ntxall
   integer(i_kind),dimension(nconvtype+1)::ntx
-  integer(i_kind),allocatable,dimension(:):: isort,iloc,nrep
+  integer(i_kind),allocatable,dimension(:):: nrep
   integer(i_kind),allocatable,dimension(:,:):: tab
   real(r_kind) time,timex,timeobs,toff,t4dv,zeps
   real(r_kind) rmesh,ediff,usage
@@ -125,7 +125,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),dimension(nsig-1):: dpres
   real(r_kind),dimension(255)::plevs
   real(r_kind),allocatable,dimension(:):: presl_thin
-  real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
+  real(r_kind),allocatable,dimension(:,:):: cdata_all
 
   real(r_double) rstation_id,qcmark_huge
   real(r_double),dimension(8):: hdr
@@ -294,8 +294,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! loop over convinfo file entries; operate on matches
   
-  allocate(cdata_all(nreal,maxobs),isort(maxobs))
-  isort = 0
+  allocate(cdata_all(nreal,maxobs))
   cdata_all=zero
   nread=0
   ntest=0
@@ -569,7 +568,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  endif
 
                  call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                    plevs(k),crit1,ndata,iout,icntpnt,iiout,luse,.false.,.false.)
+                    plevs(k),crit1,ndata,iout,luse,.false.,.false.)
 
                  if (.not. luse) then
                     if(k==levs) then
@@ -578,17 +577,14 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                        cycle LOOP_K_LEVS
                     endif
                  endif
-                 if(iiout > 0) isort(iiout)=0
                  if(ndata >  ntmp)then
                     nodata=nodata+1
                  end if
-                 isort(icntpnt)=iout
 
               else
                  ndata=ndata+1
                  nodata=nodata+1
                  iout=ndata
-                 isort(icntpnt)=iout
               endif
 
               if(ndata > maxobs) then
@@ -680,32 +676,12 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   deallocate(lmsg,tab,nrep)
 
 ! Write header record and data to output file for further processing
-  allocate(iloc(ndata))
-  icount=0
-  do i=1,maxobs
-     if(isort(i) > 0)then
-       icount=icount+1
-       iloc(icount)=isort(i)
-     end if
-  end do
-  if(ndata /= icount)then
-     write(6,*) ' WCPBUFR: mix up in read_wcpbufr ,ndata,icount ',ndata,icount
-     call stop2(50)
-  end if
-  allocate(cdata_out(nreal,ndata))
-  do i=1,ndata
-     itx=iloc(i)
-     do k=1,nreal
-        cdata_out(k,i)=cdata_all(k,itx)
-     end do
-  end do
-  deallocate(iloc,isort,cdata_all)
 
-  call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
-  write(lunout) cdata_out
+  write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 
-  deallocate(cdata_out)
+  deallocate(cdata_all)
 
 900 continue
   if(diagnostic_reg .and. ntest>0) write(6,*)'READ_WCPBUFR:  ',&

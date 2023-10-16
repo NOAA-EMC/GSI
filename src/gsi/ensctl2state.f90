@@ -57,7 +57,7 @@ type(gsi_bundle)    , intent(inout) :: eval(ntlevs_ens)
 ! Declare local variables
 character(len=*),parameter::myname='ensctl2state'
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
-integer(i_kind) :: jj,ic,id,istatus,nclouds
+integer(i_kind) :: jj,ic,id,istatus,nclouds,idozone
 
 integer(i_kind), parameter :: ncvars = 8
 integer(i_kind) :: icps(ncvars)
@@ -92,7 +92,7 @@ real(r_kind),pointer,dimension(:,:,:) :: sv_rank3=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: sv_w=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: sv_dw=>NULL()
 
-logical :: do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,lstrong_bk_vars
+logical :: do_getprs,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,lstrong_bk_vars
 logical :: do_tlnmc,do_q_copy
 logical :: do_cw_to_hydro
 logical :: do_cw_to_hydro_hwrf
@@ -123,16 +123,17 @@ ls_u  =isps(1)>0; ls_v   =isps(2)>0; ls_prse=isps(3)>0
 ls_q  =isps(4)>0; ls_tsen=isps(5)>0; ls_ql =isps(6)>0; ls_qi =isps(7)>0
 ls_qr  =isps(8)>0; ls_qs  =isps(9)>0
 ls_qg  =isps(10)>0; ls_qh =isps(11)>0
-ls_w   =isps(12)>0; ls_dw =isps(13)>0
+ls_w   =isps(12)>0; ls_dw =isps(13)>0.and.nems_nmmb_regional
 
 ! Define what to do depending on what's in CV and SV
 lstrong_bk_vars  =lc_ps.and.lc_sf.and.lc_vp.and.lc_t
-do_getprs_tl     =lc_ps.and.lc_t .and.ls_prse
+do_getprs     =lc_ps.and.lc_t .and.ls_prse
 do_normal_rh_to_q=(.not.q_hyb_ens).and.&
                   lc_rh.and.lc_t .and.ls_prse.and.ls_q
-do_q_copy=.false.
 if(.not. do_normal_rh_to_q) then
   do_q_copy = lc_rh.and.lc_t .and.ls_prse.and.ls_q.and.q_hyb_ens
+else
+  do_q_copy=.false.
 end if
 do_tv_to_tsen    =lc_t .and.ls_q .and.ls_tsen
 do_getuv         =lc_sf.and.lc_vp.and.ls_u.and.ls_v
@@ -148,8 +149,7 @@ do_cw_to_hydro = lc_cw .and. ls_ql .and. ls_qi
 do_cw_to_hydro_hwrf = .false.
 do_cw_to_hydro_hwrf = lc_cw.and.ls_ql.and.ls_qi.and.ls_qr.and.ls_qs.and.ls_qg.and.ls_qh
 
-do_tlnmc = lstrong_bk_vars .and. ( (tlnmc_option==3) .or. &
-         (jj==ibin_anl .and. tlnmc_option==2) )
+idozone=getindex(cvars3d,"oz")
 
 ! Initialize ensemble contribution to zero
 !$omp parallel do schedule(dynamic,1) private(jj)
@@ -161,6 +161,8 @@ end do
 
 do jj=1,ntlevs_ens 
 
+   do_tlnmc = lstrong_bk_vars .and. ( (tlnmc_option==3) .or. &
+         (jj==ibin_anl .and. tlnmc_option==2) )
 
 !  Initialize work bundle to first component 
 !  For 4densvar, this is the "3D/Time-invariant contribution from static B"
@@ -206,7 +208,7 @@ do jj=1,ntlevs_ens
    if(do_q_copy) then
       call gsi_bundlegetvar ( wbundle_c, 'q', sv_q, istatus )
    else
-      if(do_getprs_tl) call getprs_tl(sv_ps,sv_tv,sv_prse)
+      if(do_getprs) call getprs_tl(sv_ps,sv_tv,sv_prse)
 
 !  Convert RH to Q
       if(do_normal_rh_to_q) then
@@ -240,11 +242,11 @@ do jj=1,ntlevs_ens
 
 !$omp section
 
-!  Get pointers to required state variables
+!  Get pointers to required state variables and copy
    call gsi_bundlegetpointer (eval(jj),'sst' ,sv_sst, istatus)
    if(ls_w)then
      call gsi_bundlegetpointer (eval(jj),'w' ,sv_w, istatus)
-     if(ls_dw.and.nems_nmmb_regional)then
+     if(ls_dw)then
         call gsi_bundlegetpointer (eval(jj),'dw' ,sv_dw, istatus)
      end if
    end if
@@ -252,14 +254,13 @@ do jj=1,ntlevs_ens
    call gsi_bundlegetvar ( wbundle_c, 'sst', sv_sst, istatus )
    if(lc_w)then
       call gsi_bundlegetvar ( wbundle_c, 'w' , sv_w,  istatus )
-      if(lc_dw.and.nems_nmmb_regional)then
+      if(lc_dw)then
          call gsi_bundlegetvar ( wbundle_c, 'dw' , sv_dw,  istatus )
       end if
    end if
 
 !  Get the ozone vector if it is defined
-   id=getindex(cvars3d,"oz")
-   if(id > 0) then
+   if(idozone > 0) then
       call gsi_bundlegetpointer (eval(jj),'oz'  ,sv_oz , istatus)
       call gsi_bundlegetvar ( wbundle_c, 'oz' , sv_oz,  istatus )
    endif
@@ -276,7 +277,7 @@ do jj=1,ntlevs_ens
 
 !  Need to update 3d pressure and sensible temperature again for consistency
 !  Get 3d pressure
-      if(do_getprs_tl) call getprs_tl(sv_ps,sv_tv,sv_prse)
+      if(do_getprs) call getprs_tl(sv_ps,sv_tv,sv_prse)
   
    end if
 

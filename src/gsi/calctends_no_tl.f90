@@ -64,6 +64,7 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use derivsmod, only: gsi_xderivative_bundle
   use derivsmod, only: gsi_yderivative_bundle
+  use turblmod, only: use_pbl
   implicit none
 
 ! Declare passed variables
@@ -364,7 +365,7 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
       end do   !end do j
     end do  !end do k
 
-    call turbl_tl(ges_prsi(1,1,1,it),ges_tv,ges_teta(1,1,1,it),&
+    if(use_pbl)call turbl_tl(ges_prsi(1,1,1,it),ges_tv,ges_teta(1,1,1,it),&
                u,v,pri,t,u_t,v_t,t_t,jtstart(kk),jtstop(kk))
 
     if(.not.wrf_nmm_regional.and..not.nems_nmmb_regional)then

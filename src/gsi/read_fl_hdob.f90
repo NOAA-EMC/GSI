@@ -128,7 +128,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !    integer(i_kind) :: m,itypex,lcount,iflag
      integer(i_kind) :: nlevp   ! vertical level for thinning
      integer(i_kind) :: pflag   
-     integer(i_kind) :: ntmp,iiout,igood
+     integer(i_kind) :: ntmp
      integer(i_kind) :: kk,klon1,klat1,klonp1,klatp1
      integer(i_kind) :: iuse
      integer(i_kind) :: nmind
@@ -137,7 +137,6 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      integer(i_kind) :: ibit(mxib)
      integer(i_kind) :: idate5(5)
 
-     integer(i_kind), allocatable,dimension(:) :: isort
 
 !    Real variables
      real(r_kind), parameter :: r0_001  =  0.001_r_kind
@@ -188,7 +187,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      real(r_double) :: rstation_id
      real(r_double) :: r_prvstg(1,1),r_sprvstg(1,1)
 
-     real(r_kind), allocatable,dimension(:,:) :: cdata_all,cdata_out
+     real(r_kind), allocatable,dimension(:,:) :: cdata_all
      real(r_kind), allocatable,dimension(:)   :: presl_thin
 
 !    Equivalence to handle character names
@@ -378,11 +377,9 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 
 !    Allocate array to hold data
      allocate(cdata_all(nreal,maxobs))
-     allocate(isort(maxobs))
 
 !    Initialize
      cdata_all = zero 
-     isort     = 0
      nread     = 0
      nchanl    = 0
      ntest     = 0
@@ -395,7 +392,6 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      call openbf(lunin,'IN',lunin)
      call datelen(10)
      ntb   = 0     
-     igood = 0
 !    Loop through BUFR file
      loop_msg2: do while(ireadmg(lunin,subset,idate) >= 0)
         loop_readsb2: do while(ireadsb(lunin) == 0)
@@ -896,9 +892,6 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 
 !          Get information from surface file necessary for conventional data
            call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr,zz)                                                                      
-!          Process data passed quality control 
-           igood = igood+1
-
 !          Process data thinning procedure on good data   
            if (ithin > 0) then
               if (pflag == 0) then 
@@ -938,24 +931,17 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               endif
 
               call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,& 
-                             pob_cb,crit1,ndata,iout,igood,iiout,luse,.false.,.false.)
+                             pob_cb,crit1,ndata,iout,luse,.false.,.false.)
 
               if (.not. luse) cycle loop_readsb2
 
-              if(iiout > 0) isort(iiout) = 0
               if (ndata > ntmp) then
                  nodata = nodata+2
-                 if (luvob) &
-                 nodata = nodata+2
               endif
-              isort(igood) = iout
            else
               ndata        = ndata+1
               nodata       = nodata+2
-              if (luvob) &
-              nodata       = nodata+2
               iout         = ndata
-              isort(igood) = iout
            endif ! ithin
 
 !-------------------------------------------------------------------------------------------------          
@@ -1156,19 +1142,12 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      endif
  
 !    Write header record and data to output file for further processing
-     allocate(cdata_out(nreal,ndata))
-     do i=1,ndata
-        do k=1,nreal
-           cdata_out(k,i)=cdata_all(k,i)
-        end do
-     end do
-     deallocate(cdata_all)
 !     deallocate(etabl)
 
-     call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
+     call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-     write(lunout) cdata_out
-     deallocate(cdata_out)
+     write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
+     deallocate(cdata_all)
 900  continue
      if(diagnostic_reg .and. ntest>0)  write(6,*)'READ_FL_HDOB:  ',&
         'ntest,  disterrmax=', ntest,disterrmax

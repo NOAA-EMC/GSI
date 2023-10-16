@@ -178,7 +178,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind) ntb,ntmatch,ncx,ncsave,ntread
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nmind,lunin,idate,ilat,ilon,iret,k
-  integer(i_kind) nreal,ithin,iout,ntmp,icount,iiout,ii
+  integer(i_kind) nreal,ithin,iout,ntmp,icount,ii
   integer(i_kind) itype,iosub,ixsub,isubsub,iobsub,itypey,ierr
   integer(i_kind) qm
   integer(i_kind) nlevp         ! vertical level for thinning
@@ -191,7 +191,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind),dimension(nconvtype+1) :: ntx  
   
   integer(i_kind),dimension(5):: idate5 
-  integer(i_kind),allocatable,dimension(:):: nrep,isort,iloc
+  integer(i_kind),allocatable,dimension(:):: nrep
   integer(i_kind),allocatable,dimension(:,:):: tab
   integer(i_kind) :: icnt(1000)
 
@@ -220,7 +220,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_double),dimension(1,1):: r_prvstg,r_sprvstg
   real(r_kind),allocatable,dimension(:):: presl_thin
   real(r_kind),allocatable,dimension(:):: rusage 
-  real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
+  real(r_kind),allocatable,dimension(:,:):: cdata_all
 
 ! GOES-16 new BUFR related variables
   real(r_double) :: rep_array
@@ -591,8 +591,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 
 
-  allocate(cdata_all(nreal,maxobs),isort(maxobs),rusage(maxobs))
-  isort = 0
+  allocate(cdata_all(nreal,maxobs),rusage(maxobs))
   cdata_all=zero
   nread=0
   ntest=0
@@ -1581,48 +1580,41 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  if(pmot <one) then
 !                    call map3grids_tm(-1,pflag,presl_thin,nlevp,ntime,dlat_earth,dlon_earth,&
                     call map3grids_tm(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                                        ppb,itime,crit1,ndata,iout,ntb,iiout,luse,.false.,.false.)
+                                        ppb,itime,crit1,ndata,iout,luse,.false.,.false.)
                     if (.not. luse) cycle loop_readsb
-                    if(iiout > 0) isort(iiout)=0
                     if (ndata > ntmp) then
                        nodata=nodata+2
                     endif
                     rusage(iout)=usage
-                    isort(ntb)=iout
                  else
 !                    call map3grids_m_tm(-1,pflag,presl_thin,nlevp,ntime,dlat_earth,dlon_earth,&
                     call map3grids_m_tm(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                              ppb,itime,crit1,ndata,iout,ntb,iiout,luse,maxobs,usage,rusage,.false.,.false.)
+                              ppb,itime,crit1,ndata,iout,luse,maxobs,usage,rusage,.false.,.false.)
                     if (ndata > ntmp) then
                        nodata=nodata+2
                     endif
-                    isort(ntb)=iout
                  endif
               else 
                  if(pmot <one) then
                     call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                                 ppb,crit1,ndata,iout,ntb,iiout,luse,.false.,.false.)
+                                 ppb,crit1,ndata,iout,luse,.false.,.false.)
                     if (.not. luse) cycle loop_readsb
-                    if(iiout > 0) isort(iiout)=0
                     if (ndata > ntmp) then
                        nodata=nodata+2
                     endif
-                    isort(ntb)=iout
                     rusage(iout)=usage
                  else
                     call map3grids_m(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                              ppb,crit1,ndata,iout,ntb,iiout,luse,maxobs,usage,rusage,.false.,.false.)
+                              ppb,crit1,ndata,iout,luse,maxobs,usage,rusage,.false.,.false.)
                     if (ndata > ntmp) then
                        nodata=nodata+2
                     endif
-                    isort(ntb)=iout
                  endif
               endif
            else
               ndata=ndata+1
               nodata=nodata+2
               iout=ndata
-              isort(ntb)=iout
               rusage(iout)=usage
            endif
            inflate_error=.false.
@@ -1693,37 +1685,16 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   call closbf(lunin)
 
   ! Write header record and data to output file for further processing
-  allocate(iloc(ndata))
-  icount=0
-  do i=1,maxobs
-     if(isort(i) > 0)then
-        icount=icount+1
-        iloc(icount)=isort(i)
-     end if
-  end do
-  if(ndata /= icount)then
-     write(6,*) ' READ_SATWND: mix up in read_satwnd ,ndata,icount ',ndata,icount
-     call stop2(49)
-  end if
 
-  allocate(cdata_out(nreal,ndata))
   do i=1,ndata
-     itx=iloc(i)
-     do k=1,13
-        cdata_out(k,i)=cdata_all(k,itx)
-     end do
-     cdata_out(14,i)=rusage(itx)
-     do k=15,nreal
-        cdata_out(k,i)=cdata_all(k,itx)
-     end do
+     cdata_all(14,i)=rusage(i)
   end do
-  deallocate(iloc,isort,cdata_all,rusage)
   
-  call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-  write(lunout) cdata_out
+  write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 
-  deallocate(cdata_out)
+  deallocate(cdata_all,rusage)
 900 continue
   if(diagnostic_reg .and. ntest>0) write(6,*)'READ_SATWND:  ',&
        'ntest,disterrmax=',ntest,disterrmax

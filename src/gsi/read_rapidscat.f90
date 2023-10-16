@@ -111,7 +111,7 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   integer(i_kind) ntb,ntmatch,ncx,ncsave,ntread
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nmind,lunin,idate,ilat,ilon,iret,k
-  integer(i_kind) nreal,ithin,iout,ntmp,icount,iiout,ii
+  integer(i_kind) nreal,ithin,iout,ntmp,icount,ii
   integer(i_kind) itype,iosub,ixsub,isubsub,iobsub 
   integer(i_kind) lim_qm
   integer(i_kind) nlevp         ! vertical level for thinning
@@ -127,7 +127,7 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   integer(i_kind),dimension(nconvtype+1) :: ntx  
   
   integer(i_kind),dimension(5):: idate5 
-  integer(i_kind),allocatable,dimension(:):: isort,iloc,nrep
+  integer(i_kind),allocatable,dimension(:):: nrep
   integer(i_kind),allocatable,dimension(:,:)::tab
 
   integer(i_kind) ietabl,itypex,lcount,iflag,m
@@ -156,7 +156,6 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   real(r_double),dimension(1,1):: r_prvstg,r_sprvstg
   real(r_kind),allocatable,dimension(:):: presl_thin
   real(r_kind),allocatable,dimension(:,:):: cdata_all
-  real(r_kind),allocatable,dimension(:,:):: cdata_out
 
 ! equivalence to handle character names
   equivalence(r_prvstg(1,1),c_prvstg)
@@ -339,8 +338,7 @@ loopd : do
   enddo msg_report
 
 ! Loop over convinfo file entries; operate on matches
-  allocate(cdata_all(nreal,maxobs),isort(maxobs))
-  isort = 0
+  allocate(cdata_all(nreal,maxobs))
   cdata_all=zero
   nread=0
   ntest=0
@@ -602,20 +600,17 @@ loopd : do
               endif
  
               call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                              ppb,crit1,ndata,iout,ntb,iiout,luse,.false.,.false.)
+                              ppb,crit1,ndata,iout,luse,.false.,.false.)
 
               if (.not. luse) cycle loop_readsb
-              if(iiout > 0) isort(iiout)=0
               if (ndata > ntmp) then
                  nodata=nodata+2
               endif
-              isort(ntb)=iout
 
            else
               ndata=ndata+1
               nodata=nodata+2
               iout=ndata
-              isort(ntb)=iout
            endif
 
            woe=obserr
@@ -675,34 +670,14 @@ loopd : do
   call closbf(lunin)
  
 ! Write header record and data to output file for further processing
-  allocate(iloc(ndata))
-  icount=0
-  do i=1,maxobs
-     if(isort(i) > 0)then
-        icount=icount+1
-        iloc(icount)=isort(i)
-     end if
-  end do
-  if(ndata /= icount)then
-     write(6,*) ' READ_RAPIDSCAT: mix up in read_satwnd ,ndata,icount ',ndata,icount
-     call stop2(49)
-  end if
- allocate(cdata_out(nreal,ndata))
-  do i=1,ndata
-     itx=iloc(i)
-     do k=1,nreal
-        cdata_out(k,i)=cdata_all(k,itx)
-     end do
-  end do
-  deallocate(iloc,isort,cdata_all)
   deallocate(etabl)
   
 
-  call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-  write(lunout) cdata_out
+  write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 
-  deallocate(cdata_out)
+  deallocate(cdata_all)
 900 continue
   if(diagnostic_reg .and. ntest>0) write(6,*)'READ_RAPIDSCAT:  ',&
        'ntest,disterrmax=',ntest,disterrmax
