@@ -27,6 +27,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Free up disk space
+      - name: free-disk-spack
+        run: |
+          df -h
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+
       # Checkout the GSI to get the ci/spack.yaml file
       - name: checkout-gsi
         if: steps.cache-env.outputs.cache-hit != 'true'
