@@ -382,7 +382,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
 
         nread=nread+nchanl
         crit0=0.01_r_kind
-        if(ifov < mfov .and. ifov > 0) crit0 = crit0+two*float(mfov-ifov)
+        if(ifov < mfov .and. ifov > 0) crit0 = crit0+two*real(mfov-ifov,r_kind)
         timeinflat=6.0_r_kind
         call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
         call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)

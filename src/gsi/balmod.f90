@@ -443,7 +443,7 @@ contains
              do i=1,lat2
                 l=int(rllat1(i,j))
                 l2=min0(l+1,llmax)
-                dl2=rllat1(i,j)-float(l)
+                dl2=rllat1(i,j)-real(l,r_kind)
                 dl1=one-dl2
                 bvk(i,j,k)=dl1*bvi(l,k)+dl2*bvi(l2,k)
              end do
@@ -465,7 +465,7 @@ contains
                 do i=1,lat2
                    l=int(rllat1(i,j))
                    l2=min0(l+1,llmax)
-                   dl2=rllat1(i,j)-float(l)
+                   dl2=rllat1(i,j)-real(l,r_kind)
                    dl1=one-dl2
                    agvk(i,j,m,k)=dl1*agvi(l,m,k)+dl2*agvi(l2,m,k)
                 end do
@@ -477,7 +477,7 @@ contains
              do i=1,lat2
                 l=int(rllat1(i,j))
                 l2=min0(l+1,llmax)
-                dl2=rllat1(i,j)-float(l)
+                dl2=rllat1(i,j)-real(l,r_kind)
                 dl1=one-dl2
                 wgvk(i,j,k)=dl1*wgvi(l,k)+dl2*wgvi(l2,k)
              end do
@@ -972,7 +972,7 @@ contains
     do j=1,nlon 
        do i=1,nlat   
           if(region_lat(i,j)>=clat_avn(mlat))then
-             rllat(i,j)=float(mlat)
+             rllat(i,j)=real(mlat,r_kind)
              llmax=max0(mlat,llmax)
              llmin=min0(mlat,llmin)
           else if(region_lat(i,j)<clat_avn(1))then
@@ -984,7 +984,7 @@ contains
                 m1=m+1
                 if((region_lat(i,j)>=clat_avn(m)).and.  &
                    (region_lat(i,j)<clat_avn(m1)))then
-                   rllat(i,j)=float(m)
+                   rllat(i,j)=real(m,r_kind)
                    llmax=max0(m,llmax)
                    llmin=min0(m,llmin)
                    exit

@@ -63,7 +63,7 @@ subroutine grdcrd(d,nd,x,nx,flg)
               ix=isrchf(nx-1,x,d(id),flg)-1
            end if
         end if
-        d(id)=float(ix)+(d(id)-x(ix))/(x(ix+1)-x(ix))
+        d(id)=real(ix,r_kind)+(d(id)-x(ix))/(x(ix+1)-x(ix))
      end do
 
 ! Treat special case of nx=1
@@ -135,7 +135,7 @@ subroutine grdcrd1(d,x,nx,flg)
            ix=isrchf(nx-1,x,d,flg)-1
         end if
      end if
-     d=float(ix)+(d-x(ix))/(x(ix+1)-x(ix))
+     d=real(ix,r_kind)+(d-x(ix))/(x(ix+1)-x(ix))
 
 ! Treat special case of nx=1
   elseif (nx==1) then

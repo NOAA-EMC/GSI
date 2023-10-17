@@ -304,8 +304,8 @@ subroutine get_gefs_for_regional
      if (nframe /= 0) call error_msg(trim(my_name),trim(filename),'nframe', &
                                      'getfilehead',istop,nframe)
 
-     fhour = float(nfhour) + float(nfminute)/r60 + &
-             float(nfsecondn)/float(nfsecondd)/r3600
+     fhour = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+             real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
 
      nlat_gfs=latb+2
      nlon_gfs=lonb
@@ -897,8 +897,8 @@ subroutine get_gefs_for_regional
                  iimin=min(ii,iimin)
                  jjmax=max(jj,jjmax)
                  jjmin=min(jj,jjmin)
-                 dlon_ens=float(jj)
-                 dlat_ens=float(ii)
+                 dlon_ens=real(jj,r_kind)
+                 dlat_ens=real(ii,r_kind)
                  dlon=one+(dlon_ens-one)*ratio_x
                  dlat=one+(dlat_ens-one)*ratio_y
                  call rotate_wind_ll2xy(work_sub(1,i,j,ku),work_sub(1,i,j,kv), &
@@ -992,7 +992,7 @@ subroutine get_gefs_for_regional
   end do
 
 ! Convert to mean
-  bar_norm = one/float(n_ens_gfs)
+  bar_norm = one/real(n_ens_gfs,r_kind)
   do k=1,grd_mix%nsig
      do j=1,grd_mix%lon2
         do i=1,grd_mix%lat2

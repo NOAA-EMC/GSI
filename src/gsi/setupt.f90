@@ -515,7 +515,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      if(netcdf_diag) call init_netcdf_diag_
   end if
   scale=one
-  rsig=float(nsig)
+  rsig=real(nsig,r_kind)
   mm1=mype+1
 
 !  rsli=isli
@@ -770,7 +770,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
                 hrdifsig,mype,nfldsig)
 
            iz = max(1, min( int(dpres), nsig))
-           delz = max(zero, min(dpres - float(iz), one))
+           delz = max(zero, min(dpres - real(iz,r_kind), one))
 
            if (save_jacobian) then
               t_ind = getindex(svars3d, 'tv')
@@ -792,7 +792,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
                 hrdifsig,mype,nfldsig)
 
            iz = max(1, min( int(dpres), nsig))
-           delz = max(zero, min(dpres - float(iz), one))
+           delz = max(zero, min(dpres - real(iz,r_kind), one))
 
            if (save_jacobian) then
               t_ind = getindex(svars3d, 'tsen')

@@ -141,7 +141,7 @@ subroutine compute_qvar3d
               d=20.0_r_kind*rhgues(i,j,k) + one
               n=int(d)
               np=n+1
-              dn2=d-float(n)
+              dn2=d-real(n,r_kind)
               dn1=one-dn2
               n=min0(max(1,n),maxvarq1)
               np=min0(max(1,np),maxvarq1)
@@ -200,7 +200,7 @@ subroutine compute_qvar3d
                  d=-2.0_r_kind*log(cwtmp) + one
                  n=int(d)
                  np=n+1
-                 dn2=d-float(n)
+                 dn2=d-real(n,r_kind)
                  dn1=one-dn2
                  n=min0(max(1,n),30)
                  np=min0(max(1,np),30)
