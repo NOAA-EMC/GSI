@@ -19,6 +19,15 @@ load(pathJoin("hpc-impi", hpc_impi_ver))
 load(pathJoin("cmake", cmake_ver))
 
 load("gsi_common")
+setenv("crtm_ROOT","/work/noaa/da/eliu/JEDI-GDAS/crtm_v2.4.1-jedi.1-intel2022/build")
+setenv("crtm_VERSION","2.4.1-jedi.1")
+setenv("CRTM_INC","/work/noaa/da/eliu/JEDI-GDAS/crtm_v2.4.1-jedi.1-intel2022/build/module")
+setenv("CRTM_LIB","/work/noaa/da/eliu/JEDI-GDAS/crtm_v2.4.1-jedi.1-intel2022/build/lib/libcrtm_static.a")
+setenv("CRTM_FIX","/work/noaa/da/eliu/JEDI-GDAS/crtm_v2.4.1-jedi.1-fix/Little_Endian")
+whatis("Name: crtm")
+whatis("Version: 2.4.1-jedi.1")
+whatis("Category: library")
+whatis("Description: crtm library")
 
 load(pathJoin("prod_util", prod_util_ver))
 
