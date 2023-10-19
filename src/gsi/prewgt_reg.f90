@@ -161,7 +161,7 @@ subroutine prewgt_reg(mype)
   real(r_kind) fact,psfc015
 
   real(r_kind),allocatable,dimension(:,:,:,:):: dsv
-  real(r_kind),dimension(lon2,llmin:llmax):: dsvs
+  real(r_kind),allocatable,dimension(:,:,:):: dsvs
 
   real(r_kind),allocatable,dimension(:,:,:):: corp, hwllp
   real(r_kind),allocatable,dimension(:,:,:,:):: corz, hwll, vz
@@ -222,6 +222,7 @@ subroutine prewgt_reg(mype)
   allocate ( hwll(0:mlat+1,1:nsig,1:num_bins2d,1:nc3d),hwllp(0:mlat+1,1:num_bins2d,nvars-nc3d) )
   allocate ( vz(1:nsig,0:mlat+1,1:num_bins2d,1:nc3d) )
   allocate ( dsv(1:lon2,1:nsig,1:num_bins2d,llmin:llmax)  )
+  allocate ( dsvs(1:lon2,1:num_bins2d,llmin:llmax)  )
 
 ! Arrays used for temperature-dependent error variance when assimilation radar dbz obs
   if (l_be_T_dep) then
@@ -689,9 +690,11 @@ subroutine prewgt_reg(mype)
 ! Background error arrays for sfp, sst, land t, and ice t
   do n=1,nc2d
      loc=nrf2_loc(n)
-     do j=llmin,llmax
-        do i=1,lon2
-           dsvs(i,j)  =corp(j,1,n)*as2d(n)
+     do ibin=1,num_bins2d
+        do j=llmin,llmax
+           do i=1,lon2
+              dsvs(i,ibin,j)  =corp(j,ibin,n)*as2d(n)
+           end do
         end do
      end do
 
@@ -701,7 +704,17 @@ subroutine prewgt_reg(mype)
            l2=min0(l+1,llmax)
            dl2=rllat1(j,i)-float(l)
            dl1=one-dl2
-           dssvs(j,i,n)=dl1*dsvs(i,l)+dl2*dsvs(i,l2)
+           if( if_cs_staticB )then
+               if( ges_mask(j,i,1) < -0.5_r_kind )then
+                  dssvs(j,i,n)=dl1*dsvs(i,2,l)+dl2*dsvs(i,2,l2)
+               else if ( ges_mask(j,i,k) > 0.5_r_kind )then
+                  dssvs(j,i,n)=dl1*dsvs(i,3,l)+dl2*dsvs(i,3,l2)
+               else
+                  dssvs(j,i,n)=dl1*dsvs(i,1,l)+dl2*dsvs(i,1,l2)
+               end if
+           else
+               dssvs(j,i,n)=dl1*dsvs(i,1,l)+dl2*dsvs(i,1,l2)
+           end if
            if (mvars>=2.and.n==nrf2_sst) then
               dssvs(j,i,nc2d+1)=atsfc_sdv(1)*as2d(n)  
               dssvs(j,i,nc2d+2)=atsfc_sdv(2)*as2d(n)  

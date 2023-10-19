@@ -452,7 +452,7 @@ contains
 
               select case (trim(cvars3d(ic3)))
  
-                 case('sf','SF')
+                 case('sf','SF','u','U')
     
                     do k=1,grd_ens%nsig
                        do i=1,grd_ens%lon2
@@ -463,7 +463,7 @@ contains
                        end do
                     end do
  
-                 case('vp','VP')
+                 case('vp','VP','v','V')
  
                     do k=1,grd_ens%nsig
                        do i=1,grd_ens%lon2

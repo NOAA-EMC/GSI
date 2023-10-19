@@ -147,7 +147,7 @@ contains
     l_use_cvpqx         = .FALSE.           ! (not) use power transform to qx(qr/qs/qg) 
     cvpqx_pval          = 0.000001_r_kind   ! power transform value; nearly the same as use log transform to qx(qr/qs/qg) 
 
-    l_plt_be_stats      = .FALSE.            ! output BE stats for plot
+    l_plt_be_stats      = .TRUE.            ! output BE stats for plot
     l_be_T_dep          = .FALSE.
 
     oe_dbz              = 1.0_r_kind        ! observerion error of radar reflectivity (dbz)

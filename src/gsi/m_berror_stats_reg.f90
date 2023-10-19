@@ -964,7 +964,7 @@ end subroutine berror_read_bal_reg_extra
         end do
      end if
      if (n==nrf2_howv) then
-        call read_howv_stats(mlat,1,2,cov_dum)
+        call read_howv_stats(mlat,1,2,cov_dum,mype)
         do i=1,mlat
            corp(i,:,n)=cov_dum(i,1,1)     !#ww3
            hwllp(i,:,n) = cov_dum(i,1,2)
