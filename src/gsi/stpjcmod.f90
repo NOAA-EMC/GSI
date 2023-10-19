@@ -871,7 +871,7 @@ subroutine stpjcpdry(rval,sval,pen,b,c,nbins)
   it=ntguessig
 
   dmass=zero_quad
-  rcon=one_quad/(two_quad*float(nlon))
+  rcon=one_quad/(two_quad*real(nlon,r_quad))
   mm1=mype+1
   return_now = .false.
   do n=1,nbins

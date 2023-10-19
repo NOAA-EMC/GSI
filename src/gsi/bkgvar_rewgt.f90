@@ -99,7 +99,7 @@ subroutine bkgvar_rewgt(sfvar,vpvar,tvar,psvar,mype)
   balt   =zero ; bald    =zero ; balps =zero
 
 ! Set count to number of global grid points in quad precision
-  fcount = float(nlat)*float(nlon)
+  fcount = real(nlat*nlon,r_kind)
 
 ! Set parameter for communication
   mm1=mype+1

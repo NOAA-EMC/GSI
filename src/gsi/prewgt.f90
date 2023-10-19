@@ -273,7 +273,7 @@ subroutine prewgt(mype)
      end do
      do j=1,lon2
         do i=1,lat2
-           temp(i,j)=float(isli2(i,j))
+           temp(i,j)=real(isli2(i,j),r_kind)
         end do
      end do
 
@@ -585,7 +585,7 @@ subroutine prewgt(mype)
 ! rearth_equator is the equatorial radius from a 1999 IAG report.  The
 ! horizontal scales are defined at the equator, hence the need for the
 ! equatorial radius.
-  s2u=(two*pi*rearth_equator)/float(nlon)
+  s2u=(two*pi*rearth_equator)/real(nlon,r_kind)
 
 
   allocate(sli(ny,nx,2,nnnn1o),sli1(-nf:nf,-nf:nf,2,nnnn1o), &

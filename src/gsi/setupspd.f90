@@ -504,7 +504,7 @@ subroutine setupspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
      spdges=sqrt(ugesin*ugesin+vgesin*vgesin)
 
      iz = max(1, min( int(dpres), nsig))
-     delz = max(zero, min(dpres - float(iz), one))
+     delz = max(zero, min(dpres - real(iz,r_kind), one))
 
      if (save_jacobian) then
 
@@ -962,7 +962,7 @@ subroutine setupspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
            if(muse(i)) then
               call nc_diag_metadata("Analysis_Use_Flag",    1.0_r_single           )
            else
-              call nc_diag_metadata("Analysis_Use_Flag",    1.0_r_single           )
+              call nc_diag_metadata("Analysis_Use_Flag",   -1.0_r_single           )
            endif
 
            call nc_diag_metadata_to_single("Errinv_Input",errinv_input       )

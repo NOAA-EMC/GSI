@@ -1551,7 +1551,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_distx, sampling_disty, &
          END DO
          J = J + K
  104  CONTINUE
-      XT = 1.0 / FLOAT( N )
+      XT = 1.0 / real( N,r_kind )
       DO 99 I = 1, N
          X(I) = XT * X(I)
  99   CONTINUE

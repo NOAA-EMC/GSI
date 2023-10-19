@@ -308,8 +308,8 @@ subroutine mix_gfs_nmmb_vcoords(deta1 ,aeta1 ,eta1 ,deta2 ,aeta2 ,eta2 ,pdtop,pt
       if (nframe /= 0) call error_msg(trim(my_name),trim(filename),'nframe', &
                                          'getfilehead',istop,nframe)
 
-      fhour = float(nfhour) + float(nfminute)/r60 + &
-              float(nfsecondn)/float(nfsecondd)/r3600
+      fhour = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+              real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
       write(6,*) ' input filename=',filename
       write(6,*) ' nemsio head: fhour,idate=',fhour,idate
       write(6,*) ' nemsio head: levs=',levs
@@ -1183,8 +1183,8 @@ subroutine add_gfs_stratosphere
          if (  nframe /= 0 ) call error_msg(trim(my_name),trim(filename),'nframe', &
                                             'getfilehead',istop,nframe)
 
-         fhour = float(nfhour) + float(nfminute)/r60 + &
-                 float(nfsecondn)/float(nfsecondd)/r3600
+         fhour = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+                 real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
          if ( mype == 0 ) then
             write(6,*) ' input filename=',filename
             write(6,*) ' nemsio head: fhour,idate=',fhour,idate
@@ -1545,8 +1545,8 @@ subroutine add_gfs_stratosphere
             jj=j+grd_mix%jstart(mm1)-2
             ii=min(grd_mix%nlat,max(1,ii))
             jj=min(grd_mix%nlon,max(1,jj))
-            dlon=float(jj)
-            dlat=float(ii)
+            dlon=real(jj,r_kind)
+            dlat=real(ii,r_kind)
             do k=1,nsig_save
                xspli_r(k)=log(prsl_r(i,j,k)*ten)
             enddo

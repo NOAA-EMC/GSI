@@ -416,8 +416,8 @@ endif
   elseif (amsu) then
      itype = 8
   endif
-  rterm1=one/float(nsig)
-  rterm2=one/float(nsig*(nsig-1))
+  rterm1=one/real(nsig,r_kind)
+  rterm2=one/real(nsig*(nsig-1),r_kind)
 
   call dtime_setup()
   do n = 1,nobs

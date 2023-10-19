@@ -228,14 +228,14 @@ contains
           write (6,31) storm(i)
  
           if (storm(i)%tcv_lonew == 'W') then
-             slonfg(i) =  360._r_kind - float(storm(i)%tcv_lon)/10.0_r_kind
+             slonfg(i) =  360._r_kind - real(storm(i)%tcv_lon,r_kind)/10.0_r_kind
           else
-             slonfg(i) = float(storm(i)%tcv_lon)/10.0_r_kind
+             slonfg(i) = real(storm(i)%tcv_lon,r_kind)/10.0_r_kind
           endif
           if (storm(i)%tcv_latns == 'S') then
-             slatfg(i) = -one * float(storm(i)%tcv_lat)/10.0_r_kind
+             slatfg(i) = -one * real(storm(i)%tcv_lat,r_kind)/10.0_r_kind
           else
-             slatfg(i) = float(storm(i)%tcv_lat)/10.0_r_kind
+             slatfg(i) = real(storm(i)%tcv_lat,r_kind)/10.0_r_kind
           endif
         
           centerid(i) = storm(i)%tcv_center

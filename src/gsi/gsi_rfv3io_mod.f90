@@ -2615,9 +2615,6 @@ subroutine gsi_fv3ncdf_readuv(grd_uv,ges_u,ges_v,fv3filenamegin)
        members(mm1) = mype
     endif
 
-    write(6,115)mype,kbgn,kend,procuse
-115 format('gsi_fv3ncdf_readuv: mype ',i6,' has kbgn,kend= ',2(i6,1x),' set procuse ',l7)
-
     call mpi_allreduce(members,members_read,npe,mpi_integer,mpi_max,mpi_comm_world,ierror)
 
     nread=0
