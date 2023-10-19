@@ -19,10 +19,6 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
 !                 - capped maximum model FED
 !                Hongli Wang         NOAA GSL    2023-09-14
 !                 - Add option to use fed from background file to calculate fed innov
-!                     - The bellow two namelist parameters need to be true
-!                        - if_model_fed=.true.          fed in BG exist
-!                        - innov_use_model_fed=.true.   turn on flag to use FED from BG to cal innov
-!
 !
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind

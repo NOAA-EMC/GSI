@@ -407,22 +407,29 @@ contains
            if( .not. parallelization_over_ensmembers )then
               if (mype == 0) write(6,'(a,a)') &
                  'CALL READ_FV3_REGIONAL_ENSPERTS FOR ENS DATA with the filename str : ',trim(ensfilenam_str)
-              if (if_model_fed) then
-                 write(6,*)"This is not implemented for FED Ensemble"
-                 write(6,*)"Please turn on parallelization_over_ensmembers when if_model_fed is .true. STOP(333)!"
-                 call stop2(333)
-              end if
-
-              if (.not. (l_use_dbz_directDA .or. if_model_dbz) ) then ! Read additional hydrometers and w for dirZDA
+              if (.not. (l_use_dbz_directDA .or. if_model_dbz .or. if_model_fed) ) then ! Read additional hydrometers and w for dirZDA
                  call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz)
               else
-                 if( l_use_dbz_directDA ) then
-                    call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
+                 if( .not. if_model_fed)then
+                   if( l_use_dbz_directDA ) then
+                     call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
                               g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w)
-                 else if( if_model_dbz )then
-                    call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
+                   else if( if_model_dbz )then
+                     call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
                               g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_dbz=dbz)
-                 end if
+                   end if
+                 else 
+                   if( l_use_dbz_directDA ) then
+                     call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
+                              g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_fed=fed)
+                   else if( if_model_dbz )then
+                     call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
+                              g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_dbz=dbz,g_fed=fed)
+                   else 
+                     call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
+                              g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_w=w,g_fed=fed)
+                   end if
+                 end if ! if_model_fed
               end if
            end if
 
@@ -1160,10 +1167,11 @@ contains
              call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%dynvars,fv3_filenameginput,delp=g_delp,tsen=g_tsen,w=g_w,iope=iope)
              call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%tracers,fv3_filenameginput,q=g_q,oz=g_oz,ql=g_ql,qr=g_qr,&
                                                   qs=g_qs,qi=g_qi,qg=g_qg,iope=iope)
-             if(if_model_dbz) then
+             if(if_model_dbz .and. if_model_fed) then
+               call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%phyvars,fv3_filenameginput,dbz=g_dbz,fed=g_fed,iope=iope)
+             elseif(if_model_dbz) then
                call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%phyvars,fv3_filenameginput,dbz=g_dbz,iope=iope)
-             end if
-             if(if_model_fed) then
+             elseif(if_model_fed) then
                call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%phyvars,fv3_filenameginput,fed=g_fed,iope=iope)
              end if
           else

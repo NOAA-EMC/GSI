@@ -510,6 +510,15 @@
 !  2023-07-30 Zhao    - added namelist options for analysis of significant wave height
 !                       (aka howv in GSI code): corp_howv, hwllp_howv
 !                       (in namelist session rapidrefresh_cldsurf)
+!  
+!  2023-09-14 H. Wang - add namelist option for FED EnVar DA. 
+!                        - if_model_fed=.true.        :  FED in background and ens. If
+!                          perform FED DA, this has to be true along with fed in
+!                          control/analysis variable list. If only run GSI observer,
+!                          it can be false.
+!                        - innov_use_model_fed=.true. :  Use FED from BG to calculate innovation.
+!                          this requires if_model_fed=.true. 
+!                          it works either an EnVar DA run or a GSI observer run.
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -1977,6 +1986,11 @@
        call stop2(999)
      endif
   endif
+
+  if (innov_use_model_fed .and. .not.if_model_fed) then
+     if(mype==0) write(6,*)' GSIMOD: invalid innov_use_model_fed=.true. but if_model_fed=.false.'
+     call die(myname_,'invalid if_model_fed, check namelist settings',335)
+  end if
 
 
 ! Ensure valid number of horizontal scales

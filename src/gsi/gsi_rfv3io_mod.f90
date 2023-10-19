@@ -809,7 +809,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     integer(i_kind) :: it
     character(len=24),parameter :: myname = 'read_fv3_netcdf_guess'
     integer(i_kind) k,i,j
-    integer(i_kind) ier,istatus
+    integer(i_kind) ier,istatus,ivar
     real(r_kind),dimension(:,:),pointer::ges_ps=>NULL()
     real(r_kind),dimension(:,:),pointer::ges_ps_readin=>NULL()
     real(r_kind),dimension(:,:),pointer::ges_z=>NULL()
@@ -1017,22 +1017,13 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
         write(6,*)"the set up for met variable is not as expected, abort"
         call stop2(222)
       endif
-      if ( if_model_dbz .and. if_model_fed ) then
-         if( nphyvario3d<=1 ) then
-            write(6,*)"the set up for met variable (dbz and fed in phyvar) is not as expected,abort"
-            call stop2(223)
-         end if
-      elseif ( if_model_dbz ) then 
-         if( nphyvario3d<=0 ) then
-            write(6,*)"the set up for met variable (dbz in phyvar) is not as expected, abort"
-            call stop2(223)
-         end if
-     elseif ( if_model_fed ) then
-         if( nphyvario3d<=0 ) then
-            write(6,*)"the set up for met variable (fed in phyvar) is not as expected, abort"
-            call stop2(223)
-         end if
-      endif
+
+      ivar=0 ; if (if_model_dbz) ivar=ivar+1; if(if_model_fed)  ivar=ivar+1 
+      if ( ivar >  nphyvario3d ) then 
+         write(6,*)"the set up for met variable (dbz and fed in phyvar) is not as expected,abort"
+         call stop2(223)
+      end if     
+
       if (fv3sar_bg_opt == 0.and.ifindstrloc(name_metvars3d,'delp') <= 0)then
          ndynvario3d=ndynvario3d+1  ! for delp  
       endif
@@ -1228,11 +1219,10 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
         ntracerio2d=0
       endif
  
-      if( if_model_dbz .or. if_model_fed)then
+      if( allocated(fv3lam_io_phymetvars3d_nouv) )then
         call gsi_bundlecreate(gsibundle_fv3lam_phyvar_nouv,GSI_MetGuess_Bundle(it)%grid,'gsibundle_fv3lam_phyvar_nouv',istatus, &
                  names3d=fv3lam_io_phymetvars3d_nouv)
       end if
-
  
       if (laeroana_fv3cmaq) then
         if (allocated(fv3lam_io_tracerchemvars3d_nouv) ) then
@@ -1364,7 +1354,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
          call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tv' ,ges_tv ,istatus );ier=ier+istatus
          call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'q'  ,ges_q ,istatus );ier=ier+istatus
          call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'oz'  ,ges_oz ,istatus );ier=ier+istatus
-         if (l_use_dbz_directDA .or. if_model_dbz .or. if_model_fed) then
+         if (l_use_dbz_directDA .or. nphyvario3d > 0) then
             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'ql' ,ges_ql ,istatus );ier=ier+istatus
             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qi' ,ges_qi ,istatus );ier=ier+istatus
             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'qr' ,ges_qr ,istatus );ier=ier+istatus
@@ -1441,7 +1431,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
             & ,fv3filenamegin(it)%dynvars,fv3filenamegin(it))
             call gsi_fv3ncdf_read(grd_fv3lam_tracer_ionouv,gsibundle_fv3lam_tracer_nouv &
             & ,fv3filenamegin(it)%tracers,fv3filenamegin(it))
-            if( if_model_dbz .or. if_model_fed )then
+            if( nphyvario3d > 0 )then
                call gsi_fv3ncdf_read(grd_fv3lam_phyvar_ionouv,gsibundle_fv3lam_phyvar_nouv &
                & ,fv3filenamegin(it)%phyvars,fv3filenamegin(it))
             end if
@@ -1540,8 +1530,9 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
          if (laeroana_fv3smoke) then
            call gsi_copy_bundle(gsibundle_fv3lam_tracersmoke_nouv,GSI_ChemGuess_Bundle(it))
          endif
-
-         if(if_model_dbz .or. if_model_fed) call gsi_copy_bundle(gsibundle_fv3lam_phyvar_nouv,GSI_MetGuess_Bundle(it))
+         if ( nphyvario3d > 0 ) then 
+           call gsi_copy_bundle(gsibundle_fv3lam_phyvar_nouv,GSI_MetGuess_Bundle(it))
+         end if
          call GSI_BundleGetPointer ( gsibundle_fv3lam_dynvar_nouv, 'tsen' ,ges_tsen_readin ,istatus );ier=ier+istatus
      !!  tsen2tv  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          do k=1,nsig
@@ -2949,11 +2940,13 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
              varname_files = (/'sphum',' o3mr'/)
           end if
        end if
-       if( present(dbz) )then            ! phyvars: dbz
+       if( present(dbz) .and. present(fed) )then  ! phyvars: dbz, fed
+          allocate(varname_files(2))
+          varname_files = (/'ref_f3d','flash_extent_density'/)
+       elseif( present(dbz) )then            ! phyvars: dbz
           allocate(varname_files(1))
           varname_files = (/'ref_f3d'/)
-       end if
-       if( present(fed) )then            ! phyvars: fed 
+       elseif( present(fed) )then            ! phyvars: fed 
           allocate(varname_files(1))
           varname_files = (/'flash_extent_density'/)
        end if
@@ -3063,10 +3056,12 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
               end if
             end if
           end if
-          if( present(dbz) )then            ! phyvars: dbz
+          if( present(dbz) .and. present(fed) )then ! phyvars: dbz,fed
+            if(ivar == 1) dbz = hwork
+            if(ivar == 2) fed = hwork
+          elseif( present(dbz) )then            ! phyvars: dbz
             dbz = hwork
-          end if
-          if( present(fed) )then            ! phyvars: fed 
+          elseif( present(fed) )then            ! phyvars: fed 
             fed = hwork
           end if
 
@@ -3609,11 +3604,7 @@ subroutine wrfv3_netcdf(fv3filenamegin)
                              add_saved,fv3filenamegin%dynvars,fv3filenamegin)
       call gsi_fv3ncdf_write(grd_fv3lam_tracer_ionouv,gsibundle_fv3lam_tracer_nouv, &
                              add_saved,fv3filenamegin%tracers,fv3filenamegin)
-      if( if_model_dbz ) then
-         call gsi_fv3ncdf_write(grd_fv3lam_phyvar_ionouv,gsibundle_fv3lam_phyvar_nouv,&
-                                add_saved,fv3filenamegin%phyvars,fv3filenamegin)
-      end if
-      if( if_model_fed ) then
+      if( if_model_dbz .or. if_model_fed ) then
          call gsi_fv3ncdf_write(grd_fv3lam_phyvar_ionouv,gsibundle_fv3lam_phyvar_nouv,&
                                 add_saved,fv3filenamegin%phyvars,fv3filenamegin)
       end if
