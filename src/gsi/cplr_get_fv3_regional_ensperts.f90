@@ -646,7 +646,7 @@ contains
         enddo 
  !
  ! CALCULATE ENSEMBLE MEAN
-        bar_norm = one/float(n_ens_fv3sar)
+        bar_norm = one/real(n_ens_fv3sar,r_kind)
         en_bar(m)%values=en_bar(m)%values*bar_norm
  
  ! Copy pbar to module array.  ps_bar may be needed for vertical localization
@@ -684,7 +684,6 @@ contains
 
     enddo ! it 4d loop
  ! CALCULATE ENSEMBLE SPREAD
-    write_ens_sprd=.true.
     if(write_ens_sprd ) then
         call this%ens_spread_dualres_regional(mype,en_perts,nelen)
         call mpi_barrier(mpi_comm_world,ierror) ! do we need this mpi_barrier here? 
@@ -1390,7 +1389,7 @@ contains
             call stop2(9999)
          endif
   
-         sp_norm=(one/float(n_ens))
+         sp_norm=one/real(n_ens,r_kind)
   
          sube%values=zero
   !

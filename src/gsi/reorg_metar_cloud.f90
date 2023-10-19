@@ -264,9 +264,9 @@ subroutine reorg_metar_cloud(cdata,nreal,ndata,cdata_all,maxobs,ngrid)
              min_dist = 1.e10_r_kind
              do ic= 1,nsta_cld
                 ista = sta_cld(ic)
-                dist = (float(i1)-cdata(2,ista))*(float(i1)-cdata(2,ista))  &
-                      +(float(j1)-cdata(3,ista))*(float(j1)-cdata(3,ista))
-                if (dist < min_dist .and. dist < float(isprd2)) then
+                dist = (real(i1,r_kind)-cdata(2,ista))*(real(i1,r_kind)-cdata(2,ista))  &
+                      +(real(j1,r_kind)-cdata(3,ista))*(real(j1,r_kind)-cdata(3,ista))
+                if (dist < min_dist .and. dist < real(isprd2,r_kind)) then
                     min_dist = dist
                     ista_min = ista
                 end if
@@ -318,8 +318,8 @@ subroutine reorg_metar_cloud(cdata,nreal,ndata,cdata_all,maxobs,ngrid)
                       enddo
                       cdata_all(24,iout) = cdata_all(2,iout)   ! save observaion station i
                       cdata_all(25,iout) = cdata_all(3,iout)   ! save observaion station j
-                      cdata_all(2,iout) = float(i1)        ! grid index i
-                      cdata_all(3,iout) = float(j1)        ! grid index j
+                      cdata_all(2,iout) = real(i1,r_kind)        ! grid index i
+                      cdata_all(3,iout) = real(j1,r_kind)        ! grid index j
                       cdata_all(23,iout)= min_dist ! distance from station
                    endif
                 endif

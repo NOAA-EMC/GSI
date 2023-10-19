@@ -291,8 +291,8 @@ subroutine read_gfs_ozone_for_regional
      if (nframe /= 0) call error_msg(trim(my_name),trim(filename),'nframe', &
                                      'getfilehead',istop,nframe)
 
-     fhour = float(nfhour) + float(nfminute)/r60 + &
-             float(nfsecondn)/float(nfsecondd)/r3600
+     fhour = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+             real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
 
      nsig_gfs=levs
      jcap_org=njcap

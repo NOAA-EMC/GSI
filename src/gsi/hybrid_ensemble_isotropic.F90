@@ -251,7 +251,7 @@ subroutine init_rf_z(z_len)
   kap1=rd_over_cp+one
   kapr=one/rd_over_cp
   nxy=grd_ens%latlon11
-  rnsig=float(nsig)
+  rnsig=real(nsig,r_kind)
 
 !    use new factorization:
 

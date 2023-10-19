@@ -60,13 +60,13 @@ subroutine gengrid_vars
 ! This is global run, so get global lons, lats, wgtlats, wgtfactlats
 
 ! Set local constants
-     anlon=float(nlon)
+     anlon=real(nlon,r_kind)
      pih=half*pi
      dlon=two*pi/anlon
 
 ! Load grid lat,lon arrays.  rbs2 is used in pcp.
      do i=1,nlon
-        rlons(i)=float(i-1)*dlon
+        rlons(i)=real(i-1,r_kind)*dlon
         coslon(i)=cos(rlons(i))
         sinlon(i)=sin(rlons(i))
      end do
