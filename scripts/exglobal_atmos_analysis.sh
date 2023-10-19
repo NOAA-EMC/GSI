@@ -918,8 +918,8 @@ OBS_INPUT::
    sstviirs       viirs-m     j1          viirs-m_j1          0.0     4     0
    ahibufr        ahi         himawari9   ahi_himawari9       0.0     1     0
    sstviirs       viirs-m     j2          viirs-m_j2          0.0     4     0
-   atmsbufr21     atms        n21         atms_n21            0.0     1     0
-   crisfsbufr21   cris-fsr    n21         cris-fsr_n21        0.0     1     0
+   atmsbufr       atms        n21         atms_n21            0.0     1     0
+   crisfsbufr     cris-fsr    n21         cris-fsr_n21        0.0     1     0
    ompsnpbufr     ompsnp      n21         ompsnp_n21          0.0     0     0
    ompstcbufr     ompstc8     n21         ompstc8_n21         0.0     2     0
    gomebufr       gome        metop-c     gome_metop-c        0.0     2     0
