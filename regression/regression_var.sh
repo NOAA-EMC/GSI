@@ -4,6 +4,10 @@
 #  To run with hybrid ensemble option on, change HYBENS_GLOBAL and/or HYBENS_REGIONAL from "false" to "true".
 #  These are located at the end of this script.
 
+export local_or_default="/work/noaa/hwrf/noscrub/jcheng/gsi"
+export ptmp="/work/noaa/hwrf/scrub/jcheng/gsi"
+export group=noaa-hpc
+export accnt=hurricane
 if [ "$#" = 7 ] ; then
   export basedir=$1
   export builddir=$2
@@ -202,6 +206,7 @@ export rtma_adate="2020022420"
 export hwrf_nmm_adate="2012102812"
 export fv3_netcdf_adate="2017030100"
 export rrfs_3denvar_glbens_adate="2021072518"
+export hafs_envar_adate="2020082512"
 
 # Paths for canned case data.
 export global_data="$casesdir/gfs/prod"
@@ -214,6 +219,10 @@ export fv3_netcdf_ges="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
 export rrfs_3denvar_glbens_obs="$casesdir/regional/rrfs/$rrfs_3denvar_glbens_adate/obs"
 export rrfs_3denvar_glbens_ges="$casesdir/regional/rrfs/$rrfs_3denvar_glbens_adate/ges"
 export rrfs_3denvar_glbens_ens="$casesdir/regional/rrfs/$rrfs_3denvar_glbens_adate/ens"
+export hafs_envar_obs="$casesdir/regional/hafs_RTdata/$hafs_envar_adate/obs"
+export hafs_envar_ges="$casesdir/regional/hafs_RTdata/$hafs_envar_adate/ges"
+export hafs_envar_ens="$casesdir/regional/hafs_RTdata/$hafs_envar_adate/ens"
+
 
 # Define type of GPSRO data to be assimilated (refractivity or bending angle)
 export gps_dtype="gps_bnd"
