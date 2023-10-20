@@ -356,7 +356,7 @@ contains
 
 !      Case:  obs score < best value at this location, 
 !        -->  update score, count, and best obs counters
-       if (.not. icount(itx,ip) .and. crit < score_crit(itx,ip)) then
+       if (icount(itx,ip) .and. crit < score_crit(itx,ip)) then
           score_crit(itx,ip)= crit
           iobsout=ibest_obs(itx,ip)
 
@@ -561,7 +561,7 @@ contains
 
 !      Case:  obs score < best value at this location,
 !        -->  update score, count, and best obs counters
-       if (.not. icount(itx,ip) .and. crit < score_crit(itx,ip)) then
+       if (icount(itx,ip) .and. crit < score_crit(itx,ip)) then
           score_crit(itx,ip)= crit
           iobsout = ibest_obs(itx,ip)
           rusage(iobsout)=usage
