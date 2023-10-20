@@ -194,6 +194,7 @@ module obsmod
 !                                               the obs operator in GSI  
 !   def if_model_fed - namelist logical. True: Read in FED from background
 !                                              including from ensemble.  
+!   def r_hgt_fed    - height of fed observations
 !   def reduce_diag  - namelist logical to produce reduced radiance diagnostic files
 !   def use_limit    - parameter set equal to -1 if diag files produced or 0 if not diag files or reduce_diag
 !   def obs_setup    - prefix for files passing pe relative obs data to setup routines
@@ -495,6 +496,7 @@ module obsmod
 
   ! ==== FED DA ===
   public :: if_model_fed, innov_use_model_fed
+  public :: r_hgt_fed
   public :: iout_fed, mype_fed  
   public :: dofedoneob
   ! --- FED DA ---
@@ -587,7 +589,7 @@ module obsmod
 
   real(r_kind) perturb_fact,time_window_max,time_offset,time_window_rad
   real(r_kind),dimension(50):: dmesh
-
+  real(r_kind) r_hgt_fed
   integer(i_kind) nchan_total,ianldate
   integer(i_kind) ndat,ndat_types,ndat_times,nprof_gps
   integer(i_kind) lunobs_obs,nloz_v6,nloz_v8,nobskeep,nloz_omi
@@ -772,6 +774,7 @@ contains
 
     oneobradid="KKKK"
     doradaroneob=.false.
+    r_hgt_fed=6500_r_kind
     dofedoneob=.false.
     oneoblat=-999_r_kind
     oneoblon=-999_r_kind

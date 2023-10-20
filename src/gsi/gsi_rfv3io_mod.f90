@@ -2939,7 +2939,7 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
        end if
        if( present(dbz) .and. present(fed) )then  ! phyvars: dbz, fed
           allocate(varname_files(2))
-          varname_files = (/'ref_f3d','flash_extent_density'/)
+          varname_files = (/'ref_f3d             ','flash_extent_density'/)
        elseif( present(dbz) )then            ! phyvars: dbz
           allocate(varname_files(1))
           varname_files = (/'ref_f3d'/)

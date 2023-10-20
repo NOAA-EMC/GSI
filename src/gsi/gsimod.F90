@@ -28,7 +28,8 @@
      rmesh_vr,zmesh_dbz,zmesh_vr,if_vterminal, if_model_dbz,if_model_fed,innov_use_model_fed,if_vrobs_raw,if_use_w_vr,&
      minobrangedbz,maxobrangedbz,maxobrangevr,maxtiltvr,missing_to_nopcp,&
      ntilt_radarfiles,whichradar,&
-     minobrangevr,maxtiltdbz,mintiltvr,mintiltdbz,l2rwthin,hurricane_radar 
+     minobrangevr,maxtiltdbz,mintiltvr,mintiltdbz,l2rwthin,hurricane_radar,&
+     r_hgt_fed
 
   use obsmod, only: lwrite_predterms, &
      lwrite_peakwt,use_limit,lrun_subdirs,l_foreaft_thin,lobsdiag_forenkf,&
@@ -202,7 +203,7 @@
   use gsi_nstcouplermod, only: gsi_nstcoupler_init_nml
   use gsi_nstcouplermod, only: nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl
   use ncepnems_io, only: init_nems,imp_physics,lupp
-  use wrf_vars_mod, only: init_wrf_vars
+  use wrf_vars_mod, only: init_wrf_vars,fed_exist
   use gsi_rfv3io_mod,only : fv3sar_bg_opt
   use radarz_cst,            only: mphyopt, MFflg
   use radarz_iface,          only: init_mphyopt
@@ -788,7 +789,8 @@
        write_fv3_incr,incvars_to_zero,incvars_zero_strat,incvars_efold,diag_version,&
        cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef,cnvw_option,l2rwthin,hurricane_radar,&
        l_reg_update_hydro_delz, l_obsprvdiag,&
-       l_use_dbz_directDA, l_use_rw_columntilt, ta2tb, optconv
+       l_use_dbz_directDA, l_use_rw_columntilt, ta2tb, optconv, &
+       r_hgt_fed
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -1989,9 +1991,13 @@
 
   if (innov_use_model_fed .and. .not.if_model_fed) then
      if(mype==0) write(6,*)' GSIMOD: invalid innov_use_model_fed=.true. but if_model_fed=.false.'
-     call die(myname_,'invalid if_model_fed, check namelist settings',335)
+     call die(myname_,'invalid innov_use_model_fed,if_model_fed, check namelist settings',332)
   end if
 
+  if (miter > 0 .and. if_model_fed .and. .not. fed_exist) then
+     if(mype==0) write(6,*)' GSIMOD: invalid miter > 0 and if_model_fed=.true. but fed is not in anavinfo file'
+     call die(myname_,'Please add fed in anavinfo when miter > 0 and if_model_fed=.true.',334)
+  end if
 
 ! Ensure valid number of horizontal scales
   if (nhscrf<0 .or. nhscrf>3) then
