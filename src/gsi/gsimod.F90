@@ -1996,7 +1996,7 @@
 
   if (miter > 0 .and. if_model_fed .and. .not. fed_exist) then
      if(mype==0) write(6,*)' GSIMOD: invalid miter > 0 and if_model_fed=.true. but fed is not in anavinfo file'
-     call die(myname_,'Please add fed in anavinfo when miter > 0 and if_model_fed=.true.',334)
+     call die(myname_,'Please add fed in anavinfo (contro/state_vector and met_guess) when miter > 0 and if_model_fed=.true.',334)
   end if
 
 ! Ensure valid number of horizontal scales

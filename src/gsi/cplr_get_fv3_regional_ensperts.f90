@@ -117,6 +117,8 @@ contains
      type(type_fv3regfilenameg)::fv3_filename 
      integer(i_kind):: imem_start,n_fv3sar
 
+     integer(i_kind):: i_caseflag
+
      if(n_ens/=(n_ens_gfs+n_ens_fv3sar)) then
         write(6,*)'wrong, the sum of  n_ens_gfs and n_ens_fv3sar not equal n_ens, stop'
         write(6,*)"n_ens, n_ens_gfs and n_ens_fv3sar are",n_ens, n_ens_gfs , n_ens_fv3sar
@@ -407,30 +409,50 @@ contains
            if( .not. parallelization_over_ensmembers )then
               if (mype == 0) write(6,'(a,a)') &
                  'CALL READ_FV3_REGIONAL_ENSPERTS FOR ENS DATA with the filename str : ',trim(ensfilenam_str)
-              if (.not. (l_use_dbz_directDA .or. if_model_dbz .or. if_model_fed) ) then ! Read additional hydrometers and w for dirZDA
-                 call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz)
-              else
-                 if( .not. if_model_fed)then
-                   if( l_use_dbz_directDA ) then
-                     call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
-                              g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w)
-                   else if( if_model_dbz )then
-                     call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
-                              g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_dbz=dbz)
-                   end if
-                 else 
-                   if( l_use_dbz_directDA ) then
-                     call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
-                              g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_fed=fed)
-                   else if( if_model_dbz )then
-                     call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
-                              g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_dbz=dbz,g_fed=fed)
-                   else 
-                     call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
-                              g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_w=w,g_fed=fed)
-                   end if
-                 end if ! if_model_fed
-              end if
+          
+              ! There are three options to control the list of variables that
+              ! will be read in along with the basic variables, ps,u,v,tv,rh,oz.
+              ! Here the 6 cases that are considered in
+              ! the current applications are listed as of Oct 20 2023.
+
+              ! default: all the three options ( l_use_dbz_directDA, if_model_dbz, if_model_fed) are turned off .i.e.,
+              !          if(.not. (l_use_dbz_directDA .or. if_model_dbz .or.  if_model_fed ))
+              i_caseflag=0  ! read in ps,u,v,tv,rh,oz
+
+              ! only l_use_dbz_directDA is true
+              if (l_use_dbz_directDA     .and. .not.if_model_dbz .and. .not.if_model_fed) i_caseflag=1
+
+              ! only if_model_dbz is true
+              if(.not.l_use_dbz_directDA .and.      if_model_dbz .and. .not.if_model_fed) i_caseflag=2
+
+              ! only if_model_fed is true
+              if(.not.l_use_dbz_directDA .and. .not.if_model_dbz .and. .not.if_model_fed) i_caseflag=3
+
+              ! l_use_dbz_directDA=.true. and if_model_fed=.true.
+              if(l_use_dbz_directDA      .and. .not.if_model_dbz .and.      if_model_fed) i_caseflag=4
+
+              ! if_model_dbz=.true. and if_model_fed=.true.
+              if(.not. l_use_dbz_directDA.and.      if_model_dbz .and.      if_model_fed) i_caseflag=5
+
+              select case (i_caseflag)
+                case (0)
+                  call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz)
+                case (1)
+                  call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
+                            g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w)
+                case (2)
+                  call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
+                            g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_dbz=dbz)
+                case (3)
+                  call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
+                            g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_w=w,g_fed=fed)
+                case (4)
+                  call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
+                            g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_fed=fed)
+                case (5)
+                  call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz,   &
+                            g_ql=ql,g_qi=qi,g_qr=qr,g_qs=qs,g_qg=qg,g_qnr=qnr,g_w=w,g_dbz=dbz,g_fed=fed)
+              end select
            end if
 
            if( parallelization_over_ensmembers )then 

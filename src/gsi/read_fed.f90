@@ -236,8 +236,6 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
       nodata=ndata
 !!! - Finished reading fed observations from NETCDF format data file
 
-      ! if ndata=0, should we continue?
-      if (ndata == 0) return
       allocate(cdata_out(nreal,ndata))
 !
       do i=1,numfed
