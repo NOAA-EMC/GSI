@@ -58,12 +58,12 @@ character(len=*),parameter::myname='ensctl2state_ad'
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
 integer(i_kind) :: jj,ic,id,istatus,nclouds
 
-integer(i_kind), parameter :: ncvars = 8 
+integer(i_kind), parameter :: ncvars = 10
 integer(i_kind) :: icps(ncvars)
 type(gsi_bundle):: wbundle_c ! work bundle
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
                                'sf ', 'vp ', 'ps ', 't  ',    &
-                               'q  ', 'cw ', 'w  ', 'dw '/)
+                               'q  ', 'cw ', 'w  ', 'dw ', 'u  ', 'v  '/)
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw
 logical :: lc_w,lc_dw,lc_u,lc_v
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf=>NULL()
@@ -192,6 +192,11 @@ do jj=1,ntlevs_ens
 !$omp parallel sections private(ic,id,istatus)
 
 !$omp section
+
+   if(do_uv_copy)then
+     call gsi_bundleputvar ( wbundle_c, 'u', rv_u, istatus )
+     call gsi_bundleputvar ( wbundle_c, 'v', rv_v, istatus )
+   end if
 
 !  Convert RHS calculations for u,v to st/vp
    if (do_getuv) then

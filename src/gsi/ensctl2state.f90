@@ -59,14 +59,14 @@ character(len=*),parameter::myname='ensctl2state'
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
 integer(i_kind) :: jj,ic,id,istatus,nclouds
 
-integer(i_kind), parameter :: ncvars = 8
+integer(i_kind), parameter :: ncvars = 10
 integer(i_kind) :: icps(ncvars)
 type(gsi_bundle):: wbundle_c ! work bundle
 character(len=3), parameter :: mycvars(ncvars) = (/  &  ! vars from CV needed here
                                'sf ', 'vp ', 'ps ', 't  ',    &
-                               'q  ', 'cw ', 'w  ', 'dw '/)
+                               'q  ', 'cw ', 'w  ', 'dw ', 'u  ', 'v  '/)
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw
-logical :: lc_w,lc_dw
+logical :: lc_w,lc_dw,lc_u,lc_v
 real(r_kind),pointer,dimension(:,:,:) :: cv_sf=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_vp=>NULL()
 real(r_kind),pointer,dimension(:,:,:) :: cv_rh=>NULL()
@@ -96,6 +96,7 @@ logical :: do_getprs_tl,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,lstrong_bk_vars
 logical :: do_tlnmc,do_q_copy
 logical :: do_cw_to_hydro
 logical :: do_cw_to_hydro_hwrf
+logical :: do_uv_copy
 
 ! ****************************************************************************
 
@@ -115,6 +116,7 @@ call gsi_bundlegetpointer (xhat%step(1),mycvars,icps,istatus)
 lc_sf =icps(1)>0; lc_vp =icps(2)>0; lc_ps =icps(3)>0
 lc_t  =icps(4)>0; lc_rh =icps(5)>0; lc_cw =icps(6)>0
 lc_w  =icps(7)>0; lc_dw =icps(8)>0
+lc_u  =icps(9)>0; lc_v  =icps(10)>0
 
 ! Since each internal vector of xhat has the same structure, pointers are
 ! the same independent of the subwindow jj
@@ -147,6 +149,8 @@ do_cw_to_hydro = .false.
 do_cw_to_hydro = lc_cw .and. ls_ql .and. ls_qi
 do_cw_to_hydro_hwrf = .false.
 do_cw_to_hydro_hwrf = lc_cw.and.ls_ql.and.ls_qi.and.ls_qr.and.ls_qs.and.ls_qg.and.ls_qh
+
+do_uv_copy = lc_u .and. lc_v
 
 ! Initialize ensemble contribution to zero
 !$omp parallel do schedule(dynamic,1) private(jj)
@@ -182,6 +186,11 @@ do jj=1,ntlevs_ens
 !$omp parallel sections private(ic,id,istatus)
 
 !$omp section
+
+   if(do_uv_copy)then
+     call gsi_bundlegetvar ( wbundle_c, 'u', sv_u, istatus )
+     call gsi_bundlegetvar ( wbundle_c, 'v', sv_v, istatus )
+   end if
 
 !  Get pointers to required state variables
 !  Convert streamfunction and velocity potential to u,v

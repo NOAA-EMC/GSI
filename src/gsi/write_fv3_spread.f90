@@ -138,8 +138,13 @@ contains
 !   space for comparison with obs.
     istatus=0
      
-    call gsi_bundlegetpointer(en_spread,'sf', uptr, iret); istatus=istatus+iret
-    call gsi_bundlegetpointer(en_spread,'vp', vptr, iret); istatus=istatus+iret
+    call gsi_bundlegetpointer(en_spread,'sf', uptr, iret)
+    if( iret /= 0 )then ! sf/vp is not (u/v is) control variable
+       call gsi_bundlegetpointer(en_spread,'u', uptr, iret)
+       call gsi_bundlegetpointer(en_spread,'v', vptr, iret); istatus=istatus+iret
+    else
+       call gsi_bundlegetpointer(en_spread,'vp', vptr, iret); istatus=istatus+iret
+    end if
     call gsi_bundlegetpointer(en_spread,'t', tptr, iret); istatus=istatus+iret
     call gsi_bundlegetpointer(en_spread,'q', qptr, iret); istatus=istatus+iret
     call gsi_bundlegetpointer(en_spread,'ps', psptr, iret); istatus=istatus+iret ! needed for delp
@@ -227,10 +232,10 @@ contains
                          start = (/1/), count = (/grdin%nlon,grdin%nlat/)))
        ! levels
        do k=1,grdin%nsig
-         levsout(k) = real(k,r_kind)
-         ilevsout(k) = real(k,r_kind)
+         levsout(k) = float(k)
+         ilevsout(k) = float(k)
        end do
-       ilevsout(grdin%nsig+1) = real(grdin%nsig+1,r_kind)
+       ilevsout(grdin%nsig+1) = float(grdin%nsig+1)
        ! write to file
        call ncceck_enspread(nf90_put_var(ncid_out, levvarid, sngl(levsout), &
                          start = (/1/), count = (/grdin%nsig/)))
