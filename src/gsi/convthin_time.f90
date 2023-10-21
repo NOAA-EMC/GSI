@@ -33,7 +33,7 @@ module convthin_time
 ! set passed variables to public
   public :: use_all_tm
 
-  integer(i_kind):: mlat
+  integer(i_kind):: mlat,nlevp,ntm,itxmax
   integer(i_kind),allocatable,dimension(:):: mlon
   logical        ,allocatable,dimension(:,:,:):: icount_tm,icount_fore_tm,icount_aft_tm
   integer(i_kind),allocatable,dimension(:,:,:):: ibest_obs_tm,ibest_obs_aft_tm,ibest_obs_fore_tm
@@ -42,10 +42,11 @@ module convthin_time
   real(r_kind),allocatable,dimension(:,:):: glon,hll
   real(r_kind),allocatable,dimension(:,:,:):: score_crit_tm,score_crit_fore_tm,score_crit_aft_tm
   logical use_all_tm
+  logical setfore,setaft,setnormal
 
 contains
 
-  subroutine make3grids_tm(rmesh,nlevp,ntm)
+  subroutine make3grids_tm(rmesh,nlevpp,ntmm)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    make3grids_tm                            
@@ -60,8 +61,8 @@ contains
 !     rmesh - mesh size (km) of thinning grid.  If (rmesh <= one), 
 !             then no thinning of the data will occur.  Instead,
 !             all data will be used without thinning.
-!     nlevp -  vertical levels
-!     ntm -  tm dimension relative to analysis tm 
+!     nlevpp -  vertical levels
+!     ntmm -  tm dimension relative to analysis tm 
 !
 ! attributes:
 !   language: f90
@@ -74,13 +75,13 @@ contains
     implicit none
 
     real(r_kind)   ,intent(in   ) :: rmesh
-    integer(i_kind),intent(in   ) :: nlevp
-    integer(i_kind),intent(in   ) :: ntm
+    integer(i_kind),intent(in   ) :: nlevpp
+    integer(i_kind),intent(in   ) :: ntmm
 
     real(r_kind),parameter:: r360 = 360.0_r_kind
 
     integer(i_kind) i,j,it
-    integer(i_kind) mlonx,mlonj,itxmax
+    integer(i_kind) mlonx,mlonj
 
     real(r_kind) delonx,delat,dgv,halfpi,dx,dy
     real(r_kind) twopi
@@ -96,6 +97,8 @@ contains
     end if
 
 !   Set constants
+    ntm=ntmm
+    nlevp=nlevpp
     halfpi = half*pi
     twopi  = two*pi
     rkm2dg = r360/(twopi*rearth_equator)*1.e3_r_kind
@@ -125,7 +128,7 @@ contains
        
        factor = abs(cos(abs(glatm)))
        if (rmesh>zero) then
-          mlonj   = nint(mlonx*factor)	
+          mlonj   = nint(mlonx*factor)
           mlon(j) = max(2,mlonj)
           delon = dlon_grid/mlon(j)
        else
@@ -146,35 +149,111 @@ contains
     end do
 
 !   Allocate  and initialize arrays
+    setnormal=.false.
+    setfore=.false.
+    setaft=.false.
+
+    return
+  end subroutine make3grids_tm
+  subroutine createnormal_tm
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    createnormal
+!     prgmmr:    derber     org: np23                date: 2023-10-20
+!
+! abstract:  This routine creates and initializes arrays for normal thinning
+!
+! program history log:
+!   2023-10-20  derber
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    integer i,j,it
     allocate(icount_tm(itxmax,nlevp,ntm))
-    allocate(icount_fore_tm(itxmax,nlevp,ntm))
-    allocate(icount_aft_tm(itxmax,nlevp,ntm))
     allocate(ibest_obs_tm(itxmax,nlevp,ntm))
-    allocate(ibest_obs_aft_tm(itxmax,nlevp,ntm))
-    allocate(ibest_obs_fore_tm(itxmax,nlevp,ntm))
     allocate(score_crit_tm(itxmax,nlevp,ntm))
-    allocate(score_crit_fore_tm(itxmax,nlevp,ntm))
-    allocate(score_crit_aft_tm(itxmax,nlevp,ntm))
 
     do j=1,nlevp
        do i=1,itxmax
           do it=1,ntm
              icount_tm(i,j,it) = .false.
-             icount_fore_tm(i,j,it) = .false.
-             icount_aft_tm(i,j,it) = .false.
              ibest_obs_tm(i,j,it)= 0
-             ibest_obs_aft_tm(i,j,it)= 0
-             ibest_obs_fore_tm(i,j,it)= 0
              score_crit_tm(i,j,it)= 9.99e6_r_kind
+          end do
+       end do
+    end do
+    setnormal=.true.
+    return
+  end subroutine createnormal_tm
+  subroutine createfore_tm
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    createnormal
+!     prgmmr:    derber     org: np23                date: 2023-10-20
+!
+! abstract:  This routine creates and initializes arrays for fore thinning
+!
+! program history log:
+!   2023-10-20  derber
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    integer i,j,it
+    allocate(icount_fore_tm(itxmax,nlevp,ntm))
+    allocate(ibest_obs_fore_tm(itxmax,nlevp,ntm))
+    allocate(score_crit_fore_tm(itxmax,nlevp,ntm))
+
+    do j=1,nlevp
+       do i=1,itxmax
+          do it=1,ntm
+             icount_fore_tm(i,j,it) = .false.
+             ibest_obs_fore_tm(i,j,it)= 0
              score_crit_fore_tm(i,j,it)= 9.99e6_r_kind
+          end do
+       end do
+    end do
+    setfore=.true.
+    return
+  end subroutine createfore_tm
+  subroutine createaft_tm
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    createaft
+!     prgmmr:    derber     org: np23                date: 2023-10-20
+!
+! abstract:  This routine creates and initializes arrays for aft thinning
+!
+! program history log:
+!   2023-10-20  derber
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    integer i,j,it
+    allocate(icount_aft_tm(itxmax,nlevp,ntm))
+    allocate(ibest_obs_aft_tm(itxmax,nlevp,ntm))
+    allocate(score_crit_aft_tm(itxmax,nlevp,ntm))
+
+    do j=1,nlevp
+       do i=1,itxmax
+          do it=1,ntm
+             icount_aft_tm(i,j,it) = .false.
+             ibest_obs_aft_tm(i,j,it)= 0
              score_crit_aft_tm(i,j,it)= 9.99e6_r_kind
           end do
        end do
     end do
-
+    setaft=.true.
     return
-  end subroutine make3grids_tm
-
+  end subroutine createaft_tm
   subroutine map3grids_tm(flg,pflag,pcoord,nlevp,dlat_earth,dlon_earth,&
                   pob,itm,crit1,iobs,iobsout,iuse,foreswp,aftswp)
 
@@ -287,6 +366,7 @@ contains
 
 !   TDR fore (Pseudo-dual-Doppler-radars)
     if(foreswp) then   !   fore sweeps
+       if(.not.setfore)call createfore_tm
 
 !   Case(1):  first obs at this location, keep this obs as starting point
        if (.not. icount_fore_tm(itx,ip,itm)) then
@@ -311,7 +391,7 @@ contains
 
 !   TDR aft (Pseudo-dual-Doppler-radars)
     else if(aftswp) then   !   aft sweeps
-
+       if(.not.setaft)call createaft_tm
 !      Case(1):  first obs at this location, keep this obs as starting point
        if (.not. icount_aft_tm(itx,ip,itm)) then
           iobs=iobs+1
@@ -336,6 +416,7 @@ contains
 
     else
 
+       if(.not.setnormal)call createnormal_tm
 !      Case:  obs score < best value at this location, 
 !        -->  update score, count, and best obs counters
        if (icount_tm(itx,ip,itm) .and. crit < score_crit_tm(itx,ip,itm)) then
@@ -485,6 +566,7 @@ contains
 
 !   TDR fore (Pseudo-dual-Doppler-radars)
     if(foreswp) then   !   fore sweeps
+       if(.not.setfore)call createfore_tm
 !   Case:  obs score < best value at this location, 
 !     -->  update score, count, and best obs counters
        if (icount_fore_tm(itx,ip,itm) .and. crit < score_crit_fore_tm(itx,ip,itm)) then
@@ -511,6 +593,7 @@ contains
 
 !   TDR aft (Pseudo-dual-Doppler-radars)
     else if(aftswp) then   !   fore sweeps
+       if(.not.setaft)call createaft_tm
 !   Case:  obs score < best value at this location, 
 !     -->  update score, count, and best obs counters
        if (icount_aft_tm(itx,ip,itm) .and. crit < score_crit_aft_tm(itx,ip,itm)) then
@@ -537,6 +620,7 @@ contains
 
     else
 
+       if(.not.setnormal)call createnormal_tm
 !      Case:  obs score < best value at this location, 
 !        -->  update score, count, and best obs counters
        if (icount_tm(itx,ip,itm) .and. crit < score_crit_tm(itx,ip,itm)) then
@@ -591,15 +675,24 @@ contains
 
     if (.not.use_all_tm) then
        deallocate(mlon,glat,glon,hll)
-       deallocate(icount_tm)
-       deallocate(icount_fore_tm)
-       deallocate(icount_aft_tm)
-       deallocate(ibest_obs_tm)
-       deallocate(ibest_obs_aft_tm)
-       deallocate(ibest_obs_fore_tm)
-       deallocate(score_crit_tm)
-       deallocate(score_crit_fore_tm)
-       deallocate(score_crit_aft_tm)
+       if(setnormal)then
+          deallocate(icount_tm)
+          deallocate(ibest_obs_tm)
+          deallocate(score_crit_tm)
+          setnormal=.false.
+       end if
+       if(setfore)then
+          deallocate(icount_fore_tm)
+          deallocate(ibest_obs_fore_tm)
+          deallocate(score_crit_fore_tm)
+          setfore=.false.
+       end if
+       if(setaft)then
+          deallocate(icount_aft_tm)
+          deallocate(ibest_obs_aft_tm)
+          deallocate(score_crit_aft_tm)
+          setaft=.false.
+       end if
     endif
   end subroutine del3grids_tm
 

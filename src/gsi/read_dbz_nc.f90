@@ -239,7 +239,6 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
      endif
      xmesh=rmesh
      call make3grids(xmesh,nlevz)
-!     call make3grids2(xmesh,nlevz)
 
      allocate(zl_thin(nlevz))
      if (zflag == 1) then

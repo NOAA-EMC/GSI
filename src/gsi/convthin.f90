@@ -37,7 +37,7 @@ module convthin
 ! set passed variables to public
   public :: use_all
 
-  integer(i_kind):: mlat
+  integer(i_kind):: mlat,itxmax,nlevp
   integer(i_kind),allocatable,dimension(:):: mlon
   logical        ,allocatable,dimension(:,:):: icount,icount_fore,icount_aft
   integer(i_kind),allocatable,dimension(:,:):: ibest_obs,ibest_obs_aft,ibest_obs_fore
@@ -45,10 +45,11 @@ module convthin
   real(r_kind),allocatable,dimension(:):: glat
   real(r_kind),allocatable,dimension(:,:):: glon,hll,score_crit,score_crit_fore,score_crit_aft
   logical use_all
+  logical setfore, setaft, setnormal
 
 contains
 
-  subroutine make3grids(rmesh,nlevp)
+  subroutine make3grids(rmesh,nlevpp)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    make3grids                            
@@ -70,7 +71,7 @@ contains
 !     rmesh - mesh size (km) of thinning grid.  If (rmesh <= one), 
 !             then no thinning of the data will occur.  Instead,
 !             all data will be used without thinning.
-!     nlevp -  vertical levels
+!     nlevpp -  vertical levels
 !
 ! attributes:
 !   language: f90
@@ -83,12 +84,12 @@ contains
     implicit none
 
     real(r_kind)   ,intent(in   ) :: rmesh
-    integer(i_kind),intent(in   ) :: nlevp
+    integer(i_kind),intent(in   ) :: nlevpp
 
     real(r_kind),parameter:: r360 = 360.0_r_kind
 
     integer(i_kind) i,j
-    integer(i_kind) mlonx,mlonj,itxmax
+    integer(i_kind) mlonx,mlonj
 
     real(r_kind) dgv,halfpi,dx,dy
     real(r_kind) twopi
@@ -96,6 +97,7 @@ contains
     real(r_kind) rkm2dg,glatm
     real(r_quad) delat
 
+    nlevp=nlevpp
 !   If there is to be no thinning, simply return to calling routine
     use_all=.false.
     if(abs(rmesh) <= one)then
@@ -133,7 +135,7 @@ contains
        
        factor = abs(cos(abs(glatm)))
        if (rmesh>zero) then
-          mlonj   = nint(mlonx*factor)	
+          mlonj   = nint(mlonx*factor)
           mlon(j) = max(2,mlonj)
           delon = dlon_grid/mlon(j)
        else
@@ -156,34 +158,105 @@ contains
        enddo
        
     end do
+    setnormal=.false.
+    setfore=.false.
+    setaft=.false.
 
-!   Allocate  and initialize arrays
+    return
+  end subroutine make3grids
+  subroutine createnormal
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    createnormal
+!     prgmmr:    derber     org: np23                date: 2023-10-20
+!
+! abstract:  This routine creates and initializes arrays for normal thinning
+!
+! program history log:
+!   2023-10-20  derber
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    integer i,j
     allocate(icount(itxmax,nlevp))
-    allocate(icount_fore(itxmax,nlevp))
-    allocate(icount_aft(itxmax,nlevp))
     allocate(ibest_obs(itxmax,nlevp))
-    allocate(ibest_obs_fore(itxmax,nlevp))
-    allocate(ibest_obs_aft(itxmax,nlevp))
     allocate(score_crit(itxmax,nlevp))
-    allocate(score_crit_fore(itxmax,nlevp))
-    allocate(score_crit_aft(itxmax,nlevp))
 
     do j=1,nlevp
        do i=1,itxmax
           icount(i,j) = .false.
-          icount_fore(i,j) = .false.
-          icount_aft(i,j) = .false.
           ibest_obs(i,j)= 0
-          ibest_obs_fore(i,j)= 0
-          ibest_obs_aft(i,j)= 0
           score_crit(i,j)= 9.99e6_r_kind
-          score_crit_fore(i,j) = 9.99e6_r_kind
-          score_crit_aft(i,j) = 9.99e6_r_kind
        end do
     end do
-
+    setnormal=.true.
     return
-  end subroutine make3grids
+  end subroutine createnormal
+  subroutine createfore
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    createfore
+!     prgmmr:    derber     org: np23                date: 2023-10-20
+!
+! abstract:  This routine creates and initializes arrays for fore thinning
+!
+! program history log:
+!   2023-10-20  derber
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    integer i,j
+    allocate(icount(itxmax,nlevp))
+    allocate(ibest_obs(itxmax,nlevp))
+    allocate(score_crit(itxmax,nlevp))
+
+    do j=1,nlevp
+       do i=1,itxmax
+          icount_fore(i,j) = .false.
+          ibest_obs_fore(i,j)= 0
+          score_crit_fore(i,j)= 9.99e6_r_kind
+       end do
+    end do
+    setfore=.true.
+    return
+  end subroutine createfore
+  subroutine createaft
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    createnormal
+!     prgmmr:    derber     org: np23                date: 2023-10-20
+!
+! abstract:  This routine creates and initializes arrays for aft thinning
+!
+! program history log:
+!   2023-10-20  derber
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    integer i,j
+    allocate(icount_aft(itxmax,nlevp))
+    allocate(ibest_obs_aft(itxmax,nlevp))
+    allocate(score_crit_aft(itxmax,nlevp))
+
+    do j=1,nlevp
+       do i=1,itxmax
+          icount_aft(i,j) = .false.
+          ibest_obs_aft(i,j)= 0
+          score_crit_aft(i,j)= 9.99e6_r_kind
+       end do
+    end do
+    setaft=.true.
+    return
+  end subroutine createaft
 
   subroutine map3grids(flg,pflag,pcoord,nlevp,dlat_earth,dlon_earth,pob,crit1,iobs,&
             iobsout,iuse,foreswp,aftswp)
@@ -305,6 +378,7 @@ contains
 !   TDR fore (Pseudo-dual-Doppler-radars)
 
     if(foreswp) then   !   fore sweeps
+       if(.not. setfore)call createfore
  
 !   Case(1):  first obs at this location, keep this obs as starting point
        if (.not. icount_fore(itx,ip)) then
@@ -329,6 +403,7 @@ contains
 
 !   TDR aft (Pseudo-dual-Doppler-radars)
     else if(aftswp) then   !   aft sweeps
+       if(.not. setaft)call createaft
 
 !   Case(1):  first obs at this location, keep this obs as starting point
        if (.not. icount_aft(itx,ip)) then
@@ -354,6 +429,7 @@ contains
 
     else 
 
+       if(.not. setnormal)call createnormal
 !      Case:  obs score < best value at this location, 
 !        -->  update score, count, and best obs counters
        if (icount(itx,ip) .and. crit < score_crit(itx,ip)) then
@@ -508,6 +584,7 @@ contains
 
 !   TDR fore/aft (Pseudo-dual-Doppler-radars)
     if(foreswp) then   !   fore sweeps
+       if(.not. setfore)call createfore
 
 !   Case(1):  first obs at this location, keep this obs as starting point
        if (icount_fore(itx,ip)==0) then
@@ -534,6 +611,7 @@ contains
        endif                 ! cases
 
     else if(aftswp) then   !   aft sweeps
+       if(.not. setaft)call createaft
 
 !   Case(1):  first obs at this location, keep this obs as starting point
        if (.not. icount_aft(itx,ip)) then
@@ -559,6 +637,7 @@ contains
 
     else 
 
+       if(.not. setnormal)call createnormal
 !      Case:  obs score < best value at this location,
 !        -->  update score, count, and best obs counters
        if (icount(itx,ip) .and. crit < score_crit(itx,ip)) then
@@ -587,8 +666,6 @@ contains
   end subroutine map3grids_m
 
 
-
-
   subroutine del3grids
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -614,15 +691,24 @@ contains
 
     if (.not.use_all) then
        deallocate(mlon,glat,glon,hll)
-       deallocate(icount)
-       deallocate(icount_fore)
-       deallocate(icount_aft)
-       deallocate(ibest_obs)
-       deallocate(ibest_obs_fore)
-       deallocate(ibest_obs_aft)
-       deallocate(score_crit)
-       deallocate(score_crit_fore)
-       deallocate(score_crit_aft)
+       if(setnormal)then
+          deallocate(icount)
+          deallocate(ibest_obs)
+          deallocate(score_crit)
+          setnormal=.false.
+       end if
+       if(setfore)then
+          deallocate(icount_fore)
+          deallocate(score_crit_fore)
+          deallocate(ibest_obs_fore)
+          setfore=.false.
+       end if
+       if(setaft)then
+         deallocate(icount_aft)
+         deallocate(ibest_obs_aft)
+         deallocate(score_crit_aft)
+         setaft=.false.
+       end if
     endif
   end subroutine del3grids
 
