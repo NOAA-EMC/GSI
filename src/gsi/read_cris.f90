@@ -582,7 +582,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          Increment nread counter by bufr_nchan    (should be changed to number of channels in satinfo file? (satinfo_nchan))
            nread = nread + satinfo_nchan
            crit0 = 0.01_r_kind
-           if( llll > 1 ) crit0 = crit0 + r100 * float(llll)
+           if( llll > 1 ) crit0 = crit0 + r100 * real(llll,r_kind)
            timeinflat=6.0_r_kind
            call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
            call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
@@ -600,8 +600,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            if( ifor <= 15 )  sat_zenang = -sat_zenang
 
 !          Compute scan angle including sensor twist. 
-           look_angle_est = (start + float((ifor-1))*step) * deg2rad + &
-              fov_dist(ifov) * sin(fov_ang(ifov) - float(ifor-1)*step*deg2rad)
+           look_angle_est = (start + real((ifor-1),r_kind)*step) * deg2rad + &
+              fov_dist(ifov) * sin(fov_ang(ifov) - real(ifor-1,r_kind)*step*deg2rad)
 
            sat_look_angle=asin(rato*sin(sat_zenang*deg2rad))
            if(abs(sat_look_angle)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
@@ -763,7 +763,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            if(iskip > 0 .and. print_verbose)write(6,*) ' READ_CRIS : iskip > 0 ',iskip
 !          if( iskip >= 10 )cycle read_loop 
 
-           crit1=crit1 + ten*float(iskip)
+           crit1=crit1 + ten*real(iskip,r_kind)
 
 !          Final map obs to grids
            if ( clear ) then 

@@ -298,7 +298,7 @@ subroutine setupdw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   end if
 
   scale=one
-  rsig=float(nsig)
+  rsig=real(nsig,r_kind)
   mm1=mype+1
 
   call dtime_setup()
@@ -496,7 +496,7 @@ subroutine setupdw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
      dwwind=(ugesindw*sinazm+vgesindw*cosazm)*factw
 
      iz = max(1, min( int(dpres), nsig))
-     delz = max(zero, min(dpres - float(iz), one))
+     delz = max(zero, min(dpres - real(iz,r_kind), one))
 
      if (save_jacobian) then
         u_ind = getindex(svars3d, 'u')

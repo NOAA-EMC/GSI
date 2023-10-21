@@ -467,7 +467,7 @@ subroutine compute_derived(mype,init_pass)
                     do i=indices%ips,indices%ipe
                        l =max(min(int(rllatf(i,j)),mlat),1)
                        l2=min((l+1),mlat)
-                       dl2=rllatf(i,j)-float(l)
+                       dl2=rllatf(i,j)-real(l,r_kind)
                        dl1=one-dl2
 
                        factk=dl1*corz(l,kvar,nrf3_q)+dl2*corz(l2,kvar,nrf3_q)

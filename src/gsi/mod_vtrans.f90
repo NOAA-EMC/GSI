@@ -269,7 +269,7 @@ contains
 
 !   count:
 !  Not clear if area weighting would be better.
-    count=one/float(nlat*nlon)
+    count=one/real(nlat*nlon,r_kind)
 
     ier=0
     call gsi_bundlegetpointer (gsi_metguess_bundle(ntguessig),'ps',ges_ps_nt, istatus)

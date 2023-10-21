@@ -609,7 +609,7 @@ subroutine get_stat_factk(platf,ivar,kvar,factk,rh,dvsst)
 
   l =int(platf)
   lp=l+1
-  dl2=platf-float(l)
+  dl2=platf-real(l,r_kind)
   dl1=one-dl2
   l = min(max(1,l ),mlat)
   lp= min(max(1,lp),mlat)
@@ -971,7 +971,7 @@ subroutine read_bckgstats_glb(mype)
      mcount0=lon2*lat2! It's OK to count buffer points
      call mpi_allreduce(pbar4a,pbar4(k),1,mpi_real8,mpi_sum,mpi_comm_world,ierror)
      call mpi_allreduce(mcount0,mcount,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
-     pbar4(k)=pbar4(k)/float(mcount)
+     pbar4(k)=pbar4(k)/real(mcount,r_kind)
   end do
 
   psfc015=r015*pbar4(1)
@@ -1160,7 +1160,7 @@ subroutine get_background_glb(mype)
 
   do ilat=1,pf2aP2%nlatf
      do ilon=1,pf2aP2%nlonf
-        if(((float(ilat)-rnf2)**2+(float(ilon)-rnf2)**2)>=rnf212) then
+        if(((real(ilat,r_kind)-rnf2)**2+(real(ilon,r_kind)-rnf2)**2)>=rnf212) then
            p2ilatf(ilat,ilon)=zero
            p3ilatf(ilat,ilon)=zero
         else
@@ -1611,7 +1611,7 @@ subroutine get_aspect_pt(mype)
              cvar=='vp' .or. cvar=='VP' .or. &
              cvar=='t' .or. cvar=='T'
 
-     rk1=float(k1-kthres)
+     rk1=real(k1-kthres,r_kind)
      fblend=half*(one-tanh(rk1))
  
      !--- zonal patch
@@ -1757,7 +1757,7 @@ subroutine get_theta_corrl_lenghts_glb(mype)
      mcount0=lon2*lat2! It's OK to count buffer points
      call mpi_allreduce(pbar4a,pbar4(k),1,mpi_real8,mpi_sum,mpi_comm_world,ierror)
      call mpi_allreduce(mcount0,mcount,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
-     pbar4(k)=pbar4(k)/float(mcount)
+     pbar4(k)=pbar4(k)/real(mcount,r_kind)
      call w3fa03(pbar4(k),hgt4(k),tbar4(k),thetabar4(k))
   end do
 
@@ -2605,9 +2605,9 @@ subroutine get_aspect_ens(mype)
 
         nt1=max(1,(nens(k)-1))
  
-        s1=maxval(ensv_p0(:,:,k))/float(nt1)
-        s2=maxval(ensv_p2(:,:,k))/float(nt1)
-        s3=maxval(ensv_p3(:,:,k))/float(nt1)
+        s1=maxval(ensv_p0(:,:,k))/real(nt1,r_kind)
+        s2=maxval(ensv_p2(:,:,k))/real(nt1,r_kind)
+        s3=maxval(ensv_p3(:,:,k))/real(nt1,r_kind)
         smax=max(s1,s2,s3)
 
         if ( nkflag(k)==1 ) then
@@ -3729,13 +3729,13 @@ subroutine ens_intpglb_coeff(iref,jref,enscoeff,mype)
         xg=rlon+one
         yg=rlat+90._r_kind+one
 
-        dxg =xg-float(floor(xg))
-        dyg =yg-float(floor(yg))
+        dxg =xg-real(floor(xg),r_kind)
+        dyg =yg-real(floor(yg),r_kind)
         dxg1=one-dxg
         dyg1=one-dyg
 
-        if (xg >= one .and. xg <= float(jxp) .and.  &
-            yg >= one .and. yg <= float(iy) ) then
+        if (xg >= one .and. xg <= real(jxp,r_kind) .and.  &
+            yg >= one .and. yg <= real(iy,r_kind) ) then
            enscoeff(1,i,j)=dxg1*dyg1
            enscoeff(2,i,j)=dxg1*dyg
            enscoeff(3,i,j)=dxg *dyg1
@@ -3938,7 +3938,7 @@ subroutine ens_uv2psichi(work1,work2)
      vor_s = vor_s + grid_vor( 1,ix)
      vor_n = vor_n + grid_vor(ny,ix)
   end do
-  rnlon = one/float(nlon)
+  rnlon = one/real(nlon,r_kind)
   div_s = div_s*rnlon
   div_n = div_n*rnlon
   vor_s = vor_s*rnlon

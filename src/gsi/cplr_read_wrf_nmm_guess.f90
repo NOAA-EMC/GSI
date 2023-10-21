@@ -2077,7 +2077,7 @@ contains
       !           due to interpolation
        do i=1,lon2
           do j=1,lat2
-             veg_type(j,i,it)=float(nint(veg_type(j,i,it)))
+             veg_type(j,i,it)=real(nint(veg_type(j,i,it)),r_kind)
           end do
        end do
   !                            ! veg frac
@@ -2091,7 +2091,7 @@ contains
       !           due to interpolation
        do i=1,lon2
           do j=1,lat2
-             soil_type(j,i,it)=float(nint(soil_type(j,i,it)))
+             soil_type(j,i,it)=real(nint(soil_type(j,i,it)),r_kind)
           end do
        end do
   
@@ -2102,7 +2102,7 @@ contains
       !           due to interpolation
        do i=1,lon2
           do j=1,lat2
-             smthis(j,i)=float(nint(smthis(j,i)))
+             smthis(j,i)=real(nint(smthis(j,i)),r_kind)
           end do
        end do
   
@@ -2113,7 +2113,7 @@ contains
       !           due to interpolation
        do i=1,lon2
           do j=1,lat2
-             sicethis(j,i)=float(nint(sicethis(j,i)))
+             sicethis(j,i)=real(nint(sicethis(j,i)),r_kind)
           end do
        end do
   
