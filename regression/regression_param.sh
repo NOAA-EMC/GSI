@@ -192,7 +192,7 @@ case $regtest in
 
     ;;
 
-    hafs_3denvar_glbens | hafs_4denvar_glbens | hafs_3denvar_hafens | hafs_3denvar_hybens)
+    hafs_3denvar_glbens | hafs_3denvar_hafens | hafs_3denvar_hybens)
 
         if [[ "$machine" = "Hera" ]]; then
             topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
@@ -219,6 +219,34 @@ case $regtest in
         fi
 
         scaling[1]=2; scaling[2]=10; scaling[3]=4
+
+    ;;
+    hafs_4denvar_glbens)
+        if [[ "$machine" = "Hera" ]]; then
+            topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
+            topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "Orion" ]]; then
+            topts[1]="0:20:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
+            topts[2]="0:20:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "Jet" ]]; then
+            topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
+            topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "Cheyenne" ]]; then
+           topts[1]="0:15:00" ; popts[1]="20/1/" ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="20/2/" ; ropts[2]="/2"
+        elif [[ "$machine" = "Gaea" ]]; then
+            topts[1]="0:15:00" ; popts[1]="18/1/"  ; ropts[1]="/1"
+            topts[2]="0:15:00" ; popts[2]="18/2/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "wcoss2" ]]; then
+           topts[1]="0:15:00" ; popts[1]="64/1/" ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="128/2/" ; ropts[2]="/1"
+        fi
+
+        if [ "$debug" = ".true." ] ; then
+           topts[1]="0:45:00"
+        fi
+
+        scaling[1]=10; scaling[2]=8; scaling[3]=4
 
     ;;
 
