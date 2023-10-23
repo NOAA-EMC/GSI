@@ -4,10 +4,6 @@
 #  To run with hybrid ensemble option on, change HYBENS_GLOBAL and/or HYBENS_REGIONAL from "false" to "true".
 #  These are located at the end of this script.
 
-export local_or_default="/work/noaa/hwrf/noscrub/jcheng/gsi"
-export ptmp="/work/noaa/hwrf/scrub/jcheng/gsi"
-export group=noaa-hpc
-export accnt=hurricane
 if [ "$#" = 7 ] ; then
   export basedir=$1
   export builddir=$2
