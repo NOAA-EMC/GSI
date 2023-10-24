@@ -35,9 +35,9 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
 !_____________________________________________________________________
 !
   use kinds, only: r_kind,r_double,i_kind
-  use constants, only: zero,one,deg2rad
+  use constants, only: zero,one,deg2rad,r60inv
   use convinfo, only: nconvtype,ctwind,icuse,ioctype
-  use gsi_4dvar, only: l4dvar,l4densvar
+  use gsi_4dvar, only: iwinbgn
   use gridmod, only: tll2xy
   use mod_wrfmass_to_a, only: wrfmass_obs_to_a8
   use mpimod, only: npe
@@ -114,11 +114,6 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
   integer(i_kind)    :: varID, ncdfID, status
   real(r_kind)       :: timeb,twindm,rmins_an,rmins_ob
 
-
-    if (l4dvar.or.l4densvar) then
-       write(6,*) 'FED obs type is not set up for l4dvar.or.l4densvar. STOP92'
-       call stop2(92)
-    end if
 
     hgt_fed = r_hgt_fed 
 
@@ -224,6 +219,10 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
       if(abs(timeb) > abs(twindm)) then
         print*, 'WARNING: ALL FED OBSERVATIONS OUTSIDE ASSIMILATION TIME WINDOW: ', timeb, twindm
       endif
+
+      !time relative to the beginning of the da time window
+      timeb=real(rmins_ob-iwinbgn,r_kind)
+
       numfed = maxobs
       do i=1,numfed
         if (fed3d_column( 3, i ) >= fed_lowbnd2 .or. fed3d_column( 3, i ) == fed_lowbnd ) then 
@@ -315,7 +314,7 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
             cdata_out( 6,ndata2) = rstation_id         ! station id (charstring equivalent to real double)
                                                        ! id=6        ! index of station id
 
-            cdata_out( 7,ndata2) = 0.0_r_kind          ! observation time in data array
+            cdata_out( 7,ndata2) = timeb*r60inv        ! observation time in data array
                                                        ! itime=7     ! index of observation time in data array
             cdata_out( 8,ndata2) = ikx                 ! ob type
                                                        ! ikxx=8      ! index of ob type

@@ -203,7 +203,7 @@
   use gsi_nstcouplermod, only: gsi_nstcoupler_init_nml
   use gsi_nstcouplermod, only: nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl
   use ncepnems_io, only: init_nems,imp_physics,lupp
-  use wrf_vars_mod, only: init_wrf_vars,fed_exist
+  use wrf_vars_mod, only: init_wrf_vars,fed_exist,dbz_exist
   use gsi_rfv3io_mod,only : fv3sar_bg_opt
   use radarz_cst,            only: mphyopt, MFflg
   use radarz_iface,          only: init_mphyopt
@@ -515,7 +515,7 @@
 !  2023-09-14 H. Wang - add namelist option for FED EnVar DA. 
 !                        - if_model_fed=.true.        :  FED in background and ens. If
 !                          perform FED DA, this has to be true along with fed in
-!                          control/analysis variable list. If only run GSI observer,
+!                          control/analysis and metguess vectors. If only run GSI observer,
 !                          it can be false.
 !                        - innov_use_model_fed=.true. :  Use FED from BG to calculate innovation.
 !                          this requires if_model_fed=.true. 
@@ -1991,12 +1991,17 @@
 
   if (innov_use_model_fed .and. .not.if_model_fed) then
      if(mype==0) write(6,*)' GSIMOD: invalid innov_use_model_fed=.true. but if_model_fed=.false.'
-     call die(myname_,'invalid innov_use_model_fed,if_model_fed, check namelist settings',332)
+     call die(myname_,'invalid innov_use_model_fed,if_model_fed, check namelist settings',330)
   end if
 
-  if (miter > 0 .and. if_model_fed .and. .not. fed_exist) then
-     if(mype==0) write(6,*)' GSIMOD: invalid miter > 0 and if_model_fed=.true. but fed is not in anavinfo file'
-     call die(myname_,'Please add fed in anavinfo (contro/state_vector and met_guess) when miter > 0 and if_model_fed=.true.',334)
+  if (.not. (miter == 0 .or. lobserver) .and. if_model_fed .and. .not. fed_exist) then
+     if(mype==0) write(6,*)' GSIMOD: .not. (miter == 0 .or. lobserver) and if_model_fed=.true. but fed is not in anavinfo file'
+     call die(myname_,'Please check namelist parameters and/or add fed in anavinfo (contro/state_vector and met_guess) when miter > 0 and if_model_fed=.true.',332)
+  end if
+
+  if (.not. (miter == 0 .or. lobserver) .and. if_model_dbz .and. .not. dbz_exist) then
+     if(mype==0) write(6,*)' GSIMOD: .not. (miter == 0 .or. lobserver) and if_model_dbz=.true. but dbz is not in anavinfo file'
+     call die(myname_,'Please check namelist parameters and/or add dbz in anavinfo (contro/state_vector and met_guess) when miter > 0 and if_model_fed=.true.',334)
   end if
 
 ! Ensure valid number of horizontal scales

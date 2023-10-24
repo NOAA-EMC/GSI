@@ -406,34 +406,52 @@ contains
            endif
  ! 
  ! READ ENEMBLE MEMBERS DATA
+ !
+           ! There are three options to control the list of variables that
+           ! will be read in along with the basic variables, ps,u,v,tv,rh,oz.
+
+           ! parallelization_over_ensmembers=.True. only works for cases when l_use_dbz_directDA=.False. 
+           ! Noted that l_use_dbz_directDA and if_modle_dbz couldn't be true at the same time
+
+           !
+           ! I_CASEFLAG defination
+           !
+
+           ! default: all the three options ( l_use_dbz_directDA, if_model_dbz, if_model_fed) are turned off .i.e.,
+           !          if(.not. (l_use_dbz_directDA .or. if_model_dbz .or.  if_model_fed ))
+           ! read in ps,u,v,tv,rh,oz
+           i_caseflag=0 
+
+           ! only l_use_dbz_directDA is true
+           if (l_use_dbz_directDA     .and. .not.if_model_dbz .and. .not.if_model_fed) i_caseflag=1
+
+           ! only if_model_dbz is true
+           if(.not.l_use_dbz_directDA .and.      if_model_dbz .and. .not.if_model_fed) i_caseflag=2
+
+           ! only if_model_fed is true
+           if(.not.l_use_dbz_directDA .and. .not.if_model_dbz .and. .not.if_model_fed) i_caseflag=3
+
+           ! l_use_dbz_directDA=.true. and if_model_fed=.true.
+           if(l_use_dbz_directDA      .and. .not.if_model_dbz .and.      if_model_fed) i_caseflag=4
+
+           ! if_model_dbz=.true. and if_model_fed=.true.
+           if(.not. l_use_dbz_directDA.and.      if_model_dbz .and.      if_model_fed) i_caseflag=5
+
+              
+           !--------------------------------------------------
+           ! When .not. parallelization_over_ensmembers=.True.
+           ! All the above 6 cases (i_caseflag=0,1,2,3,4,5) are valid in
+           ! the current applications as of Oct 20 2023.
+
+           !--------------------------------------------
+           ! When parallelization_over_ensmembers=.True. 
+           ! Only i_flagcase=0,2,3,5 are vaild choices. 
+
+
            if( .not. parallelization_over_ensmembers )then
               if (mype == 0) write(6,'(a,a)') &
                  'CALL READ_FV3_REGIONAL_ENSPERTS FOR ENS DATA with the filename str : ',trim(ensfilenam_str)
           
-              ! There are three options to control the list of variables that
-              ! will be read in along with the basic variables, ps,u,v,tv,rh,oz.
-              ! Here the 6 cases that are considered in
-              ! the current applications are listed as of Oct 20 2023.
-
-              ! default: all the three options ( l_use_dbz_directDA, if_model_dbz, if_model_fed) are turned off .i.e.,
-              !          if(.not. (l_use_dbz_directDA .or. if_model_dbz .or.  if_model_fed ))
-              i_caseflag=0  ! read in ps,u,v,tv,rh,oz
-
-              ! only l_use_dbz_directDA is true
-              if (l_use_dbz_directDA     .and. .not.if_model_dbz .and. .not.if_model_fed) i_caseflag=1
-
-              ! only if_model_dbz is true
-              if(.not.l_use_dbz_directDA .and.      if_model_dbz .and. .not.if_model_fed) i_caseflag=2
-
-              ! only if_model_fed is true
-              if(.not.l_use_dbz_directDA .and. .not.if_model_dbz .and. .not.if_model_fed) i_caseflag=3
-
-              ! l_use_dbz_directDA=.true. and if_model_fed=.true.
-              if(l_use_dbz_directDA      .and. .not.if_model_dbz .and.      if_model_fed) i_caseflag=4
-
-              ! if_model_dbz=.true. and if_model_fed=.true.
-              if(.not. l_use_dbz_directDA.and.      if_model_dbz .and.      if_model_fed) i_caseflag=5
-
               select case (i_caseflag)
                 case (0)
                   call this%general_read_fv3_regional(fv3_filename,ps,u,v,tv,rh,oz)
@@ -459,49 +477,58 @@ contains
               iope=(n_fv3sar-1)*npe/n_ens_fv3sar
               if(mype==iope) then
                  write(0,'(I0,A,I0,A)') mype,': scatter member ',n_fv3sar,' to other ranks...'
-                 if( if_model_dbz .and. if_model_fed)then
-                    call this%parallel_read_fv3_step2(mype,iope,&
-                          g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,&
-                          g_oz=oz,g_w=w,g_qr=qr,g_qs=qs,g_qi=qi,g_qg=qg,g_dbz=dbz,g_fed=fed,&
-                          gg_ps=gg_ps,gg_tv=gg_tv,gg_u=gg_u,gg_v=gg_v,&
-                          gg_rh=gg_rh,gg_w=gg_w,gg_dbz=gg_dbz,gg_fed=gg_fed,gg_qr=gg_qr,&
-                          gg_qs=gg_qs,gg_qi=gg_qi,gg_qg=gg_qg,gg_ql=gg_cwmr)
-                 elseif( if_model_dbz )then
-                    call this%parallel_read_fv3_step2(mype,iope,&
+                select case (i_caseflag)
+                   case (0)
+                     call this%parallel_read_fv3_step2(mype,iope,&
+                          g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,g_oz=oz, &
+                          gg_ps=gg_ps,gg_tv=gg_tv,gg_u=gg_u,gg_v=gg_v,gg_rh=gg_rh)
+                   case (2)
+                     call this%parallel_read_fv3_step2(mype,iope,&
                           g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,&
                           g_oz=oz,g_w=w,g_qr=qr,g_qs=qs,g_qi=qi,g_qg=qg,g_dbz=dbz,&
                           gg_ps=gg_ps,gg_tv=gg_tv,gg_u=gg_u,gg_v=gg_v,&
                           gg_rh=gg_rh,gg_w=gg_w,gg_dbz=gg_dbz,gg_qr=gg_qr,&
                           gg_qs=gg_qs,gg_qi=gg_qi,gg_qg=gg_qg,gg_ql=gg_cwmr)
-                 elseif( if_model_fed )then
-                    call this%parallel_read_fv3_step2(mype,iope,&
+                   case (3)
+                     call this%parallel_read_fv3_step2(mype,iope,&
                           g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,&
                           g_oz=oz,g_w=w,g_qr=qr,g_qs=qs,g_qi=qi,g_qg=qg,g_fed=fed,&
                           gg_ps=gg_ps,gg_tv=gg_tv,gg_u=gg_u,gg_v=gg_v,&
                           gg_rh=gg_rh,gg_w=gg_w,gg_fed=gg_fed,gg_qr=gg_qr,&
                           gg_qs=gg_qs,gg_qi=gg_qi,gg_qg=gg_qg,gg_ql=gg_cwmr)
-                 else
-                    call this%parallel_read_fv3_step2(mype,iope,&
-                          g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,g_oz=oz, &
-                          gg_ps=gg_ps,gg_tv=gg_tv,gg_u=gg_u,gg_v=gg_v,gg_rh=gg_rh)
-                 end if
-              else
-                 if( if_model_dbz .and. if_model_fed)then
-                    call this%parallel_read_fv3_step2(mype,iope,&
+                   case (5)
+                     call this%parallel_read_fv3_step2(mype,iope,&
                           g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,&
-                          g_oz=oz,g_w=w,g_qr=qr,g_qs=qs,g_qi=qi,g_qg=qg,g_dbz=dbz,g_fed=fed)
-                 elseif( if_model_dbz )then
-                    call this%parallel_read_fv3_step2(mype,iope,&
+                          g_oz=oz,g_w=w,g_qr=qr,g_qs=qs,g_qi=qi,g_qg=qg,g_dbz=dbz,g_fed=fed,&
+                          gg_ps=gg_ps,gg_tv=gg_tv,gg_u=gg_u,gg_v=gg_v,&
+                          gg_rh=gg_rh,gg_w=gg_w,gg_dbz=gg_dbz,gg_fed=gg_fed,gg_qr=gg_qr,&
+                          gg_qs=gg_qs,gg_qi=gg_qi,gg_qg=gg_qg,gg_ql=gg_cwmr)
+                   case (1,4)
+                      write(6,*)'i_case_flag=1 or 4 is not a valid choice for parallelization_over_ensmembers=.T. Stop(8880) '
+                      call stop2(8880)
+                 end select
+              else
+                select case (i_caseflag)
+                   case (0)
+                     call this%parallel_read_fv3_step2(mype,iope,&
+                          g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,g_oz=oz)
+                   case (2)
+                     call this%parallel_read_fv3_step2(mype,iope,&
                           g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,&
                           g_oz=oz,g_w=w,g_qr=qr,g_qs=qs,g_qi=qi,g_qg=qg,g_dbz=dbz)
-                 elseif( if_model_fed )then
-                    call this%parallel_read_fv3_step2(mype,iope,&
+                   case (3)
+                     call this%parallel_read_fv3_step2(mype,iope,&
                           g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,&
                           g_oz=oz,g_w=w,g_qr=qr,g_qs=qs,g_qi=qi,g_qg=qg,g_fed=fed)
-                 else
-                    call this%parallel_read_fv3_step2(mype,iope,&
-                          g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,g_oz=oz)
-                 endif
+                  case (5)
+                     call this%parallel_read_fv3_step2(mype,iope,&
+                          g_ps=ps,g_u=u,g_v=v,g_tv=tv,g_rh=rh,g_ql=ql,&
+                          g_oz=oz,g_w=w,g_qr=qr,g_qs=qs,g_qi=qi,g_qg=qg,g_dbz=dbz,g_fed=fed)
+                   case (1,4)
+                      write(6,*)'i_case_flag=1 or 4 is not a valid choice for parallelization_over_ensmembers=.T. Stop(8880) '
+                      call stop2(8880)
+                 end select
+
               endif
 
               call MPI_Barrier(mpi_comm_world,ierror)

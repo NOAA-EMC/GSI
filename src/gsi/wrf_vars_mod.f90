@@ -90,9 +90,9 @@ if(.not.fed_exist .or. .not.fed_cloud_exist )then
   fed_exist=.false.
 endif  
 
-!if(.not.dbz_exist .or. .not.fed_cloud_exist )then
-!  dbz_exist=.false.
-!endif
+if(.not.dbz_exist .or. .not.dbz_cloud_exist )then
+  dbz_exist=.false.
+endif
 
 if(ncloud>0) deallocate(cloud)
 
