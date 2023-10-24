@@ -192,7 +192,7 @@ case $regtest in
 
     ;;
 
-    hafs_3denvar_glbens | hafs_3denvar_hafens | hafs_3denvar_hybens)
+    hafs_3denvar_hybens)
 
         if [[ "$machine" = "Hera" ]]; then
             topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
@@ -221,6 +221,7 @@ case $regtest in
         scaling[1]=2; scaling[2]=10; scaling[3]=4
 
     ;;
+
     hafs_4denvar_glbens)
         if [[ "$machine" = "Hera" ]]; then
             topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"

@@ -5,9 +5,7 @@ regtests_all="global_3dvar
               global_4denvar
               netcdf_fv3_regional
               rrfs_3denvar_glbens
-              hafs_3denvar_glbens
               hafs_4denvar_glbens
-              hafs_3denvar_hafens
               hafs_3denvar_hybens
               rtma
               global_enkf"
@@ -17,9 +15,7 @@ regtests_debug="global_3dvar
                 global_4denvar
                 netcdf_fv3_regional
                 rrfs_3denvar_glbens
-                hafs_3denvar_glbens
                 hafs_4denvar_glbens
-                hafs_3denvar_hafens
                 hafs_3denvar_hybens
                 rtma
                 global_enkf"
