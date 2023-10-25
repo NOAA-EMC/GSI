@@ -326,7 +326,7 @@ module ncepgfs_ghg
             do i=1,nmxlon
                co2diff= co2_sav2(i,j,k)-co2_sav1(i,j,k)
                co2rate= co2diff/ndmax
-               co2_Tintrp(i,j,k)= co2_sav1(i,j,k)+ co2rate*float(idd-1)
+               co2_Tintrp(i,j,k)= co2_sav1(i,j,k)+ co2rate*real(idd-1,r_kind)
             enddo
          enddo
       enddo
@@ -558,7 +558,7 @@ module ncepgfs_ghg
             do i=1,nmaxlon
                ghgdiff= ghg_sav2(1,j,k)-ghg_sav1(1,j,k)
                ghgrate= ghgdiff/ndmax
-               ghg_Tintrp(1,j,k)= ghg_sav1(1,j,k)+ ghgrate*float(idd-1)
+               ghg_Tintrp(1,j,k)= ghg_sav1(1,j,k)+ ghgrate*real(idd-1,r_kind)
             enddo
          enddo
       enddo

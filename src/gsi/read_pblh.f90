@@ -343,7 +343,7 @@
 
 !       Add obs reference time, then subtract analysis time to get obs time relative to analysis
 
-        time_correction=float(minobs-minan)/60._r_kind
+        time_correction=real(minobs-minan,r_kind)/60._r_kind
 
       else
         time_correction=zero

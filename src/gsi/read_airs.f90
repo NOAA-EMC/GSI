@@ -789,7 +789,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
         endif
 
         sol_aziang = aquaspot(2)
-        lza = (start + float(ifov-1)*step)*deg2rad
+        lza = (start + real(ifov-1,r_kind)*step)*deg2rad
 !
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
