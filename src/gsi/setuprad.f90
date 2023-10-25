@@ -615,6 +615,7 @@ contains
      call stop2(275)
   end if
 
+  call dtime_setup()
   cads_info = 0
 ! If using CADS do some initial checks, setup arrayss and calculate imager BTs
   if ((iasi_cads .and. iasi) .or. (cris_cads .and. cris)) then
@@ -897,7 +898,6 @@ contains
 ! PROCESSING OF SATELLITE DATA
 
 ! Loop over data in this block
-  call dtime_setup()
   do n = 1,nobs
 !    Extract analysis relative observation time.
      dtime = data_s(itime,n)
