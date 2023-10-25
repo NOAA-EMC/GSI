@@ -348,7 +348,7 @@ fi
 } >> $output
    fi
 
-   elif [[ `expr substr $exp1 1 4` = "rrfs" ]]; then
+   elif [[ `expr substr $exp1 1 4` = "rrfs" ]] || [[ `expr substr $exp1 1 4` = "hafs" ]]; then
 {
      fv3_failed_test=0
      if cmp -s fv3_dynvars.${exp1} fv3_dynvars.${exp2}
@@ -520,7 +520,7 @@ elif [[ `expr substr $exp1 1 6` = "global" ]]; then
 
    fi
 
-elif [[ `expr substr $exp1 1 4` = "rrfs" ]]; then
+elif [[ `expr substr $exp1 1 4` = "rrfs" ]] ||  [[ `expr substr $exp1 1 4` = "hafs" ]]; then
 {
      fv3_failed_test=0
      if cmp -s fv3_dynvars.${exp1} fv3_dynvars.${exp3}
