@@ -325,21 +325,21 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   quiet=.not. verbose
 
   imager_coeff = .false. 
-!  spc_filename = 'viirs-m_'//trim(jsatid)//'.SpcCoeff.bin'  ! when viirs naming convention becomes standarized
+!  spc_filename = trim(crtm_coeffs_path)//'viirs-m_'//trim(jsatid)//'.SpcCoeff.bin'  ! when viirs naming convention becomes standarized
   if ( trim(jsatid) == 'npp' ) then
-     spc_filename = 'viirs-m_npp.SpcCoeff.bin'
+     spc_filename = trim(crtm_coeffs_path)//'viirs-m_npp.SpcCoeff.bin'
      sensorlist_imager = 'viirs-m_npp'
   elseif ( trim(jsatid) == 'n20' ) then
-     spc_filename = 'viirs-m_n20.SpcCoeff.bin' 
+     spc_filename = trim(crtm_coeffs_path)//'viirs-m_n20.SpcCoeff.bin' 
      sensorlist_imager = 'viirs-m_n20'
      inquire(file=trim(spc_filename), exist=imager_coeff)
-     if ( .not. imager_coeff ) spc_filename = 'viirs-m_j1.SpcCoeff.bin'
+     if ( .not. imager_coeff ) spc_filename = trim(crtm_coeffs_path)//'viirs-m_j1.SpcCoeff.bin'
      sensorlist_imager = 'viirs-m_j1'
   elseif ( trim(jsatid) == 'n21' ) then
-     spc_filename = 'viirs-m_n21.SpcCoeff.bin' 
+     spc_filename = trim(crtm_coeffs_path)//'viirs-m_n21.SpcCoeff.bin' 
      sensorlist_imager = 'viirs-m_n21'
      inquire(file=trim(spc_filename), exist=imager_coeff)
-     if ( .not. imager_coeff ) spc_filename = 'viirs-m_j2.SpcCoeff.bin'
+     if ( .not. imager_coeff ) spc_filename = trim(crtm_coeffs_path)//'viirs-m_j2.SpcCoeff.bin'
      sensorlist_imager = 'viirs-m_j2'
   endif   
   inquire(file=trim(spc_filename), exist=imager_coeff)

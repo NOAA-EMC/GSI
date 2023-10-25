@@ -331,7 +331,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   quiet=.not. verbose
 
   imager_coeff = .false.
-  spc_filename = 'avhrr3_'//trim(jsatid)//'.SpcCoeff.bin'
+  spc_filename =trim(crtm_coeffs_path)//'avhrr3_'//trim(jsatid)//'.SpcCoeff.bin'
   inquire(file=trim(spc_filename), exist=imager_coeff)
   if ( imager_coeff ) then
     allocate( sensorlist(2))
