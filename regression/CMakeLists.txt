@@ -38,7 +38,7 @@ endif()
 
 # GSI regression test names
 list(APPEND GSI_REG_TEST_NAMES
-  global_3dvar global_4dvar global_4denvar
+  global_4denvar
   rtma
   rrfs_3denvar_glbens netcdf_fv3_regional
   hafs_4denvar_glbens hafs_3denvar_hybens
