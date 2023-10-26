@@ -1,6 +1,6 @@
 #!/bin/sh --login
 
-regtests_all="global_4dendvar
+regtests_all="global_4denvar
               netcdf_fv3_regional
               rrfs_3denvar_glbens
               hafs_4denvar_glbens
