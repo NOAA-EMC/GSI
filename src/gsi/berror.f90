@@ -844,8 +844,7 @@ contains
     
 !   Grid constant for background error
 
-    allocate(be(ndeg), &
-         qvar3d(lat2,lon2,nsig))
+    allocate(be(ndeg),qvar3d(lat2,lon2,nsig))
     if(nc3d>0)then
        allocate(alv(llmin:llmax,ndeg,nsig,nc3d), &
             dssv(lat2,lon2,nsig,nc3d))

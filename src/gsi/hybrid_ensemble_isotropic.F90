@@ -4274,6 +4274,7 @@ subroutine hybens_localization_setup
          kl = grd_loc%kend_alloc-grd_loc%kbegin_loc+1
       endif
 
+
    endif ! if ( readin_localization .or. readin_beta )
 
 100 format(I4)
@@ -4313,9 +4314,9 @@ subroutine hybens_localization_setup
    call normal_new_factorization_rf_z
 
    if ( regional ) then ! convert s_ens_h from km to grid units.
-      allocate(s_ens_h_gu_x(1,naensloc))
-      allocate(s_ens_h_gu_y(1,naensloc))
       if ( vvlocal ) then
+         allocate(s_ens_h_gu_x(grd_loc%nsig*n_ens,naensloc))
+         allocate(s_ens_h_gu_y(grd_loc%nsig*n_ens,naensloc))
          call convert_km_to_grid_units(s_ens_h_gu_x(1:nz,:),s_ens_h_gu_y(1:nz,:),nz)
          do n=2,n_ens
             nk=(n-1)*nz
@@ -4327,6 +4328,8 @@ subroutine hybens_localization_setup
          call init_rf_x(s_ens_h_gu_x(grd_loc%kbegin_loc:grd_loc%kend_alloc,:),kl)
          call init_rf_y(s_ens_h_gu_y(grd_loc%kbegin_loc:grd_loc%kend_alloc,:),kl)
       else
+         allocate(s_ens_h_gu_x(1,naensloc))
+         allocate(s_ens_h_gu_y(1,naensloc))
          call convert_km_to_grid_units(s_ens_h_gu_x,s_ens_h_gu_y,nz)
          call init_rf_x(s_ens_h_gu_x,kl)
          call init_rf_y(s_ens_h_gu_y,kl)

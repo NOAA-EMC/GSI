@@ -39,15 +39,8 @@ use mpeu_util, only: getindex
 implicit none
 
 private
-public :: do_getprs,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,do_cw_to_hydro
-public :: do_cw_to_hydro_hwrf,nclouds,ngases
 public :: control2state
 public :: control2state_ad
-public :: c2sset
-public :: icpblh,icgust,icvis,icoz,icwspd10m,icw
-public :: ictd2m,icmxtm,icmitm,icpmsl,ichowv
-public :: icsfwter,icvpwter,ictcamt,iclcbas
-public :: iccldch,icuwnd10m,icvwnd10m
 
 logical :: do_getprs,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,do_cw_to_hydro
 logical :: do_cw_to_hydro_hwrf

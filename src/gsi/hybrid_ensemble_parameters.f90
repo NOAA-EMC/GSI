@@ -345,6 +345,7 @@ module hybrid_ensemble_parameters
   public :: vdl_scale,vloc_varlist
   public :: global_spectral_filter_sd
   public :: assign_vdl_nml
+  public :: sete2s_flg
 
   logical l_hyb_ens,uv_hyb_ens,q_hyb_ens,oz_univ_static,sst_staticB
   logical l_timloc_opt
@@ -427,6 +428,8 @@ module hybrid_ensemble_parameters
 
   real(r_kind),allocatable:: region_lat_ens(:,:),region_lon_ens(:,:)
   real(r_kind),allocatable:: region_dx_ens(:,:),region_dy_ens(:,:)
+
+  logical sete2s_flg
 
 contains
 
@@ -539,6 +542,7 @@ subroutine create_hybens_localization_parameters
   ensloccov4tim=one
   ensloccov4var=one
   ensloccov4scl=one
+  sete2s_flg=.false.
   
 end subroutine create_hybens_localization_parameters
 

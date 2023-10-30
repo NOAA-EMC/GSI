@@ -1109,6 +1109,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         my_head%elat= data(ilate,i)
         my_head%elon= data(ilone,i)
 
+        if(npredt <= 0) write(6,*) ' npredt = ',npredt
         allocate(my_head%pred(npredt))
 
 !       Set (i,j,k) indices of guess gridpoint that bound obs location
