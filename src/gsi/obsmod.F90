@@ -769,7 +769,8 @@ contains
     if_model_dbz=.false.
     if_model_fed=.false.
     innov_use_model_fed=.false.
-    inflate_obserr=.false.
+!   increase error for reflectivity observation when |O-F| exceeds gross error magnitude
+    inflate_obserr=.true.
     whichradar="KKKK"
 
     oneobradid="KKKK"

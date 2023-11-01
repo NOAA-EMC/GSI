@@ -1260,7 +1260,10 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
          end if
 
      else
-        if (ratio > cgross(ikx) .or. ratio_errors < tiny_r_kind) then
+
+!       Apply gross error check only to reflectivity observations in precipitation (>= 5 dBZ).
+        if ( ( (data(idbzob,i) >= 5_r_kind) .and. (ratio > cgross(ikx)) ) .or. (ratio_errors < tiny_r_kind) ) then
+
            if ( inflate_obserr .and. (ratio-cgross(ikx)) <= cgross(ikx) .and. ratio_errors >= tiny_r_kind) then 
            ! Since radar reflectivity can be very different from the model background
            ! good observations may be rejected during this QC step.  However, if these observations
