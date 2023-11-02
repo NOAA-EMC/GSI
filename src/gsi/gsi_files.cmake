@@ -275,6 +275,7 @@ intaod.f90
 intcldch.f90
 intco.f90
 intdbz.f90
+intfed.f90
 intdw.f90
 intgps.f90
 intgust.f90
@@ -595,6 +596,7 @@ stpcalc.f90
 stpcldch.f90
 stpco.f90
 stpdbz.f90
+stpfed.f90
 stpdw.f90
 stpgps.f90
 stpgust.f90

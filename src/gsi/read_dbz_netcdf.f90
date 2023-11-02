@@ -526,7 +526,8 @@ strct_in_dbz(v,k)%field(:,:)=obdata_nc(:,:)
                  
                     if(thislon>=r360) thislon=thislon-r360
                     if(thislon<zero ) thislon=thislon+r360
-                 
+                    if(thislon>=r360 .or. thislat >90.0_r_kind) cycle
+ 
                    !-Convert back to radians                 
                       
                     thislat = thislat*deg2rad

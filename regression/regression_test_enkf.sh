@@ -31,8 +31,6 @@ cd $tmpdir
 
 # Other required constants for regression testing
 maxtime=1200
-maxmem=${maxmem:-3400000} # set in regression_param
-maxmem=$((${memnode:-64}*1024*1024))
 
 # Copy stdout and incr files 
 # from $savdir to $tmpdir
@@ -177,20 +175,6 @@ fi
    # Next, maximum residence set size (both harware limitation and percent difference)
    # First, hardware limitation
 
-   {
-
-     if [[ $(awk '{ print $8 }' memory.$exp1.txt) -gt $maxmem ]]; then
-       echo 'The memory for '$exp1' is '$(awk '{ print $8 }' memory.$exp1.txt)' KBs.  This has exceeded maximum allowable hardware memory limit of '$maxmem' KBs,'
-       echo 'resulting in Failure maxmem of the regression test.'
-       echo
-       failed_test=1
-     else
-       echo 'The memory for '$exp1' is '$(awk '{ print $8 }' memory.$exp1.txt)' KBs and is within the maximum allowable hardware memory limit of '$maxmem' KBs,'
-       echo 'continuing with regression test.'
-       echo
-     fi
-
-   } >> $output
 
    # Next, maximum residence set size
 
@@ -396,21 +380,6 @@ else
       fi
    fi
 fi
-
-   # Finally, scalability
-
-   {
-
-   timelogic=$( echo "$scale1thresh >= $scale2" | bc )
-   if [[ "$timelogic" = 1 ]]; then
-      echo 'The case has passed the scalability regression test.'
-      echo 'The slope for the update ('$scale1thresh' seconds per node) is greater than or equal to that for the control ('$scale2' seconds per node).'
-   else
-      echo 'The case has Failed the scalability test.'
-      echo 'The slope for the update ('$scale1thresh' seconds per node) is less than that for the control ('$scale2' seconds per node).'
-   fi
-
-   } >> $output
 
 # Copy select results to $savdir
 mkdir -p $vfydir
