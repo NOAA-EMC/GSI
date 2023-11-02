@@ -1162,7 +1162,7 @@ subroutine get_wbinid(udbl,vdbl,nbins,ibin)
      endif
    else
      do n=1,nbins
-        if ( wdir >= float(n-1)*binwidth .and. wdir < float(n)*binwidth ) then 
+        if ( wdir >= real(n-1,r_kind)*binwidth .and. wdir < real(n,r_kind)*binwidth ) then 
             ibin=n
             exit
          endif

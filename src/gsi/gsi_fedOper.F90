@@ -9,6 +9,7 @@ module gsi_fedOper
 !   2023-07-10  D. Dowell - created new module for FED (flash extent
 !                           density); gsi_dbzOper.F90 code used as a
 !                           starting point for developing this new module
+!   2023-08-24  H. Wang   - Turned on intfed and stpfed
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -128,6 +129,7 @@ contains
   end subroutine setup_
 
   subroutine intjo1_(self, ibin, rval,sval, qpred,sbias)
+    use intfedmod, only: intjo => intfed
     use gsi_bundlemod  , only: gsi_bundle
     use bias_predictors, only: predictors
     use m_obsNode , only: obsNode
@@ -145,9 +147,14 @@ contains
     character(len=*),parameter:: myname_=myname//"::intjo1_"
     class(obsNode),pointer:: headNode
 
+    headNode => obsLList_headNode(self%obsLL(ibin))
+    call intjo(headNode, rval,sval)
+    headNode => null()
+
   end subroutine intjo1_
 
   subroutine stpjo1_(self, ibin, dval,xval,pbcjo,sges,nstep,dbias,xbias)
+    use stpfedmod, only: stpjo => stpfed
     use gsi_bundlemod, only: gsi_bundle
     use bias_predictors, only: predictors
     use m_obsNode , only: obsNode
@@ -169,6 +176,9 @@ contains
     character(len=*),parameter:: myname_=myname//"::stpjo1_"
     class(obsNode),pointer:: headNode
 
+    headNode => obsLList_headNode(self%obsLL(ibin))
+    call stpjo(headNode,dval,xval,pbcjo(:),sges,nstep)
+    headNode => null()
   end subroutine stpjo1_
 
 end module gsi_fedOper

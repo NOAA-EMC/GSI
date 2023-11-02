@@ -123,7 +123,7 @@ subroutine get_gefs_ensperts_dualres
   im=en_perts(1,1,1)%grid%im
   jm=en_perts(1,1,1)%grid%jm
   km=en_perts(1,1,1)%grid%km
-  bar_norm = one/float(n_ens)
+  bar_norm = one/real(n_ens,r_kind)
   sig_norm=sqrt(one/max(one,n_ens-one))
 
   ! Create temporary communication information for read ensemble routines
@@ -444,7 +444,7 @@ subroutine ens_spread_dualres(en_bar,ibin)
      call stop2(999)
   endif
 
-  sp_norm=(one/float(n_ens))
+  sp_norm=(one/real(n_ens,r_kind))
 
   sube%values=zero
   do n=1,n_ens

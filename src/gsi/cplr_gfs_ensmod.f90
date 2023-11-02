@@ -661,7 +661,8 @@ subroutine parallel_read_nemsio_state_(en_full,m_cvars2dw,m_cvars3d,nlon,nlat,ns
    enddo
    deallocate(rlons)
 
-   fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+   fhour = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+           real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
    odate(1) = idate(4)  !hour
    odate(2) = idate(2)  !month
    odate(3) = idate(3)  !day
@@ -1107,7 +1108,7 @@ subroutine fillpoles_ss_(temp,nlon,nlat)
       sumn=sumn+temp(nlatm1,i)
       sums=sums+temp(2,i)
    end do
-   rnlon=one/float(nlon)
+   rnlon=one/real(nlon,r_kind)
    sumn_sing=sumn*rnlon
    sums_sing=sums*rnlon
 
@@ -1169,10 +1170,10 @@ subroutine fillpoles_sv_(tempu,tempv,nlon,nlat,clons,slons)
       polsu=polsu+tempu(2,i    )*clons(i)+tempv(2,i    )*slons(i)
       polsv=polsv+tempu(2,i    )*slons(i)-tempv(2,i    )*clons(i)
    end do
-   polnu=polnu/float(nlon)
-   polnv=polnv/float(nlon)
-   polsu=polsu/float(nlon)
-   polsv=polsv/float(nlon)
+   polnu=polnu/real(nlon,r_kind)
+   polnv=polnv/real(nlon,r_kind)
+   polsu=polsu/real(nlon,r_kind)
+   polsv=polsv/real(nlon,r_kind)
    do i=1,nlon
       tempu(nlat,i)= polnu*clons(i)+polnv*slons(i)
       tempv(nlat,i)=-polnu*slons(i)+polnv*clons(i)
