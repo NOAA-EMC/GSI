@@ -178,7 +178,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind) ntb,ntmatch,ncx,ncsave,ntread
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nmind,lunin,idate,ilat,ilon,iret,k
-  integer(i_kind) nreal,ithin,iout,ntmp,icount,ii,istype
+  integer(i_kind) nreal,ithin,iout,ii,istype
   integer(i_kind) itype,iosub,ixsub,isubsub,iobsub,itypey,ierr
   integer(i_kind) qm
   integer(i_kind) nlevp         ! vertical level for thinning
@@ -199,7 +199,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind) ntime,itime
 
   real(r_kind) toff,t4dv
-  real(r_kind) rmesh,ediff,usage,tdiff
+  real(r_kind) rmesh,ediff,tdiff
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) dlnpob,ppb,qifn,qify,ee,ree,pct1,experr_norm
 ! real(r_kind) ppb1,ppb2,uob1,vob1
@@ -220,12 +220,13 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_double),dimension(3,12) :: qcdat
   real(r_double),dimension(1,1):: r_prvstg,r_sprvstg
   real(r_kind),allocatable,dimension(:):: presl_thin
-  real(r_kind),allocatable,dimension(:):: rusage 
   real(r_kind),allocatable,dimension(:,:):: cdata_all
+  logical,allocatable,dimension(:):: rusage 
+  logical :: save_all
 
 ! GOES-16 new BUFR related variables
   real(r_double) :: rep_array
-  integer(i_kind) :: irep_array
+  integer(i_kind) :: irep_array,ndata_start,ndata_end
 !  real(r_double),allocatable,dimension(:,:) :: amvaha  ! Alternative height assignment in AMV    
 !  real(r_double),allocatable,dimension(:,:) :: amviii  ! Individual images imformation in AMV
 !  real(r_double),allocatable,dimension(:,:) :: amvcld  ! AMV vectors cloud information
@@ -653,7 +654,9 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   nchanl=0
   ilon=2
   ilat=3
-  rusage=101.0_r_kind
+  save_all=.false.
+  ndata=0
+  ndata_start=ndata+1
 
   loop_convinfo: do nx=1,ntread 
 
@@ -668,6 +671,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            rmesh=rmesh_conv(nc)
            pmesh=pmesh_conv(nc)
            pmot=pmot_conv(nc)
+           if(pmot >= one)save_all=.true.
            ptime=ptime_conv(nc)
            if(pmesh > zero) then
               pflag=1
@@ -675,6 +679,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            else
               pflag=0
               nlevp=nsig
+              write(6,*) ' pflag = 0 does not work in read_satwnd'
+              call stop2(149)
            endif
            xmesh=rmesh
            if( ptime >zero) then
@@ -1458,6 +1464,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  qm=15
               endif
            endif
+           ppb=one_tenth*ppb         ! from mb to cb
 
 ! Reduce OE for the GOES-R winds by half following Sharon Nebuda's work
 ! GOES-R wind are identified/recognised here by subset, but it could be done by itype or SAID
@@ -1466,10 +1473,12 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               obserr=obserr/two
            endif
 
-!         Set usage variable
-           usage = 0 
            iuse=icuse(nc)
-           if(iuse <= 0 .or. qm == 15 .or. qm == 12 .or. qm == 9)usage=r100
+           if(iuse <= 0 .or. qm >= 4)then
+              rusage(ndata+1)=.false.
+           else
+              rusage(ndata+1)=.true.
+           end if
 !           if(itype==240) then;  c_prvstg='NESDIS'   ;  c_sprvstg='IR'       ; endif
 !           if(itype==242) then;  c_prvstg='JMA'      ;  c_sprvstg='VI'       ; endif
 !           if(itype==243) then;  c_prvstg='EUMETSAT' ;  c_sprvstg='VI'       ; endif
@@ -1496,29 +1505,30 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            ithin=ithin_conv(nc)
            ithinp = ithin > 0  .and. ithin <5 .and. pflag /= 0
 !          if(ithinp  .and. iuse >=0 )then
-           if(ithinp   )then
+
+!   Following code not used because presl is not used if pflag /=0
+!          if(ithinp   )then
 !          Interpolate guess pressure profile to observation location
-              klon1= int(dlon);  klat1= int(dlat)
-              dx   = dlon-klon1; dy   = dlat-klat1
-              dx1  = one-dx;     dy1  = one-dy
-              w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
-              klat1=min(max(1,klat1),nlat); klon1=min(max(0,klon1),nlon)
-              if (klon1==0) klon1=nlon
-              klatp1=min(nlat,klat1+1); klonp1=klon1+1
-              if (klonp1==nlon+1) klonp1=1
-              do kk=1,nsig
-                 presl(kk)=w00*prsl_full(klat1 ,klon1 ,kk) + &
-                           w10*prsl_full(klatp1,klon1 ,kk) + &
-                           w01*prsl_full(klat1 ,klonp1,kk) + &
-                           w11*prsl_full(klatp1,klonp1,kk)
-              end do
+!             klon1= int(dlon);  klat1= int(dlat)
+!             dx   = dlon-klon1; dy   = dlat-klat1
+!             dx1  = one-dx;     dy1  = one-dy
+!             w00=dx1*dy1; w10=dx1*dy; w01=dx*dy1; w11=dx*dy
+!             klat1=min(max(1,klat1),nlat); klon1=min(max(0,klon1),nlon)
+!             if (klon1==0) klon1=nlon
+!             klatp1=min(nlat,klat1+1); klonp1=klon1+1
+!             if (klonp1==nlon+1) klonp1=1
+!             do kk=1,nsig
+!                presl(kk)=w00*prsl_full(klat1 ,klon1 ,kk) + &
+!                          w10*prsl_full(klatp1,klon1 ,kk) + &
+!                          w01*prsl_full(klat1 ,klonp1,kk) + &
+!                          w11*prsl_full(klatp1,klonp1,kk)
+!             end do
  
  !         Compute depth of guess pressure layersat observation location
-           end if
-           ppb=one_tenth*ppb         ! from mb to cb
+!          end if
+!   Preceeding code not used because presl is not used if pflag /=0
  !         Special block for data thinning - if requested
            if (ithin > 0 .and. ithin <5 .and. iuse >=0 .and. qm <4) then
-              ntmp=ndata  ! counting moved to map3gridS
  !         Set data quality index for thinning
               if (thin4d) then
                  timedif = zero
@@ -1535,46 +1545,25 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     crit1 = crit1 + four*(one-qifn/r100)*r3_33+(one-ee/r100)*r3_33
                  endif
               endif
-              if (pflag==0) then
-                 do kk=1,nsig
-                    presl_thin(kk)=presl(kk)
-                 end do
-              endif
+!  pflag == 0 will not work because presl is not set if pflag == 0
+!             if (pflag==0) then
+!                do kk=1,nsig
+!                   presl_thin(kk)=presl(kk)
+!                end do
+!             endif
               if (ptime >zero ) then
                  itime=int((tdiff+three)/ptime)+1
                  if (itime >ntime) itime=ntime
-                 if(pmot <one) then
-!                    call map3grids_tm(-1,pflag,presl_thin,nlevp,ntime,dlat_earth,dlon_earth,&
-                    call map3grids_tm(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                                        ppb,itime,crit1,ndata,iout,luse,.false.,.false.)
-                 else
-!                    call map3grids_m_tm(-1,pflag,presl_thin,nlevp,ntime,dlat_earth,dlon_earth,&
-                    call map3grids_m_tm(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                              ppb,itime,crit1,ndata,iout,luse,maxobs,usage,rusage,.false.,.false.)
-                 endif
-                 if (.not. luse) cycle loop_readsb
-                 if (ndata > ntmp) then
-                    nodata=nodata+2
-                 endif
+                 call map3grids_m_tm(-1,save_all,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
+                              ppb,itime,crit1,ndata,iout,luse,maxobs,rusage,.false.,.false.)
               else 
-                 crit1=zero
-                 if(pmot <one) then
-                    call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                                 ppb,crit1,ndata,iout,luse,.false.,.false.)
-                 else
-                    call map3grids_m(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                              ppb,crit1,ndata,iout,luse,maxobs,usage,rusage,.false.,.false.)
-                 endif
-                 if (.not. luse) cycle loop_readsb
-                 if (ndata > ntmp) then
-                    nodata=nodata+2
-                 endif
+                 call map3grids_m(-1,save_all,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
+                              ppb,crit1,ndata,iout,luse,maxobs,rusage,.false.,.false.)
               endif
+              if(.not. luse) cycle loop_readsb
            else
               ndata=ndata+1
-              nodata=nodata+2
               iout=ndata
-              rusage(iout)=usage
            endif
            if (qm==3 .or. qm==7) obserr=obserr*r1_2
            if(regional .and. .not. fv3_regional)then
@@ -1588,7 +1577,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  vdisterrmax=max(vdisterrmax,disterr)
               end if
            endif
-           dlnpob=log(one_tenth*ppb)  ! ln(pressure in cb)
+           dlnpob=log(ppb)                        ! ln(pressure in cb)
            cdata_all(1,iout)=obserr               ! wind error
            cdata_all(2,iout)=dlon                 ! grid relative longitude
            cdata_all(3,iout)=dlat                 ! grid relative latitude
@@ -1602,7 +1591,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(11,iout)=qifn +1000.0_r_kind*qify   ! quality indicator  
            cdata_all(12,iout)=qm                  ! quality mark
            cdata_all(13,iout)=obserr              ! original obs error
-           cdata_all(14,iout)=rusage(iout)        ! usage parameter
+           cdata_all(14,iout)=zero                ! usage parameter
            cdata_all(15,iout)=idomsfc             ! dominate surface type
            cdata_all(16,iout)=tsavg               ! skin temperature
            cdata_all(17,iout)=ff10                ! 10 meter wind factor
@@ -1633,11 +1622,40 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         deallocate(presl_thin)
         call del3grids_tm
      endif
+!  If flag to not save thinned data is set - compress data
+     ndata_end=ndata
+     ndata=ndata_start-1
+     if(.not. save_all)then      
+        do i=ndata_start,ndata_end
+           if(rusage(i)) then
+              if(i > ndata+1)then
+                 ndata=ndata+1 
+                 nodata=nodata+2
+                 do k=1,nreal
+                    cdata_all(k,ndata)=cdata_all(k,i)
+                 end do
+              else
+                 ndata=ndata+1 
+                 nodata=nodata+2
+              end if
+           end if
+        end do
+     else
+!  Put final rusage value in cdata_all
+        do i=ndata_start,ndata_end
+           ndata=ndata+1
+           nodata=nodata+2
+           if(.not. rusage(i))then
+              cdata_all(14,i)=101.0_r_kind
+           end if
+        end do
+     end if
+     ndata_start=ndata+1
 
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
-  deallocate(lmsg,tab,nrep,istab)
+  deallocate(lmsg,tab,nrep,istab,rusage)
 ! Close unit to bufr file
   call closbf(lunin)
 
@@ -1647,7 +1665,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 
-  deallocate(cdata_all,rusage)
+  deallocate(cdata_all)
 900 continue
   if(diagnostic_reg)then
     if(ntest>0) write(6,*)'READ_SATWND:  ntest,disterrmax=',ntest,disterrmax

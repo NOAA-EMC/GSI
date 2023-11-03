@@ -318,7 +318,8 @@ contains
     integer(i_kind) ix,iy
 
     real(r_kind) dlat1,dlon1,pob1
-    real(r_kind) dx,dy,dp,dxx,dyy,dpp
+    real(r_kind) dx,dy,dp
+    real(r_kind) dxx,dyy,dpp
     real(r_kind) crit!,dist1
 
     logical foreswp, aftswp
@@ -352,13 +353,13 @@ contains
     dx=dlon1-ix
     ix=max(1,min(ix,mlon(iy)))
     
-    dxx=half-min(dx,one-dx)
-    dyy=half-min(dy,one-dy)
-    if( pflag == 1) then 
-       dpp=half-min(dp,one-dp)
-    else
-       dpp=min(dp,one-dp)
-    endif
+!   dxx=half-min(dx,one-dx)
+!   dyy=half-min(dy,one-dy)
+!   if( pflag == 1) then 
+!      dpp=half-min(dp,one-dp)
+!   else
+!      dpp=min(dp,one-dp)
+!   endif
 
     itx=hll(ix,iy)
 
@@ -457,8 +458,8 @@ contains
 
   end subroutine map3grids
 
-  subroutine map3grids_m(flg,pflag,pcoord,nlevp,dlat_earth,dlon_earth,pob,crit1,iobs,&
-            iobsout,iuse,maxobs,usage,rusage,foreswp,aftswp)
+  subroutine map3grids_m(flg,save_all,pflag,pcoord,nlevp,dlat_earth,dlon_earth,pob,crit1,iobs,&
+            iobsout,iuse,maxobs,rusage,foreswp,aftswp)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -487,9 +488,11 @@ contains
 !
 !   input argument list:
 !     flg        - marks order of values in vertical dirction (1=increasing,
-!     -1=decreasing)
+!        -1=decreasing)
+!     save_all - logical - if true save all obs. (if false some unused values
+!        still get through)
 !     pflag - type of pressure-type levels; 0 : sigma level, 1 : determined by
-!     convinfo file
+!        convinfo file
 !     pcoord     - veritical coordinate values
 !     nlevp       - number of vertical levels
 !     dlat_earth - earth relative observation latitude (radians)
@@ -513,15 +516,16 @@ contains
     implicit none
 
     logical                      ,intent(  out) :: iuse
+    logical                      ,intent(in   ) :: save_all
     integer(i_kind)              ,intent(in   ) :: nlevp,pflag,flg,maxobs
     integer(i_kind)              ,intent(inout) :: iobs
     integer(i_kind)              ,intent(  out) :: iobsout
-    real(r_kind)                 ,intent(in   ) :: dlat_earth,dlon_earth,crit1,pob,usage
+    real(r_kind)                 ,intent(in   ) :: dlat_earth,dlon_earth,crit1,pob
     real(r_kind),dimension(nlevp),intent(in   ) :: pcoord
-    real(r_kind),dimension(maxobs),intent(inout   ) :: rusage
+    logical,dimension(maxobs),    intent(inout) :: rusage
 
     integer(i_kind):: ip,itx
-    integer(i_kind) ix,iy
+    integer(i_kind) ix,iy,itmp
 
     real(r_kind) dlat1,dlon1,pob1
     real(r_kind) dx,dy,dp
@@ -535,7 +539,6 @@ contains
        iuse=.true.
        iobs=iobs+1
        iobsout=iobs
-       rusage(iobs)=usage
        return
     end if
 
@@ -587,33 +590,45 @@ contains
        if(.not. setfore)call createfore
 
 !   Case(1):  first obs at this location, keep this obs as starting point
-       if (icount_fore(itx,ip)==0) then
+!      if (.not. icount_fore(itx,ip) .and. rusage(iobs+1)) then
+       if (.not. icount_fore(itx,ip)) then
           iobs=iobs+1
           iobsout=iobs
           score_crit_fore(itx,ip)= crit
-          icount_fore(itx,ip)=icount_fore(itx,ip)+1
+          icount_fore(itx,ip)=.true.
           ibest_obs_fore(itx,ip) = iobs
-          rusage(iobsout)=usage
 
 
 !   Case(2): obs score < best value at this location,
 !     -->  update score, count, and best obs counters
+!      elseif ((icount_fore(itx,ip) .and. crit < score_crit_fore(itx,ip)) .and.&
+!         rusage(iobs+1)) then
        elseif (icount_fore(itx,ip) .and. crit < score_crit_fore(itx,ip)) then
-          iobsout=ibest_obs_fore(itx,ip)
+          iobs=iobs+1
+          iobsout=iobs
+          itmp=ibest_obs_fore(itx,ip)
+          rusage(itmp)=.false.
           score_crit_fore(itx,ip)= crit
-          rusage(iobsout)=usage
+          ibest_obs_fore(itx,ip)=iobs
 
 !   Case(3): obs score > best value at this location,
 !   Case(4): none of the above cases are satisified, don't use this obs
 !    -->  do not use this obs, return to calling program.
        else
-          iuse=.false.
+          if(save_all)then
+             iobs=iobs+1
+             iobsout=iobs
+             rusage(iobs)=.false.
+          else 
+             iuse=.false.
+          end if
        endif                 ! cases
 
     else if(aftswp) then   !   aft sweeps
        if(.not. setaft)call createaft
 
 !   Case(1):  first obs at this location, keep this obs as starting point
+!      if (.not. icount_aft(itx,ip) .and. rusage(iobs+1)) then
        if (.not. icount_aft(itx,ip)) then
           iobs=iobs+1
           iobsout=iobs
@@ -623,16 +638,27 @@ contains
 
       !   Case(2):  obs score < best value at this location,
 !     -->  update score, count, and best obs counters
+!      elseif ((icount_aft(itx,ip) .and. crit < score_crit_aft(itx,ip)) .and. &
+!         rusage(iobs+1)) then
        elseif (icount_aft(itx,ip) .and. crit < score_crit_aft(itx,ip)) then
+          iobs=iobs+1
+          iobsout=iobs
+          itmp=ibest_obs_aft(itx,ip)
+          rusage(itmp)=.false.
           score_crit_aft(itx,ip)= crit
-          iobsout=ibest_obs_aft(itx,ip)
-          rusage(iobsout)=usage
+          ibest_obs_aft(itx,ip)=iobs
 
 !   Case(3): obs score > best value at this location,
 !   Case(4):  none of the above cases are satisified,
 !    -->  do not use this obs, return to calling program.
        else
-          iuse = .false.
+          if(save_all)then
+             iobs=iobs+1
+             iobsout=iobs
+             rusage(iobs)=.false.
+          else 
+             iuse=.false.
+          end if
        endif                 ! cases
 
     else 
@@ -640,25 +666,37 @@ contains
        if(.not. setnormal)call createnormal
 !      Case:  obs score < best value at this location,
 !        -->  update score, count, and best obs counters
+!      if ((icount(itx,ip) .and. crit < score_crit(itx,ip)) .and. &
+!           rusage(iobs+1)) then
        if (icount(itx,ip) .and. crit < score_crit(itx,ip)) then
+          iobs=iobs+1
+          iobsout=iobs
+          itmp=ibest_obs(itx,ip)
+          rusage(itmp)=.false.
           score_crit(itx,ip)= crit
-          iobsout = ibest_obs(itx,ip)
-          rusage(iobsout)=usage
+          ibest_obs(itx,ip)=iobs
 
 !      Case:  first obs at this location,
 !        -->  keep this obs as starting point
+!      elseif (.not. icount(itx,ip) .and. rusage(iobs+1)) then
        elseif (.not. icount(itx,ip)) then
           iobs=iobs+1
           iobsout=iobs
           score_crit(itx,ip)= crit
-          ibest_obs(itx,ip) = iobs
-          rusage(iobsout)=usage
+          ibest_obs(itx,ip)=iobs
+          icount(itx,ip)=.true.
 
 !      Case:  obs score > best value at this location,
 !         or  none of the above cases are satisified,
 !        -->  do not use this obs, return to calling program.
        else
-          iuse = .false.
+          if(save_all)then
+             iobs=iobs+1
+             iobsout=iobs
+             rusage(iobs)=.false.
+          else 
+             iuse=.false.
+          end if
        end if
     end if
     return
