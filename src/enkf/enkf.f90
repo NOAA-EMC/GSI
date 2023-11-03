@@ -51,7 +51,7 @@ module enkf
 !  NH, tropics and SH, and in the horizontal, vertical and time dimensions,
 !  using the namelist parameters  corrlengthnh, corrlengthtr, corrlengthsh,
 !  lnsigcutoffnh, lnsigcutofftr, lnsigcutoffsh (lnsigcutoffsatnh,
-!  lnsigcutoffsattr, lnsigcutoffsatsh for satellite obs, similar for ps obs)
+!  lnsigcutoffsattr, lnsigcutoffsatsh for satellite obs, similar for ps and fed obs)
 !  obtimelnh, obtimeltr, obtimelsh. The length scales should be given in km for the
 !  horizontal, hours for time, and 'scale heights' (units of -log(p/pref)) in the
 !  vertical. The function used for localization (function taper)
