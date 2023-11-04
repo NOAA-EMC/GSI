@@ -4130,7 +4130,7 @@ subroutine hybens_grid_setup
   else
      if(dual_res) then
         call get_region_dx_dy_ens(region_dx_ens,region_dy_ens)
-        if(regional_ensemble_option) then
+        if(regional_ensemble_option == 5) then
            fv3_spec_grid_filename="fv3_ens_grid_spec"
            call gsi_rfv3io_get_ens_grid_specs(fv3_spec_grid_filename,ierr)
         endif
