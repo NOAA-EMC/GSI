@@ -412,9 +412,15 @@ fileopen: if (if_input_exist) then
 ! changed to hard-coded value for now; dbznoise used for two different purposes in this subroutine:
 !                   (1) threshold for lowest reflectivity value considered to be an observation and 
 !                   (2) ob error
-        thiserr = 5.0_r_kind
-                 
- 
+
+!       Specify a larger error standard deviation for reflectivity observations in precipitation
+!       than for reflectivity observations that indicate a lack of preciptation.
+        if( dbzQC(i,j,k) < 5.0_r_kind ) then
+          thiserr = 5.0_r_kind
+        else
+          thiserr = 10.0_r_kind
+        end if
+
         nread = nread + 1
  
  !####################       Data thinning       ###################
