@@ -2180,7 +2180,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
   real(r_kind),dimension(nsig,nchanl),intent(in   ) :: ptau5,temp,wmix
   real(r_kind),dimension(nsig),       intent(in   ) :: prsltmp,tvp
   real(r_kind),dimension(nchanl),     intent(inout) :: errf,varinv,varinv_use
-  real(r_kind),                       intent(in   ) :: cluster_fraction(:)
+  real(r_kind),dimension(7),          intent(in   ) :: cluster_fraction
   real(r_kind),dimension(2,7),        intent(in   ) :: cluster_bt
   real(r_kind),dimension(2),          intent(in   ) :: chan_stdev, model_bt
 
