@@ -1393,10 +1393,6 @@ end subroutine normal_new_factorization_rf_y
                 endif
     
 !     regional_ensemble_option = 5: ensembles are fv3 regional.
-                if (l_both_fv3sar_gfs_ens) then ! first read in gfs ensembles for regional
-                   call get_gefs_for_regional
-!clthink do we need mpi_bar here?
-                endif
                 call fv3_regional_enspert%get_fv3_regional_ensperts(en_perts,nelen,ps_bar)
    
 
@@ -4042,7 +4038,7 @@ subroutine hybens_grid_setup
   logical,allocatable::vector(:)
   real(r_kind) eps,r_e
   real(r_kind) rlon_a(nlon),rlat_a(nlat),rlon_e(nlon),rlat_e(nlat)
-  character(:),allocatable:: fv3_spec_grid_filename
+  character(:),allocatable:: fv3_ens_spec_grid_filename
   integer :: ierr
 
   nord_e2a=4       !   soon, move this to hybrid_ensemble_parameters
@@ -4131,8 +4127,8 @@ subroutine hybens_grid_setup
      if(dual_res) then
         call get_region_dx_dy_ens(region_dx_ens,region_dy_ens)
         if(regional_ensemble_option == 5) then
-           fv3_spec_grid_filename="fv3_ens_grid_spec"
-           call gsi_rfv3io_get_ens_grid_specs(fv3_spec_grid_filename,ierr)
+           fv3_ens_spec_grid_filename="fv3_ens_grid_spec"
+           call gsi_rfv3io_get_ens_grid_specs(fv3_ens_spec_grid_filename,ierr)
         endif
      else
         region_dx_ens=region_dx
