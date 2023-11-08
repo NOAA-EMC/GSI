@@ -23,12 +23,13 @@
   use gsi_dbzOper, only: diag_radardbz
   use gsi_fedOper, only: diag_fed
 
-  use obsmod, only: doradaroneob,oneoblat,oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,&
+  use obsmod, only: doradaroneob,dofedoneob,oneoblat,oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,&
      radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
-     rmesh_vr,zmesh_dbz,zmesh_vr,if_vterminal, if_model_dbz,if_vrobs_raw,if_use_w_vr,&
-     minobrangedbz,maxobrangedbz,maxobrangevr,maxtiltvr,missing_to_nopcp,&
+     rmesh_vr,zmesh_dbz,zmesh_vr,if_vterminal, if_model_dbz,if_model_fed,innov_use_model_fed,if_vrobs_raw,if_use_w_vr,&
+     minobrangedbz,maxobrangedbz,maxobrangevr,maxtiltvr,inflate_dbz_obserr,missing_to_nopcp,&
      ntilt_radarfiles,whichradar,&
-     minobrangevr,maxtiltdbz,mintiltvr,mintiltdbz,l2rwthin,hurricane_radar 
+     minobrangevr,maxtiltdbz,mintiltvr,mintiltdbz,l2rwthin,hurricane_radar,&
+     r_hgt_fed
 
   use obsmod, only: lwrite_predterms, &
      lwrite_peakwt,use_limit,lrun_subdirs,l_foreaft_thin,lobsdiag_forenkf,&
@@ -202,7 +203,7 @@
   use gsi_nstcouplermod, only: gsi_nstcoupler_init_nml
   use gsi_nstcouplermod, only: nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl
   use ncepnems_io, only: init_nems,imp_physics,lupp
-  use wrf_vars_mod, only: init_wrf_vars
+  use wrf_vars_mod, only: init_wrf_vars,fed_exist,dbz_exist
   use gsi_rfv3io_mod,only : fv3sar_bg_opt
   use radarz_cst,            only: mphyopt, MFflg
   use radarz_iface,          only: init_mphyopt
@@ -510,6 +511,15 @@
 !  2023-07-30 Zhao    - added namelist options for analysis of significant wave height
 !                       (aka howv in GSI code): corp_howv, hwllp_howv
 !                       (in namelist session rapidrefresh_cldsurf)
+!  
+!  2023-09-14 H. Wang - add namelist option for FED EnVar DA. 
+!                        - if_model_fed=.true.        :  FED in background and ens. If
+!                          perform FED DA, this has to be true along with fed in
+!                          control/analysis and metguess vectors. If only run GSI observer,
+!                          it can be false.
+!                        - innov_use_model_fed=.true. :  Use FED from BG to calculate innovation.
+!                          this requires if_model_fed=.true. 
+!                          it works either an EnVar DA run or a GSI observer run.
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -734,6 +744,10 @@
 !     optconv - downweighting option for iasi and cris for moisture channels to
 !     improve convergence.  default 0.0 (no change).  Larger number improves
 !     convergence.
+!     inflate_dbz_obserr - logical that controls inflation of reflectivity ob error
+!                          for obs that exceed gross error magnitude
+!                          if true, inflate ob error
+!                          if false, reject ob
 !
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -769,17 +783,18 @@
        use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
        use_sp_eqspace,lnested_loops,lsingleradob,thin4d,use_readin_anl_sfcmask,&
        luse_obsdiag,id_drifter,id_ship,verbose,print_obs_para,lsingleradar,singleradar,lnobalance, &
-       missing_to_nopcp,minobrangedbz,minobrangedbz,maxobrangedbz,&
-       maxobrangevr,maxtiltvr,whichradar,doradaroneob,oneoblat,&
+       inflate_dbz_obserr,missing_to_nopcp,minobrangedbz,minobrangedbz,maxobrangedbz,&
+       maxobrangevr,maxtiltvr,whichradar,doradaroneob,dofedoneob,oneoblat,&
        oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,&
        rmesh_vr,zmesh_dbz,zmesh_vr, ntilt_radarfiles, whichradar,&
        radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
        minobrangevr, maxtiltdbz, mintiltvr,mintiltdbz,if_vterminal,if_vrobs_raw,if_use_w_vr,&
-       if_model_dbz,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,aircraft_recon,diag_version,&
+       if_model_dbz,if_model_fed,innov_use_model_fed,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,aircraft_recon,diag_version,&
        write_fv3_incr,incvars_to_zero,incvars_zero_strat,incvars_efold,diag_version,&
        cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef,cnvw_option,l2rwthin,hurricane_radar,&
        l_reg_update_hydro_delz, l_obsprvdiag,&
-       l_use_dbz_directDA, l_use_rw_columntilt, ta2tb, optconv
+       l_use_dbz_directDA, l_use_rw_columntilt, ta2tb, optconv, &
+       r_hgt_fed
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -1978,6 +1993,20 @@
      endif
   endif
 
+  if (innov_use_model_fed .and. .not.if_model_fed) then
+     if(mype==0) write(6,*)' GSIMOD: invalid innov_use_model_fed=.true. but if_model_fed=.false.'
+     call die(myname_,'invalid innov_use_model_fed,if_model_fed, check namelist settings',330)
+  end if
+
+  if (.not. (miter == 0 .or. lobserver) .and. if_model_fed .and. .not. fed_exist) then
+     if(mype==0) write(6,*)' GSIMOD: .not. (miter == 0 .or. lobserver) and if_model_fed=.true. but fed is not in anavinfo file'
+     call die(myname_,'Please check namelist parameters and/or add fed in anavinfo (contro/state_vector and met_guess) when miter > 0 and if_model_fed=.true.',332)
+  end if
+
+  if (.not. (miter == 0 .or. lobserver) .and. if_model_dbz .and. .not. dbz_exist) then
+     if(mype==0) write(6,*)' GSIMOD: .not. (miter == 0 .or. lobserver) and if_model_dbz=.true. but dbz is not in anavinfo file'
+     call die(myname_,'Please check namelist parameters and/or add dbz in anavinfo (contro/state_vector and met_guess) when miter > 0 and if_model_fed=.true.',334)
+  end if
 
 ! Ensure valid number of horizontal scales
   if (nhscrf<0 .or. nhscrf>3) then

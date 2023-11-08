@@ -614,9 +614,9 @@ contains
           jmax=nlat_sfc-2
           allocate(slatx(jmax),wlatx(jmax))
           call splat(idrt,jmax,slatx,wlatx)
-          dlon=two*pi/float(nlon_sfc)
+          dlon=two*pi/real(nlon_sfc,r_kind)
           do i=1,nlon_sfc
-             rlons_sfc(i)=float(i-1)*dlon
+             rlons_sfc(i)=real(i-1,r_kind)*dlon
           end do
           do i=1,(nlat_sfc-1)/2
              rlats_sfc(i+1)=-asin(slatx(i))

@@ -1056,7 +1056,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
            ozout(8,ndata)=usage1(k)          ! 
            ozout(9,ndata)=mlspres(k)         ! mls pressure in log(cb)
            ozout(10,ndata)=mlsozpc(k)        ! ozone mixing ratio precision in ppmv
-           ozout(11,ndata)=float(ipos(k))    ! pointer of obs level index in ozinfo.txt
+           ozout(11,ndata)=real(ipos(k),r_kind)    ! pointer of obs level index in ozinfo.txt
            ozout(12,ndata)=nloz              ! # of mls vertical levels
            ozout(nreal+1,ndata)=mlsoz(k)     ! ozone mixing ratio in ppmv
         end do
@@ -1220,7 +1220,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
          ozout(8,ndata)=usage1(k)          ! 
          ozout(9,ndata)=log(press(k))      ! ompslp pressure in log(cb)
          ozout(10,ndata)=omrstd(k)*ompslp_mult_fact   ! ozone mixing ratio precision in ppmv
-         ozout(11,ndata)=float(ipos(k))    ! pointer of obs level index in 
+         ozout(11,ndata)=real(ipos(k),r_kind)    ! pointer of obs level index in 
                                            ! ozinfo.txt
          ozout(12,ndata)=j !nloz              ! # of ompslp vertical levels
          ozout(13,ndata)=omr(k)            ! ozone mixing ratio in ppmv

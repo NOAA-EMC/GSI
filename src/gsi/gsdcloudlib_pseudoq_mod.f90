@@ -192,9 +192,9 @@ SUBROUTINE cloudCover_Surface_col(mype,nsig, &
                  endif
 
                  ! convert cloud base observation from AGL to ASL
-                 cl_base_ista = float(ocld(6+ic)) + Oelvtn - zh
+                 cl_base_ista = real(ocld(6+ic),r_kind) + Oelvtn - zh
                  if(zh < 1.0_r_kind .and. Oelvtn > 20.0_r_kind &
-                    .and. float(ocld(6+ic)) < 250.0_r_kind) then
+                    .and. real(ocld(6+ic),r_kind) < 250.0_r_kind) then
                     cycle   ! limit the use of METAR station over oceas for low cloud base
                  endif
                  
@@ -267,7 +267,7 @@ SUBROUTINE cloudCover_Surface_col(mype,nsig, &
 ! -- Use visibility for low-level cloud whether
      if (wthr_type < 30   .and. wthr_type > 20 .and. &
          ocld(13)  < 5000 .and. ocld(13) > 1 ) then
-         betav = 3.912_r_kind / (float(ocld(13)) / 1000._r_kind)
+         betav = 3.912_r_kind / (real(ocld(13),r_kind) / 1000._r_kind)
          vis2qc = ( (betav/144.7_r_kind) ** 1.14_r_kind) / 1000._r_kind
      endif  ! cloud or clear
 

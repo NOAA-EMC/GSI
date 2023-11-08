@@ -1111,7 +1111,7 @@ subroutine ozlev_ncread_(dfile,dtype,ozout,nmrecs,ndata,nodata, gstime,twind)
               ozout(8,ndata)=usage
               ozout(9,ndata)=pob                  ! pressure 
               ozout(10,ndata)=obserr              ! ozone mixing ratio precision in ppmv
-              ozout(11,ndata)=float(ipos(ilev))   ! pointer of obs level index in ozinfo.txt
+              ozout(11,ndata)=real(ipos(ilev),r_kind)   ! pointer of obs level index in ozinfo.txt
               ozout(12,ndata)=levs                ! # of  vertical levels
               ozout(13,ndata)=ppmv                ! ozone mixing ratio in ppmv
            endif
@@ -1424,7 +1424,7 @@ subroutine ozlev_bufrread_(dfile,dtype,dsis, ozout,nmrecs,ndata,nodata, &
            ozout( 8,ndata)=usage1(k)          ! 
            ozout( 9,ndata)=mlspres(k)          ! mls pressure in log(cb)
            ozout(10,ndata)=mlsozpc(k)   ! ozone mixing ratio precision in ppmv
-           ozout(11,ndata)=float(ipos(k))       ! pointer of obs level index in ozinfo.txt
+           ozout(11,ndata)=real(ipos(k),r_kind)       ! pointer of obs level index in ozinfo.txt
            ozout(12,ndata)=nloz         ! # of mls vertical levels
            ozout(13,ndata)=mlsoz(k)     ! ozone mixing ratio in ppmv
         endif

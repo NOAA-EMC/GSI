@@ -71,7 +71,7 @@ subroutine rfdpar1(be,rate,m)
   cof=zero
   cof(0)=one
   do i=1,m
-     cof(i)=half*cof(i-1)/float(i)
+     cof(i)=half*cof(i-1)/real(i,r_kind)
   enddo
 ! Locate the m roots of this polynomial:
   call zroots(cof,m,croot,polish)

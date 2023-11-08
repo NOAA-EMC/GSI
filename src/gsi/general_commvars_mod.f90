@@ -515,7 +515,7 @@ contains
       sumn=sumn+grid_in(i,1)
       sums=sums+grid_in(i,nlatm2)
    end do
-   rnlon=one/float(nlon)
+   rnlon=one/real(nlon,r_kind)
    sumn=sumn*rnlon
    sums=sums*rnlon
 
@@ -620,7 +620,7 @@ contains
       sumn=sumn+grid_in(i,1)
       sums=sums+grid_in(i,nlatm2)
    end do
-   rnlon=one/float(nlon)
+   rnlon=one/real(nlon,r_kind)
    sumn=sumn*rnlon
    sums=sums*rnlon
 
@@ -732,10 +732,10 @@ contains
       polsu=polsu+grid(i,2        )*coslon(i)+grid2(i,2        )*sinlon(i)
       polsv=polsv+grid(i,2        )*sinlon(i)-grid2(i,2        )*coslon(i)
    end do
-   polnu=polnu/float(nlon)
-   polnv=polnv/float(nlon)
-   polsu=polsu/float(nlon)
-   polsv=polsv/float(nlon)
+   polnu=polnu/real(nlon,r_kind)
+   polnv=polnv/real(nlon,r_kind)
+   polsu=polsu/real(nlon,r_kind)
+   polsv=polsv/real(nlon,r_kind)
    do i=1,nlon
       grid (i,nlat)= polnu*coslon(i)+polnv*sinlon(i)
       grid2(i,nlat)=-polnu*sinlon(i)+polnv*coslon(i)
@@ -845,10 +845,10 @@ contains
       polsu=polsu+grid(i,2        )*coslon(i)+grid2(i,2        )*sinlon(i)
       polsv=polsv+grid(i,2        )*sinlon(i)-grid2(i,2        )*coslon(i)
    end do
-   polnu=polnu/float(nlon)
-   polnv=polnv/float(nlon)
-   polsu=polsu/float(nlon)
-   polsv=polsv/float(nlon)
+   polnu=polnu/real(nlon,r_kind)
+   polnv=polnv/real(nlon,r_kind)
+   polsu=polsu/real(nlon,r_kind)
+   polsv=polsv/real(nlon,r_kind)
    do i=1,nlon
       grid (i,nlat)= polnu*coslon(i)+polnv*sinlon(i)
       grid2(i,nlat)=-polnu*sinlon(i)+polnv*coslon(i)

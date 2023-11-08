@@ -566,7 +566,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
        if(.not. regional .and. dist1 > 0.75_r_kind) cycle obsloop
     endif
 
-    crit1 = crit1 + 10._r_kind * float(iskip)
+    crit1 = crit1 + 10._r_kind * real(iskip,r_kind)
     call checkob(dist1,crit1,itx,iuse)
     if(.not. iuse) then
        cycle obsloop
