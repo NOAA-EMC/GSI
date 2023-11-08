@@ -647,7 +647,7 @@ subroutine gsi_rfv3io_get_ens_grid_specs(grid_spec,ierr)
     if( grid_type_fv3_regional == grid_ens_type_fv3_regional ) then
        if(mype==0) write(6,*) 'Ensemble has the same orientation as the control, Cool!'
     else
-       write(6,*) 'Error! Ensemble has a different orientation as the control, Abort!'
+       write(6,*) 'Warning! Ensemble has a different orientation as the control. This case needs further tests, Abort!'
        call stop2(678)
     endif
 !
