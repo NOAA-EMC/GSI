@@ -9,9 +9,14 @@ case $machine in
            memnode=96
            numcore=40
     ;;
-        Orion)
+    Orion)
            sub_cmd="sub_orion"
            memnode=192
+           numcore=40
+    ;;
+    Hercules)
+           sub_cmd="sub_hercules"
+           memnode=512
            numcore=40
     ;;
 	Jet)
@@ -59,6 +64,9 @@ case $regtest in
         elif [[ "$machine" = "Orion" ]]; then
            topts[1]="0:15:00" ; popts[1]="12/5/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="12/9/" ; ropts[2]="/2"
+        elif [[ "$machine" = "Hercules" ]]; then
+           topts[1]="0:15:00" ; popts[1]="12/5/" ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="12/9/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
            topts[1]="0:15:00" ; popts[1]="12/5/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="12/9/" ; ropts[2]="/2"
@@ -90,6 +98,9 @@ case $regtest in
             topts[1]="0:15:00" ; popts[1]="12/3/" ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="12/5/" ; ropts[2]="/2"
         elif [[ "$machine" = "Orion" ]]; then
+            topts[1]="0:15:00" ; popts[1]="12/3/" ; ropts[1]="/1"
+            topts[2]="0:15:00" ; popts[2]="12/5/" ; ropts[2]="/2"
+        elif [[ "$machine" = "Hercules" ]]; then
             topts[1]="0:15:00" ; popts[1]="12/3/" ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="12/5/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
@@ -137,6 +148,9 @@ case $regtest in
         elif [[ "$machine" = "Orion" ]]; then
            topts[1]="0:10:00" ; popts[1]="12/8/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="12/12/" ; ropts[2]="/2"
+        elif [[ "$machine" = "Hercules" ]]; then
+           topts[1]="0:10:00" ; popts[1]="12/8/" ; ropts[1]="/1"
+           topts[2]="0:10:00" ; popts[2]="12/12/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
            topts[1]="0:10:00" ; popts[1]="12/8/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="12/10/" ; ropts[2]="/2"
@@ -170,6 +184,9 @@ case $regtest in
         elif [[ "$machine" = "Orion" ]]; then
             topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "Hercules" ]]; then
+            topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
+            topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Jet" ]]; then
             topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
@@ -200,6 +217,9 @@ case $regtest in
         elif [[ "$machine" = "Orion" ]]; then
             topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "Hercules" ]]; then
+            topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
+            topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Jet" ]]; then
             topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
             topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
@@ -228,6 +248,9 @@ case $regtest in
             topts[1]="0:30:00" ; popts[1]="6/12/"  ; ropts[1]="/1"
             topts[2]="0:30:00" ; popts[2]="8/12/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Orion" ]]; then
+            topts[1]="0:30:00" ; popts[1]="6/12/"  ; ropts[1]="/1"
+            topts[2]="0:30:00" ; popts[2]="8/12/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "Hercules" ]]; then
             topts[1]="0:30:00" ; popts[1]="6/12/"  ; ropts[1]="/1"
             topts[2]="0:30:00" ; popts[2]="8/12/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Jet" ]]; then
@@ -290,6 +313,9 @@ case $regtest in
         elif [[ "$machine" = "Orion" ]]; then
             topts[1]="0:10:00" ; popts[1]="12/3/" ; ropts[1]="/1"
             topts[2]="0:10:00" ; popts[2]="12/5/" ; ropts[2]="/2"
+        elif [[ "$machine" = "Hercules" ]]; then
+            topts[1]="0:10:00" ; popts[1]="12/3/" ; ropts[1]="/1"
+            topts[2]="0:10:00" ; popts[2]="12/5/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
             topts[1]="0:10:00" ; popts[1]="12/3/" ; ropts[1]="/1"
             topts[2]="0:10:00" ; popts[2]="12/5/" ; ropts[2]="/2"
@@ -349,7 +375,10 @@ if [[ "$machine" = "Hera" ]]; then
    export APRUN="srun"
 elif [[ "$machine" = "Orion" ]]; then
    export OMP_STACKSIZE=2048M
-   export APRUN="srun -n \$ntasks"
+   export APRUN="srun -n \$ntasks --cpus-per-task=\$threads"
+elif [[ "$machine" = "Hercules" ]]; then
+   export OMP_STACKSIZE=2048M
+   export APRUN="srun -n \$ntasks --cpus-per-task=\$threads"
 elif [[ "$machine" = "Jet" ]]; then
    export OMP_STACKSIZE=1024M
    export MPI_BUFS_PER_PROC=256
