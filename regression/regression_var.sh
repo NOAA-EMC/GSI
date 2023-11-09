@@ -42,9 +42,9 @@ elif [[ -d /sw/gaea ]]; then # Gaea
   export machine="Gaea"
 elif [[ -d /data/prod ]]; then # S4
   export machine="S4"
-elif [[ -d /work && $(hostname -d) =~ "Orion" ]]; then # Orion
+elif [[ -d /work && $(hostname) =~ "Orion" ]]; then # Orion
   export machine="Orion"
-elif [[ -d /work && $(hostname -d) =~ "Hercules" ]]; then # Hercules
+elif [[ -d /work && $(hostname) =~ "hercules" ]]; then # Hercules
   export machine="Hercules"
 elif [[ -d /lfs/h2 ]]; then # wcoss2
   export machine="wcoss2"
