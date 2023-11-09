@@ -3004,165 +3004,165 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   end do
   deallocate(iloc,isort,cdata_all)
 
-! the following is gettin the types which will be applied hilbert curve to
-!  estimate the density
-
-  if(obstype == 'uv') then
-     vmin=-10.00_r_kind
-     vmax=18000.00_r_kind
-     nor=0
-     ithin=0
-     allocate(wght_hilb(ndata))
-     wght_hilb=one
-     pmesh=zero
-     rmesh=zero
-     dentrip=0
-     pmesh_tmp=zero
-     rmesh_tmp=zero
-     dentrip_tmp=0
-     ntime_max=0
-     ntime_tmp=0
-     ntime=0
-     nnrand=nrand
-     do ncc=1,nconvtype
-        if( trim(ioctype(ncc)) == 'uv') then
-           itype=ictype(ncc)
-           if( itype ==230 .or. itype ==231 .or. itype ==233 ) then
-              if(itype ==230 .and. ithin_conv(ncc) >5) then
-                 if(ptime_conv(ncc) >zero) then
-                    ntime_max= int(6.0_r_kind/ptime_conv(ncc))
-                  else
-                     ntime_max=1
-                  endif
-                 pmesh=pmesh_conv(ncc)
-                 rmesh=rmesh_conv(ncc)
-                 dentrip=ithin_conv(ncc)/10
-              else if(itype == 231 .and. ithin_conv(ncc) >5) then
-                 if(ptime_conv(ncc) >zero) then
-                    ntime_tmp=int(6.0_r_kind/ptime_conv(ncc))
-                  else
-                     ntime_tmp=1
-                  endif
-                 pmesh_tmp=pmesh_conv(ncc)
-                 rmesh_tmp=rmesh_conv(ncc)
-                 dentrip_tmp=ithin_conv(ncc)/10
-                 if(pmesh >zero .and. rmesh >zero) then
-                    if(ntime_tmp /= ntime_max .or. pmesh_tmp /= pmesh .or. &
-                       rmesh_tmp /= rmesh .or. dentrip_tmp /= dentrip) then
-                       write(6,*) 'READ_PREPBUFR:WARING  convinfo file settings are not right,use first one itype=',itype
-                       write(6,*) 'READ_PREPBUFR: ntime_max,pmesh,rmesh,ntime_tmp,pmesh_tmp,rmesh_tmp,rmesh_tmp=',&
-                              ntime_max,pmesh,rmesh,ntime_tmp,pmesh_tmp,rmesh_tmp,dentrip_tmp
-                    endif
-                 else if(pmesh_tmp >zero .and. rmesh_tmp >zero) then
-                    pmesh=pmesh_tmp
-                    rmesh=rmesh_tmp
-                    ntime_max=ntime_tmp
-                 endif
-              else if(itype == 233 .and. ithin_conv(ncc) >5) then
-                 if(ptime_conv(ncc) >zero) then
-                    ntime_tmp=int(6.0_r_kind/ptime_conv(ncc))
-                  else
-                     ntime_tmp=1
-                  endif
-                 pmesh_tmp=pmesh_conv(ncc)
-                 rmesh_tmp=rmesh_conv(ncc)
-                 dentrip_tmp=ithin_conv(ncc)/10
-                 if(pmesh >zero .and. rmesh >zero) then
-                    if(ntime_tmp /= ntime_max .or. pmesh_tmp /= pmesh .or. &
-                       rmesh_tmp /= rmesh .or. dentrip_tmp /= dentrip) then
-                       write(6,*) 'READ_PREPBUFR:WARING  convinfo file settings are not right,use first one itype=',itype
-                       write(6,*) 'READ_PREPBUFR: ntime_max,pmesh,rmesh,ntime_tmp,pmesh_tmp,rmesh_tmp,rmesh_tmp=',&
-                              ntime_max,pmesh,rmesh,ntime_tmp,pmesh_tmp,rmesh_tmp,dentrip_tmp
-                    endif
-                 else if(pmesh_tmp >zero .and. rmesh_tmp >zero) then
-                    pmesh=pmesh_tmp
-                    rmesh=rmesh_tmp
-                    ntime_max=ntime_tmp
-                 endif
-              endif
-           endif
-        endif
-     enddo
-
-     write(6,*),'READ_PREPBUFR:dentrip,pmesh,rmesh,ndata=',dentrip,pmesh,rmesh,ntime_max,ndata
-     if(dentrip >= one .and. pmesh >zero .and. rmesh >zero) then
-        allocate(data_hilb(3,ndata,6),index_arr(ndata,ntime_max))
-
-        ndata_hil=0
-        ntype_arr=0
-        ntime=1
-        index_arr=0
- 
-        do k=1,ndata
-           ikx=nint(cdata_out(10,k))
-           if (ikx>0) then
-              itype=ictype(ikx)
-           else
-              itype=0
-           endif
-           if( itype ==230 .or. itype ==231 .or. itype ==233) then
-              prest=r10*exp(cdata_out(4,k))
-              if (prest <100.0_r_kind) cycle
-              if(ithin_conv(ikx) >=5) then
-                 if(ptime_conv(ikx) >zero) then
-                    ntime=int(((cdata_out(9,k)-time_offset)+three)/ptime_conv(ikx))+1
-                 endif
-                 if(ntime >ntime_max) ntime=ntime_max
-                 if(ntime <0) ntime=1
-                 ntype_arr(ntime)=ntype_arr(ntime)+1
-                 ndata_hil=ntype_arr(ntime)
-                 data_hilb(1,ndata_hil,ntime)=cdata_out(20,k)
-                 data_hilb(2,ndata_hil,ntime)=cdata_out(19,k)
-                 prest=prest*100.0_r_kind
-                 if(prest >stndrd_atmos_ps) then
-                    prest=zero
-                 else
-                    prest=rd*265.00_r_kind*log(stndrd_atmos_ps/prest)/grav
-                 endif
-                 data_hilb(3,ndata_hil,ntime)=prest
-                 index_arr(ndata_hil,ntime)=k
-                 if(data_hilb(1,ndata_hil,ntime) >90.0_r_kind  .or. &
-                    data_hilb(1,ndata_hil,ntime) <-90.0_r_kind .or. &
-                    data_hilb(2,ndata_hil,ntime) <zero         .or. &
-                    data_hilb(2,ndata_hil,ntime) >360.0_r_kind .or. &
-                    data_hilb(3,ndata_hil,ntime) <vmin         .or. &
-                    data_hilb(3,ndata_hil,ntime) >vmax ) then
-                    write(6,*),'READ_PREPBUFR :something is wrong,lat,lon,prest=',&
-                                data_hilb(1,ndata_hil,ntime),&
-                                data_hilb(2,ndata_hil,ntime),&
-                                cdata_out(4,k),data_hilb(3,ndata_hil,ntime)
-                 endif
-              endif                   
-           endif
-        enddo
-        rmesh=rmesh*1000.0_r_kind
-        do kk=1,ntime_max
-           ndata_hil=ntype_arr(kk)
-           if(ndata_hil >=2) then
-              allocate(rlat_hil(ndata_hil),rlon_hil(ndata_hil),height(ndata_hil),wtob(ndata_hil))
-              rlat_hil(1:ndata_hil)=data_hilb(1,1:ndata_hil,kk)
-              rlon_hil(1:ndata_hil)=data_hilb(2,1:ndata_hil,kk)
-              height(1:ndata_hil)=data_hilb(3,1:ndata_hil,kk)
-              call denest(ndata_hil,nnrand,nor,rearth,dentrip,rmesh,pmesh,&
-                          vmin,vmax,rlat_hil,rlon_hil,height,wtob)
-              do i=1,ndata_hil
-                 indexx=index_arr(i,kk)
-                 wght_hilb(indexx)=wtob(i)
-              enddo
-              ndata_hil=0
-              deallocate(rlat_hil,rlon_hil,height,wtob)
-           endif
-           enddo
-        deallocate(data_hilb,index_arr)
-     endif
-
-     do i=1,ndata
-        cdata_out(26,i)=wght_hilb(i)
-     enddo
- 
-     deallocate(wght_hilb)
-  endif
-! end of hilbert curve
+!!! the following is gettin the types which will be applied hilbert curve to
+!!!  estimate the density
+!!
+!!  if(obstype == 'uv') then
+!!     vmin=-10.00_r_kind
+!!     vmax=18000.00_r_kind
+!!     nor=0
+!!     ithin=0
+!!     allocate(wght_hilb(ndata))
+!!     wght_hilb=one
+!!     pmesh=zero
+!!     rmesh=zero
+!!     dentrip=0
+!!     pmesh_tmp=zero
+!!     rmesh_tmp=zero
+!!     dentrip_tmp=0
+!!     ntime_max=0
+!!     ntime_tmp=0
+!!     ntime=0
+!!     nnrand=nrand
+!!     do ncc=1,nconvtype
+!!        if( trim(ioctype(ncc)) == 'uv') then
+!!           itype=ictype(ncc)
+!!           if( itype ==230 .or. itype ==231 .or. itype ==233 ) then
+!!              if(itype ==230 .and. ithin_conv(ncc) >5) then
+!!                 if(ptime_conv(ncc) >zero) then
+!!                    ntime_max= int(6.0_r_kind/ptime_conv(ncc))
+!!                  else
+!!                     ntime_max=1
+!!                  endif
+!!                 pmesh=pmesh_conv(ncc)
+!!                 rmesh=rmesh_conv(ncc)
+!!                 dentrip=ithin_conv(ncc)/10
+!!              else if(itype == 231 .and. ithin_conv(ncc) >5) then
+!!                 if(ptime_conv(ncc) >zero) then
+!!                    ntime_tmp=int(6.0_r_kind/ptime_conv(ncc))
+!!                  else
+!!                     ntime_tmp=1
+!!                  endif
+!!                 pmesh_tmp=pmesh_conv(ncc)
+!!                 rmesh_tmp=rmesh_conv(ncc)
+!!                 dentrip_tmp=ithin_conv(ncc)/10
+!!                 if(pmesh >zero .and. rmesh >zero) then
+!!                    if(ntime_tmp /= ntime_max .or. pmesh_tmp /= pmesh .or. &
+!!                       rmesh_tmp /= rmesh .or. dentrip_tmp /= dentrip) then
+!!                       write(6,*) 'READ_PREPBUFR:WARING  convinfo file settings are not right,use first one itype=',itype
+!!                       write(6,*) 'READ_PREPBUFR: ntime_max,pmesh,rmesh,ntime_tmp,pmesh_tmp,rmesh_tmp,rmesh_tmp=',&
+!!                              ntime_max,pmesh,rmesh,ntime_tmp,pmesh_tmp,rmesh_tmp,dentrip_tmp
+!!                    endif
+!!                 else if(pmesh_tmp >zero .and. rmesh_tmp >zero) then
+!!                    pmesh=pmesh_tmp
+!!                    rmesh=rmesh_tmp
+!!                    ntime_max=ntime_tmp
+!!                 endif
+!!              else if(itype == 233 .and. ithin_conv(ncc) >5) then
+!!                 if(ptime_conv(ncc) >zero) then
+!!                    ntime_tmp=int(6.0_r_kind/ptime_conv(ncc))
+!!                  else
+!!                     ntime_tmp=1
+!!                  endif
+!!                 pmesh_tmp=pmesh_conv(ncc)
+!!                 rmesh_tmp=rmesh_conv(ncc)
+!!                 dentrip_tmp=ithin_conv(ncc)/10
+!!                 if(pmesh >zero .and. rmesh >zero) then
+!!                    if(ntime_tmp /= ntime_max .or. pmesh_tmp /= pmesh .or. &
+!!                       rmesh_tmp /= rmesh .or. dentrip_tmp /= dentrip) then
+!!                       write(6,*) 'READ_PREPBUFR:WARING  convinfo file settings are not right,use first one itype=',itype
+!!                       write(6,*) 'READ_PREPBUFR: ntime_max,pmesh,rmesh,ntime_tmp,pmesh_tmp,rmesh_tmp,rmesh_tmp=',&
+!!                              ntime_max,pmesh,rmesh,ntime_tmp,pmesh_tmp,rmesh_tmp,dentrip_tmp
+!!                    endif
+!!                 else if(pmesh_tmp >zero .and. rmesh_tmp >zero) then
+!!                    pmesh=pmesh_tmp
+!!                    rmesh=rmesh_tmp
+!!                    ntime_max=ntime_tmp
+!!                 endif
+!!              endif
+!!           endif
+!!        endif
+!!     enddo
+!!
+!!     write(6,*),'READ_PREPBUFR:dentrip,pmesh,rmesh,ndata=',dentrip,pmesh,rmesh,ntime_max,ndata
+!!     if(dentrip >= one .and. pmesh >zero .and. rmesh >zero) then
+!!        allocate(data_hilb(3,ndata,6),index_arr(ndata,ntime_max))
+!!
+!!        ndata_hil=0
+!!        ntype_arr=0
+!!        ntime=1
+!!        index_arr=0
+!! 
+!!        do k=1,ndata
+!!           ikx=nint(cdata_out(10,k))
+!!           if (ikx>0) then
+!!              itype=ictype(ikx)
+!!           else
+!!              itype=0
+!!           endif
+!!           if( itype ==230 .or. itype ==231 .or. itype ==233) then
+!!              prest=r10*exp(cdata_out(4,k))
+!!              if (prest <100.0_r_kind) cycle
+!!              if(ithin_conv(ikx) >=5) then
+!!                 if(ptime_conv(ikx) >zero) then
+!!                    ntime=int(((cdata_out(9,k)-time_offset)+three)/ptime_conv(ikx))+1
+!!                 endif
+!!                 if(ntime >ntime_max) ntime=ntime_max
+!!                 if(ntime <0) ntime=1
+!!                 ntype_arr(ntime)=ntype_arr(ntime)+1
+!!                 ndata_hil=ntype_arr(ntime)
+!!                 data_hilb(1,ndata_hil,ntime)=cdata_out(20,k)
+!!                 data_hilb(2,ndata_hil,ntime)=cdata_out(19,k)
+!!                 prest=prest*100.0_r_kind
+!!                 if(prest >stndrd_atmos_ps) then
+!!                    prest=zero
+!!                 else
+!!                    prest=rd*265.00_r_kind*log(stndrd_atmos_ps/prest)/grav
+!!                 endif
+!!                 data_hilb(3,ndata_hil,ntime)=prest
+!!                 index_arr(ndata_hil,ntime)=k
+!!                 if(data_hilb(1,ndata_hil,ntime) >90.0_r_kind  .or. &
+!!                    data_hilb(1,ndata_hil,ntime) <-90.0_r_kind .or. &
+!!                    data_hilb(2,ndata_hil,ntime) <zero         .or. &
+!!                    data_hilb(2,ndata_hil,ntime) >360.0_r_kind .or. &
+!!                    data_hilb(3,ndata_hil,ntime) <vmin         .or. &
+!!                    data_hilb(3,ndata_hil,ntime) >vmax ) then
+!!                    write(6,*),'READ_PREPBUFR :something is wrong,lat,lon,prest=',&
+!!                                data_hilb(1,ndata_hil,ntime),&
+!!                                data_hilb(2,ndata_hil,ntime),&
+!!                                cdata_out(4,k),data_hilb(3,ndata_hil,ntime)
+!!                 endif
+!!              endif                   
+!!           endif
+!!        enddo
+!!        rmesh=rmesh*1000.0_r_kind
+!!        do kk=1,ntime_max
+!!           ndata_hil=ntype_arr(kk)
+!!           if(ndata_hil >=2) then
+!!              allocate(rlat_hil(ndata_hil),rlon_hil(ndata_hil),height(ndata_hil),wtob(ndata_hil))
+!!              rlat_hil(1:ndata_hil)=data_hilb(1,1:ndata_hil,kk)
+!!              rlon_hil(1:ndata_hil)=data_hilb(2,1:ndata_hil,kk)
+!!              height(1:ndata_hil)=data_hilb(3,1:ndata_hil,kk)
+!!              call denest(ndata_hil,nnrand,nor,rearth,dentrip,rmesh,pmesh,&
+!!                          vmin,vmax,rlat_hil,rlon_hil,height,wtob)
+!!              do i=1,ndata_hil
+!!                 indexx=index_arr(i,kk)
+!!                 wght_hilb(indexx)=wtob(i)
+!!              enddo
+!!              ndata_hil=0
+!!              deallocate(rlat_hil,rlon_hil,height,wtob)
+!!           endif
+!!           enddo
+!!        deallocate(data_hilb,index_arr)
+!!     endif
+!!
+!!     do i=1,ndata
+!!        cdata_out(26,i)=wght_hilb(i)
+!!     enddo
+!! 
+!!     deallocate(wght_hilb)
+!!  endif
+!!! end of hilbert curve
                
  
 
