@@ -255,9 +255,9 @@ subroutine setuptcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
         lb=dlat-tcp_box
         le=dlat+tcp_box
         do j=jb,je  
-           lj=float(j)
+           lj=real(j,r_kind)
            do l=lb,le
-              li=float(l)
+              li=real(l,r_kind)
               call tintrp2a11(ges_ps,psges,li,lj,dtime,hrdifsig,mype,nfldsig)
               if(pmin>psges)then
                  imin=l

@@ -1361,13 +1361,13 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
 !    Check if observation above model top or below model surface
 
      rlow=max(sfcchk-dpres,zero)
-     rhgh=max(dpres-0.001_r_kind-float(nsig),zero)
+     rhgh=max(dpres-0.001_r_kind-real(nsig,r_kind),zero)
 
 !    calculate factor for error adjustment if too (high,low)
      ratio_errors=obserror/(obserror+1.0e6_r_kind*rhgh+four*rlow)
 
 !    Check to see if observations is above the top of the model
-     if (dpres > float(nsig)) then
+     if (dpres > real(nsig,r_kind)) then
          ratio_errors=zero
          obserror=1.0e6_r_kind
      end if
@@ -1379,7 +1379,7 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
      call tintrp31(ges_oz,o3ges,dlat,dlon,dpres,dtime, &
        hrdifsig,mype,nfldsig)
      iz = max(1, min( int(dpres), nsig))
-     delz = max(zero, min(dpres - float(iz), one))
+     delz = max(zero, min(dpres - real(iz,r_kind), one))
      if (save_jacobian) then
         oz_ind = getindex(svars3d, 'oz')
         if (oz_ind < 0) then
@@ -1720,6 +1720,7 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   type(obs_diag),pointer,intent(in):: odiag
 ! Observation class
   character(7),parameter     :: obsclass = '  ozlev'
+  integer(i_kind),parameter  :: ione = 1
   real(r_kind),dimension(miter) :: obsdiag_iuse
            call nc_diag_metadata_to_single("Latitude",           data(ilate,i)                  )
            call nc_diag_metadata_to_single("Longitude",          data(ilone,i)                  )
@@ -1731,9 +1732,9 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
            call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",ozone_inv            )
            call nc_diag_metadata_to_single("Reference_Pressure", preso3l*r100                   ) ! Pa
            if(luse(i)) then
-             call nc_diag_metadata_to_single("Analysis_Use_Flag",  one                          )
+             call nc_diag_metadata("Analysis_Use_Flag",  ione                                   )
            else
-             call nc_diag_metadata_to_single("Analysis_Use_Flag", -one                          )
+             call nc_diag_metadata("Analysis_Use_Flag", -ione                                   )
            endif
 
            call nc_diag_metadata_to_single("Input_Observation_Error",obserror                   )

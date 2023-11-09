@@ -208,21 +208,23 @@ export JCAP="62"
 # Case Study analysis dates
 export global_adate="2022110900"
 export rtma_adate="2020022420"
-export hwrf_nmm_adate="2012102812"
 export fv3_netcdf_adate="2017030100"
 export rrfs_3denvar_glbens_adate="2021072518"
+export hafs_envar_adate="2020082512"
 
 # Paths for canned case data.
 export global_data="$casesdir/gfs/prod"
 export rtma_obs="$casesdir/regional/rtma_binary/$rtma_adate"
 export rtma_ges="$casesdir/regional/rtma_binary/$rtma_adate"
-export hwrf_nmm_obs="$casesdir/regional/hwrf_nmm/$hwrf_nmm_adate"
-export hwrf_nmm_ges="$casesdir/regional/hwrf_nmm/$hwrf_nmm_adate"
 export fv3_netcdf_obs="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
 export fv3_netcdf_ges="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
 export rrfs_3denvar_glbens_obs="$casesdir/regional/rrfs/$rrfs_3denvar_glbens_adate/obs"
 export rrfs_3denvar_glbens_ges="$casesdir/regional/rrfs/$rrfs_3denvar_glbens_adate/ges"
 export rrfs_3denvar_glbens_ens="$casesdir/regional/rrfs/$rrfs_3denvar_glbens_adate/ens"
+export hafs_envar_obs="$casesdir/regional/hafs_RTdata/$hafs_envar_adate/obs"
+export hafs_envar_ges="$casesdir/regional/hafs_RTdata/$hafs_envar_adate/ges"
+export hafs_envar_ens="$casesdir/regional/hafs_RTdata/$hafs_envar_adate/ens"
+
 
 # Define type of GPSRO data to be assimilated (refractivity or bending angle)
 export gps_dtype="gps_bnd"
@@ -233,7 +235,7 @@ export regression_vfydir="$noscrub/regression"
 # Define debug variable - If you want to run the debug tests, set this variable to .true.  Default is .false.
 export debug=".false."
 
-# Define parameters for global_3dvar, global_4dvar, global_4denvar
+# Define parameters for global_4denvar
 export minimization="lanczos"  # If "lanczos", use sqrtb lanczos minimization algorithm.  Otherwise use "pcgsoi".
 export nhr_obsbin="6"          # Time window for observation binning.  Use "6" for 3d4dvar test.  Otherwise use "1"
 

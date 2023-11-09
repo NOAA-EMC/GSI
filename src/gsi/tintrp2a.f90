@@ -53,8 +53,8 @@ subroutine tintrp2a1(f,g,dx,dy,obstime,gridtime, &
   ix1=int(dx)
   iy1=int(dy)
   ix1=max(1,min(ix1,nlat))  
-  delx=dx-float(ix1)
-  dely=dy-float(iy1)
+  delx=dx-real(ix1,r_kind)
+  dely=dy-real(iy1,r_kind)
   delx=max(zero,min(delx,one))
   ix=ix1-istart(m1)+2
   iy=iy1-jstart(m1)+2
@@ -153,8 +153,8 @@ subroutine tintrp2a11(f,g,dx,dy,obstime,gridtime, &
   ix1=int(dx)
   iy1=int(dy)
   ix1=max(1,min(ix1,nlat))  
-  delx=dx-float(ix1)
-  dely=dy-float(iy1)
+  delx=dx-real(ix1,r_kind)
+  dely=dy-real(iy1,r_kind)
   delx=max(zero,min(delx,one))
   ix=ix1-istart(m1)+2
   iy=iy1-jstart(m1)+2
@@ -255,8 +255,8 @@ subroutine tintrp2a11_csln(f,g,gw,dx,dy,obstime,gridtime, &
   ix1=int(dx)
   iy1=int(dy)
   ix1=max(1,min(ix1,nlat))  
-  delx=dx-float(ix1)
-  dely=dy-float(iy1)
+  delx=dx-real(ix1,r_kind)
+  dely=dy-real(iy1,r_kind)
   delx=max(zero,min(delx,one))
   ix=ix1-istart(m1)+2
   iy=iy1-jstart(m1)+2
@@ -414,8 +414,8 @@ subroutine tintrp2a11_indx(dx,dy,obstime,gridtime, &
   ix1=int(dx)
   iy1=int(dy)
   ix1=max(1,min(ix1,nlat))
-  delx=dx-float(ix1)
-  dely=dy-float(iy1)
+  delx=dx-real(ix1,r_kind)
+  dely=dy-real(iy1,r_kind)
   delx=max(zero,min(delx,one))
   ix=ix1-istart(m1)+2
   iy=iy1-jstart(m1)+2

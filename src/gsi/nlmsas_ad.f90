@@ -707,10 +707,10 @@ subroutine nlmsas_ad_im_ix_(im,ix,km,jcap,delt,del,sl,rcs,&
   pdpdwn  = zero
   pdetrn  = 200._r_kind
   xlambu  = 1.e-4_r_kind
-  fjcap = (float(jcap) / 126._r_kind) ** 2
+  fjcap = (real(jcap,r_kind) / 126._r_kind) ** 2
   val   =  one
   fjcap = max(fjcap,val)
-  fkm = (float(km) / 28._r_kind) ** 2
+  fkm = (real(km,r_kind) / 28._r_kind) ** 2
   fkm = max(fkm,one)
   w1l = -8.e-3_r_kind
   w2l = -4.e-2_r_kind
@@ -1058,7 +1058,7 @@ subroutine nlmsas_ad_im_ix_(im,ix,km,jcap,delt,del,sl,rcs,&
 
 ! Select cloud from ensemble
   do i=1,im
-     kt2(i) = nint(xkt2(i)*float(ktcon(i)-jmin(i))-half) + jmin(i) + 1
+     kt2(i) = nint(xkt2(i)*real(ktcon(i)-jmin(i),r_kind)-half) + jmin(i) + 1
      tem1 = hcko(jmin(i),i) - hesol(kt2(i),i)
      tem2 = sumz(kt2(i),i) * hesol(kt2(i),i) - sumh(kt2(i),i)
      if (abs(tem2)  >  0.000001_r_kind) then

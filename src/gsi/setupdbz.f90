@@ -150,7 +150,7 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
   use m_dtime, only: dtime_setup, dtime_check
-  use obsmod, only   : if_model_dbz, inflate_obserr
+  use obsmod, only   : if_model_dbz, inflate_dbz_obserr
   use setupdbz_lib, only:hx_dart,jqr_dart,jqs_dart,jqg_dart 
   use gridmod, only: wrf_mass_regional,nems_nmmb_regional, fv3_regional
   use sparsearr, only: sparr2, new, size, writearray, fullarray
@@ -590,14 +590,17 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
 !    Compute observation pressure (only used for diagnostics)
      dz     = zges(k2)-zges(k1)
      dlnp   = prsltmp(k2)-prsltmp(k1)
-     pobl   = prsltmp(k1) + (dlnp/dz)*(zob-zges(k1))
-
-     presw  = ten*exp(pobl)
-
      if ( l_use_dbz_directDA ) then
-        presq  = presw         
+        pobl   = prsltmp(k1) + (dlnp/dz)*(zob-zges(k1))
+        presw  = ten*exp(pobl)
+        presq  = presw
      else
-        if( (k1 == k2) .and. (k1 == 1) ) presw=ten*exp(prsltmp(k1)) 
+        if( (k1 == k2) .and. (k1 == 1) ) then
+           presw  = ten*exp(prsltmp(k1))
+        else
+           pobl   = prsltmp(k1) + (dlnp/dz)*(zob-zges(k1))
+           presw  = ten*exp(pobl)
+        end if
      end if
 
 !    solution to Nan in some members only for EnKF which causes problem?
@@ -1257,8 +1260,11 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
          end if
 
      else
-        if (ratio > cgross(ikx) .or. ratio_errors < tiny_r_kind) then
-           if ( inflate_obserr .and. (ratio-cgross(ikx)) <= cgross(ikx) .and. ratio_errors >= tiny_r_kind) then 
+
+!       Apply gross error check only to reflectivity observations in precipitation (>= 5 dBZ).
+        if ( ( (data(idbzob,i) >= 5_r_kind) .and. (ratio > cgross(ikx)) ) .or. (ratio_errors < tiny_r_kind) ) then
+
+           if ( inflate_dbz_obserr .and. (ratio-cgross(ikx)) <= cgross(ikx) .and. ratio_errors >= tiny_r_kind) then 
            ! Since radar reflectivity can be very different from the model background
            ! good observations may be rejected during this QC step.  However, if these observations
            ! are allowed through, they can yield problems with convergence.  Therefore the error

@@ -4488,14 +4488,14 @@ SUBROUTINE EIGEN(A,R,N,MV)
       end do
       if(anorm>zero) then
          ANORM=1.414_r_kind*SQRT(ANORM)
-         ANRMX=ANORM*RANGE/FLOAT(N)
+         ANRMX=ANORM*RANGE/real(N,r_kind)
 !
 !        INITIALIZE INDICATORS AND COMPUTE THRESHOLD, THR
 !
          IND=0
          THR=ANORM
          loop1: do
-            THR=THR/FLOAT(N)
+            THR=THR/real(N,r_kind)
             loop2: do
                L=1
                loop3: do
