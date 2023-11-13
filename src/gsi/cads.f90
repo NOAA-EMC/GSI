@@ -342,6 +342,7 @@ SUBROUTINE CADS_Setup_Cloud
 !   16/04/20   R.Eresmaa   3.0   Rename, tidy up.
 
   use kinds, only: i_kind, r_kind
+  use gsi_io, only: verbose
   IMPLICIT NONE
 
 ! Local variables
@@ -895,15 +896,22 @@ SUBROUTINE CADS_Setup_Cloud
        FILE=TRIM(CL__Cloud_Detection_File), IOSTAT=IOS)
   IF (IOS == 0) THEN
     READ(INIU1,nml=Cloud_Detect_Coeffs,IOSTAT=IOS)
-    IF (IOS /= 0) &
+    IF (IOS == 0) THEN
+      if ( verbose ) WRITE(*,'(3X,A)') TRIM(CL__InstrumentName) // &
+           ' CLOUD DETECTION FILE READ OK'
+    ELSE
       CALL CADS_Abort('PROBLEM READING '//TRIM(CL__InstrumentName)//&
                      'CLOUD DETECTION FILE')
+    ENDIF
+    CLOSE(INIU1)
+  ELSE
+    if ( verbose ) WRITE(*,'(3X,A)') 'NO '//TRIM(CL__InstrumentName) // &
+             ' CLOUD DETECTION FILE : Using Default Values'
   ENDIF
-  CLOSE(INIU1)
 
-    IF (MAXVAL(N__Band_Size(:)) > JP__Max_Channels) &
-                 CALL CADS_Abort('Too many channels specified in cloud '//&
-                                 'detection - increase JP__Max_Channels')
+  IF (MAXVAL(N__Band_Size(:)) > JP__Max_Channels) &
+             CALL CADS_Abort('Too many channels specified in cloud '//&
+                             'detection - increase JP__Max_Channels')
 
 
     M__Sensor = J__SENSOR
@@ -1084,6 +1092,7 @@ SUBROUTINE CADS_Detect_Cloud(  K__Sensor,  K__NChans,  K__ChanID, K__Minlev, K__
 !   R.Eresmaa   3.0   16/04/20   Move the call to imager-based detection here.
 
   use kinds, only: i_kind, r_kind
+  use gsi_io, only: verbose
   IMPLICIT NONE
 
 !* 0.1 Global arrays
@@ -1221,7 +1230,7 @@ SUBROUTINE CADS_Detect_Cloud(  K__Sensor,  K__NChans,  K__ChanID, K__Minlev, K__
       ENDDO
     ENDDO
     IF ( I__NumFoundChans == 0 ) THEN
-      WRITE(*,*) &
+      if (verbose) WRITE(*,*) &
           '**CADS_Detect_Cloud - WARNING: ' // &
           'CHANNELS NOT FOUND CYCLING BAND: **', JBAND
       IF (ALLOCATED(Z__DBT))        DEALLOCATE (Z__DBT)

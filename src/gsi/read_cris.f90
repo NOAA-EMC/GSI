@@ -820,12 +820,12 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
               bufr_chan = bufr_index(i)
               if(temperature(bufr_chan) <= tbmin .or. temperature(bufr_chan) >= tbmax ) then
                  temperature(bufr_chan) = tbmin
-                 if(iuse_rad(ioff+i) >= 0) iskip = iskip + 1
+                 if(iuse_rad(ioff+i) >= 0 .or. (cris_cads .and. sc_index(i) < 714)) iskip = iskip + 1
               endif
            end do skip_loop
 
            if(iskip > 0 .and. print_verbose)write(6,*) ' READ_CRIS : iskip > 0 ',iskip
-!          if( iskip >= 10 )cycle read_loop 
+           if( iskip >= 10 .and. cris_cads ) cycle read_loop 
 
            crit1=crit1 + ten*real(iskip,r_kind)
 
