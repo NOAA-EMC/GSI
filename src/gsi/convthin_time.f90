@@ -8,7 +8,6 @@ module convthin_time
 !
 ! subroutines included:
 !   make3grids_tm
-!   map3grids_tm
 !   map3grids_m_tm
 !   del3grids_tm
 !
@@ -27,7 +26,6 @@ module convthin_time
   private
 ! set subroutines to public
   public :: make3grids_tm
-  public :: map3grids_tm
   public :: map3grids_m_tm
   public :: del3grids_tm
 ! set passed variables to public
@@ -254,198 +252,9 @@ contains
     setaft=.true.
     return
   end subroutine createaft_tm
-  subroutine map3grids_tm(flg,pflag,pcoord,nlevp,dlat_earth,dlon_earth,&
-                  pob,itm,crit1,iobs,iobsout,iuse,foreswp,aftswp)
-
-!$$$  subprogram documentation block
-!                .      .    .                                       .
-! subprogram:    map3grids_tm
-!     prgmmr:    Su     org: np23                date: 2013-11-20
-!
-! abstract:  This routine maps convential observations to a 3d thinning grid.
-!
-! program history log:
-!
-!   input argument list:
-!     flg        - marks order of values in vertical dirction (1=increasing, -1=decreasing)
-!     pflag - type of pressure-type levels; 0 : sigma level, 1 : determined by convinfo file
-!     pcoord     - veritical coordinate values
-!     nlevp       - number of vertical levels
-!     dlat_earth - earth relative observation latitude (radians)
-!     dlon_earth - earth relative observation longitude (radians)
-!     pob        - observation pressure ob
-!     crit1      - quality indicator for observation (smaller = better)
-!     ithin      - number of obs to retain per thinning grid box
-!     itm      - tm count
-!
-!   output argument list:
-!     iobs  - observation counter
-!     itx   - combined (i,j) index of observation on thinning grid
-!     iobsout- location for observation to be put
-!     ip    - vertical index
-!     iuse  - .true. if observation should be used
-!     
-!
-! attributes:
-!   language: f90
-!   machine:  ibm rs/6000 sp
-!
-!$$$
-    use constants, only: one, half,two,three
-    implicit none
-    
-    logical                      ,intent(  out) :: iuse
-    integer(i_kind)              ,intent(in   ) :: nlevp,pflag,flg,itm
-    integer(i_kind)              ,intent(inout) :: iobs
-    integer(i_kind)              ,intent(  out) :: iobsout
-    real(r_kind)                 ,intent(in   ) :: dlat_earth,dlon_earth,crit1,pob
-  
-    real(r_kind),dimension(nlevp),intent(in   ) :: pcoord
-    
-    integer(i_kind):: ip,itx
-    integer(i_kind) ix,iy
-
-    real(r_kind) dlat1,dlon1,pob1
-    real(r_kind) dx,dy,dp
-!   real(r_kind) dxx,dyy,dpp
-    real(r_kind) crit!,dist1
-    logical foreswp, aftswp
-
-
-
-!   If using all data (no thinning), simply return to calling routine
-    if(use_all_tm)then
-       iuse=.true.
-       iobs=iobs+1
-       iobsout=iobs
-       return
-    end if
-
-!   Compute (i,j,k) indices of coarse mesh grid (grid number 1) which 
-!   contains the current observation.
-    dlat1=dlat_earth
-    dlon1=dlon_earth
-    pob1=pob
-
-    call grdcrd1(pob1,pcoord,nlevp,flg)
-    ip=int(pob1)
-    dp=pob1-ip
-    ip=max(1,min(ip,nlevp))
-
-    call grdcrd1(dlat1,glat,mlat,1)
-    iy=int(dlat1)
-    dy=dlat1-iy
-    iy=max(1,min(iy,mlat))
-
-    call grdcrd1(dlon1,glon(1,iy),mlon(iy),1)
-    ix=int(dlon1)
-    dx=dlon1-ix
-    ix=max(1,min(ix,mlon(iy)))
-
-!   dxx=half-min(dx,one-dx)
-!   dyy=half-min(dy,one-dy)
-!   if( pflag == 1) then
-!      dpp=half-min(dp,one-dp)
-!   else
-!      dpp=min(dp,one-dp)
-!   endif
-
-    itx=hll(ix,iy)
-
-!   Compute distance metric (smaller is closer to center of cube)
-!    dist1=(dxx*dxx+dyy*dyy+dpp*dpp)*two/three+half
-
-
-!   Examine various cases regarding what to do with current obs.
-!   Start by assuming observation will be selected.  
-    iuse=.true.
-
-!   Determine "score" for observation.  Lower score is better.
-!    crit = crit1*dist1
-    crit = crit1
-
-!   TDR fore (Pseudo-dual-Doppler-radars)
-    if(foreswp) then   !   fore sweeps
-       if(.not.setfore)call createfore_tm
-
-!   Case(1):  first obs at this location, keep this obs as starting point
-       if (.not. icount_fore_tm(itx,ip,itm)) then
-          iobs=iobs+1
-          iobsout=iobs
-          score_crit_fore_tm(itx,ip,itm)= crit
-          icount_fore_tm(itx,ip,itm)=.true.
-          ibest_obs_fore_tm(itx,ip,itm) = iobs
-
-!   Case(2): obs score < best value at this location, 
-!     -->  update score, count, and best obs counters
-       elseif (icount_fore_tm(itx,ip,itm) .and. crit < score_crit_fore_tm(itx,ip,itm)) then
-          score_crit_fore_tm(itx,ip,itm)= crit
-          iobsout=ibest_obs_fore_tm(itx,ip,itm)
-
-!   Case(3): obs score > best value at this location, 
-!   Case(4): none of the above cases are satisified, don't use this obs
-!    -->  do not use this obs, return to calling program.
-       else
-          iuse = .false.
-       endif                 ! cases
-
-!   TDR aft (Pseudo-dual-Doppler-radars)
-    else if(aftswp) then   !   aft sweeps
-       if(.not.setaft)call createaft_tm
-!      Case(1):  first obs at this location, keep this obs as starting point
-       if (.not. icount_aft_tm(itx,ip,itm)) then
-          iobs=iobs+1
-          iobsout=iobs
-          score_crit_aft_tm(itx,ip,itm)= crit
-          icount_aft_tm(itx,ip,itm)=.true.
-          ibest_obs_aft_tm(itx,ip,itm) = iobs
-
-
-!      Case(2):  obs score < best value at this location, 
-!        -->  update score, count, and best obs counters
-       elseif (icount_aft_tm(itx,ip,itm) .and. crit < score_crit_aft_tm(itx,ip,itm)) then
-          score_crit_aft_tm(itx,ip,itm)= crit
-          iobsout=ibest_obs_aft_tm(itx,ip,itm)
-
-!      Case(3): obs score > best value at this location, 
-!      Case(4):  none of the above cases are satisified, 
-!       -->  do not use this obs, return to calling program.
-       else
-             iuse = .false.
-       endif                 ! cases
-
-    else
-
-       if(.not.setnormal)call createnormal_tm
-!      Case:  obs score < best value at this location, 
-!        -->  update score, count, and best obs counters
-       if (icount_tm(itx,ip,itm) .and. crit < score_crit_tm(itx,ip,itm)) then
-          score_crit_tm(itx,ip,itm)= crit
-          iobsout=ibest_obs_tm(itx,ip,itm)
-
-!      Case:  first obs at this location, 
-!        -->  keep this obs as starting point
-       elseif (.not. icount_tm(itx,ip,itm)) then
-          iobs=iobs+1
-          iobsout=iobs
-          score_crit_tm(itx,ip,itm)= crit
-          ibest_obs_tm(itx,ip,itm) = iobs
-          icount_tm(itx,ip,itm)=.true.
-
-!      Case:  obs score > best value at this location, 
-!      Case:  none of the above cases are satisified, 
-!        -->  do not use this obs, return to calling program.
-       else
-          iuse = .false.
-       end if
-    end if
-
-    return
-
-  end subroutine map3grids_tm
 
   subroutine map3grids_m_tm(flg,save_all,pflag,pcoord,nlevp,dlat_earth,dlon_earth,pob,itm,crit1,iobs,&
-            iobsout,iuse,maxobs,rusage,foreswp,aftswp)
+            iuse,maxobs,rthin,foreswp,aftswp)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    map3grids_m_tm
@@ -482,7 +291,6 @@ contains
 !   output argument list:
 !     iobs  - observation counter
 !     itx   - combined (i,j) index of observation on thinning grid
-!     iobsout- location for observation to be put
 !     ip    - vertical index
 !     iuse  - .true. if observation should be used
 !      
@@ -499,10 +307,9 @@ contains
     logical                      ,intent(in   ) :: save_all
     integer(i_kind)              ,intent(in   ) :: nlevp,pflag,flg,maxobs,itm
     integer(i_kind)              ,intent(inout) :: iobs
-    integer(i_kind)              ,intent(  out) :: iobsout
     real(r_kind)                 ,intent(in   ) :: dlat_earth,dlon_earth,crit1,pob
     real(r_kind),dimension(nlevp),intent(in   ) :: pcoord
-    logical,dimension(maxobs)    ,intent(inout) :: rusage 
+    logical,dimension(maxobs)    ,intent(inout) :: rthin 
     
     integer(i_kind):: ip,itx
     integer(i_kind) ix,iy,itmp
@@ -514,11 +321,10 @@ contains
     logical foreswp, aftswp
 
 
+    iuse=.true.
 !   If using all data (no thinning), simply return to calling routine
     if(use_all_tm)then
-       iuse=.true.
        iobs=iobs+1
-       iobsout=iobs
        return
     end if
 
@@ -559,7 +365,6 @@ contains
 
 !   Examine various cases regarding what to do with current obs.
 !   Start by assuming observation will be selected.  
-    iuse=.true.
 
 !   Determine "score" for observation.  Lower score is better.
 !    crit = crit1*dist1
@@ -570,22 +375,17 @@ contains
        if(.not.setfore)call createfore_tm
 !   Case:  obs score < best value at this location, 
 !     -->  update score, count, and best obs counters
-!      if (icount_fore_tm(itx,ip,itm) .and. crit < score_crit_fore_tm(itx,ip,itm)) .and. &
-!          rusage(iobs+1)) then
        if (icount_fore_tm(itx,ip,itm) .and. crit < score_crit_fore_tm(itx,ip,itm)) then
           iobs=iobs+1
-          iobsout=iobs
           itmp=ibest_obs_fore_tm(itx,ip,itm)
-          rusage(itmp)=.false.
+          rthin(itmp)=.true.
           ibest_obs_fore_tm(itx,ip,itm)=iobs
           score_crit_fore_tm(itx,ip,itm)= crit
 
 !   Case:  first obs at this location, 
 !     -->  keep this obs as starting point
-!      elseif (.not. icount_fore_tm(itx,ip,itm) .and. rusage(iobs+1)) then
        elseif (.not. icount_fore_tm(itx,ip,itm)) then
           iobs=iobs+1
-          iobsout=iobs
           score_crit_fore_tm(itx,ip,itm)= crit
           ibest_obs_fore_tm(itx,ip,itm) = iobs
           icount_fore_tm(itx,ip,itm)=.true.
@@ -596,8 +396,7 @@ contains
        else
           if(save_all)then
              iobs=iobs+1
-             iobsout=iobs
-             rusage(iobsout)=.false.
+             rthin(iobs)=.true.
           else
              iuse=.false.
           end if
@@ -608,22 +407,17 @@ contains
        if(.not.setaft)call createaft_tm
 !   Case:  obs score < best value at this location, 
 !     -->  update score, count, and best obs counters
-!      if ((icount_aft_tm(itx,ip,itm) .and. crit < score_crit_aft_tm(itx,ip,itm)) .and. &
-!           rusage(iobs+1)) then
        if (icount_aft_tm(itx,ip,itm) .and. crit < score_crit_aft_tm(itx,ip,itm)) then
           iobs=iobs+1
-          iobsout=iobs
           itmp=ibest_obs_aft_tm(itx,ip,itm)
-          rusage(itmp)=.false.
+          rthin(itmp)=.true.
           score_crit_aft_tm(itx,ip,itm)= crit
           ibest_obs_aft_tm(itx,ip,itm)=iobs
 
 !   Case:  first obs at this location, 
 !     -->  keep this obs as starting point
        elseif (.not. icount_aft_tm(itx,ip,itm)) then
-!      elseif (.not. icount_aft_tm(itx,ip,itm) .and. rusage(iobs+1)) then
           iobs=iobs+1
-          iobsout=iobs
           score_crit_aft_tm(itx,ip,itm)= crit
           ibest_obs_aft_tm(itx,ip,itm) = iobs
           icount_aft_tm(itx,ip,itm)=.true.
@@ -634,8 +428,7 @@ contains
        else
           if(save_all)then
              iobs=iobs+1
-             iobsout=iobs
-             rusage(iobsout)=.false.
+             rthin(iobs)=.true.
           else
              iuse=.false.
           end if
@@ -646,23 +439,18 @@ contains
        if(.not.setnormal)call createnormal_tm
 !      Case:  obs score < best value at this location, 
 !        -->  update score, count, and best obs counters
-!      if ((icount_tm(itx,ip,itm) .and. crit < score_crit_tm(itx,ip,itm)) .and. &
-!         rusage(iobs+1)) then
        if (icount_tm(itx,ip,itm) .and. crit < score_crit_tm(itx,ip,itm)) then
           iobs=iobs+1
-          iobsout=iobs
           itmp=ibest_obs_tm(itx,ip,itm)
-          rusage(itmp)=.false.
+          rthin(itmp)=.true.
           score_crit_tm(itx,ip,itm)= crit
           ibest_obs_tm(itx,ip,itm) = iobs
 
 !      Case:  first obs at this location, 
 !        -->  keep this obs as starting point
-!      elseif (.not. icount_tm(itx,ip,itm) .and. rusage(iobs+1)) then
        elseif (.not. icount_tm(itx,ip,itm)) then
 
           iobs=iobs+1
-          iobsout=iobs
           icount_tm(itx,ip,itm)=.true.
           score_crit_tm(itx,ip,itm)= crit
           ibest_obs_tm(itx,ip,itm)=iobs
@@ -672,8 +460,7 @@ contains
        else
           if(save_all)then
              iobs=iobs+1
-             iobsout=iobs
-             rusage(iobsout)=.false.
+             rthin(iobs)=.true.
           else
              iuse=.false.
           end if

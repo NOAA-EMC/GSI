@@ -51,13 +51,13 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
       three,four, r60inv,r10,r100,r2000
 
   use convinfo, only: nconvtype, &
-      icuse,ictype,ioctype,&
-      ithin_conv,rmesh_conv,pmesh_conv,ctwind
-  use convthin, only: make3grids,map3grids,del3grids,use_all
+      icuse,ictype,ioctype,icsubtype,&
+      ithin_conv,rmesh_conv,pmesh_conv,ctwind,pmot_conv
+  use convthin, only: make3grids,map3grids_m,del3grids,use_all
   use gridmod, only: regional,nlon,nlat,nsig,tll2xy,txy2ll,&
       rlats,rlons
   use deter_sfc_mod, only: deter_sfc2
-  use obsmod, only: bmiss,ran01dom
+  use obsmod, only: bmiss,ran01dom,reduce_diag
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
   use adjust_cloudobs_mod, only: adjust_goescldobs
   use mpimod, only: npe
@@ -95,7 +95,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   integer(i_kind) :: iret,kx,pflag,nlevp,nmind,levs,idomsfc
   integer(i_kind) :: low_cldamt_qc,mid_cldamt_qc,hig_cldamt_qc,tcamt_qc
   integer(i_kind) :: ithin,klat1,klon1,klonp1,klatp1,kk,k,ilat,ilon,nchanl
-  integer(i_kind) :: iout,ntmp,maxobs,icount,itx,iuse,idate,ierr
+  integer(i_kind) :: iout,maxobs,itx,iuse,idate,ierr
   integer(i_kind),dimension(5) :: idate5
   real(r_kind) :: dlat,dlon,dlat_earth,dlon_earth,toff,t4dv
   real(r_kind) :: dlat_earth_deg,dlon_earth_deg
@@ -108,6 +108,11 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   real(r_kind),allocatable,dimension(:,:):: cdata_all
   real(r_double),dimension(9):: hdr
   real(r_double),dimension(3):: goescld
+  logical,allocatable,dimension(:)::rthin,rusage
+  logical save_all
+! integer(i_kind) numthin,numqc,numrem
+  integer(i_kind) ndata_end,ndata_start,pmot,numall
+
 
 
   logical :: outside,ithinp,luse
@@ -195,7 +200,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   end do
   maxobs=ntb
 
-  allocate(cdata_all(nreal,maxobs))
+  allocate(cdata_all(nreal,maxobs),rusage(maxobs),rthin(maxobs))
   cdata_all=zero
   nread=0
   nchanl=0
@@ -209,7 +214,16 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   call openbf(lunin,'IN',lunin)
   call datelen(10)
 
-   loop_msg: do while (ireadmg(lunin,subset,idate) == 0)
+  pmot=nint(pmot_conv(nc))
+  if(reduce_diag .and. pmot < 2)pmot=pmot+2
+  save_all=.false.
+  if(pmot /= 2) save_all=.true.
+  ndata_start=ndata+1
+  rusage = .true.
+  rthin = .false.
+  use_all=.true.
+
+  loop_msg: do while (ireadmg(lunin,subset,idate) == 0)
          loop_readsb: do while (ireadsb(lunin) == 0)
             ntb=ntb+1
             ! - Extract type, date, and location information
@@ -300,7 +314,6 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 
             ! General block for data thinning - if requested
             if (ithin > 0 .and. iuse >=0) then
-               ntmp=ndata  ! counting moved to map3gridS
             ! - Set data quality index for thinning
                if (thin4d) then
                   timedif = zero
@@ -317,22 +330,20 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
                   end do
                endif
                ppb=one_tenth*1013.25_r_kind !number is irrelevant for 2D - set to standard SLP -> 1013.25 and convert from mb to cb
-               call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                                 ppb,crit1,ndata,iout,luse,.false.,.false.)
+               call map3grids_m(-1,save_all,pflag,presl_thin,nlevp, &
+                   dlat_earth,dlon_earth,ppb,crit1,ndata,&
+                   luse,maxobs,rthin,.false.,.false.)
 
                if (.not. luse) cycle loop_readsb
-               if (ndata > ntmp) then
-                  nodata=nodata+1
-               endif
             else  ! - no thinnning
                ndata=ndata+1
-               nodata=nodata+1
-               iout=ndata
          endif
+         iout=ndata
 
          !-  Set usage variable
          usage = 0 
          if(iuse <= 0)usage=r100
+         if(usage >= r100 .and. pmot >= 2)rusage(ndata+1)=.false.
 
          ! Get information from surface file necessary for conventional data here
          call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr,zz)
@@ -383,18 +394,63 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
         call del3grids
      endif
 ! Normal exit
+     numall=ndata-ndata_start+1
+     if(numall > 0)then
+!       numthin=0
+!       numqc=0
+!       numrem=0
+!       do i=ndata_start,ndata
+!          if(.not. rusage(i))then
+!             numqc=numqc+1
+!          else if(rthin(i))then
+!             numthin=numthin+1
+!          else
+!             numrem=numrem+1
+!          end if
+!       end do
+!       write(6,*) ' sky ',trim(ioctype(nc)),ictype(nc),icsubtype(nc),numall,numrem,numqc,numthin
+!   If thinned data set usage
+        if (ithin > 0 .and. ithin <5) then
+           do i=ndata_start,ndata
+              if(rthin(i))then
+                 cdata_all(9,i)=100._r_kind
+                 cdata_all(7,i)=16
+              end if
+           end do
+        end if
+!     If flag to not save thinned data is set - compress data
+        if(pmot /= 1)then
+           ndata_end=ndata
+           ndata=ndata_start-1
+           do i=ndata_start,ndata_end
+!         pmot=0 - all obs - thin obs
+!         pmot=1 - all obs
+!         pmot=2 - use obs
+!         pmot=3 - use obs + thin obs
+              if((pmot == 0 .and. .not. rthin(i)) .or. &
+                 (pmot == 2 .and. (rusage(i) .and. .not. rthin(i)))  .or. &
+                 (pmot == 3 .and. rusage(i))) then
+
+                 ndata=ndata+1
+                 if(i > ndata)then
+                    do k=1,nreal
+                       cdata_all(k,ndata)=cdata_all(k,i)
+                    end do
+                 end if
+              end if
+           end do
+        end if
+        nodata=nodata+ndata-ndata_start + 1
+        ndata_start=ndata+1
+     end if
 
 ! Write header record and data to output file for further processing
-  if(ndata /= icount)then
-     write(6,*) myname,': ndata and icount do not match STOPPING...ndata,icount ',ndata,icount
-     call stop2(50)
-  end if
  
   call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
   write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 
-  deallocate(cdata_all)
+  deallocate(cdata_all,rusage,rthin)
 
   if (ndata == 0) then 
      write(6,*)myname,'no read_goesimgr_skycover data'

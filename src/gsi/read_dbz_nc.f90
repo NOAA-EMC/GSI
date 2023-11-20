@@ -73,12 +73,12 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
   use gridmod, only: tll2xy,nsig,nlat,nlon
   use obsmod, only: iadate,doradaroneob,oneoblat,oneoblon,oneobheight, &
                     mintiltdbz,maxtiltdbz,minobrangedbz,maxobrangedbz,&
-                    static_gsi_nopcp_dbz,rmesh_dbz,zmesh_dbz
+                    static_gsi_nopcp_dbz,rmesh_dbz,zmesh_dbz,pmot_dbz,reduce_diag
   use gsi_4dvar, only: iwinbgn
   use hybrid_ensemble_parameters,only : l_hyb_ens
   use obsmod,only: radar_no_thinning,missing_to_nopcp
   use convinfo, only: nconvtype,ctwind,icuse,ioctype
-  use convthin, only: make3grids,map3grids,del3grids,use_all
+  use convthin, only: make3grids,map3grids_m,del3grids,use_all
   use jfunc, only: miter
   use mpimod, only: npe
   implicit none
@@ -134,12 +134,11 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
   real(r_kind), allocatable, dimension(:) :: zl_thin
   real(r_kind),dimension(nsig):: hges,zges
   real(r_kind) sin2,termg,termr,termrg,zobs,hgt
-  integer(i_kind) ntmp,iout,ntdrvr_thin2
+  integer(i_kind) iout,ntdrvr_thin2
   real(r_kind) crit1,timedif
   real(r_kind),parameter:: r16000 = 16000.0_r_kind
 
   logical :: luse
-  integer(i_kind) maxout,maxdata
        
   !--General declarations
   integer(i_kind) :: ierror,i,j,k,nvol, &
@@ -154,6 +153,10 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
   real(r_kind) :: rmins_an
   real(r_kind),allocatable,dimension(:,:):: cdata_all
   real(r_double) rstation_id
+  logical, allocatable,dimension(:)     :: rusage,rthin
+  logical save_all
+! integer(i_kind) numthin,numqc,numrem
+  integer(i_kind) ndata_start,ndata_end,pmot,numall
   
   character(8) cstaid
   character(4) this_staid
@@ -217,18 +220,17 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
   maxobs=50000000    !value taken from read_radar.f90 
 
   !--Allocate cdata_all array
-   allocate(cdata_all(maxdat,maxobs))
-   rmesh=rmesh_dbz
-   zmesh=zmesh_dbz
+  allocate(cdata_all(maxdat,maxobs),rthin(maxobs),rusage(maxobs))
+  rmesh=rmesh_dbz
+  zmesh=zmesh_dbz
 
+  ntdrvr_thin2=0
+  icntpnt=0
+  zflag=0
 
-   maxout=0
-   maxdata=0
-   ntdrvr_thin2=0
-   icntpnt=0
-   zflag=0
-
-   use_all=.true.
+  rusage = .true.
+  rthin = .false.
+  use_all=.true.
   if (ithin > 0) then
      write(6,*)'READ_RADAR_DBZ: ithin,rmesh :',ithin,rmesh
      use_all=.false.
@@ -340,11 +342,19 @@ fileopen: if (if_input_exist) then
   timeb=real(mins_an-iwinbgn,r_kind)  !assume all observations are at the analysis time
  
   ivar = 1
-  
+  pmot=pmot_dbz
+  if(reduce_diag .and. pmot < 2)pmot=pmot+2
+  save_all=.false.
+  if(pmot /= 2) save_all=.true.
+  ndata_start=ndata+1
+ 
   ILOOP : &
   do i = 1, dims(ivar,1)
     do j = 1, dims(ivar,2)
       do k = 1, dims(ivar,3)
+
+        rusage = .true.
+        rthin = .false.
 
         imissing2nopcp = 0
 ! Missing data in the input file have the value -999.0
@@ -416,9 +426,11 @@ fileopen: if (if_input_exist) then
  
         nread = nread + 1
  
+        if(icuse(ikx) < zero)rusage(ndata+1)=.false.
  !####################       Data thinning       ###################
         icntpnt=icntpnt+1
         if(icntpnt>maxobs) exit
+
 
         if(ithin > 0)then
      
@@ -453,28 +465,21 @@ fileopen: if (if_input_exist) then
            zobs = hgt
      
      
-           ntmp=ndata  ! counting moved to map3gridS
            timedif=zero  ! assume all observations are at the analysis time
            crit1 = timedif/r6+half
      
-           call map3grids(1,zflag,zl_thin,nlevz,thislat,thislon,&
-              zobs,crit1,ndata,iout,luse,.false.,.false.)
-     
-           maxout=max(maxout,iout)
-           maxdata=max(maxdata,ndata)
-     
+           call map3grids_m(1,save_all,zflag,zl_thin,nlevz, &
+                  thislat,thislon,zobs,crit1,ndata,&
+                  luse,maxobs,rthin,.false.,.false.)
+
            if (.not. luse) then
               ntdrvr_thin2=ntdrvr_thin2+1
               cycle
            endif
-           if (ndata > ntmp) then
-              nodata=nodata+1
-           endif
         else
            ndata =ndata+1
-           nodata=nodata+1
-           iout=ndata
         endif
+        iout=ndata
      
         !!end modified for thinning
      
@@ -507,12 +512,56 @@ fileopen: if (if_input_exist) then
          cdata_all(17,iout)= dbznoise                      ! noise threshold for reflectivity (dBZ)
          cdata_all(18,iout)= imissing2nopcp                !=0, normal 
                                                            !=1,  !values !converted !from !missing !values 
-     
+
          if(doradaroneob .and. (cdata_all(5,iout) > -99.0_r_kind) ) exit ILOOP
 
       end do    ! k
     end do    ! j
   end do ILOOP    ! i
+
+  numall=ndata-ndata_start+1
+  if(numall > 0)then
+!    numthin=0
+!    numqc=0
+!    numrem=0
+!    do i=ndata_start,ndata
+!      if(.not. rusage(i))then
+!         numqc=numqc+1
+!      else if(rthin(i))then
+!         numthin=numthin+1
+!      else
+!         numrem=numrem+1
+!      end if
+!    end do
+!    write(6,*) ' dbz ',numall,numrem,numqc,numthin
+
+!     If flag to not save thinned data is set - compress data
+     if(pmot /= 1)then
+       ndata_end=ndata
+       ndata=ndata_start-1
+       do i=ndata_start,ndata_end
+!         pmot=0 - all obs - thin obs
+!         pmot=1 - all obs
+!         pmot=2 - use obs
+!         pmot=3 - use obs + thin obs
+          if((pmot == 0 .and. .not. rthin(i)) .or. &
+             (pmot == 2 .and. (rusage(i) .and. .not. rthin(i)))  .or. &
+             (pmot == 3 .and. rusage(i))) then
+
+             ndata=ndata+1
+             if(i > ndata)then
+                do k=1,maxdat
+                   cdata_all(k,ndata)=cdata_all(k,i)
+                end do
+             end if
+          end if
+        end do
+     end if
+  end if
+
+  nodata=nodata+2*(ndata-ndata_start+1)
+  ndata_start=ndata+1
+     
   deallocate(dbzQC,lat,lon)                     
 
   if (.not. use_all) then 
@@ -540,7 +589,7 @@ fileopen: if (if_input_exist) then
   
   !---------------DEALLOCATE ARRAYS-------------!
   
-  deallocate(cdata_all)
+  deallocate(cdata_all,rusage,rthin)
 else  !fileopen
   write(6,*) 'READ_dBZ: ERROR OPENING RADAR REFLECTIVITY FILE: ',trim(infile),' IOSTAT ERROR: ',ierror, ' SKIPPING...'
 end if fileopen

@@ -1230,7 +1230,7 @@ subroutine prt_norms(xcv,sgrep)
   zt=sqrt(zt)
 
   if (mype==0) then
-     write(6,*)sgrep,' global  norm =',real(zt,r_kind)
+     write(6,*)sgrep,' global  norm =',zt,r_kind
   endif
 
 !_RT  call prt_norms_vars(xcv,sgrep) --->> this routine is hanging

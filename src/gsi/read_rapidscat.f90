@@ -44,15 +44,15 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
        rlats,rlons,fv3_regional
   use qcmod, only: errormod,noiqc
-  use convthin, only: make3grids,map3grids,del3grids,use_all
+  use convthin, only: make3grids,map3grids_m,del3grids,use_all
   use constants, only: deg2rad,zero,rad2deg,one_tenth,&
         tiny_r_kind,huge_r_kind,r60inv,one_tenth,&
         one,two,three,four,five,half,quarter,r60inv,r10,r100,r2000
 !  use converr,only: etabl
-  use obsmod, only: ran01dom,bmiss
+  use obsmod, only: ran01dom,bmiss,reduce_diag
   use convinfo, only: nconvtype, &
        icuse,ictype,icsubtype,ioctype, &
-       ithin_conv,rmesh_conv,pmesh_conv
+       ithin_conv,rmesh_conv,pmesh_conv,pmot_conv
   use gsi_4dvar, only: l4dvar,iwinbgn,winlen,time_4dvar,l4densvar,thin4d
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
   use mpimod, only: npe
@@ -111,7 +111,7 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   integer(i_kind) ntb,ntmatch,ncx,ncsave,ntread
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nmind,lunin,idate,ilat,ilon,iret,k
-  integer(i_kind) nreal,ithin,iout,ntmp,icount,ii
+  integer(i_kind) nreal,ithin,iout,icount,ii
   integer(i_kind) itype,iosub,ixsub,isubsub,iobsub 
   integer(i_kind) lim_qm
   integer(i_kind) nlevp         ! vertical level for thinning
@@ -156,6 +156,11 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   real(r_double),dimension(1,1):: r_prvstg,r_sprvstg
   real(r_kind),allocatable,dimension(:):: presl_thin
   real(r_kind),allocatable,dimension(:,:):: cdata_all
+
+  logical,allocatable,dimension(:)::rthin,rusage
+  logical save_all
+! integer(i_kind) numthin,numqc,numrem
+  integer(i_kind) ndata_end,ndata_start,pmot,numall
 
 ! equivalence to handle character names
   equivalence(r_prvstg(1,1),c_prvstg)
@@ -338,7 +343,7 @@ loopd : do
   enddo msg_report
 
 ! Loop over convinfo file entries; operate on matches
-  allocate(cdata_all(nreal,maxobs))
+  allocate(cdata_all(nreal,maxobs),rusage(maxobs),rthin(maxobs))
   cdata_all=zero
   nread=0
   ntest=0
@@ -395,6 +400,20 @@ loopd : do
 
      ntb = 0
      nmsg = 0
+     if(nx == 1)then
+       pmot=0
+     else
+       nc=ntx(nx)
+       pmot=nint(pmot_conv(nc))
+     end if
+     if(pmot < 2 .and. reduce_diag)pmot=pmot+2
+     save_all=.false.
+     if(pmot /= 2) save_all=.true.
+     ndata_start=ndata+1
+     rusage = .true.
+     rthin = .false.
+     use_all=.true.
+
      loop_msg:  do while(ireadmg(lunin,subset,idate) == 0)
         nmsg = nmsg+1
         if(.not.lmsg(nmsg,nx)) then
@@ -548,6 +567,7 @@ loopd : do
            usage = 0 
            iuse=icuse(nc)
            if(iuse <= 0)usage=r100
+           if(pmot >= 2 .and. usage >= r100)rusage(ndata+1)=.false.
 
 ! Get information from surface file necessary for conventional data here
 ! This is different from the previous sfc_type call
@@ -582,7 +602,6 @@ loopd : do
 
  !         Special block for data thinning - if requested
            if (ithin > 0 .and. iuse >=0) then
-              ntmp=ndata  ! counting moved to map3gridS
 
  !         Set data quality index for thinning
               if (thin4d) then
@@ -599,19 +618,16 @@ loopd : do
                  end do
               endif
  
-              call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                              ppb,crit1,ndata,iout,luse,.false.,.false.)
+              call map3grids_m(-1,save_all,pflag,presl_thin,nlevp, &
+                  dlat_earth,dlon_earth,ppb,crit1,ndata,&
+                  luse,maxobs,rthin,.false.,.false.)
 
               if (.not. luse) cycle loop_readsb
-              if (ndata > ntmp) then
-                 nodata=nodata+2
-              endif
 
            else
               ndata=ndata+1
-              nodata=nodata+2
-              iout=ndata
            endif
+           iout=ndata
 
            woe=obserr
            oelev=r10
@@ -663,6 +679,57 @@ loopd : do
         deallocate(presl_thin)
         call del3grids
      endif
+     numall=ndata-ndata_start+1
+     if(numall > 0)then
+!       numthin=0
+!       numqc=0
+!       numrem=0
+!       do i=ndata_start,ndata
+!          if(.not. rusage(i))then
+!             numqc=numqc+1
+!          else if(rthin(i))then
+!             numthin=numthin+1
+!          else
+!             numrem=numrem+1
+!          end if
+!       end do
+!       write(6,*) ' rapid ',trim(ioctype(nc)),ictype(nc),icsubtype(nc),numall,numrem,numqc,numthin
+!   If thinned data set usage
+        if (ithin > 0 .and. ithin <5) then
+           do i=ndata_start,ndata
+              if(rthin(i))then
+                 cdata_all(14,i)=100._r_kind
+                 cdata_all(12,i)=16
+              end if
+           end do
+        end if
+!     If flag to not save thinned data is set - compress data
+        if(pmot /= 1)then
+           ndata_end=ndata
+           ndata=ndata_start-1
+           do i=ndata_start,ndata_end
+!         pmot=0 - all obs - thin obs
+!         pmot=1 - all obs
+!         pmot=2 - use obs
+!         pmot=3 - use obs + thin obs
+              if((pmot == 0 .and. .not. rthin(i)) .or. &
+                 (pmot == 2 .and. (rusage(i) .and. .not. rthin(i)))  .or. &
+                 (pmot == 3 .and. rusage(i))) then
+
+                 ndata=ndata+1
+                 if(i > ndata)then
+                    do k=1,nreal
+                       cdata_all(k,ndata)=cdata_all(k,i)
+                    end do
+                 end if
+              end if
+           end do
+        end if
+        nodata=nodata+ndata-ndata_start + 1
+        ndata_start=ndata+1
+     end if
+
+
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
@@ -677,7 +744,7 @@ loopd : do
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 
-  deallocate(cdata_all)
+  deallocate(cdata_all,rusage,rthin)
 900 continue
   if(diagnostic_reg .and. ntest>0) write(6,*)'READ_RAPIDSCAT:  ',&
        'ntest,disterrmax=',ntest,disterrmax

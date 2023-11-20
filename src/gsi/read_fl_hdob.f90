@@ -54,9 +54,9 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
          rlats,rlons,twodvar_regional,fv3_regional
      use convinfo, only: nconvtype, &
          icuse,ictype,icsubtype,ioctype, &
-         ithin_conv,rmesh_conv,pmesh_conv
+         ithin_conv,rmesh_conv,pmesh_conv,pmot_conv
      use obsmod, only: perturb_obs,perturb_fact,ran01dom
-     use obsmod, only: bmiss
+     use obsmod, only: bmiss,reduce_diag
      use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,aircraft_t_bc_ext
      use converr,only: etabl
      use converr_ps,only: etabl_ps,isuble_ps,maxsub_ps
@@ -69,7 +69,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      use convb_uv,only: btabl_uv
      use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,time_4dvar,winlen,thin4d
      use qcmod, only: errormod,njqc
-     use convthin, only: make3grids,map3grids,del3grids,use_all
+     use convthin, only: make3grids,map3grids_m,del3grids,use_all
      use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
      use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
      use mpimod, only: npe
@@ -128,7 +128,6 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !    integer(i_kind) :: m,itypex,lcount,iflag
      integer(i_kind) :: nlevp   ! vertical level for thinning
      integer(i_kind) :: pflag   
-     integer(i_kind) :: ntmp
      integer(i_kind) :: kk,klon1,klat1,klonp1,klatp1
      integer(i_kind) :: iuse
      integer(i_kind) :: nmind
@@ -137,6 +136,11 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      integer(i_kind) :: ibit(mxib)
      integer(i_kind) :: idate5(5)
 
+     logical, allocatable,dimension(:)     :: rusage,rthin
+     logical save_all
+!    integer(i_kind)  numthin,numqc,numrem
+     integer(i_kind)  pmot,iqm,numall
+     integer(i_kind) ndata_end,ndata_start
 
 !    Real variables
      real(r_kind), parameter :: r0_001  =  0.001_r_kind
@@ -257,7 +261,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      else if (lpsob) then  
         nreal  = 23 
         iecol  =  5 
-        errmin = one_tenth ! set lower bound of ob error for moisture (RH) 
+        errmin = one_tenth ! set lower bound of ob error for surface pressure 
      else 
         write(6,*) ' illegal obs type in read_fl_hdob '
         call stop2(94)
@@ -351,6 +355,12 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
         write(6,*)'READ_FL_HDOB: ictype(nc),rmesh,pflag,nlevp,pmesh,nc ',&
                    ioctype(nc),ictype(nc),rmesh,pflag,nlevp,pmesh,nc
      endif
+     pmot=nint(pmot_conv(nc))
+     if(reduce_diag .and. pmot < 2)pmot=pmot+2
+     save_all=.false.
+     if(pmot /= 2) save_all=.true.
+     ndata_start=ndata+1
+
 
 !------------------------------------------------------------------------------------------------
 
@@ -376,7 +386,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !---------------------------------------------------------------------------------------------------
 
 !    Allocate array to hold data
-     allocate(cdata_all(nreal,maxobs))
+     allocate(cdata_all(nreal,maxobs),rusage(maxobs),rthin(maxobs))
 
 !    Initialize
      cdata_all = zero 
@@ -386,6 +396,9 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      nvtest    = 0
      ilon      = 2 
      ilat      = 3 
+     rusage = .true.
+     rthin = .false.
+     use_all=.true.
 
 !    Open bufr file again for reading
      open(lunin,file=trim(infile),form='unformatted')
@@ -628,7 +641,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
                           endif
                        enddo
                        if (ncount_ps ==1) then
-                          write(6,*) 'READ_FL_HDOB,WARNING!!psob: cannot find subtyep in the error,&
+                          write(6,*) 'READ_FL_HDOB,WARNING!!psob: cannot find subtype in the error,&
                                       table,itype,iosub=',itypey,icsubtype(nc)
                           write(6,*) 'read error table at colomn subtype as 0, error table column= ',ierr_ps
                        endif
@@ -660,7 +673,10 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !          temperature will be used
            if (ltob) then
               qcm = t_qm 
-              if (qcm > 3) usage = r100  
+              if (qcm > 3) then
+                 usage = r100  
+                 if(pmot >= 2 .and. usage >= r100)rusage(ndata+1)=.false.
+              end if
               call ufbint(lunin,obstmp,2,1,nlv,tmpstr)
               call ufbint(lunin,obsmst,3,1,nlv,mststr)
               tob  = obstmp(2,1)  ! airs temperature [K] 
@@ -740,7 +756,10 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !          related QC mark and then calculate specific humidity
            if (lqob) then
               qcm = q_qm
-              if (qcm > 3) usage = r100 
+              if (qcm > 3) then
+                 usage = r100 
+                 if(pmot >= 2 .and. usage >= r100)rusage(ndata+1)=.false.
+              end if
               call ufbint(lunin,obstmp,2,1,nlv,tmpstr)
               call ufbint(lunin,obsmst,3,1,nlv,mststr)
               tob  = obstmp(2,1)  ! dry airs temperature [K] 
@@ -813,7 +832,10 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !          Convert wind direction and spped to u and v wind components
            if (luvob) then
               qcm = uv_qm
-              if (qcm > 3) usage=r100 
+              if (qcm > 3) then
+                 usage=r100 
+                 if(pmot >= 2 .and. usage >= r100)rusage(ndata+1)=.false.
+              end if
               call ufbint(lunin,obswnd,4,1,nlv,wndstr)
               wdir = obswnd(2,1)     ! degree true  
               wspd = obswnd(3,1)     ! m/s 
@@ -825,7 +847,10 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !          Read surface wind speed [m/s] and total rain rate [mm/hr] from SFMR 
            if (lspdob) then
               qcm = wspd_qm
-              if (qcm > 3) usage=r100 
+              if (qcm > 3) then
+                 usage=r100 
+                 if(pmot >= 2 .and. usage >= r100)rusage(ndata+1)=.false.
+              end if
               call ufbint(lunin,obsfmr,2,1,nlv,sfmrstr)
 !             print*, 'PKSWSP =  ', obstype,obsfmr(1,1)
 !             print*, 'TRRP   =  ', obstype,obsfmr(2,1)
@@ -915,8 +940,6 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
                  end do
               endif ! pflag 
 
-              ntmp = ndata          ! counting moved into map3grids
-
 !             Set data quality index for thinning
               if (thin4d) then
                  timedif = zero
@@ -930,19 +953,18 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
                  end do
               endif
 
-              call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,& 
-                             pob_cb,crit1,ndata,iout,luse,.false.,.false.)
+              call map3grids_m(-1,save_all,pflag,presl_thin,nlevp, &
+                     dlat_earth,dlon_earth,pob_cb,crit1,ndata,&
+                     luse,maxobs,rthin,.false.,.false.)
+
 
               if (.not. luse) cycle loop_readsb2
 
-              if (ndata > ntmp) then
-                 nodata = nodata+2
-              endif
+              if(rthin(ndata))usage=101._r_kind
            else
               ndata        = ndata+1
-              nodata       = nodata+2
-              iout         = ndata
            endif ! ithin
+           iout         = ndata
 
 !-------------------------------------------------------------------------------------------------          
 !          Write data into output arrays
@@ -952,8 +974,11 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
            if (lpsob) then
               qcm  = ps_qm
               psoe = obserr*one_tenth                   ! convert from mb to cb
+              iqm=10
               if (inflate_error) psoe = psoe*r1_2
-              if (qcm > lim_qm ) psoe = psoe*1.0e6_r_kind
+              if (qcm > lim_qm ) then
+                 psoe = psoe*1.0e6_r_kind
+              end if
               cdata_all( 1,iout)=psoe                   ! surface pressure error (cb)             
               cdata_all( 2,iout)=dlon                   ! grid relative longitude                  
               cdata_all( 3,iout)=dlat                   ! grid relative latitude          
@@ -983,9 +1008,12 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !          Winds --- u, v components 
            if (luvob) then
               woe = obserr
+              iqm = 12
               if (pob_mb < r50)  woe = woe*r1_2
               if (inflate_error) woe = woe*r1_2
-              if (qcm > lim_qm ) woe = woe*1.0e6_r_kind
+              if (qcm > lim_qm ) then
+                 woe = woe*1.0e6_r_kind
+              end if
               if(regional .and. .not. fv3_regional)then
                  u0 = uob
                  v0 = vob
@@ -1032,9 +1060,12 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !          Temperature
            if(ltob) then
               toe = obserr
+              iqm = 10
               if (pob_mb < r100) toe = toe*r1_2
               if (inflate_error) toe = toe*r1_2
-              if (qcm > lim_qm ) toe = toe*1.0e6_r_kind
+              if (qcm > lim_qm ) then
+                 toe = toe*1.0e6_r_kind
+              end if
               cdata_all( 1,iout)=toe                    ! temperature error
               cdata_all( 2,iout)=dlon                   ! grid relative longitude       
               cdata_all( 3,iout)=dlat                   ! grid relative latitude                       
@@ -1067,11 +1098,14 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
            if(lqob) then
               qoe     = obserr*one_tenth  ! RH (e.g. 0.98)
               qmaxerr = emerr
+              iqm = 11
               if (inflate_error) then
                  qmaxerr = emerr*r0_7 
                  qoe     = qoe*r1_2
               end if
-              if (qcm > lim_qm ) qoe = qoe*1.0e6_r_kind
+              if (qcm > lim_qm ) then
+                 qoe = qoe*1.0e6_r_kind
+              end if
               cdata_all( 1,iout)=qoe                    ! q error (RH e.g. 0.98)
               cdata_all( 2,iout)=dlon                   ! grid relative longitude                    
               cdata_all( 3,iout)=dlat                   ! grid relative latitude          
@@ -1102,8 +1136,11 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !          Winds --- surface wind speed 
            if (lspdob) then
               woe = obserr
+              iqm = 11
               if (inflate_error) woe = woe*r1_2
-              if (qcm > lim_qm ) woe = woe*1.0e6_r_kind
+              if (qcm > lim_qm ) then
+                 woe = woe*1.0e6_r_kind
+              end if
               cdata_all( 1,iout)=woe                    ! wind error
               cdata_all( 2,iout)=dlon                   ! grid relative longitude             
               cdata_all( 3,iout)=dlat                   ! grid relative latitude                  
@@ -1140,24 +1177,79 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
         deallocate(presl_thin)
         call del3grids
      endif
- 
+
+     numall=ndata-ndata_start+1
+     if(numall > 0)then
+!       numthin=0
+!       numqc=0
+!       numrem=0
+!       do i=ndata_start,ndata
+!         if(.not. rusage(i))then
+!            numqc=numqc+1
+!         else if(rthin(i))then
+!            numthin=numthin+1
+!         else
+!            numrem=numrem+1
+!         end if
+!       end do
+!       write(6,*) ' fl ',trim(ioctype(nc)),ictype(nc),icsubtype(nc),numall,&
+!              numrem,numqc,numthin
+!   If thinned data set quality mark to 16
+        if (ithin > 0 .and. ithin <5) then
+          do i=ndata_start,ndata
+             if(rthin(i))cdata_all(iqm,i)=16
+          end do
+        end if
+
+!     If flag to not save thinned data is set - compress data
+        if(pmot /= 1)then
+          ndata_end=ndata
+          ndata=ndata_start-1
+          do i=ndata_start,ndata_end
+
+!         pmot=0 - all obs - thin obs
+!         pmot=1 - all obs
+!         pmot=2 - use obs
+!         pmot=3 - use obs + thin obs
+             if((pmot == 0 .and. .not. rthin(i)) .or. &
+                (pmot == 2 .and. (rusage(i) .and. .not. rthin(i)))  .or. &
+                (pmot == 3 .and. rusage(i))) then
+
+                ndata=ndata+1
+                if(i > ndata)then
+                   do k=1,nreal
+                      cdata_all(k,ndata)=cdata_all(k,i)
+                   end do
+                end if
+             end if
+           end do
+        end if
+      end if
+      if(luvob)then
+         nodata=nodata+2*(ndata-ndata_start + 1)
+      else
+         nodata=nodata+ndata-ndata_start + 1
+      end if
+      ndata_start=ndata+1
+
+
 !    Write header record and data to output file for further processing
 !     deallocate(etabl)
 
      call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
      write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
-     deallocate(cdata_all)
-900  continue
+     deallocate(cdata_all,rusage,rthin)
+
      if(diagnostic_reg .and. ntest>0)  write(6,*)'READ_FL_HDOB:  ',&
         'ntest,  disterrmax=', ntest,disterrmax
      if(diagnostic_reg .and. nvtest>0) write(6,*)'READ_FL_HDOB:  ',&
         'nvtest,vdisterrmax=',ntest,vdisterrmax
 
      if (ndata == 0) then
-        write(6,*)'READ_FL_HDOB: no data to process'
+        write(6,*)'READ_FL_HDOB: no data to process',obstype
      endif
-     write(6,*)'READ_FL_HDOB: nreal=',nreal
+     write(6,*)'READ_FL_HDOB: nreal=',nreal,obstype
      write(6,*)'READ_FL_HDOB: ntb,nread,ndata,nodata=',ntb,nread,ndata,nodata
 
 

@@ -420,7 +420,11 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   end if
 
   do i=1,nobs
-     muse(i)=nint(data(iuse,i)) <= jiter
+     muse(i)=nint(data(iuse,i)) < 100._r_kind .and. nint(data(iqc,i)) < 8
+!    muse(i)=nint(data(iuse,i)) <= jiter
+!    ikx=nint(data(ikxx,i))
+!    itype=ictype(ikx)
+!    if(muse(i))write(300+mype,*) i,itype
   end do
 !  If HD raobs available move prepbufr version to monitor
   if(nhduv > 0)then
@@ -1061,7 +1065,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         dvdiff_opp = -vob - vgesin
         vecdiff = sqrt(dudiff**2 + dvdiff**2)
         vecdiff_opp = sqrt(dudiff_opp**2 + dvdiff_opp**2)
-        ascat_vec = sqrt((dudiff**2 + dvdiff**2)/spdob**2)       
+!       ascat_vec = sqrt((dudiff**2 + dvdiff**2)/spdob**2)
 
         if ( abs(dudiff) > qcu  .or. &       ! u component check
              abs(dvdiff) > qcv  .or. &       ! v component check
@@ -1326,9 +1330,19 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         my_head%ik=ikapa(ikx)
         my_head%luse=luse(i)
 !        if( i==3) print *,'SETUPW',my_head%ures,my_head%vres,my_head%err2
-
-        if (luse_obsdiag) then
-        endif ! (luse_obsdiag)
+        if(nn == 1)then
+          write(300+mype,*) i,mype,is,ioid(i)
+          write(300+mype,*) wNode_ich0
+          write(300+mype,*) data(ilate,i),data(ilone,i)
+          write(300+mype,*) dpres,factw
+          write(300+mype,*) (my_head%wij(k),k=1,8)
+          write(300+mype,*) dudiff,dvdiff
+          write(300+mype,*) error,ratio_errors,dtime
+          write(300+mype,*) cvar_b(ikx),cvar_pg(ikx)
+          write(300+mype,*) var_jb,ibeta(ikx),ikapa(ikx)
+          write(300+mype,*) luse(i)
+        end if
+         
 
         if(oberror_tune) then
            my_head%upertb=data(iptrbu,i)/error/ratio_errors
