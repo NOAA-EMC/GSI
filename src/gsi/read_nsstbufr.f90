@@ -97,7 +97,6 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
   integer(i_kind):: idomsfc,isflg
 
   integer(i_kind) :: ireadmg,ireadsb,klev,msub,nmsub
-  integer(i_kind) :: SST_qcmark, AirT_qcmark
   integer(i_kind), dimension(5) :: idate5
   character(len=8)  :: subset
   character(len=8)  :: crpid
@@ -316,11 +315,9 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            cycle read_loop
         endif
 
-          call ufbint(lunin,loc,4,1,iret,'CLAT CLATH CLON CLONH,QMST,QMAT')
+          call ufbint(lunin,loc,4,1,iret,'CLAT CLATH CLON CLONH')
           clath=loc(1) ; if ( ibfms(loc(2)).eq.0 ) clath=loc(2)
           clonh=loc(3) ; if ( ibfms(loc(4)).eq.0 ) clonh=loc(4)
-          SST_qcmark = nint(loc(5))
-          AirT_qcmark = nint(loc(6))
 
         nread = nread + 1
 
@@ -593,8 +590,6 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 !             (kx<180 .or. kx>289 .or. (kx>202 .and. kx<280)) ) cycle read_loop
 
            usage = zero
-!          As the SST qcmark is not being set by SDMEdit, use QMAT (air temperature) as a proxy.
-           if ( SST_qcmark > 3 .OR. AirT_qcmark > 3 ) usage = 120.0_r_kind  
            if (   icuse(ikx) < 0 ) usage = 100.0_r_kind
            if ( ncnumgrp(ikx) > 0 ) then                                ! cross validation on
               if (mod(ndata+1,ncnumgrp(ikx))== ncgroup(ikx)-1) usage=ncmiter(ikx)
