@@ -1084,7 +1084,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                                     cloudcover_overcast_overlap
   !use chemmod, only: raod_radius_mean_scale,raod_radius_std_scale
   use gridmod, only: fv3_cmaq_regional
-  use qcmod, only: airs_cads, iasi_cads, cris_cads
 
   implicit none
 
@@ -2233,20 +2232,15 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
          wmix(k,i)=zero
        end do
 
-! This computes the channel order based on the channels sensitivity to a cloud at each model layer.
-! CADS usese this as its basis to accept/reject channels due to cloud.
-       if ((trim(obstype) == 'airs' .and. airs_cads) .or. (trim(obstype) == 'iasi' .and. iasi_cads) &
-         .or. ((trim(obstype) == 'cris' .or. trim(obstype) == 'cris-fsr') .and. cris_cads)) then
-         radiance=rtsolution(i,1)%radiance
-         do k=msig, 1, -1
-            radiance_overcast = rtsolution(i,1)%upwelling_overcast_radiance(k)
-            radiance_ratio = abs(radiance_overcast/radiance)
-            if (radiance_ratio < 0.99_r_kind) then
-              chan_level(i) = atmosphere(1)%pressure(k) / r10
-              exit
-            endif
-         enddo
-       endif
+       radiance=rtsolution(i,1)%radiance
+       do k=msig, 1, -1
+          radiance_overcast = rtsolution(i,1)%upwelling_overcast_radiance(k)
+          radiance_ratio = abs(radiance_overcast/radiance)
+          if (radiance_ratio < 0.99_r_kind) then
+             chan_level(i) = atmosphere(1)%pressure(k) / r10
+             exit
+          endif
+       enddo
 
 !  Simulated brightness temperatures
        tsim(i)=rtsolution(i,1)%brightness_temperature

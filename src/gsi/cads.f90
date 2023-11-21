@@ -29,6 +29,7 @@ module cads
   public :: cloud_aerosol_detection
   public :: cads_setup_cloud
   public :: Cloud_Detect_Type
+  public :: cads_imager_calc
 
   public :: M__Sensor,N__Num_Bands,N__GradChkInterval,N__Band_Size,N__Bands,N__Window_Width, &
             N__Window_Bounds,R__BT_Threshold,R__Grad_Threshold,R__Window_Grad_Threshold, L__Do_Quick_Exit, &
@@ -2060,5 +2061,170 @@ SUBROUTINE CADS_Detect_Cloud_Separator( K__Sensor, K__Band, K__NumChans, K__Grad
   IF (ALLOCATED(Z__DBT_w_Buffer)) DEALLOCATE(Z__DBT_w_Buffer)
 
 END SUBROUTINE CADS_Detect_Cloud_Separator
+
+subroutine cads_imager_calc(obstype,isis,nobs,nreal,nchanl,nsig,data_s,init_pass,mype, &
+                             imager_cluster_fraction,imager_cluster_bt,imager_chan_stdev, imager_model_bt)
+
+!$$$ subprogram documentation block
+!
+! subprogram: cads_imager_calc    compute model equivalent to the imager channels used by CADS
+!   prgmmr: Jung
+!
+! abstract:  accumulate the data necessary to derive the model equivalent brightness temperatures 
+!            used by the cloud and aerosol detection software for the imager cloud tests.
+!
+! program history log:
+!
+!
+!
+! subroutines included:
+!
+!
+! input argument list: 
+!
+!    obstype - type of tb observation
+!    isis - sensor/instrument/satellite id
+!    nobs - number of observations
+!    nreal - number of pieces of info (location, time, etc) per obs
+!    nchanl - number of channels per obs
+!    nsig - number of model layers
+!    data_s - array containing input data information for a specific sensor
+!    init_pass  - state of "setup" processing
+!    mype - mpi task id
+!
+!  output argument list:
+
+!    imager_cluster_fraction - CADS cluster fraction ( dimension 7)
+!    imager_cluster_bt - avreage brightness temperature of a cluster
+!    imager_chan stdev - brightness temperature standard deviation of the cluster
+!    imager_model_bt - model derived brightness temperature 
+!
+!
+!$$$ end documentation block
+
+   use kinds, only: i_kind, r_kind
+   use constants, only: zero
+   use radiance_mod, only: rad_obs_type
+   use radinfo, only: jpch_rad, nusis, crtm_coeffs_path, nsigradjac
+   use crtm_interface, only: init_crtm, call_crtm, destroy_crtm, itime
+   use obsmod, only: dval_use
+   use gsi_nstcouplermod, only: nstinfo
+
+   implicit none
+
+   logical,                             intent(in)  :: init_pass
+   character(len=10),                   intent(in)  :: obstype
+   character(len=20),                   intent(in)  :: isis
+   integer(i_kind),                     intent(in)  :: nobs, nreal, nchanl, nsig
+   integer(i_kind),                     intent(in)  :: mype
+   real(r_kind),dimension(nreal+nchanl,nobs),intent(in)  :: data_s
+   real(r_kind),dimension(7,nobs),      intent(out) :: imager_cluster_fraction
+   real(r_kind),dimension(2,7,nobs),    intent(out) :: imager_cluster_bt
+   real(r_kind),dimension(2,nobs),      intent(out) :: imager_chan_stdev, imager_model_bt
+
+! local variables
+   integer(i_kind) :: jc, i, n
+   integer(i_kind) :: itmp1_cads, itmp2_cads, nchanl_cads, maxinfo, dval_info, cads_info, error_status
+   integer(i_kind),allocatable,dimension(:) :: ich_cads
+   logical :: imager_spccoeff, imager_taucoeff
+   real(r_kind) :: dtime, clw_guess, ciw_guess, rain_guess, snow_guess
+   real(r_kind) :: trop5, tzbgr, dtsavg, sfc_speed 
+   real(r_kind),dimension(nsig) :: qvp, tvp, qs, prsltmp
+   real(r_kind),dimension(nsig+1) :: prsitmp
+   real(r_kind),allocatable,dimension(:)   :: tsim_cads, emissivity_cads, chan_level_cads
+   real(r_kind),allocatable,dimension(:)   :: ts_cads, emissivity_k_cads,data_s_cads
+   real(r_kind),allocatable,dimension(:,:) :: ptau5_cads, temp_cads, wmix_cads, jacobian_cads
+   character(len=80) :: spc_filename, tau_filename
+   character(len=20) :: isis_cads
+   character(len=10) :: obstype_cads
+
+   type(rad_obs_type) :: radmod
+   
+   cads_info = 23
+   dval_info = 0
+   if (dval_use) dval_info = 2
+
+   itmp1_cads = len(trim(obstype))
+   itmp2_cads = len(trim(isis))
+
+   if ( obstype == 'iasi' ) then
+     isis_cads = 'avhrr3'//isis(itmp1_cads+1:itmp2_cads)
+     obstype_cads = 'avhrr'
+!    nchanl_cads = 3    !channels 3 - 5
+   elseif ( obstype == 'cris' .or. obstype == 'cris-fsr' ) then
+!    isis_cads = 'viirs-m'//isis(itmp1+1:itmp2) When naming convention becomes standarized with CrIS
+     if ( isis == 'cris-fsr_npp' .or. isis == 'cris_npp' ) then
+       isis_cads = 'viirs-m_npp'
+     elseif ( isis == 'cris-fsr_n20' ) then
+       isis_cads = 'viirs-m_n20'
+       spc_filename = trim(crtm_coeffs_path)//trim(isis_cads)//'.SpcCoeff.bin'
+       inquire(file=trim(spc_filename), exist=imager_spccoeff)
+       if ( .not. imager_spccoeff ) isis_cads = 'viirs-m_j1'
+     elseif ( isis == 'cris-fsr_n21' ) then
+       isis_cads = 'viirs-m_n21'
+       spc_filename = trim(crtm_coeffs_path)//trim(isis_cads)//'.SpcCoeff.bin'
+       inquire(file=trim(spc_filename), exist=imager_spccoeff)
+       if ( .not. imager_spccoeff ) isis_cads = 'viirs-m_j2'
+     endif
+     obstype_cads = 'viirs-m'
+!    nchanl_cads = 5   ! channels 12 - 16
+   endif
+
+   spc_filename = trim(crtm_coeffs_path)//trim(isis_cads)//'.SpcCoeff.bin'
+   inquire(file=trim(spc_filename), exist=imager_spccoeff)
+   tau_filename = trim(crtm_coeffs_path)//trim(isis_cads)//'.TauCoeff.bin'
+   inquire(file=trim(tau_filename), exist=imager_taucoeff)
+
+! IF the RTM files exist allocate and setup various arrays for the RTM
+   if ( imager_spccoeff .and.  imager_taucoeff) then
+     nchanl_cads = 0
+     do i=1,jpch_rad
+       if (trim(isis_cads) == nusis(i)) then
+         nchanl_cads = nchanl_cads +1
+       endif
+     end do
+
+     allocate( ich_cads(nchanl_cads) )
+     jc = 0
+     do i=1,jpch_rad
+       if (trim(isis_cads) == nusis(i)) then
+         jc = jc +1
+         ich_cads(jc) = i
+       endif
+     end do
+
+     call init_crtm(init_pass,-99,mype,nchanl_cads,nreal,isis_cads,obstype_cads,radmod)
+
+! Initialize variables needed for the infrared cloud and aerosol detection software
+     allocate(data_s_cads(nreal+nchanl_cads),tsim_cads(nchanl_cads),emissivity_cads(nchanl_cads), &
+            chan_level_cads(nchanl_cads),ptau5_cads(nsig,nchanl_cads),ts_cads(nchanl_cads),emissivity_k_cads(nchanl_cads), &
+            temp_cads(nsig,nchanl_cads),wmix_cads(nsig,nchanl_cads), jacobian_cads(nsigradjac,nchanl_cads))
+
+     do n = 1,nobs      ! loop to derive imager BTs for CADS
+!    Extract analysis relative observation time.
+       dtime = data_s(itime,n)
+       maxinfo = nreal - cads_info - dval_info - nstinfo
+       if ( sum(data_s(maxinfo+1:maxinfo+7,n)) > 0.90_r_kind ) then  ! imager cluster information exists for this profile
+         data_s_cads = data_s(1:nreal+nchanl_cads,n)
+         call call_crtm(obstype_cads,dtime,data_s_cads,nchanl_cads,nreal,ich_cads, &
+              tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
+              trop5,tzbgr,dtsavg,sfc_speed,tsim_cads,emissivity_cads,chan_level_cads, &
+              ptau5_cads,ts_cads,emissivity_k_cads,temp_cads,wmix_cads,jacobian_cads,error_status) 
+
+!  Transfer imager data to arrays for qc_irsnd
+         imager_cluster_fraction(1:7,n) = data_s(maxinfo+1:maxinfo+7,n)
+         imager_cluster_bt(1,1:7,n) = data_s(maxinfo+8:maxinfo+14,n)
+         imager_cluster_bt(2,1:7,n) = data_s(maxinfo+15:maxinfo+21,n)
+         imager_chan_stdev(1:2,n) = data_s(maxinfo+22:maxinfo+23,n)
+         imager_model_bt(1:2,n) = tsim_cads(nchanl_cads-1:nchanl_cads)
+       endif ! imager information exists 
+     end do   ! End loop to derive imager BTs
+
+     call destroy_crtm
+     deallocate(data_s_cads,tsim_cads,emissivity_cads, ich_cads,chan_level_cads,ptau5_cads,&
+            ts_cads,emissivity_k_cads, temp_cads,wmix_cads, jacobian_cads)
+   endif  ! RTM files exist
+
+ end subroutine cads_imager_calc
 
 end module cads

@@ -4532,7 +4532,7 @@ subroutine qc_geocsr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 
 ! Declare local parameters
   real(r_kind) :: demisf,dtempf,sfchgtfact,term,dtbf,efact,vfact
-  real(r_kind) :: sum,sum2,sum3,tmp,dts,delta
+  real(r_kind) :: sum,sum2,sum3,cloudp,tmp,dts,delta
   real(r_kind),dimension(nchanl) :: dtb
   integer(i_kind) :: i,j,k,kk,lcloud
   integer(i_kind), dimension(nchanl) :: irday
@@ -4650,17 +4650,18 @@ subroutine qc_geocsr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
            end if
         end do
         if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
-        cld=min(max(sum/sum2,zero),one)
+        cloudp=min(max(sum/sum2,zero),one)
         sum=zero
         do i=1,nchanl
            if(varinv_use(i) > tiny_r_kind)then
-              tmp=tbc(i)-cld*dtb(i)
+              tmp=tbc(i)-cloudp*dtb(i)
               sum=sum+tmp*tmp*varinv_use(i)
            end if
         end do
         if(sum < sum3)then
            sum3=sum
            lcloud=k
+           cld=cloudp
            cldp=r10*prsltmp(k)
         end if
      end if
