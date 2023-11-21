@@ -34,7 +34,7 @@ jobs:
       # Cache spack, compiler and dependencies
       - name: cache-env
         id: cache-env
-        uses: actions/cache@v4
+        uses: actions/cache@v3
         with:
           path: |
             spack
@@ -70,7 +70,7 @@ jobs:
 
       - name: cache-env
         id: cache-env
-        uses: actions/cache@v4
+        uses: actions/cache@v3
         with:
           path: |
             spack
