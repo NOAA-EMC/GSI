@@ -612,7 +612,7 @@ contains
            if (nst_gsi>0) then
               call nc_diag_metadata_to_single("FoundationTempBG",data(itref,i) )
               call nc_diag_metadata_to_single("DiurnalWarming_at_zob",data(idtw,i) )
-              call nc_diag_metadata_to_single("SkinLayerCooling_at_zob",data(idtw,i) )
+              call nc_diag_metadata_to_single("SkinLayerCooling_at_zob",data(idtc,i) )
               call nc_diag_metadata_to_single("Sensitivity_Tzob_Tr",data(itz_tr,i) )
            endif
  
