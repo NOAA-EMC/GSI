@@ -360,10 +360,10 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
 
 
 ! compute look angle (panglr) and check against max angle
-!        panglr=(start+float(ifov-1)*step)*deg2rad
+!        panglr=(start+real(ifov-1,r_kind)*step)*deg2rad
 ! Use this calculation for now:
         step = .6660465
-        panglr = (42.96 - float(ifov-1)*step)*deg2rad
+        panglr = (42.96 - real(ifov-1,r_kind)*step)*deg2rad
 
         if(abs(lza)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
           write(6,*)'READ_SAPHIR WARNING lza error ',lza,panglr
@@ -508,7 +508,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
 
 
 
-     crit1 = crit1 + rlndsea(isflg) + 10._r_kind*float(iskip) + 0.01_r_kind * abs(zz)
+     crit1 = crit1 + rlndsea(isflg) + 10._r_kind*real(iskip,r_kind) + 0.01_r_kind * abs(zz)
      call checkob(dist1,crit1,itx,iuse)
      if(.not. iuse)cycle ObsLoop
 
@@ -529,10 +529,10 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
      endif
 
 ! Re-calculate look angle
-!     panglr=(start+float(ifov-1)*step)*deg2rad
+!     panglr=(start+real(ifov-1,r_kind)*step)*deg2rad
 ! Use this calculation for now:
         step = .6660465
-        panglr = (42.96 - float(ifov-1)*step)*deg2rad
+        panglr = (42.96 - real(ifov-1,r_kind)*step)*deg2rad
 
 !     Load selected observation into data array
               

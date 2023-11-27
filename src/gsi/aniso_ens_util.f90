@@ -122,8 +122,8 @@ subroutine ens_uv_to_psichi(u,v,truewind)
         do j=1,nlon
            rlon=region_lon(i,j)
            rlat=region_lat(i,j)
-           dlon=float(j)*one
-           dlat=float(i)*one
+           dlon=real(j,r_kind)
+           dlat=real(i,r_kind)
            ue=u(i,j)
            ve=v(i,j)
            call rotate_wind_ll2xy(ue,ve,ug,vg,rlon,dlon,dlat)
@@ -440,13 +440,13 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
               yg=rlat+90._r_kind+one
            end if
 
-           dxg=xg-float(floor(xg))
-           dyg=yg-float(floor(yg))
+           dxg=xg-real(floor(xg),r_kind)
+           dyg=yg-real(floor(yg),r_kind)
            dxg1=one-dxg
            dyg1=one-dyg
 
-           if (xg>=one .and. xg<=float(jxp) .and.  &
-               yg>=one .and. yg<=float(iy) ) then
+           if (xg>=one .and. xg<=real(jxp,r_kind) .and.  &
+               yg>=one .and. yg<=real(iy,r_kind) ) then
 
               enscoeff(1,i,j,kg)=dxg1*dyg1
               enscoeff(2,i,j,kg)=dxg1*dyg
@@ -479,9 +479,9 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
      endif
 
      do j=1,iy
-        yg=float(j)*one
+        yg=real(j,r_kind)
         do i=1,jx
-           xg=float(i)*one
+           xg=real(i,r_kind)
            call w3fb12(xg,yg,alat1,elon1,ds,elonv,alatan,rlat,rlon,ierr8)
            rlon=rlon/rad2deg
            rlat=rlat/rad2deg
@@ -620,34 +620,34 @@ subroutine ens_intpcoeffs_reg(ngrds,igbox,iref,jref,igbox0f,ensmask,enscoeff,gbl
      igbox(2,kg)=iimax0(kg)
      igbox(3,kg)=jjmin0(kg)
      igbox(4,kg)=jjmax0(kg)
-     igbox0f(1,kg)=one+float((igbox(1,kg)-1))/pf2aP1%grid_ratio_lat + ijadjust
-     igbox0f(2,kg)=one+float((igbox(2,kg)-1))/pf2aP1%grid_ratio_lat - ijadjust
-     igbox0f(3,kg)=one+float((igbox(3,kg)-1))/pf2aP1%grid_ratio_lon + ijadjust
-     igbox0f(4,kg)=one+float((igbox(4,kg)-1))/pf2aP1%grid_ratio_lon - ijadjust
+     igbox0f(1,kg)=one+real(igbox(1,kg)-1,r_kind)/pf2aP1%grid_ratio_lat + ijadjust
+     igbox0f(2,kg)=one+real(igbox(2,kg)-1,r_kind)/pf2aP1%grid_ratio_lat - ijadjust
+     igbox0f(3,kg)=one+real(igbox(3,kg)-1,r_kind)/pf2aP1%grid_ratio_lon + ijadjust
+     igbox0f(4,kg)=one+real(igbox(4,kg)-1,r_kind)/pf2aP1%grid_ratio_lon - ijadjust
   end do
 
 !==> compute blending functions
 
   do i=1,pf2aP1%nlatf
-     dist1=float(igbox0f(1,1)-i)
-     dist2=float(i-igbox0f(2,1))
+     dist1=real(igbox0f(1,1)-i,r_kind)
+     dist2=real(i-igbox0f(2,1),r_kind)
      gblend_b(i,1)=half*(one-tanh(dist1)) !relax to zero
      gblend_t(i,1)=half*(one-tanh(dist2)) !outside 212 grid
 
-     dist1=float(igbox0f(1,2)-i)
-     dist2=float(i-igbox0f(2,2))
+     dist1=real(igbox0f(1,2)-i,r_kind)
+     dist2=real(i-igbox0f(2,2),r_kind)
      gblend_b(i,2)=half*(one-tanh(dist1)) !relax to zero
      gblend_t(i,2)=half*(one-tanh(dist2)) !outside 221 grid
   end do
 
   do j=1,pf2aP1%nlonf
-     dist1=float(igbox0f(3,1)-j)
-     dist2=float(j-igbox0f(4,1))
+     dist1=real(igbox0f(3,1)-j,r_kind)
+     dist2=real(j-igbox0f(4,1),r_kind)
      gblend_l(j,1)=half*(one-tanh(dist1)) !relax to zero
      gblend_r(j,1)=half*(one-tanh(dist2)) !outside 212 grid
  
-     dist1=float(igbox0f(3,2)-j)
-     dist2=float(j-igbox0f(4,2))
+     dist1=real(igbox0f(3,2)-j,r_kind)
+     dist2=real(j-igbox0f(4,2),r_kind)
      gblend_l(j,2)=half*(one-tanh(dist1)) !relax to zero
      gblend_r(j,2)=half*(one-tanh(dist2)) !outside 221 grid
   end do
@@ -1141,10 +1141,10 @@ subroutine ens_fill(ur,na,nb,u,nxx,ny,itap,no_wgt_in)
   no_wgt=.false.
   if(no_wgt_in) no_wgt=.true.
 
-  pionp1=four*atan(one)/float(itap+1)
+  pionp1=four*atan(one)/real(itap+1,r_kind)
 
   do i=1,itap
-     xi=float(i)
+     xi=real(i,r_kind)
      wt(i)=half+half*cos(pionp1*xi)
   enddo
 

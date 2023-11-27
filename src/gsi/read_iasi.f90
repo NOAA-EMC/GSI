@@ -577,7 +577,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            nread = nread + satinfo_nchan
 
            crit0 = 0.01_r_kind
-           if( llll > 1 ) crit0 = crit0 + r100 * float(llll)
+           if( llll > 1 ) crit0 = crit0 + r100 * real(llll,r_kind)
            timeinflat=6.0_r_kind
            call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
            call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
@@ -598,7 +598,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          Compare IASI satellite scan angle and zenith angle
            piece = -step_adjust
            if ( mod(ifovn,2) == 1) piece = step_adjust
-           lza = ((start + float((ifov-1)/4)*step) + piece)*deg2rad
+           lza = ((start + real((ifov-1)/4,r_kind)*step) + piece)*deg2rad
            sat_height_ratio = (earth_radius + linele(4))/earth_radius
            lzaest = asin(sat_height_ratio*sin(lza))*rad2deg
            if (abs(sat_zenang - lzaest) > one) then
@@ -748,7 +748,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
               cycle read_loop 
            end if
 
-!          crit1=crit1 + ten*float(iskip)
+!          crit1=crit1 + ten*real(iskip,r_kind)
 
 !          If the surface channel exists (~960.0 cm-1) and the AVHRR cloud information is missing, use an
 !          estimate of the surface temperature to determine if the profile may be clear.
@@ -826,8 +826,14 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !          Put satinfo defined channel temperatures into data array
            do l=1,satinfo_nchan
+              ! Prevent out of bounds reference from temperature
+              if ( bufr_index(l) == 0 ) cycle
               i = bufr_index(l)
-              data_all(l+nreal,itx) = temperature(i)   ! brightness temerature
+              if(i /= 0)then
+                 data_all(l+nreal,itx) = temperature(i)   ! brightness temerature
+              else
+                 data_all(l+nreal,itx) = tbmin
+              end if
            end do
            nrec(itx)=irec
 

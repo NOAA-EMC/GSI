@@ -173,19 +173,19 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
   end type radar
 
 !--Counters for diagnostics
- integer(i_kind) :: num_missing=0,numbadtime=0, &   !counts
-                    num_badtilt=0,num_badrange=0, &
-                    ibadazm=0 
+  integer(i_kind) :: num_missing=0,numbadtime=0, &   !counts
+                     num_badtilt=0,num_badrange=0, &
+                     ibadazm=0 
 
-integer(i_kind) :: ithin,zflag,nlevz,icntpnt,klon1,klat1,kk,klatp1,klonp1
-real(r_kind) :: rmesh,xmesh,zmesh,dx,dy,dx1,dy1,w00,w01,w10,w11
-real(r_kind), allocatable, dimension(:) :: zl_thin
+  integer(i_kind) :: ithin,zflag,nlevz,icntpnt,klon1,klat1,kk,klatp1,klonp1
+  real(r_kind) :: rmesh,xmesh,zmesh,dx,dy,dx1,dy1,w00,w01,w10,w11
+  real(r_kind), allocatable, dimension(:) :: zl_thin
   real(r_kind),dimension(nsig):: hges,zges
   real(r_kind) sin2,termg,termr,termrg,zobs,height
   integer(i_kind) ntmp,iout,iiout,ntdrvr_thin2
   real(r_kind) crit1,timedif
   real(r_kind),parameter:: r16000 = 16000.0_r_kind
-logical :: luse
+  logical :: luse
   integer(i_kind) maxout,maxdata
   integer(i_kind),allocatable,dimension(:):: isort
 
@@ -201,7 +201,7 @@ logical :: luse
   real(r_kind) :: thistiltr,selev0,celev0,thisrange,this_stahgt,thishgt                           
   real(r_kind) :: celev,selev,gamma,thisazimuthr,rlon0,t4dv, &
                   clat0,slat0,dlat,dlon,thiserr,thislon,thislat, &
-		  rlonloc,rlatloc,rlonglob,rlatglob,timeb,rad_per_meter
+                  rlonloc,rlatloc,rlonglob,rlatglob,timeb,rad_per_meter
   real(r_kind) :: azm,cosazm_earth,sinazm_earth,cosazm,sinazm  
   real(r_kind) :: radartwindow
   real(r_kind) :: rmins_an,rmins_ob                                                     
@@ -217,7 +217,7 @@ logical :: luse
 
   type(radar),allocatable :: strct_in_vel(:,:)
 
-real(r_kind) :: mintilt,maxtilt,maxobrange,minobrange
+  real(r_kind) :: mintilt,maxtilt,maxobrange,minobrange
 
   integer(i_kind) :: thin_freq=1
 
@@ -228,10 +228,10 @@ real(r_kind) :: mintilt,maxtilt,maxobrange,minobrange
 
   !-Check if radial velocity is in the convinfo file and extract necessary attributes 
   
- ithin=1 !number of obs to keep per grid box
- if(radar_no_thinning) then
-   ithin=-1
- endif
+  ithin=1 !number of obs to keep per grid box
+  if(radar_no_thinning) then
+    ithin=-1
+  endif
 
   errmax=-huge(errmax)
   errmin=huge(errmin)
@@ -241,13 +241,13 @@ real(r_kind) :: mintilt,maxtilt,maxobrange,minobrange
      if(trim(obstype) == trim(ioctype(i)) .and. abs(icuse(i))== 1) then
         ikx=i 
         radartwindow=ctwind(ikx)*r60         !Time window units converted to minutes 
-	                                     !  (default setting for dbz within convinfo is 0.05 hours)
-	thiserr= 2_r_kind !1.75_r_kind !2_r_kind                     !Ob error (m/s) to use for radial velocity
-	exit                                 !Exit loop when finished with initial convinfo fields     
+                                             !  (default setting for dbz within convinfo is 0.05 hours)
+        thiserr= 2_r_kind !1.75_r_kind !2_r_kind                     !Ob error (m/s) to use for radial velocity
+        exit                                 !Exit loop when finished with initial convinfo fields     
      else if ( i==nconvtype ) then
         write(6,*) 'READ_RADAR_WIND_ASCII: ERROR - OBSERVATION TYPE IS NOT PRESENT IN CONVINFO OR USE FLAG IS ZERO'
-	write(6,*) 'READ_RADAR_WIND_ASCII: ABORTING read_radar_wind_ascii.f90 - NO VELOCITY OBS READ!'
-	return 	  
+        write(6,*) 'READ_RADAR_WIND_ASCII: ABORTING read_radar_wind_ascii.f90 - NO VELOCITY OBS READ!'
+        return   
      endif
   end do   
  
@@ -362,12 +362,12 @@ real(r_kind) :: mintilt,maxtilt,maxobrange,minobrange
 
         obdate(1)=strct_in_vel(1,k)%year
         obdate(2)=strct_in_vel(1,k)%month  
-        obdate(3)=strct_in_vel(1,k)%day	 
+        obdate(3)=strct_in_vel(1,k)%day 
         obdate(4)=strct_in_vel(1,k)%hour   
         obdate(5)=strct_in_vel(1,k)%minute 
         call w3fs21(obdate,mins_ob)                             !mins_ob -integer number of mins snce 01/01/1978
-	rmins_ob=mins_ob                                        !convert to real number
-	rmins_ob=rmins_ob+(strct_in_vel(1,k)%second*r60inv)     !convert seconds to minutes and add to ob time
+        rmins_ob=mins_ob                                        !convert to real number
+        rmins_ob=rmins_ob+(strct_in_vel(1,k)%second*r60inv)     !convert seconds to minutes and add to ob time
  
       !-Comparison is done in units of minutes
       
@@ -377,70 +377,70 @@ real(r_kind) :: mintilt,maxtilt,maxobrange,minobrange
         if(doradaroneob .and. (oneobradid /= strct_in_vel(1,k)%radid)) cycle tilts
 
         if(abs(timeb) > abs(radartwindow)) then
-	  numbadtime=numbadtime+1	  
-	  cycle tilts                           !If not in time window, cycle the loop
-	end if                  
+          numbadtime=numbadtime+1  
+          cycle tilts                           !If not in time window, cycle the loop
+        end if                  
       !--Time window check complete--!
 
         thistilt=strct_in_vel(1,k)%elev_angle
         if (thistilt <= maxtilt .and. thistilt >= mintilt) then 
      
           gates: do i=1,strct_in_vel(1,k)%num_gate,thin_freq  
-   	      thisrange=strct_in_vel(1,k)%fstgatdis + float(i-1)*strct_in_vel(1,k)%gateWidth
-	             
+              thisrange=strct_in_vel(1,k)%fstgatdis + real(i-1,r_kind)*strct_in_vel(1,k)%gateWidth
+             
              !-Check to make sure observations are within specified range 
 
-              if (thisrange <= maxobrange .and. thisrange >= minobrange) then	    
-	  	   
-	      azms: do j=1,strct_in_vel(1,k)%num_beam
-	   
-	           !-Check to see if this is a missing observation)
-		    nread=nread+1
-		    if ( strct_in_vel(1,k)%field(i,j) >= 999.0_r_kind ) then
-			  num_missing=num_missing+1
-	  	          cycle azms                        !No reason to process the ob if it is missing      	       
+              if (thisrange <= maxobrange .and. thisrange >= minobrange) then    
+     
+              azms: do j=1,strct_in_vel(1,k)%num_beam
+   
+                   !-Check to see if this is a missing observation)
+                    nread=nread+1
+                    if ( strct_in_vel(1,k)%field(i,j) >= 999.0_r_kind ) then
+                       num_missing=num_missing+1
+                       cycle azms                        !No reason to process the ob if it is missing      	       
                     end if
-		    		                      			
-		   !--Find observation height using method from read_l2bufr_mod.f90										       
-	         
-		    this_stahgt=strct_in_vel(1,k)%radhgt
+                        
+                   !--Find observation height using method from read_l2bufr_mod.f90										       
+         
+                    this_stahgt=strct_in_vel(1,k)%radhgt
                     aactual=rearth+this_stahgt                    
                     a43=four_thirds*aactual
                     thistiltr=thistilt*deg2rad
                     selev0=sin(thistiltr)
-                    celev0=cos(thistiltr)   		   
-		    b=thisrange*(thisrange+two*aactual*selev0)
+                    celev0=cos(thistiltr)      
+                    b=thisrange*(thisrange+two*aactual*selev0)
                     c=sqrt(aactual*aactual+b)
                     ha=b/(aactual+c)
                     epsh=(thisrange*thisrange-ha*ha)/(r8*aactual)
                     h=ha-epsh
-	            thishgt=this_stahgt+h 
+                    thishgt=this_stahgt+h 
                     height=thishgt
-		   !--Find observation location using method from read_l2bufr_mod.f90
-		 
-		   !-Get corrected tilt angle
-	            celev=celev0
-	            selev=selev0
-           	    celev=a43*celev0/(a43+h)
-		    selev=(thisrange*thisrange+h*h+two*a43*h)/(two*thisrange*(a43+h))
-	          
-		    gamma=half*thisrange*(celev0+celev)
-	         
+                   !--Find observation location using method from read_l2bufr_mod.f90
+
+                   !-Get corrected tilt angle
+                    celev=celev0
+                    selev=selev0
+                    celev=a43*celev0/(a43+h)
+                    selev=(thisrange*thisrange+h*h+two*a43*h)/(two*thisrange*(a43+h))
+          
+                    gamma=half*thisrange*(celev0+celev)
+         
                    !-Get earth lat lon of observation
-	         	 
+          
                     rlon0=deg2rad*strct_in_vel(1,k)%radlon
-	       	    clat0=cos(deg2rad*strct_in_vel(1,k)%radlat)
-		    slat0=sin(deg2rad*strct_in_vel(1,k)%radlat)		  
-		    thisazimuthr=(90.0_r_kind-strct_in_vel(1,k)%azim(j))*deg2rad   !Storing as 90-azm to
-		                                                                   ! be consistent with 
-										   ! read_l2bufr_mod.f90
-		    rad_per_meter=one/rearth
-		    rlonloc=rad_per_meter*gamma*cos(thisazimuthr)
+                    clat0=cos(deg2rad*strct_in_vel(1,k)%radlat)
+                    slat0=sin(deg2rad*strct_in_vel(1,k)%radlat)
+                    thisazimuthr=(90.0_r_kind-strct_in_vel(1,k)%azim(j))*deg2rad   !Storing as 90-azm to
+                                                                                   ! be consistent with 
+                                                                                   ! read_l2bufr_mod.f90
+                    rad_per_meter=one/rearth
+                    rlonloc=rad_per_meter*gamma*cos(thisazimuthr)
                     rlatloc=rad_per_meter*gamma*sin(thisazimuthr)
-		                  
-		    call invtllv(rlonloc,rlatloc,rlon0,clat0,slat0,rlonglob,rlatglob)
+                  
+                    call invtllv(rlonloc,rlatloc,rlon0,clat0,slat0,rlonglob,rlatglob)
                  
-		    thislat=rlatglob*rad2deg
+                    thislat=rlatglob*rad2deg
                     thislon=rlonglob*rad2deg 
 
                     if(doradaroneob) then
@@ -450,21 +450,21 @@ real(r_kind) :: mintilt,maxtilt,maxobrange,minobrange
                      endif
 
 
-		    if(thislon>=r360) thislon=thislon-r360
+                    if(thislon>=r360) thislon=thislon-r360
                     if(thislon<zero ) thislon=thislon+r360
                  
-		   !-Convert back to radians                 
-         		       		       
-		    thislat = thislat*deg2rad
+                   !-Convert back to radians                 
+                
+                    thislat = thislat*deg2rad
                     thislon = thislon*deg2rad
-                 		 
-		    !find grid relative lat lon locations of earth lat lon
+                  
+                   !find grid relative lat lon locations of earth lat lon
                  
-		    call tll2xy(thislon,thislat,dlon,dlat,outside)
+                    call tll2xy(thislon,thislat,dlon,dlat,outside)
                     if (outside) cycle azms             !If observation is outside the domain
-		                                        ! then cycle, but don't increase range right away.
-							! Domain could be rectangular, so ob may be out of
-						        ! range at one end, but not the other.
+                                                        ! then cycle, but don't increase range right away.
+                                                        ! Domain could be rectangular, so ob may be out of
+                                                        ! range at one end, but not the other.
                 
                    if(regional .and. .not. fv3_regional) then
                        cosazm_earth=cos(thisazimuthr)
@@ -473,42 +473,43 @@ real(r_kind) :: mintilt,maxtilt,maxobrange,minobrange
                        azm=atan2(sinazm,cosazm)
                     else
                        azm=thisazimuthr
-                    end if                                    		     					                   		   		   
-		   
-		   !--Do limited QC from read_radar.f90--!
-	            error = erradar_inflate*thiserr
+                    end if                                      
+
+                   !--Do limited QC from read_radar.f90--!
+                    error = erradar_inflate*thiserr
                     errmax=max(error,errmax)
                     if(thiserr>zero) errmin=min(error,errmin)                    
                     if(abs(azm)>r400) then
                        ibadazm=ibadazm+1
                        cycle azms
                     end if
-		    
-		    this_staid=strct_in_vel(1,k)%radid      !Via equivalence in declaration, value is propagated
-		    					    !  to rstation_id used below. 	    
-		    
-		    ! Get model terrain at radar station location
-		    ! If radar station is outside of grid, does not mean the 
-		    !    radar obs are outside the grid - therefore no need to
-		    !    cycle azms.
-		    
-		    radar_lon=deg2rad*strct_in_vel(1,k)%radlon
-		    radar_lat=deg2rad*strct_in_vel(1,k)%radlat
-		    call tll2xy(radar_lon,radar_lat,dlon_radar,dlat_radar,outside)
+
+                    this_staid=strct_in_vel(1,k)%radid      !Via equivalence in declaration, value is propagated
+                                                            !  to rstation_id used below. 	    
+    
+                    ! Get model terrain at radar station location
+                    ! If radar station is outside of grid, does not mean the 
+                    !    radar obs are outside the grid - therefore no need to
+                    !    cycle azms.
+    
+                    radar_lon=deg2rad*strct_in_vel(1,k)%radlon
+                    radar_lat=deg2rad*strct_in_vel(1,k)%radlat
+                    call tll2xy(radar_lon,radar_lat,dlon_radar,dlat_radar,outside)
                     call deter_zsfc_model(dlat_radar,dlon_radar,zsges)
-		    
-		    !  Determines land surface type based on surrounding land
+    
+                    !  Determines land surface type based on surrounding land
                     !    surface types
                      
-		    t4dv=timeb*r60inv
-		     
-	            call deter_sfc2(thislat,thislon,t4dv,idomsfc,skint,ff10,sfcr)
-		    
+                    t4dv=timeb*r60inv
+     
+                    call deter_sfc2(thislat,thislon,t4dv,idomsfc,skint,ff10,sfcr)
+    
 
 
 !####################       Data thinning       ###################
 
            icntpnt=icntpnt+1
+           if(icntpnt>maxobs) exit
  
            if(ithin > 0)then
               if(zflag == 0)then
@@ -572,37 +573,37 @@ real(r_kind) :: mintilt,maxtilt,maxobrange,minobrange
               isort(icntpnt)=iout
            endif
 
-		    cdata_all(1,iout) = error		                 ! wind obs error (m/s)
-		    cdata_all(2,iout) = dlon		                 ! grid relative longitude
-	            cdata_all(3,iout) = dlat 	                         ! grid relative latitude
-	     	    cdata_all(4,iout) = thishgt	                 ! obs absolute height (m)
-	     	    cdata_all(5,iout) = strct_in_vel(1,k)%field(i,j)    ! wind obs (m/s)
-	     	    cdata_all(6,iout) = azm                             ! azimuth angle (radians)
-	            cdata_all(7,iout) = t4dv       		         ! obs time (hour) - analysis relative
-	            cdata_all(8,iout) = ikx		                 ! type 	      
-	            cdata_all(9,iout) = thistiltr	                 ! tilt angle (radians)
-	            cdata_all(10,iout)= this_stahgt	                 ! station elevation (m)
-	            cdata_all(11,iout)= rstation_id	                 ! station id
-	            cdata_all(12,iout)= icuse(ikx)		         ! usage parameter
-	            cdata_all(13,iout)= idomsfc  	                 ! dominate surface type
-	            cdata_all(14,iout)= skint		                 ! skin temperature
-	            cdata_all(15,iout)= ff10		                 ! 10 meter wind factor
-	            cdata_all(16,iout)= sfcr		                 ! surface roughness
-	            cdata_all(17,iout)=thislon*rad2deg                  ! earth relative longitude (degrees)
-	            cdata_all(18,iout)=thislat*rad2deg                  ! earth relative latitude (degrees)
-	            cdata_all(19,iout)=thisrange/1000_r_kind		 ! range from radar in km (used to estimate beam spread)
-	            cdata_all(20,iout)=zsges		                 ! model elevation at radar site
-	            cdata_all(21,iout)=thiserr
-	            cdata_all(22,iout)=two                              ! Level 2 data
+                    cdata_all(1,iout) = error                            ! wind obs error (m/s)
+                    cdata_all(2,iout) = dlon                             ! grid relative longitude
+                    cdata_all(3,iout) = dlat                             ! grid relative latitude
+                    cdata_all(4,iout) = thishgt                          ! obs absolute height (m)
+                    cdata_all(5,iout) = strct_in_vel(1,k)%field(i,j)     ! wind obs (m/s)
+                    cdata_all(6,iout) = azm                              ! azimuth angle (radians)
+                    cdata_all(7,iout) = t4dv                             ! obs time (hour) - analysis relative
+                    cdata_all(8,iout) = ikx                              ! type 	      
+                    cdata_all(9,iout) = thistiltr                        ! tilt angle (radians)
+                    cdata_all(10,iout)= this_stahgt                      ! station elevation (m)
+                    cdata_all(11,iout)= rstation_id                      ! station id
+                    cdata_all(12,iout)= icuse(ikx)                       ! usage parameter
+                    cdata_all(13,iout)= idomsfc                          ! dominate surface type
+                    cdata_all(14,iout)= skint                            ! skin temperature
+                    cdata_all(15,iout)= ff10                             ! 10 meter wind factor
+                    cdata_all(16,iout)= sfcr                             ! surface roughness
+                    cdata_all(17,iout)=thislon*rad2deg                   ! earth relative longitude (degrees)
+                    cdata_all(18,iout)=thislat*rad2deg                   ! earth relative latitude (degrees)
+                    cdata_all(19,iout)=thisrange/1000._r_kind            ! range from radar in km (used to estimate beam spread)
+                    cdata_all(20,iout)=zsges                             ! model elevation at radar site
+                    cdata_all(21,iout)=thiserr
+                    cdata_all(22,iout)=two                               ! Level 2 data
 
                 if(doradaroneob .and. (cdata_all(5,iout) > -99_r_kind) ) exit volumes
 
                 end do azms  !j
               else
-	         num_badrange=num_badrange+1      !If outside acceptable range, increment
-	      end if   !Range check	
-		
-	   end do gates    !i
+                num_badrange=num_badrange+1      !If outside acceptable range, increment
+              end if   !Range check	
+
+           end do gates    !i
      
         else
            num_badtilt=num_badtilt+1           !If outside acceptable tilts, increment

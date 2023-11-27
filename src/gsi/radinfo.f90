@@ -1454,7 +1454,7 @@ contains
 
       piece=-0.625_r_kind
       if (mod(iscan,2) == 1) piece = 0.625_r_kind
-      rnad_pos=radstart(jch)+radstep(jch)*float((iscan-1)/2)+piece
+      rnad_pos=radstart(jch)+radstep(jch)*real((iscan-1)/2,r_kind)+piece
 
    else
 
@@ -1466,7 +1466,7 @@ contains
       else
          ifov=iscan
       end if
-      rnad_pos=radstart(jch)+radstep(jch)*float(ifov-1)
+      rnad_pos=radstart(jch)+radstep(jch)*real(ifov-1,r_kind)
 
    end if
 
@@ -2034,7 +2034,7 @@ contains
                         tlap2(jj) = tlap0(jj) + tlap1(jj)/tsum(jj)
                         count_tlapmean(jj)=count_tlapmean(jj)+one
                      elseif (tcnt(jj)>0) then
-                        ratio = max(zero,min(tcnt(jj)/float(nthreshold),one))
+                        ratio = max(zero,min(tcnt(jj)/real(nthreshold,r_kind),one))
                         tsum(jj)=ratio*tsum(jj)+tsum0(jj)
 !                       tlap2(jj) = tlap0(jj) + ratio*wgtlap*tlap1(jj)/tsum(jj)
                         tlap2(jj) = tlap0(jj) + ratio*tlap1(jj)/tsum(jj)

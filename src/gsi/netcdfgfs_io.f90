@@ -3224,8 +3224,8 @@ contains
      sumn = ain(i,1)    + sumn
      sums = ain(i,latb) + sums
   end do
-  sumn = sumn/float(lonb)
-  sums = sums/float(lonb)
+  sumn = sumn/real(lonb,r_kind)
+  sums = sums/real(lonb,r_kind)
 !  Transfer from local work array to surface guess array
   do j = 1,lonb
      aout(1,j)=sums

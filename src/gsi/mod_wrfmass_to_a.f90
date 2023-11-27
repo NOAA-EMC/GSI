@@ -312,7 +312,7 @@ subroutine wrfmass_obs_to_a8(obsba,nreal,maxobs,ilat,ilon,numobs)
      i=int(ria(n)+0.5_r_kind)
      j=int(rja(n)+0.5_r_kind)
 
-     adist=(ria(n)-float(i))*(ria(n)-float(i))+(rja(n)-float(j))*(rja(n)-float(j))
+     adist=(ria(n)-real(i,r_kind))**2+(rja(n)-real(j,r_kind))**2
      if(adist < dist(i,j)) then
         dist(i,j)=adist
         ija(i,j)=n
@@ -324,8 +324,8 @@ subroutine wrfmass_obs_to_a8(obsba,nreal,maxobs,ilat,ilon,numobs)
      do i=1,nxa
         if(ija(i,j) > 0) then
            n=n+1
-           obsba(ilon,n)=float(i)
-           obsba(ilat,n)=float(j)
+           obsba(ilon,n)=real(i,r_kind)
+           obsba(ilat,n)=real(j,r_kind)
            do k=3,nreal
               obsba(k,n)=obsa(k,ija(i,j))
            enddo

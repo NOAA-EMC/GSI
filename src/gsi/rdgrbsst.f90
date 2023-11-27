@@ -132,14 +132,14 @@ subroutine rdgrbsst(file_sst,mlat_sst,mlon_sst,&
 
 ! Get lat_sst & lon_sst
   do i = 2, nlat_sst - 1
-     rlats_sst(i) = (xsst0 + float(i-2)*dres)*deg2rad
+     rlats_sst(i) = (xsst0 + real(i-2,r_kind)*dres)*deg2rad
   enddo
 
   rlats_sst(1)        = -90.0_r_kind*deg2rad
   rlats_sst(nlat_sst) =  90.0_r_kind*deg2rad
   
   do j = 2, nlon_sst - 1
-     rlons_sst(j) = (ysst0 + float(j-2)*dres)*deg2rad
+     rlons_sst(j) = (ysst0 + real(j-2,r_kind)*dres)*deg2rad
   enddo
 
   rlons_sst(1)        = -half*dres*deg2rad                              ! 1
@@ -184,8 +184,8 @@ subroutine rdgrbsst(file_sst,mlat_sst,mlon_sst,&
      sums = sums + sst(j,2)
      sumn = sumn + sst(j,nlat_sst-1)
   end do
-  sums = sums / float(i)
-  sumn = sumn / float(i)
+  sums = sums / real(i,r_kind)
+  sumn = sumn / real(i,r_kind)
   do j = 2,nlon_sst-1
      sst(j,1)        = sums
      sst(j,nlat_sst) = sumn
