@@ -812,7 +812,7 @@
  allocate (eccen(1:maxfov(instr)))
  
  do i = 1, npoly
-    psi(i) = two*pi*float(i-1)/float(npoly-1) ! Will connect Npoly points
+    psi(i) = two*pi*real(i-1,r_kind)/real(npoly-1,r_kind) ! Will connect Npoly points
  enddo
  
 ! Precompute angles and sizes for speed. For accurate representation of fov, 

@@ -521,7 +521,7 @@ subroutine get_iuse_pe(npe,nz,iuse_pe)
      else                    
         nskip=npe-nz
         if(nskip > 0)then
-          skip2=float(npe)/float(nskip)
+          skip2=real(npe,r_kind)/real(nskip,r_kind)
           point=zero
           do i=1,nskip
             ipoint=min(max(0,nint(point)),npe) 
@@ -878,7 +878,7 @@ end subroutine get_iuse_pe
 !     Compute number of points on full grid and target number of
 !     point per mpi task (pe)
       npts=nlat*nlon
-      anperpe=float(npts)/float(npe)
+      anperpe=real(npts,r_kind)/real(npe,r_kind)
 
 !     Start with square subdomains
       nrnc=sqrt(anperpe)
