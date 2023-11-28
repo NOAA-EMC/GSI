@@ -756,7 +756,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            do i=ndata_start,ndata
               if(rthin(i))then
                  cdata_all(14,i)=101._r_kind
-                 cdata_all(12,i)=16
+                 cdata_all(12,i)=14
               end if
            end do
         end if

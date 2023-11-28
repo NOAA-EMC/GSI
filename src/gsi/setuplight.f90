@@ -421,7 +421,7 @@ subroutine setuplight(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,light_di
   nobs_loc=zero
 
   do i=1,nobs
-     muse(i)=nint(data(11,i)) <= jiter
+     muse(i)=nint(data(iuse,i)) <= jiter .and. nint(data(iqc,i)) < 8
   enddo
 
   dup=one

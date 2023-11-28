@@ -291,7 +291,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   character(1) cdummy
   logical lhilbert
 
-  integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2,iqm,pmot
+  integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2,iqm,iuse,pmot
   integer(i_kind) lunin,i,maxobs,j,idomsfc,it29,nmsgmax,mxtb
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nc,nx,isflg,ntread,itx,ii,ncsave
@@ -441,6 +441,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   integer:: icase,klev,ikkk,tkk
   real:: diffhgt,diffuu,diffvv
+  integer,dimension(3)::kcount
 
   real(r_double),dimension(3,1500):: fcstdat
   logical print_verbose
@@ -452,6 +453,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! Initialize variables
 
+  kcount=0
   vdisterrmax=zero
   zflag=0
   nreal=0
@@ -482,24 +484,31 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
             tcamtob .or. lcbasob .or. cldchob
   aircraftobst=.false.
   iqm = 0
+  iuse = 0
   if(tob)then
      nreal=25
      iqm = 10
+     iuse = 12
   else if(uvob) then 
      nreal=26
      iqm = 12
+     iuse = 14
   else if(spdob) then
      nreal=24
      iqm = 11
+     iuse = 13
   else if(psob) then
      nreal=20
      iqm=10
+     iuse = 12
   else if(qob) then
      nreal=26
      iqm = 11
+     iuse = 12
   else if(pwob) then
      nreal=20
      iqm = 9
+     iuse = 11
   else if(sstob) then
      if (nst_gsi > 0) then
         nreal=18 + nstinfo
@@ -507,45 +516,62 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
         nreal=18
      end if
      iqm = 11
+     iuse = 13
   else if(gustob) then
      nreal=21
      iqm = 11
+     iuse = 12
   else if(visob) then
      nreal=18
      iqm = 9
+     iuse = 10
   else if(tdob) then
      nreal=25
      iqm = 11
+     iuse = 13
   else if(mxtmob) then
      nreal=24
      iqm = 10
+     iuse = 12
   else if(mitmob) then
      nreal=24
      iqm = 10
+     iuse = 12
   else if(pmob) then
      nreal=24
      iqm = 11
+     iuse = 13
   else if(howvob) then
      nreal=23
      iqm = 9
+     iuse = 11
   else if(metarcldobs) then
      nreal=27
      iqm = 0
+     iuse = 22
   else if(goesctpobs) then
      nreal=8
      iqm = 0
+     iuse = 22
   else if(tcamtob) then
      nreal=20
      iqm = 8
+     iuse = 9
   else if(lcbasob) then
      nreal=23
      iqm = 8
+     iuse = 9
   else if(cldchob) then
      nreal=18
      iqm = 9
+     iuse = 10
   else 
      write(6,*) ' illegal obs type in READ_PREPBUFR ',obstype
      call stop2(94)
+  end if
+  if(iuse < 1) then
+     write(6,*) ' mix up in read_prepbufr iuse '
+     call stop2(49)
   end if
 
 !  Set qc limits based on noiqc flag
@@ -1988,9 +2014,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  usage=103._r_kind
               else if(convobs .and. pqm(k) >=lim_qm )then
                  usage=102._r_kind
-              else if(qm >=lim_qm )then
+              else if(qm >=min(lim_qm,8) )then
                  usage=101._r_kind
-              else if(qm >= 9 .or. icuse(nc) <= 0 .or. &
+              else if(icuse(nc) <= 0 .or. &
                   (kx>=192 .and. kx<=195 .and. psob))then
                  usage=100._r_kind
               end if
@@ -2008,7 +2034,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  !retrieve wind sensor height
                  if (twodvar_regional)  then
                     if ( kx==288.or.kx==295 .or. (gustob .and. (kx==188.or.kx==195)) )  then
-                       call find_wind_height(c_prvstg,c_sprvstg,windsensht)
+                       call find_wind_height(c_prvstg,c_sprvstg,windsensht,kcount)
                     endif
                  endif
                  if(i_gsdqc==2) then  ! filter bad 2-m dew point and  0 mesonet wind obs
@@ -2017,7 +2043,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     endif
                     if (qob .and. (kx >=180 .and. kx<=189) .and. obsdat(2,k) < 1.0e10_r_kind)  then ! for 2-m dew point
                        if(obsdat(12,k) < min(-40.0_r_kind,obsdat(3,k)-10.0_r_kind)) usage=116._r_kind     ! < min(-40C or T-Td)                
-                       if((obsdat(3,k)-obsdat(12,k))  >  70.0_r_kind)  usage=117._r_kind ! <70C         
+                       if((obsdat(3,k)-obsdat(12,k))  >  70.0_r_kind)  usage=117._r_kind ! <70C        
                        if(obsdat(12,k) > 32.2_r_kind) usage=118._r_kind  ! > 90F
                     endif
                  endif
@@ -2124,7 +2150,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! Get information from surface file necessary for conventional data here
 
-              if(pmot >=2 .and. (qm >= 8 .or. usage >= 100.0_r_kind))then
+              if(icuse(nc) < 0)qm = 9
+              if(qm >= 8 .or. usage >= 100.0_r_kind)then
                  rusage(ndata+1)=.false.
               end if
 !             Special block for data thinning - if requested
@@ -2834,8 +2861,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                                   hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,ceiling,stnelev)
                     end if
 
-                    if(tcamt_qc==15 .or. tcamt_qc==12 .or. tcamt_qc==9) usage=100._r_kind
-                    if(pmot >=2 .and. (cldchqm >= 8 .or. usage >= 100.0_r_kind))then
+                    if(tcamt_qc >= 8 .or. usage >= 100.0_r_kind)then
+                       usage=101._r_kind
                        rusage(iout)=.false.
                     end if
                     tcamt_oe=20.0_r_kind
@@ -2874,7 +2901,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                                   low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
                                   hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,ceiling,stnelev)
 
-                    if(lcbas_qc==15 .or. lcbas_qc==12 .or. lcbas_qc==9) usage=100._r_kind
+                    if(lcbas_qc >= 8) usage=100._r_kind
                     if(pmot >=2 .and. usage >= 100.0_r_kind)then
                        rusage(iout)=.false.
                     end if
@@ -3005,11 +3032,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !       end do
 !       write(6,*) ' prep ',trim(ioctype(nc)),ictype(nc),icsubtype(nc),numall,numrem,numqc,numthin
 !   If thinned data set quality mark to 16
-        if (ithin > 0 .and. ithin <5) then
-           do i=ndata_start,ndata
-              if(rthin(i))cdata_all(iqm,i)=16
-           end do
-        end if
+        do i=ndata_start,ndata
+           if(rthin(i) .and. iqm > 0)cdata_all(iqm,i)=14
+           if(.not. rusage(i))cdata_all(iuse,i) = max(cdata_all(iuse,i),101.0_r_kind)
+        end do
 !     If flag to not save thinned data is set - compress data
         if(pmot /= 1)then
            ndata_end=ndata
@@ -3254,6 +3280,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      'nvtest,vdisterrmax=',ntest,vdisterrmax
 
   if(print_verbose)write(6,*)'READ_PREPBUFR:  closbf(',lunin,')'
+  if (twodvar_regional .and. (uvob .or. gustob .or. spdob))  then
+    write(6,*) 'kcount values from find wind height = ',kcount
+  end if
+
 
 
 ! End of routine

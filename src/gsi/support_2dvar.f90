@@ -2655,7 +2655,7 @@ subroutine mkvalley_file
                  endif
               enddo
            enddo
-           hmean=hmean/max(1._r_single,float(ncount))
+           hmean=hmean/max(1._r_single,real(ncount,r_single))
 
            if ((hmax-hmin)>=hdiff0 .and. terrain(i,j)<hmean) & 
            valleys(i,j)=terrain(i,j)/hmean   

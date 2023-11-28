@@ -699,7 +699,7 @@ loopd : do
            do i=ndata_start,ndata
               if(rthin(i))then
                  cdata_all(14,i)=100._r_kind
-                 cdata_all(12,i)=16
+                 cdata_all(12,i)=14
               end if
            end do
         end if

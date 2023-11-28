@@ -1197,7 +1197,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !   If thinned data set quality mark to 16
         if (ithin > 0 .and. ithin <5) then
           do i=ndata_start,ndata
-             if(rthin(i))cdata_all(iqm,i)=16
+             if(rthin(i))cdata_all(iqm,i)=14
           end do
         end if
 

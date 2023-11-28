@@ -414,7 +414,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
            do i=ndata_start,ndata
               if(rthin(i))then
                  cdata_all(9,i)=100._r_kind
-                 cdata_all(7,i)=16
+                 cdata_all(7,i)=14
               end if
            end do
         end if
