@@ -230,7 +230,7 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
 
   !-Check if radial velocity is in the convinfo file and extract necessary attributes 
   
-  ithin=1
+  ithin=1 !number of obs to keep per grid box
   if(radar_no_thinning) then
     ithin=-1
   endif
@@ -388,63 +388,63 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
        thistilt=strct_in_vel(1,k)%elev_angle
        if (thistilt <= maxtilt .and. thistilt >= mintilt) then 
      
-         gates: do i=1,strct_in_vel(1,k)%num_gate,thin_freq  
-            thisrange=strct_in_vel(1,k)%fstgatdis + float(i-1)*strct_in_vel(1,k)%gateWidth
+          gates: do i=1,strct_in_vel(1,k)%num_gate,thin_freq  
+              thisrange=strct_in_vel(1,k)%fstgatdis + real(i-1,r_kind)*strct_in_vel(1,k)%gateWidth
              
              !-Check to make sure observations are within specified range 
 
-            if (thisrange <= maxobrange .and. thisrange >= minobrange) then   
+              if (thisrange <= maxobrange .and. thisrange >= minobrange) then    
      
               azms: do j=1,strct_in_vel(1,k)%num_beam
    
-               !-Check to see if this is a missing observation)
-                 nread=nread+1
-                 if ( strct_in_vel(1,k)%field(i,j) >= 999.0_r_kind ) then
-                    num_missing=num_missing+1
-                    cycle azms                        !No reason to process the ob if it is missing      	       
-                 end if
-                         
-              !--Find observation height using method from read_l2bufr_mod.f90										       
+                   !-Check to see if this is a missing observation)
+                    nread=nread+1
+                    if ( strct_in_vel(1,k)%field(i,j) >= 999.0_r_kind ) then
+                       num_missing=num_missing+1
+                       cycle azms                        !No reason to process the ob if it is missing      	       
+                    end if
+                        
+                   !--Find observation height using method from read_l2bufr_mod.f90										       
          
-                 this_stahgt=strct_in_vel(1,k)%radhgt
-                 aactual=rearth+this_stahgt                    
-                 a43=four_thirds*aactual
-                 thistiltr=thistilt*deg2rad
-                 selev0=sin(thistiltr)
-                 celev0=cos(thistiltr)   
-                 b=thisrange*(thisrange+two*aactual*selev0)
-                 c=sqrt(aactual*aactual+b)
-                 ha=b/(aactual+c)
-                 epsh=(thisrange*thisrange-ha*ha)/(r8*aactual)
-                 h=ha-epsh
-                 thishgt=this_stahgt+h 
-                 height=thishgt
-              !--Find observation location using method from read_l2bufr_mod.f90
+                    this_stahgt=strct_in_vel(1,k)%radhgt
+                    aactual=rearth+this_stahgt                    
+                    a43=four_thirds*aactual
+                    thistiltr=thistilt*deg2rad
+                    selev0=sin(thistiltr)
+                    celev0=cos(thistiltr)      
+                    b=thisrange*(thisrange+two*aactual*selev0)
+                    c=sqrt(aactual*aactual+b)
+                    ha=b/(aactual+c)
+                    epsh=(thisrange*thisrange-ha*ha)/(r8*aactual)
+                    h=ha-epsh
+                    thishgt=this_stahgt+h 
+                    height=thishgt
+                   !--Find observation location using method from read_l2bufr_mod.f90
 
-              !-Get corrected tilt angle
-                 celev=celev0
-                 selev=selev0
-                 celev=a43*celev0/(a43+h)
-                 selev=(thisrange*thisrange+h*h+two*a43*h)/(two*thisrange*(a43+h))
+                   !-Get corrected tilt angle
+                    celev=celev0
+                    selev=selev0
+                    celev=a43*celev0/(a43+h)
+                    selev=(thisrange*thisrange+h*h+two*a43*h)/(two*thisrange*(a43+h))
           
-                 gamma=half*thisrange*(celev0+celev)
+                    gamma=half*thisrange*(celev0+celev)
          
                    !-Get earth lat lon of observation
           
-                 rlon0=deg2rad*strct_in_vel(1,k)%radlon
-                 clat0=cos(deg2rad*strct_in_vel(1,k)%radlat)
-                 slat0=sin(deg2rad*strct_in_vel(1,k)%radlat) 
-                 thisazimuthr=(90.0_r_kind-strct_in_vel(1,k)%azim(j))*deg2rad   !Storing as 90-azm to
-                                                                                ! be consistent with 
-                                                                                ! read_l2bufr_mod.f90
-                 rad_per_meter=one/rearth
-                 rlonloc=rad_per_meter*gamma*cos(thisazimuthr)
-                 rlatloc=rad_per_meter*gamma*sin(thisazimuthr)
+                    rlon0=deg2rad*strct_in_vel(1,k)%radlon
+                    clat0=cos(deg2rad*strct_in_vel(1,k)%radlat)
+                    slat0=sin(deg2rad*strct_in_vel(1,k)%radlat)
+                    thisazimuthr=(90.0_r_kind-strct_in_vel(1,k)%azim(j))*deg2rad   !Storing as 90-azm to
+                                                                                   ! be consistent with 
+                                                                                   ! read_l2bufr_mod.f90
+                    rad_per_meter=one/rearth
+                    rlonloc=rad_per_meter*gamma*cos(thisazimuthr)
+                    rlatloc=rad_per_meter*gamma*sin(thisazimuthr)
                   
-                 call invtllv(rlonloc,rlatloc,rlon0,clat0,slat0,rlonglob,rlatglob)
+                    call invtllv(rlonloc,rlatloc,rlon0,clat0,slat0,rlonglob,rlatglob)
                  
-                 thislat=rlatglob*rad2deg
-                 thislon=rlonglob*rad2deg 
+                    thislat=rlatglob*rad2deg
+                    thislon=rlonglob*rad2deg 
 
                  if(doradaroneob) then
                     thislat=oneoblat
@@ -506,8 +506,6 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
                  t4dv=timeb*r60inv
      
                  call deter_sfc2(thislat,thislon,t4dv,idomsfc,skint,ff10,sfcr)
-    
-
 
 !####################       Data thinning       ###################
 

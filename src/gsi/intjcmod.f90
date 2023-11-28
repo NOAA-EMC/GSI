@@ -736,7 +736,7 @@ subroutine intjcpdry(rval,sval,nbins,pjc)
   
   it=ntguessig
   mass=zero_quad
-  rcon=(one_quad/(two_quad*float(nlon)))**2
+  rcon=(one_quad/(two_quad*real(nlon,r_quad)))**2
   mm1=mype+1
 
   do n=1,nbins
@@ -1016,7 +1016,7 @@ subroutine intjcpdry2(rval,nbins,mass,pjc)
   integer(i_kind) :: n
   
   it=ntguessig
-  rcon=(one_quad/(two_quad*float(nlon)))**2
+  rcon=(one_quad/(two_quad*real(nlon,r_quad)))**2
   mm1=mype+1
 
   do n=1,nbins

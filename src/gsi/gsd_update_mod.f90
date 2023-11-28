@@ -699,7 +699,7 @@ subroutine gsd_gen_coast_prox
                    nip = nip+1
                 end do
                 end do
-                hcoast_prox(1,i,j) = float(nco)/float (nip)
+                hcoast_prox(1,i,j) = real(nco,r_kind)/real(nip,r_kind)
              end if
            end do
         end do

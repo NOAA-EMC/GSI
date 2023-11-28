@@ -17,7 +17,9 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
 !                 - added a second option (tanh) for observation operator, based on the
 !                   work of Sebok and Back (2021, unpublished)
 !                 - capped maximum model FED
-!
+!                Hongli Wang         NOAA GSL    2023-09-14
+!                 - Add option to use fed from background file to calculate fed innov
+!                 - cleanup code, removed hardcoded obs height (6500m)
 !
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
@@ -30,6 +32,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
   use obsmod, only: rmiss_single,&
        lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset                                                   
   use obsmod, only: oberror_tune
+  use obsmod, only: if_model_fed,innov_use_model_fed,dofedoneob,oneobddiff,oneobvalue
   use m_obsNode, only: obsNode
   use m_fedNode, only: fedNode
   use m_fedNode, only: fedNode_appendto
@@ -93,7 +96,6 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
   real(r_kind),parameter:: d_coeff = -1.215e9_r_kind    ! d (kg) in tanh operator
   real(r_kind),parameter:: fed_highbnd = 8.0_r_kind    ! DCD:  Back (2023, unpublished) for FV3
 
-  real(r_kind),parameter:: fed_height = 6500.0_r_kind   ! assumed height (m) of FED observations
   real(r_kind),parameter:: r0_001 = 0.001_r_kind
   real(r_kind),parameter:: r8     = 8.0_r_kind
   real(r_kind),parameter:: ten    = 10.0_r_kind
@@ -135,7 +137,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_qg,ges_qg_mask
-
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_fed
   real(r_kind) :: presq
   real(r_kind) :: T1D,RHO
   real(r_kind) :: glmcoeff = 2.088_r_kind*10.0**(-8.0)   ! Allen et al. (2016,MWR)
@@ -230,6 +232,10 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
      muse(i)=nint(data(iuse,i)) <= jiter .and. nint(data(iqc,i)) < 8
   end do
 
+  if (dofedoneob) then
+    muse=.true.
+  end if
+
   numequal=0
   numnotequal=0
 
@@ -293,10 +299,10 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
   print*, 'nsig = ', nsig
   print*, 'lon2 = ', lon2
   print*, 'lat2 = ', lat2
-
+  if (.not. innov_use_model_fed .or. .not. if_model_fed) then
 ! compute graupel mass, in kg per 15 km x 15 km column
-  do jj=1,nfldsig
-     do k=1,nsig
+    do jj=1,nfldsig
+      do k=1,nsig
         do i=1,lon2
            do j=1,lat2   !How to handle MPI????
               do igx=1,2*ngx+1 !horizontal integration of qg around point to calculate FED
@@ -312,12 +318,12 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
               end do  !jgy
            end do !j
         end do !i
-     end do !k
-  end do !jj
+      end do !k
+    end do !jj
 
 ! compute FED, in flashes/min
-  do jj=1,nfldsig
-     do i=1,lon2
+    do jj=1,nfldsig
+      do i=1,lon2
         do j=1,lat2
            if (fed_obs_ob_shape .eq. 1) then
               rp(j,i,jj) = CM * glmcoeff * rp(j,i,jj)
@@ -331,9 +337,8 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
            end if
            if (rp(j,i,jj) .gt. fed_highbnd) rp(j,i,jj) = fed_highbnd
         end do !j
-     end do !i
-  end do !jj
-
+      end do !i
+    end do !jj
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      write(6,*) 'fed_obs_ob_shape=',fed_obs_ob_shape
      if (fed_obs_ob_shape .eq. 2) then
@@ -344,7 +349,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
      end if
      write(6,*) 'fed_highbnd=',fed_highbnd
      write(6,*) 'maxval(ges_qg)=',maxval(ges_qg),'pe=',mype
-
+  end if ! .not. innov_use_model_fed .or. .not. if_model_fed
 
  !============================================================================================
 
@@ -352,28 +357,21 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
   nlon_ll=size(ges_qg,2)
   nsig_ll=size(ges_qg,3)
   nfld_ll=size(ges_qg,4)
-
   
-! - Observation times are checked in read routine - comment out for now
- 
-!   call dtime_setup()
-
-!print*,"maxval(data(ifedob,:)),mmaxval(data(ilat,:))=",minval(data(ifedob,:)),maxval(data(ifedob,:)),maxval(data(ilat,:))
-!write(6,*) "OKOKOKOKOK, nobs=", nobs 
   do i=1,nobs
-        dtime=data(itime,i)
-        dlat=data(ilat,i)
-        dlon=data(ilon,i) 
+     dtime=data(itime,i)
+     dlat=data(ilat,i)
+     dlon=data(ilon,i) 
 
-        dlon8km=data(iprvd,i)   !iprvd=23
-        dlat8km=data(isprvd,i)   !isprvd=24
+     dlon8km=data(iprvd,i)   !iprvd=23
+     dlat8km=data(isprvd,i)   !isprvd=24
 
-        dpres=data(ipres,i)                        ! from rdararef_mosaic2: this height abv MSL
-        ikx = nint(data(ikxx,i))
-        error=data(ier2,i)
-        slat=data(ilate,i)*deg2rad                 ! needed when converting geophgt to 
-        dlon_earth = data(ilone,i)                 !the lontitude and latitude on the obs pts.
-        dlat_earth = data(ilate,i)
+     dpres=data(ipres,i)                        ! from rdararef_mosaic2: this height abv MSL
+     ikx = nint(data(ikxx,i))
+     error=data(ier2,i)
+     slat=data(ilate,i)*deg2rad                 ! needed when converting geophgt to 
+     dlon_earth = data(ilone,i)                 !the lontitude and latitude on the obs pts.
+     dlat_earth = data(ilate,i)
                                                    ! geometric hgh (hges --> zges below)
 
      if (nobs_bins>1) then
@@ -382,7 +380,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
         ibin = 1
      end if
 
-     IF (ibin<1.OR.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
+     if (ibin<1.or.ibin>nobs_bins) write(6,*)mype,'Error nobs_bins,ibin= ',nobs_bins,ibin
 
      if (luse_obsdiag) my_diagLL => odiagLL(ibin)
 
@@ -402,28 +400,28 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
      end if
 
 !     Interpolate terrain height(model elevation) to obs location.
-      call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&    
-           mype,nfldsig)
+     call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&    
+          mype,nfldsig)
 !  print*,'i,after tintrp2all',i,mype,dlat,zsges
 !     1. dpres (MRMS obs height is height above MSL) is adjusted by zsges, so it
 !        is changed to height relative to model elevation (terrain).
 !        because in GSI, geop_hgtl is the height relative to terrain (ges_z)
 !        (subroutine guess_grids)
-      dpres=dpres-zsges
-      if (dpres<zero) cycle  !  temporary fix to prevent out of bounds array reference in zges,prsltmp
+     dpres=dpres-zsges
+     if (dpres<zero) cycle  !  temporary fix to prevent out of bounds array reference in zges,prsltmp
 !     Interpolate log(ps) & log(pres) at mid-layers and geo-potential height to
 !     obs locations/times
 !     Note: geop_hgtl is relative to model terrain, i.e. height - ges_z (ref. to
 !     subroutine guess_grids)
-      call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
-           mype,nfldsig)
-      call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
-           nsig,mype,nfldsig)
-      call tintrp2a1(geop_hgtl,hges,dlat,dlon,dtime,hrdifsig,&
-           nsig,mype,nfldsig)
+     call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
+          mype,nfldsig)
+     call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+     call tintrp2a1(geop_hgtl,hges,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
 
      call tintrp2a1(ges_prsi,prsitmp,dlat,dlon,dtime, &
-         hrdifsig,nsig+1,mype,nfldsig)
+          hrdifsig,nsig+1,mype,nfldsig)
 !   
 !     2. Convert geopotential height at layer midpoints to geometric height
 !     using
@@ -436,59 +434,57 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
 !        termrg = first term in the denominator of equation 23
 !        zges   = equation 23
 
-      sin2  = sin(slat)*sin(slat)
-      termg = grav_equator * &
+     sin2  = sin(slat)*sin(slat)
+     termg = grav_equator * &
             ((one+somigliana*sin2)/sqrt(one-eccentricity*eccentricity*sin2))
-      termr = semi_major_axis /(one + flattening + grav_ratio -  &
-                  two*flattening*sin2)
-      termrg = (termg/grav)*termr
+     termr = semi_major_axis /(one + flattening + grav_ratio -  &
+             two*flattening*sin2)
+     termrg = (termg/grav)*termr
 ! 
-      if (l_gpht2gmht) then
+     if (l_gpht2gmht) then
           do k=1,nsig
               zges(k) = (termr*hges(k)) / (termrg-hges(k))  ! eq (23)
           end do
-      else
+     else
           do k=1,nsig
               zges(k) = hges(k)
           end do
-      end if
+     end if
 
 !!    Convert observation height (in dpres) from meters to grid relative
 !!    units.  Save the observation height in zob for later use.
-      zob = dpres
-      call grdcrd1(dpres,zges(1),nsig,1)
+     zob = dpres
+     call grdcrd1(dpres,zges(1),nsig,1)
 
 !     Set indices of model levels below (k1) and above (k2) observation.
 !     wm - updated so {k1,k2} are at min {1,2} and at max {nsig-1,nsig}
-      k=dpres
-      k1=min(max(1,k),nsig-1)
-      k2=min(k1+1,nsig)
-!     k1=max(1,k)         - old method
- !    k2=min(k+1,nsig)    - old method
+     k=dpres
+     k1=min(max(1,k),nsig-1)
+     k2=min(k1+1,nsig)
 
 !  print*,'Compute observation pressure',i,mype
 !!    Compute observation pressure (only used for diagnostics)
-      dz     = zges(k2)-zges(k1)
-      dlnp   = prsltmp(k2)-prsltmp(k1)
-      pobl   = prsltmp(k1) + (dlnp/dz)*(zob-zges(k1))
-      presw  = r10*exp(pobl)
-      presq  = presw
+     dz     = zges(k2)-zges(k1)
+     dlnp   = prsltmp(k2)-prsltmp(k1)
+     pobl   = prsltmp(k1) + (dlnp/dz)*(zob-zges(k1))
+     presw  = r10*exp(pobl)
+     presq  = presw
 !!    Determine location in terms of grid units for midpoint of
 !!    first layer above surface
-      sfcchk=log(psges)
-      call grdcrd1(sfcchk,prsltmp(1),nsig,-1)
+     sfcchk=log(psges)
+     call grdcrd1(sfcchk,prsltmp(1),nsig,-1)
 !!    Check to see if observation is below midpoint of first
 !!    above surface layer.  If so, set rlow to that difference
-      rlow=max(sfcchk-dpres,zero)
+     rlow=max(sfcchk-dpres,zero)
 !!    Check to see if observation is above midpoint of layer
 !!    at the top of the model.  If so, set rhgh to that difference.
-      rhgh=max(dpres-r0_001-nsig,zero)
+     rhgh=max(dpres-r0_001-nsig,zero)
 !!    Increment obs counter along with low and high obs counters
-      if(luse(i))then
+     if(luse(i))then
          awork(1)=awork(1)+one
          if(rhgh/=zero) awork(2)=awork(2)+one
          if(rlow/=zero) awork(3)=awork(3)+one
-      end if
+     end if
 
 !    Adjust observation error.   
 !    Observation error currently assumed from user-defined namelist (oe_dbz) 
@@ -521,20 +517,23 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
  ! 3) H(x), interpolate the FED from model space on the local domain to obs space (FEDMdiag)
  !============================================================================================
 
-         npt = 0
-         FEDMdiag(i) = 0.
-         call tintrp2a11(rp,FEDMdiag(i),dlat,dlon,dtime,hrdifsig,mype,nfldsig)
-         dlonobs(i) = dlon_earth
-         dlatobs(i) = dlat_earth
+     npt = 0
+     FEDMdiag(i) = 0.
+     if (if_model_fed .and. innov_use_model_fed) then
+        !use fed from background file
+        call tintrp31(ges_fed,FEDMdiag(i),      dlat,dlon,dpres,dtime,hrdifsig,mype,nfldsig)       
+     else
+        call tintrp2a11(rp,FEDMdiag(i),dlat,dlon,dtime,hrdifsig,mype,nfldsig)
+     end if
+     dlonobs(i) = dlon_earth
+     dlatobs(i) = dlat_earth
 
-         ! also Jacobian used for TLM and ADM
-         !FEDMdiagTL, used for gsi-3dvar,will be implemented in future......
-         FEDMdiagTL(i) = 0.
-         jqg_num = FEDMdiagTL(i)     !=dFED/Dqg
-         jqg  = jqg_num
-         
+     ! also Jacobian used for TLM and ADM
+     !FEDMdiagTL, used for gsi-3dvar,will be implemented in future......
+     FEDMdiagTL(i) = 0.
+     jqg_num = FEDMdiagTL(i)     !=dFED/Dqg
+     jqg  = jqg_num
    
-     !end select
    
      if(FEDMdiag(i)==data(ifedob,i)) then
         numequal=numequal+1
@@ -548,24 +547,31 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
      !--------------Calculate departure from observation----------------!
      
      ddiff = data(ifedob,i) - FEDMdiag(i)
-
-!    If requested, setup for single obs test.
-!    Note: do not use this way to run single obs test for fed in the current version. (g.zhao)
-     if (oneobtest) then
-        ddiff=maginnov
-!        if (trim(adjustl(oneob_type))=='fed') then
-!           data(ifedob,i) = maginnov
-!           ddiff = data(ifedob,i) - FEDMdiag(i)
-!        end if
+     if (dofedoneob) then
+        !use magoberr to define obs error, but oneobtest=.false.
+        if(magoberr <= zero) magoberr=1.0_r_kind 
         error=one/(magoberr)
         ratio_errors=one
-     end if
-
+        if (jiter==1) then
+          if (oneobvalue > 0_r_kind) then
+            data(ifedob,i) = oneobvalue
+            ddiff = data(ifedob,i) - FEDMdiag(i) 
+          else
+            ddiff = oneobddiff
+            data(ifedob,i) = FEDMdiag(i)+ddiff
+            oneobvalue = data(ifedob,i) 
+          endif
+          write(6,*)"FED_ONEOB: O_Val,B_Val= ",data(ifedob,i),FEDMdiag(i)
+          write(6,*)"FED_ONEOB: Innov,Error= ",ddiff,magoberr
+        else
+          data(ifedob,i) = oneobvalue
+          ddiff = data(ifedob,i) - FEDMdiag(i)
+        end if 
+     end if !oneob
            
 !    Gross error checks
      obserror = one/max(ratio_errors*error,tiny_r_kind)     
      obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
-     
      residual = abs(ddiff)              != y-H(xb)      
      ratio    = residual/obserrlm       != y-H(xb)/sqrt(R)   
      
@@ -782,7 +788,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
   subroutine init_vars_
 
 !  use radaremul_cst, only: mphyopt
-
+  use obsmod, only: if_model_fed
   real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
   real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
   character(len=5) :: varname
@@ -822,6 +828,28 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
             call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank2,istatus)
             ges_z(:,:,ifld)=rank2
          end do
+
+     if(if_model_fed)then
+     !    get fed ....
+         varname='fed'
+         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+         if (istatus==0) then
+           if(allocated(ges_fed))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+           endif
+           allocate(ges_fed(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+           ges_fed(:,:,:,1)=rank3
+           do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_fed(:,:,:,ifld)=rank3
+           enddo
+         else
+           write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+           call stop2(999)
+         endif
+     endif
+
      else
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
@@ -938,7 +966,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
 
         rdiagbuf(5,ii)  = data(istnelv,i)    ! station elevation (meters)
         rdiagbuf(6,ii)  = presq              ! observation pressure (hPa)
-        rdiagbuf(7,ii)  = fed_height    ! observation height (meters)
+        rdiagbuf(7,ii)  = data(iobshgt,i)    ! observation height (meters)
         rdiagbuf(8,ii)  = (dtime*r60)-time_offset  ! obs time (sec relative to analysis time)
         rdiagbuf(9,ii)  = data(iqc,i)        ! input prepbufr qc or event mark
         rdiagbuf(10,ii) = rmiss_single       ! setup qc or event mark
@@ -1006,7 +1034,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
            call nc_diag_metadata("Longitude",               sngl(data(ilone,i)) )
            call nc_diag_metadata("Station_Elevation",       sngl(data(istnelv,i)) )
            call nc_diag_metadata("Pressure",                sngl(presq)         )
-           call nc_diag_metadata("Height",                  sngl(fed_height)    )
+           call nc_diag_metadata("Height",                  sngl(data(iobshgt,i)) )
            call nc_diag_metadata("Time",                    sngl(dtime*r60-time_offset))
            call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))   )
            call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))  )
@@ -1048,6 +1076,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
 !   if(allocated(ges_tv)) deallocate(ges_tv)
     if(allocated(ges_ps)) deallocate(ges_ps)
     if(allocated(ges_qg)) deallocate(ges_qg)
+    if(allocated(ges_fed)) deallocate(ges_fed)
   end subroutine final_vars_
 
   subroutine init_qcld(t_cld, qxmin_cld, icat_cld, t_dpnd) 

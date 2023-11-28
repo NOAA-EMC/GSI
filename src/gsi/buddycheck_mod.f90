@@ -200,7 +200,7 @@ subroutine buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
   end if
 
 
-  rsig=float(nsig)
+  rsig=real(nsig,r_kind)
   mm1=mype+1
 
   !initialize buddyuse to 1, start by assuming all obs are good!

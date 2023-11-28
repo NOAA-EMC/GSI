@@ -451,7 +451,7 @@ subroutine prewgt_reg(mype)
               d=region_lat(il,jl)*rad2deg+90._r_kind
               l=int(d)
               l2=l+1
-              dl2=d-float(l)
+              dl2=d-real(l,r_kind)
               dl1=one-dl2
               do k=1,nsig
                  dssv(i,j,k,n)=(dl1*ozmz(l,k)+dl2*ozmz(l2,k))*dsv(1,k,llmin)
@@ -580,7 +580,7 @@ subroutine prewgt_reg(mype)
                 do i=1,lon2
                     l=int(rllat1(j,i))
                     l2=min0(l+1,llmax)
-                    dl2=rllat1(j,i)-float(l)
+                    dl2=rllat1(j,i)-real(l,r_kind)
                     dl1=one-dl2
                     do k=1,nsig
                         dssv(j,i,k,n)=dl1*dsv(i,k,l)+dl2*dsv(i,k,l2)
@@ -603,7 +603,7 @@ subroutine prewgt_reg(mype)
            do i=1,lon2
               l=int(rllat1(j,i))
               l2=min0(l+1,llmax)
-              dl2=rllat1(j,i)-float(l)
+              dl2=rllat1(j,i)-real(l,r_kind)
               dl1=one-dl2
               do k=1,nsig
                  dssv(j,i,k,n)=dl1*dsv(i,k,l)+dl2*dsv(i,k,l2)
@@ -661,7 +661,7 @@ subroutine prewgt_reg(mype)
         do i=1,lon2
            l=int(rllat1(j,i))
            l2=min0(l+1,llmax)
-           dl2=rllat1(j,i)-float(l)
+           dl2=rllat1(j,i)-real(l,r_kind)
            dl1=one-dl2
            dssvs(j,i,n)=dl1*dsvs(i,l)+dl2*dsvs(i,l2)
            if (mvars>=2.and.n==nrf2_sst) then
@@ -737,7 +737,7 @@ subroutine prewgt_reg(mype)
                     do j=1,ny
                        l=int(rllat(j,i))
                        lp=min0(l+1,llmax)
-                       dl2=rllat(j,i)-float(l)
+                       dl2=rllat(j,i)-real(l,r_kind)
                        dl1=one-dl2
                        fact=one/(dl1*hwll(l,k1,nn)+dl2*hwll(lp,k1,nn))
                        slw((i-1)*ny+j,k)=slw((i-1)*ny+j,1)*fact**2
@@ -777,7 +777,7 @@ subroutine prewgt_reg(mype)
                  do j=1,ny
                     l=int(rllat(j,i))
                     lp=min0(l+1,llmax)
-                    dl2=rllat(j,i)-float(l)
+                    dl2=rllat(j,i)-real(l,r_kind)
                     dl1=one-dl2
                     fact=cc/(dl1*hwllp(l,nn)+dl2*hwllp(lp,nn))
                     slw((i-1)*ny+j,k)=slw((i-1)*ny+j,1)*fact**2

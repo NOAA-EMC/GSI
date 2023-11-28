@@ -226,7 +226,7 @@ subroutine read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twindin,sis)
             call w3fs21(idate5,minan)    !  analysis ref time in seconds relative to historic date
            
 !           Add obs reference time, then subtract analysis time to get obs time relative to analysis
-            time_correction=float(minobs-minan)*r60inv
+            time_correction=real(minobs-minan,r_kind)*r60inv
         else
             time_correction=zero
         end if
@@ -488,13 +488,13 @@ subroutine convert_to_flash_rate   &
 
      end do  !! do iobs=2,ndata_strike
 
-     darea=darea_sum/float(ndata_strike)
+     darea=darea_sum/real(ndata_strike,r_kind)
   else   !! ndata_strike=0
      darea=zero
 
   end if  !! if(ndata_strike>0) then
 
-  dtime=float(nhr_assimilation)
+  dtime=real(nhr_assimilation,r_kind)
 
   ! Regional
 
@@ -550,8 +550,8 @@ subroutine convert_to_flash_rate   &
 
 !!   find lightning strikes near the (ii0,jj0) point
 
-     xbound=float(ii0)
-     ybound=float(jj0)
+     xbound=real(ii0,r_kind)
+     ybound=real(jj0,r_kind)
 
      xflag=(xx>xbound) .AND. (xx<xbound+1.)
      yflag=(yy>ybound) .AND. (yy<ybound+1.)
@@ -582,10 +582,10 @@ subroutine convert_to_flash_rate   &
 
   do index=1,ngridh
      if (lcount(index)>0) then
-        glon_central(index)=glon_central(index)/float(lcount(index))
-        glat_central(index)=glat_central(index)/float(lcount(index))
-        lon_central(index)= lon_central(index)/float(lcount(index))
-        lat_central(index)= lat_central(index)/float(lcount(index))
+        glon_central(index)=glon_central(index)/real(lcount(index),r_kind)
+        glat_central(index)=glat_central(index)/real(lcount(index),r_kind)
+        lon_central(index)= lon_central(index)/real(lcount(index),r_kind)
+        lat_central(index)= lat_central(index)/real(lcount(index),r_kind)
      endif  !! if(lcount(index)>0) then
   enddo  !! do index=1,ngridh
 
@@ -629,7 +629,7 @@ subroutine convert_to_flash_rate   &
         cdata_flash_h( 3,icount)=glat_central(index)
 
         if (darea>0._r_kind) then
-           cdata_flash_h( 4,icount)=float(lcount(index))/(darea*dtime)
+           cdata_flash_h( 4,icount)=real(lcount(index),r_kind)/(darea*dtime)
         else 
            cdata_flash_h( 4,icount)=0. 
         end if
@@ -703,22 +703,22 @@ subroutine convert_time (date_old,date_new,nmax)
      jdd=INT(0.0001_r_kind*xdate(i))
      idd=INT(xdate(i))-jdd*10000
 
-     ysumidd=float(idd)
-     dd=float(INT(0.01_r_kind*ysumidd))
+     ysumidd=real(idd,r_kind)
+     dd=real(INT(0.01_r_kind*ysumidd),r_kind)
      hh=ysumidd-dd*100._r_kind
 
      sumidd=sumidd+dd*24._r_kind+hh
 
   enddo  !! do i=1,nmax
 
-  xsumidd=float(sumidd)/nmax
-  ysumidd=float(INT(xsumidd))
+  xsumidd=real(sumidd,r_kind)/nmax
+  ysumidd=real(INT(xsumidd),r_kind)
 
   kdd=INT(xsumidd/24._r_kind)
-  xdd=float(kdd)
-  xhh=ysumidd-float(kdd)*24._r_kind
+  xdd=real(kdd,r_kind)
+  xhh=ysumidd-real(kdd,r_kind)*24._r_kind
 
-  ydate=float(jdd)*10000._r_kind+xdd*100._r_kind+xhh+xccyy
+  ydate=real(jdd,r_kind)*10000._r_kind+xdd*100._r_kind+xhh+xccyy
       
   date_old=ydate 
       

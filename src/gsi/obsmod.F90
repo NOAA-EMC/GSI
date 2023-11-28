@@ -161,6 +161,7 @@ module obsmod
 !                          observation provider and sub-provider information into
 !                          obsdiags files (used for AutoObsQC)
 !   2023-07-10  Y. Wang, D. Dowell - add variables for flash extent density
+!   2023-10-10  H. Wang (GSL) - add variables for flash extent density EnVar DA
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -188,6 +189,12 @@ module obsmod
 !   def diag_radardbz- namelist logical to compute/write (=true) radar
 !                                          reflectiivty diag files
 !   def diag_fed     - namelist logical to compute/write (=true) flash extent density diag files
+!   def innov_use_model_fed - namelist logical. True: use (the FEB in background to calculate innovation
+!                                               False: calculate innvation use
+!                                               the obs operator in GSI  
+!   def if_model_fed - namelist logical. True: Read in FED from background
+!                                              including from ensemble.  
+!   def r_hgt_fed    - height of fed observations
 !   def reduce_diag  - namelist logical to produce reduced radiance diagnostic files
 !   def use_limit    - parameter set equal to -1 if diag files produced or 0 if not diag files or reduce_diag
 !   def obs_setup    - prefix for files passing pe relative obs data to setup routines
@@ -473,7 +480,8 @@ module obsmod
   ! ==== DBZ DA ===
   public :: ntilt_radarfiles
   public :: whichradar
-  public :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, if_use_w_vr, l2rwthin
+  public :: vr_dealisingopt, if_vterminal, if_model_dbz, if_vrobs_raw, if_use_w_vr, l2rwthin
+  public :: inflate_dbz_obserr
 
   public :: doradaroneob,oneoblat,oneoblon
   public :: oneobddiff,oneobvalue,oneobheight,oneobradid
@@ -487,7 +495,12 @@ module obsmod
   public :: iout_dbz, mype_dbz
   ! --- DBZ DA ---
 
+  ! ==== FED DA ===
+  public :: if_model_fed, innov_use_model_fed
+  public :: r_hgt_fed
   public :: iout_fed, mype_fed  
+  public :: dofedoneob
+  ! --- FED DA ---
 
   public :: obsmod_init_instr_table
   public :: obsmod_final_instr_table
@@ -577,7 +590,7 @@ module obsmod
 
   real(r_kind) perturb_fact,time_window_max,time_offset,time_window_rad
   real(r_kind),dimension(50):: dmesh
-
+  real(r_kind) r_hgt_fed
   integer(i_kind) nchan_total,ianldate
   integer(i_kind) ndat,ndat_types,ndat_times,nprof_gps
   integer(i_kind) lunobs_obs,nloz_v6,nloz_v8,nobskeep,nloz_omi
@@ -621,8 +634,9 @@ module obsmod
   integer(i_kind) ntilt_radarfiles,tcp_posmatch,tcp_box,pmot_dbz,pmot_vr
 
   logical ::  ta2tb
-  logical ::  doradaroneob
-  logical :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, if_use_w_vr, l2rwthin
+  logical ::  doradaroneob,dofedoneob
+  logical :: vr_dealisingopt, if_vterminal, if_model_dbz,if_model_fed, innov_use_model_fed, if_vrobs_raw, if_use_w_vr, l2rwthin
+  logical :: inflate_dbz_obserr
   character(4) :: whichradar,oneobradid
   real(r_kind) :: oneoblat,oneoblon,oneobddiff,oneobvalue,oneobheight
   logical :: radar_no_thinning
@@ -755,11 +769,15 @@ contains
     if_vrobs_raw=.false.
     if_use_w_vr=.true.
     if_model_dbz=.false.
-    inflate_obserr=.false.
+    if_model_fed=.false.
+    innov_use_model_fed=.false.
+    inflate_dbz_obserr=.false.
     whichradar="KKKK"
 
     oneobradid="KKKK"
     doradaroneob=.false.
+    r_hgt_fed=6500_r_kind
+    dofedoneob=.false.
     oneoblat=-999_r_kind
     oneoblon=-999_r_kind
     oneobddiff=-999_r_kind

@@ -580,7 +580,7 @@ contains
 !             Add obs reference time, then subtract analysis time to get obs
 !             time relative to analysis
 
-              time_correction=float(minobs-minan)*r60inv
+              time_correction=real(minobs-minan,r_kind)*r60inv
 
            else
               time_correction=zero

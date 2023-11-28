@@ -646,7 +646,7 @@ subroutine setcoroz_(coroz,mype)
          enddo
       enddo
    enddo
-   work_oz(nsig+1,mm1)=float(lon1*lat1)
+   work_oz(nsig+1,mm1)=real(lon1*lat1,r_kind)
 
    call mpi_allreduce(work_oz,work_oz1,(nsig+1)*npe,mpi_rtype,mpi_sum,&
       mpi_comm_world,ierror)
@@ -869,7 +869,7 @@ subroutine setcorchem_(cname,corchem,rc)
          enddo
       enddo
    enddo
-   work_chem(nsig+1,mm1)=float(lon1*lat1)
+   work_chem(nsig+1,mm1)=real(lon1*lat1,r_kind)
   
    call mpi_allreduce(work_chem,work_chem1,(nsig+1)*npe,mpi_rtype,mpi_sum,&
         mpi_comm_world,ierror)

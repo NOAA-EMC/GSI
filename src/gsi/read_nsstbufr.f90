@@ -367,7 +367,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            if ( rsc > 60.0_r_kind .or. rsc < zero ) rsc = zero   !second in real
 
            call w3fs21(idate5,nmind)
-           sstime=float(nmind)
+           sstime=real(nmind,r_kind)
  
            tdiff=(sstime-gstime)*r60inv
 

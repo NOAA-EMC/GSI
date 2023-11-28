@@ -1227,7 +1227,8 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
       enddo
       if (mype==0) write(6,*) trim(my_name), ' has_cf = ', has_cf 
 
-      fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+      fhour = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+              real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
       odate(1) = idate(4)  !hour
       odate(2) = idate(2)  !month
       odate(3) = idate(3)  !day
@@ -2094,7 +2095,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
       call read_vardata(filges, 'time', fhour) ! might need to change this to attribute later
                                                ! depends on model changes from
                                                ! Jeff Whitaker
-      fhour = float(nint(fhour))
+      fhour = real(nint(fhour),r_kind)
 
       odate(1) = idate(4)  !hour
       odate(2) = idate(2)  !month
@@ -2918,7 +2919,7 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
       call read_vardata(filges, 'time', fhour) ! might need to change this to attribute later
                                                ! depends on model changes from
                                                ! Jeff Whitaker
-      fhour = float(nint(fhour))
+      fhour = real(nint(fhour),r_kind)
 
       odate(1) = idate(4)  !hour
       odate(2) = idate(2)  !month
@@ -3813,7 +3814,7 @@ subroutine general_fill_ns(grd,grid_in,grid_out)
       sumn=sumn+grid_in(i,1)
       sums=sums+grid_in(i,nlatm2)
    enddo
-   rnlon=one/float(grd%nlon)
+   rnlon=one/real(grd%nlon,r_kind)
    sumn=sumn*rnlon
    sums=sums*rnlon
 
@@ -3908,10 +3909,10 @@ subroutine general_filluv_ns(grd,slons,clons,gridu_in,gridv_in,gridu_out,gridv_o
       polsu=polsu+gridu_in(i,nlatm2)*clons(i)+gridv_in(i,nlatm2)*slons(i)
       polsv=polsv+gridu_in(i,nlatm2)*slons(i)-gridv_in(i,nlatm2)*clons(i)
    enddo
-   polnu=polnu/float(grd%nlon)
-   polnv=polnv/float(grd%nlon)
-   polsu=polsu/float(grd%nlon)
-   polsv=polsv/float(grd%nlon)
+   polnu=polnu/real(grd%nlon,r_kind)
+   polnv=polnv/real(grd%nlon,r_kind)
+   polsu=polsu/real(grd%nlon,r_kind)
+   polsv=polsv/real(grd%nlon,r_kind)
 
    ! Transfer local work array to output grid
    do k=1,grd%itotsub
@@ -4008,10 +4009,10 @@ subroutine general_fillu_ns(grd,sp,gridu_in,gridv_in,gridu_out)
       polsu=polsu+gridu_in(i,nlatm2)*sp%clons(i)+gridv_in(i,nlatm2)*sp%slons(i)
       polsv=polsv+gridu_in(i,nlatm2)*sp%slons(i)-gridv_in(i,nlatm2)*sp%clons(i)
    enddo
-   polnu=polnu/float(grd%nlon)
-   polnv=polnv/float(grd%nlon)
-   polsu=polsu/float(grd%nlon)
-   polsv=polsv/float(grd%nlon)
+   polnu=polnu/real(grd%nlon,r_kind)
+   polnv=polnv/real(grd%nlon,r_kind)
+   polsu=polsu/real(grd%nlon,r_kind)
+   polsv=polsv/real(grd%nlon,r_kind)
 
    ! Transfer local work array to output grid
    do k=1,grd%itotsub
@@ -4106,10 +4107,10 @@ subroutine general_fillv_ns(grd,sp,gridu_in,gridv_in,gridv_out)
       polsu=polsu+gridu_in(i,nlatm2)*sp%clons(i)+gridv_in(i,nlatm2)*sp%slons(i)
       polsv=polsv+gridu_in(i,nlatm2)*sp%slons(i)-gridv_in(i,nlatm2)*sp%clons(i)
    enddo
-   polnu=polnu/float(grd%nlon)
-   polnv=polnv/float(grd%nlon)
-   polsu=polsu/float(grd%nlon)
-   polsv=polsv/float(grd%nlon)
+   polnu=polnu/real(grd%nlon,r_kind)
+   polnv=polnv/real(grd%nlon,r_kind)
+   polsu=polsu/real(grd%nlon,r_kind)
+   polsv=polsv/real(grd%nlon,r_kind)
 
    ! Transfer local work array to output grid
    do k=1,grd%itotsub

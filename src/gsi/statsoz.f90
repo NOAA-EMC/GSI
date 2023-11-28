@@ -101,7 +101,7 @@ subroutine statsoz(stats_oz,ndata)
      if (iasim > 0) then
         svar = error_oz(i)
         if (iuse_oz(i)/=1) svar = -svar
-        rsum = one/float(iasim)
+        rsum = one/real(iasim,r_kind)
         icerr = nint(stats_oz(2,i))
         do j=3,6   ! j=3=obs-mod(w_biascor)
                    ! j=4=(obs-mod(w_biascor))**2
@@ -127,7 +127,7 @@ subroutine statsoz(stats_oz,ndata)
   do i=1,ndat
      if (idisplay(i)) then
         cpen=zero
-        if (icount_asim(i)>0) cpen=rpenal(i)/float(icount_asim(i))
+        if (icount_asim(i)>0) cpen=rpenal(i)/real(icount_asim(i),r_kind)
         write(iout_oz,1115) jiter,dplat(i),dtype(i),ndata(i,2), &
              ndata(i,3),icount_asim(i),rpenal(i),cpen,qcpenal(i),iqccount_asim(i)
      endif

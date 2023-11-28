@@ -321,10 +321,10 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
 
 !!!!  define analysis A grid  !!!!!!!!!!!!!
   do j=1,nxa
-     xa_a(j)=(float(j-nlonh)-cx)*grid_ratio_fv3_regional
+     xa_a(j)=(real(j-nlonh,r_kind)-cx)*grid_ratio_fv3_regional
   end do
   do i=1,nya
-     ya_a(i)=(float(i-nlath)-cy)*grid_ratio_fv3_regional
+     ya_a(i)=(real(i-nlath,r_kind)-cy)*grid_ratio_fv3_regional
   end do
 
 !!!!!compute fv3 to A grid interpolation parameters !!!!!!!!!

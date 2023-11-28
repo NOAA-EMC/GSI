@@ -152,7 +152,8 @@ subroutine general_read_fv3atm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
          call stop2(101)
       endif
 
-      fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+      fhour = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+              real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
       odate(1) = idate(4)  !hour
       odate(2) = idate(2)  !month
       odate(3) = idate(3)  !day

@@ -344,10 +344,10 @@ contains
                          start = (/1/), count = (/grd%nlon/)))
        ! levels
        do k=1,grd%nsig
-         levsout(k) = float(k)
-         ilevsout(k) = float(k)
+         levsout(k) = real(k,r_kind)
+         ilevsout(k) = real(k,r_kind)
        end do
-       ilevsout(grd%nsig+1) = float(grd%nsig+1)
+       ilevsout(grd%nsig+1) = real(grd%nsig+1,r_kind)
        ! write to file
        call nccheck_incr(nf90_put_var(ncid_out, levvarid, sngl(levsout), &
                          start = (/1/), count = (/grd%nsig/)))
