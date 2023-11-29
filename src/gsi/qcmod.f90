@@ -2076,7 +2076,7 @@ subroutine qc_saphir(nchanl,sfchgt,luse,sea, &
 end subroutine qc_saphir
 
 subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs,                         &
-     cris,iasi,hirs,zsges,cenlat,cenlon,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise, &
+     cris,iasi,hirs,zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise, &
      wavenumber,ptau5,prsltmp,tvp,temp,wmix,chan_level,emissivity_k,ts,tsim,                   &
      id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole,cluster_fraction,    &
      cluster_bt, chan_stdev, model_bt)
@@ -2112,14 +2112,14 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 !     avhrr        - logical flag - if avhrr data - true
 !     zsges        - elevation of guess
 !     cenlat       - latitude of observation
-!     cenlon       - longitude of observation
 !     frac_sea     - fraction of grid box covered with water
 !     pangs        - solar zenith angle
 !     trop5        - tropopause pressure
 !     zasat        - satellite zenith angle
 !     tzbgr        - Tz over water
 !     tsavg5       - surface skin temperature
-!     tsim         - simulated - observed BT with bias correction
+!     tbc          - simulated - observed BT with bias correction
+!     tsim         - simulated BT 
 !     tb_obs       - observed Brightness temperatures
 !     tnoise       - channel noise array
 !     wavenumber   - array of channel wavenumbers
@@ -2170,7 +2170,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
   integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),  intent(inout) :: id_qc
   integer(i_kind),dimension(nchanl),  intent(in   ) :: kmax
-  real(r_kind),                       intent(in   ) :: zsges,cenlat,cenlon,frac_sea,pangs,trop5
+  real(r_kind),                       intent(in   ) :: zsges,cenlat,frac_sea,pangs,trop5
   real(r_kind),                       intent(in   ) :: tzbgr,tsavg5,zasat
   real(r_kind),                       intent(  out) :: cld,cldp
   real(r_kind),dimension(40,ndat),    intent(inout) :: aivals

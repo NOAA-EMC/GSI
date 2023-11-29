@@ -226,6 +226,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Set standard parameters
   character(8),parameter:: fov_flag="crosstrk"
   integer(i_kind),parameter:: sfc_channel=501 !used in thinning routine if cloud informatino is not available
+  integer(i_kind),parameter:: band_2_start=714 !for CADS, if any of band 1 (chans 1 - 713) are missing, reject profile
   integer(i_kind),parameter:: ichan=-999  ! fov-based surface code is not channel specific for cris 
   real(r_kind),parameter:: expansion=one         ! exansion factor for fov-based surface code.
                                                  ! use one for ir sensors.
@@ -325,7 +326,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   quiet=.not. verbose
 
   imager_coeff = .false. 
-!  spc_filename = trim(crtm_coeffs_path)//'viirs-m_'//trim(jsatid)//'.SpcCoeff.bin'  ! when viirs naming convention becomes standarized
+!TODO  spc_filename = trim(crtm_coeffs_path)//'viirs-m_'//trim(jsatid)//'.SpcCoeff.bin'  ! when viirs naming convention becomes standarized
   if ( trim(jsatid) == 'npp' ) then
      spc_filename = trim(crtm_coeffs_path)//'viirs-m_npp.SpcCoeff.bin'
      sensorlist_imager = 'viirs-m_npp'
@@ -346,7 +347,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   if ( imager_coeff ) then
      allocate( sensorlist(2))
      sensorlist(1) = sis
-!    sensorlist(2) = 'viirs-m_'//trim(jsatid)        !when viirs naming conventions becomes standardized
+!TODO    sensorlist(2) = 'viirs-m_'//trim(jsatid)        !when viirs naming conventions becomes standardized
      sensorlist(2) = trim(sensorlist_imager)
   else 
      allocate( sensorlist(1))
@@ -820,7 +821,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
               bufr_chan = bufr_index(i)
               if(temperature(bufr_chan) <= tbmin .or. temperature(bufr_chan) >= tbmax ) then
                  temperature(bufr_chan) = tbmin
-                 if(iuse_rad(ioff+i) >= 0 .or. (cris_cads .and. sc_index(i) < 714)) iskip = iskip + 1
+                 if(iuse_rad(ioff+i) >= 0 .or. (cris_cads .and. sc_index(i) < band_2_start)) iskip = iskip + 1
               endif
            end do skip_loop
 
