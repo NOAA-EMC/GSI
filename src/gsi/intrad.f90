@@ -444,7 +444,8 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         i4n(k) = i4n(k-1)+latlon11
      enddo
 
-!$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4,mm)
+     tdir=zero
+!$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4)
      do k=1,nsig
         i1 = i1n(k)
         i2 = i2n(k)
@@ -525,7 +526,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         end do
      end if
 
-!$omp parallel do schedule(dynamic,1) private(nn,k,ncr1)
+!$omp parallel do schedule(dynamic,1) private(nn,k,ncr1,val_quad,mm)
      do nn=1,radptr%nchan
 
 !       include observation increment and lapse rate contributions to bias correction
