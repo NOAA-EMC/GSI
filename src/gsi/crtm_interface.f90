@@ -977,7 +977,7 @@ end subroutine destroy_crtm
 subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                    h,q,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsl,prsi, &
                    trop5,tzbgr,dtsavg,sfc_speed,&
-                   tsim,emissivity,ptau5,ts, &
+                   tsim,emissivity,chan_level,ptau5,ts, &
                    emissivity_k,temp,wmix,jacobian,error_status,tsim_clr,tcc, & 
                    tcwv,hwp_ratio,stability,layer_od,jacobian_aero)  
 !$$$  subprogram documentation block
@@ -1097,6 +1097,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind)                          ,intent(  out) :: sfc_speed,dtsavg
   real(r_kind),dimension(nchanl+nreal)  ,intent(in   ) :: data_s
   real(r_kind),dimension(nchanl)        ,intent(  out) :: tsim,emissivity,ts,emissivity_k
+  real(r_kind),dimension(nchanl)        ,intent(  out) :: chan_level 
   character(10)                         ,intent(in   ) :: obstype
   integer(i_kind)                       ,intent(  out) :: error_status
   real(r_kind),dimension(nsig,nchanl)   ,intent(  out) :: temp,ptau5,wmix
@@ -1150,6 +1151,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind):: sno00,sno01,sno10,sno11,secant_term
   real(r_kind):: hwp_total,theta_700,theta_sfc,hs
   real(r_kind):: dlon,dlat,dxx,dyy,yy,zz,garea
+  real(r_kind):: radiance, radiance_overcast, radiance_ratio
   real(r_kind),dimension(0:3):: wgtavg
   real(r_kind),dimension(nsig,nchanl):: omix
   real(r_kind),dimension(nsig,nchanl,n_aerosols_jac):: jaero
@@ -2217,8 +2219,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
        end do
     end if
 
+    chan_level = zero
+
 !$omp parallel do  schedule(dynamic,1) private(i) &
-!$omp private(total_od,k,kk,m,term,ii,cwj)
+!$omp private(total_od,k,kk,m,term,ii,cwj,radiance,radiance_overcast,radiance_ratio)
     do i=1,nchanl
 !   Zero jacobian and transmittance arrays
        do k=1,nsig
@@ -2227,6 +2231,16 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
          ptau5(k,i)=zero
          wmix(k,i)=zero
        end do
+
+       radiance=rtsolution(i,1)%radiance
+       do k=msig, 1, -1
+          radiance_overcast = rtsolution(i,1)%upwelling_overcast_radiance(k)
+          radiance_ratio = abs(radiance_overcast/radiance)
+          if (radiance_ratio < 0.99_r_kind) then
+             chan_level(i) = atmosphere(1)%pressure(k) / r10
+             exit
+          endif
+       enddo
 
 !  Simulated brightness temperatures
        tsim(i)=rtsolution(i,1)%brightness_temperature
