@@ -42,8 +42,10 @@ elif [[ -d /sw/gaea ]]; then # Gaea
   export machine="Gaea"
 elif [[ -d /data/prod ]]; then # S4
   export machine="S4"
-elif [[ -d /work ]]; then # Orion
+elif [[ -d /work && $(hostname) =~ "Orion" ]]; then # Orion
   export machine="Orion"
+elif [[ -d /work && $(hostname) =~ "hercules" ]]; then # Hercules
+  export machine="Hercules"
 elif [[ -d /lfs/h2 ]]; then # wcoss2
   export machine="wcoss2"
 fi
@@ -98,18 +100,25 @@ case $machine in
       export check_resource="no"
       export accnt="${accnt:-GFS-DEV}"
   ;;      
-  Orion)
+  Orion | Hercules)
       export local_or_default="${local_or_default:-/work/noaa/da/$LOGNAME}"
       if [ -d $local_or_default ]; then
-          export noscrub="$local_or_default/noscrub"
+         export noscrub="$local_or_default/noscrub"
       elif [ -d /work/noaa/global/$LOGNAME ]; then
-	  export noscrub="/work/noaa/global/$LOGNAME/noscrub"
+         export noscrub="/work/noaa/global/$LOGNAME/noscrub"
       fi
 
       export queue="${queue:-batch}"
+
+      if [[ "${machine}" == "Orion" ]]; then
+         export partition="${partition:-orion}"
+      else
+         export partition="${partition:-hercules}"
+      fi
+
       export group="${group:-global}"
       if [[ "$cmaketest" = "false" ]]; then
-	  export basedir="/work/noaa/da/$LOGNAME/gsi"
+         export basedir="/work/noaa/da/$LOGNAME/gsi"
       fi
       export ptmp="${ptmp:-/work/noaa/stmp/$LOGNAME/$ptmpName}"
 
