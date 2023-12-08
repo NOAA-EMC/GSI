@@ -1400,7 +1400,9 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",ddiff     )
            call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",qob,qges,'-')
            call nc_diag_metadata_to_single("Forecast_Saturation_Spec_Hum",qsges    )
-           call nc_diag_metadata_to_single("Observation_Tdry", data(itemp,i)       )
+           if ( l_rtma3d ) then
+              call nc_diag_metadata_to_single("Observation_Tdry", data(itemp,i)    )
+           endif
            if (lobsdiagsave) then
               do jj=1,miter
                  if (odiag%muse(jj)) then
@@ -1465,7 +1467,9 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",ddiff     )
            call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",ddiff   )
            call nc_diag_metadata_to_single("Forecast_Saturation_Spec_Hum",qsges    )
-           call nc_diag_metadata_to_single("Observation_Tdry", data(itemp,i)       )
+           if ( l_rtma3d ) then
+              call nc_diag_metadata_to_single("Observation_Tdry", data(itemp,i)    )
+           endif
 !----
            if (lobsdiagsave) then
               do jj=1,miter
