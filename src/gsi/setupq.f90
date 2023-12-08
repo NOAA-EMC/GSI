@@ -113,6 +113,9 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !                         for 3D-RTMA (if l_obsprvdiag is true).
 !   2023-03-09 Draper added option to interpolate screen-level q from model 2m output.
 !              (hofx_2m_sfcfile)
+!   2023-12-07  zhao    - added tdry (dry-bulb air temperature) in obsdiag file
+!                         (for 3DRTMA only: tdry is used in AutoQC utility for 3DRTMA)
+!                         (issue #666 in EMC GSI repo on github)
 !
 !
 !   input argument list:
@@ -172,6 +175,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use rapidrefresh_cldsurf_mod, only: l_sfcobserror_ramp_q
   use rapidrefresh_cldsurf_mod, only: l_pbl_pseudo_surfobsq,pblh_ration,pps_press_incr, &
                                       i_use_2mq4b,l_closeobs,i_coastline
+  use rapidrefresh_cldsurf_mod, only: l_rtma3d
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use sparsearr, only: sparr2, new, size, writearray, fullarray
@@ -416,6 +420,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      iip=0
      nchar=1
      ioff0=21
+     if ( l_rtma3d ) ioff0 = ioff0 + 1          ! No. 22 is accounted for itemp (dry-bulb temp)
      nreal=ioff0
      if (lobsdiagsave) nreal=nreal+4*miter+1
      if (twodvar_regional .or. l_obsprvdiag) then
@@ -1232,6 +1237,10 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         rdiagbuf(20,ii) = qsges              ! guess saturation specific humidity
         rdiagbuf(21,ii) = 1e+10_r_single     ! spread (filled in by EnKF)
 
+        if ( l_rtma3d ) then
+          rdiagbuf(ioff0,ii) = data(itemp,i) ! dry temperature accompanied with qob
+        end if
+
         ioff=ioff0
         if (lobsdiagsave) then
            do jj=1,miter 
@@ -1308,6 +1317,10 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
         rdiagbufp(20,iip) = qsges              ! guess saturation specific humidity
         rdiagbufp(21,iip) = 1e+10_r_single     ! spread (filled in by EnKF)
+
+        if ( l_rtma3d ) then
+          rdiagbufp(ioff0,ii) = data(itemp,i)  ! dry temperature accompanied with qob
+        end if
 
         ioff=ioff0
 !----
@@ -1387,6 +1400,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",ddiff     )
            call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",qob,qges,'-')
            call nc_diag_metadata_to_single("Forecast_Saturation_Spec_Hum",qsges    )
+           call nc_diag_metadata_to_single("Observation_Tdry", data(itemp,i)       )
            if (lobsdiagsave) then
               do jj=1,miter
                  if (odiag%muse(jj)) then
@@ -1451,6 +1465,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",ddiff     )
            call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",ddiff   )
            call nc_diag_metadata_to_single("Forecast_Saturation_Spec_Hum",qsges    )
+           call nc_diag_metadata_to_single("Observation_Tdry", data(itemp,i)       )
 !----
            if (lobsdiagsave) then
               do jj=1,miter
