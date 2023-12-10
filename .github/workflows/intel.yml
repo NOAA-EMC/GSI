@@ -18,21 +18,30 @@ env:
 
 # The jobs are split into:
 # 1. a dependency build step (setup), and
-# 2. a GSI build step (build)
+# 2. a GSI build step (gsi)
 # The setup is run once and the environment is cached,
-# so each build of GSI can reuse the cached dependencies to save time (and compute).
+# so each subsequent build of GSI can reuse the cached dependencies to save time (and compute).
 
 jobs:
   setup:
     runs-on: ubuntu-latest
 
     steps:
+      # Free up disk space
+      - name: free-disk-spack
+        run: |
+          df -h
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+
       # Checkout the GSI to get the ci/spack.yaml file
-      - name: checkout-gsi
+      - name: checkout
         if: steps.cache-env.outputs.cache-hit != 'true'
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-            path: GSI
+            path: gsi
 
       # Cache spack, compiler and dependencies
       - name: cache-env
@@ -43,16 +52,15 @@ jobs:
             spack
             ~/.spack
             /opt/intel
-          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles('GSI/ci/spack.yaml') }}
+          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles('gsi/ci/spack.yaml') }}
 
       - name: install-intel-compilers
-        if: steps.cache-env.outputs.cache-hit != 'true'
         run: |
           wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
           sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
           echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
           sudo apt-get update
-          sudo apt-get install intel-oneapi-dev-utilities intel-oneapi-mpi-devel intel-oneapi-openmp intel-oneapi-compiler-fortran intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
+          sudo apt-get install intel-oneapi-dev-utilities intel-oneapi-mpi-devel intel-oneapi-openmp intel-oneapi-compiler-fortran-2023.2.1 intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic-2023.2.1
           sudo apt-get clean
           echo "source /opt/intel/oneapi/setvars.sh" >> ~/.bash_profile
 
@@ -62,30 +70,31 @@ jobs:
         run: |
           sudo mv /usr/local/ /usr_local_mv
           sudo apt-get install cmake
-          git clone -c feature.manyFiles=true https://github.com/NOAA-EMC/spack.git
+          git clone -c feature.manyFiles=true https://github.com/JCSDA/spack.git
           source spack/share/spack/setup-env.sh
-          spack env create gsi-env GSI/ci/spack.yaml
+          spack env create gsi-env gsi/ci/spack.yaml
           spack env activate gsi-env
           spack compiler find
+          sudo apt install cmake
           spack external find
           spack add intel-oneapi-mpi
           spack concretize
           spack install -v --fail-fast --dirty
           spack clean -a
 
-  build:
+  gsi:
     needs: setup
     runs-on: ubuntu-latest
 
     steps:
-      - name: checkout-gsi
-        uses: actions/checkout@v3
-        with:
-            path: GSI
-
       - name: install-intel
         run: |
           echo "source /opt/intel/oneapi/setvars.sh" >> ~/.bash_profile
+
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+            path: gsi
 
       - name: cache-env
         id: cache-env
@@ -95,13 +104,13 @@ jobs:
             spack
             ~/.spack
             /opt/intel
-          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles('GSI/ci/spack.yaml') }}
+          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles('gsi/ci/spack.yaml') }}
 
-      - name: build-gsi
+      - name: build
         run: |
           source spack/share/spack/setup-env.sh
           spack env activate gsi-env
-          cd GSI
+          cd gsi
           mkdir -p build && cd build
           cmake -DCMAKE_INSTALL_PREFIX=../install -DGSI_MODE=Regional -DENKF_MODE=GFS -DBUILD_REG_TESTING=OFF ..
           make -j2 VERBOSE=1

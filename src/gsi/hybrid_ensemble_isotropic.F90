@@ -4001,7 +4001,8 @@ subroutine hybens_grid_setup
 !   2010-02-20  parrish, adapt for dual resolution
 !   2011-01-30  parrish, fix so regional application depends only on parameters regional
 !                  and dual_res.  Rename subroutine get_regional_gefs_grid to get_regional_dual_res_grid.
-!
+! 
+!   2022-03-01  X.Lu & X.Wang - add vars for hafs dual ens.  POC: xuguang.wang@ou.edu
 !   input argument list:
 !
 !   output argument list:
@@ -4027,6 +4028,8 @@ subroutine hybens_grid_setup
   use control_vectors, only: cvars3d,nc2d,nc3d
   use gridmod, only: region_lat,region_lon,region_dx,region_dy
   use hybrid_ensemble_parameters, only:nsclgrp,spc_multwgt,spcwgt_params,global_spectral_filter_sd
+  use hybrid_ensemble_parameters, only:regional_ensemble_option
+  use gsi_rfv3io_mod,only:gsi_rfv3io_get_ens_grid_specs
 
   implicit none
 
@@ -4035,6 +4038,8 @@ subroutine hybens_grid_setup
   logical,allocatable::vector(:)
   real(r_kind) eps,r_e
   real(r_kind) rlon_a(nlon),rlat_a(nlat),rlon_e(nlon),rlat_e(nlat)
+  character(:),allocatable:: fv3_ens_spec_grid_filename
+  integer :: ierr
 
   nord_e2a=4       !   soon, move this to hybrid_ensemble_parameters
 
@@ -4121,6 +4126,10 @@ subroutine hybens_grid_setup
   else
      if(dual_res) then
         call get_region_dx_dy_ens(region_dx_ens,region_dy_ens)
+        if(regional_ensemble_option == 5) then
+           fv3_ens_spec_grid_filename="fv3_ens_grid_spec"
+           call gsi_rfv3io_get_ens_grid_specs(fv3_ens_spec_grid_filename,ierr)
+        endif
      else
         region_dx_ens=region_dx
         region_dy_ens=region_dy
