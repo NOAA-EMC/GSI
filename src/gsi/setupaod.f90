@@ -180,6 +180,7 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
   real(r_kind)    :: qcall, smask
   real(r_kind)    :: styp, dbcf
 
+  real(r_kind),dimension(nchanl):: chan_level
   real(r_kind),dimension(nchanl):: emissivity,ts,emissivity_k
   real(r_kind),dimension(nchanl):: tsim
   real(r_kind),dimension(nsig,nchanl):: wmix,temp,ptau5
@@ -409,7 +410,7 @@ subroutine setupaod(obsLL,odiagLL,lunin,mype,nchanl,nreal,nobs,&
         call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
              tvp,qvp,qsat,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
-             tsim,emissivity,ptau5,ts,emissivity_k, &
+             tsim,emissivity,chan_level,ptau5,ts,emissivity_k, &
              temp,wmix,jacobian,error_status,layer_od=layer_od,jacobian_aero=jacobian_aero)
         ! interpolate aerosols at observation locations for diag files here
         if (aero_diagsave) then
