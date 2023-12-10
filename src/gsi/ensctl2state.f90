@@ -504,8 +504,7 @@ do jj=1,ntlevs_ens
    end if
 
 !  Get the ozone vector if it is defined
-   id=getindex(cvars3d,"oz")
-   if(id > 0) then
+   if(idozone > 0) then
       call gsi_bundlegetpointer (eval(jj),'oz'  ,rv_oz , istatus)
       call gsi_bundleputvar ( wbundle_c, 'oz',  rv_oz,  istatus )
    endif

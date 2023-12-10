@@ -139,8 +139,8 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      logical, allocatable,dimension(:)     :: rusage,rthin
      logical save_all
 !    integer(i_kind)  numthin,numqc,numrem
-     integer(i_kind)  pmot,iqm,numall
-     integer(i_kind) ndata_end,ndata_start
+     integer(i_kind) pmot,iqm,numall
+     integer(i_kind) nxdata
 
 !    Real variables
      real(r_kind), parameter :: r0_001  =  0.001_r_kind
@@ -358,8 +358,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      pmot=nint(pmot_conv(nc))
      if(reduce_diag .and. pmot < 2)pmot=pmot+2
      save_all=.false.
-     if(pmot /= 2) save_all=.true.
-     ndata_start=ndata+1
+     if(pmot /= 2 .and. pmot /= 0) save_all=.true.
 
 
 !------------------------------------------------------------------------------------------------
@@ -1178,12 +1177,13 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
         call del3grids
      endif
 
-     numall=ndata-ndata_start+1
-     if(numall > 0)then
+     nxdata=ndata
+     ndata=0
+     if(nxdata > 0)then
 !       numthin=0
 !       numqc=0
 !       numrem=0
-!       do i=ndata_start,ndata
+!       do i=1,ndata
 !         if(.not. rusage(i))then
 !            numqc=numqc+1
 !         else if(rthin(i))then
@@ -1196,16 +1196,14 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !              numrem,numqc,numthin
 !   If thinned data set quality mark to 16
         if (ithin > 0 .and. ithin <5) then
-          do i=ndata_start,ndata
+          do i=1,nxdata
              if(rthin(i))cdata_all(iqm,i)=14
           end do
         end if
 
 !     If flag to not save thinned data is set - compress data
         if(pmot /= 1)then
-          ndata_end=ndata
-          ndata=ndata_start-1
-          do i=ndata_start,ndata_end
+          do i=1,nxdata
 
 !         pmot=0 - all obs - thin obs
 !         pmot=1 - all obs
@@ -1226,12 +1224,10 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
         end if
       end if
       if(luvob)then
-         nodata=nodata+2*(ndata-ndata_start + 1)
+         nodata=nodata+2*ndata
       else
-         nodata=nodata+ndata-ndata_start + 1
+         nodata=nodata+nxdata
       end if
-      ndata_start=ndata+1
-
 
 !    Write header record and data to output file for further processing
 !     deallocate(etabl)

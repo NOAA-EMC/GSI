@@ -421,6 +421,11 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   do i=1,nobs
      muse(i)=nint(data(iuse,i)) <= jiter .and. nint(data(iqc,i)) < 8
+     if(jiter == 1)then
+       ikx=nint(data(ikxx,i))
+       itype=ictype(ikx)
+!      write(300+mype,*) i,itype,data(ilate,i),data(ilone,i)
+     end if
   end do
 !  If HD raobs available move prepbufr version to monitor
   if(nhduv > 0)then
@@ -894,8 +899,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        if (itype==236) then
          magomb=sqrt(dudiff*dudiff+dvdiff*dvdiff)
          ratio_errors=error/((uv_doe_a_236*magomb+uv_doe_b_236)+drpx+1.0e6_r_kind*rhgh+four*rlow)
-       endif
-       if (itype==237) then
+       else if (itype==237) then
          magomb=sqrt(dudiff*dudiff+dvdiff*dvdiff)
          ratio_errors=error/((uv_doe_a_237*magomb+uv_doe_b_237)+drpx+1.0e6_r_kind*rhgh+four*rlow)
        endif
@@ -951,8 +955,10 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               if( presw >399.0_r_kind .and. presw <801.0_r_kind) then  !GOES IR  winds
                  error=zero                          !  no data between 400-800mb
               endif
-           else if(itype == 252 .and. presw >499.0_r_kind .and. presw <801.0_r_kind) then  ! JMA IR winds
-              error=zero
+           else if(itype == 252 )then
+              if( presw >499.0_r_kind .and. presw <801.0_r_kind) then  ! JMA IR winds
+                 error=zero
+              end if
            else if(itype == 253 )  then
               if(presw >401.0_r_kind .and. presw <801.0_r_kind) then  ! EUMET IR winds
                  error=zero
@@ -989,15 +995,10 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
    
 !    QC MODIS winds
            else if (itype==257 .or. itype==258 .or. itype==259 .or. itype ==260) then
-              if(itype ==257 .and. presw <249.0_r_kind) then
-                 error=zero
-              else if(itype ==258 .and. presw >600.0_r_kind) then
-                 error=zero
-              else if(itype ==259 .and. presw >600.0_r_kind) then
-                 error=zero
-              else if(itype ==259 .and. presw <249.0_r_kind) then
-                 error=zero
-              end if
+              if(itype ==257 .and. presw <249.0_r_kind) error=zero
+              if(itype ==258 .and. presw >600.0_r_kind) error=zero
+              if(itype ==259 .and. presw >600.0_r_kind) error=zero
+              if(itype ==259 .and. presw <249.0_r_kind) error=zero
 !             Get guess values of tropopause pressure and sea/land/ice
 !             mask at observation location
               prsfc = r10*prsfc       ! surface pressure in hPa
@@ -1319,6 +1320,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         my_head%ib=ibeta(ikx)
         my_head%ik=ikapa(ikx)
         my_head%luse=luse(i)
+
 !        if( i==3) print *,'SETUPW',my_head%ures,my_head%vres,my_head%err2
          
 

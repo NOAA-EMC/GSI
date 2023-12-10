@@ -191,7 +191,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind),dimension(nconvtype+1) :: ntx  
   
   integer(i_kind),dimension(5):: idate5 
-  integer(i_kind),allocatable,dimension(:):: nrep,istab
+  integer(i_kind),allocatable,dimension(:):: nrep,istab,iloc
   integer(i_kind),allocatable,dimension(:,:):: tab
   integer(i_kind) :: icnt(1000)
 
@@ -220,12 +220,12 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_double),dimension(3,12) :: qcdat
   real(r_double),dimension(1,1):: r_prvstg,r_sprvstg
   real(r_kind),allocatable,dimension(:):: presl_thin
-  real(r_kind),allocatable,dimension(:,:):: cdata_all
+  real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
 
   logical,allocatable,dimension(:)::rthin,rusage
   logical save_all
  !integer(i_kind) numthin,numqc,numrem
-  integer(i_kind) ndata_end,ndata_start,pmot,numall
+  integer(i_kind) nxdata,pmot,numall
 
 
 ! GOES-16 new BUFR related variables
@@ -406,6 +406,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      loop_report: do while (ireadsb(lunin) == 0)
         ntb = ntb+1
         nrep(nmsg)=nrep(nmsg)+1
+        maxobs=maxobs+1
         if (ntb>mxtb) then
            write(6,*)'READ_SATWND: reports exceed maximum ',mxtb   
            call stop2(49)
@@ -640,7 +641,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 !  Save information for next read
         if(ncsave /= 0) then
-           maxobs=maxobs+1
            nx=1
            if(ithin_conv(ncsave) > 0 .and. ithin_conv(ncsave) <5)then
               do ii=2,ntread
@@ -654,7 +654,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         end if
      enddo loop_report
   enddo msg_report
-  write(6,*) ' maxobs ',maxobs,ntb
 
   nread=0
   ntest=0
@@ -662,17 +661,17 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   nchanl=0
   ilon=2
   ilat=3
-  allocate(cdata_all(nreal,maxobs),rthin(maxobs),rusage(maxobs))
+  allocate(cdata_all(nreal,maxobs),rthin(maxobs),rusage(maxobs),iloc(maxobs))
+  rusage = .true.
+  rthin = .false.
+  iloc = 0
 
   loop_convinfo: do nx=1,ntread 
 
-     rusage = .true.
-     rthin = .false.
      ! set parameters for processing the next satwind type
      use_all = .true.
      use_all_tm = .true.
      ithin=0
-     ndata_start=ndata+1
 !  Default for non thinned data is save all
      pmot=0
 
@@ -716,7 +715,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
      if(reduce_diag .and. pmot < 2)pmot=pmot+2
      save_all=.false.
-     if(pmot /= 2) save_all=.true.
+     if(pmot /= 2 .and. pmot /= 0) save_all=.true.
 
      ! Open and read the file once for each satwnd type   
      call closbf(lunin)
@@ -728,11 +727,13 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      ncount=0
      loop_msg:  do while(IREADMG(lunin,subset,idate) == 0)
         nmsg = nmsg+1
-        if(.not.lmsg(nmsg,nx)) then
+        istype = istab(nmsg)
+        if(.not.lmsg(nmsg,nx) .or. istype == 3 .or. istype == 6) then    
+!     currently istypes 3 and 6 not used.  If adding needs to be deleted from above line
+!     as well as below.
            ntb=ntb+nrep(nmsg)
            cycle loop_msg ! no useable reports this mesage, skip ahead report count
         end if
-        istype = istab(nmsg)
         loop_readsb: do while(ireadsb(lunin) == 0)
            ntb = ntb+1
            nc = tab(ntb,1)
@@ -800,8 +801,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if( hdrdat(3) == r360) hdrdat(3) = hdrdat(3) - r360
            if( hdrdat(3) > r360) cycle loop_readsb 
            qm=2
-           iuse=icuse(nc)
-           if(iuse < 0)qm = 9
            iobsub=int(hdrdat(1))
            ihdr9=nint(hdrdat(9))
            write(stationid,'(i3)') iobsub
@@ -857,6 +856,42 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               if(qifn <85.0_r_kind )  then    !  qifn, QI without forecast
                  qm=15
               endif
+! Extra block for new EUMETSAT BUFR: Start
+           else if(istype == 2)then                              ! new EUM BUFR
+              if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
+              c_prvstg='EUMETSAT'
+              if(ihdr9 == 1)  then                            ! IR winds
+!                itype=253
+                 c_station_id='IR'//stationid
+                 c_sprvstg='IR'
+              else if(ihdr9 == 2) then                        ! visible winds
+!                itype=243
+                 c_station_id='VI'//stationid
+                 c_sprvstg='VI'
+              else if(ihdr9 == 3) then                        ! WV cloud top, try to assimilate
+!                itype=254
+                 c_station_id='WV'//stationid
+                 c_sprvstg='WV'
+              else if(ihdr9 >= 4) then                        ! WV deep layer,monitoring
+!                itype=254
+                 qm=9                                     !  quality mark as 9, means the observation error needed to be set
+                 c_station_id='WV'//stationid
+                 c_sprvstg='WV'
+              endif
+!  get quality information THIS SECTION NEEDS TO BE TESTED!!!
+              call ufbint(lunin,rep_array,1,1,iret, '{AMVIVR}')
+              irep_array = max(1,int(rep_array))
+              allocate( amvivr(2,irep_array))
+              call ufbrep(lunin,amvivr,2,irep_array,iret, 'TCOV CVWD')
+              pct1 = amvivr(2,1)     ! use of pct1 (a new variable in the BUFR) is introduced by Nebuda/Genkova
+              deallocate( amvivr )
+              call ufbseq(lunin,amvqic,2,4,iret, 'AMVQIC') ! AMVQIC:: GNAPS PCCF
+              qifn = amvqic(2,2)  ! QI w/ fcst does not exist in this BUFR
+              ee = amvqic(2,4) ! NOTE: GOES-R's ee is in [m/s]
+              if(qifn <85.0_r_kind )  then    !  qifn, QI without forecast
+                 qm=15
+              endif
+! Extra block for new EUMETSAT BUFR: End
            else if(istype == 4) then   ! JMA
               if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
               c_prvstg='JMA'
@@ -895,6 +930,42 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               if(qifn <85.0_r_kind )  then     ! qifn: QI value without forecast 
                  qm=15
               endif
+! Extra block for new JMA BUFR: Start
+           else if(istype == 5)then                              ! new JMA BUFR
+              if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
+              c_prvstg='JMA'
+              if(ihdr9 == 1)  then                        ! IR winds
+!                itype=252
+                 c_station_id='IR'//stationid
+                 c_sprvstg='IR'
+              else if(ihdr9 == 2) then                    ! visible winds
+!                itype=242
+                 c_station_id='VI'//stationid
+                 c_sprvstg='VI'
+              else if(ihdr9 == 3) then                    ! WV cloud top
+!                itype=250
+                 c_station_id='WV'//stationid
+                 c_sprvstg='WV'
+              else if(ihdr9 >= 4) then                    ! WV deep layer,monitoring
+!                itype=250
+                 qm=9                                     !  quality mark as 9, means the observation error needed to be set
+                 c_station_id='WV'//stationid
+                 c_sprvstg='WV'
+              endif
+!  get quality information THIS SECTION NEEDS TO BE TESTED!!!
+              call ufbint(lunin,rep_array,1,1,iret, '{AMVIVR}')
+              irep_array = max(1,int(rep_array))
+              allocate( amvivr(2,irep_array))
+              call ufbrep(lunin,amvivr,2,irep_array,iret, 'TCOV CVWD')
+              pct1 = amvivr(2,1)     ! use of pct1 (a new variable in the BUFR) is introduced by Nebuda/Genkova
+              deallocate( amvivr )
+              call ufbseq(lunin,amvqic,2,4,iret, 'AMVQIC') ! AMVQIC:: GNAPS PCCF
+              qifn = amvqic(2,2)  ! QI w/ fcst does not exist in this BUFR
+              ee = amvqic(2,4) ! NOTE: GOES-R's ee is in [m/s]
+              if(qifn <85.0_r_kind )  then    !  qifn, QI without forecast
+                 qm=15
+              endif
+! Extra block for new JMA BUFR: End
            else if(istype == 7)then  ! NESDIS GOES 
               if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
               c_prvstg='NESDIS'
@@ -1000,6 +1071,26 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     endif
                  endif
               enddo
+! Extra block for new Metop/AVHRR BUFR: Start
+           else if(istype == 10) then         ! Metop-B/C from EUMETSAT
+              c_prvstg='METOP'
+              if(ihdr9 == 1)  then                            ! IRwinds
+!                itype=244
+                 c_station_id='IR'//stationid
+                 c_sprvstg='IR'
+              else
+                 write(6,*) 'READ_SATWND: wrong derived method value'
+              endif
+              call ufbint(lunin,rep_array,1,1,iret, '{AMVIVR}')
+              irep_array = int(rep_array)
+              allocate( amvivr(2,irep_array))
+              call ufbrep(lunin,amvivr,2,irep_array,iret, 'TCOV CVWD')
+              pct1 = amvivr(2,1)     ! use of pct1 is limited to GOES-16/17) as introduced by Nebuda/Genkova
+              deallocate( amvivr )
+              call ufbseq(lunin,amvqic,2,4,iret, 'AMVQIC') ! AMVQIC:: GNAPS PCCF
+              qifn = amvqic(2,2)  ! QI w/ fcst does not exist in this BUFR
+              ee = amvqic(2,4) ! NOTE: GOES-R's ee is in [m/s]
+! Extra block for new Metop/AVHRR BUFR: End
            else if(istype == 11) then                   ! GOES shortwave winds 
               if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
               c_prvstg='NESDIS'
@@ -1074,98 +1165,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               if(qifn <85.0_r_kind )  then    !  qifn, QI without forecast
                  qm=15
               endif
-! Extra block for new JMA BUFR: Start
-           else if(istype == 5)then                              ! new JMA BUFR
-              if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
-              c_prvstg='JMA'
-              if(ihdr9 == 1)  then                        ! IR winds
-!                itype=252
-                 c_station_id='IR'//stationid
-                 c_sprvstg='IR'
-              else if(ihdr9 == 2) then                    ! visible winds
-!                itype=242
-                 c_station_id='VI'//stationid
-                 c_sprvstg='VI'
-              else if(ihdr9 == 3) then                    ! WV cloud top
-!                itype=250
-                 c_station_id='WV'//stationid
-                 c_sprvstg='WV'
-              else if(ihdr9 >= 4) then                    ! WV deep layer,monitoring
-!                itype=250
-                 qm=9                                     !  quality mark as 9, means the observation error needed to be set
-                 c_station_id='WV'//stationid
-                 c_sprvstg='WV'
-              endif
-!  get quality information THIS SECTION NEEDS TO BE TESTED!!!
-              call ufbint(lunin,rep_array,1,1,iret, '{AMVIVR}')
-              irep_array = max(1,int(rep_array))
-              allocate( amvivr(2,irep_array))
-              call ufbrep(lunin,amvivr,2,irep_array,iret, 'TCOV CVWD')
-              pct1 = amvivr(2,1)     ! use of pct1 (a new variable in the BUFR) is introduced by Nebuda/Genkova
-              deallocate( amvivr )
-              call ufbseq(lunin,amvqic,2,4,iret, 'AMVQIC') ! AMVQIC:: GNAPS PCCF
-              qifn = amvqic(2,2)  ! QI w/ fcst does not exist in this BUFR
-              ee = amvqic(2,4) ! NOTE: GOES-R's ee is in [m/s]
-              if(qifn <85.0_r_kind )  then    !  qifn, QI without forecast
-                 qm=15
-              endif
-! Extra block for new JMA BUFR: End
-! Extra block for new EUMETSAT BUFR: Start
-           else if(istype == 2)then                              ! new EUM BUFR
-              if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
-              c_prvstg='EUMETSAT'
-              if(ihdr9 == 1)  then                            ! IR winds
-!                itype=253
-                 c_station_id='IR'//stationid
-                 c_sprvstg='IR'
-              else if(ihdr9 == 2) then                        ! visible winds
-!                itype=243
-                 c_station_id='VI'//stationid
-                 c_sprvstg='VI'
-              else if(ihdr9 == 3) then                        ! WV cloud top, try to assimilate
-!                itype=254
-                 c_station_id='WV'//stationid
-                 c_sprvstg='WV'
-              else if(ihdr9 >= 4) then                        ! WV deep layer,monitoring
-!                itype=254
-                 qm=9                                     !  quality mark as 9, means the observation error needed to be set
-                 c_station_id='WV'//stationid
-                 c_sprvstg='WV'
-              endif
-!  get quality information THIS SECTION NEEDS TO BE TESTED!!!
-              call ufbint(lunin,rep_array,1,1,iret, '{AMVIVR}')
-              irep_array = max(1,int(rep_array))
-              allocate( amvivr(2,irep_array))
-              call ufbrep(lunin,amvivr,2,irep_array,iret, 'TCOV CVWD')
-              pct1 = amvivr(2,1)     ! use of pct1 (a new variable in the BUFR) is introduced by Nebuda/Genkova
-              deallocate( amvivr )
-              call ufbseq(lunin,amvqic,2,4,iret, 'AMVQIC') ! AMVQIC:: GNAPS PCCF
-              qifn = amvqic(2,2)  ! QI w/ fcst does not exist in this BUFR
-              ee = amvqic(2,4) ! NOTE: GOES-R's ee is in [m/s]
-              if(qifn <85.0_r_kind )  then    !  qifn, QI without forecast
-                 qm=15
-              endif
-! Extra block for new EUMETSAT BUFR: End
-! Extra block for new Metop/AVHRR BUFR: Start
-           else if(istype == 10) then         ! Metop-B/C from EUMETSAT
-              c_prvstg='METOP'
-              if(ihdr9 == 1)  then                            ! IRwinds
-!                itype=244
-                 c_station_id='IR'//stationid
-                 c_sprvstg='IR'
-              else
-                 write(6,*) 'READ_SATWND: wrong derived method value'
-              endif
-              call ufbint(lunin,rep_array,1,1,iret, '{AMVIVR}')
-              irep_array = int(rep_array)
-              allocate( amvivr(2,irep_array))
-              call ufbrep(lunin,amvivr,2,irep_array,iret, 'TCOV CVWD')
-              pct1 = amvivr(2,1)     ! use of pct1 is limited to GOES-16/17) as introduced by Nebuda/Genkova
-              deallocate( amvivr )
-              call ufbseq(lunin,amvqic,2,4,iret, 'AMVQIC') ! AMVQIC:: GNAPS PCCF
-              qifn = amvqic(2,2)  ! QI w/ fcst does not exist in this BUFR
-              ee = amvqic(2,4) ! NOTE: GOES-R's ee is in [m/s]
-! Extra block for new Metop/AVHRR BUFR: End
 ! Extra block for VIIRS NOAA-20: Start
            else if(istype == 14) then
               c_prvstg='VIIRS'                                  ! IR LW winds
@@ -1595,6 +1594,9 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               ndata=ndata+1
            endif
            iout=ndata
+           iloc(ntb)=iout
+           iuse=icuse(nc)
+           if(iuse < 0)qm = 9
            if(qm > 7 .or. iuse < 0 )rusage(iout)=.false.
            inflate_error=.false.
            if (qm==3 .or. qm==7) inflate_error=.true.
@@ -1655,70 +1657,69 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         deallocate(presl_thin)
         call del3grids_tm
      endif
-
-!
-     numall=ndata-ndata_start+1
-     if(numall > 0)then
-!     numthin=0
-!     numqc=0
-!     numrem=0
-!     do i=ndata_start,ndata
-!        if(.not. rusage(i))then
-!           numqc=numqc+1
-!        else if(rthin(i))then
-!           numthin=numthin+1
-!        else
-!           numrem=numrem+1
-!        end if
-!     end do
-!     write(6,*) ' smar ',trim(ioctype(nc)),ictype(nc),icsubtype(nc),numall,numrem,numqc,numthin
-!   If thinned data set usage
-        do i=ndata_start,ndata
-          if(rthin(i))then
-             cdata_all(12,i)=14
-             cdata_all(14,i)=101.0_r_kind
-          end if
-          if(.not. rusage(i))cdata_all(14,i) = 100.0_r_kind
-        end do
-!     If flag to not save thinned data is set - compress data
-        if(pmot /= 1)then
-           ndata_end=ndata
-           ndata=ndata_start-1
-           do i=ndata_start,ndata_end
-!         pmot=0 - all obs - thin obs
-!         pmot=1 - all obs
-!         pmot=2 - use obs
-!         pmot=3 - use obs + thin obs
-              if((pmot == 0 .and. .not. rthin(i)) .or. &
-                 (pmot == 2 .and. (rusage(i) .and. .not. rthin(i)))  .or. &
-                 (pmot == 3 .and. rusage(i))) then
-
-                 ndata=ndata+1
-                 if(i > ndata)then
-                    do k=1,nreal
-                       cdata_all(k,ndata)=cdata_all(k,i)
-                    end do
-                 end if
-              end if
-           end do
-        end if
-        nodata=nodata+2*(ndata-ndata_start + 1)
-        ndata_start=ndata+1
-     end if
 ! Normal exit
-
   enddo loop_convinfo! loops over convinfo entry matches
   deallocate(lmsg,tab,nrep)
 ! Close unit to bufr file
   call closbf(lunin)
+!
+  if(ndata > 0)then
+!  numthin=0
+!  numqc=0
+!  numrem=0
+!  do i=1,ndata
+!     if(.not. rusage(i))then
+!        numqc=numqc+1
+!     else if(rthin(i))then
+!        numthin=numthin+1
+!     else
+!        numrem=numrem+1
+!     end if
+!  end do
+!  write(6,*) ' smar ',trim(ioctype(nc)),ictype(nc),icsubtype(nc),numall,numrem,numqc,numthin
+!   If thinned data set usage
+     do i=1,ndata
+       if(rthin(i))then
+          cdata_all(12,i)=14
+          cdata_all(14,i)=101.0_r_kind
+       end if
+       if(.not. rusage(i))cdata_all(14,i) = 100.0_r_kind
+     end do
+     nxdata=ndata
+     allocate(cdata_out(nreal,nxdata))
+!  If flag to not save thinned data is set - compress data
+     ndata=0
+     do i=1,maxobs
+!   pmot=0 - all obs - thin obs
+!   pmot=1 - all obs
+!   pmot=2 - use obs
+!   pmot=3 - use obs + thin obs
+        itx=iloc(i)
+        if(itx > 0)then
+           if((pmot == 0 .and. .not. rthin(itx)) .or. &
+              (pmot == 1) .or.  &
+              (pmot == 2 .and. rusage(itx) .and. .not. rthin(itx))  .or. &
+              (pmot == 3 .and. rusage(itx))) then
+
+              ndata=ndata+1
+              do k=1,nreal
+                 cdata_out(k,ndata)=cdata_all(k,itx)
+              end do
+           end if
+        end if
+     end do
+     nodata=nodata+2*ndata
+  end if
+  deallocate(cdata_all,rusage,rthin,iloc)
+
 
   ! Write header record and data to output file for further processing
   
-  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-  write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
+  write(lunout) ((cdata_out(k,i),k=1,nreal),i=1,ndata)
 
-  deallocate(cdata_all,rusage,rthin)
+  deallocate(cdata_out)
 
   if(diagnostic_reg)then
      if(ntest>0) write(6,*)'READ_SATWND:  ',&

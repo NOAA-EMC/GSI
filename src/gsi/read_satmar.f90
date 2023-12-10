@@ -174,7 +174,7 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
    logical,allocatable,dimension(:)::rthin,rusage
    logical save_all
 !  integer(i_kind) numthin,numqc,numrem
-   integer(i_kind) ndata_end,ndata_start,pmot,numall
+   integer(i_kind) nxdata,pmot,numall
 
 !
 !   call init_constants_derived
@@ -208,9 +208,9 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
    end if
 !
 !  *#* Thinning *#*!
-  use_all = .true.
-  ithin=ithin_conv(nc)
-  if (ithin > 0 ) then
+   use_all = .true.
+   ithin=ithin_conv(nc)
+   if (ithin > 0 ) then
      rmesh=rmesh_conv(nc)
      use_all = .false.
      nlevp=1   !Dummy for using make3grids
@@ -219,7 +219,7 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
      call make3grids(xmesh,nlevp)
      write(6,'(A,1x,A,1x,A,I4,1x,f8.2,1x,I3,1x,I3)')myname,': ioctype(nc),ictype(nc),rmesh,nlevp,nc ',&
                  trim(ioctype(nc)),ictype(nc),rmesh,nlevp,nc
-  endif
+   endif
 !
 !  *#* Main - Start *#*!
    open(lun11,file=trim(infile),action='read',form='unformatted', iostat=ierr)
@@ -250,8 +250,7 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
    pmot=nint(pmot_conv(nc))
    if(pmot < 2 .and. reduce_diag)pmot=pmot+2
    save_all=.false.
-   if(pmot /= 2) save_all=.true.
-   ndata_start=ndata+1
+   if(pmot /= 2 .and. pmot /= 0) save_all=.true.
    rusage = .true.
    rthin = .false.
    use_all=.true.
@@ -469,12 +468,13 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
    call closbf(lun11)
    ! Write header record and data to output file for further processing
 !
-   numall=ndata-ndata_start+1
-   if(numall > 0)then
+   nxdata=ndata
+   ndata=0
+   if(nxdata > 0)then
 !     numthin=0
 !     numqc=0
 !     numrem=0
-!     do i=ndata_start,ndata
+!     do i=1,nxdata
 !        if(.not. rusage(i))then
 !           numqc=numqc+1
 !        else if(rthin(i))then
@@ -485,16 +485,12 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
 !     end do
 !     write(6,*) ' smar ',trim(ioctype(nc)),ictype(nc),icsubtype(nc),numall,numrem,numqc,numthin
 !   If thinned data set usage
-      if (ithin > 0 .and. ithin <5) then
-         do i=ndata_start,ndata
-            if(rthin(i))data_all(11,i)=100._r_kind
-         end do
-      end if
+      do i=1,nxdata
+         if(rthin(i))data_all(11,i)=100._r_kind
+      end do
 !     If flag to not save thinned data is set - compress data
       if(pmot /= 1)then
-         ndata_end=ndata
-         ndata=ndata_start-1
-         do i=ndata_start,ndata_end
+         do i=1,nxdata
 !         pmot=0 - all obs - thin obs
 !         pmot=1 - all obs
 !         pmot=2 - use obs
@@ -512,28 +508,26 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
             end if
          end do
       end if
-      nodata=nodata+ndata-ndata_start + 1
-      ndata_start=ndata+1
+      nodata=nodata+ndata
    end if
 
-
- 
-  call count_obs(ndata,nreal,ilat,ilon,data_all,nobs)
- 
-  write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
-  write(lunout) ((data_all(k,i1),k=1,nreal),i1=1,ndata)
-  deallocate(data_all,rusage,rthin)
- 
-  if (ndata == 0) then
-     write(6,*)myname,':  closbf(',lun11,') no data'
-  endif
-  close(lun11)
-!
 ! Deallocate local arrays
    if (ithin > 0 ) then
       deallocate(DumForThin)
       call del3grids
    end if
+ 
+   call count_obs(ndata,nreal,ilat,ilon,data_all,nobs)
+ 
+   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
+   write(lunout) ((data_all(k,i1),k=1,nreal),i1=1,ndata)
+   deallocate(data_all,rusage,rthin)
+ 
+   if (ndata == 0) then
+      write(6,*)myname,':  closbf(',lun11,') no data'
+   endif
+   close(lun11)
+!
 !
 end subroutine read_satmar
 !

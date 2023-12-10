@@ -97,11 +97,12 @@ subroutine intw_(whead,rval,sval)
   use constants, only: half,one,tiny_r_kind,cg_term,r3600,two
   use obsmod, only: lsaveobsens,l_do_adjoint,luse_obsdiag
   use qcmod, only: nlnqc_iter,varqc_iter,njqc,vqc,nvqc,hub_norm
-  use jfunc, only: jiter
+  use jfunc, only: jiter,iter
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_4dvar, only: ladtest_obs 
   use pvqc, only: vqch,vqcs
+  use mpimod, only: mype
   implicit none
 
 ! Declare passed variables

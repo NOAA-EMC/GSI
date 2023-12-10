@@ -41,11 +41,10 @@ subroutine obs_para(ndata,mype)
 !                         grid.
 !
 !   input argument list:
-!     ndata(*,1)- number of prefiles retained for further processing
+!     ndata(*,1)- number of profiles retained for further processing
 !     ndata(*,2)- number of observations read
 !     ndata(*,3)- number of observations keep after read
 !     mype     - mpi task number
-!     ipoint   - pointer in array containing information about all obs type to process
 !
 !   output argument list:
 !
@@ -212,6 +211,7 @@ subroutine disobs(ndata,nobs,mm1,lunout,obsfile,obstypeall)
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: periodic_s,nlon,nlat,jlon1,ilat1,istart,jstart
+  use mpimod, only: mype
   implicit none
 
 ! Declare passed variables

@@ -127,7 +127,7 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   integer(i_kind),dimension(nconvtype+1) :: ntx  
   
   integer(i_kind),dimension(5):: idate5 
-  integer(i_kind),allocatable,dimension(:):: nrep
+  integer(i_kind),allocatable,dimension(:):: nrep,iloc
   integer(i_kind),allocatable,dimension(:,:)::tab
 
   integer(i_kind) ietabl,itypex,lcount,iflag,m
@@ -155,12 +155,12 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   real(r_double),dimension(3,4):: wnddat
   real(r_double),dimension(1,1):: r_prvstg,r_sprvstg
   real(r_kind),allocatable,dimension(:):: presl_thin
-  real(r_kind),allocatable,dimension(:,:):: cdata_all
+  real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
 
   logical,allocatable,dimension(:)::rthin,rusage
   logical save_all
 ! integer(i_kind) numthin,numqc,numrem
-  integer(i_kind) ndata_end,ndata_start,pmot,numall
+  integer(i_kind) nxdata,pmot,numall
 
 ! equivalence to handle character names
   equivalence(r_prvstg(1,1),c_prvstg)
@@ -256,7 +256,7 @@ loopd : do
 
   call getcount_bufr(infile,nmsgmax,mxtb)
 
-  allocate(lmsg(nmsgmax,ntread),tab(mxtb,3),nrep(nmsgmax))
+  allocate(lmsg(nmsgmax,ntread),tab(mxtb,2),nrep(nmsgmax))
 
   lmsg = .false.
   maxobs=0
@@ -336,15 +336,14 @@ loopd : do
            end if
            tab(ntb,1)=ncsave
            tab(ntb,2)=nx
-           tab(ntb,3)=1
            lmsg(nmsg,nx) = .true.
         end if
      enddo loop_report
   enddo msg_report
 
 ! Loop over convinfo file entries; operate on matches
-  allocate(cdata_all(nreal,maxobs),rusage(maxobs),rthin(maxobs))
-  cdata_all=zero
+  allocate(cdata_all(nreal,maxobs),rusage(maxobs),rthin(maxobs),iloc(maxobs))
+  iloc=0
   nread=0
   ntest=0
   nvtest=0
@@ -355,6 +354,8 @@ loopd : do
 !!  read satellite winds one type a time
 !   same as in the read_prepbufr.f90 file
 
+  rusage = .true.
+  rthin = .false.
   loop_convinfo: do nx=1,ntread 
      use_all = .true.
      ithin=0
@@ -408,10 +409,7 @@ loopd : do
      end if
      if(pmot < 2 .and. reduce_diag)pmot=pmot+2
      save_all=.false.
-     if(pmot /= 2) save_all=.true.
-     ndata_start=ndata+1
-     rusage = .true.
-     rthin = .false.
+     if(pmot /= 2 .and. pmot /= 0) save_all=.true.
      use_all=.true.
 
      loop_msg:  do while(ireadmg(lunin,subset,idate) == 0)
@@ -628,6 +626,7 @@ loopd : do
               ndata=ndata+1
            endif
            iout=ndata
+           iloc(ntb)=iout
 
            woe=obserr
            oelev=r10
@@ -679,57 +678,6 @@ loopd : do
         deallocate(presl_thin)
         call del3grids
      endif
-     numall=ndata-ndata_start+1
-     if(numall > 0)then
-!       numthin=0
-!       numqc=0
-!       numrem=0
-!       do i=ndata_start,ndata
-!          if(.not. rusage(i))then
-!             numqc=numqc+1
-!          else if(rthin(i))then
-!             numthin=numthin+1
-!          else
-!             numrem=numrem+1
-!          end if
-!       end do
-!       write(6,*) ' rapid ',trim(ioctype(nc)),ictype(nc),icsubtype(nc),numall,numrem,numqc,numthin
-!   If thinned data set usage
-        if (ithin > 0 .and. ithin <5) then
-           do i=ndata_start,ndata
-              if(rthin(i))then
-                 cdata_all(14,i)=100._r_kind
-                 cdata_all(12,i)=14
-              end if
-           end do
-        end if
-!     If flag to not save thinned data is set - compress data
-        if(pmot /= 1)then
-           ndata_end=ndata
-           ndata=ndata_start-1
-           do i=ndata_start,ndata_end
-!         pmot=0 - all obs - thin obs
-!         pmot=1 - all obs
-!         pmot=2 - use obs
-!         pmot=3 - use obs + thin obs
-              if((pmot == 0 .and. .not. rthin(i)) .or. &
-                 (pmot == 2 .and. (rusage(i) .and. .not. rthin(i)))  .or. &
-                 (pmot == 3 .and. rusage(i))) then
-
-                 ndata=ndata+1
-                 if(i > ndata)then
-                    do k=1,nreal
-                       cdata_all(k,ndata)=cdata_all(k,i)
-                    end do
-                 end if
-              end if
-           end do
-        end if
-        nodata=nodata+ndata-ndata_start + 1
-        ndata_start=ndata+1
-     end if
-
-
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
@@ -738,14 +686,60 @@ loopd : do
  
 ! Write header record and data to output file for further processing
   deallocate(etabl)
-  
+  allocate(cdata_out(nreal,ndata))
+  nxdata=ndata
+  ndata=0
+  if(nxdata > 0)then
+!    numthin=0
+!    numqc=0
+!    numrem=0
+!    do i=1,nxdata
+!       if(.not. rusage(i))then
+!          numqc=numqc+1
+!       else if(rthin(i))then
+!          numthin=numthin+1
+!       else
+!          numrem=numrem+1
+!       end if
+!    end do
+!    write(6,*) ' rapid ',trim(ioctype(nc)),ictype(nc),icsubtype(nc),numall,numrem,numqc,numthin
+!   If thinned data set usage
+     do i=1,nxdata
+        if(rthin(i))then
+           cdata_all(14,i)=100._r_kind
+           cdata_all(12,i)=14
+        end if
+     end do
+!  If flag to not save thinned data is set - compress data
+     do i=1,maxobs
+!   pmot=0 - all obs - thin obs
+!   pmot=1 - all obs
+!   pmot=2 - use obs
+!   pmot=3 - use obs + thin obs
+        itx=iloc(i)
+        if(itx > 0)then
+           if((pmot == 0 .and. .not. rthin(itx)) .or. &
+              (pmot == 1) .or. &
+              (pmot == 2 .and. (rusage(itx) .and. .not. rthin(itx)))  .or. &
+              (pmot == 3 .and. rusage(itx))) then
 
-  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
-  write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-  write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
-
+              ndata=ndata+1
+              do k=1,nreal
+                 cdata_out(k,ndata)=cdata_all(k,itx)
+              end do
+           end if
+        end if
+     end do
+  end if
+  nodata=nodata+ndata
   deallocate(cdata_all,rusage,rthin)
-900 continue
+
+  call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
+  write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+  write(lunout) ((cdata_out(k,i),k=1,nreal),i=1,ndata)
+
+  deallocate(cdata_out)
+
   if(diagnostic_reg .and. ntest>0) write(6,*)'READ_RAPIDSCAT:  ',&
        'ntest,disterrmax=',ntest,disterrmax
   if(diagnostic_reg .and. nvtest>0) write(6,*)'READ_RAPIDSCAT:  ',&

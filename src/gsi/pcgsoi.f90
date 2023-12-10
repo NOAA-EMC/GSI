@@ -298,16 +298,17 @@ subroutine pcgsoi()
         enddo
      endif
 
+
 !    Adjoint of control to state
      call c2s_ad(gradx,rval,rbias,llprt)
 
 !    Print initial Jo table
      if (iter==0) then
-!       if(print_diag_pcg .and. luse_obsdiag) then
-!          nprt=2
-!          call evaljo(zjo,iobs,nprt,llouter)
+        if(print_diag_pcg .and. luse_obsdiag) then
+           nprt=2
+           call evaljo(zjo,iobs,nprt,llouter)
            call prt_control_norms(gradx,'gradx')
-!       end if
+        end if
      endif
 
 !    Add contribution from background term

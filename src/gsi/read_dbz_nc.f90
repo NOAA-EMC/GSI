@@ -156,7 +156,7 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
   logical, allocatable,dimension(:)     :: rusage,rthin
   logical save_all
 ! integer(i_kind) numthin,numqc,numrem
-  integer(i_kind) ndata_start,ndata_end,pmot,numall
+  integer(i_kind) nxdata,pmot,numall
   
   character(8) cstaid
   character(4) this_staid
@@ -345,16 +345,15 @@ fileopen: if (if_input_exist) then
   pmot=pmot_dbz
   if(reduce_diag .and. pmot < 2)pmot=pmot+2
   save_all=.false.
-  if(pmot /= 2) save_all=.true.
-  ndata_start=ndata+1
+  if(pmot /= 2 .and. pmot /= 0) save_all=.true.
+  rusage = .true.
+  rthin = .false.
  
   ILOOP : &
   do i = 1, dims(ivar,1)
     do j = 1, dims(ivar,2)
       do k = 1, dims(ivar,3)
 
-        rusage = .true.
-        rthin = .false.
 
         imissing2nopcp = 0
 ! Missing data in the input file have the value -999.0
@@ -525,12 +524,13 @@ fileopen: if (if_input_exist) then
     end do    ! j
   end do ILOOP    ! i
 
-  numall=ndata-ndata_start+1
-  if(numall > 0)then
+  nxdata=ndata
+  ndata=0
+  if(nxdata > 0)then
 !    numthin=0
 !    numqc=0
 !    numrem=0
-!    do i=ndata_start,ndata
+!    do i=1,ndata
 !      if(.not. rusage(i))then
 !         numqc=numqc+1
 !      else if(rthin(i))then
@@ -543,9 +543,7 @@ fileopen: if (if_input_exist) then
 
 !     If flag to not save thinned data is set - compress data
      if(pmot /= 1)then
-       ndata_end=ndata
-       ndata=ndata_start-1
-       do i=ndata_start,ndata_end
+       do i=1,nxdata
 !         pmot=0 - all obs - thin obs
 !         pmot=1 - all obs
 !         pmot=2 - use obs
@@ -565,8 +563,7 @@ fileopen: if (if_input_exist) then
      end if
   end if
 
-  nodata=nodata+2*(ndata-ndata_start+1)
-  ndata_start=ndata+1
+  nodata=nodata+nxdata
      
   deallocate(dbzQC,lat,lon)                     
 

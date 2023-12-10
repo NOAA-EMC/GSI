@@ -208,7 +208,7 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
   logical, allocatable,dimension(:)     :: rusage,rthin
   logical save_all
 ! integer(i_kind)  numthin,numqc,numrem
-  integer(i_kind) ndata_end,ndata_start,pmot,numall
+  integer(i_kind) nxdata,pmot,numall
   
   character(8) cstaid
   character(4) this_staid
@@ -305,8 +305,8 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
        iostat=ierror,form='formatted')
 
   
- fileopen: if (ierror == 0) then    
-  read(lunrad,'(2i8)') nelv,nvol               !read number of elevations and number of volumes
+  fileopen: if (ierror == 0) then    
+         read(lunrad,'(2i8)') nelv,nvol               !read number of elevations and number of volumes
     
      
      !*************************IMPORTANT***************************!
@@ -318,97 +318,97 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
          
  !------Begin processing--------------------------!  
 
-  rusage = .true.
-  rthin = .false.
-  use_all=.true.
+          rusage = .true.
+          rthin = .false.
+          use_all=.true.
 
 
- !-Obtain analysis time in minutes since reference date
+         !-Obtain analysis time in minutes since reference date
 
-  call w3fs21(iadate,mins_an)  !mins_an -integer number of mins snce 01/01/1978
-  rmins_an=mins_an             !convert to real number
-  
-  volumes: do v=1,nvol 
-   
-    read(lunrad,'(i8)') nelv 
-    allocate(strct_in_vel(1,nelv))
-    tilts: do k=1,nelv
-
-       read(lunrad,'(a4)') strct_in_vel(1,k)%radid
-       read(lunrad,'(i8)') strct_in_vel(1,k)%vcpnum
-       read(lunrad,'(6i8)') strct_in_vel(1,k)%year              &
-                           ,strct_in_vel(1,k)%month                &
-                           ,strct_in_vel(1,k)%day                  &
-                           ,strct_in_vel(1,k)%hour                 &
-                           ,strct_in_vel(1,k)%minute               &
-                           ,strct_in_vel(1,k)%second
-       read(lunrad,'(2f10.3,f10.1)') strct_in_vel(1,k)%radlat   &
-                                    ,strct_in_vel(1,k)%radlon      &
-                                    ,strct_in_vel(1,k)%radhgt
-       read(lunrad,'(2f8.1)') strct_in_vel(1,k)%fstgatdis       &
-                             ,strct_in_vel(1,k)%gateWidth
-       read(lunrad,'(f8.3)') strct_in_vel(1,k)%elev_angle
-       read(lunrad,'(2i8)') strct_in_vel(1,k)%num_beam          &
-                           ,strct_in_vel(1,k)%num_gate
-       na=strct_in_vel(1,k)%num_beam
-       nb=strct_in_vel(1,k)%num_gate
-     
-        !******allocate arrays within radar data type**********!
-       allocate(strct_in_vel(1,k)%azim(na))
-       allocate(strct_in_vel(1,k)%field(nb,na))
-        !******************************************************!
+          call w3fs21(iadate,mins_an)  !mins_an -integer number of mins snce 01/01/1978
+          rmins_an=mins_an             !convert to real number
           
-       read(lunrad,'(f8.3)') strct_in_vel(1,k)%nyq_vel
-       read(lunrad,'(15f6.1)') (strct_in_vel(1,k)%azim(j),j=1,na)
-       read(lunrad,'(20f6.1)') ((strct_in_vel(1,k)%field(i,j),i=1,nb),j=1,na)
+          volumes: do v=1,nvol 
+           
+            read(lunrad,'(i8)') nelv 
+            allocate(strct_in_vel(1,nelv))
+            tilts: do k=1,nelv
 
-
-       obdate(1)=strct_in_vel(1,k)%year
-       obdate(2)=strct_in_vel(1,k)%month  
-       obdate(3)=strct_in_vel(1,k)%day 
-       obdate(4)=strct_in_vel(1,k)%hour   
-       obdate(5)=strct_in_vel(1,k)%minute 
-       call w3fs21(obdate,mins_ob)                             !mins_ob -integer number of mins snce 01/01/1978
-       rmins_ob=mins_ob                                        !convert to real number
-       rmins_ob=rmins_ob+(strct_in_vel(1,k)%second*r60inv)     !convert seconds to minutes and add to ob time
- 
-      !-Comparison is done in units of minutes
-      
-       timeb = rmins_ob-rmins_an
-
-
-       if(doradaroneob .and. (oneobradid /= strct_in_vel(1,k)%radid)) cycle tilts
-
-       if(abs(timeb) > abs(radartwindow)) then
-          numbadtime=numbadtime+1  
-          cycle tilts                           !If not in time window, cycle the loop
-       end if                  
-      !--Time window check complete--!
-
-       thistilt=strct_in_vel(1,k)%elev_angle
-       if (thistilt <= maxtilt .and. thistilt >= mintilt) then 
-     
-          gates: do i=1,strct_in_vel(1,k)%num_gate,thin_freq  
-              thisrange=strct_in_vel(1,k)%fstgatdis + real(i-1,r_kind)*strct_in_vel(1,k)%gateWidth
+               read(lunrad,'(a4)') strct_in_vel(1,k)%radid
+               read(lunrad,'(i8)') strct_in_vel(1,k)%vcpnum
+               read(lunrad,'(6i8)') strct_in_vel(1,k)%year              &
+                                   ,strct_in_vel(1,k)%month                &
+                                   ,strct_in_vel(1,k)%day                  &
+                                   ,strct_in_vel(1,k)%hour                 &
+                                   ,strct_in_vel(1,k)%minute               &
+                                   ,strct_in_vel(1,k)%second
+               read(lunrad,'(2f10.3,f10.1)') strct_in_vel(1,k)%radlat   &
+                                            ,strct_in_vel(1,k)%radlon      &
+                                            ,strct_in_vel(1,k)%radhgt
+               read(lunrad,'(2f8.1)') strct_in_vel(1,k)%fstgatdis       &
+                                     ,strct_in_vel(1,k)%gateWidth
+               read(lunrad,'(f8.3)') strct_in_vel(1,k)%elev_angle
+               read(lunrad,'(2i8)') strct_in_vel(1,k)%num_beam          &
+                                   ,strct_in_vel(1,k)%num_gate
+               na=strct_in_vel(1,k)%num_beam
+               nb=strct_in_vel(1,k)%num_gate
              
-             !-Check to make sure observations are within specified range 
+                !******allocate arrays within radar data type**********!
+               allocate(strct_in_vel(1,k)%azim(na))
+               allocate(strct_in_vel(1,k)%field(nb,na))
+                !******************************************************!
+                  
+               read(lunrad,'(f8.3)') strct_in_vel(1,k)%nyq_vel
+               read(lunrad,'(15f6.1)') (strct_in_vel(1,k)%azim(j),j=1,na)
+               read(lunrad,'(20f6.1)') ((strct_in_vel(1,k)%field(i,j),i=1,nb),j=1,na)
 
-              if (thisrange <= maxobrange .and. thisrange >= minobrange) then    
-     
-              azms: do j=1,strct_in_vel(1,k)%num_beam
-   
-                   !-Check to see if this is a missing observation)
-                    nread=nread+1
-                    if ( strct_in_vel(1,k)%field(i,j) >= 999.0_r_kind ) then
-                       num_missing=num_missing+1
-                       cycle azms                        !No reason to process the ob if it is missing      	       
-                    end if
-                        
-                   !--Find observation height using method from read_l2bufr_mod.f90										       
+
+               obdate(1)=strct_in_vel(1,k)%year
+               obdate(2)=strct_in_vel(1,k)%month  
+               obdate(3)=strct_in_vel(1,k)%day 
+               obdate(4)=strct_in_vel(1,k)%hour   
+               obdate(5)=strct_in_vel(1,k)%minute 
+               call w3fs21(obdate,mins_ob)                             !mins_ob -integer number of mins snce 01/01/1978
+               rmins_ob=mins_ob                                        !convert to real number
+               rmins_ob=rmins_ob+(strct_in_vel(1,k)%second*r60inv)     !convert seconds to minutes and add to ob time
          
-                    this_stahgt=strct_in_vel(1,k)%radhgt
-                    aactual=rearth+this_stahgt                    
-                    a43=four_thirds*aactual
+              !-Comparison is done in units of minutes
+              
+               timeb = rmins_ob-rmins_an
+
+
+               if(doradaroneob .and. (oneobradid /= strct_in_vel(1,k)%radid)) cycle tilts
+
+               if(abs(timeb) > abs(radartwindow)) then
+                  numbadtime=numbadtime+1  
+                  cycle tilts                           !If not in time window, cycle the loop
+               end if                  
+              !--Time window check complete--!
+
+               thistilt=strct_in_vel(1,k)%elev_angle
+               if (thistilt <= maxtilt .and. thistilt >= mintilt) then 
+             
+                  gates: do i=1,strct_in_vel(1,k)%num_gate,thin_freq  
+                      thisrange=strct_in_vel(1,k)%fstgatdis + real(i-1,r_kind)*strct_in_vel(1,k)%gateWidth
+                     
+                     !-Check to make sure observations are within specified range 
+
+                      if (thisrange <= maxobrange .and. thisrange >= minobrange) then    
+             
+                      azms: do j=1,strct_in_vel(1,k)%num_beam
+           
+                           !-Check to see if this is a missing observation)
+                            nread=nread+1
+                            if ( strct_in_vel(1,k)%field(i,j) >= 999.0_r_kind ) then
+                               num_missing=num_missing+1
+                               cycle azms                        !No reason to process the ob if it is missing      	       
+                            end if
+                                
+                           !--Find observation height using method from read_l2bufr_mod.f90										       
+                 
+                            this_stahgt=strct_in_vel(1,k)%radhgt
+                            aactual=rearth+this_stahgt                    
+                            a43=four_thirds*aactual
                     thistiltr=thistilt*deg2rad
                     selev0=sin(thistiltr)
                     celev0=cos(thistiltr)      
@@ -514,8 +514,7 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
                  pmot=pmot_vr
                  if(reduce_diag .and. pmot < 2)pmot=pmot+2
                  save_all=.false.
-                 if(pmot /= 2) save_all=.true.
-                 ndata_start=ndata+1
+                 if(pmot /= 2 .and. pmot /= 0) save_all=.true.
 
                  if(pmot >= 2 .and. abs(icuse(ikx)) /= 1)rusage(ndata+1)=.false.
  
@@ -626,12 +625,13 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
 !end modified for thinning
 
 
-  numall=ndata-ndata_start+1
-  if(numall > 0)then
+  nxdata=ndata
+  ndata=0
+  if(nxdata > 0)then
 !    numthin=0
 !    numqc=0
 !    numrem=0
-!    do i=ndata_start,ndata
+!    do i=1,nxdata
 !      if(.not. rusage(i))then
 !         numqc=numqc+1
 !      else if(rthin(i))then
@@ -644,16 +644,14 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
 !           numrem,numqc,numthin
 !   If thinned data set quality mark to 16
      if (ithin == 1 ) then
-        do i=ndata_start,ndata
+        do i=1,nxdata
           if(rthin(i))cdata_all(12,i)=101._r_kind
        end do
      end if
 
 !     If flag to not save thinned data is set - compress data
      if(pmot /= 1)then
-       ndata_end=ndata
-       ndata=ndata_start-1
-       do i=ndata_start,ndata_end
+       do i=1,nxdata
 
 !         pmot=0 - all obs - thin obs
 !         pmot=1 - all obs
@@ -673,8 +671,7 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
         end do
      end if
    end if
-   nodata=nodata+ndata-ndata_start + 1
-   ndata_start=ndata+1
+   nodata=nodata+ndata
 
 !---all looping done now print diagnostic output
 
