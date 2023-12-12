@@ -1238,7 +1238,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         rdiagbuf(21,ii) = 1e+10_r_single     ! spread (filled in by EnKF)
 
         if ( l_rtma3d ) then
-          rdiagbuf(ioff0,ii) = data(itemp,i) ! dry temperature accompanied with qob
+          rdiagbuf(22,ii) = data(itemp,i)    ! dry temperature accompanied with qob
         end if
 
         ioff=ioff0
@@ -1319,7 +1319,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         rdiagbufp(21,iip) = 1e+10_r_single     ! spread (filled in by EnKF)
 
         if ( l_rtma3d ) then
-          rdiagbufp(ioff0,ii) = data(itemp,i)  ! dry temperature accompanied with qob
+          rdiagbufp(22,ii) = data(itemp,i)     ! dry temperature accompanied with qob
         end if
 
         ioff=ioff0
