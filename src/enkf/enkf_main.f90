@@ -76,7 +76,7 @@ program enkf_main
  ! reads namelist parameters.
  use params, only : read_namelist,cleanup_namelist,letkf_flag,readin_localization,lupd_satbiasc,&
                     numiter, nanals, lupd_obspace_serial, write_spread_diag,   &
-                    lobsdiag_forenkf, netcdf_diag, efsoi_cycling, ntasks_io
+                    lobsdiag_forenkf, ldo_enscalc_option, netcdf_diag, efsoi_cycling, ntasks_io
  ! mpi functions and variables.
  use mpisetup, only:  mpi_initialize, mpi_initialize_io, mpi_cleanup, nproc, &
                        mpi_wtime
@@ -154,7 +154,7 @@ program enkf_main
 
  ! read obs, initial screening.
  t1 = mpi_wtime()
- call readobs()
+ if(ldo_enscalc_option==0) call readobs()
  t2 = mpi_wtime()
  if (nproc == 0) print *,'time in read_obs =',t2-t1,'on proc',nproc
 
@@ -167,9 +167,11 @@ program enkf_main
  endif
 
  ! print innovation statistics for prior on root task.
+ if(ldo_enscalc_option==0) then
  if (nproc == 0) then
     print *,'innovation statistics for prior:'
     call print_innovstats(obfit_prior, obsprd_prior)
+ end if
  end if
 
  ! read state/control vector info from anavinfo
@@ -204,6 +206,7 @@ program enkf_main
 
  t1 = mpi_wtime()
  ! state and bias correction coefficient update iteration.
+ if(ldo_enscalc_option ==0 ) then
  if(letkf_flag) then
     ! do ob space update using serial filter if desired
     if (lupd_obspace_serial) call enkf_update()
@@ -257,6 +260,7 @@ program enkf_main
  call obsmod_cleanup()
 
  t1 = mpi_wtime()
+ end if ! ldo_enscalc_option
  call gather_chunks()
  t2 = mpi_wtime()
  if (nproc == 0) print *,'time in gather_chunks =',t2-t1,'on proc',nproc

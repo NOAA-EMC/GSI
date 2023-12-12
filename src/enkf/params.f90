@@ -215,6 +215,9 @@ logical,public :: l_use_enkf_directZDA = .false.
 
 ! next two are no longer used, instead they are inferred from anavinfo
 logical,public :: massbal_adjust = .false.
+integer (i_kind), public :: ldo_enscalc_option = 0
+! true, the program will be used to calculate ensemble mean (=1) or recenter(=2)
+
 integer(i_kind),public :: nvars = -1
 
 ! sort obs in LETKF in order of decreasing DFS
@@ -236,7 +239,7 @@ logical,public :: lobsdiag_forenkf = .false.
 logical,public :: netcdf_diag = .false.
 
 ! use fv3 cubed-sphere tiled restart files
-logical,public :: fv3_native = .false.
+logical,public :: fv3_native = .true.
 character(len=500),public :: fv3fixpath = ' '
 integer(i_kind),public :: ntiles=6
 integer(i_kind),public :: nx_res=0,ny_res=0
@@ -275,7 +278,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,nhr_state, fhr_assim,nbackgrounds,nstatefields, &
-                   save_inflation,nobsl_max,lobsdiag_forenkf,netcdf_diag,forecast_impact,&
+                   save_inflation,nobsl_max,lobsdiag_forenkf,ldo_enscalc_option,netcdf_diag,forecast_impact,&
                    letkf_flag,massbal_adjust,use_edges,emiss_bc,iseed_perturbed_obs,npefiles,&
                    getkf,getkf_inflation,denkf,modelspace_vloc,dfs_sort,write_spread_diag,&
                    covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff,letkf_bruteforce_search,&
@@ -658,6 +661,10 @@ if (nproc == 0) then
       print *, 'must specify nx_res,ny_res and fv3fixpath when fv3_native is true'
       call stop2(19)
    endif
+   if(ldo_enscalc_option .ne.0 ) then
+      l_pres_add_saved=.false.
+   endif
+
    if (letkf_flag .and. univaroz) then
      print *,'univaroz is not supported in LETKF!'
      call stop2(19)
