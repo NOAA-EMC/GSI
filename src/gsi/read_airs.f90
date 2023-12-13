@@ -622,7 +622,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
            end do bufr_chans
         end if
 
-
 !       Channel based quality control
         if(amsua)then
 
