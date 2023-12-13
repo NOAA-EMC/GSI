@@ -292,8 +292,7 @@ subroutine pcgsoi()
 !    Compare obs to solution and transpose back to grid
      call intall(sval,sbias,rval,rbias)
 
-     if (iter==0) then
-!    if (diag_print) then
+     if (diag_print) then
         do ii=1,nobs_bins
            call prt_state_norms(rval(ii),'rval')
         enddo

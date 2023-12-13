@@ -154,7 +154,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   character(30) outmessage
   character(255) filename
   
-  integer(i_kind) lnbufr,i,j,k,maxobs,icntpnt,n,istop
+  integer(i_kind) lnbufr,i,j,k,maxobs,n,istop
   integer(i_kind) nmrecs,ibadazm,ibadtilt,ibadrange,ibadwnd,ibaddist,ibadheight,ibadvad,kthin
   integer(i_kind) iyr,imo,idy,ihr,imn,isc,ithin
   integer(i_kind) ibadstaheight,ibaderror,notgood,idate,iheightbelowsta,ibadfit
@@ -222,7 +222,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 
   
   real(r_kind),dimension(maxdat):: cdata
-  real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
+  real(r_kind),allocatable,dimension(:,:):: cdata_all
   
   real(r_double) rstation_id
   real(r_double),dimension(12):: hdr
@@ -285,8 +285,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   real(r_kind) dx,dy,dx1,dy1,w00,w10,w01,w11
   logical luse
   integer(i_kind) iout
-  integer(i_kind):: zflag,itx
-  integer(i_kind),allocatable,dimension(:) :: iloc
+  integer(i_kind):: zflag
   integer(i_kind) nlevz         ! vertical level for thinning
   real(r_kind) crit1,timedif
   real(r_kind),allocatable,dimension(:):: zl_thin
@@ -321,7 +320,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 !***********************************************************************************
   print_verbose=.false.
   if(verbose)print_verbose=.true.
-  icntpnt=0
 
 ! Check to see if radar wind files exist.  If none exist, exit this routine.
   inquire(file='radar_supobs_from_level2',exist=lexist1)
@@ -362,9 +360,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
      hdrstr(2)='PTID YEAR MNTH DAYS HOUR MINU SECO CLAT CLON FLVLST ANAZ ANEL'
   end if
 
-  allocate(cdata_all(maxdat,maxobs),rusage(maxobs),rthin(maxobs),iloc(maxobs))
+  allocate(cdata_all(maxdat,maxobs),rusage(maxobs),rthin(maxobs))
 
-  iloc=0
   rusage=.true.
   rthin=.false.
 
@@ -858,10 +855,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
            nsuper2_kept=nsuper2_kept+1
            level2(ivad)=level2(ivad)+1
            nobs_box(irrr,iaaa,ivadz,ivad)=nobs_box(irrr,iaaa,ivadz,ivad)+1
-           icntpnt=icntpnt+1
            ndata    =min(ndata+1,maxobs)
            nodata   =min(nodata+1,maxobs)  
-           iloc(icntpnt) = ndata
            usage = zero
            if(icuse(ikx) < 0)usage=r100
            if(ncnumgrp(ikx) > 0 )then                     ! cross validation on
@@ -872,6 +867,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
            call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,skint,ff10,sfcr)
    
            LEVEL_TWO_READ: if(loop==0 .and. sis=='l2rw') then      
+              write(6,*) ' radar1 ',height
               cdata(1) = error             ! wind obs error (m/s)
               cdata(2) = dlon              ! grid relative longitude
               cdata(3) = dlat              ! grid relative latitude
@@ -1295,10 +1291,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                          level3(ivad)=level3(ivad)+1
                       end if
                       nobs_box(irrr,iaaa,ivadz,ivad)=nobs_box(irrr,iaaa,ivadz,ivad)+1
-                      icntpnt=icntpnt+1
                       ndata  = min(ndata+1,maxobs)
                       nodata = min(nodata+1,maxobs)  
-                      iloc(icntpnt) = ndata
                       usage  = zero
                       if(icuse(ikx) < 0)usage=r100
                       if(ncnumgrp(ikx) > 0 )then                     ! cross validation on
@@ -1308,6 +1302,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                 
                       call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,skint,ff10,sfcr)
                 
+                      write(6,*) ' radar2 ',height
                       cdata(1) = error             ! wind obs error (m/s)
                       cdata(2) = dlon              ! grid relative longitude
                       cdata(3) = dlat              ! grid relative latitude
@@ -1984,16 +1979,15 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                             write(6,'(1x,A128)')' *** *** WARNING --> INCREASE maxobs in READ_RADAR beyond 2,000,000, &
                                                   re-compile GSI, re-run !!! <-- WARNING*** ***'
                         end if
-                        icntpnt=icntpnt+1
                         ndata  = min(ndata+1,maxobs)
                         nodata = min(nodata+1,maxobs)  
-                        iloc(icntpnt)=ndata
                         usage  = zero
                         if(icuse(ikx) < 0)usage=r100
                         if(pmot >=2 .and. usage >= 100._r_kind) rusage(ndata)=.false.
    
                         call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,skint,ff10,sfcr)
    
+                        write(6,*) ' radar3 ',height
                         cdata(1) = error             ! wind obs error (m/s)
                         cdata(2) = dlon              ! grid relative longitude
                         cdata(3) = dlat              ! grid relative latitude
@@ -2423,8 +2417,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
               ntdrvr_kept=ntdrvr_kept+1
 !####################       Data thinning       ###################
 
-              icntpnt=icntpnt+1
-
               if(ithin > 0)then
                  if(zflag == 0)then
                     klon1= int(dlon);  klat1= int(dlat)
@@ -2476,8 +2468,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                  ndata =ndata+1
               endif
               iout=ndata
-              icntpnt=icntpnt+1
-              iloc(icntpnt)=iout
 
               if(ndata > maxobs) then
                  write(6,*)'READ_PREPBUFR:  ***WARNING*** ndata > maxobs for ',obstype
@@ -2499,6 +2489,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
               call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,skint,ff10,sfcr)
 
 
+              write(6,*) ' radar4 ',height
               cdata(1) = error             ! wind obs error (m/s)
               cdata(2) = dlon              ! grid relative longitude
               cdata(3) = dlat              ! grid relative latitude
@@ -2941,8 +2932,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                     ntdrvr_kept=ntdrvr_kept+1
 !####################       Data thinning       ###################
 
-                    icntpnt=icntpnt+1
-                    if(icntpnt>maxobs) exit
+                    if(ndata>maxobs) exit
 
                     if(ithin > 0)then
                        if(zflag == 0)then
@@ -3000,8 +2990,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                        ndata =ndata+1
                     endif
                     iout=ndata
-                    icntpnt=icntpnt+1
-                    iloc(icntpnt)=iout
 
                     if(ndata > maxobs) then
                        write(6,*)'READ_PREPBUFR:  ***WARNING*** ndata > maxobs for ',obstype
@@ -3079,7 +3067,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
      call del3grids
   endif
 
-  allocate(cdata_out(maxdat,ndata))
 
   nxdata=ndata
   ndata=0
@@ -3100,31 +3087,28 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 !           numrem,numqc,numthin,pmot
 
 !     If flag to not save thinned data is set - compress data
-     do i=1,icntpnt
+     do i=1,nxdata
        
 
 !      pmot=0 - all obs - thin obs
 !      pmot=1 - all obs
 !      pmot=2 - use obs
 !      pmot=3 - use obs + thin obs
-       itx=iloc(i)
-       if(itx > 0)then
-          if((pmot == 0 .and. .not. rthin(itx)) .or. &
-             (pmot == 1) .or. &
-             (pmot == 2 .and. (rusage(itx) .and. .not. rthin(itx)))  .or. &
-             (pmot == 3 .and. rusage(itx))) then
+       if((pmot == 0 .and. .not. rthin(i)) .or. &
+          (pmot == 1) .or. &
+          (pmot == 2 .and. (rusage(i) .and. .not. rthin(i)))  .or. &
+          (pmot == 3 .and. rusage(i))) then
 
-             if(rthin(itx))cdata_all(12,itx)=101._r_kind
-             ndata=ndata+1
-             do k=1,maxdat
-                cdata_out(k,ndata)=cdata_all(k,itx)
-             end do
-          end if
-        end if
+          if(rthin(i))cdata_all(12,i)=101._r_kind
+          ndata=ndata+1
+          do k=1,maxdat
+             cdata_all(k,ndata)=cdata_all(k,i)
+          end do
+       end if
     end do
   end if
   nodata=nodata+ndata
-  deallocate(cdata_all,rusage,rthin)
+  deallocate(rusage,rthin)
 
   write(6,*)'READ_RADAR: # records saved in radar1 = ', ndata
   write(6,*)'READ_RADAR: # records(beams) read in nmrecs=', nmrecs
@@ -3159,10 +3143,10 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   write(6,*)'READ_RADAR: iimax =',iimax
 
 ! Write observation to scratch file
-  call count_obs(ndata,maxdat,ilat,ilon,cdata_out,nobs)
+  call count_obs(ndata,maxdat,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-  write(lunout) ((cdata_out(k,i),k=1,maxdat),i=1,ndata)
-  deallocate(cdata_out)
+  write(lunout) ((cdata_all(k,i),k=1,maxdat),i=1,ndata)
+  deallocate(cdata_all)
   
 
   return
@@ -4152,8 +4136,7 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
           azm=azm_earth
         end if
 !####################       Data thinning       ###################
-        icntpnt=icntpnt+1
-        if(icntpnt>maxobs) exit
+        if(ndata>maxobs) exit
         ithin=1 !number of obs to keep per grid box
         if(radar_no_thinning) then
           ithin=-1
@@ -4257,6 +4240,7 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
           end if
 
           nsuper2_kept=nsuper2_kept+1
+          write(6,*) ' radar7 ',height
           cdata(1) = error             ! wind obs error (m/s)
           cdata(2) = dlon              ! grid relative longitude
           cdata(3) = dlat              ! grid relative latitude

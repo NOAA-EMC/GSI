@@ -174,7 +174,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind) mxtb,nmsgmax,qcret
   integer(i_kind) ireadmg,ireadsb,iuse
   integer(i_kind) i,maxobs,idomsfc,nsattype,ncount
-  integer(i_kind) nc,nx,isflg,itx,j,nchanl
+  integer(i_kind) nc,nx,isflg,j,nchanl
   integer(i_kind) ntb,ntmatch,ncx,ncsave,ntread
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nmind,lunin,idate,ilat,ilon,iret,k
@@ -191,7 +191,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind),dimension(nconvtype+1) :: ntx  
   
   integer(i_kind),dimension(5):: idate5 
-  integer(i_kind),allocatable,dimension(:):: nrep,istab,iloc
+  integer(i_kind),allocatable,dimension(:):: nrep,istab
   integer(i_kind),allocatable,dimension(:,:):: tab
   integer(i_kind) :: icnt(1000)
 
@@ -220,7 +220,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_double),dimension(3,12) :: qcdat
   real(r_double),dimension(1,1):: r_prvstg,r_sprvstg
   real(r_kind),allocatable,dimension(:):: presl_thin
-  real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
+  real(r_kind),allocatable,dimension(:,:):: cdata_all
 
   logical,allocatable,dimension(:)::rthin,rusage
   logical save_all
@@ -661,10 +661,9 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   nchanl=0
   ilon=2
   ilat=3
-  allocate(cdata_all(nreal,maxobs),rthin(maxobs),rusage(maxobs),iloc(maxobs))
+  allocate(cdata_all(nreal,maxobs),rthin(maxobs),rusage(maxobs))
   rusage = .true.
   rthin = .false.
-  iloc = 0
 
   loop_convinfo: do nx=1,ntread 
 
@@ -1594,7 +1593,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               ndata=ndata+1
            endif
            iout=ndata
-           iloc(ntb)=iout
            iuse=icuse(nc)
            if(iuse < 0)qm = 9
            if(qm > 7 .or. iuse < 0 )rusage(iout)=.false.
@@ -1686,40 +1684,36 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
        if(.not. rusage(i))cdata_all(14,i) = 100.0_r_kind
      end do
      nxdata=ndata
-     allocate(cdata_out(nreal,nxdata))
 !  If flag to not save thinned data is set - compress data
      ndata=0
-     do i=1,maxobs
+     do i=1,nxdata
 !   pmot=0 - all obs - thin obs
 !   pmot=1 - all obs
 !   pmot=2 - use obs
 !   pmot=3 - use obs + thin obs
-        itx=iloc(i)
-        if(itx > 0)then
-           if((pmot == 0 .and. .not. rthin(itx)) .or. &
-              (pmot == 1) .or.  &
-              (pmot == 2 .and. rusage(itx) .and. .not. rthin(itx))  .or. &
-              (pmot == 3 .and. rusage(itx))) then
+        if((pmot == 0 .and. .not. rthin(i)) .or. &
+           (pmot == 1) .or.  &
+           (pmot == 2 .and. rusage(i) .and. .not. rthin(i))  .or. &
+           (pmot == 3 .and. rusage(i))) then
 
-              ndata=ndata+1
-              do k=1,nreal
-                 cdata_out(k,ndata)=cdata_all(k,itx)
-              end do
-           end if
+           ndata=ndata+1
+           do k=1,nreal
+              cdata_all(k,ndata)=cdata_all(k,i)
+           end do
         end if
      end do
      nodata=nodata+2*ndata
   end if
-  deallocate(cdata_all,rusage,rthin,iloc)
+  deallocate(rusage,rthin)
 
 
   ! Write header record and data to output file for further processing
   
-  call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-  write(lunout) ((cdata_out(k,i),k=1,nreal),i=1,ndata)
+  write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 
-  deallocate(cdata_out)
+  deallocate(cdata_all)
 
   if(diagnostic_reg)then
      if(ntest>0) write(6,*)'READ_SATWND:  ',&

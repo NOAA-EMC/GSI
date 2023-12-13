@@ -88,7 +88,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2
   integer(i_kind) lunin,i,maxobs,nmsgmax,mxtb
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
-  integer(i_kind) nc,nx,ntread,itx,ii,ncsave
+  integer(i_kind) nc,nx,ntread,ii,ncsave
   integer(i_kind) ihh,idd,idate,iret,im,iy,k,levs
   integer(i_kind) kx,nreal,nchanl,ilat,ilon,ithin
   integer(i_kind) qm, swcpq, lwcpq
@@ -105,7 +105,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind),dimension(255):: pqm
   integer(i_kind),dimension(nconvtype)::ntxall
   integer(i_kind),dimension(nconvtype+1)::ntx
-  integer(i_kind),allocatable,dimension(:):: nrep,iloc
+  integer(i_kind),allocatable,dimension(:):: nrep
   integer(i_kind),allocatable,dimension(:,:):: tab
   real(r_kind) time,timex,timeobs,toff,t4dv,zeps
   real(r_kind) rmesh,ediff,usage
@@ -125,7 +125,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),dimension(nsig-1):: dpres
   real(r_kind),dimension(255)::plevs
   real(r_kind),allocatable,dimension(:):: presl_thin
-  real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
+  real(r_kind),allocatable,dimension(:,:):: cdata_all
   logical,allocatable,dimension(:)::rthin,rusage
   logical save_all
   integer(i_kind) numthin,numqc,numrem
@@ -299,8 +299,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! loop over convinfo file entries; operate on matches
   
-  allocate(cdata_all(nreal,maxobs),rusage(maxobs),rthin(maxobs),iloc(maxobs))
-  iloc=0
+  allocate(cdata_all(nreal,maxobs),rusage(maxobs),rthin(maxobs))
   nread=0
   ntest=0
   nvtest=0
@@ -601,7 +600,6 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  ndata=ndata+1
               endif
               iout=ndata
-              iloc(ntb)=iout
 
               if(ndata > maxobs) then
                  write(6,*)'READ_WCPBUFR:  ***WARNING*** ndata > maxobs for ',obstype
@@ -689,8 +687,6 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   close(lunin)
   deallocate(lmsg,tab,nrep)
 
-  allocate(cdata_out(nreal,ndata))
-
   nxdata=ndata
   nodata=0
   if(nxdata > 0)then
@@ -712,37 +708,34 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
         if(rthin(i))cdata_all(11,i)=100._r_kind
      end do
 !  If flag to not save thinned data is set - compress data
-     do i=1,maxobs
+     do i=1,nxdata
 !   pmot=0 - all obs - thin obs
 !   pmot=1 - all obs
 !   pmot=2 - use obs
 !   pmot=3 - use obs + thin obs
-        itx=iloc(i)
-        if(itx > 0)then
-           if((pmot == 0 .and. .not. rthin(itx)) .or. &
-              (pmot == 1) .or. &
-              (pmot == 2 .and. (rusage(itx) .and. .not. rthin(itx)))  .or. &
-              (pmot == 3 .and. rusage(itx))) then
+        if((pmot == 0 .and. .not. rthin(i)) .or. &
+           (pmot == 1) .or. &
+           (pmot == 2 .and. (rusage(i) .and. .not. rthin(i)))  .or. &
+           (pmot == 3 .and. rusage(i))) then
 
-              ndata=ndata+1
-              do k=1,nreal
-                 cdata_out(k,ndata)=cdata_all(k,itx)
-              end do
-           end if
+           ndata=ndata+1
+           do k=1,nreal
+              cdata_all(k,ndata)=cdata_all(k,i)
+           end do
         end if
      end do
      nodata=nodata+ndata
   end if
 
-  deallocate(cdata_all,rusage,rthin)
+  deallocate(rusage,rthin)
 
 ! Write header record and data to output file for further processing
 
-  call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
-  write(lunout) ((cdata_out(k,i),k=1,nreal),i=1,ndata)
+  write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 
-  deallocate(cdata_out)
+  deallocate(cdata_all)
 
   if(diagnostic_reg .and. ntest>0) write(6,*)'READ_WCPBUFR:  ',&
      'ntest,disterrmax=',ntest,disterrmax

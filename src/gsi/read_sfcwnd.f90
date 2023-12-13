@@ -97,7 +97,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
   integer(i_kind) ireadmg,ireadsb,iuse,mxtb,nmsgmax
   integer(i_kind) i,maxobs,idomsfc,nsattype,j,ncount
-  integer(i_kind) nc,nx,isflg,itx,nchanl
+  integer(i_kind) nc,nx,isflg,nchanl
   integer(i_kind) ntb,ntmatch,ncx,ncsave,ntread
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nmind,lunin,idate,ilat,ilon,iret,k
@@ -116,7 +116,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind),dimension(nconvtype+1) :: ntx  
   
   integer(i_kind),dimension(5):: idate5 
-  integer(i_kind),allocatable,dimension(:):: nrep,iloc
+  integer(i_kind),allocatable,dimension(:):: nrep
   integer(i_kind),allocatable,dimension(:,:)::tab
 
 ! integer(i_kind) itypex,lcount,iflag,m
@@ -142,7 +142,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_double),dimension(5,4):: wnddat
   real(r_double),dimension(1,1):: r_prvstg,r_sprvstg
   real(r_kind),allocatable,dimension(:):: presl_thin
-  real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
+  real(r_kind),allocatable,dimension(:,:):: cdata_all
 
   logical,allocatable,dimension(:)::rthin,rusage
   logical save_all
@@ -328,8 +328,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 ! Loop over convinfo file entries; operate on matches
 
-  allocate(cdata_all(nreal,maxobs),rusage(maxobs),rthin(maxobs),iloc(maxobs))
-  iloc=0
+  allocate(cdata_all(nreal,maxobs),rusage(maxobs),rthin(maxobs))
   nread=0
   ntest=0
   nvtest=0
@@ -673,7 +672,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               ndata=ndata+1
            endif
            iout=ndata
-           iloc(ntb)=iout
 
            woe=obserr
            oelev=r10
@@ -734,7 +732,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   enddo loop_convinfo! loops over convinfo entry matches
   call closbf(lunin)
   deallocate(lmsg,nrep,tab)
-  allocate(cdata_out(nreal,ndata))
 
   nxdata=ndata
   ndata=0
@@ -760,24 +757,21 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         end if
      end do
 !  If flag to not save thinned data is set - compress data
-     do i=1,maxobs
+     do i=1,nxdata
 !   pmot=0 - all obs - thin obs
 !   pmot=1 - all obs
 !   pmot=2 - use obs
 !   pmot=3 - use obs + thin obs
-        itx=iloc(i)
-        if(itx > 0)then
-           if((pmot == 0 .and. .not. rthin(itx)) .or. &
-              (pmot == 1) .or. &
-              (pmot == 2 .and. (rusage(itx) .and. .not. rthin(itx)))  .or. &
-              (pmot == 3 .and. rusage(itx))) then
+        if((pmot == 0 .and. .not. rthin(i)) .or. &
+           (pmot == 1) .or. &
+           (pmot == 2 .and. (rusage(i) .and. .not. rthin(i)))  .or. &
+           (pmot == 3 .and. rusage(i))) then
 
-              ndata=ndata+1
-              if(i > ndata)then
-                 do k=1,nreal
-                    cdata_out(k,ndata)=cdata_all(k,itx)
-                 end do
-              end if
+           ndata=ndata+1
+           if(i > ndata)then
+              do k=1,nreal
+                 cdata_all(k,ndata)=cdata_all(k,i)
+              end do
            end if
         end if
      end do
@@ -789,11 +783,11 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !  deallocate(etabl)
   close(lunin)
   
-  call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-  write(lunout) ((cdata_out(k,i),k=1,nreal),i=1,ndata)
+  write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 
-  deallocate(cdata_out)
+  deallocate(cdata_all)
                    
   if(diagnostic_reg .and. ntest>0) write(6,*)'READ_SFCWND:  ',&
        'ntest,disterrmax=',ntest,disterrmax
