@@ -321,6 +321,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 !***********************************************************************************
   print_verbose=.false.
   if(verbose)print_verbose=.true.
+  icntpnt=0
 
 ! Check to see if radar wind files exist.  If none exist, exit this routine.
   inquire(file='radar_supobs_from_level2',exist=lexist1)
@@ -857,9 +858,10 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
            nsuper2_kept=nsuper2_kept+1
            level2(ivad)=level2(ivad)+1
            nobs_box(irrr,iaaa,ivadz,ivad)=nobs_box(irrr,iaaa,ivadz,ivad)+1
+           icntpnt=icntpnt+1
            ndata    =min(ndata+1,maxobs)
            nodata   =min(nodata+1,maxobs)  
-           iloc(ndata) = ndata
+           iloc(icntpnt) = ndata
            usage = zero
            if(icuse(ikx) < 0)usage=r100
            if(ncnumgrp(ikx) > 0 )then                     ! cross validation on
@@ -1293,9 +1295,10 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                          level3(ivad)=level3(ivad)+1
                       end if
                       nobs_box(irrr,iaaa,ivadz,ivad)=nobs_box(irrr,iaaa,ivadz,ivad)+1
+                      icntpnt=icntpnt+1
                       ndata  = min(ndata+1,maxobs)
                       nodata = min(nodata+1,maxobs)  
-                      iloc(ndata) = ndata
+                      iloc(icntpnt) = ndata
                       usage  = zero
                       if(icuse(ikx) < 0)usage=r100
                       if(ncnumgrp(ikx) > 0 )then                     ! cross validation on
@@ -1981,9 +1984,10 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                             write(6,'(1x,A128)')' *** *** WARNING --> INCREASE maxobs in READ_RADAR beyond 2,000,000, &
                                                   re-compile GSI, re-run !!! <-- WARNING*** ***'
                         end if
+                        icntpnt=icntpnt+1
                         ndata  = min(ndata+1,maxobs)
                         nodata = min(nodata+1,maxobs)  
-                        iloc(ndata)=ndata
+                        iloc(icntpnt)=ndata
                         usage  = zero
                         if(icuse(ikx) < 0)usage=r100
                         if(pmot >=2 .and. usage >= 100._r_kind) rusage(ndata)=.false.
@@ -2190,7 +2194,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   ntdrvr_thin2_aftswp=0
   nmissing=0
   subset_check(3)='NC006070'
-  icntpnt=0
   nswp=0
   nforeswp=0
   naftswp=0
@@ -2473,7 +2476,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                  ndata =ndata+1
               endif
               iout=ndata
-              iloc(ndata)=iout
+              icntpnt=icntpnt+1
+              iloc(icntpnt)=iout
 
               if(ndata > maxobs) then
                  write(6,*)'READ_PREPBUFR:  ***WARNING*** ndata > maxobs for ',obstype
@@ -2996,7 +3000,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                        ndata =ndata+1
                     endif
                     iout=ndata
-                    iloc(ndata)=iout
+                    icntpnt=icntpnt+1
+                    iloc(icntpnt)=iout
 
                     if(ndata > maxobs) then
                        write(6,*)'READ_PREPBUFR:  ***WARNING*** ndata > maxobs for ',obstype
@@ -3095,7 +3100,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 !           numrem,numqc,numthin,pmot
 
 !     If flag to not save thinned data is set - compress data
-     do i=1,maxobs
+     do i=1,icntpnt
        
 
 !      pmot=0 - all obs - thin obs

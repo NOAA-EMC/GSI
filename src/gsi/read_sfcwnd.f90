@@ -103,7 +103,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind) nmind,lunin,idate,ilat,ilon,iret,k
   integer(i_kind) nreal,ithin,iout,ii
   integer(i_kind) itype,iosub,ixsub,isubsub,iobsub 
-  integer(i_kind) lim_qm
   integer(i_kind) nlevp         ! vertical level for thinning
   integer(i_kind) pflag
   integer(i_kind) ntest,nvtest
@@ -206,11 +205,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   werrmin=one
   nsattype=0
   nreal=24
-  if (noiqc) then
-     lim_qm=8
-  else
-     lim_qm=4
-  endif
 
 ! ** read convtype from convinfo file 
 ! ** only read in OSCAT 291 for now ** 
