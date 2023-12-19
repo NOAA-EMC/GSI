@@ -359,7 +359,9 @@ wdw_exist = lc_w.and.lc_dw.and.ls_w.and.ls_dw
 
 idozone=getindex(cvars3d,"oz")
 
-e2sset_flg=.false.
+e2sset_flg=.false.  ! set to true in setup.  set to false after first (only) call to ensctl2state_set
+
+
 return
 end subroutine ensctl2state_set
 subroutine ensctl2state_ad(eval,mval,grad)

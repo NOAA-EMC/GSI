@@ -415,8 +415,8 @@ if (mype==0) then
     write(6,*) myname_,': ALL CONTROL VARIABLES    ', nrf_var
 end if
 lcalc_gfdl_cfrac = .false.
-c2sset_flg = .true.
-e2sset_flg = .true.
+c2sset_flg = .true.   ! set to true in setup.  set to false after first (only) call to ensctl2state_set
+e2sset_flg = .true.   ! set to true in setup.  set to false after first (only) call to init_anacv
 
 end subroutine init_anacv
 subroutine final_anacv

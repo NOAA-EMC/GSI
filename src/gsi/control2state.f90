@@ -510,7 +510,7 @@ call gsi_bundlegetpointer (xhat%step(1),'cldch',iccldch,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'uwnd10m',icuwnd10m,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'vwnd10m',icvwnd10m,istatus)
 
-c2sset_flg=.false.
+c2sset_flg=.false.  ! set to true in setup.  set to false after first (only) call to c2sset
 return
 end subroutine c2sset
 subroutine control2state_ad(rval,bval,grad)
