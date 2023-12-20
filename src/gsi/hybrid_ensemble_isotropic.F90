@@ -1881,10 +1881,9 @@ end subroutine normal_new_factorization_rf_y
              do ig=1,ntotensgrp
                 iaens=ensgrp2aensgrp(ig,ic2+nc3d,ibin)
                 if(iaens>0) then
-!$omp parallel do schedule(static,1) private(j,n,k,i)
-                   do j=1,jm
-                      do n=1,n_ens
-                         do k=1,km_tmp
+                   do n=1,n_ens
+                      do k=1,km_tmp
+                         do j=1,jm
                             do i=1,im
                                cvec%r2(ipic)%q(i,j)=cvec%r2(ipic)%q(i,j) &
                                     +a_en(iaens,n)%r3(ipx)%q(i,j,k)*en_perts(n,ig,ibin)%r2(ipic)%qr4(i,j)*pwgt(i,j,k)
