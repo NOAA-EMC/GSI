@@ -36,6 +36,7 @@ use kinds, only: r_single,r_kind,r_double,i_kind
 use params, only: efsoi_flag,latbound,nlevs,nanals,datestring, &
                   lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh, &
                   lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh, &
+                  lnsigcutofffednh,lnsigcutofffedtr,lnsigcutofffedsh, &
                   lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh, &
                   corrlengthnh,corrlengthtr,corrlengthsh, &
                   obtimelnh,obtimeltr,obtimelsh,letkf_flag, &
@@ -292,6 +293,8 @@ subroutine read_ob_sens
         lnsigl(nob) = latval(deglat,lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh)
      else if (obtype(nob)(1:3) == ' ps') then
         lnsigl(nob) = latval(deglat,lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh)
+     else if (obtype(nob)(1:3) == 'fed') then
+        lnsigl(nob) = latval(deglat,lnsigcutofffednh,lnsigcutofffedtr,lnsigcutofffedsh)
      else
         lnsigl(nob)=latval(deglat,lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh)
      end if

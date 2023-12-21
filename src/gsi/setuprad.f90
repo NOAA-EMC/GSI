@@ -297,12 +297,14 @@ contains
   use radinfo, only: iland_det, isnow_det, iwater_det, imix_det, iice_det, &
                       iomg_det, itopo_det, isst_det,iwndspeed_det, optconv
   use qcmod, only: setup_tzr_qc,ifail_scanedge_qc,ifail_outside_range
+  use qcmod, only: iasi_cads, cris_cads
   use state_vectors, only: svars3d, levels, svars2d, ns3d
   use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
   use correlated_obsmod, only: corr_adjust_jacobian, idnames
   use radiance_mod, only: rad_obs_type,radiance_obstype_search,radiance_ex_obserr,radiance_ex_biascor
   use sparsearr, only: sparr2, new, writearray, size, fullarray
   use radiance_mod, only: radiance_ex_obserr_gmi,radiance_ex_biascor_gmi
+  use cads, only: cads_imager_calc
 
   implicit none
 
@@ -400,6 +402,7 @@ contains
   real(r_kind),dimension(nsig):: qvp,tvp,qs
   real(r_kind),dimension(nsig):: prsltmp
   real(r_kind),dimension(nsig+1):: prsitmp
+  real(r_kind),dimension(nchanl):: chan_level
   real(r_kind),dimension(nchanl):: weightmax
   real(r_kind),dimension(nchanl):: cld_rbc_idx,cld_rbc_idx2
   real(r_kind),dimension(nchanl):: tcc         
@@ -439,6 +442,11 @@ contains
   type(fptr_obsdiagNode),dimension(nchanl):: odiags
 
   logical:: muse_ii
+
+! variables added for CADS
+  real(r_kind),dimension(7,nobs)   :: imager_cluster_fraction
+  real(r_kind),dimension(2,7,nobs) :: imager_cluster_bt
+  real(r_kind),dimension(2,nobs)   :: imager_chan_stdev, imager_model_bt
 
 ! Notations in use: for a single obs. or a single obs. type
 ! nchanl        : a known channel count of a given type obs stream
@@ -591,6 +599,26 @@ contains
      return
   endif
 
+! Load data array for current satellite
+  read(lunin) data_s,luse,ioid
+
+  if (nobskeep>0) then
+!    write(6,*)'setuprad: nobskeep',nobskeep
+     call stop2(275)
+  end if
+
+  call dtime_setup()
+! If using CADS setup arrays and calculate imager BTs
+  imager_cluster_fraction=zero
+  imager_cluster_bt=zero
+  imager_chan_stdev=zero
+  imager_model_bt=zero
+  if ((iasi_cads .and. iasi) .or. (cris_cads .and. cris)) then
+
+    call cads_imager_calc(obstype,isis,nobs,nreal,nchanl,nsig,data_s,init_pass,mype, &
+                             imager_cluster_fraction,imager_cluster_bt,imager_chan_stdev, imager_model_bt)
+  endif ! using cads
+
   if ( mype == 0 .and. .not.l_may_be_passive) write(6,*)mype,'setuprad: passive obs',is,isis
 
 !  Logic to turn off print of reading coefficients if not first interation or not mype_diaghdr or not init_pass
@@ -697,8 +725,6 @@ contains
      endif
   endif
 
-
-
 !  Find number of channels written to diag file
   if(reduce_diag)then
      nchanl_diag=0
@@ -768,24 +794,9 @@ contains
      if (netcdf_diag) call init_netcdf_diag_
   endif
 
-! Load data array for current satellite
-  read(lunin) data_s,luse,ioid
-
-  if (nobskeep>0) then
-!    write(6,*)'setuprad: nobskeep',nobskeep
-     call stop2(275)
-  end if
-
-  if (abi2km .and. regional) then
-     abi2km_bc = zero
-     abi2km_bc(2) = 233.5_r_kind
-     abi2km_bc(3) = 241.7_r_kind
-     abi2km_bc(4) = 250.5_r_kind
-  end if
 ! PROCESSING OF SATELLITE DATA
 
 ! Loop over data in this block
-  call dtime_setup()
   do n = 1,nobs
 !    Extract analysis relative observation time.
      dtime = data_s(itime,n)
@@ -911,7 +922,7 @@ contains
           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
              tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
-             tsim,emissivity,ptau5,ts,emissivity_k, &
+             tsim,emissivity,chan_level,ptau5,ts,emissivity_k, &
                 temp,wmix,jacobian,error_status,tsim_clr=tsim_clr,tcc=tcc, & 
                 tcwv=tcwv,hwp_ratio=hwp_ratio,stability=stability)         
           if(gmi) then
@@ -922,7 +933,7 @@ contains
              call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
                 tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
                  trop5,tzbgr,dtsavg,sfc_speed, &
-                 tsim2,emissivity2,ptau52,ts2,emissivity_k2, &
+                 tsim2,emissivity2,chan_level,ptau52,ts2,emissivity_k2, &
                  temp2,wmix2,jacobian2,error_status,tsim_clr=tsim_clr2,tcc=tcc,&
                  tcwv=tcwv,hwp_ratio=hwp_ratio,stability=stability)
              ! merge 
@@ -946,7 +957,7 @@ contains
           call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
              tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
              trop5,tzbgr,dtsavg,sfc_speed, &
-             tsim,emissivity,ptau5,ts,emissivity_k, &
+             tsim,emissivity,chan_level,ptau5,ts,emissivity_k, &
              temp,wmix,jacobian,error_status)
           if(gmi) then
              gmi_low_angles(1:3)=data_s(ilzen_ang:iscan_ang,n)
@@ -956,7 +967,7 @@ contains
              call call_crtm(obstype,dtime,data_s(:,n),nchanl,nreal,ich, &
                 tvp,qvp,qs,clw_guess,ciw_guess,rain_guess,snow_guess,prsltmp,prsitmp, &
                  trop5,tzbgr,dtsavg,sfc_speed, &
-                 tsim2,emissivity2,ptau52,ts2,emissivity_k2, &
+                 tsim2,emissivity2,chan_level,ptau52,ts2,emissivity_k2, &
                  temp2,wmix2,jacobian2,error_status)
              ! merge 
              emissivity(10:13)  = emissivity2(10:13)
@@ -1091,6 +1102,11 @@ contains
         endif
 
         predbias=zero
+        abi2km_bc = zero
+        abi2km_bc(2) = 233.5_r_kind
+        abi2km_bc(3) = 241.7_r_kind
+        abi2km_bc(4) = 250.5_r_kind
+
 !$omp parallel do  schedule(dynamic,1) private(i,mm,j,k,tlap,node,bias)
         do i=1,nchanl
            mm=ich(i)
@@ -1376,10 +1392,12 @@ contains
                  varinv_use(i) = zero
               end if
            end do
-           call qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),goessndr, &
-              cris,hirs,zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise,  &
-              wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                 &
-              id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole(n))
+
+           call qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),goessndr,airs,cris,iasi,      &
+              hirs,zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise, &
+              wavenumber,ptau5,prsltmp,tvp,temp,wmix,chan_level,emissivity_k,ts,tsim,         &
+              id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole(n),     &
+              imager_cluster_fraction(:,n), imager_cluster_bt(:,:,n), imager_chan_stdev(:,n),imager_model_bt(:,n))
 
 !  --------- MSU -------------------
 !       QC MSU data
@@ -1783,6 +1801,7 @@ contains
         diagadd=zero
         account_for_corr_obs = .false.
         varinv0=zero
+        raterr2 = zero
 !$omp parallel do  schedule(dynamic,1) private(ii,m,k,asum)
         do ii=1,nchanl
            m=ich(ii)
@@ -2745,9 +2764,10 @@ contains
     deallocate(predbias_angord)
   endif
   end subroutine contents_netcdf_diag_
-
   subroutine final_binary_diag_
   close(4)
   end subroutine final_binary_diag_
  end subroutine setuprad
+
+
 end module rad_setup

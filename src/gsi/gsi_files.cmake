@@ -101,6 +101,7 @@ bkgvar_rewgt.f90
 blacklist.f90
 blendmod.f90
 buddycheck_mod.f90
+cads.f90
 calc_fov_conical.f90
 calc_fov_crosstrk.f90
 calctends.f90

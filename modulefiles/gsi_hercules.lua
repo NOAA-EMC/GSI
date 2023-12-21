@@ -1,11 +1,11 @@
 help([[
 ]])
 
-prepend_path("MODULEPATH", "/work/noaa/epic/role-epic/spack-stack/orion/spack-stack-1.5.1/envs/gsi-addon/install/modulefiles/Core")
+prepend_path("MODULEPATH", "/work/noaa/epic/role-epic/spack-stack/hercules/spack-stack-1.5.1/envs/gsi-addon/install/modulefiles/Core")
 
-local stack_python_ver=os.getenv("python_ver") or "3.10.8"
-local stack_intel_ver=os.getenv("stack_intel_ver") or "2022.0.2"
-local stack_impi_ver=os.getenv("stack_impi_ver") or "2021.5.1"
+local stack_python_ver=os.getenv("stack_python_ver") or "3.10.8"
+local stack_intel_ver=os.getenv("stack_intel_ver") or "2021.9.0"
+local stack_impi_ver=os.getenv("stack_impi_ver") or "2021.9.0"
 local cmake_ver=os.getenv("cmake_ver") or "3.23.1"
 local prod_util_ver=os.getenv("prod_util_ver") or "1.2.2"
 
@@ -16,10 +16,11 @@ load(pathJoin("cmake", cmake_ver))
 
 load("gsi_common")
 load(pathJoin("prod_util", prod_util_ver))
+load("intel-oneapi-mkl/2022.2.1")
 
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
 
 pushenv("GSI_BINARY_SOURCE_DIR", "/work/noaa/global/glopara/fix/gsi/20230911")
 
-whatis("Description: GSI environment on Orion with Intel Compilers")
+whatis("Description: GSI environment on Hercules with Intel Compilers")
