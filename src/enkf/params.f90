@@ -99,7 +99,7 @@ character(len=500),public :: datapath
 ! if deterministic=.true., the deterministic square-root filter
 ! update is used.  If .false, a perturbed obs (stochastic) update
 ! is used.
-logical, public :: deterministic, sortinc, pseudo_rh, qobs_pseudo_rh, &
+logical, public :: deterministic, sortinc, pseudo_rh, &
                    varqc, huber, cliptracers, readin_localization
 logical, public :: lupp
 logical, public :: cnvw_option
@@ -272,7 +272,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,&
                    analpertwtnh_rtpp,analpertwtsh_rtpp,analpertwttr_rtpp,&
                    nlevs,nanals,saterrfact,univaroz,regional,use_gfs_nemsio,use_gfs_ncio,&
-                   paoverpb_thresh,latbound,delat,pseudo_rh,qobs_pseudo_rh,numiter,biasvar,&
+                   paoverpb_thresh,latbound,delat,pseudo_rh,numiter,biasvar,&
                    lupd_satbiasc,cliptracers,simple_partition,adp_anglebc,angord,&
                    newpc4pred,nmmb,nhr_anal,nhr_state, fhr_assim,nbackgrounds,nstatefields, &
                    save_inflation,nobsl_max,lobsdiag_forenkf,netcdf_diag,forecast_impact,&
@@ -393,8 +393,6 @@ paoverpb_thresh = 1.0_r_single! don't skip any obs
 iassim_order = 0
 ! use 'pseudo-rh' analysis variable, as in GSI.
 pseudo_rh = .false.
-! divide qobs by forecast qsat, giving pseudo RH obs
-qobs_pseudo_rh = .true.
 ! if deterministic is true, use LETKF/EnSRF w/o perturbed obs.
 ! if false, use perturbed obs EnKF/LETKF.
 deterministic = .true.
@@ -750,7 +748,6 @@ do while (nhr_state(nstatefields+1) > 0)
       statesfcfileprefixes(nstatefields+1)="bfg_"//datestring//"_fhr"//charfhr_state(nstatefields+1)//"_"
    end if
    nstatefields = nstatefields+1
-   if (nstatefields == 7) exit
 end do
 
 do nb=1,nbackgrounds

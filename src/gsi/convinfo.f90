@@ -279,8 +279,7 @@ contains
                index_sub(nc)=index_sub(nc-1)+1
             endif
           endif
-      ! if(print_verbose .and. mype == 0)
-          write(6,1031)ioctype(nc),ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
+       if(print_verbose .and. mype == 0)write(6,1031)ioctype(nc),ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
           ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc), &
           ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),idum,pmot_conv(nc),ptime_conv(nc),index_sub(nc),ibeta(nc),ikapa(nc)
 1031   format('READ_CONVINFO: ',a7,1x,i3,1x,i4,1x,i2,1x,g13.6,1x,3(I3,1x),5g13.6,i5,2g13.6,i5,2g13.6,3i5)

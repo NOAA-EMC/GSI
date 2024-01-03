@@ -1206,7 +1206,7 @@
      if (slc1_ind > 0) then
         call read_vardata(dset_sfc, 'soill1', values_2d, errcode=iret)
         if (iret /= 0) then
-                print *,'error reading slc1'
+                print *,'error reading soill1'
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))
@@ -1215,7 +1215,7 @@
      if (slc2_ind > 0) then
         call read_vardata(dset_sfc, 'soill2', values_2d, errcode=iret)
         if (iret /= 0) then
-                print *,'error reading slc2'
+                print *,'error reading soill2'
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))
@@ -1224,7 +1224,7 @@
      if (slc3_ind > 0) then
         call read_vardata(dset_sfc, 'soill3', values_2d, errcode=iret)
         if (iret /= 0) then
-                print *,'error reading slc3'
+                print *,'error reading soill3'
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))
@@ -1233,7 +1233,7 @@
      if (slc4_ind > 0) then
         call read_vardata(dset_sfc, 'soill4', values_2d, errcode=iret)
         if (iret /= 0) then
-                print *,'error reading slc4'
+                print *,'error reading soill4'
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))

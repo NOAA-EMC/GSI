@@ -234,30 +234,30 @@ if (smoothparm .gt. zero) then
      call mpi_allreduce(mpi_in_place,covinfglobal(1,nn),npts,mpi_real4,mpi_sum,mpi_comm_world,ierr)
    enddo
    ! do not apply smoothing to soil temp. or soil moisture (not globally defined)
-   
+
    ind = 0
    do i = 1,8
        this_ind = getindex(cvars2d, vars2d_landonly(i))
-       if (this_ind>0) then 
+       if (this_ind>0) then
             ind=ind+1
             soil_index(ind)=this_ind
        endif
    enddo
 
-   if (ind>0) then 
-        allocate(store_presmooth(npts,ind)) 
-        do i = 1, ind 
-           store_presmooth(:,i) = covinfglobal(:,clevels(nc3d)+soil_index(i)) 
-        enddo 
+   if (ind>0) then
+        allocate(store_presmooth(npts,ind))
+        do i = 1, ind
+           store_presmooth(:,i) = covinfglobal(:,clevels(nc3d)+soil_index(i))
+        enddo
    endif
 
    call smooth(covinfglobal)
 
-   if (ind>0) then 
-        do i = 1, ind 
+   if (ind>0) then
+        do i = 1, ind
            covinfglobal(:,clevels(nc3d) + soil_index(i))  = store_presmooth(:,i)
-        enddo 
-        deallocate(store_presmooth) 
+        enddo
+        deallocate(store_presmooth)
    endif
 
    where (covinfglobal < covinflatemin) covinfglobal = covinflatemin
