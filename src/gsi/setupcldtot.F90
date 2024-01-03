@@ -45,13 +45,22 @@ subroutine setupcldtot(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_di
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
 
+  use constants, only: zero,one,r1000,r10,r100
+  use constants, only: huge_single,wgtlim,three
+  use constants, only: tiny_r_kind,five,half,two,r0_01
+  use constants, only: zero,one, h1000
+
   use obsmod, only: rmiss_single,time_offset
+  use obsmod, only: netcdf_diag, binary_diag, dirname, ianldate
+  use obsmod, only: luse_obsdiag
+  use m_obsLList, only: obsLList
+  use m_obsdiagNode, only: obs_diags
   use m_obsNode, only: obsNode
   use m_qNode, only: qNode
   use m_qNode, only: qNode_appendto
+  use m_dtime, only: dtime_setup, dtime_check, dtime_show
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
-  use obsmod, only: netcdf_diag, binary_diag, dirname, ianldate
   use nc_diag_write_mod,only: nc_diag_init, nc_diag_header,nc_diag_metadata, &
                               nc_diag_write, nc_diag_data2d
   use nc_diag_read_mod, only: nc_diag_read_init,nc_diag_read_get_dim, &
@@ -60,26 +69,18 @@ subroutine setupcldtot(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_di
 
   use guess_grids, only: geop_hgtl,hrdifsig,nfldsig,ges_tsen,ges_prsl
   use gridmod, only: nsig,get_ijk
-  use constants, only: zero,one,r1000,r10,r100
-  use constants, only: huge_single,wgtlim,three
-  use constants, only: tiny_r_kind,five,half,two,r0_01
   use qcmod, only: npres_print
   use jfunc, only: jiter
   use convinfo, only: nconvtype
   use convinfo, only: icsubtype
-  use m_dtime, only: dtime_setup, dtime_check, dtime_show
   use rapidrefresh_cldsurf_mod, only: i_cloud_q_innovation, &
                                       cld_bld_hgt,i_ens_mean
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
 
   use mpimod, only: mpi_comm_world
-  use constants, only: zero,one, h1000
   use gsdcloudlib_pseudoq_mod, only: cloudLWC_pseudo,cloudCover_Surface_col
 
-  use m_obsLList, only: obsLList
-  use m_obsdiagNode, only: obs_diags
-  use obsmod, only: luse_obsdiag
 
   implicit none
 
@@ -90,7 +91,7 @@ subroutine setupcldtot(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_di
   integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
   real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
   real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
-  integer(i_kind)                                  ,intent(in   ) :: is	! ndat index
+  integer(i_kind)                                  ,intent(in   ) :: is     ! ndat index
   logical                                          ,intent(in   ) :: conv_diagsave
 
 #ifdef RR_CLOUDANALYSIS

@@ -192,6 +192,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
   if ( .not. l_use_dbz_directDA) then
      if(trim(dtype) == 'dbz' )return
   end if
+  if(trim(dtype) == 'fed' )return
 
 ! Use routine as usual
 
@@ -221,9 +222,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
          lexist=.false.
       end if
       if(lexist)then
-       if(jsatid == '')then
-         kidsat=0
-       else if(jsatid == 'metop-a')then
+       kidsat=0
+       if(jsatid == 'metop-a')then
          kidsat=4
        else if(jsatid == 'metop-b')then
          kidsat=3
@@ -335,8 +335,6 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
 !         kidsat = 288
        else if ( jsatid == 'meghat' ) then
          kidsat = 440
-       else
-         kidsat = 0
        end if
 
        call closbf(lnbufr)
@@ -346,8 +344,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
        call datelen(10)
 
        if(kidsat /= 0)then
-        lexist = .false.
-        satloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
+         lexist = .false.
+         satloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
            if(ireadsb(lnbufr)==0)then
               call ufbint(lnbufr,satid,1,1,iret,'SAID')
            end if
@@ -356,8 +354,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
              exit satloop
            end if
            nread = nread + 1
-        end do satloop
-       else if(trim(filename) == 'prepbufr')then  ! RTod: wired-in filename is not a good idea
+         end do satloop
+       else if(trim(filename) == 'prepbufr')then  
          lexist = .false.
          fileloop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
           do while(ireadsb(lnbufr)>=0)
@@ -438,10 +436,10 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
           end do
           nread = nread + 1
          end do airploop
-       else if(trim(filename) == 'satwndbufr')then
+       else if(index(filename,'satwnd') /=0 .or. index(filename,'satwhr') /=0) then
          lexist = .false.
          loop: do while(ireadmg(lnbufr,subset,idate2) >= 0)
-!        5 GOES-R AMVs (NC005030, NC005031, NC005032, NC005034 and NC005039)
+!        5 GOES-R AMVs (NC005030, NC005031, NC005032, NC005034, NC005039, NC005099)
 !        are added as the GOES-R bufr file provide do not contain other winds.
 !        May not be necessary with the operational satwnd BUFR
             if(trim(subset) == 'NC005010' .or. trim(subset) == 'NC005011' .or.&
@@ -452,6 +450,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
                trim(subset) == 'NC005030' .or. trim(subset) == 'NC005031' .or.& 
                trim(subset) == 'NC005032' .or. trim(subset) == 'NC005034' .or.&
                trim(subset) == 'NC005039' .or. &
+               trim(subset) == 'NC005099' .or. &
                trim(subset) == 'NC005090' .or. trim(subset) == 'NC005091' .or.&
                trim(subset) == 'NC005067' .or. trim(subset) == 'NC005068' .or. trim(subset) == 'NC005069' .or.&
                trim(subset) == 'NC005047' .or. trim(subset) == 'NC005048' .or. trim(subset) == 'NC005049' .or.&
@@ -894,6 +893,7 @@ subroutine read_obs(ndata,mype)
        if(obstype == 'mls20' ) nmls_type=nmls_type+1
        if(obstype == 'mls22' ) nmls_type=nmls_type+1
        if(obstype == 'mls30' ) nmls_type=nmls_type+1
+       if(obstype == 'mls55' ) nmls_type=nmls_type+1
        if(nmls_type>1) then
           write(6,*) '******ERROR***********: there is more than one MLS data type, not allowed, please check'
           call stop2(339)
@@ -913,7 +913,8 @@ subroutine read_obs(ndata,mype)
            obstype == 'mitm' .or. obstype=='pmsl' .or. &
            obstype == 'howv' .or. obstype=='tcamt' .or. &
            obstype=='lcbas' .or. obstype=='cldch' .or. obstype == 'larcglb' .or. &
-           obstype=='uwnd10m' .or. obstype=='vwnd10m' .or. obstype=='dbz' ) then
+           obstype=='uwnd10m' .or. obstype=='vwnd10m' .or. obstype=='dbz' .or. &
+           obstype=='fed') then
           ditype(i) = 'conv'
        else if (obstype == 'swcp' .or. obstype == 'lwcp') then
           ditype(i) = 'wcp'
@@ -937,6 +938,7 @@ subroutine read_obs(ndata,mype)
            .or. obstype == 'ompsnp' &
            .or. obstype == 'gome' &
            .or. index(obstype, 'omps') /= 0 &
+           .or. index(obstype, 'omi' ) /= 0 &
            .or. mls &
            ) then
           ditype(i) = 'ozone'
@@ -1063,7 +1065,7 @@ subroutine read_obs(ndata,mype)
                    obstype == 'iasi'  .or. obstype == 'atms') .and. &
                   (dplat(i) == 'n17' .or. dplat(i) == 'n18' .or. & 
                    dplat(i) == 'n19' .or. dplat(i) == 'npp' .or. &
-                   dplat(i) == 'n20' .or. &
+                   dplat(i) == 'n20' .or. dplat(i) == 'n21' .or. &
                    dplat(i) == 'metop-a' .or. dplat(i) == 'metop-b' .or. &
                    dplat(i) == 'metop-c') 
 ! direct broadcast from NESDIS/UW
@@ -1074,7 +1076,7 @@ subroutine read_obs(ndata,mype)
                    obstype == 'iasi') .and. &
                   (dplat(i) == 'n17' .or. dplat(i) == 'n18' .or. & 
                    dplat(i) == 'n19' .or. dplat(i) == 'npp' .or. &
-                   dplat(i) == 'n20' .or. &
+                   dplat(i) == 'n20' .or. dplat(i) == 'n21' .or. &
                    dplat(i) == 'metop-a' .or. dplat(i) == 'metop-b' .or. &
                    dplat(i) == 'metop-c') 
 
@@ -1083,7 +1085,12 @@ subroutine read_obs(ndata,mype)
           if (ii>npem1) ii=0
           if(mype==ii)then
              call gsi_inquire(lenbytes,lexist,trim(dfile(i)),mype)
-             call read_obs_check (lexist,trim(dfile(i)),dplat(i),dtype(i),minuse,read_rec1(i))
+
+             if (is_extOzone(dfile(i),obstype,dplat(i))) then
+                print*,'reading ',trim(dfile(i)),' ',obstype,' ',trim(dplat(i)),lexist,lenbytes
+             else
+                call read_obs_check (lexist,trim(dfile(i)),dplat(i),dtype(i),minuse,read_rec1(i))
+             endif
              
 !   If no data set starting record to be 999999.  Note if this is not large
 !   enough code should still work - just does a bit more work.
@@ -1298,6 +1305,10 @@ subroutine read_obs(ndata,mype)
              use_hgtl_full=.true.
              if(belong(i))use_hgtl_full_proc=.true.
           end if
+          if(obstype == 'fed')then
+             use_hgtl_full=.true.
+             if(belong(i))use_hgtl_full_proc=.true.
+          end if
           if(obstype == 'sst')then
             if(belong(i))use_sfc=.true.
           endif
@@ -1493,7 +1504,7 @@ subroutine read_obs(ndata,mype)
             else if(obstype == 'uv' .or. obstype == 'wspd10m' .or. &
                     obstype == 'uwnd10m' .or. obstype == 'vwnd10m') then
 !             Process satellite winds which seperate from prepbufr
-                if ( index(infile,'satwnd') /=0 ) then
+                if ( index(infile,'satwnd') /=0 .or. index(infile,'satwhr') /=0 ) then
                   call read_satwnd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                      prsl_full,nobs_sub1(1,i))
                   string='READ_SATWND'
@@ -1516,10 +1527,6 @@ subroutine read_obs(ndata,mype)
                   call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                        prsl_full,nobs_sub1(1,i))
                   string='READ_FL_HDOB'
-                else if (index(infile,'uprair') /=0)then
-                   call read_hdraob(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
-                        prsl_full,hgtl_full,nobs_sub1(1,i),read_rec(i))
-                   string='READ_UPRAIR'
                 else
                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                      prsl_full,nobs_sub1(1,i),read_rec(i))
@@ -1634,6 +1641,12 @@ subroutine read_obs(ndata,mype)
                      string='READ_dbz_mrms_netcdf'
                   endif
                 end if
+
+!            Process flash extent density
+             else if (obstype == 'fed' ) then
+                print *, "calling read_fed"
+                call read_fed(nread,npuse,nouse,infile,obstype,lunout,twind,sis,nobs_sub1(1,i))
+                string='READ_FED'
 
 !            Process lagrangian data
              else if (obstype == 'lag') then

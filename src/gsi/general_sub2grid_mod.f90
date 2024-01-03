@@ -87,6 +87,7 @@ module general_sub2grid_mod
    interface general_sub2grid
      module procedure general_sub2grid_r_single_rank11
      module procedure general_sub2grid_r_single_rank14
+     module procedure general_sub2grid_r_single_rank13
      module procedure general_sub2grid_r_single_rank4
      module procedure general_sub2grid_r_double_rank11
      module procedure general_sub2grid_r_double_rank14
@@ -97,6 +98,7 @@ module general_sub2grid_mod
      module procedure general_grid2sub_r_single_rank11
      module procedure general_grid2sub_r_single_rank41
      module procedure general_grid2sub_r_single_rank4
+     module procedure general_grid2sub_r_single_rank31
      module procedure general_grid2sub_r_double_rank11
      module procedure general_grid2sub_r_double_rank41
      module procedure general_grid2sub_r_double_rank4
@@ -519,7 +521,7 @@ subroutine get_iuse_pe(npe,nz,iuse_pe)
      else                    
         nskip=npe-nz
         if(nskip > 0)then
-          skip2=float(npe)/float(nskip)
+          skip2=real(npe,r_kind)/real(nskip,r_kind)
           point=zero
           do i=1,nskip
             ipoint=min(max(0,nint(point)),npe) 
@@ -876,7 +878,7 @@ end subroutine get_iuse_pe
 !     Compute number of points on full grid and target number of
 !     point per mpi task (pe)
       npts=nlat*nlon
-      anperpe=float(npts)/float(npe)
+      anperpe=real(npts,r_kind)/real(npe,r_kind)
 
 !     Start with square subdomains
       nrnc=sqrt(anperpe)
@@ -1019,6 +1021,93 @@ end subroutine get_iuse_pe
 
    end subroutine general_sub2grid_r_single_rank14
 
+   subroutine general_sub2grid_r_single_rank13(s,sub_vars,grid_vars)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_sub2grid_r_single_rank4  convert from subdomains to full horizontal grid
+!   prgmmr: parrish          org: np22                date: 2010-02-11
+!
+! abstract: generalized version of sub2grid--uses only gsi module kinds.
+!              All information needed is contained in the structure variable
+!              "s", instead of various modules.  This allows
+!              for easy adaptation for any collection/ordering of variables
+!              defined on subdomains, which need to be made available on
+!              full horizontal grid for horizontal operations.
+!              The structure variable is specified by subroutine general_sub2grid_setup.
+!              This version works with single precision (4-byte) real variables.
+!              Input sub_vars, the desired arrays on horizontal subdomains, has one
+!              halo row, for now, which is filled with zero, since for ensemble use,
+!              there is no need for a halo, but is easiest for now to keep it.
+!              A later version will have variable number of halo rows, filled with proper values.
+!
+! program history log:
+!   2010-02-11  parrish, initial documentation
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     sub_vars   - input grid values in vertical subdomain mode (contains one halo row)
+!
+!   output argument list:
+!     grid_vars  - output grid values in horizontal slab mode.
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use mpimod, only: mpi_comm_world,mpi_real4
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_single),     intent(in   ) :: sub_vars(s%lat2*s%lon2*s%num_fields)
+      real(r_single),     intent(  out) :: grid_vars(s%nlat,s%nlon,s%kbegin_loc:s%kend_alloc)
+
+      real(r_single) :: sub_vars_r4(s%lat2,s%lon2,s%num_fields)
+      real(r_single) :: sub_vars0(s%lat1,s%lon1,s%num_fields)
+      real(r_single) :: work(s%itotsub*(s%kend_alloc-s%kbegin_loc+1)) 
+      integer(i_kind) iloc,iskip,i,i0,j,j0,k,n,k_in,ilat,jlon,ierror,ioffset
+
+      sub_vars_r4  =  reshape(sub_vars,(/s%lat2,s%lon2,s%num_fields/))
+!    remove halo row
+!$omp parallel do  schedule(dynamic,1) private(k,j,j0,i0,i)
+      do k=1,s%num_fields
+         do j=2,s%lon2-1
+            j0=j-1
+            do i=2,s%lat2-1
+               i0=i-1
+               sub_vars0(i0,j0,k)=sub_vars_r4(i,j,k)
+            end do
+         end do
+      end do
+
+      call mpi_alltoallv(sub_vars0,s%recvcounts,s%rdispls,mpi_real4, &
+                        work,s%sendcounts,s%sdispls,mpi_real4,mpi_comm_world,ierror)
+
+
+      k_in=s%kend_loc-s%kbegin_loc+1
+
+! Load grid_vars array in desired order
+!$omp parallel do  schedule(dynamic,1) private(k,iskip,iloc,n,i,ilat,jlon,ioffset)
+      do k=s%kbegin_loc,s%kend_loc
+         iskip=0
+         iloc=0
+         do n=1,s%npe
+            if (n/=1) then
+               iskip=iskip+s%ijn(n-1)*k_in
+            end if
+            ioffset=iskip+(k-s%kbegin_loc)*s%ijn(n)
+            do i=1,s%ijn(n)
+               iloc=iloc+1
+               ilat=s%ltosi(iloc)
+               jlon=s%ltosj(iloc)
+               grid_vars(ilat,jlon,k)=work(i + ioffset)
+            end do
+         end do
+      end do
+
+   end subroutine general_sub2grid_r_single_rank13
    subroutine general_sub2grid_r_single_rank4(s,sub_vars,grid_vars)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1199,6 +1288,84 @@ end subroutine get_iuse_pe
 
    end subroutine general_grid2sub_r_single_rank41
 
+   subroutine general_grid2sub_r_single_rank31(s,grid_vars,sub_vars)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    general_sub2grid  convert from subdomains to full horizontal grid
+!   prgmmr: parrish          org: np22                date: 2010-02-11
+!
+! abstract: generalized version of grid2sub--uses only gsi module kinds.
+!              All information needed is contained in the structure variable
+!              "s", instead of various modules.  This allows
+!              for easy adaptation for any collection/ordering of variables
+!              defined on subdomains, which need to be made available on
+!              full horizontal grid for horizontal operations.
+!              The structure variable is specified by subroutine general_sub2grid_setup.
+!              This version works with single precision (4-byte) real variables.
+!              Output sub_vars, the desired arrays on horizontal subdomains, has one 
+!              halo row, for now, which is filled with zero, since for ensemble use,
+!              there is no need for a halo, but is easiest for now to keep it.
+!              A later version will have variable number of halo rows, filled with proper values.
+!
+! program history log:
+!   2010-02-11  parrish, initial documentation
+!   2010-03-02  parrish - remove setting halo to zero in output
+!   2014-12-03  derber - make similar optimization changes already in code for
+!                      double precision.
+!
+!   input argument list:
+!     s          - structure variable, contains all necessary information for
+!                    moving this set of subdomain variables sub_vars to
+!                    the corresponding set of full horizontal grid variables.
+!     grid_vars  - input grid values in horizontal slab mode.
+!
+!   output argument list:
+!     sub_vars   - output grid values in vertical subdomain mode
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+      use constants, only: zero
+      use mpimod, only: mpi_comm_world,mpi_real4
+      implicit none
+
+      type(sub2grid_info),intent(in   ) :: s
+      real(r_single), intent(in   )     :: grid_vars(s%nlat,s%nlon,s%kbegin_loc:s%kend_alloc)
+      real(r_single),     intent(  out) :: sub_vars(s%lat2*s%lon2*s%num_fields)
+
+      real(r_single) :: sub_vars_r4(s%lat2,s%lon2,s%num_fields)
+      real(r_single) :: temp(s%itotsub*(s%kend_loc-s%kbegin_loc+1))
+      integer(i_kind) iloc,i,ii,k,n,ilat,jlon,ierror,icount
+      integer(i_kind),dimension(s%npe) ::iskip
+
+!     reorganize for eventual distribution to local domains
+      iskip(1)=0
+      do n=2,s%npe
+        iskip(n)=iskip(n-1)+s%ijn_s(n-1)*(s%kend_loc-s%kbegin_loc+1)
+      end do
+!$omp parallel do  schedule(dynamic,1) private(n,k,i,jlon,ii,ilat,iloc,icount)
+      do k=s%kbegin_loc,s%kend_loc
+         icount=0
+         do n=1,s%npe
+            iloc=iskip(n)+(k-s%kbegin_loc)*s%ijn_s(n)
+            do i=1,s%ijn_s(n)
+               iloc=iloc+1
+               icount=icount+1
+               ilat=s%ltosi_s(icount)
+               jlon=s%ltosj_s(icount)
+               temp(iloc)=grid_vars(ilat,jlon,k)
+            end do
+         end do
+      end do
+
+
+      call mpi_alltoallv(temp,s%sendcounts_s,s%sdispls_s,mpi_real4, &
+                        sub_vars_r4,s%recvcounts_s,s%rdispls_s,mpi_real4,mpi_comm_world,ierror)
+
+      sub_vars  =  reshape(sub_vars_r4,(/s%lat2*s%lon2*s%num_fields/))
+   end subroutine general_grid2sub_r_single_rank31
    subroutine general_grid2sub_r_single_rank4(s,grid_vars,sub_vars)
 !$$$  subprogram documentation block
 !                .      .    .                                       .

@@ -167,7 +167,7 @@
      levdim = get_dim(dset,'pfull');   nlevsin = levdim%len
      idvc=2
   else
-     print *, 'parallel read only supported for netCDF, stopping with error'
+     write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** parallel read only supported for netCDF' , ' PROGRAM STOPS'
      call stop2(23)
   end if
   ice = .false. ! calculate qsat w/resp to ice?
@@ -195,6 +195,9 @@
   sst_ind = getindex(vars2d, 'sst')
   use_full_hydro = ( ql_ind > 0 .and. qi_ind > 0  .and. &
                      qr_ind > 0 .and. qs_ind > 0 .and. qg_ind > 0 )
+  ! Currently, we do not let precipiation to affect the enkf analysis  
+  ! The following line will be removed after testing
+  use_full_hydro = .false.
 
   if (.not. isinitialized) call init_spec_vars(nlons,nlats,ntrunc,4)
 
@@ -205,7 +208,7 @@
 
   call read_vardata(dset, 'pressfc', values_2d,errcode=iret)
   if (iret /= 0) then
-     print *,'error reading ps'
+     write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading ps, iret= ',iret,' PROGRAM STOPS'
      call stop2(31)
   endif
   psg = 0.01_r_kind*reshape(values_2d,(/nlons*nlats/))
@@ -225,12 +228,12 @@
 
   call read_vardata(dset, 'ugrd', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
   if (iret /= 0) then
-     print *,'error reading ugrd'
+     write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading ugrd, iret= ',iret,' PROGRAM STOPS'
      call stop2(22)
   endif
   call read_vardata(dset, 'vgrd', vg3d, ncstart=ncstart, nccount=nccount, errcode=iret)
   if (iret /= 0) then
-     print *,'error reading vgrd'
+     write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading vgrd, iret= ',iret,' PROGRAM STOPS'
      call stop2(23)
   endif
   call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
@@ -257,12 +260,12 @@
   end if
   call read_vardata(dset,'tmp', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
   if (iret /= 0) then
-     print *,'error reading tmp'
+     write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading tmp, iret= ',iret,' PROGRAM STOPS'
      call stop2(24)
   endif
   call read_vardata(dset,'spfh', vg3d, ncstart=ncstart, nccount=nccount, errcode=iret)
   if (iret /= 0) then
-     print *,'error reading spfh'
+     write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading spfh, iret= ',iret,' PROGRAM STOPS'
      call stop2(25)
   endif
   call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
@@ -286,7 +289,7 @@
   if (oz_ind > 0) then
      call read_vardata(dset, 'o3mr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
      if (iret /= 0) then
-        print *,'error reading o3mr'
+        write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading o3mr, iret= ',iret,' PROGRAM STOPS'
         call stop2(26)
      endif
      if (cliptracers)  where (ug3d < clip) ug3d = clip
@@ -300,31 +303,122 @@
         end do
      end if
   endif
-  if (cw_ind > 0 .or. ql_ind > 0 .or. qi_ind > 0) then
-     call read_vardata(dset, 'clwmr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
-     if (iret /= 0) then
-        print *,'error reading clwmr'
-        call stop2(27)
-     endif
-     if (imp_physics == 11) then
-        call read_vardata(dset, 'icmr', vg3d, ncstart=ncstart, nccount=nccount, errcode=iret)
+  ! Read in hydrometeor fields based on control/state variables listed in anavinfo table 
+  if (use_full_hydro) then
+     if(ql_ind > 0) then
+        call read_vardata(dset, 'clwmr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
         if (iret /= 0) then
-           print *,'error reading icmr'
-           call stop2(28)
+           write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading clwmr, iret= ',iret,' PROGRAM STOPS'
+           call stop2(26)
         endif
-        ug3d = ug3d + vg3d
+        if (cliptracers)  where (ug3d < clip) ug3d = clip
+        call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
+                         mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
+        if (iope==0) then
+           do k=1,nlevs
+              krev = nlevs-k+1
+              ug = reshape(ug3d_0(:,:,krev),(/nlons*nlats/))
+              call copytogrdin(ug,grdin(:,levels(ql_ind-1)+k,nb,ne))
+           end do
+        end if
      endif
-     if (cliptracers)  where (ug3d < clip) ug3d = clip
-     call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
-                      mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
-     if (iope==0) then
-        do k=1,nlevs
-           krev = nlevs-k+1
-           ug = reshape(ug3d_0(:,:,krev),(/nlons*nlats/))
-           call copytogrdin(ug,cw(:,k))
-           if (cw_ind > 0) grdin(:,levels(cw_ind-1)+k,nb,ne) = cw(:,k)
-        end do
-     end if
+     if(qi_ind > 0) then
+        call read_vardata(dset, 'icmr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
+        if (iret /= 0) then
+           write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading icmr, iret= ',iret,' PROGRAM STOPS'
+           call stop2(26)
+        endif
+        if (cliptracers)  where (ug3d < clip) ug3d = clip
+        call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
+                         mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
+        if (iope==0) then
+           do k=1,nlevs
+              krev = nlevs-k+1
+              ug = reshape(ug3d_0(:,:,krev),(/nlons*nlats/))
+              call copytogrdin(ug,grdin(:,levels(qi_ind-1)+k,nb,ne))
+           end do
+        end if
+     endif
+     if(qr_ind > 0) then
+        call read_vardata(dset, 'rwmr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
+        if (iret /= 0) then
+           write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading rwmr, iret= ',iret,' PROGRAM STOPS'
+           call stop2(26)
+        endif
+        if (cliptracers)  where (ug3d < clip) ug3d = clip
+        call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
+                         mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
+        if (iope==0) then
+           do k=1,nlevs
+              krev = nlevs-k+1
+              ug = reshape(ug3d_0(:,:,krev),(/nlons*nlats/))
+              call copytogrdin(ug,grdin(:,levels(qr_ind-1)+k,nb,ne))
+           end do
+        end if
+     endif
+     if(qs_ind > 0) then
+       call read_vardata(dset, 'snmr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
+       if (iret /= 0) then
+           write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading snmr, iret= ',iret,' PROGRAM STOPS'
+           call stop2(26)
+        endif
+        if (cliptracers)  where (ug3d < clip) ug3d = clip
+        call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
+                         mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
+        if (iope==0) then
+           do k=1,nlevs
+              krev = nlevs-k+1
+              ug = reshape(ug3d_0(:,:,krev),(/nlons*nlats/))
+              call copytogrdin(ug,grdin(:,levels(qs_ind-1)+k,nb,ne))
+           end do
+        end if
+     endif
+     if(qg_ind > 0) then
+        call read_vardata(dset, 'grle', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
+        if (iret /= 0) then
+           write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading grle, iret= ',iret,' PROGRAM STOPS'
+           call stop2(26)
+        endif
+        if (cliptracers)  where (ug3d < clip) ug3d = clip
+        call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
+                         mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
+        if (iope==0) then
+           do k=1,nlevs
+              krev = nlevs-k+1
+              ug = reshape(ug3d_0(:,:,krev),(/nlons*nlats/))
+              call copytogrdin(ug,grdin(:,levels(qg_ind-1)+k,nb,ne))
+           end do
+        end if
+     endif
+  else
+     ! Handle non-precipiting hydrometeors 
+     ! if control or state variable is cw, make sure combine background ql and qi to cw
+     if (cw_ind > 0 .or. ql_ind > 0 .or. qi_ind > 0) then
+        call read_vardata(dset, 'clwmr', ug3d, ncstart=ncstart, nccount=nccount, errcode=iret)
+        if (iret /= 0) then
+           write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading clwmr, iret= ',iret,' PROGRAM STOPS'
+           call stop2(27)
+        endif
+        if (imp_physics == 11) then
+           call read_vardata(dset, 'icmr', vg3d, ncstart=ncstart, nccount=nccount, errcode=iret)
+           if (iret /= 0) then
+              write(6,*)'READGRIDDATA_PNC:  ***FATAL ERROR*** reading icmr, iret= ',iret,' PROGRAM STOPS'
+              call stop2(28)
+           endif
+           ug3d = ug3d + vg3d
+        endif
+        if (cliptracers)  where (ug3d < clip) ug3d = clip
+        call mpi_gatherv(ug3d, recvcounts(iope+1), mpi_real4, ug3d_0, recvcounts, displs,&
+                         mpi_real4, 0, iocomms(mem_pe(nproc)),iret)
+        if (iope==0) then
+           do k=1,nlevs
+              krev = nlevs-k+1
+              ug = reshape(ug3d_0(:,:,krev),(/nlons*nlats/))
+              call copytogrdin(ug,cw(:,k))
+              if (cw_ind > 0) grdin(:,levels(cw_ind-1)+k,nb,ne) = cw(:,k)
+           end do
+        end if
+     endif
   endif
   deallocate(ug3d,vg3d)
 
@@ -365,22 +459,25 @@
   end if
 
   ! cloud derivatives
+  ! Currently, we do not let precipiation to affect the enkf analysis  
+  ! The following line will be removed after testing
+  use_full_hydro = .true.
   if (.not. use_full_hydro .and. iope==0) then
-  if (ql_ind > 0 .or. qi_ind > 0) then
-     do k=1,nlevs
-        do i = 1, npts
-           qi_coef        = -r0_05*(tv(i,k)/(one+fv*q(i,k))-t0c)
-           qi_coef        = max(zero,qi_coef)
-           qi_coef        = min(one,qi_coef)    ! 0<=qi_coef<=1
-           if (ql_ind > 0) then
-             grdin(i,levels(ql_ind-1)+k,nb,ne) = cw(i,k)*(one-qi_coef)
-           endif
-           if (qi_ind > 0) then
-             grdin(i,levels(qi_ind-1)+k,nb,ne) = cw(i,k)*qi_coef
-           endif
+     if (ql_ind > 0 .or. qi_ind > 0) then
+        do k=1,nlevs
+           do i = 1, npts
+              qi_coef        = -r0_05*(tv(i,k)/(one+fv*q(i,k))-t0c)
+              qi_coef        = max(zero,qi_coef)
+              qi_coef        = min(one,qi_coef)    ! 0<=qi_coef<=1
+              if (ql_ind > 0) then
+                grdin(i,levels(ql_ind-1)+k,nb,ne) = cw(i,k)*(one-qi_coef)
+              endif
+              if (qi_ind > 0) then
+                grdin(i,levels(qi_ind-1)+k,nb,ne) = cw(i,k)*qi_coef
+              endif
+           enddo
         enddo
-     enddo
-  endif
+     endif
   endif
 
   if (sst_ind > 0 .and. iope==0) then
@@ -4129,7 +4226,7 @@
   use netcdf
   use params, only: nbackgrounds,incfileprefixes,fgfileprefixes,reducedgrid,&
                     datestring,nhr_anal
-  use constants, only: grav
+  use constants, only: grav,qcmin
   use mpi
   use module_ncio, only: Dataset, Variable, Dimension, open_dataset,&
                          read_attribute, close_dataset, get_dim, read_vardata,&
@@ -4164,7 +4261,8 @@
   integer(i_kind) :: ncid_out, lon_dimid, lat_dimid, lev_dimid, ilev_dimid
   integer(i_kind) :: lonvarid, latvarid, levvarid, pfullvarid, ilevvarid, &
                      hyaivarid, hybivarid, uvarid, vvarid, delpvarid, delzvarid, &
-                     tvarid, sphumvarid, liqwatvarid, o3varid, icvarid
+                     tvarid, sphumvarid, liqwatvarid, o3varid, icvarid, &
+                     rwmrvarid, snmrvarid, grlevarid 
   integer(i_kind) :: iadateout
 
   ! fixed fields such as lat, lon, levs
@@ -4177,6 +4275,7 @@
   real(r_kind), dimension(nlons*nlats) :: psinc, inc, ug, vg, work
   real(r_single), allocatable, dimension(:,:,:) :: inc3d, inc3d2, inc3dout
   real(r_single), allocatable, dimension(:,:,:) :: tv, tvanl, tmp, tmpanl, q, qanl
+  real(r_single), allocatable, dimension(:,:,:) :: q2, qanl2
   real(r_kind), allocatable, dimension(:,:) :: values_2d
   real(r_kind), allocatable, dimension(:) :: psges, delzb, values_1d
 
@@ -4266,6 +4365,12 @@
   call nccheck_incr(nf90_var_par_access(ncid_out, o3varid, nf90_collective))
   call nccheck_incr(nf90_def_var(ncid_out, "icmr_inc", nf90_real, dimids3, icvarid))
   call nccheck_incr(nf90_var_par_access(ncid_out, icvarid, nf90_collective))
+  call nccheck_incr(nf90_def_var(ncid_out, "rwmr_inc", nf90_real, dimids3, rwmrvarid))
+  call nccheck_incr(nf90_var_par_access(ncid_out, rwmrvarid, nf90_collective))
+  call nccheck_incr(nf90_def_var(ncid_out, "snmr_inc", nf90_real, dimids3, snmrvarid))
+  call nccheck_incr(nf90_var_par_access(ncid_out, snmrvarid, nf90_collective))
+  call nccheck_incr(nf90_def_var(ncid_out, "grle_inc", nf90_real, dimids3, grlevarid))
+  call nccheck_incr(nf90_var_par_access(ncid_out, grlevarid, nf90_collective))
   ! place global attributes to parallel calc_increment output
   call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "source", "GSI EnKF"))
   call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "comment", &
@@ -4298,7 +4403,7 @@
   dsfg = open_dataset(filenamein, paropen=.true., mpicomm=iocomms(mem_pe(nproc)))
   call read_attribute(dsfg, 'ak', values_1d,errcode=iret)
   if (iret /= 0) then
-     print *,'error reading ak'
+     write(6,*)'WRITEINCREMENT_PNC:  ***FATAL ERROR*** reading ak, iret= ',iret,' PROGRAM STOPS'
      call stop2(29)
   endif
   do k=1,nlevs+1
@@ -4307,7 +4412,7 @@
   enddo
   call read_attribute(dsfg, 'bk', values_1d,errcode=iret)
   if (iret /= 0) then
-     print *,'error reading bk'
+     write(6,*)'WRITEINCREMENT_PNC:  ***FATAL ERROR*** reading bk, iret= ',iret,' PROGRAM STOPS'
      call stop2(29)
   endif
   do k=1,nlevs+1
@@ -4417,7 +4522,7 @@
   allocate(tvanl(nlons,nlats,nccount(3)),tmpanl(nlons,nlats,nccount(3)),qanl(nlons,nlats,nccount(3)))
   call read_vardata(dsfg, 'spfh', q, ncstart=ncstart, nccount=nccount, errcode=iret)
   if (iret /= 0) then
-     print *,'error reading spfh'
+     write(6,*)'WRITEINCREMENT_PNC:  ***FATAL ERROR*** reading spfh, iret= ',iret,' PROGRAM STOPS'
      call stop2(29)
   endif
   do k=lev_pe1(iope), lev_pe2(iope)
@@ -4442,7 +4547,7 @@
   ! t increment
   call read_vardata(dsfg, 'tmp', tmp, ncstart=ncstart, nccount=nccount, errcode=iret)
   if (iret /= 0) then
-     print *,'error reading tmp'
+     write(6,*)'WRITEINCREMENT_PNC:  ***FATAL ERROR*** reading tmp, iret= ',iret,' PROGRAM STOPS'
      call stop2(29)
   endif
   tv = tmp * ( 1.0 + fv*q)
@@ -4514,33 +4619,68 @@
   call nccheck_incr(nf90_put_var(ncid_out, o3varid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
+  ! For hydrometeors, following the treatment for specific humidity increment
+  ! Need to make sure the analysis value is not negative
+  ! Read in background + increment and make sure the minimum is qcmin
+  ! Adjust increment accordingly
+
   ! liq wat increment
   ! icmr increment
+  ! if cw increment, make sure split the cw increment into ql and qi increments
+  allocate(q2(nlons,nlats,nccount(3)),qanl2(nlons,nlats,nccount(3)))
+  call read_vardata(dsfg, 'clwmr', q, ncstart=ncstart, nccount=nccount, errcode=iret)
+  if (iret /= 0) then
+     write(6,*)'WRITEINCREMENT_PNC:  ***FATAL ERROR*** reading clwmr, iret= ',iret,' PROGRAM STOPS'
+     call stop2(29)
+  endif
+  call read_vardata(dsfg, 'icmr', q2, ncstart=ncstart, nccount=nccount, errcode=iret)
+  if (iret /= 0) then
+     write(6,*)'WRITEINCREMENT_PNC:  ***FATAL ERROR*** reading icmr, iret= ',iret,' PROGRAM STOPS'
+     call stop2(29)
+  endif
   do k=lev_pe1(iope), lev_pe2(iope)
      krev = nlevs-k+1
      ki = k - lev_pe1(iope) + 1
-     ug = zero
+     ug = zero; vg = zero
      if (cw_ind > 0) then
         call copyfromgrdin(grdin(:,levels(cw_ind-1)+krev,nb,ne),ug)
+     else if (ql_ind > 0) then
+        call copyfromgrdin(grdin(:,levels(ql_ind-1)+krev,nb,ne),ug)
      end if
-     if (imp_physics == 11) then
-        work = -r0_05 * (reshape(tmpanl(:,:,ki),(/nlons*nlats/)) - t0c)
-        do i=1,nlons*nlats
-           work(i) = max(zero,work(i))
-           work(i) = min(one,work(i))
-        enddo
-        vg = ug * work          ! cloud ice
-        ug = ug * (one - work)  ! cloud water
-        inc3d2(:,:,ki) = reshape(vg,(/nlons,nlats/))
+     ! analysis control variable is cw, need to split cw analysis to ql and qi 
+     if (cw_ind > 0) then
+        if (imp_physics == 11) then
+           work = -r0_05 * (reshape(tmpanl(:,:,ki),(/nlons*nlats/)) - t0c)
+           do i=1,nlons*nlats
+              work(i) = max(zero,work(i))
+              work(i) = min(one,work(i))
+           enddo
+           vg = ug * work          ! cloud ice
+           ug = ug * (one - work)  ! cloud water
+        endif
+     else if (qi_ind > 0) then
+        call copyfromgrdin(grdin(:,levels(qi_ind-1)+krev,nb,ne),vg)
      endif
-     inc3d(:,:,ki) = reshape(ug,(/nlons,nlats/))
+     inc3d(:,:,ki) = reshape(ug,(/nlons,nlats/))  ! cloud water
+     qanl(:,:,ki) = q(:,:,ki) + inc3d(:,:,ki)
+     inc3d2(:,:,ki) = reshape(vg,(/nlons,nlats/)) ! cloud ice
+     qanl2(:,:,ki) = q2(:,:,ki) + inc3d(:,:,ki)
   enddo
+
+  ! adjust hydrometeor increment to make sure analysis is positive
+  if (cliptracers)  where (qanl < qcmin) qanl = qcmin
+  inc3d = qanl - q     ! ql
+  if (cliptracers)  where (qanl2 < qcmin) qanl2 = qcmin
+  inc3d2 = qanl2 - q2  ! qi
+
+  ! output ql increment 
   do j=1,nlats
     inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
   end do
   if (should_zero_increments_for('liq_wat_inc')) inc3dout = zero
   call nccheck_incr(nf90_put_var(ncid_out, liqwatvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
+  ! output qi increment
   do j=1,nlats
     inc3dout(:,nlats-j+1,:) = inc3d2(:,j,:)
   end do
@@ -4548,11 +4688,87 @@
   call nccheck_incr(nf90_put_var(ncid_out, icvarid, sngl(inc3dout), &
                       start = ncstart, count = nccount))
 
+  ! rwmr increment
+  call read_vardata(dsfg, 'rwmr', q, ncstart=ncstart, nccount=nccount, errcode=iret)
+  if (iret /= 0) then
+     write(6,*)'WRITEINCREMENT_PNC:  ***FATAL ERROR*** reading rwmr, iret= ',iret,' PROGRAM STOPS'
+     call stop2(29)
+  endif
+  do k=lev_pe1(iope), lev_pe2(iope)
+     krev = nlevs-k+1
+     ki = k - lev_pe1(iope) + 1
+     inc(:) = zero
+     if (qr_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(qr_ind-1) + krev,nb,ne),inc)
+     endif
+     inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
+     qanl(:,:,ki) = q(:,:,ki) + inc3d(:,:,ki)
+  end do
+  if (cliptracers)  where (qanl < qcmin) qanl = qcmin
+  inc3d = qanl - q   ! updated rwmr increment
+  do j=1,nlats
+    inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
+  end do
+  if (should_zero_increments_for('rwmr_inc')) inc3dout = zero
+  call nccheck_incr(nf90_put_var(ncid_out, rwmrvarid, sngl(inc3dout), &
+                      start = ncstart, count = nccount))
+
+  ! snmr increment
+  call read_vardata(dsfg, 'snmr', q, ncstart=ncstart, nccount=nccount, errcode=iret)
+  if (iret /= 0) then
+     write(6,*)'WRITEINCREMENT_PNC:  ***FATAL ERROR*** reading snmr, iret= ',iret,' PROGRAM STOPS'
+     call stop2(29)
+  endif
+  do k=lev_pe1(iope), lev_pe2(iope)
+     krev = nlevs-k+1
+     ki = k - lev_pe1(iope) + 1
+     inc(:) = zero
+     if (qs_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(qs_ind-1) + krev,nb,ne),inc)
+     endif
+     inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
+     qanl(:,:,ki) = q(:,:,ki) + inc3d(:,:,ki)
+  end do
+  if (cliptracers)  where (qanl < qcmin) qanl = qcmin
+  inc3d = qanl - q   ! updated snmr increment
+  do j=1,nlats
+    inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
+  end do
+  if (should_zero_increments_for('snmr_inc')) inc3dout = zero
+  call nccheck_incr(nf90_put_var(ncid_out, snmrvarid, sngl(inc3dout), &
+                      start = ncstart, count = nccount))
+
+  ! grle increment
+  call read_vardata(dsfg, 'grle', q, ncstart=ncstart, nccount=nccount, errcode=iret)
+  if (iret /= 0) then
+     write(6,*)'WRITEINCREMENT_PNC:  ***FATAL ERROR*** reading grle, iret= ',iret,' PROGRAM STOPS'
+     call stop2(29)
+  endif
+  do k=lev_pe1(iope), lev_pe2(iope)
+     krev = nlevs-k+1
+     ki = k - lev_pe1(iope) + 1
+     inc(:) = zero
+     if (qg_ind > 0) then
+       call copyfromgrdin(grdin(:,levels(qg_ind-1) + krev,nb,ne),inc)
+     endif
+     inc3d(:,:,ki) = reshape(inc,(/nlons,nlats/))
+     qanl(:,:,ki) = q(:,:,ki) + inc3d(:,:,ki)
+  end do
+  if (cliptracers)  where (qanl < qcmin) qanl = qcmin
+  inc3d = qanl - q   ! updated grle increment
+  do j=1,nlats
+    inc3dout(:,nlats-j+1,:) = inc3d(:,j,:)
+  end do
+  if (should_zero_increments_for('grle_inc')) inc3dout = zero
+  call nccheck_incr(nf90_put_var(ncid_out, grlevarid, sngl(inc3dout), &
+                      start = ncstart, count = nccount))
+
   call mpi_barrier(iocomms(mem_pe(nproc)), iret)
 
   ! deallocate things
   deallocate(inc3d,inc3d2,inc3dout)
   deallocate(tmp,tv,q,tmpanl,tvanl,qanl)
+  deallocate(q2,qanl2)
   if (allocated(delzb)) deallocate(delzb)
   if (allocated(psges)) deallocate(psges)
 

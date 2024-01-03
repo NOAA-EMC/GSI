@@ -401,7 +401,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
 !          inflate selection value for ears_db data
            crit0 = 0.01_r_kind
-           if ( llll > 1 ) crit0 = crit0 + r100 * float(llll)
+           if ( llll > 1 ) crit0 = crit0 + r100 * real(llll,r_kind)
 
            call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
 
@@ -455,7 +455,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
            lza = bfr2bhdr(1)*deg2rad      ! local zenith angle
            if(ifov <= 48)    lza=-lza
 
-           panglr=(start+float(ifov-1)*step)*deg2rad
+           panglr=(start+real(ifov-1,r_kind)*step)*deg2rad
            satellite_height=bfr1bhdr(13)
 !          Ensure orbit height is reasonable
            if (satellite_height < 780000.0_r_kind .OR. &
@@ -511,10 +511,10 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   ALLOCATE(Relative_Time_In_Seconds(Num_Obs))
   ALLOCATE(IScan(Num_Obs))
   Relative_Time_In_Seconds = 3600.0_r_kind*T4DV_Save(1:Num_Obs)
-  write(6,*) 'Calling ATMS_Spatial_Average'
+! write(6,*) 'Calling ATMS_Spatial_Average'
   CALL ATMS_Spatial_Average(Num_Obs, NChanl, IFOV_Save(1:Num_Obs), &
        Relative_Time_In_Seconds, BT_Save(1:nchanl,1:Num_Obs), IScan, IRet)
-  write(6,*) 'ATMS_Spatial_Average Called with IRet=',IRet
+! write(6,*) 'ATMS_Spatial_Average Called with IRet=',IRet
   DEALLOCATE(Relative_Time_In_Seconds)
   
   IF (IRet /= 0) THEN
@@ -648,7 +648,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
              idomsfc(1),sfcpct,ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
      endif
 
-     crit1 = crit1 + rlndsea(isflg) + 10._r_kind*float(iskip) + 0.01_r_kind * abs(zz)
+     crit1 = crit1 + rlndsea(isflg) + 10._r_kind*real(iskip,r_kind) + 0.01_r_kind * abs(zz)
      call checkob(dist1,crit1,itx,iuse)
      if(.not. iuse)cycle ObsLoop
 
@@ -726,7 +726,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      endif
 
 ! Re-calculate look angle
-     panglr=(start+float(ifov-1)*step)*deg2rad
+     panglr=(start+real(ifov-1,r_kind)*step)*deg2rad
 
 
 !     Load selected observation into data array

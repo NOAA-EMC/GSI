@@ -69,7 +69,8 @@ subroutine read_files(mype)
 !                                      nfsecondn  FCST Secs (i_kind) numerator
 !                                      nfsecondd  FCST Secs (i_kind) denominator
 !
-!       %fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+!       %fhour = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+!                real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
 
 ! attributes:
 !   language: f90
@@ -264,7 +265,7 @@ subroutine read_files(mype)
                 write(6,*)'READ_FILES: ***WARNING*** problem reading atm file ',trim(filename),iret 
            idate6 = get_idate_from_time_units(atmges) 
            call read_vardata(atmges, 'time', fhour)
-           hourg4 = float(nint(fhour(1))) ! going to make this nearest integer for now
+           hourg4 = real(nint(fhour(1)),r_kind) ! going to make this nearest integer for now
            idateg(1) = idate6(4)
            idateg(2) = idate6(2)
            idateg(3) = idate6(3)
@@ -288,7 +289,8 @@ subroutine read_files(mype)
               call stop2(80)
            endif
 
-           hourg4 = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+           hourg4 = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+                    real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
            idateg(1) = idate(4)  !hour
            idateg(2) = idate(2)  !month
            idateg(3) = idate(3)  !day
@@ -342,7 +344,7 @@ subroutine read_files(mype)
            ncdim = get_dim(sfcges, 'grid_yt'); sfc_head%latb = ncdim%len
            idate6 = get_idate_from_time_units(sfcges) 
            call read_vardata(sfcges, 'time', fhour)
-           hourg4 = float(nint(fhour(1))) ! going to make this nearest integer for now
+           hourg4 = real(nint(fhour(1)),r_kind) ! going to make this nearest integer for now
            idateg(1) = idate6(4)
            idateg(2) = idate6(2)
            idateg(3) = idate6(3)
@@ -381,7 +383,8 @@ subroutine read_files(mype)
                  nfhour, nfminute, nfsecondn, nfsecondd
               call stop2(80)
            endif
-           hourg4   = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+           hourg4   = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+                      real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
            idateg(1) = idate(4)  !hour
            idateg(2) = idate(2)  !month
            idateg(3) = idate(3)  !day
@@ -478,7 +481,8 @@ subroutine read_files(mype)
                          nfhour, nfminute, nfsecondn, nfsecondd
                     call stop2(80)
                  endif
-                 hourg4   = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+                 hourg4   = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+                            real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
                  idateg(1) = idate(4)  !hour
                  idateg(2) = idate(2)  !month
                  idateg(3) = idate(3)  !day
@@ -540,7 +544,8 @@ subroutine read_files(mype)
                       nfhour, nfminute, nfsecondn, nfsecondd
                  call stop2(80)
               endif
-              hourg4   = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+              hourg4   = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+                         real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
               idateg(1) = idate(4)  !hour
               idateg(2) = idate(2)  !month
               idateg(3) = idate(3)  !day
@@ -585,7 +590,7 @@ subroutine read_files(mype)
   if (nst_gsi > 0 ) call mpi_bcast(time_nst,2*nfldnst,mpi_rtype,npem1,mpi_comm_world,ierror)
 
 ! for external aerosol files
-  if(.not.allocated(time_aer)) allocate(time_aer(nfldaer,2))
+  if(lread_ext_aerosol .and. (.not.allocated(time_aer))) allocate(time_aer(nfldaer,2))
   if (lread_ext_aerosol) call mpi_bcast(time_aer,2*nfldaer,mpi_rtype,npem1,mpi_comm_world,ierror)
 
   call mpi_bcast(iamana,3,mpi_rtype,npem1,mpi_comm_world,ierror)

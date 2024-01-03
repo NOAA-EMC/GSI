@@ -740,7 +740,7 @@ subroutine intjcpdry(rval,sval,nbins,pjc)
   
   it=ntguessig
   mass=zero_quad
-  rcon=one_quad/(two_quad*float(nlon))
+  rcon=(one_quad/(two_quad*real(nlon,r_quad)))**2
   mm1=mype+1
 
   do n=1,nbins
@@ -805,8 +805,7 @@ subroutine intjcpdry(rval,sval,nbins,pjc)
 !    Remove water-vapor contribution to get incremental dry ps
 !    if (mype==0) write(6,*)'intjcpdry: total mass =', mass(n)
 !    if (mype==0) write(6,*)'intjcpdry: wv    mass =', mass(nbins+n)
-     dmass=mass(n)-mass(nbins+n)
-     dmass=bamp_jcpdry*dmass*rcon*rcon
+     dmass=bamp_jcpdry*(mass(n)-mass(nbins+n))*rcon
      if(present(pjc)) then
         pjc = dmass*dmass
      endif
@@ -872,7 +871,7 @@ subroutine intjcpdry1(sval,nbins,mass)
 !
 !$$$
   use mpimod, only: mype
-  use gridmod, only: lat2,lon2,nsig,wgtlats,nlon,istart
+  use gridmod, only: lat2,lon2,nsig,wgtlats,istart
   use guess_grids, only: ges_prsi,ntguessig
   use gsi_metguess_mod,  only: gsi_metguess_get
   implicit none
@@ -884,7 +883,7 @@ subroutine intjcpdry1(sval,nbins,mass)
 
 ! Declare local variables
   real(r_quad),dimension(nsig) :: mass2
-  real(r_quad) rcon,con
+  real(r_quad) con
   integer(i_kind) i,j,k,it,ii,mm1,icw,iql,iqi
   integer(i_kind) iq,iqr,iqs,iqg,iqh,ips    
   real(r_kind),pointer,dimension(:,:,:) :: sq =>NULL()
@@ -901,13 +900,11 @@ subroutine intjcpdry1(sval,nbins,mass)
   
   it=ntguessig
   mass=zero_quad
-  rcon=one_quad/(two_quad*float(nlon))
   mm1=mype+1
 
   do n=1,nbins
 ! Retrieve pointers
 ! Simply return if any pointer not found
-     iq=0; icw=0; iql=0; iqi=0; iqr=0; iqs=0; iqg=0; iqh=0
      call gsi_bundlegetpointer(sval(n),'q' ,sq,  iq  )
      call gsi_bundlegetpointer(sval(n),'cw',sc,  icw )
      call gsi_bundlegetpointer(sval(n),'ql',sql, iql )
@@ -1023,11 +1020,10 @@ subroutine intjcpdry2(rval,nbins,mass,pjc)
   integer(i_kind) :: n
   
   it=ntguessig
-  rcon=one_quad/(two_quad*float(nlon))
+  rcon=(one_quad/(two_quad*real(nlon,r_quad)))**2
   mm1=mype+1
 
   do n=1,nbins
-     iq=0; icw=0; iql=0; iqi=0; iqr=0; iqs=0; iqg=0; iqh=0
      call gsi_bundlegetpointer(rval(n),'q' ,rq,  iq  )
      call gsi_bundlegetpointer(rval(n),'cw',rc,  icw )
      call gsi_bundlegetpointer(rval(n),'ql',rql, iql )
@@ -1037,7 +1033,7 @@ subroutine intjcpdry2(rval,nbins,mass,pjc)
      call gsi_bundlegetpointer(rval(n),'qg',rqg, iqg )
      call gsi_bundlegetpointer(rval(n),'qh',rqh, iqh )
      call gsi_bundlegetpointer(rval(n),'ps',rp,  ips )
-     if( iq*ips /=0 .or. icw*(iql+iqi) /=0 ) then
+     if( ips /= 0 .or. iq /=0 .or. icw*(iql+iqi) /=0 ) then
        if (mype==0) write(6,*)'intjcpdry2: warning - missing some required variables' 
        if (mype==0) write(6,*)'intjcpdry2: constraint for dry mass constraint not performed' 
        return
@@ -1045,8 +1041,7 @@ subroutine intjcpdry2(rval,nbins,mass,pjc)
 !    Remove water-vapor contribution to get incremental dry ps
 !    if (mype==0) write(6,*)'intjcpdry: total mass =', mass(n)
 !    if (mype==0) write(6,*)'intjcpdry: wv    mass =', mass(nbins+n)
-     dmass=mass(n)-mass(nbins+n)
-     dmass=bamp_jcpdry*dmass*rcon*rcon
+     dmass=bamp_jcpdry*(mass(n)-mass(nbins+n))*rcon
      if(present(pjc)) then
         pjc = dmass*dmass
      endif

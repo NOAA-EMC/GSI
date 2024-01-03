@@ -38,7 +38,7 @@ subroutine q_diag(it,mype)
   use mpimod, only: mpi_rtype,mpi_comm_world,mpi_sum,ierror
   use constants,only: zero,two,one,half
   use gridmod, only: lat2,lon2,nsig,nlat,nlon,lat1,lon1,iglobal,&
-       displs_g,ijn,wgtlats,itotsub,strip
+       displs_g,ijn,wgtlats,itotsub,strip,minmype
   use derivsmod, only: cwgues
   use general_commvars_mod, only: load_grid
   use gridmod, only: regional
@@ -67,7 +67,7 @@ subroutine q_diag(it,mype)
   real(r_kind),pointer,dimension(:,:,:):: ges_q =>NULL()
   real(r_kind),pointer,dimension(:,:,:):: ges_cwmr_it=>NULL()
 
-  mype_out=0
+  mype_out=minmype
   mm1=mype+1
 
   ier=0
@@ -147,7 +147,7 @@ subroutine q_diag(it,mype)
      call load_grid(work_pw,grid_pw)
      globps=zero
      globpw=zero
-     rlon=one/float(nlon)
+     rlon=one/real(nlon,r_kind)
      do jj=2,nlat-1
         j=jj-1
         fmeanps=zero

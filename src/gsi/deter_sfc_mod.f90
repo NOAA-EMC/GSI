@@ -207,7 +207,6 @@ subroutine deter_sfc(alat,alon,dlat_earth,dlon_earth,obstime,isflg, &
      sfcpct(istyp10)=sfcpct(istyp10)+w10
      sfcpct(istyp11)=sfcpct(istyp11)+w11
 
-     isflg = 0
      if(sfcpct(0) > 0.99_r_kind)then
         isflg = 0
      else if(sfcpct(1) > 0.99_r_kind)then
@@ -517,7 +516,6 @@ subroutine deter_sfc_type(dlat_earth,dlon_earth,obstime,isflg,tsavg)
      sfcpct(istyp10)=sfcpct(istyp10)+w10
      sfcpct(istyp11)=sfcpct(istyp11)+w11
 
-     isflg = 0
      if(sfcpct(0) > 0.99_r_kind)then
         isflg = 0
      else if(sfcpct(1) > 0.99_r_kind)then
@@ -1050,21 +1048,21 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
         exit loop1
      endif
 
-     mid = (float(subgrid_lengths_y)-one)/two + one
-     del = one/ float(subgrid_lengths_y)
+     mid = (real(subgrid_lengths_y,r_kind)-one)/two + one
+     del = one/ real(subgrid_lengths_y,r_kind)
 
      allocate (y_off(subgrid_lengths_y))
 
      do i= 1, subgrid_lengths_y
-        y_off(i) = (float(i)-mid)*del
+        y_off(i) = (real(i,r_kind)-mid)*del
      enddo
 
-     mid = (float(subgrid_lengths_x)-one)/two + one
-     del = one / float(subgrid_lengths_x)
+     mid = (real(subgrid_lengths_x,r_kind)-one)/two + one
+     del = one / real(subgrid_lengths_x,r_kind)
 
      allocate (x_off(subgrid_lengths_x))
      do i= 1, subgrid_lengths_x
-        x_off(i) = (float(i)-mid)*del
+        x_off(i) = (real(i,r_kind)-mid)*del
      enddo
 
 !    Determine the surface characteristics by integrating over the
@@ -1077,9 +1075,9 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
            do i = min_i(j), max_i(j)
               call time_int_sfc(i,j,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
               do jjj = 1, subgrid_lengths_y
-                 y = float(j) + y_off(jjj)
+                 y = real(j,r_kind) + y_off(jjj)
                  do iii = 1, subgrid_lengths_x
-                    x = float(i) + x_off(iii)
+                    x = real(i,r_kind) + x_off(iii)
                     call txy2ll(x,y,lon_rad,lat_rad)
                     lat_mdl = lat_rad*rad2deg
                     lon_mdl = lon_rad*rad2deg
@@ -1109,7 +1107,7 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
            do i = min_i(j), max_i(j)
               call reduce2full(i,j,ifull)
               call time_int_sfc(ifull,j,itsfc,itsfcp,dtsfc,dtsfcp,sfc_mdl)
-!$omp parallel do  schedule(dynamic,1)private(jjj,iii,lat_mdl,lon_mdl)
+!$omp parallel do  schedule(dynamic,1) private(jjj,iii,lat_mdl,lon_mdl)
               do jjj = 1, subgrid_lengths_y
                  if (y_off(jjj) >= zero) then
                     lat_mdl = (one-y_off(jjj))*rlats_sfc(j)+y_off(jjj)*rlats_sfc(j+1)
@@ -1122,7 +1120,7 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
 !              ok here when calculating longitude even if the value is
 !              greater than 360. the ellipse code works from longitude relative
 !              to the center of the fov.
-                    lon_mdl = (float(i)+x_off(iii) - one) * dx_gfs(jj)
+                    lon_mdl = (real(i,r_kind)+x_off(iii) - one) * dx_gfs(jj)
                     if (fov_flag=="crosstrk")then
                        call inside_fov_crosstrk(instr,ifov,sat_aziang, &
                                                dlat_earth_deg,dlon_earth_deg, &
@@ -1316,7 +1314,6 @@ subroutine deter_sfc_amsre_low(dlat_earth,dlon_earth,isflg,sfcpct)
 !     sfcpct(3)=min(sfcpct(3),sfcpct(1))
 !     sfcpct(1)=max(zero,sfcpct(1)-sfcpct(3))
 
-     isflg = 0
      if(sfcpct(0) > 0.99_r_kind)then
         isflg = 0
      else if(sfcpct(1) > 0.99_r_kind)then
@@ -1482,7 +1479,6 @@ subroutine deter_sfc_gmi(dlat_earth,dlon_earth,isflg,sfcpct)
 !     sfcpct(3)=min(sfcpct(3),sfcpct(1))
 !     sfcpct(1)=max(zero,sfcpct(1)-sfcpct(3))
 
-     isflg = 0
      if(sfcpct(0) > 0.99_r_kind)then
         isflg = 0
      else if(sfcpct(1) > 0.99_r_kind)then
@@ -1920,7 +1916,7 @@ subroutine calc_sfc(sfc_sum,isflg,idomsfc,sfcpct,vfr,sty,vty,sm, &
      vty=zero
   else
      itmp=lbound(sfc_sum%count_vty)-1+maxloc(sfc_sum%count_vty)
-     vty=float(itmp(1))
+     vty=real(itmp(1),r_kind)
   endif
 
 ! soil type is predominate type
@@ -1929,7 +1925,7 @@ subroutine calc_sfc(sfc_sum,isflg,idomsfc,sfcpct,vfr,sty,vty,sm, &
      sty=zero
   else
      itmp=lbound(sfc_sum%count_sty)-1+maxloc(sfc_sum%count_sty)
-     sty=float(itmp(1))
+     sty=real(itmp(1),r_kind)
   endif
 
 ! fields for bare (non-snow covered) land
@@ -1986,7 +1982,6 @@ subroutine calc_sfc(sfc_sum,isflg,idomsfc,sfcpct,vfr,sty,vty,sm, &
   sfcr = sfc_sum%sfcr/count_tot
   zz   = sfc_sum%zz/count_tot
 
-  isflg = 0
   if(sfcpct(0) > 0.99_r_kind)then
      isflg = 0      ! open water
   else if(sfcpct(1) > 0.99_r_kind)then

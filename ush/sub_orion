@@ -87,6 +87,7 @@ export jobname=${jobname:-$bn}
 output=${output:-$jobname.out}
 myuser=$LOGNAME
 myhost=$(hostname)
+exp=${jobname}
 
 DATA=${ptmp:-/work/noaa/da/stmp/$LOGNAME/tmp}
 mkdir -p $DATA
@@ -108,6 +109,7 @@ echo ""                                                                         
 echo "#SBATCH --output=$output"                                                    >> $cfile
 echo "#SBATCH --job-name=$jobname"                                                 >> $cfile
 echo "#SBATCH --qos=$queue"                                                        >> $cfile
+echo "#SBATCH --partition=$partition"                                              >> $cfile
 echo "#SBATCH --time=$timew"                                                       >> $cfile
 echo "#SBATCH --nodes=$nodes --ntasks-per-node=$procs --cpus-per-task=$threads"    >> $cfile
 echo "#SBATCH --account=$accnt"                                                    >> $cfile
@@ -126,7 +128,7 @@ echo "" >>$cfile
 
 echo ". /apps/lmod/lmod/init/sh"                           >> $cfile
 echo "module purge"                                        >> $cfile
-echo "module use $gsisrc/modulefiles"                      >> $cfile
+echo "module use $modulefiles"                      >> $cfile
 echo "module load gsi_orion" >> $cfile
 echo "module list"                                         >> $cfile
 echo ""                                                    >> $cfile

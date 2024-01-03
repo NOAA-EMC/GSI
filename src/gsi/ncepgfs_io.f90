@@ -1440,7 +1440,7 @@ end subroutine write_ghg_grid
         if ( use_gfs_nemsio ) then
 
             if ( write_fv3_incr ) then
-                call write_fv3_increment(grd_a,sp_a,filename,mype_atm, &
+                call write_fv3_increment(grd_a,filename,mype_atm, &
                      atm_bundle,itoutsig)
             else
                 if (fv3_full_hydro) then
@@ -1461,7 +1461,7 @@ end subroutine write_ghg_grid
 
         else if ( use_gfs_ncio ) then
             if  ( write_fv3_incr ) then
-                call write_fv3_increment(grd_a,sp_a,filename,mype_atm, &
+                call write_fv3_increment(grd_a,filename,mype_atm, &
                      atm_bundle,itoutsig)
             else
                 call write_gfsncatm(grd_a,sp_a,filename,mype_atm, &
@@ -2640,9 +2640,9 @@ end subroutine write_ghg_grid
                 allocate(slatx(jmax),wlatx(jmax))
                 allocate(rlats_ens_sfc(nlat_ens_sfc),rlons_ens_sfc(nlon_ens_sfc))
                 call splat(4,jmax,slatx,wlatx)
-                dlon=two*pi/float(nlon_ens_sfc)
+                dlon=two*pi/real(nlon_ens_sfc,r_kind)
                 do i=1,nlon_ens_sfc
-                   rlons_ens_sfc(i)=float(i-1)*dlon
+                   rlons_ens_sfc(i)=real(i-1,r_kind)*dlon
                 end do
                 do i=1,(nlat_ens_sfc-1)/2
                    rlats_ens_sfc(i+1)=-asin(slatx(i))
@@ -3074,9 +3074,9 @@ end subroutine write_ghg_grid
           allocate(slatx(jmax),wlatx(jmax))
           allocate(rlats_ens_sfc(nlat_ens_sfc),rlons_ens_sfc(nlon_ens_sfc))
           call splat(4,jmax,slatx,wlatx)
-          dlon=two*pi/float(nlon_ens_sfc)
+          dlon=two*pi/real(nlon_ens_sfc,r_kind)
           do i=1,nlon_ens_sfc
-             rlons_ens_sfc(i)=float(i-1)*dlon
+             rlons_ens_sfc(i)=real(i-1,r_kind)*dlon
           end do
           do i=1,(nlat_ens_sfc-1)/2
              rlats_ens_sfc(i+1)=-asin(slatx(i))
@@ -3247,7 +3247,7 @@ end subroutine write_ghg_grid
         enddo
      enddo
   enddo
-  xave=xave/(two_quad*float(nlon))
+  xave=xave/(two_quad*real(nlon,r_quad))
   call mpl_allreduce(size(ave,1),qpvals=xave)
   ave=xave
   deallocate(xave)

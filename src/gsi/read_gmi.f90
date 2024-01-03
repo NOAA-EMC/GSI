@@ -528,6 +528,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
         flgch = 0
 
         iobs=iobs+1
+        if(iobs>maxobs) exit
      end do read_loop
   end do read_subset
 690 continue
@@ -677,7 +678,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
        if(.not. regional .and. dist1 > 0.75_r_kind) cycle obsloop
     endif
 
-    crit1 = crit1 + 10._r_kind * float(iskip)
+    crit1 = crit1 + 10._r_kind * real(iskip,r_kind)
     call checkob(dist1,crit1,itx,iuse)
     if(.not. iuse) then
        cycle obsloop
@@ -818,7 +819,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
          if(pos_max==0) then
            j2=1
          else
-           j2=nint(float(pos_statis(i))/pos_max)
+           j2=nint(real(pos_statis(i),r_kind)/pos_max)
            j2=max(1,j2)
          endif
          do j=1,pos_statis(i),j2
@@ -834,7 +835,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
          if(pos_max==0) then
            j2=1
          else
-           j2=nint(float(pos_statis(i))/pos_max)
+           j2=nint(real(pos_statis(i),r_kind)/pos_max)
            j2=max(1,j2)
          endif
          do j=1,pos_statis(i),j2

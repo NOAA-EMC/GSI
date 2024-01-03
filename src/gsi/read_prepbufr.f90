@@ -149,6 +149,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2020-05-04  wu      - no rotate_wind for fv3_regional
 !   2020-09-05  CAPS(C. Tong) - add flag for new vadwind obs to assimilate around the analysis time only
 !   2023-03-23  draper  - add code for processing T2m and q2m for global system
+!   2023-07-30  Zhao    - added code to extract obs of significant wave height (howvob) from bufr record 
+!                         in prepbufr file for 3D analysis
 
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -264,7 +266,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   logical tob,qob,uvob,spdob,sstob,pwob,psob,gustob,visob,tdob,mxtmob,mitmob,pmob,howvob,cldchob
   logical metarcldobs,goesctpobs,tcamtob,lcbasob
   logical outside,driftl,convobs,inflate_error
-  logical sfctype, global_2m_land, obs_is_sonde
+  logical sfctype, global_2m_land
   logical luse,ithinp,windcorr
   logical patch_fog
   logical aircraftset,aircraftobs,aircraftobst,aircrafttype
@@ -690,7 +692,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! identify drifting buoys - TYP=180/280 T29=562 and last three digits of SID between 500 and 999
 !  (see https://www.wmo.int/pages/prog/amp/mmop/wmo-number-rules.html)  Set kx to 199/299
-        if (id_drifter .and. (kx==180 .or. kx==280) .and. nint(hdr(3))==562) then
+        if (id_drifter .and. (kx==180 .or. kx==280) .and. nint(hdr(3),r_double)==562) then
            rstation_id=hdr(4)
            read(c_station_id,*,iostat=ios) iwmo
            if (ios == 0 .and. iwmo > 0) then
@@ -700,7 +702,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            end if
         end if
 
-        if (id_ship .and. (kx==180) .and. (nint(hdr(3))==522 .or. nint(hdr(3))==523)) then
+        if (id_ship .and. (kx==180) .and. (nint(hdr(3),r_double)==522 .or. nint(hdr(3),r_double)==523)) then
            rstation_id=hdr(4)
            kx = kx + 18
         end if
@@ -969,7 +971,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !
 ! identify drifting buoys - TYP=180/280 T29=562 and last three digits of SID between 500 and 999
 !  (see https://www.wmo.int/pages/prog/amp/mmop/wmo-number-rules.html)  Set kx to 199/299
-              if (id_drifter .and. (kx==180 .or. kx==280) .and.  nint(hdr(8))==562 ) then
+              if (id_drifter .and. (kx==180 .or. kx==280) .and. nint(hdr(8),r_double)==562) then
                  rstation_id=hdr(1)
                  read(c_station_id,*,iostat=ios) iwmo
                  if (ios == 0 .and. iwmo > 0) then
@@ -979,7 +981,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  end if
               end if
 
-              if (id_ship .and. (kx==180) .and.  (nint(hdr(8))==522 .or. nint(hdr(8))==523) ) then
+              if (id_ship .and. (kx==180) .and. (nint(hdr(8),r_double)==522 .or. nint(hdr(8),r_double)==523) ) then
                  rstation_id=hdr(1)
                  kx = kx + 18
               end if
@@ -1068,7 +1070,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
  
 !             Add obs reference time, then subtract analysis time to get obs time relative to analysis
  
-              time_correction=float(minobs-minan)*r60inv
+              time_correction=real(minobs-minan,r_kind)*r60inv
 
            else
               time_correction=zero
@@ -1132,6 +1134,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if (howvob)             call ufbint(lunin,owave,1,255,levs,owavestr)
               if (cldchob)            call ufbint(lunin,cldceilh,1,255,levs,cldceilhstr)
            endif
+!          Extract obs of howv in 3D Analysis
+!            (if-block is to avoid potential issue if decoding the bufr record twice in 2DRTMA run)
+           if ( .not. twodvar_regional ) then
+              if (howvob)             call ufbint(lunin,owave,1,255,levs,owavestr)
+           endif
            if(kx==224 .and. newvad) then
            call ufbint(lunin,fcstdat,3,255,levs,'UFC VFC TFC ')
            end if
@@ -1179,7 +1186,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     enddo
                     do k=1,levs
                        ppb=obsdat(1,k)
-                      cat=nint(min(obsdat(10,k),qcmark_huge))
+                      cat=idnint(min(obsdat(10,k),qcmark_huge))
                        if ( cat /=0 ) cycle 
                        ppb=max(zero,min(ppb,r2000))
                        if(ppb>=etabl_ps(itypex,1,1)) k1_ps=1
@@ -1608,17 +1615,16 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               plevs(k)=one_tenth*obsdat(1,k)   ! convert mb to cb
               if (kx == 290) plevs(k)=101.0_r_kind  ! Assume 1010 mb = 101.0 cb
               if (goesctpobs) plevs(k)=goescld(1,k)/1000.0_r_kind ! cloud top pressure in cb
-              pqm(k)=nint(qcmark(1,k))
-              qqm(k)=nint(qcmark(2,k))
-              tqm(k)=nint(qcmark(3,k))
-              wqm(k)=nint(qcmark(5,k))
-              pmq(k)=nint(qcmark(8,k))
+              pqm(k)=idnint(qcmark(1,k))
+              qqm(k)=idnint(qcmark(2,k))
+              tqm(k)=idnint(qcmark(3,k))
+              wqm(k)=idnint(qcmark(5,k))
+              pmq(k)=idnint(qcmark(8,k))
            end do
 
 !          187, 181, and 183 are the screen-level obs over land
 !          note: don't need the hofx_2m_sfcfile if set usage in convinfo, and qm updated in the input file
            global_2m_land = ( (kx==187 .or. kx==181 .or. kx==183) .and. hofx_2m_sfcfile )
-           obs_is_sonde =  ( kx==120 .or. kx==132 .or. kx == 133) ! 133 is aircraft
 
 !          If temperature ob, extract information regarding virtual
 !          versus sensible temperature
@@ -1645,14 +1651,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                           if (tpc(k,j)==glcd) then !found GLERL ob - use that and jump out of events stack
                              obsdat(3,k)=tobaux(1,k,j)
                              qcmark(3,k)=min(tobaux(2,k,j),qcmark_huge)
-                             tqm(k)=nint(qcmark(3,k))
+                             tqm(k)=idnint(qcmark(3,k))
                              exit
-                          endif
-                       endif
+                          end if
+                       end if
                        if (tpc(k,j)==vtcd) then
                           obsdat(3,k)=tobaux(1,k,j+1)
                           qcmark(3,k)=min(tobaux(2,k,j+1),qcmark_huge)
-                          tqm(k)=nint(qcmark(3,k))
+                          tqm(k)=idnint(qcmark(3,k))
                        end if
                        if (tpc(k,j)>=bmiss) exit              ! end of stack
                     end do
@@ -1734,11 +1740,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if(obsdat(2,k) > r0_01_bmiss)cycle loop_k_levs
                  qm=qqm(k)
               else if(pwob) then
-                 pwq=nint(qcmark(7,k))
+                 pwq=idnint(qcmark(7,k))
                  qm=pwq
               else if(sstob) then
                  sstq=100
-                 if (k==1) sstq=nint(min(sstdat(4,k),qcmark_huge))
+                 if (k==1) sstq=idnint(min(sstdat(4,k),qcmark_huge))
                  qm=sstq
               else if(gustob) then
                  gustqm=0
@@ -1794,10 +1800,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               end if
 
               if (psob) then
-                 cat=nint(min(obsdat(10,k),qcmark_huge))
+                 cat=idnint(min(obsdat(10,k),qcmark_huge))
                  if ( cat /=0 ) cycle loop_k_levs
                  if ( obsdat(1,k)< r500) qm=100
-                 zqm=nint(qcmark(4,k))
+                 zqm=idnint(qcmark(4,k))
                  if (zqm>=lim_zqm .and. zqm/=15 .and. zqm/=9) qm=9
               endif
 
@@ -1807,7 +1813,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             extract aircraft profile information
               if (aircraft_t_bc .and. acft_profl_file) then
-                 if (nint(obsdat(10,k))==7) cycle LOOP_K_LEVS
+                 if (idnint(obsdat(10,k))==7) cycle LOOP_K_LEVS
                  if(abs(hdr3(2,k))>r90 .or. abs(hdr3(1,k))>r360) cycle LOOP_K_LEVS
                  if(hdr3(1,k)== r360)hdr3(1,k)=hdr3(1,k)-r360
                  if(hdr3(1,k) < zero)hdr3(1,k)=hdr3(1,k)+r360
@@ -1940,12 +1946,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                      if (kx==187) obserr(2,k)=1.0
                      if (kx==181) obserr(2,k)=1.0
                      if (kx==183) obserr(2,k)=1.0
-                   !if (tqm(k) < lim_tqm) write (6,*) 'CSD - have q, no t'
-                endif
-              endif
-              if (obs_is_sonde .and. qob ) then 
-                if(qm < lim_qm )  then
-                   obserr(2,k)=1.0
                 endif
               endif
 !             Set usage variable              
@@ -2011,6 +2011,85 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! don't use MESONET psfc obs if  8th character of station id is "x")
               if( kx==188 .and. psob .and. sidchr(8)=='x' ) usage=r100
 
+!             Set inflate_error logical based on qm flag
+              inflate_error=.false.
+              if (qm==3 .or. qm==7) inflate_error=.true.
+
+              if(uvob) then 
+                 selev=stnelev
+                 oelev=obsdat(4,k)
+                 if(kx >= 280 .and. kx < 300 )then
+                    if (twodvar_regional.and.(kx==288.or.kx==295)) then
+                       oelev=windsensht+selev !windsensht: read in from prepbufr
+                    else
+                       oelev=r10+selev
+                    endif
+                    if (kx == 280 )then
+                       it29=nint(hdr(8))
+                       if(it29 == 522 .or. it29 == 523 .or. it29 == 531)then
+!                         oelev=r20+selev
+                          oelev=r20
+                       end if
+                    end if
+ 
+                    if (kx == 282) oelev=r20+selev
+                    if (kx == 285 .or. kx == 289 .or. kx == 290) then
+                       oelev=selev
+                       selev=zero
+                    endif
+                 else
+                    if((kx >= 221 .and.  kx <= 229) &
+                       .and. selev >= oelev) oelev=r10+selev
+                 end if
+
+!                Rotate winds to rotated coordinate
+                 uob=obsdat(5,k)
+                 vob=obsdat(6,k)
+                 !* thin new VAD wind and generate VAD superob
+                 if(kx==224.and.newvad)then
+                    klev=k+5 !*average over 6 points
+                  !  klev=k    !* no average
+                    if(klev>levs) cycle loop_readsb
+                    diffuu=obsdat(5,k)-fcstdat(1,k)
+                    diffvv=obsdat(6,k)-fcstdat(2,k)
+                    if(sqrt(diffuu**2+diffvv**2)>10.0_r_kind) cycle loop_k_levs
+                    if(abs(diffvv)>8.0_r_kind) cycle loop_k_levs
+                   !if(abs(diffvv)>5.0.and.oelev<5000.0.and.fcstdat(3,k)>276.3) cycle loop_k_levs
+                    if(oelev>7000.0_r_kind) cycle loop_k_levs
+                    if(abs(diffvv)>5.0_r_kind.and.oelev<5000.0_r_kind) cycle loop_k_levs
+                   ! write(6,*)'sliu diffuu,vv::',diffuu, diffvv
+                    uob=zero
+                    vob=zero
+                    oelev=zero
+                    tkk=0
+                    do ikkk=k,klev
+                      diffhgt=obsdat(4,ikkk)-obsdat(4,k)
+                      if(diffhgt<301.0_r_kind)then
+                      uob=uob+obsdat(5,ikkk)
+                      vob=vob+obsdat(6,ikkk)
+                      oelev=oelev+obsdat(4,ikkk)
+                      tkk=tkk+1
+                      end if
+                    end do
+                    uob=uob/tkk
+                    vob=vob/tkk
+                    oelev=oelev/tkk
+
+                    diffuu=5.0_r_kind;diffvv=5.0_r_kind
+                    diffhgt=0.0_r_kind
+                    do ikkk=k,klev
+                      diffuu=abs(obsdat(5,ikkk)-uob)
+                      if(diffhgt<diffuu)diffhgt=diffuu
+                      diffvv=abs(obsdat(6,ikkk)-vob)
+                      if(diffhgt<diffvv)diffhgt=diffvv
+                    end do
+
+                    if(diffhgt>5.0_r_kind)cycle LOOP_K_LEVS !* if u-u_avg>5.0, reject
+                    if(tkk<3) cycle LOOP_K_LEVS      !* obs numb<3, reject
+                    !* unreasonable observation, will fix this in QC package
+                    if(sqrt(uob**2+vob**2)>60.0_r_kind)cycle LOOP_readsb
+                 end if
+              end if
 
 ! Get information from surface file necessary for conventional data here
 
@@ -2096,9 +2175,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Extract pressure level and quality marks
               dlnpob=log(plevs(k))  ! ln(pressure in cb)
 
-!             Set inflate_error logical based on qm flag
-              inflate_error=.false.
-              if (qm==3 .or. qm==7) inflate_error=.true.
  
 !             Temperature
               if(tob) then
@@ -2151,6 +2227,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             Winds 
               else if(uvob) then 
+
                  if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
                     call errormod_aircraft(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
                  else
@@ -2159,80 +2236,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  woe=obserr(5,k)*errout
                  if (inflate_error) woe=woe*r1_2
                  if(obsdat(1,k) < r50)woe=woe*r1_2
-                 selev=stnelev
-                 oelev=obsdat(4,k)
-                 if(kx >= 280 .and. kx < 300 )then
-                    if (twodvar_regional.and.(kx==288.or.kx==295)) then
-                       oelev=windsensht+selev !windsensht: read in from prepbufr
-                    else
-                       oelev=r10+selev
-                    endif
-                    if (kx == 280 )then
-                       it29=nint(hdr(8))
-                       if(it29 == 522 .or. it29 == 523 .or. it29 == 531)then
-!                         oelev=r20+selev
-                          oelev=r20
-                       end if
-                    end if
- 
-                    if (kx == 282) oelev=r20+selev
-                    if (kx == 285 .or. kx == 289 .or. kx == 290) then
-                       oelev=selev
-                       selev=zero
-                    endif
-                 else
-                    if((kx >= 221 .and.  kx <= 229) &
-                       .and. selev >= oelev) oelev=r10+selev
-                 end if
-
-!                Rotate winds to rotated coordinate
-                 uob=obsdat(5,k)
-                 vob=obsdat(6,k)
-                 !* thin new VAD wind and generate VAD superob
-                 if(kx==224.and.newvad)then
-                         klev=k+5 !*average over 6 points
-                       !  klev=k    !* no average
-                         if(klev>levs) cycle loop_readsb
-                         diffuu=obsdat(5,k)-fcstdat(1,k)
-                         diffvv=obsdat(6,k)-fcstdat(2,k)
-                         if(sqrt(diffuu**2+diffvv**2)>10.0_r_kind) cycle loop_k_levs
-                         if(abs(diffvv)>8.0_r_kind) cycle loop_k_levs
-                        !if(abs(diffvv)>5.0.and.oelev<5000.0.and.fcstdat(3,k)>276.3) cycle loop_k_levs
-                         if(oelev>7000.0_r_kind) cycle loop_k_levs
-                         if(abs(diffvv)>5.0_r_kind.and.oelev<5000.0_r_kind) cycle loop_k_levs
-                        ! write(6,*)'sliu diffuu,vv::',diffuu, diffvv
-                         uob=0.0
-                         vob=0.0
-                         oelev=0.0
-                         tkk=0
-                         do ikkk=k,klev
-                           diffhgt=obsdat(4,ikkk)-obsdat(4,k)
-                           if(diffhgt<301.0_r_kind)then
-                           uob=uob+obsdat(5,ikkk)
-                           vob=vob+obsdat(6,ikkk)
-                           oelev=oelev+obsdat(4,ikkk)
-                           tkk=tkk+1
-                           end if
-                         end do
-                         uob=uob/tkk
-                         vob=vob/tkk
-                         oelev=oelev/tkk
-
-                         diffuu=5.0_r_kind;diffvv=5.0_r_kind
-                         diffhgt=0.0_r_kind
-                         do ikkk=k,klev
-                           diffuu=abs(obsdat(5,ikkk)-uob)
-                           if(diffhgt<diffuu)diffhgt=diffuu
-                           diffvv=abs(obsdat(6,ikkk)-vob)
-                           if(diffhgt<diffvv)diffhgt=diffvv
-                         end do
-
-                     if(diffhgt>5.0_r_kind)cycle LOOP_K_LEVS !* if u-u_avg>5.0, reject
-                     if(tkk<3) cycle LOOP_K_LEVS      !* obs numb<3, reject
-                     !* unreasonable observation, will fix this in QC package
-                     if(sqrt(uob**2+vob**2)>60.0_r_kind)cycle LOOP_readsb
-                 end if
-
                  if(regional .and. .not. fv3_regional)then
                     u0=uob
                     v0=vob
@@ -2244,6 +2247,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                        vdisterrmax=max(vdisterrmax,disterr)
                     end if
                  endif
+
 
                  cdata_all(1,iout)=woe                     ! wind error
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
@@ -3274,7 +3278,7 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
   enddo
 
   do k=1,levs
-     cat(k)=nint(obsdat(10,k))
+     cat(k)=idnint(obsdat(10,k))
   enddo
 
 
@@ -3291,10 +3295,10 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
 
 
   if(kx==120)then
-     pqm(1)=nint(min(qcmark(1,1),10000.0))
-     qqm(1)=nint(min(qcmark(2,1),10000.0))
-     tqm(1)=nint(min(qcmark(3,1),10000.0))
-     zqm(1)=nint(min(qcmark(4,1),10000.0))
+     pqm(1)=idnint(min(qcmark(1,1),10000.0))
+     qqm(1)=idnint(min(qcmark(2,1),10000.0))
+     tqm(1)=idnint(min(qcmark(3,1),10000.0))
+     zqm(1)=idnint(min(qcmark(4,1),10000.0))
      call grdcrd(dpres,levs,prsltmp(1),nsig,-1)
         do k=1,levs
            tvflg(k)=one                               ! initialize as sensible
@@ -3306,10 +3310,10 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
 
         do i=2,levs
            im=i-1
-           pqm(i)=nint(min(qcmark(1,i),10000.0))
-           qqm(i)=nint(min(qcmark(2,i),10000.0))
-           tqm(i)=nint(min(qcmark(3,i),10000.0))
-           zqm(i)=nint(min(qcmark(4,i),10000.0))
+           pqm(i)=idnint(min(qcmark(1,i),10000.0))
+           qqm(i)=idnint(min(qcmark(2,i),10000.0))
+           tqm(i)=idnint(min(qcmark(3,i),10000.0))
+           zqm(i)=idnint(min(qcmark(4,i),10000.0))
            if ( (cat(i)==2 .or. cat(im)==2 .or. cat(i)==5 .or. cat(im)==5) .and. &
            pqm(i)<4 .and.  pqm(im)<4    )then
               ku=dpres(i)-1
@@ -3365,14 +3369,14 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
         enddo !levs
 !!!!!!!!! w (not used) !!!!!!!!!!!!!!!!!!!!!!!!!!!
   elseif(kx==220)then
-     pqm(1)=nint(min(qcmark(1,1),10000.0))
-     wqm(1)=nint(min(qcmark(5,1),10000.0))
+     pqm(1)=idnint(min(qcmark(1,1),10000.0))
+     wqm(1)=idnint(min(qcmark(5,1),10000.0))
      call grdcrd(dpres,levs,prsltmp(1),nsig,-1)
      do i=2,levs
         im=i-1
-        wqm(i)=nint(min(qcmark(5,i),10000.0))
-        zqm(i)=nint(min(qcmark(4,i),10000.0))
-        pqm(i)=nint(min(qcmark(1,i),10000.0))
+        wqm(i)=idnint(min(qcmark(5,i),10000.0))
+        zqm(i)=idnint(min(qcmark(4,i),10000.0))
+        pqm(i)=idnint(min(qcmark(1,i),10000.0))
         if(  wqm(i)<4 .and.  wqm(im)<4 .and.  pqm(i)<4 .and.  pqm(im)<4 .and.&
         (cat(i)==2 .or. cat(im)==2 .or. cat(i)==5 .or. cat(im)==5) )then
            ku=dpres(i)-1

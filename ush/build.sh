@@ -33,7 +33,6 @@ set -x
 
 # Set CONTROLPATH variable to user develop installation
 CONTROLPATH="$DIR_ROOT/../develop/install/bin"
-
 # Collect BUILD Options
 CMAKE_OPTS+=" -DCMAKE_BUILD_TYPE=$BUILD_TYPE"
 

@@ -153,7 +153,7 @@ CONTAINS
        Scanline_Back(FOV(I),Scanline(I))=I
     END DO
 
-!$omp parallel do schedule(dynamic,1) private(ichan,iscan,ios,ifov)
+!$omp parallel do schedule(dynamic,1) private(i,ichan,iscan,ios,ifov)
     DO IChan=1,nchanl
     
        err(ichan)=0
@@ -841,7 +841,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
           END DO
           J = J + K
  104  CONTINUE
-      XT = 1.0_r_kind / FLOAT( N )
+      XT = 1.0_r_kind / real( N,r_kind )
       DO 99, I = 1, N
          X(I) = XT * X(I)
  99   CONTINUE

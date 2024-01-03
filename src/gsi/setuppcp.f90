@@ -223,7 +223,7 @@ subroutine setuppcp(obsLL,odiagLL,lunin,mype,aivals,nele,nobs,&
   character(12) string        
   character(128) diag_pcp_file
 
-  integer(i_kind) km1,mm1,iiflg,iextra,ireal
+  integer(i_kind) km1,mm1,iextra,ireal
   integer(i_kind) ii,i,j,k,m,n,ibin,ioff,ioff0
   integer(i_kind) ipt
   integer(i_kind) nsphys,ixp,iyp,ixx,iyy
@@ -325,7 +325,6 @@ endif
 ! ONE TIME, INITIAL SETUP PRIOR TO PROCESSING SATELLITE DATA
 !
 ! Initialize variables
-  iiflg  = 1
   ncloud = ncld
   nsphys = max(int(two*deltim/dtphys+0.9999_r_kind),1)
   dtp    = two*deltim/nsphys
@@ -417,8 +416,8 @@ endif
   elseif (amsu) then
      itype = 8
   endif
-  rterm1=one/float(nsig)
-  rterm2=one/float(nsig*(nsig-1))
+  rterm1=one/real(nsig,r_kind)
+  rterm2=one/real(nsig*(nsig-1),r_kind)
 
   call dtime_setup()
   do n = 1,nobs

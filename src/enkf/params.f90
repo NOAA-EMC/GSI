@@ -124,6 +124,8 @@ real(r_single),public ::  zhuberleft,zhuberright
 real(r_single),public ::  lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
                lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
                lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh
+real(r_single),public ::  corrlengthfednh,corrlengthfedtr,corrlengthfedsh, &
+               lnsigcutofffednh,lnsigcutofffedtr,lnsigcutofffedsh
 real(r_single),public ::  corrlengthrdrnh,corrlengthrdrtr,corrlengthrdrsh, &
                lnsigcutoffrdrnh,lnsigcutoffrdrtr,lnsigcutoffrdrsh
 real(r_single),public :: analpertwtnh,analpertwtsh,analpertwttr,sprd_tol,saterrfact
@@ -226,12 +228,6 @@ logical,public :: efsoi_cycling = .false.
 ! EFSOI calculation applications
 logical,public :: efsoi_flag = .false.
 
-! if true, use ensemble mean qsat in definition of
-! normalized humidity analysis variable (instead of
-! qsat for each member, which is the default behavior
-! when pseudo_rh=.true.  If pseudo_rh=.false, use_qsatensmean
-! is ignored.
-logical,public :: use_qsatensmean = .false.
 logical,public :: write_spread_diag = .false.
 ! if true, use jacobian from GSI stored in diag file to compute
 ! ensemble perturbations in observation space.
@@ -261,12 +257,14 @@ logical,public :: write_ensmean = .false.
 namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
                    mincorrlength_fact,corrlengthnh,corrlengthtr,corrlengthsh,&
-                   varqc,huber,nlons,nlats,smoothparm,use_qsatensmean,&
+                   varqc,huber,nlons,nlats,smoothparm,&
                    readin_localization, zhuberleft,zhuberright,&
                    obtimelnh,obtimeltr,obtimelsh,reducedgrid,&
                    lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh,&
                    lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh,&
                    lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh,&
+                   corrlengthfednh,corrlengthfedsh,corrlengthfedtr,&
+                   lnsigcutofffednh,lnsigcutofffedsh,lnsigcutofffedtr,&
                    fgfileprefixes,fgsfcfileprefixes,anlfileprefixes, &
                    anlsfcfileprefixes,incfileprefixes,incsfcfileprefixes,&
                    statefileprefixes,statesfcfileprefixes, &
@@ -323,6 +321,10 @@ corrlengthsh = 2800_r_single
 corrlengthrdrnh = 10
 corrlengthrdrtr = 10
 corrlengthrdrsh = 10
+! corrlength (km) for GLM flash extent density
+corrlengthfednh = 30_r_single
+corrlengthfedtr = 30_r_single
+corrlengthfedsh = 30_r_single
 ! read in localization length scales from an external file.
 readin_localization = .false.
 ! min and max inflation.
@@ -347,6 +349,9 @@ lnsigcutoffpssh = -999._r_single  ! value for surface pressure
 lnsigcutoffrdrnh = 0.2_r_single  ! value for radar
 lnsigcutoffrdrtr = 0.2_r_single  ! value for radar
 lnsigcutoffrdrsh = 0.2_r_single  ! value for radar
+lnsigcutofffednh = 2._r_single    ! value for GLM flash extent density
+lnsigcutofffedtr = 2._r_single    ! value for GLM flash extent density 
+lnsigcutofffedsh = 2._r_single    ! value for GLM flash extent density
 ! ob time localization
 obtimelnh = 1.e10_r_single
 obtimeltr = 1.e10_r_single
@@ -822,6 +827,10 @@ corrlengthsh = corrlengthsh * 1.e3_r_single/rearth
 corrlengthrdrnh = corrlengthrdrnh * 1.e3_r_single/rearth
 corrlengthrdrtr = corrlengthrdrtr * 1.e3_r_single/rearth
 corrlengthrdrsh = corrlengthrdrsh * 1.e3_r_single/rearth
+! rescale covariance localization length for GLM FED
+corrlengthfednh = corrlengthfednh * 1.e3_r_single/rearth
+corrlengthfedtr = corrlengthfedtr * 1.e3_r_single/rearth
+corrlengthfedsh = corrlengthfedsh * 1.e3_r_single/rearth
 
 ! convert targe area boundary into radians
 tar_minlat = tar_minlat * deg2rad

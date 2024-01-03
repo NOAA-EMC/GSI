@@ -171,7 +171,7 @@ subroutine setuplag(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
   end if
   scale=one
-  rsig=float(nsig)
+  rsig=real(nsig,r_kind)
   mm1=mype+1
 
   call dtime_setup()

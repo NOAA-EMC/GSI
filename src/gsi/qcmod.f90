@@ -115,6 +115,9 @@ module qcmod
 !   def vadfile         - local name of bufr file containing vad winds (used by read_radar)
 !   def use_poq7        - if true, accept sbuv/2 obs with profile ozone quality flag 7
 !   def cao_check       - if true, turn on cold-air-outbreak screening
+!   def airs_cads       - if true, use the cloud and aerosol detection routine for Aqua/AIRS instrument
+!   def cris_cads       - if true, use the cloud and aerosol detection routine for CrIS instruments
+!   def iasi_cads       - if true, use the cloud and aerosol detection routine for IASI instruments
 !
 ! following used for nonlinear qc:
 !
@@ -152,7 +155,7 @@ module qcmod
   use constants, only: r0_01,r0_02,r0_03,r0_04,r0_05,r10,r60,r100,h300,r400,r1000,r2000,r2400,r4000
   use constants, only: deg2rad,rad2deg,t0c,one_tenth,rearth_equator
   use obsmod, only: rmiss_single
-  use radinfo, only: iuse_rad,passive_bc
+  use radinfo, only: iuse_rad,passive_bc,nuchan
   use radinfo, only: tzr_qc
   use radiance_mod, only: rad_obs_type
   implicit none
@@ -183,6 +186,7 @@ module qcmod
   public :: qc_gmi
   public :: qc_amsr2
   public :: qc_saphir
+
 ! set passed variables to public
   public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc,njqc,vqc,nvqc,hub_norm
   public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate,gps_jacqc
@@ -200,6 +204,7 @@ module qcmod
   public :: troflg
   public :: lat_c
   public :: nrand 
+  public :: airs_cads, cris_cads, iasi_cads
 
   logical nlnqc_iter,njqc,vqc,nvqc,hub_norm
   logical noiqc
@@ -215,6 +220,7 @@ module qcmod
   logical vadwnd_l2rw_qc
   logical troflg
   logical cao_check
+  logical airs_cads, cris_cads, iasi_cads
 
   character(10):: vadfile
   integer(i_kind) npres_print
@@ -454,6 +460,10 @@ contains
     troflg=.false.
     lat_c=21.0_r_kind
     nrand=13
+
+    airs_cads = .false.
+    cris_cads = .false.
+    iasi_cads = .false.
 
     return
   end subroutine init_qcvars
@@ -2065,10 +2075,11 @@ subroutine qc_saphir(nchanl,sfchgt,luse,sea, &
   return
 end subroutine qc_saphir
 
-subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
-     cris, hirs, zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise,     &
-     wavenumber,ptau5,prsltmp,tvp,temp,wmix,emissivity_k,ts,                    &
-     id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole)
+subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs,                         &
+     cris,iasi,hirs,zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise, &
+     wavenumber,ptau5,prsltmp,tvp,temp,wmix,chan_level,emissivity_k,ts,tsim,                   &
+     id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole,cluster_fraction,    &
+     cluster_bt, chan_stdev, model_bt)
 !    id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole,radmod) ! all-sky
 
 !$$$ subprogram documentation block
@@ -2108,6 +2119,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 !     tzbgr        - Tz over water
 !     tsavg5       - surface skin temperature
 !     tbc          - simulated - observed BT with bias correction
+!     tsim         - simulated BT 
 !     tb_obs       - observed Brightness temperatures
 !     tnoise       - channel noise array
 !     wavenumber   - array of channel wavenumbers
@@ -2133,6 +2145,10 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 !     cld          - cloud fraction
 !     cldp         - cloud pressure
 !     zero_irjaco3_pole - logical to control use of ozone jacobians near poles
+!     cluster_fraction - size of imager derived cluster to determine clear cloudy profiles, used by CADS
+!     cluster_bt   - imager brightness temperature of each cluster, used by CADS
+!     chan_stdev   - standard deviation of cluster mean temperatures, used by CADS
+!     model_bt     _ brightness temperature derived from the model's clear profile. used by CADS
 !
 ! attributes:
 !     language: f90
@@ -2142,11 +2158,13 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 
   use kinds, only: r_kind, i_kind
   use radinfo, only: iomg_det, itopo_det, isst_det
+  use crtm_planck_functions, only: crtm_planck_radiance
+  use cads, only: cloud_aerosol_detection
   implicit none
 
 ! Declare passed variables
 
-  logical,                            intent(in   ) :: sea,land,ice,snow,luse,goessndr, cris, hirs
+  logical,                            intent(in   ) :: sea,land,ice,snow,luse,goessndr,airs,cris,hirs,iasi
   logical,                            intent(inout) :: zero_irjaco3_pole
   integer(i_kind),                    intent(in   ) :: nsig,nchanl,ndat,is
   integer(i_kind),dimension(nchanl),  intent(in   ) :: ich
@@ -2157,10 +2175,14 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
   real(r_kind),                       intent(  out) :: cld,cldp
   real(r_kind),dimension(40,ndat),    intent(inout) :: aivals
   real(r_kind),dimension(nchanl),     intent(in   ) :: tbc,emissivity_k,ts,wavenumber,tb_obs,tbcnob
-  real(r_kind),dimension(nchanl),     intent(in   ) :: tnoise
+  real(r_kind),dimension(nchanl),     intent(in   ) :: chan_level
+  real(r_kind),dimension(nchanl),     intent(in   ) :: tnoise,tsim
   real(r_kind),dimension(nsig,nchanl),intent(in   ) :: ptau5,temp,wmix
   real(r_kind),dimension(nsig),       intent(in   ) :: prsltmp,tvp
   real(r_kind),dimension(nchanl),     intent(inout) :: errf,varinv,varinv_use
+  real(r_kind),dimension(7),          intent(in   ) :: cluster_fraction
+  real(r_kind),dimension(2,7),        intent(in   ) :: cluster_bt
+  real(r_kind),dimension(2),          intent(in   ) :: chan_stdev, model_bt
 
 ! Declare local parameters
 
@@ -2168,21 +2190,29 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 
 
   real(r_kind) :: demisf,dtempf,efact,dtbf,term,cenlatx,sfchgtfact
-  real(r_kind) :: sum,sum2,sum3,cloudp,tmp,dts,delta
-  real(r_kind),dimension(nchanl) :: dtb
-  integer(i_kind) :: i,j,k,kk,lcloud,m
+  real(r_kind) :: sum1,sum2,sum3,tmp,dts,delta
+  integer(i_kind) :: i,j,lcloud,m,isurface_chan
   integer(i_kind), dimension(nchanl) :: irday
   real(r_kind) :: dtz,ts_ave,xindx,tzchks
   real(r_kind),parameter:: tbmax = 550._r_kind
   real(r_kind),parameter:: tbmin = 50._r_kind
 
+! for cloud_aerosol_detect
+  integer(i_kind) :: I_Sensor_ID
+  integer(i_kind),dimension(nchanl) :: chan_array, i_flag_cloud
+  integer(i_kind),dimension(2) :: imager_chans
+  integer(i_kind) :: boundary_layer_pres, tropopause_height
+  integer(i_kind) :: ichan_10_micron, ichan_12_micron
+  real(r_kind),dimension(nchanl) :: tb_bc
+  real(r_kind) :: cloud_temperature, radiance_chan, radiance_model, radiance_cloud
+  real(r_kind) :: tb_obs_10, tb_obs_12, tb_obs_diff 
 
 ! Reduce weight given to obs for shortwave ir if
 ! solar zenith angle tiny_r_kind
   irday = 1
   if (pangs <= 89.0_r_kind .and. frac_sea > zero) then
 !    QC2 in statsrad
-     if(luse)aivals(9,is) = aivals(9,is) + one
+     if(luse) aivals(9,is) = aivals(9,is) + one
      do i=1,nchanl
         if(wavenumber(i) > r2000)then
            if(wavenumber(i) > r2400)then
@@ -2225,7 +2255,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 ! If GOES and lza > 60. do not use
   if( goessndr .and. zasat*rad2deg > r60) then
 !    QC5 in statsrad
-     if(luse)aivals(12,is) = aivals(12,is) + one
+     if(luse) aivals(12,is) = aivals(12,is) + one
      do i=1,nchanl
         varinv(i) = zero
         varinv_use(i)=zero
@@ -2237,7 +2267,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
   sfchgtfact=one
   if (zsges > r2000) then
 !    QC1 in statsrad
-     if(luse)aivals(8,is) = aivals(8,is) + one
+     if(luse) aivals(8,is) = aivals(8,is) + one
      sfchgtfact    = (r2000/zsges)**4
   endif
 
@@ -2259,6 +2289,387 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
 
 !    QC based on presence/absence of cloud
      sum3=sum3+tbc(i)*tbc(i)*varinv_use(i)
+  end do
+  sum3=0.75_r_kind*sum3
+  lcloud=0
+  cld=zero
+  cldp=r10*prsltmp(1)
+
+!  Cloud and aerosol detection routines (ECMWF)
+  if (cris .and. cris_cads) then
+      I_Sensor_ID = 27
+      chan_array = nuchan(ich)                  ! channel numbers
+      tb_bc = tbc + tsim                        ! observation BT with bias correction
+      boundary_layer_pres = nint(0.8_r_kind*prsltmp(1))  !  boundary layer set to be 80% of surface pressure
+      tropopause_height = nint(trop5)
+      imager_chans = (/15,16/)                  ! imager channel numbers (from satinfo)
+      isurface_chan = 501                       ! surface channel
+      ichan_10_micron = 458                     ! ~10.7 micron channel for low level cloud test
+      ichan_12_micron = 295                     ! ~12.0 micron channel for low level cloud test
+
+      call cloud_aerosol_detection( I_Sensor_ID, nchanl, chan_array, &
+             tropopause_height, boundary_layer_pres, tb_bc, tsim, chan_level, imager_chans, cluster_fraction, &
+             cluster_bt, chan_stdev, model_bt, i_flag_cloud, cldp )
+
+  elseif ( iasi .and. iasi_cads ) then
+      I_Sensor_ID = 16
+      chan_array = nuchan(ich)                  ! channel numbers
+      tb_bc = tbc + tsim                        ! observation BT with bias correction
+      boundary_layer_pres = nint(0.8_r_kind*prsltmp(1))  !  boundary layer set to be 80% of surface pressure
+      tropopause_height = nint(trop5)
+      imager_chans = (/2,3/)                    ! imager channel numbers (from satinfo)
+      isurface_chan = 1271                      ! surface channel
+      ichan_10_micron = 1173                    ! ~10.7 micron channel for low level cloud test
+      ichan_12_micron = 756                     ! ~12.0 micron channel for low level cloud test
+      
+      call cloud_aerosol_detection( I_Sensor_ID, nchanl, chan_array, &
+             tropopause_height, boundary_layer_pres, tb_bc, tsim, chan_level, imager_chans, cluster_fraction, &
+             cluster_bt, chan_stdev, model_bt, i_flag_cloud, cldp )
+
+  elseif ( airs .and. airs_cads ) then
+      I_Sensor_ID = 11
+      chan_array = nuchan(ich)                  ! channel numbers
+      tb_bc = tbc + tsim                        ! observation BT with bias correction
+      boundary_layer_pres = nint(0.8_r_kind*prsltmp(1))  !  boundary layer set to be 80% of surface pressure
+      tropopause_height = nint(trop5)
+      isurface_chan = 914                       ! surface channel
+      imager_chans = (/0,0/)                    ! imager channel numbers (from satinfo)
+      ichan_10_micron = 843                     ! ~10.7 micron channel for low level cloud test
+      ichan_12_micron = 587                     ! ~12.0 micron channel for low level cloud test
+
+      call cloud_aerosol_detection( I_Sensor_ID, nchanl, chan_array, &
+             tropopause_height, boundary_layer_pres, tb_bc, tsim, chan_level, imager_chans, cluster_fraction, &
+             cluster_bt, chan_stdev, model_bt, i_flag_cloud, cldp )
+
+  else
+     call emc_legacy_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,lcloud,cld,cldp)
+
+  endif    ! end of which cloud test to use
+
+! compute cloud stats 
+! If using CADS
+  if ((cris .and. cris_cads) .or. (iasi .and. iasi_cads) .or. (airs .and. airs_cads)) then
+
+!   Reject channels affected by clouds
+    do i=1, nchanl
+       if ( i_flag_cloud(i) == 1) then
+!          QC4 in statsrad
+         if(luse) aivals(11,is) = aivals(11,is) + one
+         varinv(i) = zero
+         varinv_use(i) = zero
+         if(id_qc(i) == igood_qc) id_qc(i) = ifail_cloud_qc
+       endif
+    end do
+
+!   Derive cloud amount for CADS
+    cld = zero
+    if ( cldp < prsltmp(1) ) then    ! if cloud in this profile exists 
+      cloud_layer: do i=2, nsig                   ! determine which layer the cloud exists.
+        if (prsltmp(i) < cldp) then
+          lcloud = i 
+          do j=1, nchanl                      ! use surface channel to derive cloud amount
+            m = nuchan(ich(j))
+            if ( m == isurface_chan ) then     ! interpolate cloud top temperature
+              cloud_temperature = ((tvp(lcloud) -tvp(lcloud -1)/ log(prsltmp(lcloud) / prsltmp(lcloud - 1))) &
+                  * log(cldp/prsltmp(lcloud-1))) + tvp(lcloud-1)
+              call crtm_planck_radiance(1,m,tb_bc(j),radiance_chan)           ! observation radiance. same as tb_obs + bias correction
+              call crtm_planck_radiance(1,m,tsim(j),radiance_model)           ! model derived radiance
+              call crtm_planck_radiance(1,m,cloud_temperature,radiance_cloud) ! cloud top temperature radiance
+              cld = (radiance_chan - radiance_model) / (radiance_cloud - radiance_model)
+              cld = min(max(cld,zero),one)
+              cldp = cldp * r10
+              exit  cloud_layer ! cloud layer foound and cloud amount computed
+            endif   ! surface channel found
+          end do    !surface_chan
+        endif       ! cloud found  (prsltmp(i) < cldp)
+      end do cloud_layer
+
+!     If clear, do a 10.7 - 12 micron test for low level clouds
+    else   ! lcloud = 0
+      do i=1, nchanl
+        if ( nuchan(ich(i)) == ichan_10_micron ) tb_obs_10 = tb_obs(i)
+        if ( nuchan(ich(i)) == ichan_12_micron ) tb_obs_12 = tb_obs(i)
+      end do 
+      if ( tb_obs_10 > zero .and. tb_obs_12 > zero ) then
+          tb_obs_diff = tb_obs_10 - tb_obs_12
+        if ( tb_obs_diff > 2.20_r_kind ) then  ! Assume a cloud exists
+          cldp = prsltmp(1) * r10              ! Assume near surface cloud
+          cld = one                            ! Assume overcast cloud
+          lcloud = 1
+        endif
+      endif
+    endif
+
+!   If more than 2% of the transmittance comes from the cloud layer, reject the channel (0.02 is a tunable parameter).
+!   or CADS flagged a channel to have cloud.
+    if ( lcloud > 0 ) then
+      do i=1, nchanl
+        if ( ptau5(lcloud,i) > 0.02_r_kind )  then
+           if(luse) aivals(11,is) = aivals(11,is) + one    ! QC4 in statsrad
+           varinv(i) = zero
+           varinv_use(i) = zero
+          if(id_qc(i) == igood_qc) id_qc(i) = ifail_cloud_qc
+        end if
+      end do
+    endif
+
+! default compute cloud stats, emc_legacy_cloud_detect 
+  else  
+    if ( lcloud > 0 ) then
+
+      do i=1,nchanl
+!       reject channels with iuse_rad(j)=-1 when they are peaking below the cloud
+        j=ich(i)
+        if (passive_bc .and. iuse_rad(j)==-1) then
+          if (lcloud .ge. kmax(i)) then
+            if(luse)aivals(11,is)   = aivals(11,is) + one
+            varinv(i) = zero
+            varinv_use(i) = zero
+            if(id_qc(i) == igood_qc)id_qc(i)=ifail_cloud_qc
+            cycle
+          end if
+        end if
+
+!       If more than 2% of the transmittance comes from the cloud layer,
+!          reject the channel (0.02 is a tunable parameter)
+
+        if ( ptau5(lcloud,i) > 0.02_r_kind) then
+!         QC4 in statsrad
+          if(luse) aivals(11,is) = aivals(11,is) + one
+          varinv(i) = zero
+          varinv_use(i) = zero
+          if(id_qc(i) == igood_qc) id_qc(i) = ifail_cloud_qc
+        end if
+      end do
+
+    else   ! surface consistency and sensitivity chacks. ( if lcoud = 0 )
+      sum1=zero
+      sum2=zero
+      do i=1,nchanl
+        if ( varinv_use(i) > tiny_r_kind .and. ts(i) > 0.0001_r_kind) then
+          sum1 = sum1 +tbc(i)*ts(i)*varinv_use(i)
+          sum2 = sum2+ts(i)*ts(i)*varinv_use(i)
+        endif
+      end do
+      if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
+      dts=abs(sum1/sum2)
+      if(abs(dts) > one)then
+        if(.not. sea)then
+          dts=min(dtempf,dts)
+        else
+          dts=min(three,dts)
+        end if
+        do i=1,nchanl
+          delta=max(r0_05*tnoise(i),r0_02)
+          if(abs(dts*ts(i)) > delta)then
+!           QC3 in statsrad
+            if(luse .and. varinv(i) > zero) aivals(10,is) = aivals(10,is) + one
+            varinv(i) = zero
+            if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
+          endif
+        enddo
+      endif
+    endif   
+
+! Temporary additional check for CrIS to reduce influence of land points on window channels (particularly important for bias correction)
+    if (cris .and. .not. sea) then
+       do i=1,nchanl
+          if (ts(i) > 0.2_r_kind) then
+           !             QC3 in statsrad
+            if(luse .and. varinv(i) > zero) &
+                aivals(10,is) = aivals(10,is) + one
+            varinv(i) = zero
+            if(id_qc(i) == igood_qc) id_qc(i) = ifail_sfcir_qc
+          end if
+       end do
+    end if
+
+  endif  ! derive cloud stats
+!
+! Apply Tz retrieval
+!
+  if(tzr_qc > 0)then
+     dtz = rmiss_single
+     if ( sea ) then
+        call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
+     endif
+!
+! Apply QC with Tz retrieval
+!
+     if (dtz /= rmiss_single ) then
+       do i = 1, nchanl
+         if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk ) then
+           xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
+           tzchks = tzchk*(half)**xindx
+   
+           if ( abs(dtz) > tzchks ) then
+              varinv(i) = zero
+              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
+              if(luse)aivals(13,is) = aivals(13,is) + one
+           endif
+         endif
+       enddo
+     endif
+  end if
+
+  cenlatx=abs(cenlat)*r0_04     
+  if (cenlatx < one) then
+     if(luse) aivals(6,is) = aivals(6,is) + one
+     efact   = half*(cenlatx+one)
+     do i=1,nchanl
+        if(varinv(i) > tiny_r_kind) errf(i)=efact*errf(i)
+     end do
+  endif
+
+! Generate q.c. bounds and modified variances.
+  do i=1,nchanl
+     if(varinv(i) > tiny_r_kind)then
+        dtbf = demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
+        term = dtbf*dtbf
+        if(term > tiny_r_kind) varinv(i) = varinv(i)/(one+varinv(i)*term)
+     end if
+  end do
+
+  do i=1,nchanl
+     m=ich(i)
+     if (sea .and. isst_det(m) > 0 .and. tsavg5 < 274.0_r_kind) then
+        varinv(i) = zero
+        if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_isst_det
+     endif
+  end do
+
+
+  if(hirs) then
+    do i=1,nchanl
+      m=ich(i)
+      if(iomg_det(m) > 0 .and. i >= 4 .and. i <= 12)then
+         if (i < 4 .and. abs(tbcnob(8)) > 40.0_r_kind) then
+            varinv(i) = zero
+            if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+         else if(i == 12 .and. abs(tbcnob(8)) > 10.0_r_kind)  then
+            varinv(i) = zero
+            if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+         endif
+!90S-60S
+         if(cenlat >= -90.0_r_kind .and. cenlat < -60.0_r_kind) then
+            if(i == 4 .and. abs(tbcnob(8)) > 12.0_r_kind)  then
+              varinv(i) = zero
+              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+            else if(i == 5 .and. abs(tbcnob(8)) > 6.0_r_kind)  then
+              varinv(i) = zero
+              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+            else if(i == 6 .and. abs(tbcnob(8)) > 4.0_r_kind)  then
+                 varinv(i) = zero
+                 if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+            endif
+!60S-30S
+         else if(cenlat >= -60.0_r_kind .and. cenlat < -30.0_r_kind) then
+            if(i == 4 .and. abs(tbcnob(8)) > 10.0_r_kind)  then
+               varinv(i) = zero
+               if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+            else if( i == 5 .and. abs(tbcnob(8)) > 2.0_r_kind)  then
+               varinv(i) = zero
+               if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+            else if(i == 6 .and. abs(tbcnob(8)) > 1.5_r_kind)  then
+               varinv(i) = zero
+               if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+            endif
+!30S-30N
+         else if(cenlat >= -30.0_r_kind .and. cenlat < 30.0_r_kind ) then
+            if(i == 4 .and. abs(tbcnob(8)) > 5.0_r_kind)  then
+               varinv(i) = zero
+               if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+            else if(i == 5 .and. (tbcnob(8) < -2.0_r_kind .or. tbcnob(8) > 3.0_r_kind))  then
+               varinv(i) = zero
+               if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+            else if(i == 6 .and. (tbcnob(8) < -1.5_r_kind .or. tbcnob(8) > 3.0_r_kind))  then
+               varinv(i) = zero
+               if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+            endif
+!30N-60N
+         else if(cenlat >= 30.0_r_kind .and. cenlat < 60.0_r_kind) then
+           if(i == 4 .and. abs(tbcnob(8)) > 8.0_r_kind)  then
+              varinv(i) = zero
+              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+           else if(i == 5 .and. abs(tbcnob(8)) > 2.0_r_kind)  then
+              varinv(i) = zero
+              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+           else if(i == 6 .and. abs(tbcnob(8)) > 1.0_r_kind)  then
+              varinv(i) = zero
+              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
+           endif
+         endif  !cenlat
+      end if
+
+      if (itopo_det(m) > 0 .and. zsges > 1500.0_r_kind) then
+         varinv(i) = zero
+         if ( id_qc(i) == igood_qc ) id_qc(i) = ifail_itopo_det
+      endif
+    end do
+  endif !! if (hirs)
+!---mkim
+
+  return
+
+end subroutine qc_irsnd
+
+subroutine emc_legacy_cloud_detect(nchanl,nsig,tsavg5,trop5,prsltmp,tvp,ts,tbc,temp,varinv_use,lcloud,cld,cldp)
+
+!$$$ subprogram documentation block
+!               .      .    .
+! subprogram:  emc_legacy_cloud_detect    determine clear/cloudy profiles from hirs,goessndr,airs,iasi,cris instruments
+!
+!   prgmmr: derber ???        org: np23            date: ???
+!
+! abstract: determine if a profile is clear/cloudy.  If cloudy, determine model layer of the lcoud.
+!           This subroutine is designed for infrared sounders.
+!
+! program history log:
+!     2022-06-20  jung   moved into a subroutine 
+!
+! input argument list:
+!     nchanl       - number of channels per obs
+!     nsig         - number of model layers
+!     tsavg5       - surface skin temperature
+!     trop5        - tropopause pressure
+!     prsltmp      - array of layer pressure in vertical (surface to toa)
+!     tvp          - array of temperatures in vertical (surface to toa)
+!     ts           - skin temperature sensitivity
+!     tbc          - simulated - observed BT with bias correction
+!     temp         - temperature sensitivity array
+!     varinv_use   - observation weight used (modified obs var error inverse)
+!     
+! output argument list:
+!     lcloud       - model layer of cloud
+!     cld          - derived cloud amount
+!     cldp         - model layer pressure (hPa) of cloud 
+!
+! attributes:
+!     language: f90
+!     machine:  ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+use kinds, only: i_kind, r_kind
+use constants, only: tiny_r_kind, zero, r10
+implicit none
+
+integer(i_kind),                 intent(in   ) :: nchanl, nsig
+integer(i_kind),                 intent(  out) :: lcloud
+real(r_kind),                    intent(in   ) :: tsavg5, trop5
+real(r_kind),                    intent(  out) :: cld, cldp
+real(r_kind), dimension(nchanl), intent(in   ) :: tbc, ts, varinv_use
+real(r_kind), dimension(nsig,nchanl), intent(in   ) :: temp
+real(r_kind), dimension(nsig),   intent(in   ) :: tvp, prsltmp
+
+integer(i_kind) :: i, k, kk
+
+real(r_kind) :: sum,sum2,sum3,cloudp,tmp
+real(r_kind),dimension(nchanl) :: dtb
+
+  sum3=zero
+  do i=1,nchanl
+    sum3=sum3+tbc(i)*tbc(i)*varinv_use(i)
   end do
   sum3=0.75_r_kind*sum3
   lcloud=0
@@ -2301,220 +2712,10 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,   &
      end if
 
   end do
-  if ( lcloud > 0 ) then  ! If cloud detected, reject channels affected by it.
 
-     do i=1,nchanl
-
-!       reject channels with iuse_rad(j)=-1 when they are peaking below the cloud
-        j=ich(i)
-        if (passive_bc .and. iuse_rad(j)==-1) then
-           if (lcloud .ge. kmax(i)) then
-              if(luse)aivals(11,is)   = aivals(11,is) + one
-              varinv(i) = zero
-              varinv_use(i) = zero
-              if(id_qc(i) == igood_qc)id_qc(i)=ifail_cloud_qc
-              cycle
-           end if
-        end if
-
-!       If more than 2% of the transmittance comes from the cloud layer,
-!          reject the channel (0.02 is a tunable parameter)
-
-        delta = 0.02_r_kind
-        if ( ptau5(lcloud,i) > 0.02_r_kind) then
-!          QC4 in statsrad
-           if(luse)aivals(11,is)   = aivals(11,is) + one
-           varinv(i) = zero
-           varinv_use(i) = zero
-           if(id_qc(i) == igood_qc)id_qc(i)=ifail_cloud_qc
-        end if
-     end do
-
-!    If no clouds check surface temperature/emissivity
-
-  else                 ! If no cloud was detected, do surface temp/emiss checks
-     sum=zero
-     sum2=zero
-     do i=1,nchanl
-        if ( varinv_use(i) > tiny_r_kind .and. ts(i) > 0.0001_r_kind) then
-           sum=sum+tbc(i)*ts(i)*varinv_use(i)
-           sum2=sum2+ts(i)*ts(i)*varinv_use(i)
-        endif
-     end do
-     if (abs(sum2) < tiny_r_kind) sum2 = sign(tiny_r_kind,sum2)
-     dts=abs(sum/sum2)
-     if(abs(dts) > one)then
-        if(.not. sea)then
-           dts=min(dtempf,dts)
-        else
-           dts=min(three,dts)
-        end if
-        do i=1,nchanl
-           delta=max(r0_05*tnoise(i),r0_02)
-           if(abs(dts*ts(i)) > delta)then
-!             QC3 in statsrad
-              if(luse .and. varinv(i) > zero) &
-                 aivals(10,is)   = aivals(10,is) + one
-              varinv(i) = zero
-              if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
-           end if
-        end do
-     end if
-  endif
-
-!
-! Temporary additional check for CrIS to reduce influence of land points on window channels (particularly important for bias correction)
-!
-  if (cris .and. .not. sea) then
-     do i=1,nchanl
-        if (ts(i) > 0.2_r_kind) then
-           !             QC3 in statsrad
-           if(luse .and. varinv(i) > zero) &
-                aivals(10,is)   = aivals(10,is) + one
-           varinv(i) = zero
-           if(id_qc(i) == igood_qc)id_qc(i)=ifail_sfcir_qc
-        end if
-     end do
-  end if
+end subroutine emc_legacy_cloud_detect
 
 
-!
-! Apply Tz retrieval
-!
-  if(tzr_qc > 0)then
-     dtz = rmiss_single
-     if ( sea ) then
-        call tz_retrieval(nchanl,nsig,ich,irday,temp,wmix,tnoise,varinv,ts,tbc,tzbgr,1,0,dtz,ts_ave) 
-     endif
-!
-! Apply QC with Tz retrieval
-!
-     if (dtz /= rmiss_single ) then
-       do i = 1, nchanl
-         if ( varinv(i) > tiny_r_kind .and. iuse_rad(ich(i)) >= 1 .and. ts(i) > tschk ) then
-           xindx = ((ts(i)-ts_ave)/(one-ts_ave))**3
-           tzchks = tzchk*(half)**xindx
-   
-           if ( abs(dtz) > tzchks ) then
-              varinv(i) = zero
-              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
-              if(luse)aivals(13,is) = aivals(13,is) + one
-           endif
-         endif
-       enddo
-     endif
-  end if
-
-  cenlatx=abs(cenlat)*r0_04     
-  if (cenlatx < one) then
-     if(luse)aivals(6,is) = aivals(6,is) + one
-     efact   = half*(cenlatx+one)
-     do i=1,nchanl
-        if(varinv(i) > tiny_r_kind) errf(i)=efact*errf(i)
-     end do
-  endif
-
-! Generate q.c. bounds and modified variances.
-  do i=1,nchanl
-     if(varinv(i) > tiny_r_kind)then
-        dtbf = demisf*abs(emissivity_k(i))+dtempf*abs(ts(i))
-        term = dtbf*dtbf
-        if(term > tiny_r_kind)varinv(i)=varinv(i)/(one+varinv(i)*term)
-     end if
-  end do
-
-  do i=1,nchanl
-     m=ich(i)
-     if (sea .and. isst_det(m) > 0 .and. tsavg5 < 274.0_r_kind) then
-        varinv(i) = zero
-        if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_isst_det
-     endif
-  end do
-
-
-  if(hirs) then
-    do i=1,nchanl
-      m=ich(i)
-      if (iomg_det(m) > 0 .and. i < 4 .and. abs(tbcnob(8)) > 40.0_r_kind) then
-         varinv(i) = zero
-         if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-      endif
-      if(iomg_det(m) > 0 .and. i == 12 .and. abs(tbcnob(8)) > 10.0_r_kind)  then
-         varinv(i) = zero
-         if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-      endif
-!90S-60S
-      if(cenlat >= -90.0_r_kind .and. cenlat < -60.0_r_kind) then
-         if(iomg_det(m) > 0 .and. i == 4 .and. abs(tbcnob(8)) > 12.0_r_kind)  then
-           varinv(i) = zero
-          if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-         endif
-         if(iomg_det(m) > 0 .and. i == 5 .and. abs(tbcnob(8)) > 6.0_r_kind)  then
-           varinv(i) = zero
-           if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-         endif
-         if(iomg_det(m) > 0 .and. i == 6 .and. abs(tbcnob(8)) > 4.0_r_kind)  then
-              varinv(i) = zero
-              if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-         endif
-!60S-30S
-      else if(cenlat >= -60.0_r_kind .and. cenlat < -30.0_r_kind) then
-         if(iomg_det(m) > 0 .and. i == 4 .and. abs(tbcnob(8)) > 10.0_r_kind)  then
-            varinv(i) = zero
-            if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-         endif
-         if(iomg_det(m) > 0 .and. i == 5 .and. abs(tbcnob(8)) > 2.0_r_kind)  then
-            varinv(i) = zero
-            if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-         endif
-         if(iomg_det(m) > 0 .and. i == 6 .and. abs(tbcnob(8)) > 1.5_r_kind)  then
-            varinv(i) = zero
-            if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-         endif
-!30S-30N
-      else if(cenlat >= -30.0_r_kind .and. cenlat < 30.0_r_kind) then
-         if(iomg_det(m) > 0 .and. i == 4 .and. abs(tbcnob(8)) > 5.0_r_kind)  then
-            varinv(i) = zero
-            if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-         endif
-         if(iomg_det(m) > 0 .and. i == 5 .and. (tbcnob(8) < -2.0_r_kind .or. tbcnob(8) > 3.0_r_kind))  then
-            varinv(i) = zero
-            if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-         endif
-         if(iomg_det(m) > 0 .and. i == 6 .and. (tbcnob(8) < -1.5_r_kind .or. tbcnob(8) > 3.0_r_kind))  then
-            varinv(i) = zero
-            if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-         endif
-!30N-60N
-      else if(cenlat >= 30.0_r_kind .and. cenlat < 60.0_r_kind) then
-        if(iomg_det(m) > 0 .and. i == 4 .and. abs(tbcnob(8)) > 8.0_r_kind)  then
-           varinv(i) = zero
-           if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-        endif
-        if(iomg_det(m) > 0 .and. i == 5 .and. abs(tbcnob(8)) > 2.0_r_kind)  then
-           varinv(i) = zero
-           if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-        endif
-        if(iomg_det(m) > 0 .and. i == 6 .and. abs(tbcnob(8)) > 1.0_r_kind)  then
-           varinv(i) = zero
-           if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_iomg_det
-        endif
-      endif  !cenlat
-
-      if (itopo_det(m) > 0 .and. zsges > 1500.0_r_kind) then
-         varinv(i) = zero
-         if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_itopo_det
-      endif
-    end do
-  endif !! if (hirs)
-!---mkim
-
-
-
-
-  return
-
-end subroutine qc_irsnd
 
 subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
      zsges,cenlat,frac_sea,pangs,trop5,tzbgr,tsavg5,tbc,tb_obs,tnoise,     &
@@ -2604,7 +2805,6 @@ subroutine qc_avhrr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
 ! Declare local parameters
 
   real(r_kind),parameter:: oneover400=1.0_r_kind/400.0_r_kind
-
 
   real(r_kind) :: demisf,dtempf,efact,dtbf,term,cenlatx,sfchgtfact
   real(r_kind) :: sum1,sum2,sum3,cloudp,tmp,dts
@@ -2990,13 +3190,11 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
      dsval=((2.41_r_kind-0.0098_r_kind*tb_obsbc1)*tbc(ich238) + &
             0.454_r_kind*tbc(ich314)-tbc(ich890))*w1f6
      dsval=max(zero,dsval)
-  end if
-
-  if(sea)then                          
      clwx=cosza*clw*w1f4
   else
      clwx=0.6_r_kind
   end if
+
 ! QC6 in statsrad
   if(clwx >= one .and. luse)aivals(13,is) = aivals(13,is) + one
   factch4=clwx**2+(tbc(ich528)*w2f4)**2
@@ -4318,7 +4516,7 @@ subroutine qc_geocsr(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,   &
   integer(i_kind),                  intent(in   ) :: nchanl,ndat,nsig,is
   integer(i_kind),dimension(nchanl),intent(in   ) :: ich
   integer(i_kind),dimension(nchanl),intent(inout) :: id_qc
-  integer(i_kind),dimension(nchanl),  intent(in   ) :: kmax
+  integer(i_kind),dimension(nchanl),intent(in   ) :: kmax
   real(r_kind),                     intent(in   ) :: zsges
   real(r_kind),                     intent(in   ) :: tzbgr
   real(r_kind),dimension(40,ndat),  intent(inout) :: aivals

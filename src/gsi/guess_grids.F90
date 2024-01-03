@@ -977,18 +977,29 @@ contains
     nfldaer_all=nfldaer
     nfldaer_now=0
     extrap_intime=.true.
-    allocate(hrdifsfc(nfldsfc),ifilesfc(nfldsfc), &
-             hrdifnst(nfldnst),ifilenst(nfldnst), &
-             hrdifsig(nfldsig),ifilesig(nfldsig), &
-             hrdifaer(nfldaer),ifileaer(nfldaer), &
-	     hrdifsfc_all(nfldsfc_all), &
-             hrdifnst_all(nfldnst_all), &
-	     hrdifsig_all(nfldsig_all), &
-             hrdifaer_all(nfldaer_all), &
-	     stat=istatus)
+    if(nfldsig>0) allocate(hrdifsig(nfldsig),ifilesig(nfldsig), &
+                           hrdifsig_all(nfldsig_all), &
+                           stat=istatus)
     if (istatus/=0) &
-         write(6,*)'CREATE_GESFINFO(hrdifsfc,..):  allocate error, istatus=',&
-         istatus
+         call die('CREATE_GESFINFO', '(hrdifsig,..):  allocate error, istatus=', istatus)
+    if(nfldsfc>0) allocate(hrdifsfc(nfldsfc),ifilesfc(nfldsfc), &
+                           hrdifsfc_all(nfldsfc_all), &
+                           stat=istatus)
+    if (istatus/=0) &
+         call die('CREATE_GESFINFO', '(hrdifsfc,..):  allocate error, istatus=',&
+         istatus)
+    if(nfldnst>0) allocate(hrdifnst(nfldnst),ifilenst(nfldnst), &
+                           hrdifnst_all(nfldnst_all), &
+                           stat=istatus)
+    if (istatus/=0) &
+         call die('CREATE_GESFINFO', '(hrdifnst,..):  allocate error, istatus=',&
+         istatus)
+    if(nfldnst>0) allocate(hrdifaer(nfldaer),ifileaer(nfldaer), &
+                           hrdifaer_all(nfldaer_all), &
+                           stat=istatus)
+    if (istatus/=0) &
+         call die('CREATE_GESFINFO', '(hrdifaer,..):  allocate error, istatus=',&
+         istatus)
 #endif /* HAVE_ESMF */
 
     return
@@ -1030,11 +1041,18 @@ contains
     gesfinfo_created_=.false.
 
 #ifndef HAVE_ESMF
-    deallocate(hrdifsfc,ifilesfc,hrdifnst,hrdifaer,ifilenst,hrdifsig,ifilesig,ifileaer,&
-    	hrdifsfc_all,hrdifnst_all,hrdifsig_all,hrdifaer_all,stat=istatus)
+    if(nfldsig>0) deallocate(hrdifsig,ifilesig,hrdifsig_all,stat=istatus)
     if (istatus/=0) &
-         write(6,*)'DESTROY_GESFINFO:  deallocate error, istatus=',&
-         istatus
+         call die('DESTROY_GESFINFO', 'deallocate error, istatus=',istatus)
+    if(nfldsfc>0) deallocate(hrdifsfc,ifilesfc,hrdifsfc_all,stat=istatus)
+    if (istatus/=0) &
+         call die('DESTROY_GESFINFO', 'deallocate error, istatus=',istatus)
+    if(nfldnst>0) deallocate(hrdifnst,ifilenst,hrdifnst_all,stat=istatus)
+    if (istatus/=0) &
+         call die('DESTROY_GESFINFO', 'deallocate error, istatus=',istatus)
+    if(nfldnst>0) deallocate(hrdifaer,ifileaer,hrdifaer_all,stat=istatus)
+    if (istatus/=0) &
+         call die('DESTROY_GESFINFO', 'deallocate error, istatus=',istatus)
 
     nfldsfc_all=0
     nfldnst_all=0
@@ -1765,7 +1783,7 @@ contains
              k=1
              DO while (abs(pbl_height(i,j,jj)) < 0.0001_r_kind)
                if( thetav(k) > thsfc + 1.0_r_kind ) then
-                 pbl_height(i,j,jj) = float(k) - (thetav(k) - (thsfc + 1.0_r_kind))/   &
+                 pbl_height(i,j,jj) = real(k,r_kind) - (thetav(k) - (thsfc + 1.0_r_kind))/   &
                              max((thetav(k)-thetav(k-1)),0.01_r_kind)
                endif
                k=k+1
@@ -2300,7 +2318,7 @@ contains
          end do
       end do
    end do
-   work_a(nsig+1)=float(lon1*lat1)
+   work_a(nsig+1)=real(lon1*lat1,r_kind)
 
    call mpi_allreduce(work_a,work_a1,nsig+1,mpi_rtype,mpi_sum,&
        mpi_comm_world,ierror)
@@ -2368,7 +2386,7 @@ contains
          work_a(1) = work_a(1) + a(i,j)
       end do
    end do
-   work_a(2)=float(lon1*lat1)
+   work_a(2)=real(lon1*lat1,r_kind)
 
    call mpi_allreduce(work_a,work_a1,2,mpi_rtype,mpi_sum,&
        mpi_comm_world,ierror)
