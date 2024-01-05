@@ -58,9 +58,7 @@ subroutine turbl_tl(pges,tges,oges,u,v,prs,t,termu,termv,termt,jstart,jstop)
   real(r_kind),dimension(nsig_hlf):: dudz_bck,dvdz_bck,dodz_bck,ri_bck,rf_bck
   real(r_kind),dimension(nsig_hlf):: rdudz_bck,rdvdz_bck,sm_bck,sh_bck,rdzl_bck,rdzi_bck
   real(r_kind),dimension(nsig_hlf):: u_tl,v_tl,o_tl,zl_tl,t_tl,rssq,rofbck,rshbck
-  real(r_kind),dimension(nsig_hlf):: km_bck,kh_bck,zi_bck
-  real(r_kind),dimension(nsig_hlf+1):: p_bck,zi_tl,p_tl
-  real(r_kind),dimension(2:nsig_hlf):: km_tl,kh_tl
+  real(r_kind),dimension(nsig_hlf+1):: km_bck,kh_bck,p_bck,zi_bck,km_tl,kh_tl,zi_tl,p_tl
   real(r_kind),dimension(2:nsig_hlf):: dzl_tl,dodz_tl,dudz_tl,dvdz_tl,ri_tl
   real(r_kind),dimension(2:nsig_hlf):: rf_tl,sh_tl,sm_tl,lmix_tl
   real(r_kind):: a1,a2,ax,bx,px,rpx,zx,ssq
@@ -71,6 +69,7 @@ subroutine turbl_tl(pges,tges,oges,u,v,prs,t,termu,termv,termt,jstart,jstop)
   integer(i_kind) i,j,k
   integer(i_kind),dimension(nsig):: lssq
 
+  
   do j=jstart,jstop
      do i=1,lat2
 
@@ -84,6 +83,7 @@ subroutine turbl_tl(pges,tges,oges,u,v,prs,t,termu,termv,termt,jstart,jstop)
            zi_bck(k)=zi(i,j,k)
         end do
         p_bck(nsig_hlf+1) =pges(i,j,nsig_hlf+1)
+        zi_bck(nsig_hlf+1)=zi  (i,j,nsig_hlf+1)
 
         do k=1,nsig_hlf
            dodz_bck(k)=dodz(i,j,k)
@@ -96,6 +96,8 @@ subroutine turbl_tl(pges,tges,oges,u,v,prs,t,termu,termv,termt,jstart,jstop)
            km_bck(k)=km(i,j,k)
            kh_bck(k)=kh(i,j,k)
         end do
+        km_bck(nsig_hlf+1)=zero
+        kh_bck(nsig_hlf+1)=zero
       
         do k=2,nsig_hlf
            ssq=dudz_bck(k)**2+dvdz_bck(k)**2
@@ -247,6 +249,8 @@ subroutine turbl_tl(pges,tges,oges,u,v,prs,t,termu,termv,termt,jstart,jstop)
            end if
         end do
 
+        km_tl(1)=zero; kh_tl(1)=zero
+
 ! update perturbation tendencies
 
 
@@ -255,26 +259,23 @@ subroutine turbl_tl(pges,tges,oges,u,v,prs,t,termu,termv,termt,jstart,jstop)
            ax=t_bck(k)/o_bck(k)
            hrdzbk=half*rdzibk
            ardzbk=ax*hrdzbk
+           zx= dzi_tl(k)*rdzibk
+           kmaz_bck=(km_bck(k)+km_bck(k+1))*hrdzbk
+           khaz_bck=(kh_bck(k)+kh_bck(k+1))*ardzbk
+   
+           termu(i,j,k)=termu(i,j,k)-zx*dudtm(i,j,k)
+           termv(i,j,k)=termv(i,j,k)-zx*dvdtm(i,j,k)
+           termt(i,j,k)=termt(i,j,k)-zx*dtdtm(i,j,k)
            kmaz_tl=zero
            khaz_tl=zero
-           kmaz_bck=km_bck(k)*hrdzbk
-           khaz_bck=kh_bck(k)*ardzbk
            if(k<nsig_hlf) then
               kmaz_tl =kmaz_tl+km_tl (k+1)*hrdzbk
               khaz_tl =khaz_tl+kh_tl (k+1)*ardzbk
-              kmaz_bck=kmaz_bck+km_bck(k)*hrdzbk
-              khaz_bck=khaz_bck+kh_bck(k)*ardzbk
            end if
            if(k>1) then
               kmaz_tl= kmaz_tl+km_tl (k)*hrdzbk
               khaz_tl= khaz_tl+kh_tl (k)*ardzbk
            end if
-
-           zx= dzi_tl(k)*rdzibk
-   
-           termu(i,j,k)=termu(i,j,k)-zx*dudtm(i,j,k)
-           termv(i,j,k)=termv(i,j,k)-zx*dvdtm(i,j,k)
-           termt(i,j,k)=termt(i,j,k)-zx*dtdtm(i,j,k)
            if(k<nsig_hlf) then
               termu(i,j,k)=termu(i,j,k)+&
                  kmaz_bck*dudz_tl(k+1) +&

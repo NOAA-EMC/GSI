@@ -149,7 +149,7 @@ contains
 
     character(len=8),intent(in)::cprov,csubprov
     real(r_kind),intent(out)::finalheight
-    integer,dimension(3)::kcount
+    integer,dimension(3),intent(inout)::kcount
 
     !local vars
     integer(i_kind)::i

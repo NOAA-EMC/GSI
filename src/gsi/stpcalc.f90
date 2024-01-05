@@ -860,6 +860,10 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
 ! Check for final stepsize negative (probable error)
   if(stpinout <= zero)then
      if(mype == minmype)then
+        do i=1,ipen
+            pen_est(i)=pbc(1,i)-(stpinout-stp(0))*(2.0_r_quad*bsum(i)- &
+                       (stpinout-stp(0))*csum(i))
+        end do
         write(iout_iter,130) istp_use,bx,cx,stp(istp_use)
         write(iout_iter,105) (bsum(i),i=1,ipen)
         write(iout_iter,110) (csum(i),i=1,ipen)
@@ -873,37 +877,30 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
 202 format(' penalties          = ',(10(e13.6,1x)))
 
 ! If convergence or failure of stepsize calculation return
-  if (.not. end_iter) then
 
 !    Estimate terms in penalty
-     if(mype == minmype)then
-        if(print_verbose)then
-           do i=1,ipen
-               pen_est(i)=pbc(1,i)-(stpinout-stp(0))*(2.0_r_quad*bsum(i)- &
-                          (stpinout-stp(0))*csum(i))
-           end do
-           write(iout_iter,101) (pbc(1,i)-pen_est(i),i=1,ipen)
-        end if
-        pjcostnew(1) = pbc(1,1)                                  ! Jb
-        pjcostnew(3) = pbc(1,2)+pbc(1,3)                         ! Jc
-        pjcostnew(4)=zero
-        do i=4,n0
-           pjcostnew(4) =  pjcostnew(4) + pbc(1,i) ! Jl
-        end do
-        pjcostnew(2) = zero 
-        do i=1,nobs_type
-           pjcostnew(2) = pjcostnew(2)+pbc(1,n0+i)               ! Jo
-        end do
-        penaltynew=pjcostnew(1)+pjcostnew(2)+pjcostnew(3)+pjcostnew(4)
+  if(mype == minmype)then
+     pjcostnew(1) = pbc(1,1)                                  ! Jb
+     pjcostnew(3) = pbc(1,2)+pbc(1,3)                         ! Jc
+     pjcostnew(4)=zero
+     do i=4,n0
+        pjcostnew(4) =  pjcostnew(4) + pbc(1,i) ! Jl
+     end do
+     pjcostnew(2) = zero 
+     do i=1,nobs_type
+        pjcostnew(2) = pjcostnew(2)+pbc(1,n0+i)               ! Jo
+     end do
+     penaltynew=pjcostnew(1)+pjcostnew(2)+pjcostnew(3)+pjcostnew(4)
 
-        if(print_verbose)then
-           write(iout_iter,200) (stp(i),i=0,istp_use)
-           write(iout_iter,199) (stprat(i),i=1,istp_use)
-           write(iout_iter,201) (outstp(i),i=1,nsteptot)
-           write(iout_iter,202) (outpen(i)-outpen(4),i=1,nsteptot)
-        end if
+     if(print_verbose)then
+        write(iout_iter,200) (stp(i),i=0,istp_use)
+        write(iout_iter,199) (stprat(i),i=1,istp_use)
+        write(iout_iter,201) (outstp(i),i=1,nsteptot)
+        write(iout_iter,202) (outpen(i)-outpen(4),i=1,nsteptot)
      end if
+  end if
 
+  if (.not. end_iter) then
 ! Update solution
 !$omp parallel do schedule(dynamic,1) private(i,ii)
      do ii=1,nobs_bins+2

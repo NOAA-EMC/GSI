@@ -211,7 +211,6 @@ subroutine disobs(ndata,nobs,mm1,lunout,obsfile,obstypeall)
 !$$$
   use kinds, only: r_kind,i_kind
   use gridmod, only: periodic_s,nlon,nlat,jlon1,ilat1,istart,jstart
-  use mpimod, only: mype
   implicit none
 
 ! Declare passed variables
