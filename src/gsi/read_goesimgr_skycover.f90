@@ -340,7 +340,6 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
       !-  Set usage variable
       usage = 0 
       if(iuse <= 0)usage=r100
-      if(usage >= r100 .and. pmot >= 2)rusage(ndata+1)=.false.
 
       ! Get information from surface file necessary for conventional data here
       call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr,zz)
@@ -378,6 +377,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
       cdata_all(18,iout)=zz                     !  terrain height at ob location
       cdata_all(19,iout)=r_prvstg(1,1)          !  provider name
       cdata_all(20,iout)=r_sprvstg(1,1)         !  subprovider name
+      if(usage >=r100)rusage(ndata)=.false.
 
      enddo  loop_readsb
 
@@ -441,7 +441,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 
 ! Write header record and data to output file for further processing
  
-  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all(1,1:ndata),nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
   write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 

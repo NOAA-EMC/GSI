@@ -672,10 +672,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !          temperature will be used
            if (ltob) then
               qcm = t_qm 
-              if (qcm > 3) then
-                 usage = r100  
-                 if(pmot >= 2 .and. usage >= r100)rusage(ndata+1)=.false.
-              end if
+              if (qcm > 3) usage = r100  
               call ufbint(lunin,obstmp,2,1,nlv,tmpstr)
               call ufbint(lunin,obsmst,3,1,nlv,mststr)
               tob  = obstmp(2,1)  ! airs temperature [K] 
@@ -755,10 +752,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !          related QC mark and then calculate specific humidity
            if (lqob) then
               qcm = q_qm
-              if (qcm > 3) then
-                 usage = r100 
-                 if(pmot >= 2 .and. usage >= r100)rusage(ndata+1)=.false.
-              end if
+              if (qcm > 3) usage = r100 
               call ufbint(lunin,obstmp,2,1,nlv,tmpstr)
               call ufbint(lunin,obsmst,3,1,nlv,mststr)
               tob  = obstmp(2,1)  ! dry airs temperature [K] 
@@ -831,10 +825,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !          Convert wind direction and spped to u and v wind components
            if (luvob) then
               qcm = uv_qm
-              if (qcm > 3) then
-                 usage=r100 
-                 if(pmot >= 2 .and. usage >= r100)rusage(ndata+1)=.false.
-              end if
+              if (qcm > 3) usage=r100 
               call ufbint(lunin,obswnd,4,1,nlv,wndstr)
               wdir = obswnd(2,1)     ! degree true  
               wspd = obswnd(3,1)     ! m/s 
@@ -846,10 +837,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !          Read surface wind speed [m/s] and total rain rate [mm/hr] from SFMR 
            if (lspdob) then
               qcm = wspd_qm
-              if (qcm > 3) then
-                 usage=r100 
-                 if(pmot >= 2 .and. usage >= r100)rusage(ndata+1)=.false.
-              end if
+              if (qcm > 3) usage=r100 
               call ufbint(lunin,obsfmr,2,1,nlv,sfmrstr)
 !             print*, 'PKSWSP =  ', obstype,obsfmr(1,1)
 !             print*, 'TRRP   =  ', obstype,obsfmr(2,1)
@@ -1164,6 +1152,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               cdata_all(22,iout)=r_prvstg(1,1)          !  provider name 
               cdata_all(23,iout)=r_sprvstg(1,1)         !  subprovider name 
            endif 
+           if(usage >= r100)rusage(ndata)=.false.
 
         end do loop_readsb2
      end do loop_msg2
@@ -1194,7 +1183,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !       end do
 !       write(6,*) ' fl ',trim(ioctype(nc)),ictype(nc),icsubtype(nc),numall,&
 !              numrem,numqc,numthin
-!   If thinned data set quality mark to 16
+!   If thinned data set quality mark to 14
         if (ithin > 0 .and. ithin <5) then
           do i=1,nxdata
              if(rthin(i))cdata_all(iqm,i)=14
@@ -1232,7 +1221,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !    Write header record and data to output file for further processing
 !     deallocate(etabl)
 
-     call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
+     call count_obs(ndata,nreal,ilat,ilon,cdata_all(1,1:ndata),nobs)
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
      write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
      deallocate(cdata_all,rusage,rthin)

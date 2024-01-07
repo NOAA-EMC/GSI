@@ -201,7 +201,7 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
                   clat0,slat0,dlat,dlon,thiserr,thislon,thislat, &
                   rlonloc,rlatloc,rlonglob,rlatglob,timeb,rad_per_meter
   real(r_kind) :: azm,cosazm_earth,sinazm_earth,cosazm,sinazm  
-  real(r_kind) :: radartwindow
+  real(r_kind) :: radartwindow,usage
   real(r_kind) :: rmins_an,rmins_ob                                                     
   real(r_kind),allocatable,dimension(:,:):: cdata_all
   real(r_double) rstation_id
@@ -516,7 +516,8 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
                  save_all=.false.
                  if(pmot /= 2 .and. pmot /= 0) save_all=.true.
 
-                 if(pmot >= 2 .and. abs(icuse(ikx)) /= 1)rusage(ndata+1)=.false.
+                 usage = zero
+                 if(abs(icuse(ikx)) /= 1)usage=r100
  
                  if(ithin == 1)then
                    if(zflag == 0)then
@@ -595,6 +596,7 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
                  cdata_all(22,iout)=two                            ! Level 2 data
  
                  if(doradaroneob .and. (cdata_all(5,iout) > -99_r_kind) ) exit volumes
+                 if(usage >= r100)rusage(iout)=.false.
 
                end do azms  !j
             else

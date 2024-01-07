@@ -49,7 +49,7 @@ logical :: ls_qr,ls_qs,ls_qg,ls_qh
 logical :: ls_w,ls_dw
 
 logical :: lc_sf,lc_vp,lc_ps,lc_t,lc_rh,lc_cw
-logical :: lc_w,lc_dw,wdw_exist
+logical :: lc_w,lc_dw
 
 logical :: do_getuv,do_tv_to_tsen,do_normal_rh_to_q,do_getprs,lstrong_bk_vars
 logical :: do_q_copy
@@ -233,19 +233,14 @@ do jj=1,ntlevs_ens
 
 !  Get pointers to required state variables and copy
    call gsi_bundlegetpointer (eval(jj),'sst' ,sv_sst, istatus)
-   if(ls_w)then
-     call gsi_bundlegetpointer (eval(jj),'w' ,sv_w, istatus)
-     if(ls_dw)then
-        call gsi_bundlegetpointer (eval(jj),'dw' ,sv_dw, istatus)
-     end if
-   end if
-!  Copy variables
    call gsi_bundlegetvar ( wbundle_c, 'sst', sv_sst, istatus )
-   if(lc_w)then
-      call gsi_bundlegetvar ( wbundle_c, 'w' , sv_w,  istatus )
-      if(lc_dw)then
-         call gsi_bundlegetvar ( wbundle_c, 'dw' , sv_dw,  istatus )
-      end if
+   if(ls_w .and. lc_w)then
+     call gsi_bundlegetpointer (eval(jj),'w' ,sv_w, istatus)
+     call gsi_bundlegetvar ( wbundle_c, 'w' , sv_w,  istatus )
+     if(ls_dw .and. lc_dw)then
+        call gsi_bundlegetpointer (eval(jj),'dw' ,sv_dw, istatus)
+        call gsi_bundlegetvar ( wbundle_c, 'dw' , sv_dw,  istatus )
+     end if
    end if
 
 !  Get the ozone vector if it is defined
@@ -355,7 +350,6 @@ do_getuv         =lc_sf.and.lc_vp.and.ls_u.and.ls_v
 do_cw_to_hydro = lc_cw .and. ls_ql .and. ls_qi
 do_cw_to_hydro_hwrf = lc_cw.and.ls_ql.and.ls_qi.and.ls_qr.and.ls_qs.and.ls_qg.and.ls_qh
 
-wdw_exist = lc_w.and.lc_dw.and.ls_w.and.ls_dw
 
 idozone=getindex(cvars3d,"oz")
 
@@ -496,10 +490,10 @@ do jj=1,ntlevs_ens
 
    call gsi_bundlegetpointer (eval(jj),'sst' ,rv_sst, istatus)
    call gsi_bundleputvar ( wbundle_c, 'sst', rv_sst, istatus )
-   if(wdw_exist)then
+   if(lc_w .and. ls_w)then
      call gsi_bundlegetpointer (eval(jj),'w' ,rv_w, istatus)
      call gsi_bundleputvar ( wbundle_c, 'w', rv_w, istatus )
-     if(ls_dw)then
+     if(ls_dw .and. lc_dw)then
        call gsi_bundlegetpointer (eval(jj),'dw' ,rv_dw, istatus)
        call gsi_bundleputvar ( wbundle_c, 'dw', rv_dw, istatus )
      end if

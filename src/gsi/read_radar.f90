@@ -862,12 +862,11 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
            if(ncnumgrp(ikx) > 0 )then                     ! cross validation on
               if(mod(ndata,ncnumgrp(ikx))== ncgroup(ikx)-1)usage=ncmiter(ikx)
            end if
-           if(pmot >=2 .and. usage >= 100._r_kind) rusage(ndata)=.false.
+           if(usage >= 100._r_kind) rusage(ndata)=.false.
   
            call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,skint,ff10,sfcr)
    
            LEVEL_TWO_READ: if(loop==0 .and. sis=='l2rw') then      
-              write(6,*) ' radar1 ',height
               cdata(1) = error             ! wind obs error (m/s)
               cdata(2) = dlon              ! grid relative longitude
               cdata(3) = dlat              ! grid relative latitude
@@ -1302,7 +1301,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                 
                       call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,skint,ff10,sfcr)
                 
-                      write(6,*) ' radar2 ',height
                       cdata(1) = error             ! wind obs error (m/s)
                       cdata(2) = dlon              ! grid relative longitude
                       cdata(3) = dlat              ! grid relative latitude
@@ -1983,7 +1981,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                         nodata = min(nodata+1,maxobs)  
                         usage  = zero
                         if(icuse(ikx) < 0)usage=r100
-                        if(pmot >=2 .and. usage >= 100._r_kind) rusage(ndata)=.false.
+                        if(usage >= 100._r_kind) rusage(ndata)=.false.
    
                         call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,skint,ff10,sfcr)
    
@@ -2481,7 +2479,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
               if(ncnumgrp(ikx) > 0 )then                     ! cross validation on
                  if(mod(ndata,ncnumgrp(ikx))== ncgroup(ikx)-1)usage=ncmiter(ikx)
               end if
-              if(pmot >=2 .and. usage >= 100._r_kind) rusage(ndata)=.false.
+              if(usage >= 100._r_kind) rusage(ndata)=.false.
    
               call deter_zsfc_model(dlat,dlon,zsges)
 
@@ -3003,7 +3001,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                     if(ncnumgrp(ikx) > 0 )then                     ! cross validation on
                        if(mod(ndata,ncnumgrp(ikx))== ncgroup(ikx)-1)usage=ncmiter(ikx)
                     end if
-                    if(pmot >=2 .and. usage >= 100._r_kind) rusage(ndata)=.false.
+                    if(usage >= 100._r_kind) rusage(ndata)=.false.
 
                     call deter_zsfc_model(dlat,dlon,zsges)
 

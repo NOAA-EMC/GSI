@@ -189,7 +189,7 @@ contains
   subroutine createfore_tm
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    createnormal
+! subprogram:    createfore_tm
 !     prgmmr:    derber     org: np23                date: 2023-10-20
 !
 ! abstract:  This routine creates and initializes arrays for fore thinning

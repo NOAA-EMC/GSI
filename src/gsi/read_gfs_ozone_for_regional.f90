@@ -413,7 +413,7 @@ subroutine read_gfs_ozone_for_regional
         write(6,*)'READ_GFS_OZONE_FOR_REGIONAL:  ***ERROR*** INVALID value for nvcoord=',sighead%nvcoord,filename
         call stop2(85)
      endif
-   else if ( use_gfs_ncio ) then 
+  else if ( use_gfs_ncio ) then 
      if (gfshead%nvcoord == 1) then
         do k=1,nsig_gfs+1
            bk5(k) = gfsheadv%vcoord(k,1)
@@ -455,9 +455,8 @@ subroutine read_gfs_ozone_for_regional
         write(6,*)'GET_GEFS_FOR_REGIONAL:  ***ERROR*** INVALID value for nvcoord=',nvcoord
         call stop2(85)
      endif
-     deallocate(vcoord)
+     deallocate(vcoord,nems_vcoord)
   end if
-  deallocate(nems_vcoord)
 
 ! Load reference temperature array (used by general coordinate)
   do k=1,nsig_gfs
@@ -507,8 +506,6 @@ subroutine read_gfs_ozone_for_regional
 !  also want to set up regional grid structure variable grd_mix, which still has number of
 !   vertical levels set to nsig_gfs, but horizontal dimensions set to regional domain.
 
-  num_fields=2*nsig_gfs
-  vector=.false.
   call general_sub2grid_create_info(grd_mix,inner_vars,nlat,nlon,nsig_gfs,num_fields,regional,vector)
   deallocate(vector)
 

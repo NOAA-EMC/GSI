@@ -2889,9 +2889,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                                   hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,ceiling,stnelev)
 
                     if(lcbas_qc >= 8) usage=100._r_kind
-                    if(pmot >=2 .and. usage >= 100.0_r_kind)then
-                       rusage(iout)=.false.
-                    end if
+                    if(usage >= 100.0_r_kind)rusage(iout)=.false.
                     lcbas_oe=4500.0_r_kind
                     if(lcbas_qc==3) lcbas_oe=lcbas_oe*1.25_r_kind
                     if(lcbas_qc==4) lcbas_oe=lcbas_oe*1.5_r_kind

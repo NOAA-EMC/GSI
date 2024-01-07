@@ -210,9 +210,9 @@ contains
 !
 !$$$
     integer i,j
-    allocate(icount(itxmax,nlevp))
-    allocate(ibest_obs(itxmax,nlevp))
-    allocate(score_crit(itxmax,nlevp))
+    allocate(icount_fore(itxmax,nlevp))
+    allocate(ibest_obs_fore(itxmax,nlevp))
+    allocate(score_crit_fore(itxmax,nlevp))
 
     do j=1,nlevp
        do i=1,itxmax
@@ -227,7 +227,7 @@ contains
   subroutine createaft
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    createnormal
+! subprogram:    createaft
 !     prgmmr:    derber     org: np23                date: 2023-10-20
 !
 ! abstract:  This routine creates and initializes arrays for aft thinning

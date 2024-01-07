@@ -517,7 +517,7 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
       call del3grids
    end if
  
-   call count_obs(ndata,nreal,ilat,ilon,data_all,nobs)
+   call count_obs(ndata,nreal,ilat,ilon,data_all(1,1:ndata),nobs)
  
    write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
    write(lunout) ((data_all(k,i1),k=1,nreal),i1=1,ndata)

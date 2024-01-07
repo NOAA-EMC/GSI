@@ -1709,7 +1709,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
   ! Write header record and data to output file for further processing
   
-  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all(1,1:ndata),nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 

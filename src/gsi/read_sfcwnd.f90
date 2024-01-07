@@ -345,7 +345,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      use_all = .true.
      ithin=0
      pmot=0
-     use_all=.true.
      if(nx >1) then
         nc=ntx(nx)
         ithin=ithin_conv(nc)
@@ -611,7 +610,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            usage = 0 
            iuse=icuse(nc)
            if(iuse <= 0)usage=r100
-           if(pmot >= 2 .and. usage >= r100)rusage(ndata+1)=.false.
 
 ! Get information from surface file necessary for conventional data here
 ! This is different from the previous sfc_type call
@@ -715,6 +713,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(22,iout)=r_prvstg(1,1)       ! provider name
            cdata_all(23,iout)=r_sprvstg(1,1)      ! subprovider name
            cdata_all(24,iout)=var_jb              ! non linear qc parameter
+           if(usage >= r100)rusage(ndata)=.false.
 
         enddo  loop_readsb
 
@@ -778,12 +777,12 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      nodata=nodata+ndata
   end if
   ! Write header record and data to output file for further processing
-  deallocate(cdata_all,rusage,rthin)
+  deallocate(rusage,rthin)
 
 !  deallocate(etabl)
   close(lunin)
   
-  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all(1,1:ndata),nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 

@@ -111,7 +111,7 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   integer(i_kind) ntb,ntmatch,ncx,ncsave,ntread
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nmind,lunin,idate,ilat,ilon,iret,k
-  integer(i_kind) nreal,ithin,iout,icount,ii
+  integer(i_kind) nreal,ithin,iout,ii
   integer(i_kind) itype,iosub,ixsub,isubsub,iobsub 
   integer(i_kind) nlevp         ! vertical level for thinning
   integer(i_kind) pflag
@@ -134,14 +134,14 @@ subroutine read_rapidscat(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,
   real(r_single),allocatable,dimension(:,:,:) :: etabl
 
   real(r_kind) toff,t4dv
-  real(r_kind) rmesh,ediff,usage,tdiff
+  real(r_kind) rmesh,ediff,tdiff
   real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) dlnpob,ppb,ppb2,qifn,qify,ee
   real(r_kind) woe,dlat,dlon,dlat_earth,dlon_earth,oelev
   real(r_kind) dlat_earth_deg,dlon_earth_deg
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
   real(r_kind) vdisterrmax,u00,v00,uob1,vob1
-  real(r_kind) del,werrmin,obserr,ppb1
+  real(r_kind) del,werrmin,obserr,ppb1,usage
   real(r_kind) tsavg,ff10,sfcr,sstime,gstime,zz
   real(r_kind) crit1,timedif,xmesh,pmesh
   real(r_kind),dimension(nsig):: presl
@@ -555,10 +555,9 @@ loopd : do
            obserr=(one-del)*etabl(itype,k1,4)+del*etabl(itype,k2,4)
            obserr=max(obserr,werrmin)
 !         Set usage variable
-           usage = 0 
+           usage = zero 
            iuse=icuse(nc)
            if(iuse <= 0)usage=r100
-           if(pmot >= 2 .and. usage >= r100)rusage(ndata+1)=.false.
 
 ! Get information from surface file necessary for conventional data here
 ! This is different from the previous sfc_type call
@@ -661,6 +660,7 @@ loopd : do
            cdata_all(21,iout)=zz                  ! terrain height at ob location
            cdata_all(22,iout)=r_prvstg(1,1)       ! provider name
            cdata_all(23,iout)=r_sprvstg(1,1)      ! subprovider name
+           if(usage >= r100)rusage(ndata)=.false.
 
         enddo  loop_readsb
 
@@ -722,7 +722,7 @@ loopd : do
   nodata=nodata+ndata
   deallocate(rusage,rthin)
 
-  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all(1,1:ndata),nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 

@@ -198,6 +198,7 @@ subroutine read_sst_viirs(mype,val_viirs,ithin,rmesh,jsatid,&
      bufsat = 226
   else
      write(*,*) 'READ_SST_VIIRS: Unrecognized value for jsatid '//jsatid//':RETURNING'
+     deallocate(amesh,hsst_thd)
      return
   end if
 

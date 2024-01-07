@@ -313,7 +313,6 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      use_all = .true.
      ithin=0
      pmot=0
-     use_all=.true.
 
      if(nx > 1) then
         nc=ntx(nx)
@@ -618,7 +617,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if(ncnumgrp(nc)>0 )then                 ! default cross validation on
                  if(mod(ndata+1,ncnumgrp(nc))== ncgroup(nc)-1)usage=ncmiter(nc)
               end if
-              if(pmot >=2 .and. (icuse(nc) <= 0 .or. qm >= 8)) rusage(iout) = .false.
+              if(icuse(nc) <= 0 .or. qm >= 8) rusage(iout) = .false.
 
 !             Extract pressure level and quality marks
               dlnpob=log(plevs(k))  ! ln(pressure in cb)
@@ -731,7 +730,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! Write header record and data to output file for further processing
 
-  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all(1,1:ndata),nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
   write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 

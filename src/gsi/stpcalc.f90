@@ -263,7 +263,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
   real(r_quad),parameter:: one_tenth_quad = 0.1_r_quad 
 
 ! Declare local variables
-  integer(i_kind) i,j,mm1,ii,ibin,ipenloc,it
+  integer(i_kind) i,j,mm1,ii,final_ii,ibin,ipenloc,it
   integer(i_kind) istp_use,nstep,nsteptot,kprt
   real(r_quad),dimension(4,ipen):: pbc
   real(r_quad),dimension(4,nobs_type):: pbcjo 
@@ -299,6 +299,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
   kprt=3
   pjcalc=.false.
   pj=zero_quad
+  final_ii=1
 
 !   Begin calculating contributions to penalty and stepsize for various terms
 !
@@ -777,6 +778,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
               write(iout_iter,*) ' early termination due to cx or stp  <=0 ',cx,stp(ii)
               write(iout_iter,*) ' better stepsize found',cx,stp(ii)
            end if
+           final_ii=ii
            exit stepsize
         else if(ii == istp_iter)then
            if(mype == minmype)then
@@ -784,6 +786,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
            end if
            stp(istp_use)=zero
            end_iter = .true.
+           final_ii=ii
            exit stepsize
         else
 !       Try different (better?) stepsize
@@ -806,12 +809,18 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
               end if
            end if
            end_iter = .true.
+!          Finalize timer
+           call timer_fnl('stpcalc')
+           final_ii=ii
            exit stepsize
         end if
 !       Check for convergence in stepsize estimation
         stprat(ii)=zero
         if(stp(ii) > zero_quad)stprat(ii)=abs((stp(ii)-stp(ii-1))/stp(ii))
-        if(stprat(ii) < 1.e-4_r_kind) exit stepsize
+        if(stprat(ii) < 1.e-4_r_kind) then
+           final_ii=ii
+           exit stepsize
+        end if
         dels = one_tenth_quad*dels
      end if
 
@@ -838,7 +847,10 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
               istp_use=i
            end if
         end do
-        if(istp_use /= istp_iter) exit stepsize
+        if(istp_use /= istp_iter) then
+           final_ii=ii
+           exit stepsize
+        end if
 !       If no best stepsize set to zero and end minimization
         if(mype == minmype)then
            write(iout_iter,141)(outpen(i),i=1,nsteptot)
@@ -846,8 +858,10 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
         end_iter = .true.
         stp(ii)=zero_quad
         istp_use=ii
+        final_ii=ii
         exit stepsize
      end if
+     final_ii=ii
   end do stepsize
 
   if(kprt >= 2 .and. iter == 0)then
@@ -864,7 +878,7 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
             pen_est(i)=pbc(1,i)-(stpinout-stp(0))*(2.0_r_quad*bsum(i)- &
                        (stpinout-stp(0))*csum(i))
         end do
-        write(iout_iter,130) istp_use,bx,cx,stp(istp_use)
+        write(iout_iter,130) final_ii,bx,cx,stp(final_ii)
         write(iout_iter,105) (bsum(i),i=1,ipen)
         write(iout_iter,110) (csum(i),i=1,ipen)
         write(iout_iter,101) (pbc(1,i)-pen_est(i),i=1,ipen)

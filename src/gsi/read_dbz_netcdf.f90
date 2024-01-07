@@ -605,20 +605,20 @@ strct_in_dbz(v,k)%field(:,:)=obdata_nc(:,:)
   
   !---------------DEALLOCATE ARRAYS-------------!
  
-  deallocate(cdata_all)
-  do v=1,nvol
-     do k=1,nelv
-        deallocate(strct_in_dbz(v,k)%azim)
-        deallocate(strct_in_dbz(v,k)%field)
-     end do
-  end do
-  deallocate(strct_in_dbz)
-  deallocate(obdata_nc)
-  deallocate(beamwidth_nc,azimspacing_nc,gatewidth_nc)
 
  else  !fileopen
   write(6,*) 'READ_dBZ: ERROR OPENING RADAR REFLECTIVITY FILE: ',trim(infile),' IOSTAT ERROR: ',ierror, ' SKIPPING...'
  end if fileopen
+ deallocate(cdata_all)
+ do v=1,nvol
+    do k=1,nelv
+       deallocate(strct_in_dbz(v,k)%azim)
+       deallocate(strct_in_dbz(v,k)%field)
+    end do
+ end do
+ deallocate(strct_in_dbz)
+ deallocate(obdata_nc,azimuth_nc)
+ deallocate(beamwidth_nc,azimspacing_nc,gatewidth_nc)
 
 end subroutine read_dbz_mrms_netcdf
 

@@ -150,7 +150,7 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
                   dlat,dlon,thiserr,thislon,thislat, &
                   timeb
   real(r_kind) :: radartwindow
-  real(r_kind) :: rmins_an
+  real(r_kind) :: rmins_an,usage
   real(r_kind),allocatable,dimension(:,:):: cdata_all
   real(r_double) rstation_id
   logical, allocatable,dimension(:)     :: rusage,rthin
@@ -228,8 +228,6 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
   icntpnt=0
   zflag=0
 
-  rusage = .true.
-  rthin = .false.
   use_all=.true.
   if (ithin > 0) then
      write(6,*)'READ_RADAR_DBZ: ithin,rmesh :',ithin,rmesh
@@ -431,7 +429,8 @@ fileopen: if (if_input_exist) then
 
         nread = nread + 1
  
-        if(icuse(ikx) < zero)rusage(ndata+1)=.false.
+        usage=zero
+        if(icuse(ikx) < zero)usage=r100
  !####################       Data thinning       ###################
         icntpnt=icntpnt+1
         if(icntpnt>maxobs) exit
@@ -517,6 +516,7 @@ fileopen: if (if_input_exist) then
          cdata_all(17,iout)= dbznoise                      ! noise threshold for reflectivity (dBZ)
          cdata_all(18,iout)= imissing2nopcp                !=0, normal 
                                                            !=1,  !values !converted !from !missing !values 
+         if(usage >= r100)rusage(ndata)=.false.
 
          if(doradaroneob .and. (cdata_all(5,iout) > -99.0_r_kind) ) exit ILOOP
 
@@ -592,10 +592,10 @@ fileopen: if (if_input_exist) then
   
   !---------------DEALLOCATE ARRAYS-------------!
   
-  deallocate(cdata_all,rusage,rthin)
 else  !fileopen
   write(6,*) 'READ_dBZ: ERROR OPENING RADAR REFLECTIVITY FILE: ',trim(infile),' IOSTAT ERROR: ',ierror, ' SKIPPING...'
 end if fileopen
+deallocate(cdata_all,rusage,rthin)
 
 
 end subroutine read_dbz_nc
