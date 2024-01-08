@@ -3226,8 +3226,9 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
   use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,&
            fv3_regional
   use convinfo, only: nconvtype,ncmiter,ncgroup,ncnumgrp,icuse,ioctype
-  use deter_sfc_mod, only: deter_sfc2
+  use deter_sfc_mod, only: deter_sfc2,deter_zsfc_model
   use mpimod, only: npe
+  use obsmod, only: time_offset
 
   implicit none
 
@@ -3268,7 +3269,7 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
   integer(i_kind) iret,kx0
   integer(i_kind) nreal,nchanl,ilat,ilon,ikx
   integer(i_kind) idomsfc
-  real(r_kind) usage,ff10,sfcr,skint,t4dv,t4dvo,toff
+  real(r_kind) usage,ff10,sfcr,skint,t4dvo
   real(r_kind) eradkm,dlat_earth,dlon_earth
   real(r_kind) dlat,dlon,staheight,tiltangle,clon,slon,clat,slat
   real(r_kind) timeo,clonh,slonh,clath,slath,cdist,dist
@@ -3407,7 +3408,7 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
      staheight=this_stahgt    !station elevation
      tiltangle=corrected_tilt*deg2rad
 
-     t4dvo=toff+thistime
+     t4dvo=thistime+time_offset
      timemax=max(timemax,t4dvo)
      timemin=min(timemin,t4dvo)
 
@@ -3526,7 +3527,8 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
            if(mod(ndata,ncnumgrp(ikx))== ncgroup(ikx)-1)usage=ncmiter(ikx)
         end if
 
-        call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,skint,ff10,sfcr)
+        call deter_sfc2(dlat_earth,dlon_earth,t4dvo,idomsfc,skint,ff10,sfcr)
+        call deter_zsfc_model(dlat,dlon,zsges)
 
         cdata(1) = error             ! wind obs error (m/s)
         cdata(2) = dlon              ! grid relative longitude
@@ -3534,7 +3536,7 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
         cdata(4) = height            ! obs absolute height (m)
         cdata(5) = rwnd              ! wind obs (m/s)
         cdata(6) = azm*deg2rad       ! azimuth angle (radians)
-        cdata(7) = t4dv              ! obs time (hour)
+        cdata(7) = t4dvo             ! obs time (hour)
         cdata(8) = ikx               ! type
         cdata(9) = tiltangle         ! tilt angle (radians)
         cdata(10)= staheight         ! station elevation (m)
@@ -3598,10 +3600,10 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
   use oneobmod, only: oneobtest,learthrel_rw
   use gsi_4dvar, only: l4dvar,l4densvar,winlen,time_4dvar
   use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,nsig 
-  use obsmod, only: doradaroneob,oneobradid,time_offset 
+  use obsmod, only: doradaroneob,oneobradid,time_offset
   use mpeu_util, only: gettablesize,gettable 
   use convinfo, only: nconvtype,icuse,ioctype
-  use deter_sfc_mod, only: deter_sfc2
+  use deter_sfc_mod, only: deter_sfc2,deter_zsfc_model
   use mpimod, only: npe
   use read_l2bufr_mod, only: radar_sites,radar_rmesh,radar_zmesh,elev_angle_max,del_time,range_max  
   use constants, only: eccentricity,somigliana,grav_ratio,grav,semi_major_axis,flattening,grav_equator 
@@ -3646,7 +3648,7 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
   integer(i_kind) iret,kx0
   integer(i_kind) nreal,nchanl,ilat,ilon,ikx
   integer(i_kind) idomsfc
-  real(r_kind) usage,ff10,sfcr,skint,t4dvo,toff
+  real(r_kind) usage,ff10,sfcr,skint,t4dvo
   real(r_kind) eradkm,dlat_earth,dlon_earth
   real(r_kind) dlat,dlon,staheight,tiltangle,clon,slon,clat,slat
   real(r_kind) timeo,clonh,slonh,clath,slath,cdist,dist
@@ -3973,7 +3975,7 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
         slat=sin(dlat_earth)
         staheight=this_stahgt    !station elevation
         tiltangle=corrected_tilt*deg2rad
-        t4dvo=toff+thistime
+        t4dvo=time_offset+thistime
         timemax=max(timemax,t4dvo)
         timemin=min(timemin,t4dvo)
 !    Exclude data if it does not fall within time window
@@ -4070,7 +4072,7 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
           if (l4dvar) then
             timedif = zero
           else
-            timedif=abs(t4dvo-toff) 
+            timedif=abs(t4dvo-time_offset)
           endif
           crit1 = timedif/r6+half
           call map3grids(1,zflag,zl_thin,nlevz,dlat_earth,dlon_earth,&
@@ -4140,6 +4142,7 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
           
           usage = zero
           if(icuse(ikx) < 0)usage=r100
+          call deter_zsfc_model(dlat,dlon,zsges)
 
           nsuper2_kept=nsuper2_kept+1
           cdata(1) = error             ! wind obs error (m/s)
@@ -4148,7 +4151,7 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
           cdata(4) = height            ! obs absolute height (m)
           cdata(5) = rwnd              ! wind obs (m/s)
           cdata(6) = azm*deg2rad       ! azimuth angle (radians)
-          cdata(7) = t4dvo+time_offset ! obs time (hour)
+          cdata(7) = t4dvo             ! obs time (hour)
           cdata(8) = ikx               ! type
           cdata(9) = tiltangle         ! tilt angle (radians)
           cdata(10)= staheight         ! station elevation (m)
