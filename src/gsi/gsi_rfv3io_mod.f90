@@ -118,6 +118,11 @@ module gsi_rfv3io_mod
       vgsiname = [character(len=max_varname_length) :: &
         'u','v','w','tsen','delp','q','oz','ql','qi','qr','qs','qg','qnr','dbz','fed','ps','delzinc', &
         aeronames_cmaq_fv3,'pm25at','pm25ac','pm25co','pm2_5','amassi','amassj','amassk',aeronames_smoke_fv3]
+
+  integer(i_kind) ,parameter:: nnonnegtracer=7
+  character(len=max_varname_length), dimension(nnonnegtracer), parameter :: &
+    vnames_nonnegativetracers = [character(len=max_varname_length) :: &
+      "sphum","o3mr","liq_wat","ice_wat","rainwat","snowwat","graupel"]
   character(len=max_varname_length),dimension(:),allocatable:: name_metvars2d
   character(len=max_varname_length),dimension(:),allocatable:: name_metvars3d
   character(len=max_varname_length),dimension(:),allocatable:: name_chemvars3d
@@ -4676,6 +4681,10 @@ subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3file
                 call fv3_ll_to_h(work_a(:,:),work_b(:,:),nloncase,nlatcase,nlon_regional,nlat_regional,grid_reverse_flag)
              endif
           endif
+          if (ifindstrloc(vnames_nonnegativetracers,trim(varname))> 0) then
+              write(6,*)'thinkdeb varname for nonegative is ',trim(varname)
+              where (work_b <0.0_r_kind)  work_b=0.0_r_kind
+          endif
           if(fv3_io_layout_y > 1) then
              do nio=0,fv3_io_layout_y-1
                 countloc=(/nxcase,ny_layout_len(nio),1/)
@@ -4834,6 +4843,9 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
         work_b(:,:)=work_b(:,:)+workb2(:,:)
       else
         call fv3_ll_to_h(work_a(:,:),work_b(:,:),nloncase,nlatcase,nlon_regional,nlat_regional,grid_reverse_flag)
+      endif
+      if (ifindstrloc(vnames_nonnegativetracers,trim(varname))> 0) then
+           where (work_b <0.0_r_kind)  work_b=0.0_r_kind
       endif
       call check( nf90_put_var(gfile_loc,VarId,work_b,start=startloc,count=countloc) )
     enddo  !ilevtot
