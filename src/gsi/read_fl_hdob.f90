@@ -1121,7 +1121,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               cdata_all( 1,iout)=woe                    ! wind error
               cdata_all( 2,iout)=dlon                   ! grid relative longitude             
               cdata_all( 3,iout)=dlat                   ! grid relative latitude                  
-              cdata_all( 4,iout)=1000.                  ! ln(surface pressure in cb) !Since dlnpsob is not provided by SFMR, force it to be 1000hPa. Not used in setupspd.f90
+              cdata_all( 4,iout)=missing                ! ln(surface pressure in cb) !Since dlnpsob is not provided by SFMR, force it to be missing. Not used in setupspd.f90
               cdata_all( 5,iout)=spdob*sqrt(two)*half   ! u obs
               cdata_all( 6,iout)=spdob*sqrt(two)*half   ! v obs
               cdata_all( 7,iout)=rstation_id            ! station id
