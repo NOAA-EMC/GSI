@@ -71,7 +71,8 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
        twodvar_regional
    use satthin, only: map2tgrid,destroygrids,makegrids
    use convinfo, only: ithin_conv,rmesh_conv,nconvtype,icuse,ictype,ioctype,ctwind, &
-                 pmot_conv,icsubtype
+                 pmot_conv
+!  use convinfo, only: icsubtype
    use convthin, only: make3grids,use_all,map3grids_m,del3grids
    use obsmod, only: bmiss,hilbert_curve,reduce_diag
    use mpimod, only: npe
@@ -173,8 +174,8 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
    real(r_kind),parameter    :: howvDistm = 10000.0_r_kind
    logical,allocatable,dimension(:)::rthin,rusage
    logical save_all
-!  integer(i_kind) numthin,numqc,numrem
-   integer(i_kind) nxdata,pmot,numall
+!  integer(i_kind) numthin,numqc,numrem,numall
+   integer(i_kind) nxdata,pmot
 
 !
 !   call init_constants_derived
@@ -517,7 +518,7 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
       call del3grids
    end if
  
-   call count_obs(ndata,nreal,ilat,ilon,data_all(1,1:ndata),nobs)
+   call count_obs(ndata,nreal,ilat,ilon,data_all,nobs)
  
    write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
    write(lunout) ((data_all(k,i1),k=1,nreal),i1=1,ndata)

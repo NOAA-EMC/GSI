@@ -178,7 +178,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind) ntb,ntmatch,ncx,ncsave,ntread
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nmind,lunin,idate,ilat,ilon,iret,k
-  integer(i_kind) nreal,ithin,iout,iiout,ii
+  integer(i_kind) nreal,ithin,iout,ii
   integer(i_kind) itype,iosub,ixsub,isubsub,iobsub,itypey,ierr,ihdr9
   integer(i_kind) qm
   integer(i_kind) nlevp         ! vertical level for thinning
@@ -224,8 +224,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
   logical,allocatable,dimension(:)::rthin,rusage
   logical save_all
- !integer(i_kind) numthin,numqc,numrem
-  integer(i_kind) nxdata,pmot,numall
+ !integer(i_kind) numthin,numqc,numrem,numall
+  integer(i_kind) nxdata,pmot
 
 
 ! GOES-16 new BUFR related variables
@@ -677,10 +677,10 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      if(nx >1) then
         nc=ntx(nx)
         ithin=ithin_conv(nc)
+        pmot = pmot_conv(nc)
         if (ithin > 0 .and. ithin <5) then
            rmesh=rmesh_conv(nc)
            pmesh=pmesh_conv(nc)
-           pmot = pmot_conv(nc)
            ptime=ptime_conv(nc)
            if(pmesh > zero) then
               pflag=1
@@ -706,7 +706,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  enddo
               endif
            endif
-           write(6,'(a52,a16,I5,f10.2,2i5,f10.2,i5,2f10.2)') &
+           write(6,*) ioctype(nc),ictype(nc),rmesh,pflag,nlevp,pmesh,nc,pmot,ptime
+           write(6,'(a52,a16,I5,f10.2,2i5,f10.2,i5,i5,f10.2)') &
                    ' READ_SATWND: ictype(nc),rmesh,pflag,nlevp,pmesh,nc ', &
                    ioctype(nc),ictype(nc),rmesh,pflag,nlevp,pmesh,nc,pmot,ptime
         endif
@@ -1709,7 +1710,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
   ! Write header record and data to output file for further processing
   
-  call count_obs(ndata,nreal,ilat,ilon,cdata_all(1,1:ndata),nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 

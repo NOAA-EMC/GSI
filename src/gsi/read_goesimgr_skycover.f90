@@ -50,9 +50,9 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   use constants, only: zero,one_tenth,one,deg2rad,half,&
       three,four, r60inv,r10,r100,r2000
 
-  use convinfo, only: nconvtype, &
-      icuse,ictype,ioctype,icsubtype,&
+  use convinfo, only: nconvtype,icuse,ictype,ioctype,&
       ithin_conv,rmesh_conv,pmesh_conv,ctwind,pmot_conv
+! use convinfo, only: icsubtype
   use convthin, only: make3grids,map3grids_m,del3grids,use_all
   use gridmod, only: regional,nlon,nlat,nsig,tll2xy,txy2ll,&
       rlats,rlons
@@ -95,7 +95,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   integer(i_kind) :: iret,kx,pflag,nlevp,nmind,levs,idomsfc
   integer(i_kind) :: low_cldamt_qc,mid_cldamt_qc,hig_cldamt_qc,tcamt_qc
   integer(i_kind) :: ithin,klat1,klon1,klonp1,klatp1,kk,k,ilat,ilon,nchanl
-  integer(i_kind) :: iout,maxobs,itx,iuse,idate,ierr
+  integer(i_kind) :: iout,maxobs,iuse,idate,ierr
   integer(i_kind),dimension(5) :: idate5
   real(r_kind) :: dlat,dlon,dlat_earth,dlon_earth,toff,t4dv
   real(r_kind) :: dlat_earth_deg,dlon_earth_deg
@@ -110,8 +110,8 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
   real(r_double),dimension(3):: goescld
   logical,allocatable,dimension(:)::rthin,rusage
   logical save_all
-! integer(i_kind) numthin,numqc,numrem
-  integer(i_kind) nxdata,pmot,numall
+! integer(i_kind) numthin,numqc,numrem,numall
+  integer(i_kind) nxdata,pmot
 
   logical :: outside,ithinp,luse
 
@@ -412,7 +412,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
         do i=1,nxdata
            if(rthin(i))then
               cdata_all(9,i)=100._r_kind
-              cdata_all(7,i)=14
+              cdata_all(8,i)=14
            end if
         end do
      end if
@@ -441,7 +441,7 @@ subroutine  read_goesimgr_skycover(nread,ndata,nodata,infile,obstype,lunout,gsti
 
 ! Write header record and data to output file for further processing
  
-  call count_obs(ndata,nreal,ilat,ilon,cdata_all(1,1:ndata),nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
   write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 

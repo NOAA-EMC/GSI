@@ -631,8 +631,7 @@ subroutine definecoef_regular_grids(nxen,nyen,grid_lon,grid_lont,grid_lat,grid_l
   real(r_kind),allocatable,dimension(:)::xbh_a,xa_a,xa_b
   real(r_kind),allocatable,dimension(:)::ybh_a,ya_a,ya_b,yy
   real(r_kind),allocatable,dimension(:,:)::xbh_b,ybh_b
-  real(r_kind) dlat,dlon,dyy,dxx,dyyi,dxxi
-  real(r_kind) dyyh,dxxh
+  real(r_kind) dlat,dlon
 
   real(r_kind),allocatable:: region_lat_tmp(:,:),region_lon_tmp(:,:)
   integer(i_kind), intent(in   ) :: nxen,nyen                 ! fv3 tile x- and y-dimensions
@@ -642,18 +641,15 @@ subroutine definecoef_regular_grids(nxen,nyen,grid_lon,grid_lont,grid_lat,grid_l
   real(r_kind)   , intent(inout) :: grid_latt(nxen,nyen)      ! fv3 cell center latitudes
   integer(i_kind) i,j,ir,jr,n
   real(r_kind),allocatable,dimension(:,:) :: xc,yc,zc,gclat,gclon,gcrlat,gcrlon,rlon_in,rlat_in
-  real(r_kind),allocatable,dimension(:,:) :: glon_an,glat_an
   real(r_kind) xcent,ycent,zcent,rnorm,centlat,centlon
-  integer(i_kind) nlonh,nlath,nxh,nyh
+  integer(i_kind) nxh,nyh
   integer(i_kind) ib1,ib2,jb1,jb2,jj
   integer (i_kind):: index0
-  real(r_kind) region_lat_in(nlat_ens,nlon_ens),region_lon_in(nlat_ens,nlon_ens)
   integer(i_kind) nord_e2a
   real(r_kind)gxa,gya
 
   real(r_kind) x(nxen+1,nyen+1),y(nxen+1,nyen+1),z(nxen+1,nyen+1),xr,yr,zr,xu,yu,zu,rlat,rlon
   real(r_kind) xv,yv,zv,vval
-  real(r_kind) cx,cy
   real(r_kind) uval,ewval,nsval
 
   real(r_kind) d(4),ds
@@ -984,11 +980,11 @@ subroutine definecoef_regular_grids(nxen,nyen,grid_lon,grid_lont,grid_lat,grid_l
      do i=1,nxen+1
         rlat=half*(grid_lat(i,j)+grid_lat(i,j+1))
 !        rlon=half*(grid_lon(i,j)+grid_lon(i,j+1))
-        diff=(grid_lon(i,j)-grid_lon(i+1,j))**2
+        diff=(grid_lon(i,j)-grid_lon(i,j+1))**2
         if(diff < sq180)then
-           rlon=half*(grid_lon(i,j)+grid_lon(i+1,j))
+           rlon=half*(grid_lon(i,j)+grid_lon(i,j+1))
         else
-           rlon=half*(grid_lon(i,j)+grid_lon(i+1,j)-360._r_kind)
+           rlon=half*(grid_lon(i,j)+grid_lon(i,j+1)-360._r_kind)
         endif
         xr=cos(rlat*deg2rad)*cos(rlon*deg2rad)
         yr=cos(rlat*deg2rad)*sin(rlon*deg2rad)
@@ -1258,7 +1254,6 @@ subroutine fv3_h_to_ll_ens(b_in,a,nb,mb,na,ma,rev_flg)
 !   machine:
 !
 !$$$ end documentation block  
-  use mpimod, only: mype
   use constants, only: zero,one
   implicit none
 

@@ -78,7 +78,7 @@ contains
 
     real(r_kind),parameter:: r360 = 360.0_r_kind
 
-    integer(i_kind) i,j,it
+    integer(i_kind) i,j
     integer(i_kind) mlonx,mlonj
 
     real(r_kind) delonx,delat,dgv,halfpi,dx,dy

@@ -1272,7 +1272,7 @@ contains
 
 ! Write header record and data to output file for further processing
 
-  call count_obs(ndata,nreal,ilat,ilon,cdata_all(1,1:ndata),nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
   write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
  

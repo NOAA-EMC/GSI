@@ -76,9 +76,8 @@ subroutine read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twindin,sis)
   character(8)  subset
   character(1)  sidchr(8)
 
-  integer(i_kind) ireadmg,ireadsb,icntpnt,icount
+  integer(i_kind) ireadmg,ireadsb,icntpnt
   integer(i_kind) lunin,i
-  integer(i_kind) itx
   integer(i_kind) ihh,idd,idate,iret,im,iy,k
   integer(i_kind) nchanl,nreal,ilat,ilon
   integer(i_kind) lqm

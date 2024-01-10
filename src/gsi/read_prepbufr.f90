@@ -223,7 +223,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use aircraftobsqc, only: init_aircraft_rjlists,get_aircraft_usagerj,&
                            destroy_aircraft_rjlists
   use adjust_cloudobs_mod, only: adjust_convcldobs,adjust_goescldobs
-  use mpimod, only: npe,mype
+  use mpimod, only: npe
   use rapidrefresh_cldsurf_mod, only: i_gsdsfc_uselist,i_gsdqc,i_ens_mean
   use gsi_io, only: verbose
   use phil2, only: denest       ! hilbert curve
@@ -381,8 +381,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) ndata_hil,nor,ncc,nnrand
   integer(i_kind) indexx
   real(r_kind)  dentrip,dentrip_tmp,vmin,vmax,rmesh_tmp,pmesh_tmp,prest
-  integer(i_kind)  ntime_max,ntime_tmp,itype,ikx,numall
-! integer(i_kind)  numthin,numqc,numrem
+  integer(i_kind)  ntime_max,ntime_tmp,itype,ikx
+! integer(i_kind)  numthin,numqc,numrem,numall
   integer(i_kind),dimension(24) :: ntype_arr
   integer(i_kind),allocatable,dimension(:,:) :: index_arr
   real(r_kind),allocatable,dimension(:,:,:) :: data_hilb
@@ -503,7 +503,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   else if(qob) then
      nreal=26
      iqm = 11
-     iuse = 12
+     iuse = 13
   else if(pwob) then
      nreal=20
      iqm = 9
@@ -551,7 +551,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   else if(goesctpobs) then
      nreal=8
      iqm = 0
-     iuse = 22
+     iuse = 8
   else if(tcamtob) then
      nreal=20
      iqm = 8
@@ -961,7 +961,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  enddo
               endif
            endif
-           if(print_verbose) write(6,*)'READ_PREPBUFR: at line 779: obstype,ictype(nc),rmesh,pflag,nlevp,pmesh,pmot,ptime=',&
+           if(print_verbose) write(6,*)'READ_PREPBUFR: obstype,ictype(nc),rmesh,pflag,nlevp,pmesh,pmot,ptime=',&
               trim(ioctype(nc)),ictype(nc),rmesh,pflag,nlevp,pmesh,pmot,ptime,ithin,ndata,nc
         endif
      endif
@@ -3060,7 +3060,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! Apply hilbert curve for cross validation if requested
 
   if(lhilbert) &
-       call apply_hilbertcurve(maxobs,obstype,cdata_all(thisobtype_usage,1:ndata))   
+       call apply_hilbertcurve(ndata,obstype,cdata_all(thisobtype_usage,1:ndata))   
 
 ! the following is gettin the types which will be applied hilbert curve to
 !  estimate the density

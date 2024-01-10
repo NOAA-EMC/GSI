@@ -341,7 +341,8 @@ subroutine count_obs(ndata,nn_obs,lat_data,lon_data,obs_data,nobs_s)
   integer(i_kind)               ,intent(in   ) :: ndata,lat_data,lon_data
   integer(i_kind)               ,intent(in   ) :: nn_obs
   integer(i_kind),dimension(npe),intent(inout) :: nobs_s
-  real(r_kind),dimension(nn_obs,ndata),intent(in) :: obs_data
+  real(r_kind),dimension(nn_obs,*),intent(in) :: obs_data
+! real(r_kind),dimension(nn_obs,ndata),intent(in) :: obs_data
 
 ! Declare local variables
   integer(i_kind) lon,lat,n,k

@@ -217,7 +217,6 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   real(r_kind),dimension(nsig,nloz_omi+1):: doz_dz1
   integer(i_kind) :: oz_ind, nind, nnz
   type(sparr2) :: dhx_dx
-  real(r_single), dimension(nsdim) :: dhx_dx_array
 
   integer(i_kind) i,nlev,ii,jj,iextra,ibin, kk, nperobs
   integer(i_kind) k1,k2,k,j,nz,jc,idia,irdim1,istatus,ioff0,ioff1
@@ -1170,7 +1169,6 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   real(r_kind),dimension(nsig):: prsltmp
   real(r_single),dimension(ireal,nobs):: diagbuf
   real(r_single),allocatable,dimension(:,:,:)::rdiagbuf
-  real(r_kind),dimension(nsig+1)::prsitmp
   real(r_kind),dimension(nsig)::ozgestmp
 
   integer(i_kind) i,ii,jj,iextra,ibin

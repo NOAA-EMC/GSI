@@ -600,7 +600,7 @@ subroutine deter_sfc2(dlat_earth,dlon_earth,obstime,idomsfc,tsavg,ff10,sfcr,zz)
 
 
 !    Get time interpolation factors for surface files
-     if(obstime > hrdifsfc(1) .and. obstime <= hrdifsfc(nfldsfc))then
+     if(obstime > hrdifsfc(1) .and. obstime < hrdifsfc(nfldsfc))then
         do j=1,nfldsfc-1
            if(obstime > hrdifsfc(j) .and. obstime <= hrdifsfc(j+1))then
               itsfc=j

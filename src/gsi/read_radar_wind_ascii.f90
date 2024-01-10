@@ -207,8 +207,8 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
   real(r_double) rstation_id
   logical, allocatable,dimension(:)     :: rusage,rthin
   logical save_all
-! integer(i_kind)  numthin,numqc,numrem
-  integer(i_kind) nxdata,pmot,numall
+! integer(i_kind)  numthin,numqc,numrem,numall
+  integer(i_kind) nxdata,pmot
   
   character(8) cstaid
   character(4) this_staid
@@ -644,7 +644,7 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
 !    end do
 !    write(6,*) ' asciiradar ',trim(ioctype(ikx)),ikx,numall,&
 !           numrem,numqc,numthin
-!   If thinned data set quality mark to 16
+!   If thinned data set quality mark to 14
      if (ithin == 1 ) then
         do i=1,nxdata
           if(rthin(i))cdata_all(12,i)=101._r_kind
@@ -694,11 +694,12 @@ subroutine read_radar_wind_ascii(nread,ndata,nodata,infile,lunout,obstype,sis,hg
   
   !---------------DEALLOCATE ARRAYS-------------!
  
-  deallocate(cdata_all,rusage,rthin)
 
  else  !fileopen
     write(6,*) 'READ_RADAR_WIND_ASCII: ERROR OPENING RADIAL VELOCITY FILE: ',trim(infile),' IOSTAT ERROR: ',ierror, ' SKIPPING...'
  end if fileopen
+
+ deallocate(cdata_all,rusage,rthin)
 
 
 end subroutine read_radar_wind_ascii

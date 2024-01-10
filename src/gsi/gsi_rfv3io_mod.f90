@@ -545,7 +545,6 @@ subroutine gsi_rfv3io_get_ens_grid_specs(grid_spec,ierr)
   use netcdf, only: nf90_inquire_variable
   use mpimod, only: mype
   use mod_fv3_lola, only: definecoef_regular_grids
-  use gridmod, only:nsig,regional_time,regional_fhr,regional_fmin,aeta1_ll,aeta2_ll
   use gridmod,  only:nlon_regionalens,nlat_regionalens
   use gridmod,  only:grid_type_fv3_regional
   use kinds, only: i_kind,r_kind
@@ -556,7 +555,7 @@ subroutine gsi_rfv3io_get_ens_grid_specs(grid_spec,ierr)
   integer(i_kind),         intent(  out) :: ierr
 
   integer(i_kind) gfile_grid_spec
-  integer(i_kind) i,k,ndimensions,iret,nvariables,nattributes,unlimiteddimid
+  integer(i_kind) k,ndimensions,iret,nvariables,nattributes,unlimiteddimid
   integer(i_kind) gfile_loc,len
   character(len=128) :: name
   integer(i_kind) :: nio,nylen
@@ -2451,7 +2450,7 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin,ens
     integer(i_kind) nz,nzp1,mm1,nx_phy
 
     integer(i_kind):: iworld,iworld_group,nread,mpi_comm_read,i,ierror
-    integer(i_kind),dimension(npe):: members,members_read,mype_read,mype_read_rank
+    integer(i_kind),dimension(npe):: members,members_read,mype_read_rank
     logical:: procuse
 
 ! for io_layout > 1
@@ -2788,7 +2787,7 @@ subroutine gsi_fv3ncdf_readuv(grd_uv,ges_u,ges_v,fv3filenamegin,ensgrid)
     integer(i_kind) nz,nzp1,mm1
 
     integer(i_kind):: iworld,iworld_group,nread,mpi_comm_read,i,ierror
-    integer(i_kind),dimension(npe):: members,members_read,mype_read,mype_read_rank
+    integer(i_kind),dimension(npe):: members,members_read,mype_read_rank
     logical:: procuse
 
 ! for fv3_io_layout_y > 1
@@ -3965,7 +3964,7 @@ subroutine gsi_fv3ncdf_writeuv(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
     real(r_kind),allocatable,dimension(:,:):: workbu2,workbv2
 
     integer(i_kind):: iworld,iworld_group,nread,mpi_comm_read,ierror
-    integer(i_kind),dimension(npe):: members,members_read,mype_read,mype_read_rank
+    integer(i_kind),dimension(npe):: members,members_read,mype_read_rank
     logical:: procuse
 
 ! for fv3_io_layout_y > 1
@@ -4543,7 +4542,7 @@ subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3file
     real(r_kind),allocatable,dimension(:,:):: work_b_tmp
 
     integer(i_kind):: iworld,iworld_group,nread,mpi_comm_read,i,ierror
-    integer(i_kind),dimension(npe):: members,members_read,mype_read,mype_read_rank
+    integer(i_kind),dimension(npe):: members,members_read,mype_read_rank
     logical:: procuse
     
 ! for io_layout > 1

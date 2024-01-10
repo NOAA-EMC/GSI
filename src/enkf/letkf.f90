@@ -172,8 +172,8 @@ nthreads = omp_get_num_threads()
 if (nproc == 0) print *,'using',nthreads,' openmp threads'
 
 ! define a few frequently used parameters
-r_nanals=one/float(nanals)
-r_nanalsm1=one/float(nanals-1)
+r_nanals=one/real(nanals,r_kind)
+r_nanalsm1=one/real(nanals-1,r_kind)
 mincorrlength_factsq = mincorrlength_fact**2
 
 kdobs=associated(kdtree_obs2)
@@ -276,24 +276,24 @@ endif
 
 ! Update ensemble on model grid.
 ! Loop for each horizontal grid points on this task.
-!$omp parallel do schedule(dynamic) default(none) private(npt,nob,nobsl, &
-!$omp                  nobsl2,ngrd1,corrlength,ens_tmp,coslat, &
-!$omp                  nf,vdist,obens,indxassim,indxob,maxdfs, &
-!$omp                  nn,hxens,wts_ensmean,dfs,rdiag,dep,rloc,i, &
-!$omp                  oindex,deglat,dist,corrsq,nb,nlev,nanal,sresults, &
-!$omp                  wts_ensperts,pa,trpa,trpa_raw) shared(anal_ob, &
-!$omp                  anal_ob_modens,anal_chunk,obsprd_post,obsprd_prior, &
-!$omp                  oberrvar,oberrvaruse,nobsl_max,grdloc_chunk, &
-!$omp                  obloc,corrlengthnh,corrlengthsh,corrlengthtr,&
-!$omp                  vlocal_evecs,vlocal,oblnp,lnp_chunk,lnsigl,corrlengthsq,&
-!$omp                  getkf,denkf,getkf_inflation,ensmean_chunk,ob,ensmean_ob, &
-!$omp                  nproc,numptsperproc,nnmax,r_nanalsm1,kdtree_obs2,kdobs, &
-!$omp                  mincorrlength_factsq,robs_local,coslats_local, &
-!$omp                  lupd_obspace_serial,eps,dfs_sort,nanals,index_pres,&
-!$omp  neigv,nlevs,lonsgrd,latsgrd,nobstot,nens,ncdim,nbackgrounds,indxproc,rad2deg) &
-!$omp  reduction(+:t1,t2,t3,t4,t5) &
-!$omp  reduction(max:nobslocal_max) &
-!$omp  reduction(min:nobslocal_min) 
+! !$omp parallel do schedule(dynamic) default(none) private(npt,nob,nobsl, &
+! !$omp                  nobsl2,ngrd1,corrlength,ens_tmp,coslat, &
+! !$omp                  nf,vdist,obens,indxassim,indxob,maxdfs, &
+! !$omp                  nn,hxens,wts_ensmean,dfs,rdiag,dep,rloc,i, &
+! !$omp                  oindex,deglat,dist,corrsq,nb,nlev,nanal,sresults, &
+! !$omp                  wts_ensperts,pa,trpa,trpa_raw) shared(anal_ob, &
+! !$omp                  anal_ob_modens,anal_chunk,obsprd_post,obsprd_prior, &
+! !$omp                  oberrvar,oberrvaruse,nobsl_max,grdloc_chunk, &
+! !$omp                  obloc,corrlengthnh,corrlengthsh,corrlengthtr,&
+! !$omp                  vlocal_evecs,vlocal,oblnp,lnp_chunk,lnsigl,corrlengthsq,&
+! !$omp                  getkf,denkf,getkf_inflation,ensmean_chunk,ob,ensmean_ob, &
+! !$omp                  nproc,numptsperproc,nnmax,r_nanalsm1,kdtree_obs2,kdobs, &
+! !$omp                  mincorrlength_factsq,robs_local,coslats_local, &
+! !$omp                  lupd_obspace_serial,eps,dfs_sort,nanals,index_pres,&
+! !$omp  neigv,nlevs,lonsgrd,latsgrd,nobstot,nens,ncdim,nbackgrounds,indxproc,rad2deg) &
+! !$omp  reduction(+:t1,t2,t3,t4,t5) &
+! !$omp  reduction(max:nobslocal_max) &
+! !$omp  reduction(min:nobslocal_min) 
 grdloop: do npt=1,numptsperproc(nproc+1)
 
    t1 = mpi_wtime()
@@ -524,7 +524,7 @@ grdloop: do npt=1,numptsperproc(nproc+1)
    if (allocated(sresults)) deallocate(sresults)
    if (allocated(ens_tmp)) deallocate(ens_tmp)
 end do grdloop
-!$omp end parallel do
+! !$omp end parallel do
 
 ! make sure posterior perturbations still have zero mean.
 ! (roundoff errors can accumulate)
@@ -541,31 +541,34 @@ do npt=1,npts_max
 enddo
 !$omp end parallel do
 
+tmean=zero
+tmin=zero
+tmax=zero
 tend = mpi_wtime()
 call mpi_reduce(tend-tbegin,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
-tmean = tmean/numproc
+tmean = tmean/real(numproc,r_kind)
 call mpi_reduce(tend-tbegin,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
 call mpi_reduce(tend-tbegin,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
 if (nproc .eq. 0) print *,'min/max/mean time to do letkf update ',tmin,tmax,tmean
 t2 = t2/nthreads; t3 = t3/nthreads; t4 = t4/nthreads; t5 = t5/nthreads
 if (nproc == 0) print *,'time to process analysis on gridpoint = ',t2,t3,t4,t5,' secs on task',nproc
 call mpi_reduce(t2,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
-tmean = tmean/numproc
+tmean = tmean/real(numproc,r_kind)
 call mpi_reduce(t2,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
 call mpi_reduce(t2,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
 if (nproc .eq. 0) print *,',min/max/mean t2 = ',tmin,tmax,tmean
 call mpi_reduce(t3,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
-tmean = tmean/numproc
+tmean = tmean/real(numproc,r_kind)
 call mpi_reduce(t3,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
 call mpi_reduce(t3,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
 if (nproc .eq. 0) print *,',min/max/mean t3 = ',tmin,tmax,tmean
 call mpi_reduce(t4,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
-tmean = tmean/numproc
+tmean = tmean/real(numproc,r_kind)
 call mpi_reduce(t4,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
 call mpi_reduce(t4,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
 if (nproc .eq. 0) print *,',min/max/mean t4 = ',tmin,tmax,tmean
 call mpi_reduce(t5,tmean,1,mpi_real8,mpi_sum,0,mpi_comm_world,ierr)
-tmean = tmean/numproc
+tmean = tmean/real(numproc,r_kind)
 call mpi_reduce(t5,tmin,1,mpi_real8,mpi_min,0,mpi_comm_world,ierr)
 call mpi_reduce(t5,tmax,1,mpi_real8,mpi_max,0,mpi_comm_world,ierr)
 if (nproc .eq. 0) print *,',min/max/mean t5 = ',tmin,tmax,tmean
@@ -590,7 +593,7 @@ else
    call mpi_reduce(nobslocal_max,nobslocal_maxall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
    call mpi_reduce(nobslocal_min,nobslocal_minall,1,mpi_integer,mpi_min,0,mpi_comm_world,ierr)
    call mpi_reduce(nobslocal_mean,nobslocal_meanall,1,mpi_integer,mpi_sum,0,mpi_comm_world,ierr)
-   if (nproc == 0) print *,'min/max/mean number of obs in local volume',nobslocal_minall,nobslocal_maxall,nint(nobslocal_meanall/float(numproc))
+   if (nproc == 0) print *,'min/max/mean number of obs in local volume',nobslocal_minall,nobslocal_maxall,nint(nobslocal_meanall/real(numproc,r_kind))
 endif
 call mpi_reduce(nobslocal_max,nobslocal_maxall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)
 call mpi_reduce(nobslocal_min,nobslocal_minall,1,mpi_integer,mpi_max,0,mpi_comm_world,ierr)

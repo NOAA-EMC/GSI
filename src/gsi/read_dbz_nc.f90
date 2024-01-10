@@ -141,8 +141,7 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
   logical :: luse
        
   !--General declarations
-  integer(i_kind) :: ierror,i,j,k,nvol, &
-                     ikx,mins_an
+  integer(i_kind) :: ierror,i,j,k,ikx,mins_an
   integer(i_kind) :: maxobs,nchanl,ilat,ilon,scount
   
   real(r_kind) :: thistiltr,thisrange,this_stahgt,thishgt                           
@@ -155,8 +154,8 @@ subroutine read_dbz_nc(nread,ndata,nodata,infile,lunout,obstype,sis,hgtl_full,no
   real(r_double) rstation_id
   logical, allocatable,dimension(:)     :: rusage,rthin
   logical save_all
-! integer(i_kind) numthin,numqc,numrem
-  integer(i_kind) nxdata,pmot,numall
+! integer(i_kind) numthin,numqc,numrem,numall
+  integer(i_kind) nxdata,pmot
   
   character(8) cstaid
   character(4) this_staid

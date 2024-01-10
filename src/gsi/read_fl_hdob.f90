@@ -138,8 +138,8 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 
      logical, allocatable,dimension(:)     :: rusage,rthin
      logical save_all
-!    integer(i_kind)  numthin,numqc,numrem
-     integer(i_kind) pmot,iqm,numall
+!    integer(i_kind)  numthin,numqc,numrem,numall
+     integer(i_kind) pmot,iqm
      integer(i_kind) nxdata
 
 !    Real variables
@@ -174,7 +174,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      real(r_kind) :: es,qsat,rhob_calc,tdob_calc,tdry
      real(r_kind) :: dummy 
      real(r_kind) :: del,ediff,errmin,jbmin
-     real(r_kind) :: tvflg 
+     real(r_kind) :: tvflg,log100 
 
      real(r_kind) :: presl(nsig)
      real(r_kind) :: obstime(6,1)
@@ -237,6 +237,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      ierr_uv  = 0
      var_jb=zero
      jbmin=zero
+     log100=log(100._r_kind)
  
  
      lim_qm = 4
@@ -611,6 +612,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               obserr = max(obserr,errmin)
            endif
 !         Read extrapolated surface pressure [pa] and convert to [cb]
+           dlnpsob = log100         ! default (1000mb)
            if (lpsob) then
               call ufbint(lunin,obspsf,1,1,nlv,psfstr)
               if (obspsf(1,1) >= missing .or. &
@@ -1221,7 +1223,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
 !    Write header record and data to output file for further processing
 !     deallocate(etabl)
 
-     call count_obs(ndata,nreal,ilat,ilon,cdata_all(1,1:ndata),nobs)
+     call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
      write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
      deallocate(cdata_all,rusage,rthin)

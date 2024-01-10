@@ -128,7 +128,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),allocatable,dimension(:,:):: cdata_all
   logical,allocatable,dimension(:)::rthin,rusage
   logical save_all
-  integer(i_kind) numthin,numqc,numrem
+! integer(i_kind) numthin,numqc,numrem
   integer(i_kind) nxdata,pmot,numall
 
 
@@ -730,7 +730,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! Write header record and data to output file for further processing
 
-  call count_obs(ndata,nreal,ilat,ilon,cdata_all(1,1:ndata),nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
   write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 

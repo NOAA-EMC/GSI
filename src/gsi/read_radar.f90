@@ -355,6 +355,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   dlonmax=-huge(dlonmax)
   dlatmin=huge(dlatmin)
   dlonmin=huge(dlonmin)
+  toff=zero                     !uncertainty
+!  uncertainty means that there is an issue with defining the variable.
 
   if(ianldate > 2016092000)then
      hdrstr(2)='PTID YEAR MNTH DAYS HOUR MINU SECO CLAT CLON FLVLST ANAZ ANEL'
@@ -1985,7 +1987,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
    
                         call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,skint,ff10,sfcr)
    
-                        write(6,*) ' radar3 ',height
                         cdata(1) = error             ! wind obs error (m/s)
                         cdata(2) = dlon              ! grid relative longitude
                         cdata(3) = dlat              ! grid relative latitude
@@ -2482,12 +2483,11 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
               if(usage >= 100._r_kind) rusage(ndata)=.false.
    
               call deter_zsfc_model(dlat,dlon,zsges)
-
+ 
 !    Get information from surface file necessary for conventional data here
               call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,skint,ff10,sfcr)
 
 
-              write(6,*) ' radar4 ',height
               cdata(1) = error             ! wind obs error (m/s)
               cdata(2) = dlon              ! grid relative longitude
               cdata(3) = dlat              ! grid relative latitude
@@ -3002,7 +3002,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                        if(mod(ndata,ncnumgrp(ikx))== ncgroup(ikx)-1)usage=ncmiter(ikx)
                     end if
                     if(usage >= 100._r_kind) rusage(ndata)=.false.
-
                     call deter_zsfc_model(dlat,dlon,zsges)
 
 !       Get information from surface file necessary for conventional data here
@@ -3281,7 +3280,7 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
   use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,&
            fv3_regional
   use convinfo, only: nconvtype,ncmiter,ncgroup,ncnumgrp,icuse,ioctype,pmot_conv
-  use deter_sfc_mod, only: deter_sfc2
+  use deter_sfc_mod, only: deter_sfc2,deter_zsfc_model
   use mpimod, only: npe
   use obsmod, only: reduce_diag 
 
@@ -3426,6 +3425,7 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
   notgood0=0
   nsuper2_in=0
   nsuper2_kept=0
+  toff=zero          !uncertainty
 
   if(loop==0) outmessage='level 2 superobs:'
 
@@ -3479,6 +3479,7 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
         timeo=thistime
         if(abs(timeo)>half ) cycle
      endif
+     t4dv = thistime                 ! uncertainty
 
 !    Get observation (lon,lat).  Compute distance from radar.
      dlat_earth=thislat
@@ -3587,6 +3588,7 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
         end if
         if(usage >= 100._r_kind)rusage(ndata)=.true.
 
+        call deter_zsfc_model(dlat,dlon,zsges)
         call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,skint,ff10,sfcr)
 
         cdata(1) = error             ! wind obs error (m/s)
@@ -3700,11 +3702,11 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
   use obsmod, only: doradaroneob,oneobradid,time_offset,reduce_diag 
   use mpeu_util, only: gettablesize,gettable 
   use convinfo, only: nconvtype,icuse,ioctype
-  use deter_sfc_mod, only: deter_sfc2
   use mpimod, only: npe
   use read_l2bufr_mod, only: radar_sites,radar_rmesh,radar_zmesh,elev_angle_max,del_time,range_max,radar_pmot  
   use constants, only: eccentricity,somigliana,grav_ratio,grav,semi_major_axis,flattening,grav_equator 
   use obsmod,only: radar_no_thinning,iadate 
+  use deter_sfc_mod, only: deter_sfc2,deter_zsfc_model
   use convthin, only: make3grids,map3grids_m 
 
   implicit none
@@ -3807,8 +3809,6 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
 ! integer(i_kind)  numthin,numqc,numrem
   integer(i_kind) nxdata,pmot,numall
 
-
-
 ! following variables are for fore/aft separation
   integer(i_kind) irec
 
@@ -3854,7 +3854,8 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
   nmrecs=0
   irec=0
   errzmax=zero
-
+  toff=zero                !uncertainty
+  
   timemax=-huge(timemax)
   timemin=huge(timemin)
   errmax=-huge(errmax)
@@ -4237,8 +4238,9 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
             usage=r100
           end if
 
+          call deter_zsfc_model(dlat,dlon,zsges)
+
           nsuper2_kept=nsuper2_kept+1
-          write(6,*) ' radar7 ',height
           cdata(1) = error             ! wind obs error (m/s)
           cdata(2) = dlon              ! grid relative longitude
           cdata(3) = dlat              ! grid relative latitude
@@ -4287,7 +4289,7 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
 !      end if
 !    end do
 !    write(6,*) ' radar2 ',numall,numrem,numqc,numthin
-!   If thinned data set quality mark to 16
+!   If thinned data set quality mark to 14
      if (ithin == 1 ) then
         do i=1,nxdata
           if(rthin(i))cdata_all(12,i)=101._r_kind

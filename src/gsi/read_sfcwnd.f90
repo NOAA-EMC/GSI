@@ -48,7 +48,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
        rlats,rlons,fv3_regional
-  use qcmod, only: errormod,noiqc,njqc
+  use qcmod, only: errormod,njqc
 
   use convthin, only: make3grids,map3grids_m,del3grids,use_all
   use constants, only: deg2rad,zero,rad2deg,one_tenth,&
@@ -146,8 +146,8 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
   logical,allocatable,dimension(:)::rthin,rusage
   logical save_all
-! integer(i_kind) numthin,numqc,numrem
-  integer(i_kind) nxdata,pmot,numall
+! integer(i_kind) numthin,numqc,numrem,numall
+  integer(i_kind) nxdata,pmot
 
 
 ! equivalence to handle character names
@@ -782,7 +782,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !  deallocate(etabl)
   close(lunin)
   
-  call count_obs(ndata,nreal,ilat,ilon,cdata_all(1,1:ndata),nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
   write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 
