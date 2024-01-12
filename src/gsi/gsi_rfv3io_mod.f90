@@ -4682,7 +4682,6 @@ subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3file
              endif
           endif
           if (ifindstrloc(vnames_nonnegativetracers,trim(varname))> 0) then
-              write(6,*)'thinkdeb varname for nonegative is ',trim(varname)
               where (work_b <0.0_r_kind)  work_b=0.0_r_kind
           endif
           if(fv3_io_layout_y > 1) then
