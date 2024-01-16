@@ -2112,9 +2112,9 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
              k=k_tsea
           else if( trim(name)=='sheleg'.or.trim(name)=='SHELEG' ) then
              k=k_snwdph
-          else if( trim(name)=='stc'.or.trim(name)=='STC' ) then
+          else if( trim(name)=='stc'.or.trim(name)=='tslb' ) then
              k=k_stc 
-          else if( trim(name)=='smc'.or.trim(name)=='SMC' ) then
+          else if( trim(name)=='smc'.or.trim(name)=='smois' ) then
              k=k_smc
           else if( trim(name)=='SLMSK'.or.trim(name)=='slmsk' ) then
              k=k_slmsk
