@@ -20,7 +20,7 @@ load(pathJoin("stack-gcc", stack_gnu_ver))
 load(pathJoin("stack-openmpi", stack_openmpi_ver))
 load(pathJoin("stack-python", stack_python_ver))
 load(pathJoin("cmake", cmake_ver))
-load(pathJoin("prod_util", os.getenv("prod_util_ver") or "1.2.2"))
+load(pathJoin("prod_util", os.getenv("prod_util_ver") or "2.1.1"))
 load(pathJoin("openblas", os.getenv("openblas_ver") or "0.3.23"))
 
 load("gsi_common")

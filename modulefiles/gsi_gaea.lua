@@ -21,7 +21,7 @@ load(pathJoin("cmake", cmake_ver))
 
 load("gsi_common")
 
-local prod_util_ver=os.getenv("prod_util_ver") or "1.2.2"
+local prod_util_ver=os.getenv("prod_util_ver") or "2.1.1"
 load(pathJoin("prod-util", prod_util_ver))
 
 -- Needed at runtime:
