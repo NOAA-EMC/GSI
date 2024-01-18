@@ -276,24 +276,24 @@ endif
 
 ! Update ensemble on model grid.
 ! Loop for each horizontal grid points on this task.
-! !$omp parallel do schedule(dynamic) default(none) private(npt,nob,nobsl, &
-! !$omp                  nobsl2,ngrd1,corrlength,ens_tmp,coslat, &
-! !$omp                  nf,vdist,obens,indxassim,indxob,maxdfs, &
-! !$omp                  nn,hxens,wts_ensmean,dfs,rdiag,dep,rloc,i, &
-! !$omp                  oindex,deglat,dist,corrsq,nb,nlev,nanal,sresults, &
-! !$omp                  wts_ensperts,pa,trpa,trpa_raw) shared(anal_ob, &
-! !$omp                  anal_ob_modens,anal_chunk,obsprd_post,obsprd_prior, &
-! !$omp                  oberrvar,oberrvaruse,nobsl_max,grdloc_chunk, &
-! !$omp                  obloc,corrlengthnh,corrlengthsh,corrlengthtr,&
-! !$omp                  vlocal_evecs,vlocal,oblnp,lnp_chunk,lnsigl,corrlengthsq,&
-! !$omp                  getkf,denkf,getkf_inflation,ensmean_chunk,ob,ensmean_ob, &
-! !$omp                  nproc,numptsperproc,nnmax,r_nanalsm1,kdtree_obs2,kdobs, &
-! !$omp                  mincorrlength_factsq,robs_local,coslats_local, &
-! !$omp                  lupd_obspace_serial,eps,dfs_sort,nanals,index_pres,&
-! !$omp  neigv,nlevs,lonsgrd,latsgrd,nobstot,nens,ncdim,nbackgrounds,indxproc,rad2deg) &
-! !$omp  reduction(+:t1,t2,t3,t4,t5) &
-! !$omp  reduction(max:nobslocal_max) &
-! !$omp  reduction(min:nobslocal_min) 
+!$omp parallel do schedule(dynamic) default(none) private(npt,nob,nobsl, &
+!$omp                  nobsl2,ngrd1,corrlength,ens_tmp,coslat, &
+!$omp                  nf,vdist,obens,indxassim,indxob,maxdfs, &
+!$omp                  nn,hxens,wts_ensmean,dfs,rdiag,dep,rloc,i, &
+!$omp                  oindex,deglat,dist,corrsq,nb,nlev,nanal,sresults, &
+!$omp                  wts_ensperts,pa,trpa,trpa_raw) shared(anal_ob, &
+!$omp                  anal_ob_modens,anal_chunk,obsprd_post,obsprd_prior, &
+!$omp                  oberrvar,oberrvaruse,nobsl_max,grdloc_chunk, &
+!$omp                  obloc,corrlengthnh,corrlengthsh,corrlengthtr,&
+!$omp                  vlocal_evecs,vlocal,oblnp,lnp_chunk,lnsigl,corrlengthsq,&
+!$omp                  getkf,denkf,getkf_inflation,ensmean_chunk,ob,ensmean_ob, &
+!$omp                  nproc,numptsperproc,nnmax,r_nanalsm1,kdtree_obs2,kdobs, &
+!$omp                  mincorrlength_factsq,robs_local,coslats_local, &
+!$omp                  lupd_obspace_serial,eps,dfs_sort,nanals,index_pres,&
+!$omp  neigv,nlevs,lonsgrd,latsgrd,nobstot,nens,ncdim,nbackgrounds,indxproc,rad2deg) &
+!$omp  reduction(+:t1,t2,t3,t4,t5) &
+!$omp  reduction(max:nobslocal_max) &
+!$omp  reduction(min:nobslocal_min) 
 grdloop: do npt=1,numptsperproc(nproc+1)
 
    t1 = mpi_wtime()

@@ -706,7 +706,6 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  enddo
               endif
            endif
-           write(6,*) ioctype(nc),ictype(nc),rmesh,pflag,nlevp,pmesh,nc,pmot,ptime
            write(6,'(a52,a16,I5,f10.2,2i5,f10.2,i5,i5,f10.2)') &
                    ' READ_SATWND: ictype(nc),rmesh,pflag,nlevp,pmesh,nc ', &
                    ioctype(nc),ictype(nc),rmesh,pflag,nlevp,pmesh,nc,pmot,ptime

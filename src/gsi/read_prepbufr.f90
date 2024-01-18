@@ -3010,6 +3010,16 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   call closbf(lunin)
   close(lunin)
 
+! Apply hilbert curve for cross validation if requested
+
+  if(lhilbert) then
+       call apply_hilbertcurve(ndata,obstype,cdata_all(thisobtype_usage,1:ndata))   
+
+     do i=1,ndata
+        if(cdata_all(thisobtype_usage,i) >= 100._r_kind) rusage(i) = .false.
+     end do
+  end if
+
   nxdata=ndata
   ndata=0
   if(nxdata > 0)then
@@ -3057,10 +3067,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   end if
   deallocate(rusage,rthin)
 
-! Apply hilbert curve for cross validation if requested
-
-  if(lhilbert) &
-       call apply_hilbertcurve(ndata,obstype,cdata_all(thisobtype_usage,1:ndata))   
 
 ! the following is gettin the types which will be applied hilbert curve to
 !  estimate the density
