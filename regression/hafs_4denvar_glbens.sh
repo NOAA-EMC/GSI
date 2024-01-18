@@ -278,13 +278,9 @@ fi
 ln -sf $SATWND           satwndbufr
 ln -sf $SATWHR           satwhrbufr
 ln -sf $GSNDBF1          gsnd1bufr
-ln -sf $B1HRS3           hirs3bufr
-ln -sf $B1HRS4           hirs4bufr
 ln -sf $B1AMUA           amsuabufr
 ln -sf $B1MHS            mhsbufr
-ln -sf $ESHRS3           hirs3bufrears
 ln -sf $ESAMUA           amsuabufrears
-ln -sf $HRS3DB           hirs3bufr_db
 ln -sf $SBUVBF           sbuvbufr
 ln -sf $OMPSNPBF         ompsnpbufr
 ln -sf $OMPSTCBF         ompstcbufr
