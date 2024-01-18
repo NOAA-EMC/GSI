@@ -1801,6 +1801,7 @@ contains
         diagadd=zero
         account_for_corr_obs = .false.
         varinv0=zero
+        raterr2 = zero
 !$omp parallel do  schedule(dynamic,1) private(ii,m,k,asum)
         do ii=1,nchanl
            m=ich(ii)

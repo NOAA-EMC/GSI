@@ -171,7 +171,6 @@ cp $fv3_netcdf_obs/ndas.t06z.radwnd.tm06.bufr_d   ./radarbufr
 cp $fv3_netcdf_obs/ndas.t06z.prepbufr.tm06        ./prepbufr
 cp $fv3_netcdf_obs/ndas.t06z.1bamua.tm06.bufr_d   ./amsuabufr
 cp $fv3_netcdf_obs/ndas.t06z.1bmhs.tm06.bufr_d    ./mhsbufr
-cp $fv3_netcdf_obs/ndas.t06z.1bhrs4.tm06.bufr_d   ./hirs4bufr
 cp $fv3_netcdf_obs/ndas.t06z.goesfv.tm06.bufr_d   ./gsnd1bufr
 cp $fv3_netcdf_obs/ndas.t06z.airsev.tm06.bufr_d   ./airsbufr
 cp $fv3_netcdf_obs/ndas.t06z.satwnd.tm06.bufr_d   ./satwndbufr
