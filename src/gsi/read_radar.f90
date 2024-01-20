@@ -2176,6 +2176,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   ibadstaheight=0
   notgood=0
   notgood0=0
+  nread=0
   ntdrvr_in=0
   ntdrvr_kept=0
   ntdrvr_thin1=0

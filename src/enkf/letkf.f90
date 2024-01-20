@@ -524,7 +524,7 @@ grdloop: do npt=1,numptsperproc(nproc+1)
    if (allocated(sresults)) deallocate(sresults)
    if (allocated(ens_tmp)) deallocate(ens_tmp)
 end do grdloop
-! !$omp end parallel do
+!$omp end parallel do
 
 ! make sure posterior perturbations still have zero mean.
 ! (roundoff errors can accumulate)

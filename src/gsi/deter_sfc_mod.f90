@@ -156,7 +156,7 @@ subroutine deter_sfc(alat,alon,dlat_earth,dlon_earth,obstime,isflg, &
      if(iyp==nlon_sfc+1) iyp=1
 
 !    Get time interpolation factors for surface files
-     if(obstime > hrdifsfc(1) .and. obstime <= hrdifsfc(nfldsfc))then
+     if(obstime > hrdifsfc(1) .and. obstime < hrdifsfc(nfldsfc))then
         do j=1,nfldsfc-1
            if(obstime > hrdifsfc(j) .and. obstime <= hrdifsfc(j+1))then
               itsfc=j
@@ -464,7 +464,7 @@ subroutine deter_sfc_type(dlat_earth,dlon_earth,obstime,isflg,tsavg)
      if(iyp==nlon_sfc+1) iyp=1
 
 !    Get time interpolation factors for surface files
-     if(obstime > hrdifsfc(1) .and. obstime <= hrdifsfc(nfldsfc))then
+     if(obstime > hrdifsfc(1) .and. obstime < hrdifsfc(nfldsfc))then
         do j=1,nfldsfc-1
            if(obstime > hrdifsfc(j) .and. obstime <= hrdifsfc(j+1))then
               itsfc=j
@@ -821,7 +821,7 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
 
 ! Get time interpolation factors for surface files
 
-  if(obstime > hrdifsfc(1) .and. obstime <= hrdifsfc(nfldsfc))then
+  if(obstime > hrdifsfc(1) .and. obstime < hrdifsfc(nfldsfc))then
      do j=1,nfldsfc-1
         if(obstime > hrdifsfc(j) .and. obstime <= hrdifsfc(j+1))then
            itsfc=j

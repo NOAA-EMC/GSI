@@ -788,120 +788,120 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
         end if
      end if 
 
-        !    Gross error checks
-             obserror = one/max(ratio_errors*error,tiny_r_kind)
-             obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
-             residual = abs(ddiff)
-             ratio    = residual/obserrlm
-             qcgross=cgross(ikx)
+ !    Gross error checks
+     obserror = one/max(ratio_errors*error,tiny_r_kind)
+     obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
+     residual = abs(ddiff)
+     ratio    = residual/obserrlm
+     qcgross=cgross(ikx)
 
-             if ( l_use_rw_columntilt .and. .not.l_set_oerr_ratio_rw ) then
-                ratio_errors = one
-             else
-                if (ratio > qcgross .or. ratio_errors < tiny_r_kind) then
-                   if (luse(i)) awork(4) = awork(4)+one
-                   error = zero
-                   ratio_errors = zero
-                end if
-             end if
+     if ( l_use_rw_columntilt .and. .not.l_set_oerr_ratio_rw ) then
+        ratio_errors = one
+     else
+        if (ratio > qcgross .or. ratio_errors < tiny_r_kind) then
+           if (luse(i)) awork(4) = awork(4)+one
+           error = zero
+           ratio_errors = zero
+        end if
+     end if
+     
+     if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
+     !-- if (nobskeep>0.and.luse_obsdiag) muse(i)=obsdiags(i_rw_ob_type,ibin)%tail%muse(nobskeep)
+     if (nobskeep>0.and.luse_obsdiag) call obsdiagNode_get(my_diag, jiter=nobskeep, muse=muse(i))
+     
+     val     = error*ddiff
+
+!    Compute penalty terms (linear & nonlinear qc).
+     if(luse(i))then
+        exp_arg  = -half*val**2
+        rat_err2 = ratio_errors**2
+        val2=val*val
+        if (cvar_pg(ikx) > tiny_r_kind .and. error > tiny_r_kind) then
+           arg  = exp(exp_arg)
+           wnotgross= one-cvar_pg(ikx)
+           cg_w=cvar_b(ikx)
+           wgross = cg_term*cvar_pg(ikx)/(cg_w*wnotgross)
+           term = log((arg+wgross)/(one+wgross))
+           wgt  = one-wgross/(arg+wgross)
+           rwgt = wgt/wgtlim
+        else
+           term = exp_arg
+           wgt  = wgtlim
+           rwgt = wgt/wgtlim
+        endif
+        valqc = -two*rat_err2*term
+        
+!       Accumulate statistics for obs belonging to this task
+        if (muse(i)) then
+           if(rwgt < one) awork(21) = awork(21)+one
+           jsig = dpres
+           jsig=max(1,min(jsig,nsig))
+           awork(6*nsig+jsig+100)=awork(6*nsig+jsig+100)+val2*rat_err2
+           awork(5*nsig+jsig+100)=awork(5*nsig+jsig+100)+one
+           awork(3*nsig+jsig+100)=awork(3*nsig+jsig+100)+valqc
+        end if
+
+!       Loop over pressure level groupings and obs to accumulate
+!       statistics as a function of observation type.
+        ress  = scale*ddiff
+        ressw = ress*ress
+        nn=1
+        if (.not. muse(i)) then
+           nn=2
+           if(ratio_errors*error >=tiny_r_kind)nn=3
+        end if
+        do k = 1,npres_print
+           if(presw >ptop(k) .and. presw<=pbot(k))then
+              bwork(k,ikx,1,nn) = bwork(k,ikx,1,nn)+one            ! count
+              bwork(k,ikx,2,nn) = bwork(k,ikx,2,nn)+ddiff          ! bias
+              bwork(k,ikx,3,nn) = bwork(k,ikx,3,nn)+ressw          ! (o-g)**2
+              bwork(k,ikx,4,nn) = bwork(k,ikx,4,nn)+val2*rat_err2  ! penalty
+              bwork(k,ikx,5,nn) = bwork(k,ikx,5,nn)+valqc          ! nonlin qc penalty
+              
+           end if
+        end do
+     end if
+
+     if (luse_obsdiag) then
+        if ( l_use_rw_columntilt ) then
+           call obsdiagNode_set(my_diag, luse=luse(i),wgtjo=(error*ratio_errors)**2, &
+              jiter=jiter, muse=muse(i), nldepart=ddiff)
+        else
+           call obsdiagNode_set(my_diag, wgtjo=(error*ratio_errors)**2, &
+              jiter=jiter, muse=muse(i), nldepart=ddiff)
+        end if
+     endif
              
-             if (ratio_errors*error <=tiny_r_kind) muse(i)=.false.
-             !-- if (nobskeep>0.and.luse_obsdiag) muse(i)=obsdiags(i_rw_ob_type,ibin)%tail%muse(nobskeep)
-             if (nobskeep>0.and.luse_obsdiag) call obsdiagNode_get(my_diag, jiter=nobskeep, muse=muse(i))
-             
-             val     = error*ddiff
+!    If obs is "acceptable", load array with obs info for use
+!    in inner loop minimization (int* and stp* routines)
+     if ( .not. last .and. muse(i)) then
 
-        !    Compute penalty terms (linear & nonlinear qc).
-             if(luse(i))then
-                exp_arg  = -half*val**2
-                rat_err2 = ratio_errors**2
-                val2=val*val
-                if (cvar_pg(ikx) > tiny_r_kind .and. error > tiny_r_kind) then
-                   arg  = exp(exp_arg)
-                   wnotgross= one-cvar_pg(ikx)
-                   cg_w=cvar_b(ikx)
-                   wgross = cg_term*cvar_pg(ikx)/(cg_w*wnotgross)
-                   term = log((arg+wgross)/(one+wgross))
-                   wgt  = one-wgross/(arg+wgross)
-                   rwgt = wgt/wgtlim
-                else
-                   term = exp_arg
-                   wgt  = wgtlim
-                   rwgt = wgt/wgtlim
-                endif
-                valqc = -two*rat_err2*term
-                
-        !       Accumulate statistics for obs belonging to this task
-                if (muse(i)) then
-                   if(rwgt < one) awork(21) = awork(21)+one
-                   jsig = dpres
-                   jsig=max(1,min(jsig,nsig))
-                   awork(6*nsig+jsig+100)=awork(6*nsig+jsig+100)+val2*rat_err2
-                   awork(5*nsig+jsig+100)=awork(5*nsig+jsig+100)+one
-                   awork(3*nsig+jsig+100)=awork(3*nsig+jsig+100)+valqc
-                end if
+        allocate(my_head)
+        call rwNode_appendto(my_head,rwhead(ibin))
 
-        !       Loop over pressure level groupings and obs to accumulate
-        !       statistics as a function of observation type.
-                ress  = scale*ddiff
-                ressw = ress*ress
-                nn=1
-                if (.not. muse(i)) then
-                   nn=2
-                   if(ratio_errors*error >=tiny_r_kind)nn=3
-                end if
-                do k = 1,npres_print
-                   if(presw >ptop(k) .and. presw<=pbot(k))then
-                      bwork(k,ikx,1,nn) = bwork(k,ikx,1,nn)+one            ! count
-                      bwork(k,ikx,2,nn) = bwork(k,ikx,2,nn)+ddiff          ! bias
-                      bwork(k,ikx,3,nn) = bwork(k,ikx,3,nn)+ressw          ! (o-g)**2
-                      bwork(k,ikx,4,nn) = bwork(k,ikx,4,nn)+val2*rat_err2  ! penalty
-                      bwork(k,ikx,5,nn) = bwork(k,ikx,5,nn)+valqc          ! nonlin qc penalty
-                      
-                   end if
-                end do
-             end if
+        my_head%idv = is
+        my_head%iob = ioid(i)
+        my_head%elat= data(ilate,i)
+        my_head%elon= data(ilone,i)
 
-             if (luse_obsdiag) then
-                if ( l_use_rw_columntilt ) then
-                   call obsdiagNode_set(my_diag, luse=luse(i),wgtjo=(error*ratio_errors)**2, &
-                      jiter=jiter, muse=muse(i), nldepart=ddiff)
-                else
-                   call obsdiagNode_set(my_diag, wgtjo=(error*ratio_errors)**2, &
-                      jiter=jiter, muse=muse(i), nldepart=ddiff)
-                end if
-             endif
-             
-        !    If obs is "acceptable", load array with obs info for use
-        !    in inner loop minimization (int* and stp* routines)
-             if ( .not. last .and. muse(i)) then
+!       Set (i,j,k) indices of guess gridpoint that bound obs location
+        my_head%dlev = dpres
+        my_head%factw= factw
+        call get_ijk(mm1,dlat,dlon,dpres,my_head%ij,my_head%wij)
 
-                allocate(my_head)
-                call rwNode_appendto(my_head,rwhead(ibin))
-
-                my_head%idv = is
-                my_head%iob = ioid(i)
-                my_head%elat= data(ilate,i)
-                my_head%elon= data(ilone,i)
-
-        !       Set (i,j,k) indices of guess gridpoint that bound obs location
-                my_head%dlev = dpres
-                my_head%factw= factw
-                call get_ijk(mm1,dlat,dlon,dpres,my_head%ij,my_head%wij)
-
-                do j=1,8
-                   my_head%wij(j)=factw*my_head%wij(j)  
-                end do
-                my_head%raterr2 = ratio_errors**2  
-                my_head%cosazm_costilt = cosazm_costilt
-                my_head%sinazm_costilt = sinazm_costilt
-                my_head%sintilt = sintilt
-                my_head%res     = ddiff
-                my_head%err2    = error**2
-                my_head%time    = dtime
-                my_head%luse    = luse(i)
-                my_head%b       = cvar_b(ikx)
-                my_head%pg      = cvar_pg(ikx)
+        do j=1,8
+           my_head%wij(j)=factw*my_head%wij(j)  
+        end do
+        my_head%raterr2 = ratio_errors**2  
+        my_head%cosazm_costilt = cosazm_costilt
+        my_head%sinazm_costilt = sinazm_costilt
+        my_head%sintilt = sintilt
+        my_head%res     = ddiff
+        my_head%err2    = error**2
+        my_head%time    = dtime
+        my_head%luse    = luse(i)
+        my_head%b       = cvar_b(ikx)
+        my_head%pg      = cvar_pg(ikx)
 
 
         if (luse_obsdiag) then
@@ -995,7 +995,7 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
 
   subroutine init_vars_(include_w)
 
-  logical,intent(inout):: include_w
+  logical,intent(in   ):: include_w
   real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
   real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
   character(len=5) :: varname
