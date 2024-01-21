@@ -422,8 +422,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      iip=0
      nchar=1
      ioff0=21
-!    if (l_rtma3d .or. twodvar_regional) ioff0 = ioff0 + 2 ! 22:tdry; 23:tvflag (in binary obsdiag for 2D/3DRTMA)
-     if (l_rtma3d                      ) ioff0 = ioff0 + 2 ! 22:tdry; 23:tvflag (in binary obsdiag for 3DRTMA only)
+     if (l_rtma3d .or. twodvar_regional) ioff0 = ioff0 + 2 ! 22:tdry; 23:tvflag (in binary obsdiag for 2D/3DRTMA)
      nreal=ioff0
      if (lobsdiagsave) nreal=nreal+4*miter+1
      if (twodvar_regional .or. l_obsprvdiag) then
@@ -1240,8 +1239,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         rdiagbuf(20,ii) = qsges              ! guess saturation specific humidity
         rdiagbuf(21,ii) = 1e+10_r_single     ! spread (filled in by EnKF)
 
-!       if (l_rtma3d .or. twodvar_regional) then   ! in binary obsdiag for 2D/3DRTMA
-        if (l_rtma3d                      ) then   ! in binary obsdiag for 3DRTMA only
+        if (l_rtma3d .or. twodvar_regional) then   ! in binary obsdiag for 2D/3DRTMA
           rdiagbuf(22,ii) = data(itemp,i)    ! dry temperature associated to qob
           rdiagbuf(23,ii) = data(iqt,  i)    ! tv flag (0: virtual temp; 1: sensible temp)
         end if
@@ -1323,8 +1321,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         rdiagbufp(20,iip) = qsges              ! guess saturation specific humidity
         rdiagbufp(21,iip) = 1e+10_r_single     ! spread (filled in by EnKF)
 
-!       if (l_rtma3d .or. twodvar_regional) then  ! in binary obsdiag for 2D/3DRTMA
-        if (l_rtma3d                      ) then  ! in binary obsdiag for 3DRTMA only
+        if (l_rtma3d .or. twodvar_regional) then  ! in binary obsdiag for 2D/3DRTMA
           rdiagbufp(22,ii) = data(itemp,i)    ! dry temperature associated to qob
           rdiagbufp(23,ii) = data(iqt,  i)    ! tv flag (0: virtual temp; 1: sensible temp)
         end if
