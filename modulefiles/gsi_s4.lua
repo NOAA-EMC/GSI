@@ -1,7 +1,7 @@
 help([[
 ]])
 
-prepend_path("MODULEPATH", "/data/prod/jedi/spack-stack/spack-stack-1.6.0/envs/gsi-addon-dev/install/modulefiles/Core")
+prepend_path("MODULEPATH", "/data/prod/jedi/spack-stack/spack-stack-1.6.0/envs/gsi-addon-env/install/modulefiles/Core")
 
 local python_ver=os.getenv("python_ver") or "3.11.6"
 local stack_intel_ver=os.getenv("stack_intel_ver") or "2021.5.0"
