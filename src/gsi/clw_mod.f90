@@ -983,12 +983,6 @@ subroutine retrieval_amsr2(tb,nchanl,clw,kraintype,ierr)
 
 
 ! ---------- Calculate predictors ---------------------------
-  if(.not.( (tb_use(7) - tb_use(8)) > 0_r_kind ).or. &
-     .not.( (tb_use(11) -tb_use(12)) > 0_r_kind ) ) then
-     write(6,*)'The issue (GSI#678) needs further investigation and be resolved if this kind of obs is used' 
-     write(6,*)'Now, GSI would abort'
-     call stop2(72)
-  endif
 
   pred_var_clw(1) = log(tb_use(7) - tb_use(8))      !(tb18v - tb18h)
   pred_var_clw(2) = log(tb_use(11) - tb_use(12))    !(tb36v - tb36h)
