@@ -50,9 +50,9 @@ subroutine tintrp31(f,g,dx,dy,dz,obstime,gridtime,mype,nflds)
      iy1=int(dy)
      iz=int(dz)
      ix1=max(1,min(ix1,nlat)); iz=max(1,min(iz,nsig))  
-     delx=dx-float(ix1)
-     dely=dy-float(iy1)
-     delz=dz-float(iz)
+     delx=dx-real(ix1,r_kind)
+     dely=dy-real(iy1,r_kind)
+     delz=dz-real(iz,r_kind)
      delx=max(zero,min(delx,one)); delz=max(zero,min(delz,one))
      ix=ix1-istart(m1)+2
      iy=iy1-jstart(m1)+2
@@ -163,8 +163,8 @@ subroutine tintrp3(f,g,dx,dy,dz,obstime,gridtime,n,mype,nflds)
      ix1=int(dx)
      iy1=int(dy)
      ix1=max(1,min(ix1,nlat))
-     delx=dx-float(ix1)
-     dely=dy-float(iy1)
+     delx=dx-real(ix1,r_kind)
+     dely=dy-real(iy1,r_kind)
      delx=max(zero,min(delx,one))
      ix=ix1-istart(m1)+2
      iy=iy1-jstart(m1)+2
@@ -202,7 +202,7 @@ subroutine tintrp3(f,g,dx,dy,dz,obstime,gridtime,n,mype,nflds)
   do i=1,n
      iz=int(dz(i))
      iz=max(1,min(iz,nsig))  
-     delz=dz(i)-float(iz)
+     delz=dz(i)-real(iz,r_kind)
      delz=max(zero,min(delz,one))
      izp=min(iz+1,nsig)
      delzp=one-delz

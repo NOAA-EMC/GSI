@@ -230,17 +230,11 @@ $nln $datobs/${prefix_obs}.ompst8.${suffix}        ./ompstcbufr
 $nln $datobs/${prefix_obs}.ompslp.${suffix}        ./ompslpbufr
 
 $nln $datobs/${prefix_obs}.goesfv.${suffix}        ./gsnd1bufr
-$nln $datobs/${prefix_obs}.hrs3db.${suffix}        ./hirs3bufr_db
 $nln $datobs/${prefix_obs}.airsev.${suffix}        ./airsbufr
 $nln $datobs/${prefix_obs}.sevcsr.${suffix}        ./seviribufr
 $nln $datobs/${prefix_obs}.saphir.${suffix}        ./saphirbufr
 $nln $datobs/${prefix_obs}.avcsam.${suffix}        ./avhambufr
 $nln $datobs/${prefix_obs}.avcspm.${suffix}        ./avhpmbufr
-$nln $datobs/${prefix_obs}.1bhrs4.${suffix}        ./hirs4bufr
-$nln $datobs/${prefix_obs}.1bhrs2.${suffix}        ./hirs2bufr
-$nln $datobs/${prefix_obs}.1bhrs3.${suffix}        ./hirs3bufr
-$nln $datobs/${prefix_obs}.eshrs3.${suffix}        ./hirs3bufrears
-$nln $datobs/${prefix_obs}.hrs3db.${suffix}        ./hirs3bufr_db
 $nln $datobs/${prefix_obs}.mtiasi.${suffix}        ./iasibufr
 $nln $datobs/${prefix_obs}.esiasi.${suffix}        ./iasibufrears
 $nln $datobs/${prefix_obs}.iasidb.${suffix}        ./iasibufr_db

@@ -341,7 +341,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   if (.not.lexist1 .and. .not.lexist2 .and. .not.lexist3) return
 
   eradkm=rearth*0.001_r_kind
-  maxobs=2e8
+  maxobs=4e6
   nreal=maxdat
   nchanl=0
   ilon=2
@@ -2911,6 +2911,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 !####################       Data thinning       ###################
 
                     icntpnt=icntpnt+1
+                    if(icntpnt>maxobs) exit
 
                     if(ithin > 0)then
                        if(zflag == 0)then
@@ -4031,6 +4032,7 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
         end if
 !####################       Data thinning       ###################
         icntpnt=icntpnt+1
+        if(icntpnt>maxobs) exit
         ithin=1 !number of obs to keep per grid box
         if(radar_no_thinning) then
           ithin=-1

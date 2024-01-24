@@ -2465,19 +2465,19 @@ subroutine relocsfcob(rlon8,rlat8,cobtypein,cstationin,kxin)
      js=max(1,(jstart-jneighbour))
      je=min((jstart+jneighbour),ny)
 
-     ris=float(is)
-     rie=float(ie)
-     rjs=float(js)
-     rje=float(je)
+     ris=real(is,r_single)
+     rie=real(ie,r_single)
+     rjs=real(js,r_single)
+     rje=real(je,r_single)
 
      distmin=1.e+20_r_single
      lfound=.false.
 
      do j=1,npts
-      rj=rjs+float(j-1)*dy  
+      rj=rjs+real(j-1,r_single)*dy  
       if (rj > rje) cycle
       do i=1,npts
-         ri=ris+float(i-1)*dx  
+         ri=ris+real(i-1,r_single)*dx  
          if (ri > rie) cycle
 
          call bilinear_2d0(slmask,nx,ny,slmask0,rj,ri)
@@ -2655,7 +2655,7 @@ subroutine mkvalley_file
                  endif
               enddo
            enddo
-           hmean=hmean/max(1._r_single,float(ncount))
+           hmean=hmean/max(1._r_single,real(ncount,r_single))
 
            if ((hmax-hmin)>=hdiff0 .and. terrain(i,j)<hmean) & 
            valleys(i,j)=terrain(i,j)/hmean   
@@ -2744,8 +2744,8 @@ subroutine mkvalley_file
                     do ii=max(1,i-ijdel),min(nx,i+ijdel)
                        if (ii==i .and. jj==j) cycle
                        if (fldstd(ii,jj,1) < 1._r_single) then
-                          rminsq0=float((i-ii)*(i-ii)) + float((j-jj)*(j-jj))
-                          if (rminsq0 < rminsq .and. rminsq0 <= float(ijdel*ijdel)) then 
+                          rminsq0=real((i-ii)*(i-ii) + (j-jj)*(j-jj),r_single)
+                          if (rminsq0 < rminsq .and. rminsq0 <= real(ijdel*ijdel,r_single)) then 
                              rminsq=rminsq0
                              auxfld(i,j)=fldstd(ii,jj,1)  !Note that you are changing auxfld, not fldstd
                           endif
@@ -3515,8 +3515,8 @@ end module hilbertcurve
       i  = ifix(yy)
       j  = ifix(xx)
       
-      dx = xx - float(j)
-      dy = yy - float(i)
+      dx = xx - real(j,r_single)
+      dy = yy - real(i,r_single)
       dxm= 1.0_r_single-dx
       dym= 1.0_r_single-dy
  

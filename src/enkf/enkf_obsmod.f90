@@ -109,6 +109,8 @@ use params, only: &
       lnsigcutoffnh, lnsigcutoffsh, lnsigcutofftr, corrlengthnh,&
       corrlengthtr, corrlengthsh, obtimelnh, obtimeltr, obtimelsh,&
       lnsigcutoffsatnh, lnsigcutoffsatsh, lnsigcutoffsattr,&
+      lnsigcutofffednh, lnsigcutofffedsh, lnsigcutofffedtr,&
+      corrlengthfednh, corrlengthfedtr, corrlengthfedsh,   &
       varqc, huber, zhuberleft, zhuberright, modelspace_vloc, &
       lnsigcutoffpsnh, lnsigcutoffpssh, lnsigcutoffpstr, neigv, &
       lnsigcutoffrdrnh, lnsigcutoffrdrsh, lnsigcutoffrdrtr,&
@@ -262,7 +264,6 @@ allocate(oblnp(nobstot)) ! log(p) at ob locations.
 allocate(corrlengthsq(nobstot),lnsigl(nobstot),obtimel(nobstot))
 lnsigl=1.e10
 do nob=1,nobstot
-   oblnp(nob) = -log(obpress(nob)) ! distance measured in log(p) units
    if (obloclon(nob) < zero) obloclon(nob) = obloclon(nob) + 360._r_single
    radlon=deg2rad*obloclon(nob)
    radlat=deg2rad*obloclat(nob)
@@ -277,15 +278,27 @@ do nob=1,nobstot
       lnsigl(nob) = latval(deglat,lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh)
    else if (obtype(nob)(1:3) == ' ps') then
       lnsigl(nob) = latval(deglat,lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh)
+   else if (obtype(nob)(1:3) == 'fed') then
+      lnsigl(nob) = latval(deglat,lnsigcutofffednh,lnsigcutofffedtr,lnsigcutofffedsh)
    else if ( (obtype(nob)(1:3) == 'dbz' .or. obtype(nob)(1:3) == ' rw') .and. l_use_enkf_directZDA ) then
       lnsigl(nob) = latval(deglat,lnsigcutoffrdrnh,lnsigcutoffrdrtr,lnsigcutoffrdrsh)
    else
       lnsigl(nob)=latval(deglat,lnsigcutoffnh,lnsigcutofftr,lnsigcutoffsh)
    end if
    endif
+   ! total column ozone has pressure set to zero, set to 0.001Pa
+   ! and turn vertical localization off (no effect if modelspace_vloc=T)
+   if (obpress(nob) < 0.001 .and. obtype(nob)(1:3) .eq. ' oz') then
+      lnsigl(nob) = 1.e30    ! turn ob-space vert localization off
+      obpress(nob) = 0.001   ! set to a non-zero value
+   endif
+   oblnp(nob) = -log(obpress(nob)) ! distance measured in log(p) units
    corrlengthsq(nob)=latval(deglat,corrlengthnh,corrlengthtr,corrlengthsh)**2
    if ( (obtype(nob)(1:3) == 'dbz' .or. obtype(nob)(1:3) == ' rw') .and. l_use_enkf_directZDA ) then
        corrlengthsq(nob)=latval(deglat,corrlengthrdrnh,corrlengthrdrtr,corrlengthrdrsh)**2
+   end if
+   if (obtype(nob)(1:3) == 'fed') then
+       corrlengthsq(nob)=latval(deglat,corrlengthfednh,corrlengthfedtr,corrlengthfedsh)**2
    end if
    obtimel(nob)=latval(deglat,obtimelnh,obtimeltr,obtimelsh)
 end do

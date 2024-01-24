@@ -37,7 +37,7 @@ subroutine setupdw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   use obsmod, only: rmiss_single,lobsdiag_forenkf
   use obsmod, only: netcdf_diag, binary_diag, dirname, ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
-       nc_diag_write, nc_diag_data2d
+       nc_diag_write, nc_diag_data2d, nc_diag_metadata_to_single
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags
@@ -298,7 +298,7 @@ subroutine setupdw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   end if
 
   scale=one
-  rsig=float(nsig)
+  rsig=real(nsig,r_kind)
   mm1=mype+1
 
   call dtime_setup()
@@ -496,7 +496,7 @@ subroutine setupdw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
      dwwind=(ugesindw*sinazm+vgesindw*cosazm)*factw
 
      iz = max(1, min( int(dpres), nsig))
-     delz = max(zero, min(dpres - float(iz), one))
+     delz = max(zero, min(dpres - real(iz,r_kind), one))
 
      if (save_jacobian) then
         u_ind = getindex(svars3d, 'u')
@@ -904,29 +904,29 @@ subroutine setupdw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
            call nc_diag_metadata("Observation_Class",       obsclass               )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
-           call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
-           call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
+           call nc_diag_metadata_to_single("Latitude",      data(ilate,i)          )
+           call nc_diag_metadata_to_single("Longitude",     data(ilone,i)          )
            call nc_diag_metadata("Station_Elevation",       missing                )
-           call nc_diag_metadata("Pressure",                sngl(presw)            )
-           call nc_diag_metadata("Height",                  sngl(data(ihgt,i))     )
-           call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
+           call nc_diag_metadata_to_single("Pressure",      presw                  )
+           call nc_diag_metadata_to_single("Height",        data(ihgt,i)           )
+           call nc_diag_metadata_to_single("Time",          dtime,time_offset,"-"  )
            call nc_diag_metadata("Prep_QC_Mark",            missing                )
-           call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )
+           call nc_diag_metadata_to_single("Prep_Use_Flag", data(iuse,i)           )
 !          call nc_diag_metadata("Nonlinear_QC_Var_Jb",     var_jb                 )
-           call nc_diag_metadata("Nonlinear_QC_Rel_Wgt",    sngl(rwgt)             )                 
+           call nc_diag_metadata_to_single("Nonlinear_QC_Rel_Wgt",rwgt             )
            if(muse(i)) then
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)              )
+              call nc_diag_metadata_to_single("Analysis_Use_Flag",one              )
            else
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)             )              
+              call nc_diag_metadata_to_single("Analysis_Use_Flag",-one             )
            endif
 
-           call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)     )
-           call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
-           call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
+           call nc_diag_metadata_to_single("Errinv_Input",errinv_input             )
+           call nc_diag_metadata_to_single("Errinv_Adjust",errinv_adjst            )
+           call nc_diag_metadata_to_single("Errinv_Final",errinv_final             )
 
-           call nc_diag_metadata("Observation",                   sngl(data(ilob,i)))
-           call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)      )
-           call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(data(ilob,i)-dwwind))
+           call nc_diag_metadata_to_single("Observation",data(ilob,i)              )
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",ddiff     )
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted", data(ilob,i), dwwind, '-')
 
 !_RT_NC4_TODO
 !_RT    rdiagbuf(20,ii) = factw                ! 10m wind reduction factor

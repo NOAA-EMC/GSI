@@ -134,6 +134,8 @@ module satthin
   use obsmod, only: time_window_max
   use constants, only: deg2rad,rearth_equator,zero,two,pi,half,one,&
        rad2deg,r1000
+  use chemmod, only: laeroana_fv3smoke
+
   implicit none
 
 ! set default to private
@@ -612,9 +614,9 @@ contains
           jmax=nlat_sfc-2
           allocate(slatx(jmax),wlatx(jmax))
           call splat(idrt,jmax,slatx,wlatx)
-          dlon=two*pi/float(nlon_sfc)
+          dlon=two*pi/real(nlon_sfc,r_kind)
           do i=1,nlon_sfc
-             rlons_sfc(i)=float(i-1)*dlon
+             rlons_sfc(i)=real(i-1,r_kind)*dlon
           end do
           do i=1,(nlat_sfc-1)/2
              rlats_sfc(i+1)=-asin(slatx(i))
@@ -961,7 +963,10 @@ contains
     end if
     if (.not.lobserver) then
        if(allocated(veg_frac)) deallocate(veg_frac)
-       if(allocated(veg_type)) deallocate(veg_type)
+!       veg_type will be used in setuppm2_5.f90 for rrfs_sd PM2.5 DA
+       if(.not. laeroana_fv3smoke )then
+         if(allocated(veg_type)) deallocate(veg_type)
+       endif
        if(allocated(soil_type)) deallocate(soil_type)
        if(allocated(soil_moi)) deallocate(soil_moi)
        if(allocated(sfc_rough)) deallocate(sfc_rough)

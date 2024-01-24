@@ -301,7 +301,7 @@ subroutine setupref(obsLL,odiagLL,lunin,mype,awork,nele,nobs,toss_gps_sub,is,ini
   ilate=15     ! index of earth relative latitude (degrees)
 
 ! Initialize variables
-  rsig=float(nsig)
+  rsig=real(nsig,r_kind)
   mm1=mype+1
 
 ! Check to see if required guess fields are available
@@ -967,11 +967,11 @@ subroutine setupref(obsLL,odiagLL,lunin,mype,awork,nele,nobs,toss_gps_sub,is,ini
               end do
            end if
 
-!          delz=dpres-float(k1)
+!          delz=dpres-real(k1,r_kind)
            kl=dpresl(i)
            k1l=min(max(1,kl),nsig)
            k2l=max(1,min(kl+1,nsig))
-           delz=dpresl(i)-float(k1l)
+           delz=dpresl(i)-real(k1l,r_kind)
            delz=max(zero,min(delz,one))
            my_head%jac_t(k1l)=my_head%jac_t(k1l)+termt(i)*(one-delz)
            my_head%jac_t(k2l)=my_head%jac_t(k2l)+termt(i)*delz
