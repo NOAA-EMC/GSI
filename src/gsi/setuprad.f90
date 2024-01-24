@@ -1282,8 +1282,8 @@ contains
            if(amsua.or.atms) then
               call ret_amsua(tsim_bc,nchanl,tsavg5,zasat,clw_guess_retrieval,ierrret)
            else if(gmi) then
-              call gmi_37pol_diff(tsim_bc(6),tsim_bc(7),tsim_clr_bc(6),tsim_clr_bc(7),clw_guess_retrieval,ierrret)
-              call gmi_37pol_diff(tb_obs(6),tb_obs(7),tsim_clr_bc(6),tsim_clr_bc(7),clw_obs,ierrret)
+              call gmi_37pol_diff(tsim(6),tsim(7),tsim_clr(6),tsim_clr(7),clw_guess_retrieval,ierrret)
+              call gmi_37pol_diff(tb_obs(6),tb_obs(7),tsim_clr(6),tsim_clr(7),clw_obs,ierrret)
            end if
            if (radmod%ex_obserr=='ex_obserr1') then
               call radiance_ex_biascor(radmod,nchanl,tsim_bc,tsavg5,zasat, &
@@ -1317,21 +1317,6 @@ contains
               do i=1,nchanl
                 pred(6,i) = zero
                 pred(7,i) = zero
-                clw_avg = half*(clw_obs+clw_guess_retrieval)
-                if (i > 3 .and. clw_obs > 0.05_r_kind .and. clw_guess_retrieval > 0.05_r_kind .and. &
-                  abs(clw_obs-clw_guess_retrieval) < 0.005_r_kind .and. clw_avg < 0.5_r_kind) cld_rbc_idx2(i) = one
-                if (i < 5 .and. clw_obs > 0.2_r_kind .and. clw_guess_retrieval > 0.2_r_kind .and. &
-                  abs(clw_obs-clw_guess_retrieval) < 0.005_r_kind .and. clw_avg < 0.5_r_kind) cld_rbc_idx2(i) = one
-
-                if( i > 3 .and. clw_obs > 0.05_r_kind .and. clw_guess_retrieval > 0.05_r_kind .and. cld_rbc_idx(i) == zero) then
-                   pred(6,i) = clw_avg*clw_avg
-                   pred(7,i) = clw_avg
-                   tbc(i)=tbc(i) - pred(6,i)*predchan(6,i) - pred(7,i)*predchan(7,i)  !obs-ges with bias correction
-                else if( i < 5 .and. clw_obs > 0.2_r_kind .and. clw_guess_retrieval > 0.2_r_kind .and. cld_rbc_idx(i) == zero) then
-                   pred(6,i) = clw_avg*clw_avg
-                   pred(7,i) = clw_avg
-                   tbc(i)=tbc(i) - pred(6,i)*predchan(6,i) - pred(7,i)*predchan(7,i)  !obs-ges with bias correction
-                endif
               enddo
            endif
 
@@ -2717,6 +2702,9 @@ contains
                  if (iuse_rad(ich(ich_diag(i))) < 1) useflag=-one
 
                  call nc_diag_metadata("QC_Flag",sngl(id_qc(ich_diag(i))*useflag))! quality control mark or event indicator
+
+                 call nc_diag_metadata_to_single("clw_index", cld_rbc_idx(ich_diag(i))  )          ! cloud consistancy
+                 call nc_diag_metadata_to_single("clw_index2", cld_rbc_idx2(ich_diag(i))  )          ! cloud consistancy
 
                  call nc_diag_metadata_to_single("Emissivity",emissivity(ich_diag(i))      )           ! surface emissivity
                  call nc_diag_metadata_to_single("Weighted_Lapse_Rate",tlapchn(ich_diag(i))         )           ! stability index
