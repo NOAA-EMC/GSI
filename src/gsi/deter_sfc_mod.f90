@@ -1422,7 +1422,8 @@ subroutine deter_sfc_gmi(dlat_earth,dlon_earth,isflg)
 
      isflg=0
      outer: do i = klatn, klatpn
-       if (0 < klonpn - klonn < nlon_sfc / 2) then ! assume  > 2 n_grid-
+       ! assume n_grid > 2
+       if (0 < klonpn - klonn < nlon_sfc / 2) then
          do j = klonn, klonpn
            if (isli_full(i, j) /= 0) then
              isflg = 1
@@ -1449,7 +1450,7 @@ subroutine deter_sfc_gmi(dlat_earth,dlon_earth,isflg)
              exit outer
            end if
          end do
-         end if
+       end if
      end do outer
      return
 
