@@ -25,6 +25,7 @@ module gsi_rfv3io_mod
 !   2022-08-10  Wang    - add IO for regional FV3-SMOKE (RRFS-SMOKE) model 
 !   2023-07-30  Zhao    - add IO for the analysis of the significant wave height
 !                         (SWH, aka howv in GSI) in fv3-lam based DA (eg., RRFS-3DRTMA)
+!   2024-01-24  X.Zhang - bug fix for reading the soil temp and mois from the wram start file 
 !
 ! subroutines included:
 !   sub gsi_rfv3io_get_grid_specs
@@ -2039,6 +2040,9 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
     integer(i_kind),allocatable :: gfile_loc_layout(:)
     character(len=180)  :: filename_layout
 
+! for sfc 2d vaiable exist or not
+    logical, dimension(n2d) :: sfc_var_exist
+
     sfcdata= fv3filenamegin%sfcdata
     dynvars= fv3filenamegin%dynvars
 
@@ -2049,6 +2053,9 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
 
 !-- initialisation of the array for howv
     sfcn2d(:,:,k_howv) = zero
+
+!-- initialisation of the array for sfc_var_exist 
+    sfc_var_exist = 0
 
     if(mype==mype_2d ) then
        allocate(sfc_fulldomain(nx,ny))
@@ -2100,30 +2107,43 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
           iret=nf90_inquire_variable(gfile_loc,i,name,len)
           if( trim(name)=='f10m'.or.trim(name)=='F10M' ) then
              k=k_f10m
+             sfc_var_exist(k) = 1
           else if( trim(name)=='stype'.or.trim(name)=='STYPE' ) then
              k=k_stype
+             sfc_var_exist(k) = 1
           else if( trim(name)=='vfrac'.or.trim(name)=='VFRAC' ) then
              k=k_vfrac
+             sfc_var_exist(k) = 1
           else if( trim(name)=='vtype'.or.trim(name)=='VTYPE' ) then
              k=k_vtype
+             sfc_var_exist(k) = 1
           else if( trim(name)=='zorl'.or.trim(name)=='ZORL' ) then
              k=k_zorl
+             sfc_var_exist(k) = 1
           else if( trim(name)=='tsea'.or.trim(name)=='TSEA' ) then
              k=k_tsea
+             sfc_var_exist(k) = 1
           else if( trim(name)=='sheleg'.or.trim(name)=='SHELEG' ) then
              k=k_snwdph
+             sfc_var_exist(k) = 1
           else if( trim(name)=='stc'.or.trim(name)=='tslb' ) then
              k=k_stc 
+             sfc_var_exist(k) = 1
           else if( trim(name)=='smc'.or.trim(name)=='smois' ) then
              k=k_smc
+             sfc_var_exist(k) = 1
           else if( trim(name)=='SLMSK'.or.trim(name)=='slmsk' ) then
              k=k_slmsk
+             sfc_var_exist(k) = 1
           else if( trim(name)=='T2M'.or.trim(name)=='t2m' ) then
              k=k_t2m
+             sfc_var_exist(k) = 1
           else if( trim(name)=='Q2M'.or.trim(name)=='q2m' ) then
              k=k_q2m
+             sfc_var_exist(k) = 1
           else if( trim(name)=='HOWV'.or.trim(name)=='howv' ) then
              k=k_howv
+             sfc_var_exist(k) = 1
           else
              cycle 
           endif
@@ -2259,29 +2279,32 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
 !-- broadcast the updated i_howv_3dda to all tasks (!!!!)
     call mpi_bcast(i_howv_3dda, 1, mpi_itype, mype_2d, mpi_comm_world, iret_bcast)
 
+!-- broadcast the updated sfc_var_exist to all tasks (!!!!)
+    call mpi_bcast(sfc_var_exist, n2d, mpi_itype, mype_2d, mpi_comm_world, iret_bcast)
+
 !!!!!!! scatter !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     call mpi_scatterv(work,ijns2d,displss2d,mpi_rtype,&
       sfcn2d,ijns2d(mm1),mpi_rtype,mype_2d,mpi_comm_world,ierror)
 
     deallocate ( work )
 
-    fact10(:,:,it)=sfcn2d(:,:,k_f10m)
-    soil_type(:,:,it)=sfcn2d(:,:,k_stype)
-    veg_frac(:,:,it)=sfcn2d(:,:,k_vfrac)
-    veg_type(:,:,it)=sfcn2d(:,:,k_vtype)
-    sfc_rough(:,:,it)=sfcn2d(:,:,k_zorl)
-    sfct(:,:,it)=sfcn2d(:,:,k_tsea)
-    sno(:,:,it)=sfcn2d(:,:,k_snwdph)
-    soil_temp(:,:,it)=sfcn2d(:,:,k_stc)
-    soil_moi(:,:,it)=sfcn2d(:,:,k_smc)
-    ges_z(:,:)=sfcn2d(:,:,k_orog)/grav
-    isli(:,:,it)=nint(sfcn2d(:,:,k_slmsk))
+    if ( sfc_var_exist(k_f10m)  ) fact10(:,:,it)=sfcn2d(:,:,k_f10m)
+    if ( sfc_var_exist(k_stype) ) soil_type(:,:,it)=sfcn2d(:,:,k_stype)
+    if ( sfc_var_exist(k_vfrac) ) veg_frac(:,:,it)=sfcn2d(:,:,k_vfrac)
+    if ( sfc_var_exist(k_vtype) ) veg_type(:,:,it)=sfcn2d(:,:,k_vtype)
+    if ( sfc_var_exist(k_zorl)  ) sfc_rough(:,:,it)=sfcn2d(:,:,k_zorl)
+    if ( sfc_var_exist(k_tsea)  ) sfct(:,:,it)=sfcn2d(:,:,k_tsea)
+    if ( sfc_var_exist(k_snwdph)) sno(:,:,it)=sfcn2d(:,:,k_snwdph)
+    if ( sfc_var_exist(k_stc)   ) soil_temp(:,:,it)=sfcn2d(:,:,k_stc)
+    if ( sfc_var_exist(k_smc)   ) soil_moi(:,:,it)=sfcn2d(:,:,k_smc)
+    if ( sfc_var_exist(k_orog)  ) ges_z(:,:)=sfcn2d(:,:,k_orog)/grav
+    if ( sfc_var_exist(k_slmsk) ) isli(:,:,it)=nint(sfcn2d(:,:,k_slmsk))
     if(i_use_2mq4b > 0 .and. i_use_2mt4b > 0 ) then
-       ges_t2m(:,:)=sfcn2d(:,:,k_t2m)
-       ges_q2m(:,:)=sfcn2d(:,:,k_q2m)
+       if ( sfc_var_exist(k_t2m) ) ges_t2m(:,:)=sfcn2d(:,:,k_t2m)
+       if ( sfc_var_exist(k_q2m)   ) ges_q2m(:,:)=sfcn2d(:,:,k_q2m)
     endif
     if ( i_howv_3dda == 1 ) then
-       ges_howv(:,:)=sfcn2d(:,:,k_howv)
+       if ( sfc_var_exist(k_howv)  ) ges_howv(:,:)=sfcn2d(:,:,k_howv)
     endif
     deallocate (sfcn2d,a)
     return
