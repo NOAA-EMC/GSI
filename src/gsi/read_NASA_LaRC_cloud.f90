@@ -172,6 +172,13 @@ subroutine  read_NASA_LaRC_cloud(nread,ndata,nouse,infile,obstype,lunout,sis,nob
    write(lunout) ((cdata_all(k,i),k=1,maxdat),i=1,numobs)
    write(6,*)'NASA larcglb::',nreal,numobs
 
+   deallocate(cdata_all)
+   deallocate(lat_l)
+   deallocate(lon_l)
+   deallocate(ptop_l)
+   deallocate(teff_l)
+   deallocate(phase_l)
+   deallocate(lwp_l)
    return
 end subroutine read_NASA_LaRC_cloud
 

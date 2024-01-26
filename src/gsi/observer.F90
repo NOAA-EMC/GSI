@@ -49,8 +49,6 @@ module observermod
   use gsi_4dvar, only: l4dvar
   use convinfo, only: convinfo_destroy
   use m_gsiBiases, only : create_bkgbias_grids, destroy_bkgbias_grids
-  use m_berror_stats, only: berror_get_dims
-  use m_berror_stats_reg, only: berror_get_dims_reg
   use timermod, only: timer_ini, timer_fnl
   use read_obsmod, only: read_obs
   use lag_fields, only: lag_guessini

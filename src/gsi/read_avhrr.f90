@@ -585,6 +585,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
      deallocate(data_mesh,nrec)
 
   enddo     ! do imesh = 1, nmesh
+  deallocate(amesh,hsst_thd)
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.

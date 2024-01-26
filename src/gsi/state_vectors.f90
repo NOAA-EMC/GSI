@@ -400,7 +400,7 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
 
 ! Independent part of vector
 ! Sum,Max,Min and number of points
-!$omp parallel do schedule(dynamic,1) !private(i)
+!$omp parallel do schedule(static,1) private(i)
   do i = 1,ns3d
      if(xst%r3(i)%mykind==r_single)then
         zloc(i)= sum_mask(xst%r3(i)%qr4,ihalo=1)
@@ -413,7 +413,7 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
      endif
      nloc(i) = real((lat2-2)*(lon2-2)*levels(i), r_kind) ! dim of 3d fields
   enddo
-!$omp parallel do schedule(dynamic,1) !private(i)
+!$omp parallel do schedule(static,1) private(i)
   do i = 1,ns2d
      if(xst%r2(i)%mykind==r_single)then
         zloc(ns3d+i)= sum_mask(xst%r2(i)%qr4,ihalo=1)
@@ -433,7 +433,7 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
   call mpi_allgather(nloc,size(nloc),mpi_rtype, &
                    & nall,size(nloc),mpi_rtype, mpi_comm_world,ierror)
 
-!$omp parallel do schedule(dynamic,1) !private(i)
+!$omp parallel do schedule(static,1) private(i)
   do i=1,nvars
      psum(i)=SUM(zall(i,:))
      pnum(i)=SUM(nall(i,:))
