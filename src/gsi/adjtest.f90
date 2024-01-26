@@ -38,7 +38,7 @@ use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: assignment(=)
 use bias_predictors, only: predictors,allocate_preds,deallocate_preds, &
     assignment(=)
-use control2state_mod, only: control2state,c2sset,control2state_ad
+use control2state_mod, only: control2state,control2state_ad
 
 implicit none
 private
