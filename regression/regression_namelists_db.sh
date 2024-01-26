@@ -90,8 +90,6 @@ OBS_INPUT::
    sbuvbufr_      sbuv2       n16         sbuv8_n16           0.0     0     0
    sbuvbufr_      sbuv2       n17         sbuv8_n17           0.0     0     0
    sbuvbufr_      sbuv2       n18         sbuv8_n18           0.0     0     0
-   hirs3bufr_     hirs3       n17         hirs3_n17           0.0     1     0
-   hirs4bufr_skip hirs4       metop-a     hirs4_metop-a       0.0     1     1
    gimgrbufr_     goes_img    g11         imgr_g11            0.0     1     0
    gimgrbufr_     goes_img    g12         imgr_g12            0.0     1     0
    airsbufr_      airs        aqua        airs_aqua           0.0     1     1
@@ -125,7 +123,6 @@ OBS_INPUT::
    gomebufr       gome        metop-a     gome_metop-a        0.0     2     0
    omibufr        omi         aura        omi_aura            0.0     2     0
    sbuvbufr       sbuv2       n19         sbuv8_n19           0.0     0     0
-   hirs4bufr      hirs4       n19         hirs4_n19           0.0     1     1
    amsuabufr      amsua       n19         amsua_n19           0.0     1     1
    mhsbufr        mhs         n19         mhs_n19             0.0     1     1
    tcvitl         tcp         null        tcp                 0.0     0     0
@@ -133,7 +130,6 @@ OBS_INPUT::
    seviribufr     seviri      m09         seviri_m09          0.0     1     0
    seviribufr     seviri      m10         seviri_m10          0.0     1     0
    seviribufr     seviri      m11         seviri_m11          0.0     1     0
-   hirs4bufr      hirs4       metop-b     hirs4_metop-b       0.0     1     1
    amsuabufr      amsua       metop-b     amsua_metop-b       0.0     1     1
    mhsbufr        mhs         metop-b     mhs_metop-b         0.0     1     1
    iasibufr       iasi        metop-b     iasi_metop-b        0.0     1     1
@@ -372,12 +368,6 @@ OBS_INPUT::
    sbuvbufr       sbuv2       n16       sbuv8_n16            0.0     0     0
    sbuvbufr       sbuv2       n17       sbuv8_n17            0.0     0     0
    sbuvbufr       sbuv2       n18       sbuv8_n18            0.0     0     0
-   hirs3bufr      hirs3       n16       hirs3_n16            0.0     1     0
-   hirs3bufr      hirs3       n17       hirs3_n17            0.0     1     0
-   hirs4bufr      hirs4       metop-a   hirs4_metop-a        0.0     2     0
-   hirs4bufr      hirs4       n18       hirs4_n18            0.0     1     0
-   hirs4bufr      hirs4       n19       hirs4_n19            0.0     2     0
-   hirs4bufr      hirs4       metop-b   hirs4_metop-b        0.0     2     0
    gimgrbufr      goes_img    g11       imgr_g11             0.0     1     0
    gimgrbufr      goes_img    g12       imgr_g12             0.0     1     0
    airsbufr       airs        aqua      airs_aqua            0.0     2     0
@@ -611,8 +601,6 @@ OBS_INPUT::
    sbuvbufr       sbuv2       n16         sbuv8_n16           0.0     0     0
    sbuvbufr       sbuv2       n17         sbuv8_n17           0.0     0     0
    sbuvbufr       sbuv2       n18         sbuv8_n18           0.0     0     0
-   hirs3bufr      hirs3       n17         hirs3_n17           0.0     1     0
-   hirs4bufr      hirs4       metop-a     hirs4_metop-a       0.0     1     1
    gimgrbufr      goes_img    g11         imgr_g11            0.0     1     0
    gimgrbufr      goes_img    g12         imgr_g12            0.0     1     0
    airsbufr       airs        aqua        airs_aqua           0.0     1     1
@@ -647,13 +635,11 @@ OBS_INPUT::
    gomebufr       gome        metop-a     gome_metop-a        0.0     2     0
    omibufr        omi         aura        omi_aura            0.0     2     0
    sbuvbufr       sbuv2       n19         sbuv8_n19           0.0     0     0
-   hirs4bufr      hirs4       n19         hirs4_n19           0.0     1     1
    amsuabufr      amsua       n19         amsua_n19           0.0     2     1
    mhsbufr        mhs         n19         mhs_n19             0.0     3     1
    seviribufr     seviri      m08         seviri_m08          0.0     1     0
    seviribufr     seviri      m09         seviri_m09          0.0     1     0
    seviribufr     seviri      m10         seviri_m10          0.0     1     0
-   hirs4bufr      hirs4       metop-b     hirs4_metop-b       0.0     1     0
    amsuabufr      amsua       metop-b     amsua_metop-b       0.0     2     0
    mhsbufr        mhs         metop-b     mhs_metop-b         0.0     3     0
    iasibufr       iasi        metop-b     iasi_metop-b        0.0     1     0
@@ -831,12 +817,6 @@ OBS_INPUT::
    sbuvbufr       sbuv2       n16         sbuv8_n16             0.0      0      0
    sbuvbufr       sbuv2       n17         sbuv8_n17             0.0      0      0
    sbuvbufr       sbuv2       n18         sbuv8_n18             0.0      0      0
-   hirs2bufr      hirs2       n14         hirs2_n14             0.0      1      0
-   hirs3bufr      hirs3       n16         hirs3_n16             0.0      1      0
-   hirs3bufr      hirs3       n17         hirs3_n17             0.0      1      0
-   hirs4bufr      hirs4       n18         hirs4_n18             0.0      1      0
-   hirs4bufr      hirs4       metop-a     hirs4_metop-a         0.0      1      0
-   hirs4bufr      hirs4       metop-b     hirs4_metop-b         0.0      1      0
    gsndrbufr      sndr        g11         sndr_g11              0.0      1      0
    gsndrbufr      sndr        g12         sndr_g12              0.0      1      0
    gimgrbufr      goes_img    g11         imgr_g11              0.0      1      0
@@ -868,7 +848,6 @@ OBS_INPUT::
    iasibufr       iasi        metop-b     iasi_metop-b          0.0      1      0
    omibufr        omi         aura        omi_aura              0.0      1      0
    sbuvbufr       sbuv2       n19         sbuv8_n19             0.0      1      0
-   hirs4bufr      hirs4       n19         hirs4_n19             0.0      1      0
    amsuabufr      amsua       n19         amsua_n19             0.0      1      0
    mhsbufr        mhs         n19         mhs_n19               0.0      1      0
    tcvitl         tcp         null        tcp                   0.0      0      0

@@ -268,7 +268,7 @@ subroutine setupswcp(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   iobshgt=16  ! index of observation height (m)
 
   do i=1,nobs
-     muse(i)=nint(data(11,i)) <= jiter
+     muse(i)=nint(data(11,i)) <= jiter .and. nint(data(iqc,i)) < 8
   end do
 
   dup=one

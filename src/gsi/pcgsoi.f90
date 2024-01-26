@@ -266,7 +266,7 @@ subroutine pcgsoi()
 ! Perform inner iteration
   inner_iteration: do iter=0,niter(jiter)
  
-  diag_print= iter <= 1 .and. print_diag_pcg
+     diag_print= iter <= 1 .and. print_diag_pcg
 
 ! Gradually turn on old variational qc to avoid possible convergence problems
      if(vqc) then
@@ -297,6 +297,7 @@ subroutine pcgsoi()
            call prt_state_norms(rval(ii),'rval')
         enddo
      endif
+
 
 !    Adjoint of control to state
      call c2s_ad(gradx,rval,rbias,llprt)
@@ -637,13 +638,7 @@ subroutine pcgsoi()
 ! Write output analysis files
   if(.not.l4dvar) call prt_guess('analysis')
   call prt_state_norms(sval(1),'increment')
-  if (twodvar_regional) then
-      call write_all(-1)
-    else
-      if(jiter == miter) then
-         call write_all(-1)
-      endif
-  endif
+  if (twodvar_regional .or. jiter == miter) call write_all(-1)
 
 ! Overwrite guess with increment (4d-var only, for now)
   if (iwrtinc>0) then
@@ -910,6 +905,7 @@ subroutine c2s(hat,val,bias,llprt,ltest)
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar
   use gsi_4dcouplermod, only : gsi_4dcoupler_grtests
   use control2state_mod, only: control2state,control2state_ad
+  use ensctl2state_mod, only: ensctl2state
   implicit none
   
   type(control_vector)                     ,intent(inout) :: hat
@@ -977,6 +973,7 @@ subroutine c2s_ad(hat,val,bias,llprt)
   use gsi_bundlemod, only : self_add
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar
   use control2state_mod, only: control2state_ad
+  use ensctl2state_mod, only: ensctl2state_ad
   implicit none
   
   type(control_vector)                     ,intent(inout) :: hat

@@ -1099,7 +1099,6 @@ contains
         endif
 
         predbias=zero
-
 !$omp parallel do  schedule(dynamic,1) private(i,mm,j,k,tlap,node,bias)
         do i=1,nchanl
            mm=ich(i)

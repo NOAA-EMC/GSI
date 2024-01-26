@@ -177,7 +177,7 @@ subroutine setuppblh(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   istnelv=14  ! index of station elevation (m)
 
   do i=1,nobs
-     muse(i)=nint(data(iuse,i)) <= jiter
+     muse(i)=nint(data(iuse,i)) <= jiter .and. nint(data(iqc,i)) < 8
   end do
 
 ! Check for missing data  !need obs value and error

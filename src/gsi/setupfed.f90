@@ -42,7 +42,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim,nc_diag_read_close
   use m_obsLList, only: obsLList
   use gsi_4dvar, only: nobs_bins,hr_obsbin
-  use oneobmod, only: oneobtest,maginnov,magoberr
+  use oneobmod, only: magoberr
   use guess_grids, only: hrdifsig,nfldsig,ges_prsi
   use guess_grids, only: ges_lnprsl, geop_hgtl
   use gridmod, only: lat2, lon2
@@ -229,7 +229,7 @@ subroutine setupfed(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,fed_diagsa
   icat =25    ! index of data level category
   iptrb=26    ! index of fed perturbation
   do i=1,nobs
-     muse(i)=nint(data(iuse,i)) <= jiter
+     muse(i)=nint(data(iuse,i)) <= jiter .and. nint(data(iqc,i)) < 8
   end do
 
   if (dofedoneob) then
