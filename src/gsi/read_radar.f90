@@ -4233,11 +4233,10 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
             rusage(ndata)=.false.
             usage=r100
           end if
-          call deter_zsfc_model(dlat,dlon,zsges)
 
 !    Get information from surface file necessary for conventional data here
-!         call deter_zsfc_model(dlat,dlon,zsges)
-!         call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,skint,ff10,sfcr)
+          call deter_zsfc_model(dlat,dlon,zsges)
+          call deter_sfc2(dlat_earth,dlon_earth,t4dvo,idomsfc,skint,ff10,sfcr)
 
           nsuper2_kept=nsuper2_kept+1
           cdata(1) = error             ! wind obs error (m/s)
