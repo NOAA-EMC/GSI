@@ -343,7 +343,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   end if
 
   do i=1,nobs
-     muse(i)=nint(data(iuse,i)) <= jiter
+     muse(i)=nint(data(iuse,i)) <= jiter .and. nint(data(iqc,i)) <  8
   end do
 !  If HD raobs available move prepbufr version to monitor
   if(nhdq > 0)then

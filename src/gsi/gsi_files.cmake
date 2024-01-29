@@ -157,7 +157,6 @@ ens_spread_mod.f90
 ensctl2model.f90
 ensctl2model_ad.f90
 ensctl2state.f90
-ensctl2state_ad.f90
 evaljgrad.f90
 evaljo.f90
 evalqlim.f90

@@ -364,7 +364,7 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
     iptrb=26    ! index of dbz perturbation
 
     do i=1,nobs
-       muse(i)=nint(data(iuse,i)) <= jiter
+       muse(i)=nint(data(iuse,i)) <= jiter .and. nint(data(iqc,i)) < 8
 
        if ( .not. luse(i) ) then
            icnt_nouse = icnt_nouse + 1

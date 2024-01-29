@@ -55,14 +55,12 @@ subroutine stpfed(fedhead,rval,sval,out,sges,nstep)
   use constants, only: half,one,two,tiny_r_kind,cg_term,zero_quad,r3600
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use gridmod, only: wrf_mass_regional, fv3_regional
   use wrf_vars_mod, only : fed_exist
   use m_obsNode, only: obsNode
   use m_fedNode , only: fedNode
   use m_fedNode , only: fedNode_typecast
   use m_fedNode , only: fedNode_nextcast
 !  use directDA_radaruse_mod, only: l_use_fed_directDA
-  use radarz_cst, only: mphyopt
 
   implicit none
 

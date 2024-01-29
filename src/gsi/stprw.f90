@@ -124,19 +124,13 @@ subroutine stprw(rwhead,rval,sval,out,sges,nstep)
   ier=0
   call gsi_bundlegetpointer(sval,'u',su,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(sval,'v',sv,istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(sval,'w',sw,istatus)
-  if (if_use_w_vr.and.istatus==0) then
-     include_w=.true.
-  else
-     include_w=.false.
-  end if
   call gsi_bundlegetpointer(rval,'u',ru,istatus);ier=istatus+ier
   call gsi_bundlegetpointer(rval,'v',rv,istatus);ier=istatus+ier
-  call gsi_bundlegetpointer(rval,'w',rw,istatus)
+  include_w=.false.
+  call gsi_bundlegetpointer(sval,'w',sw,istatus)
   if (if_use_w_vr.and.istatus==0) then
-     include_w=.true.
-  else
-     include_w=.false.
+     call gsi_bundlegetpointer(rval,'w',rw,istatus)
+     if(istatus == 0)include_w=.true.
   end if
 
   if(ier/=0)return

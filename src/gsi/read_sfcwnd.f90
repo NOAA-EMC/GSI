@@ -48,19 +48,19 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
        tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
        rlats,rlons,fv3_regional
-  use qcmod, only: errormod,noiqc,njqc
+  use qcmod, only: errormod,njqc
 
-  use convthin, only: make3grids,map3grids,del3grids,use_all
+  use convthin, only: make3grids,map3grids_m,del3grids,use_all
   use constants, only: deg2rad,zero,rad2deg,one_tenth,&
         tiny_r_kind,huge_r_kind,r60inv,one_tenth,&
         one,two,three,four,five,half,quarter,r60inv,r10,r100,r2000
   use converr,only: etabl
   use converr_uv,only: etabl_uv,isuble_uv,maxsub_uv
   use convb_uv,only: btabl_uv
-  use obsmod, only: ran01dom,bmiss
+  use obsmod, only: ran01dom,bmiss,reduce_diag
   use convinfo, only: nconvtype, &
        icuse,ictype,icsubtype,ioctype, &
-       ithin_conv,rmesh_conv,pmesh_conv
+       ithin_conv,rmesh_conv,pmesh_conv,pmot_conv
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
   use mpimod, only: npe
@@ -97,13 +97,12 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
   integer(i_kind) ireadmg,ireadsb,iuse,mxtb,nmsgmax
   integer(i_kind) i,maxobs,idomsfc,nsattype,j,ncount
-  integer(i_kind) nc,nx,isflg,itx,nchanl
+  integer(i_kind) nc,nx,isflg,nchanl
   integer(i_kind) ntb,ntmatch,ncx,ncsave,ntread
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nmind,lunin,idate,ilat,ilon,iret,k
-  integer(i_kind) nreal,ithin,iout,ntmp,icount,iiout,ii
+  integer(i_kind) nreal,ithin,iout,ii
   integer(i_kind) itype,iosub,ixsub,isubsub,iobsub 
-  integer(i_kind) lim_qm
   integer(i_kind) nlevp         ! vertical level for thinning
   integer(i_kind) pflag
   integer(i_kind) ntest,nvtest
@@ -117,7 +116,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind),dimension(nconvtype+1) :: ntx  
   
   integer(i_kind),dimension(5):: idate5 
-  integer(i_kind),allocatable,dimension(:):: isort,iloc,nrep
+  integer(i_kind),allocatable,dimension(:):: nrep
   integer(i_kind),allocatable,dimension(:,:)::tab
 
 ! integer(i_kind) itypex,lcount,iflag,m
@@ -143,7 +142,13 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_double),dimension(5,4):: wnddat
   real(r_double),dimension(1,1):: r_prvstg,r_sprvstg
   real(r_kind),allocatable,dimension(:):: presl_thin
-  real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
+  real(r_kind),allocatable,dimension(:,:):: cdata_all
+
+  logical,allocatable,dimension(:)::rthin,rusage
+  logical save_all
+! integer(i_kind) numthin,numqc,numrem,numall
+  integer(i_kind) nxdata,pmot
+
 
 ! equivalence to handle character names
   equivalence(r_prvstg(1,1),c_prvstg)
@@ -200,11 +205,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   werrmin=one
   nsattype=0
   nreal=24
-  if (noiqc) then
-     lim_qm=8
-  else
-     lim_qm=4
-  endif
 
 ! ** read convtype from convinfo file 
 ! ** only read in OSCAT 291 for now ** 
@@ -239,7 +239,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
   call getcount_bufr(infile,nmsgmax,mxtb)
 
-  allocate(lmsg(nmsgmax,ntread),tab(mxtb,3),nrep(nmsgmax))
+  allocate(lmsg(nmsgmax,ntread),tab(mxtb,2),nrep(nmsgmax))
 
   lmsg = .false.
   maxobs=0
@@ -321,7 +321,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            end if
            tab(ntb,1)=ncsave
            tab(ntb,2)=nx
-           tab(ntb,3)=1
            lmsg(nmsg,nx) = .true.
         end if
      enddo loop_report
@@ -329,9 +328,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 ! Loop over convinfo file entries; operate on matches
 
-  allocate(cdata_all(nreal,maxobs),isort(maxobs))
-  isort = 0
-  cdata_all=zero
+  allocate(cdata_all(nreal,maxobs),rusage(maxobs),rthin(maxobs))
   nread=0
   ntest=0
   nvtest=0
@@ -342,15 +339,19 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !!  read satellite winds one type a time
 !   same as in the read_prepbufr.f90 file
 
+  rusage = .true.
+  rthin = .false.
   loop_convinfo: do nx=1,ntread 
      use_all = .true.
      ithin=0
+     pmot=0
      if(nx >1) then
         nc=ntx(nx)
         ithin=ithin_conv(nc)
         if (ithin > 0 ) then
            rmesh=rmesh_conv(nc)
            pmesh=pmesh_conv(nc)
+           pmot = pmot_conv(nc)
            use_all = .false.
            if(pmesh > zero) then
               pflag=1
@@ -376,6 +377,9 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                    ioctype(nc),ictype(nc),rmesh,pflag,nlevp,pmesh,nc
         endif
      endif
+     if(reduce_diag .and. pmot < 2)pmot=pmot+2
+     save_all=.false.
+     if(pmot /= 2 .and. pmot /= 0) save_all=.true.
 
      call closbf(lunin)
      close(lunin)
@@ -473,9 +477,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if(obsdat(3) >=1) cycle loop_readsb
 
            if(trim(subset) == 'NC012255') then    ! OSCAT KNMI wind
-              if( hdrdat(1) == r421) then          
-                   itype=291
-              endif
+              if( hdrdat(1) == r421) itype=291
            endif
 
 
@@ -642,7 +644,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
  !         Special block for data thinning - if requested
            if (ithin > 0 .and. iuse >=0) then
-              ntmp=ndata  ! counting moved to map3gridS
 
  !         Set data quality index for thinning
               if (thin4d) then
@@ -659,22 +660,16 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  end do
               endif
  
-              call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                              ppb,crit1,ndata,iout,ntb,iiout,luse,.false.,.false.)
+              call map3grids_m(-1,save_all,pflag,presl_thin,nlevp, &
+                  dlat_earth,dlon_earth,ppb,crit1,ndata,&
+                  luse,maxobs,rthin,.false.,.false.)
 
               if (.not. luse) cycle loop_readsb
-              if(iiout > 0) isort(iiout)=0
-              if (ndata > ntmp) then
-                 nodata=nodata+2
-              endif
-              isort(ntb)=iout
 
            else
               ndata=ndata+1
-              nodata=nodata+2
-              iout=ndata
-              isort(ntb)=iout
            endif
+           iout=ndata
 
            woe=obserr
            oelev=r10
@@ -718,6 +713,7 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(22,iout)=r_prvstg(1,1)       ! provider name
            cdata_all(23,iout)=r_sprvstg(1,1)      ! subprovider name
            cdata_all(24,iout)=var_jb              ! non linear qc parameter
+           if(usage >= r100)rusage(ndata)=.false.
 
         enddo  loop_readsb
 
@@ -729,43 +725,69 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         deallocate(presl_thin)
         call del3grids
      endif
+
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
   call closbf(lunin)
   deallocate(lmsg,nrep,tab)
- 
 
-  ! Write header record and data to output file for further processing
-  allocate(iloc(ndata))
-  icount=0
-  do i=1,maxobs
-     if(isort(i) > 0)then
-        icount=icount+1
-        iloc(icount)=isort(i)
-     end if
-  end do
-  if(ndata /= icount)then
-     write(6,*) ' READ_SFCWND: mix up in read_satwnd ,ndata,icount ',ndata,icount
-     call stop2(49)
-  end if
-
-  allocate(cdata_out(nreal,ndata))
-  do i=1,ndata
-     itx=iloc(i)
-     do k=1,nreal
-        cdata_out(k,i)=cdata_all(k,itx)
+  nxdata=ndata
+  ndata=0
+  if(nxdata > 0)then
+!    numthin=0
+!    numqc=0
+!    numrem=0
+!    do i=1,nxdata
+!       if(.not. rusage(i))then
+!          numqc=numqc+1
+!       else if(rthin(i))then
+!          numthin=numthin+1
+!       else
+!          numrem=numrem+1
+!       end if
+!    end do
+!    write(6,*) ' sfc ',trim(ioctype(nc)),ictype(nc),icsubtype(nc),numall,numrem,numqc,numthin
+!   If thinned data set usage
+     do i=1,nxdata
+        if(rthin(i))then
+           cdata_all(14,i)=101._r_kind
+           cdata_all(12,i)=14
+        end if
      end do
-  end do
-  deallocate(iloc,isort,cdata_all)
-!  deallocate(etabl)
-  
-  call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
-  write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-  write(lunout) cdata_out
+!  If flag to not save thinned data is set - compress data
+     do i=1,nxdata
+!   pmot=0 - all obs - thin obs
+!   pmot=1 - all obs
+!   pmot=2 - use obs
+!   pmot=3 - use obs + thin obs
+        if((pmot == 0 .and. .not. rthin(i)) .or. &
+           (pmot == 1) .or. &
+           (pmot == 2 .and. (rusage(i) .and. .not. rthin(i)))  .or. &
+           (pmot == 3 .and. rusage(i))) then
 
-  deallocate(cdata_out)
-900 continue
+           ndata=ndata+1
+           if(i > ndata)then
+              do k=1,nreal
+                 cdata_all(k,ndata)=cdata_all(k,i)
+              end do
+           end if
+        end if
+     end do
+     nodata=nodata+ndata
+  end if
+  ! Write header record and data to output file for further processing
+  deallocate(rusage,rthin)
+
+!  deallocate(etabl)
+  close(lunin)
+  
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
+  write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
+  write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
+
+  deallocate(cdata_all)
+                   
   if(diagnostic_reg .and. ntest>0) write(6,*)'READ_SFCWND:  ',&
        'ntest,disterrmax=',ntest,disterrmax
   if(diagnostic_reg .and. nvtest>0) write(6,*)'READ_SFCWND:  ',&
@@ -777,7 +799,6 @@ subroutine read_sfcwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   
   write(6,*) 'READ_SFCWND,nread,ndata,nreal,nodata=',nread,ndata,nreal,nodata
 
-  close(lunin)
 
 ! End of routine
   return
