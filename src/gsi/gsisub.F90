@@ -194,7 +194,7 @@ subroutine gsisub(init_pass,last_pass)
     end if
     if(last_pass) call observer_finalize()
 #ifndef HAVE_ESMF
-      call destroy_gesfinfo()	! paired with gesinfo()
+      call destroy_gesfinfo()   ! paired with gesinfo()
 #endif
   else
      call glbsoi

@@ -65,7 +65,7 @@ subroutine  gsdcloudanalysis(mype)
 !
 ! 
   use constants, only: zero,one,rad2deg,fv
-  use constants, only: rd_over_cp, h1000
+  use constants, only: rd_over_cp,h1000
   use kinds,   only: r_single,i_kind, r_kind
   use gridmod, only: pt_ll,eta1_ll,aeta1_ll,eta2_ll,aeta2_ll
   use gridmod, only: regional,wrf_mass_regional,regional_time
