@@ -24,7 +24,7 @@ source $DIR_ROOT/ush/detect_machine.sh
 set +x
 source $DIR_ROOT/ush/module-setup.sh
 module use $DIR_ROOT/modulefiles
-module load gsi_$MACHINE_ID
+module load "gsi_${MACHINE_ID}.${COMPILER}"
 module list
 set -x
 
