@@ -1102,10 +1102,12 @@ contains
         endif
 
         predbias=zero
-        abi2km_bc = zero
-        abi2km_bc(2) = 233.5_r_kind
-        abi2km_bc(3) = 241.7_r_kind
-        abi2km_bc(4) = 250.5_r_kind
+        if (abi2km .and. regional) then
+           abi2km_bc = zero
+           abi2km_bc(2) = 233.5_r_kind
+           abi2km_bc(3) = 241.7_r_kind
+           abi2km_bc(4) = 250.5_r_kind
+        end if
 
 !$omp parallel do  schedule(dynamic,1) private(i,mm,j,k,tlap,node,bias)
         do i=1,nchanl

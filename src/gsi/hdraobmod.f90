@@ -188,7 +188,7 @@ contains
   real(r_kind),dimension(nsig):: presl,hgtl
   real(r_kind),dimension(nsig-1):: dpres
   real(r_kind),dimension(maxlevs)::plevs
-  real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
+  real(r_kind),allocatable,dimension(:,:):: cdata_all
   real(r_kind) :: missing
 
   real(r_double) rstation_id,r_station
@@ -1271,20 +1271,13 @@ contains
   close(lunin)
 
 ! Write header record and data to output file for further processing
-  allocate(cdata_out(nreal,ndata))
-  do i=1,ndata
-     do k=1,nreal
-        cdata_out(k,i)=cdata_all(k,i)
-     end do
-  end do
-  deallocate(cdata_all)
 
-  call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
-  write(lunout) cdata_out
+  write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
  
 
-  deallocate(cdata_out)
+  deallocate(cdata_all)
 
   if(diagnostic_reg .and. ntest>0) write(6,*)'READ_HDRAOB:  ',&
      'ntest,disterrmax=',ntest,disterrmax

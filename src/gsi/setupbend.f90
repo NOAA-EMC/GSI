@@ -715,7 +715,7 @@ subroutine setupbend(obsLL,odiagLL, &
             call setq(q_w(:,k),ref_rad(k-1:k+1),3)
          enddo
 
-         muse(i)=nint(data(iuse,i)) <= jiter
+         muse(i)=nint(data(iuse,i)) <= jiter 
 
 !        Get refractivity index-radius and [d(ln(n))/dx] in new grid.
          intloop: do j=1,grids_dim

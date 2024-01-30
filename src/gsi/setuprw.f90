@@ -252,7 +252,7 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   if(.not.proceed) return  ! not all vars available, simply return
 
 ! If require guess vars available, extract from bundle ...
-  call init_vars_
+  call init_vars_(include_w)
 
   if ( l_use_rw_columntilt) then
 !
@@ -286,7 +286,6 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
 !*******************************************************************************
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse,ioid
-
 
 !    index information for data array (see reading routine)
   ier=1       ! index of obs error
@@ -566,6 +565,7 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
      error = one/error
 
      if(dpres < zero .or. dpres > rsig)ratio_errors = zero
+     wgesin=zero
 
 !    Interpolate guess u, v, and w to observation location and time.
      call tintrp31(ges_u,ugesin,dlat,dlon,dpres,dtime,&
@@ -788,7 +788,7 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
         end if
      end if 
 
-!    Gross error checks
+ !    Gross error checks
      obserror = one/max(ratio_errors*error,tiny_r_kind)
      obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
      residual = abs(ddiff)
@@ -871,7 +871,7 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
               jiter=jiter, muse=muse(i), nldepart=ddiff)
         end if
      endif
-     
+             
 !    If obs is "acceptable", load array with obs info for use
 !    in inner loop minimization (int* and stp* routines)
      if ( .not. last .and. muse(i)) then
@@ -902,6 +902,7 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
         my_head%luse    = luse(i)
         my_head%b       = cvar_b(ikx)
         my_head%pg      = cvar_pg(ikx)
+
 
         if (luse_obsdiag) then
            call obsdiagNode_assert(my_diag,my_head%idv,my_head%iob,1,myname,'my_diag:my_head')
@@ -992,8 +993,9 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   endif
   end subroutine check_vars_ 
 
-  subroutine init_vars_
+  subroutine init_vars_(include_w)
 
+  logical,intent(in   ):: include_w
   real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
   real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
   character(len=5) :: varname

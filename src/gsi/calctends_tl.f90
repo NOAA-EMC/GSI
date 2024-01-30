@@ -69,6 +69,7 @@ subroutine calctends_tl(fields,fields_dt,mype)
   use mpeu_util, only: die, getindex
   use derivsmod, only: gsi_xderivative_bundle
   use derivsmod, only: gsi_yderivative_bundle
+  use turblmod, only: use_pbl
   implicit none
 
 ! Declare passed variables
@@ -474,7 +475,7 @@ subroutine calctends_tl(fields,fields_dt,mype)
       end do   !end do j
     end do  !end do k
 
-    call turbl_tl(ges_prsi(1,1,1,it),ges_tv,ges_teta(1,1,1,it),&
+    if(use_pbl)call turbl_tl(ges_prsi(1,1,1,it),ges_tv,ges_teta(1,1,1,it),&
                u,v,pri,t,u_t,v_t,t_t,jtstart(kk),jtstop(kk))
 
     if(.not.wrf_nmm_regional.and..not.nems_nmmb_regional)then
