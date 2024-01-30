@@ -41,11 +41,10 @@ subroutine obs_para(ndata,mype)
 !                         grid.
 !
 !   input argument list:
-!     ndata(*,1)- number of prefiles retained for further processing
+!     ndata(*,1)- number of profiles retained for further processing
 !     ndata(*,2)- number of observations read
 !     ndata(*,3)- number of observations keep after read
 !     mype     - mpi task number
-!     ipoint   - pointer in array containing information about all obs type to process
 !
 !   output argument list:
 !
@@ -342,7 +341,8 @@ subroutine count_obs(ndata,nn_obs,lat_data,lon_data,obs_data,nobs_s)
   integer(i_kind)               ,intent(in   ) :: ndata,lat_data,lon_data
   integer(i_kind)               ,intent(in   ) :: nn_obs
   integer(i_kind),dimension(npe),intent(inout) :: nobs_s
-  real(r_kind),dimension(nn_obs,ndata),intent(in) :: obs_data
+  real(r_kind),dimension(nn_obs,*),intent(in) :: obs_data
+! real(r_kind),dimension(nn_obs,ndata),intent(in) :: obs_data
 
 ! Declare local variables
   integer(i_kind) lon,lat,n,k

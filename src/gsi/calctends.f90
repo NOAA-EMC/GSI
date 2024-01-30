@@ -62,6 +62,7 @@ subroutine calctends(mype,teta,pri,guess,xderivative,yderivative,tendency)
   use gsi_bundlemod, only: gsi_bundlegetpointer
 
   use mpeu_util, only: die
+  use turblmod, only: use_pbl
   implicit none
 
 ! Declare passed variables
@@ -357,7 +358,7 @@ subroutine calctends(mype,teta,pri,guess,xderivative,yderivative,tendency)
       end do
     end do  !end do k
 
-    call turbl(u,v,pri,t,teta,z,u_t,v_t,t_t,jtstart(kk),jtstop(kk))
+    if(use_pbl)call turbl(u,v,pri,t,teta,z,u_t,v_t,t_t,jtstart(kk),jtstop(kk))
 
     if(.not.wrf_nmm_regional.and..not.nems_nmmb_regional)then
       do k=1,nsig
