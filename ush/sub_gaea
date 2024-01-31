@@ -123,7 +123,7 @@ echo "" >>$cfile
 
 echo "module purge"  >> $cfile
 echo "module use $modulefiles"                        >> $cfile
-echo "module load gsi_gaea" >> $cfile
+echo "module load gsi_gaea.intel" >> $cfile
 echo "module list"                                           >> $cfile
 echo "" >>$cfile
 
