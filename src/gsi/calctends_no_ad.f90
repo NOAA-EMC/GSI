@@ -72,6 +72,7 @@ subroutine calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use derivsmod, only: gsi_xderivative_bundle
   use derivsmod, only: gsi_yderivative_bundle
+  use turblmod, only: use_pbl
   implicit none
 
 ! Declare passed variables
@@ -210,7 +211,7 @@ subroutine calctends_no_ad(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
       end do                         
     end if
 
-    call turbl_ad(ges_prsi(1,1,1,it),ges_tv,ges_teta(1,1,1,it),&
+    if(use_pbl)call turbl_ad(ges_prsi(1,1,1,it),ges_tv,ges_teta(1,1,1,it),&
                 u,v,pri,t,u_t,v_t,t_t,jtstart(kk),jtstop(kk))
 
     do k=nsig,1,-1               

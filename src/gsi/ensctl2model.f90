@@ -52,7 +52,7 @@ type(gsi_bundle)    , intent(in   ) :: mval
 type(gsi_bundle)    , intent(inout) :: eval(ntlevs_ens)
 
 ! Declare local variables
-character(len=*),parameter::myname='ensctl2state'
+character(len=*),parameter::myname='ensctl2model'
 character(len=max_varname_length),allocatable,dimension(:) :: clouds
 integer(i_kind) :: jj,ic,id,istatus,nclouds,nn
 
@@ -140,7 +140,7 @@ do jj=1,ntlevs_ens
    eval(jj)%values=zero
 
 !  Create a temporary bundle similar to xhat, and copy contents of xhat into it
-   call gsi_bundlecreate ( wbundle_c, xhat%step(1), 'ensctl2state work', istatus )
+   call gsi_bundlecreate ( wbundle_c, xhat%step(1), 'ensctl2model work', istatus )
    if(istatus/=0) then
       write(6,*) trim(myname), ': trouble creating work bundle'
       call stop2(999)

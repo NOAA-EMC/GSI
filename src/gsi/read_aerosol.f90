@@ -367,7 +367,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
            end if
 
            ! Deallocate local arrays
-           deallocate(aeroout)
+           deallocate(aeroout,nrec)
            deallocate(dataaod)
 
            ! End of MODIS bufr block
@@ -596,7 +596,8 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
            end if
 
            ! Deallocate local arrays
-           deallocate(aeroout)
+           deallocate(aeroout,nrec)
+           deallocate(dataaod)
 
            ! End of VIIRS AOD bufr block
 
