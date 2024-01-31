@@ -24,11 +24,6 @@ case $(hostname -f) in
 
   Hercules-login-[1-4].HPC.MsState.Edu) MACHINE_ID=hercules ;; ### hercules1-4
 
-  cheyenne[1-6].cheyenne.ucar.edu)     MACHINE_ID=cheyenne ;; ### cheyenne1-6
-  cheyenne[1-6].ib0.cheyenne.ucar.edu) MACHINE_ID=cheyenne ;; ### cheyenne1-6
-  chadmin[1-6].ib0.cheyenne.ucar.edu)  MACHINE_ID=cheyenne ;; ### cheyenne1-6
-  chadmin[1-6].ucar.edu)               MACHINE_ID=cheyenne ;; ### cheyenne1-6
-
   login[1-4].stampede2.tacc.utexas.edu) MACHINE_ID=stampede ;; ### stampede1-4
 
   login0[1-2].expanse.sdsc.edu) MACHINE_ID=expanse ;; ### expanse1-2
@@ -40,6 +35,6 @@ esac
 MACHINE_ID=${MACHINE:-${MACHINE_ID}}
 
 # Append compiler (only on machines that have multiple compilers)
-if [ $MACHINE_ID = hera ] || [ $MACHINE_ID = cheyenne ]; then
+if [ $MACHINE_ID = hera ]; then
     MACHINE_ID=${MACHINE_ID}.${COMPILER}
 fi
