@@ -66,7 +66,7 @@ elif [[ $MACHINE_ID = gaea* ]] ; then
         __ms_source_etc_profile=yes
     fi
 
-    source /lustre/f2/dev/role.epic/contrib/Lmod_init.sh
+    module reset
 
 elif [[ $MACHINE_ID = expanse* ]]; then
     # We are on SDSC Expanse
