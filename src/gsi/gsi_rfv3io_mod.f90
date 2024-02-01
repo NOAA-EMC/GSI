@@ -2055,7 +2055,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
     sfcn2d(:,:,k_howv) = zero
 
 !-- initialisation of the array for sfc_var_exist 
-    sfc_var_exist = 0
+    sfc_var_exist = .false.
 
     if(mype==mype_2d ) then
        allocate(sfc_fulldomain(nx,ny))
@@ -2107,43 +2107,43 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
           iret=nf90_inquire_variable(gfile_loc,i,name,len)
           if( trim(name)=='f10m'.or.trim(name)=='F10M' ) then
              k=k_f10m
-             sfc_var_exist(k) = 1
+             sfc_var_exist(k) = .true.
           else if( trim(name)=='stype'.or.trim(name)=='STYPE' ) then
              k=k_stype
-             sfc_var_exist(k) = 1
+             sfc_var_exist(k) = .true.
           else if( trim(name)=='vfrac'.or.trim(name)=='VFRAC' ) then
              k=k_vfrac
-             sfc_var_exist(k) = 1
+             sfc_var_exist(k) = .true.
           else if( trim(name)=='vtype'.or.trim(name)=='VTYPE' ) then
              k=k_vtype
-             sfc_var_exist(k) = 1
+             sfc_var_exist(k) = .true.
           else if( trim(name)=='zorl'.or.trim(name)=='ZORL' ) then
              k=k_zorl
-             sfc_var_exist(k) = 1
+             sfc_var_exist(k) = .true.
           else if( trim(name)=='tsea'.or.trim(name)=='TSEA' ) then
              k=k_tsea
-             sfc_var_exist(k) = 1
+             sfc_var_exist(k) = .true.
           else if( trim(name)=='sheleg'.or.trim(name)=='SHELEG' ) then
              k=k_snwdph
-             sfc_var_exist(k) = 1
+             sfc_var_exist(k) = .true.
           else if( trim(name)=='stc'.or.trim(name)=='tslb' ) then
              k=k_stc 
-             sfc_var_exist(k) = 1
+             sfc_var_exist(k) = .true.
           else if( trim(name)=='smc'.or.trim(name)=='smois' ) then
              k=k_smc
-             sfc_var_exist(k) = 1
+             sfc_var_exist(k) = .true.
           else if( trim(name)=='SLMSK'.or.trim(name)=='slmsk' ) then
              k=k_slmsk
-             sfc_var_exist(k) = 1
+             sfc_var_exist(k) = .true.
           else if( trim(name)=='T2M'.or.trim(name)=='t2m' ) then
              k=k_t2m
-             sfc_var_exist(k) = 1
+             sfc_var_exist(k) = .true.
           else if( trim(name)=='Q2M'.or.trim(name)=='q2m' ) then
              k=k_q2m
-             sfc_var_exist(k) = 1
+             sfc_var_exist(k) = .true.
           else if( trim(name)=='HOWV'.or.trim(name)=='howv' ) then
              k=k_howv
-             sfc_var_exist(k) = 1
+             sfc_var_exist(k) = .true.
           else
              cycle 
           endif
