@@ -485,8 +485,8 @@ module obsmod
 
   public :: doradaroneob,oneoblat,oneoblon
   public :: oneobddiff,oneobvalue,oneobheight,oneobradid
-  public :: ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,zmesh_dbz,rmesh_vr,zmesh_vr
-  public :: radar_no_thinning
+  public :: ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,zmesh_dbz,rmesh_vr,zmesh_vr,pmot_dbz
+  public :: radar_no_thinning,pmot_vr
   public :: mintiltvr,maxtiltvr,minobrangevr,maxobrangevr
   public :: mintiltdbz,maxtiltdbz,minobrangedbz,maxobrangedbz
   public :: debugmode
@@ -631,7 +631,7 @@ module obsmod
   real(r_kind) ,allocatable,dimension(:):: dval
   real(r_kind) ,allocatable,dimension(:):: time_window
 
-  integer(i_kind) ntilt_radarfiles,tcp_posmatch,tcp_box
+  integer(i_kind) ntilt_radarfiles,tcp_posmatch,tcp_box,pmot_dbz,pmot_vr
 
   logical ::  ta2tb
   logical ::  doradaroneob,dofedoneob
@@ -788,6 +788,14 @@ contains
     static_gsi_nopcp_dbz=0.0_r_kind
     rmesh_dbz=2
     rmesh_vr=2
+!  pmot_dbz values of 0,1,2,3 will save different sets of obs output
+!      pmot_dbz - all obs - thin obs
+!      pmot_dbz - all obs
+!      pmot_dbz - use obs
+!      pmot_dbz - use obs + thin obs
+
+    pmot_dbz=0
+    pmot_vr=2
     zmesh_dbz=500.0_r_kind
     zmesh_vr=500.0_r_kind
     minobrangedbz=10000.0_r_kind

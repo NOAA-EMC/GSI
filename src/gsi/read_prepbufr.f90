@@ -188,6 +188,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   use obsmod, only: iadate,oberrflg,perturb_obs,perturb_fact,ran01dom,hilbert_curve
   use obsmod, only: blacklst,offtime_data,bmiss,ext_sonde,time_offset, vad_near_analtime
+  use obsmod, only: reduce_diag
   use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,ntail,taillist,idx_tail,npredt,predt, &
       aircraft_t_bc_ext,ntail_update,max_tail,nsort,itail_sort,idx_sort,timelist
   use converr,only: etabl
@@ -201,8 +202,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use convb_t,only: btabl_t
   use convb_uv,only: btabl_uv
   use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen,thin4d
-  use convthin, only: make3grids,map3grids,map3grids_m,del3grids,use_all
-  use convthin_time, only: make3grids_tm,map3grids_tm,map3grids_m_tm,del3grids_tm,use_all_tm
+  use convthin, only: make3grids,map3grids_m,del3grids,use_all
+  use convthin_time, only: make3grids_tm,map3grids_m_tm,del3grids_tm,use_all_tm
   use qcmod, only: errormod,errormod_aircraft,noiqc,newvad,njqc
   use qcmod, only: pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres
   use qcmod, only: nrand
@@ -268,7 +269,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   logical outside,driftl,convobs,inflate_error
   logical sfctype, global_2m_land
   logical luse,ithinp,windcorr
-  logical patch_fog
+  logical patch_fog,save_all
   logical aircraftset,aircraftobs,aircraftobst,aircrafttype
   logical acft_profl_file
   logical,allocatable,dimension(:,:):: lmsg           ! set true when convinfo entry id found in a message
@@ -290,17 +291,17 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   character(1) cdummy
   logical lhilbert
 
-  integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2,icount,iiout
-  integer(i_kind) lunin,i,maxobs,j,idomsfc,it29,nmsgmax,mxtb
+  integer(i_kind) ireadmg,ireadsb,iqm,iuse,pmot
+  integer(i_kind) lunin,i,maxobs,j,idomsfc,it29,nmsgmax,mxtb,maxall
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
-  integer(i_kind) nc,nx,isflg,ntread,itx,ii,ncsave
+  integer(i_kind) nc,isflg,ntread,ii,ncsave,nxdata,nx
   integer(i_kind) ihh,idd,idate,iret,im,iy,k,levs
   integer(i_kind) metarcldlevs,metarwthlevs,cldseqlevs,cld2seqlevs
   integer(i_kind) kx,kx0,nreal,nchanl,ilat,ilon,ithin
   integer(i_kind) cat,zqm,pwq,sstq,qm,lim_qm,lim_zqm,gustqm,visqm,tdqm,mxtmqm,mitmqm,howvqm,cldchqm
   integer(i_kind) lim_tqm,lim_qqm
   integer(i_kind) nlevp         ! vertical level for thinning
-  integer(i_kind) ntmp,iout
+  integer(i_kind) iout
   integer(i_kind) pflag,irec,zflag
   integer(i_kind) ntest,nvtest,iosub,ixsub,isubsub,iobsub
   integer(i_kind) kl,k1,k2,k1_ps,k1_q,k1_t,k1_uv,k1_pw,k2_q,k2_t,k2_uv,k2_pw,k2_ps
@@ -317,7 +318,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind),dimension(255):: pqm,qqm,tqm,wqm,pmq
   integer(i_kind),dimension(nconvtype)::ntxall
   integer(i_kind),dimension(nconvtype+1)::ntx
-  integer(i_kind),allocatable,dimension(:):: isort,iloc,nrep
+  integer(i_kind),allocatable,dimension(:):: nrep
   integer(i_kind),allocatable,dimension(:,:):: tab
   integer(i_kind) ibfms,thisobtype_usage
   integer(i_kind) iwmo,ios
@@ -337,7 +338,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind) del,terrmin,werrmin,perrmin,qerrmin,pwerrmin,del_ps,del_q,del_t,del_uv,del_pw
   real(r_kind) pjbmin,qjbmin,tjbmin,wjbmin
   real(r_kind) tsavg,ff10,sfcr,zz
-  real(r_kind) crit1,timedif,xmesh,pmesh,pmot,ptime             ! thinning parameter
+  real(r_kind) crit1,timedif,xmesh,pmesh,ptime             ! thinning parameter
   real(r_kind) time_correction
   real(r_kind) tcamt,lcbas,ceiling
   real(r_kind) tcamt_oe,lcbas_oe
@@ -381,10 +382,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) indexx
   real(r_kind)  dentrip,dentrip_tmp,vmin,vmax,rmesh_tmp,pmesh_tmp,prest
   integer(i_kind)  ntime_max,ntime_tmp,itype,ikx
+! integer(i_kind)  numthin,numqc,numrem,numall
   integer(i_kind),dimension(24) :: ntype_arr
   integer(i_kind),allocatable,dimension(:,:) :: index_arr
   real(r_kind),allocatable,dimension(:,:,:) :: data_hilb
   real(r_kind),allocatable,dimension(:) :: rlat_hil,rlon_hil,height,wtob,wght_hilb
+  logical, allocatable,dimension(:)     :: rusage,rthin
 ! end of block
 
 
@@ -434,8 +437,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !       character(len=8) :: cval
 !       equivalence (rval,cval)
 !       character(7) flnm
-        integer:: icase,klev,ikkk,tkk
-        real:: diffhgt,diffuu,diffvv
+
+  integer:: icase,klev,ikkk,tkk
+  real:: diffhgt,diffuu,diffvv
+  integer,dimension(3)::kcount
 
   real(r_double),dimension(3,1500):: fcstdat
   logical print_verbose
@@ -447,12 +452,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! Initialize variables
 
+  kcount=0
   vdisterrmax=zero
   zflag=0
   nreal=0
   satqc=zero
   tob = obstype == 't'
-  uvob = obstype == 'uv'  ; if (twodvar_regional) uvob = uvob .or. obstype == 'wspd10m' .or. obstype == 'uwnd10m' .or. obstype == 'vwnd10m'
+  uvob = obstype == 'uv'  
+  if (twodvar_regional) uvob = uvob .or. obstype == 'wspd10m' .or. obstype == 'uwnd10m' .or. obstype == 'vwnd10m'
   spdob = obstype == 'spd'
   psob = obstype == 'ps'
   qob = obstype == 'q'
@@ -475,51 +482,95 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
             tdob .or. mxtmob .or. mitmob .or. pmob .or. howvob .or. &
             tcamtob .or. lcbasob .or. cldchob
   aircraftobst=.false.
+  iqm = 0
+  iuse = 0
   if(tob)then
      nreal=25
+     iqm = 10
+     iuse = 12
   else if(uvob) then 
      nreal=26
+     iqm = 12
+     iuse = 14
   else if(spdob) then
      nreal=24
+     iqm = 11
+     iuse = 13
   else if(psob) then
      nreal=20
+     iqm=10
+     iuse = 12
   else if(qob) then
      nreal=26
+     iqm = 11
+     iuse = 13
   else if(pwob) then
      nreal=20
+     iqm = 9
+     iuse = 11
   else if(sstob) then
      if (nst_gsi > 0) then
         nreal=18 + nstinfo
      else
         nreal=18
      end if
+     iqm = 11
+     iuse = 13
   else if(gustob) then
      nreal=21
+     iqm = 11
+     iuse = 12
   else if(visob) then
      nreal=18
+     iqm = 9
+     iuse = 10
   else if(tdob) then
      nreal=25
+     iqm = 11
+     iuse = 13
   else if(mxtmob) then
      nreal=24
+     iqm = 10
+     iuse = 12
   else if(mitmob) then
      nreal=24
+     iqm = 10
+     iuse = 12
   else if(pmob) then
      nreal=24
+     iqm = 11
+     iuse = 13
   else if(howvob) then
      nreal=23
+     iqm = 9
+     iuse = 11
   else if(metarcldobs) then
      nreal=27
+     iqm = 0
+     iuse = 22
   else if(goesctpobs) then
      nreal=8
+     iqm = 0
+     iuse = 8
   else if(tcamtob) then
      nreal=20
+     iqm = 8
+     iuse = 9
   else if(lcbasob) then
      nreal=23
+     iqm = 8
+     iuse = 9
   else if(cldchob) then
      nreal=18
+     iqm = 9
+     iuse = 10
   else 
      write(6,*) ' illegal obs type in READ_PREPBUFR ',obstype
      call stop2(94)
+  end if
+  if(iuse < 1) then
+     write(6,*) ' mix up in read_prepbufr iuse '
+     call stop2(49)
   end if
 
 !  Set qc limits based on noiqc flag
@@ -606,10 +657,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !! get message and subset counts
 
   call getcount_bufr(infile,nmsgmax,mxtb)
-  allocate(lmsg(nmsgmax,ntread),tab(mxtb,3),nrep(nmsgmax))
+  allocate(lmsg(nmsgmax,ntread),tab(mxtb,2),nrep(nmsgmax))
 
   lmsg = .false.
   maxobs=0
+  maxall=0
   tab=0
   nmsg=0
   nrep=0
@@ -777,11 +829,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               end if
            end if
         end do matchloop
+        call ufbint(lunin,levdat,1,255,levs,levstr)
+        maxall=maxall+max(1,levs)
 
 !  Save information for next read
         if(ncsave /= 0) then
 
-           call ufbint(lunin,levdat,1,255,levs,levstr)
            maxobs=maxobs+max(1,levs)
            nx=1
            if(ithin_conv(ncsave) > 0 .and. ithin_conv(ncsave) <5)then
@@ -791,7 +844,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            end if
            tab(ntb,1)=ncsave
            tab(ntb,2)=nx
-           tab(ntb,3)=levs
            lmsg(nmsg,nx) = .true.
         end if
 
@@ -837,9 +889,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! loop over convinfo file entries; operate on matches
   
-  allocate(cdata_all(nreal,maxobs),isort(maxobs))
-  isort = 0
-  cdata_all=zero
+  allocate(cdata_all(nreal,maxall),rusage(maxall),rthin(maxall))
   nread=0
   ntest=0
   nvtest=0
@@ -847,22 +897,27 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   ilon=2
   ilat=3
   rmesh=zero
-  pmot=zero
   pmesh=zero
   ptime=zero
   xmesh=zero
   pflag=0
+  save_all=.true.
+  rusage = .true.
+  rthin = .false.
+  ndata = 0
   loop_convinfo: do nx=1, ntread
-    use_all_tm = .true. 
+     use_all_tm = .true. 
      use_all = .true.
      ithin=0
+     pmot=0
      if(nx > 1) then
         nc=ntx(nx)
         ithin=ithin_conv(nc)
+        pmot=nint(pmot_conv(nc))
         if (ithin > 0  .and. ithin <5) then
            rmesh=rmesh_conv(nc)
            pmesh=pmesh_conv(nc)
-           pmot=pmot_conv(nc)
+
            ptime=ptime_conv(nc)
            if(pmesh > zero .and. ithin ==1) then
               pflag=1
@@ -906,10 +961,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  enddo
               endif
            endif
-           if(print_verbose) write(6,*)'READ_PREPBUFR: at line 779: obstype,ictype(nc),rmesh,pflag,nlevp,pmesh,pmot,ptime=',&
-              trim(ioctype(nc)),ictype(nc),rmesh,pflag,nlevp,pmesh,pmot,ptime,ithin
+           if(print_verbose) write(6,*)'READ_PREPBUFR: obstype,ictype(nc),rmesh,pflag,nlevp,pmesh,pmot,ptime=',&
+              trim(ioctype(nc)),ictype(nc),rmesh,pflag,nlevp,pmesh,pmot,ptime,ithin,ndata,nc
         endif
      endif
+     if(reduce_diag .and. pmot < 2)pmot=pmot+2
+     save_all = .false.
+     if(pmot /= 2 .and. pmot /= 0)save_all=.true.
        
 
      call closbf(lunin)
@@ -922,8 +980,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
      ntb = 0
      nmsg = 0
-     icntpnt=0
-     icntpnt2=0
      disterrmax=-9999.0_r_kind
      irec = 0
      loop_msg: do while (ireadmg(lunin,subset,idate)== 0)
@@ -938,9 +994,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
         nmsg = nmsg+1
         if(.not.lmsg(nmsg,nx)) then
-           do i=ntb+1,ntb+nrep(nmsg)
-              icntpnt2=icntpnt2+tab(i,3)
-           end do
            ntb=ntb+nrep(nmsg)
            cycle loop_msg ! no useable reports this mesage, skip ahead report count
         end if 
@@ -949,10 +1002,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !          use msg lookup table to decide which messages to skip
 !          use report id lookup table to only process matching reports
            ntb = ntb+1
-           if(icntpnt < icntpnt2)icntpnt=icntpnt2
-           icntpnt2=icntpnt2+tab(ntb,3)
-           nc=tab(ntb,1)
-           if(nc <= 0 .or. tab(ntb,2) /= nx) cycle loop_readsb
+           if(tab(ntb,1) <= 0 .or. tab(ntb,2) /= nx) cycle loop_readsb
                  
 !          Extract type, date, and location information
            call ufbint(lunin,hdr,8,1,iret,hdstr)
@@ -1091,6 +1141,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !          Balloon drift information available for these data
            driftl=kx==120.or.kx==220.or.kx==221
 
+           nc=tab(ntb,1)
            if (.not. (aircraft_t_bc .and. acft_profl_file)) then
               if (l4dvar.or.l4densvar) then
                  if ((t4dv<zero.OR.t4dv>winlen) .and. .not.driftl) cycle loop_readsb ! outside time window
@@ -1186,7 +1237,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     enddo
                     do k=1,levs
                        ppb=obsdat(1,k)
-                      cat=idnint(min(obsdat(10,k),qcmark_huge))
+                       cat=nint(min(obsdat(10,k),qcmark_huge))
                        if ( cat /=0 ) cycle 
                        ppb=max(zero,min(ppb,r2000))
                        if(ppb>=etabl_ps(itypex,1,1)) k1_ps=1
@@ -1209,12 +1260,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                           obserr(1,k)=max(obserr(1,k),perrmin)
                        endif
 ! Surface pressure b
-                      var_jb(1,k)=(one-del_ps)*btabl_ps(itypex,k1_ps,ierr_ps)+del_ps*btabl_ps(itypex,k2_ps,ierr_ps)
+                       var_jb(1,k)=(one-del_ps)*btabl_ps(itypex,k1_ps,ierr_ps)+del_ps*btabl_ps(itypex,k2_ps,ierr_ps)
                        var_jb(1,k)=max(var_jb(1,k),pjbmin)
                        if (var_jb(1,k) >=10.0_r_kind) var_jb(1,k)=zero
                     enddo
-                 endif
-                if (tob) then
+                 else if (tob) then
                     itypex=itypey
                     ierr_t=0
                     do i =1,maxsub_t
@@ -1264,8 +1314,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                        var_jb(3,k)=max(var_jb(3,k),tjbmin)
                        if (var_jb(3,k) >=10.0_r_kind) var_jb(3,k)=zero
                     enddo
-                 endif
-                 if (qob) then
+                 else if (qob) then
                     itypex=itypey
                     ierr_q=0
                     do i =1,maxsub_q
@@ -1318,8 +1367,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !                        write(6,*) 'READ_PREPBUFR:120_q,obserr,var_jb=',obserr(2,k),var_jb(2,k),ppb
 !                      endif
                     enddo
-                endif
-                if (uvob) then
+                else if (uvob) then
                    itypex=itypey
                    ierr_uv=0
                    do i =1,maxsub_uv
@@ -1355,13 +1403,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                       if (abs(ediff_uv) > tiny_r_kind) then
                          del_uv = (ppb-etabl_uv(itypex,k1_uv,1))/ediff_uv
                       else
-                        del_uv = huge_r_kind
+                         del_uv = huge_r_kind
                       endif
                       del_uv=max(zero,min(del_uv,one))
 ! Wind error
 !                         write(6,*) 'READ_PREPBUFR_UV:',itypex,k1_uv,itypey,k2_uv,ierr_uv,nc,kx,ppb
-                         obserr(5,k)=(one-del_uv)*etabl_uv(itypex,k1_uv,ierr_uv)+del_uv*etabl_uv(itypex,k2_uv,ierr_uv)
-                         obserr(5,k)=max(obserr(5,k),werrmin)
+                      obserr(5,k)=(one-del_uv)*etabl_uv(itypex,k1_uv,ierr_uv)+del_uv*etabl_uv(itypex,k2_uv,ierr_uv)
+                      obserr(5,k)=max(obserr(5,k),werrmin)
 !Wind b
                       var_jb(5,k)=(one-del_uv)*btabl_uv(itypex,k1_uv,ierr_uv)+del_uv*btabl_uv(itypex,k2_uv,ierr_uv)
                       var_jb(5,k)=max(var_jb(5,k),wjbmin)
@@ -1370,8 +1418,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !                         write(6,*) 'READ_PREPBUFR:220_uv,obserr,var_jb=',obserr(5,k),var_jb(5,k),ppb,k2_uv,del_uv
 !                      endif
                    enddo
-                endif
-                if (pwob)  then
+                else if (pwob)  then
                    itypex=itypey
                    ierr_pw=0
                    do i =1,maxsub_pw
@@ -1615,11 +1662,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               plevs(k)=one_tenth*obsdat(1,k)   ! convert mb to cb
               if (kx == 290) plevs(k)=101.0_r_kind  ! Assume 1010 mb = 101.0 cb
               if (goesctpobs) plevs(k)=goescld(1,k)/1000.0_r_kind ! cloud top pressure in cb
-              pqm(k)=idnint(qcmark(1,k))
-              qqm(k)=idnint(qcmark(2,k))
-              tqm(k)=idnint(qcmark(3,k))
-              wqm(k)=idnint(qcmark(5,k))
-              pmq(k)=idnint(qcmark(8,k))
+              pqm(k)=nint(qcmark(1,k))
+              qqm(k)=nint(qcmark(2,k))
+              tqm(k)=nint(qcmark(3,k))
+              wqm(k)=nint(qcmark(5,k))
+              pmq(k)=nint(qcmark(8,k))
            end do
 
 !          187, 181, and 183 are the screen-level obs over land
@@ -1651,14 +1698,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                           if (tpc(k,j)==glcd) then !found GLERL ob - use that and jump out of events stack
                              obsdat(3,k)=tobaux(1,k,j)
                              qcmark(3,k)=min(tobaux(2,k,j),qcmark_huge)
-                             tqm(k)=idnint(qcmark(3,k))
+                             tqm(k)=nint(qcmark(3,k))
                              exit
                           end if
                        end if
                        if (tpc(k,j)==vtcd) then
                           obsdat(3,k)=tobaux(1,k,j+1)
                           qcmark(3,k)=min(tobaux(2,k,j+1),qcmark_huge)
-                          tqm(k)=idnint(qcmark(3,k))
+                          tqm(k)=nint(qcmark(3,k))
                        end if
                        if (tpc(k,j)>=bmiss) exit              ! end of stack
                     end do
@@ -1716,16 +1763,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               endif
            end if
            LOOP_K_LEVS: do k=1,levs
-                 if( zflag ==-1) then
-                    ppb=obsdat(1,k)*one_tenth
-                 else if(zflag ==1) then
-                    ppb=obsdat(4,k)
-                 endif
-                 if(kx==224 .and. newvad)then
-                    if(mod(k,6)/=0) cycle LOOP_K_LEVS
-                 end if
-
-              icntpnt=icntpnt+1
+              if( zflag ==-1) then
+                 ppb=obsdat(1,k)*one_tenth
+              else if(zflag ==1) then
+                 ppb=obsdat(4,k)
+              endif
+              if(kx==224 .and. newvad)then
+                 if(mod(k,6)/=0) cycle LOOP_K_LEVS
+              end if
 
 !             Extract quality marks
               if(tob)then
@@ -1740,11 +1785,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if(obsdat(2,k) > r0_01_bmiss)cycle loop_k_levs
                  qm=qqm(k)
               else if(pwob) then
-                 pwq=idnint(qcmark(7,k))
+                 pwq=nint(qcmark(7,k))
                  qm=pwq
               else if(sstob) then
                  sstq=100
-                 if (k==1) sstq=idnint(min(sstdat(4,k),qcmark_huge))
+                 if (k==1) sstq=nint(min(sstdat(4,k),qcmark_huge))
                  qm=sstq
               else if(gustob) then
                  gustqm=0
@@ -1800,10 +1845,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               end if
 
               if (psob) then
-                 cat=idnint(min(obsdat(10,k),qcmark_huge))
+                 cat=nint(min(obsdat(10,k),qcmark_huge))
                  if ( cat /=0 ) cycle loop_k_levs
                  if ( obsdat(1,k)< r500) qm=100
-                 zqm=idnint(qcmark(4,k))
+                 zqm=nint(qcmark(4,k))
                  if (zqm>=lim_zqm .and. zqm/=15 .and. zqm/=9) qm=9
               endif
 
@@ -1813,7 +1858,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             extract aircraft profile information
               if (aircraft_t_bc .and. acft_profl_file) then
-                 if (idnint(obsdat(10,k))==7) cycle LOOP_K_LEVS
+                 if (nint(obsdat(10,k))==7) cycle LOOP_K_LEVS
                  if(abs(hdr3(2,k))>r90 .or. abs(hdr3(1,k))>r360) cycle LOOP_K_LEVS
                  if(hdr3(1,k)== r360)hdr3(1,k)=hdr3(1,k)-r360
                  if(hdr3(1,k) < zero)hdr3(1,k)=hdr3(1,k)+r360
@@ -1950,19 +1995,23 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               endif
 !             Set usage variable              
               usage = zero
-              if(icuse(nc) <= 0)usage=100._r_kind
-              if(qm == 15 .or. qm == 12 .or. qm == 9)usage=100._r_kind
-              if(qm >=lim_qm )usage=101._r_kind
-              if(convobs .and. pqm(k) >=lim_qm )usage=102._r_kind
-              if((kx>=192.and.kx<=195) .and. psob )usage=r100
-              if (gustob .and. obsdat(8,k) > r0_1_bmiss) usage=103._r_kind
-              if (visob  .and. obsdat(9,k) > r0_1_bmiss) usage=103._r_kind
-              if (tdob  .and. obsdat(12,k) > r0_1_bmiss) usage=103._r_kind
-              if (pmob  .and. obsdat(13,k) > r0_1_bmiss) usage=103._r_kind
-              if (mxtmob  .and. maxtmint(1,k) > r0_1_bmiss) usage=103._r_kind
-              if (mitmob  .and. maxtmint(2,k) > r0_1_bmiss) usage=103._r_kind
-              if (howvob  .and. owave(1,k) > r0_1_bmiss) usage=103._r_kind
-              if (cldchob  .and. cldceilh(1,k) > r0_1_bmiss) usage=103._r_kind
+              if((gustob .and. obsdat(8,k) > r0_1_bmiss) .or. &
+                      (visob  .and. obsdat(9,k) > r0_1_bmiss) .or. &
+                      (tdob  .and. obsdat(12,k) > r0_1_bmiss) .or. &
+                      (pmob  .and. obsdat(13,k) > r0_1_bmiss) .or. &
+                      (mxtmob  .and. maxtmint(1,k) > r0_1_bmiss) .or. &
+                      (mitmob  .and. maxtmint(2,k) > r0_1_bmiss) .or. &
+                      (howvob  .and. owave(1,k) > r0_1_bmiss) .or. &
+                      (cldchob  .and. cldceilh(1,k) > r0_1_bmiss))then  
+                 usage=103._r_kind
+              else if(convobs .and. pqm(k) >=lim_qm )then
+                 usage=102._r_kind
+              else if(qm >=min(lim_qm,8) )then
+                 usage=101._r_kind
+              else if(icuse(nc) <= 0 .or. &
+                  (kx>=192 .and. kx<=195 .and. psob))then
+                 usage=100._r_kind
+              end if
 
               if (sfctype) then 
                  if (i_gsdsfc_uselist==1 ) then
@@ -1977,18 +2026,18 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  !retrieve wind sensor height
                  if (twodvar_regional)  then
                     if ( kx==288.or.kx==295 .or. (gustob .and. (kx==188.or.kx==195)) )  then
-                       call find_wind_height(c_prvstg,c_sprvstg,windsensht)
+                       call find_wind_height(c_prvstg,c_sprvstg,windsensht,kcount)
                     endif
                  endif
-              endif
-              if (sfctype .and. i_gsdqc==2) then  ! filter bad 2-m dew point and  0 mesonet wind obs
-                 if (kx==288.or.kx==295) then ! for mesonet wind
-                    if(abs(obsdat(5,k))<0.01_r_kind .and. abs(obsdat(6,k))<0.01_r_kind) usage=115._r_kind
-                 endif
-                 if (qob .and. (kx >=180 .and. kx<=189) .and. obsdat(2,k) < 1.0e10_r_kind)  then ! for 2-m dew point
-                    if(obsdat(12,k) < min(-40.0_r_kind,obsdat(3,k)-10.0_r_kind)) usage=116._r_kind     ! < min(-40C or T-Td)                
-                    if((obsdat(3,k)-obsdat(12,k))  >  70.0_r_kind)  usage=117._r_kind ! <70C         
-                    if(obsdat(12,k) > 32.2_r_kind) usage=118._r_kind  ! > 90F
+                 if(i_gsdqc==2) then  ! filter bad 2-m dew point and  0 mesonet wind obs
+                    if (kx==288.or.kx==295) then ! for mesonet wind
+                       if(abs(obsdat(5,k))<0.01_r_kind .and. abs(obsdat(6,k))<0.01_r_kind) usage=115._r_kind
+                    endif
+                    if (qob .and. (kx >=180 .and. kx<=189) .and. obsdat(2,k) < 1.0e10_r_kind)  then ! for 2-m dew point
+                       if(obsdat(12,k) < min(-40.0_r_kind,obsdat(3,k)-10.0_r_kind)) usage=116._r_kind     ! < min(-40C or T-Td)                
+                       if((obsdat(3,k)-obsdat(12,k))  >  70.0_r_kind)  usage=117._r_kind ! <70C        
+                       if(obsdat(12,k) > 32.2_r_kind) usage=118._r_kind  ! > 90F
+                    endif
                  endif
               endif
               ! to-do: should we add qob checks from above for landsfctype too?
@@ -2093,10 +2142,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! Get information from surface file necessary for conventional data here
 
+              if(icuse(nc) < 0)qm = 9
 !             Special block for data thinning - if requested
               if (ithin > 0 .and. ithin <5 .and. usage <100.0_r_kind) then
 !              if (ithin > 0 .and. ithin <5) then
-                 ntmp=ndata  ! counting moved to map3gridS
            
 !                Set data quality index for thinning
                  if (thin4d) then
@@ -2119,46 +2168,27 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
                  if (ptime >zero ) then
                     itime=int((abs(timedif)+three)/ptime)+1
-                     if(itime >ntime) itime=ntime
-                       call map3grids_tm(zflag,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                                       ppb,itime,crit1,ndata,iout,icntpnt,iiout,luse,.false.,.false.)
-                       if (.not. luse) then
-                          if(k==levs) then
-                             cycle loop_readsb
-                          else
-                             cycle LOOP_K_LEVS
-                          endif
-                       endif
-                       if(iiout > 0) isort(iiout)=0
-                       if (ndata > ntmp) then
-                          nodata=nodata+1
-                          if(uvob)nodata=nodata+1
-                       endif
-                       isort(icntpnt)=iout
+                    if(itime >ntime) itime=ntime
+                    call map3grids_m_tm(zflag,save_all,pflag,presl_thin,nlevp, &
+                           dlat_earth,dlon_earth,ppb,itime,crit1,ndata,&
+                           luse,maxobs,rthin,.false.,.false.)
                  else
-                    call map3grids(zflag,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                                  ppb,crit1,ndata,iout,icntpnt,iiout,luse,.false.,.false.)
-                    if (.not. luse) then
-                       if(k==levs) then
-                          cycle loop_readsb
-                       else
-                          cycle LOOP_K_LEVS
-                       endif
-                    endif
-                    if(iiout > 0) isort(iiout)=0
-                    if (ndata > ntmp) then
-                       nodata=nodata+1
-                       if(uvob)nodata=nodata+1
-                    endif
-                    isort(icntpnt)=iout
+                    call map3grids_m(zflag,save_all,pflag,presl_thin,nlevp, &
+                           dlat_earth,dlon_earth,ppb,crit1,ndata,&
+                           luse,maxobs,rthin,.false.,.false.)
                  endif
+                 if (.not. luse) then
+                    if(k==levs) then
+                       cycle loop_readsb
+                    else
+                       cycle LOOP_K_LEVS
+                    endif
+                 endif
+                 if(rthin(ndata))usage=101._r_kind
               else
                  ndata=ndata+1
-                 nodata=nodata+1
-                 if(uvob)nodata=nodata+1
-                 iout=ndata
-                 isort(icntpnt)=iout
               endif
+              iout=ndata
 
               if(ndata > maxobs) then
                  write(6,*)'READ_PREPBUFR:  ***WARNING*** ndata > maxobs for ',obstype
@@ -2176,6 +2206,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               dlnpob=log(plevs(k))  ! ln(pressure in cb)
 
  
+               if(qm >= 8 .or. usage >= 100.0_r_kind)then
+                  rusage(iout)=.false.
+               end if
 !             Temperature
               if(tob) then
                  ppb=obsdat(1,k)
@@ -2820,7 +2853,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                                   hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,ceiling,stnelev)
                     end if
 
-                    if(tcamt_qc==15 .or. tcamt_qc==12 .or. tcamt_qc==9) usage=100._r_kind
                     tcamt_oe=20.0_r_kind
                     if(tcamt_qc==1) tcamt_oe=tcamt_oe*1.25_r_kind 
                     if(tcamt_qc==2) tcamt_oe=tcamt_oe*1.50_r_kind
@@ -2857,7 +2889,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                                   low_cldamt,low_cldamt_qc,mid_cldamt,mid_cldamt_qc, &
                                   hig_cldamt,hig_cldamt_qc,tcamt,lcbas,tcamt_qc,lcbas_qc,ceiling,stnelev)
 
-                    if(lcbas_qc==15 .or. lcbas_qc==12 .or. lcbas_qc==9) usage=100._r_kind
+                    if(lcbas_qc >= 8) usage=100._r_kind
+                    if(usage >= 100.0_r_kind)rusage(iout)=.false.
                     lcbas_oe=4500.0_r_kind
                     if(lcbas_qc==3) lcbas_oe=lcbas_oe*1.25_r_kind
                     if(lcbas_qc==4) lcbas_oe=lcbas_oe*1.5_r_kind
@@ -2964,51 +2997,82 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
         deallocate(presl_thin)
         call del3grids
      endif
-    if (.not.use_all_tm) then
-       deallocate(presl_thin)
+     if(.not.use_all_tm) then
+        deallocate(presl_thin)
         call del3grids_tm
      endif
-
 
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
   deallocate(lmsg,tab,nrep)
+
 ! Close unit to bufr file
   call closbf(lunin)
   close(lunin)
 
 ! Apply hilbert curve for cross validation if requested
 
-    if(lhilbert) &
-       call apply_hilbertcurve(maxobs,obstype,cdata_all(thisobtype_usage,1:maxobs))   
+  if(lhilbert) then
+       call apply_hilbertcurve(ndata,obstype,cdata_all(thisobtype_usage,1:ndata))   
 
-! Write header record and data to output file for further processing
-  allocate(iloc(ndata))
-  icount=0
-  do i=1,maxobs
-     if(isort(i) > 0)then
-       icount=icount+1
-       iloc(icount)=isort(i)
-     end if
-  end do
-  if(ndata /= icount)then
-     write(6,*) ' PREPBUFR: mix up in read_prepbufr ,ndata,icount ',ndata,icount
-     call stop2(50)
-  end if
-  allocate(cdata_out(nreal,ndata))
-  do i=1,ndata
-     itx=iloc(i)
-     do k=1,nreal
-        cdata_out(k,i)=cdata_all(k,itx)
+     do i=1,ndata
+        if(cdata_all(thisobtype_usage,i) >= 100._r_kind) rusage(i) = .false.
      end do
-  end do
-  deallocate(iloc,isort,cdata_all)
+  end if
+
+  nxdata=ndata
+  ndata=0
+  if(nxdata > 0)then
+!    numthin=0
+!    numqc=0
+!    numrem=0
+!    do i=1,maxobs
+!       if(.not. rusage(i))then
+!          numqc=numqc+1
+!       else if(rthin(i))then
+!          numthin=numthin+1
+!       else
+!          numrem=numrem+1
+!       end if
+!    end do
+!    write(6,*) ' prep ',trim(ioctype(nc)),ictype(nc),icsubtype(nc),numall,numrem,numqc,numthin
+!   If thinned data set quality mark to 14
+        !  If flag to not save thinned data is set - compress data
+     do i=1,nxdata
+        !   pmot=0 - all obs - thin obs
+        !   pmot=1 - all obs
+        !   pmot=2 - use obs
+        !   pmot=3 - use obs + thin obs
+                
+        if((pmot == 0 .and. .not. rthin(i)) .or. &
+           (pmot == 1) .or. &
+           (pmot == 2 .and. (rusage(i) .and. .not. rthin(i)))  .or. &
+           (pmot == 3 .and. rusage(i))) then
+    
+           if(rthin(i) .and. iqm > 0)cdata_all(iqm,i)=14
+           if(.not. rusage(i))cdata_all(iuse,i) = max(cdata_all(iuse,i),101.0_r_kind)
+           ndata=ndata+1
+           if(i > ndata)then
+              do k=1,nreal
+                 cdata_all(k,ndata)=cdata_all(k,i)
+              end do
+           end if
+        end if
+     end do
+     if(uvob)then
+        nodata=nodata+2*ndata
+     else
+        nodata=nodata+ndata
+     end if
+  end if
+  deallocate(rusage,rthin)
+
 
 ! the following is gettin the types which will be applied hilbert curve to
 !  estimate the density
 
-  if(obstype == 'uv') then
+  if(obstype == 'uv' .and. ndata > 0) then
      vmin=-10.00_r_kind
      vmax=18000.00_r_kind
      nor=0
@@ -3085,7 +3149,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
         endif
      enddo
 
-     write(6,*),'READ_PREPBUFR:dentrip,pmesh,rmesh,ndata=',dentrip,pmesh,rmesh,ntime_max,ndata
+     write(6,*),'READ_PREPBUFR: itype,dentrip,pmesh,rmesh,ndata=',&
+                 itype,dentrip,pmesh,rmesh,ntime_max,ndata
      if(dentrip >= one .and. pmesh >zero .and. rmesh >zero) then
         allocate(data_hilb(3,ndata,6),index_arr(ndata,ntime_max))
 
@@ -3095,25 +3160,25 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
         index_arr=0
  
         do k=1,ndata
-           ikx=nint(cdata_out(10,k))
+           ikx=nint(cdata_all(10,k))
            if (ikx>0) then
               itype=ictype(ikx)
            else
               itype=0
            endif
            if( itype ==230 .or. itype ==231 .or. itype ==233) then
-              prest=r10*exp(cdata_out(4,k))
+              prest=r10*exp(cdata_all(4,k))
               if (prest <100.0_r_kind) cycle
               if(ithin_conv(ikx) >=5) then
                  if(ptime_conv(ikx) >zero) then
-                    ntime=int(((cdata_out(9,k)-time_offset)+three)/ptime_conv(ikx))+1
+                    ntime=int(((cdata_all(9,k)-time_offset)+three)/ptime_conv(ikx))+1
                  endif
                  if(ntime >ntime_max) ntime=ntime_max
                  if(ntime <0) ntime=1
                  ntype_arr(ntime)=ntype_arr(ntime)+1
                  ndata_hil=ntype_arr(ntime)
-                 data_hilb(1,ndata_hil,ntime)=cdata_out(20,k)
-                 data_hilb(2,ndata_hil,ntime)=cdata_out(19,k)
+                 data_hilb(1,ndata_hil,ntime)=cdata_all(20,k)
+                 data_hilb(2,ndata_hil,ntime)=cdata_all(19,k)
                  prest=prest*100.0_r_kind
                  if(prest >stndrd_atmos_ps) then
                     prest=zero
@@ -3131,7 +3196,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     write(6,*),'READ_PREPBUFR :something is wrong,lat,lon,prest=',&
                                 data_hilb(1,ndata_hil,ntime),&
                                 data_hilb(2,ndata_hil,ntime),&
-                                cdata_out(4,k),data_hilb(3,ndata_hil,ntime)
+                                cdata_all(4,k),data_hilb(3,ndata_hil,ntime)
                  endif
               endif                   
            endif
@@ -3153,12 +3218,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               ndata_hil=0
               deallocate(rlat_hil,rlon_hil,height,wtob)
            endif
-           enddo
+        enddo
         deallocate(data_hilb,index_arr)
      endif
 
      do i=1,ndata
-        cdata_out(26,i)=wght_hilb(i)
+        cdata_all(26,i)=wght_hilb(i)
      enddo
  
      deallocate(wght_hilb)
@@ -3173,26 +3238,24 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   if(metarcldobs .and. ndata > 0) then
      if(i_ens_mean /= 1) then
         maxobs=2000000
-        allocate(cdata_all(nreal,maxobs))
-        call reorg_metar_cloud(cdata_out,nreal,ndata,cdata_all,maxobs,iout)
+        allocate(cdata_out(nreal,maxobs))
+        call reorg_metar_cloud(cdata_all,nreal,ndata,cdata_out,maxobs,iout)
         ndata=iout
-        deallocate(cdata_out)
-        allocate(cdata_out(nreal,ndata))
+        deallocate(cdata_all)
+        allocate(cdata_all(nreal,ndata))
         do i=1,nreal
            do j=1,ndata
-             cdata_out(i,j)=cdata_all(i,j)
+              cdata_all(i,j)=cdata_out(i,j)
            end do
         end do
-        deallocate(cdata_all)
+        deallocate(cdata_out)
      endif
   endif
-  call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
-  write(lunout) cdata_out
+  write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 
- 
-
-  deallocate(cdata_out)
+  deallocate(cdata_all)
   call destroy_rjlists
   call destroy_aircraft_rjlists
   if(i_gsdsfc_uselist==1) call destroy_gsd_sfcuselist
@@ -3208,6 +3271,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      'nvtest,vdisterrmax=',ntest,vdisterrmax
 
   if(print_verbose)write(6,*)'READ_PREPBUFR:  closbf(',lunin,')'
+  if (twodvar_regional .and. (uvob .or. gustob .or. spdob))  then
+    write(6,*) 'kcount values from find wind height = ',kcount
+  end if
+
 
 
 ! End of routine
@@ -3278,7 +3345,7 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
   enddo
 
   do k=1,levs
-     cat(k)=idnint(obsdat(10,k))
+     cat(k)=nint(obsdat(10,k))
   enddo
 
 
@@ -3295,10 +3362,10 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
 
 
   if(kx==120)then
-     pqm(1)=idnint(min(qcmark(1,1),10000.0))
-     qqm(1)=idnint(min(qcmark(2,1),10000.0))
-     tqm(1)=idnint(min(qcmark(3,1),10000.0))
-     zqm(1)=idnint(min(qcmark(4,1),10000.0))
+     pqm(1)=nint(min(qcmark(1,1),10000.0))
+     qqm(1)=nint(min(qcmark(2,1),10000.0))
+     tqm(1)=nint(min(qcmark(3,1),10000.0))
+     zqm(1)=nint(min(qcmark(4,1),10000.0))
      call grdcrd(dpres,levs,prsltmp(1),nsig,-1)
         do k=1,levs
            tvflg(k)=one                               ! initialize as sensible
@@ -3310,10 +3377,10 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
 
         do i=2,levs
            im=i-1
-           pqm(i)=idnint(min(qcmark(1,i),10000.0))
-           qqm(i)=idnint(min(qcmark(2,i),10000.0))
-           tqm(i)=idnint(min(qcmark(3,i),10000.0))
-           zqm(i)=idnint(min(qcmark(4,i),10000.0))
+           pqm(i)=nint(min(qcmark(1,i),10000.0))
+           qqm(i)=nint(min(qcmark(2,i),10000.0))
+           tqm(i)=nint(min(qcmark(3,i),10000.0))
+           zqm(i)=nint(min(qcmark(4,i),10000.0))
            if ( (cat(i)==2 .or. cat(im)==2 .or. cat(i)==5 .or. cat(im)==5) .and. &
            pqm(i)<4 .and.  pqm(im)<4    )then
               ku=dpres(i)-1
@@ -3326,8 +3393,8 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
                     write(6,*)'error in SONDE_EXT levs > 255'
                     return
                  endif
-                 obsdat(1,ll)=dpmdl(k)
-                 qcmark(1,ll)  =max (qcmark(1,i),qcmark(1,im)) !PQM
+                 obsdat(1,ll) = dpmdl(k)
+                 qcmark(1,ll) = max (qcmark(1,i),qcmark(1,im)) !PQM
                  qcmark(2,ll) = bmiss
                  qcmark(3,ll) = bmiss
                  qcmark(4,ll) = bmiss
@@ -3340,21 +3407,21 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
                  wi=(dpobs(im)-prsltmp(k))/(dpobs(im)-dpobs(i))
 !!! find tob, only bogus if both good obs and of the same type (sensible/virtual)
                  if(  tqm(i)<4 .and.  tqm(im)<4 .and. tvflg(i)==tvflg(im) ) then
-                    obsdat(3,ll)=obsdat(3,im)*wim + obsdat(3,i)*wi
-                    drfdat(1,ll)  = drfdat(1,im)*wim + drfdat(1,i)*wi
-                    drfdat(2,ll)  = drfdat(2,im)*wim + drfdat(2,i)*wi
-                    drfdat(3,ll)  = drfdat(3,im)*wim + drfdat(3,i)*wi
-                    qcmark(3,ll)  =max (qcmark(3,i),qcmark(3,im)) !TQM
-                    obserr(3,ll)  =max (obserr(3,i),obserr(3,im))  ! TOE
+                    obsdat(3,ll) = obsdat(3,im)*wim + obsdat(3,i)*wi
+                    drfdat(1,ll) = drfdat(1,im)*wim + drfdat(1,i)*wi
+                    drfdat(2,ll) = drfdat(2,im)*wim + drfdat(2,i)*wi
+                    drfdat(3,ll) = drfdat(3,im)*wim + drfdat(3,i)*wi
+                    qcmark(3,ll) = max (qcmark(3,i),qcmark(3,im)) !TQM
+                    obserr(3,ll) = max (obserr(3,i),obserr(3,im))  ! TOE
                  endif
 !!! find qob
                  if(  qqm(i)<4 .and.  qqm(im)<4  ) then
-                    obsdat(2,ll)=obsdat(2,im)*wim + obsdat(2,i)*wi
-                    drfdat(1,ll)  = drfdat(1,im)*wim + drfdat(1,i)*wi
-                    drfdat(2,ll)  = drfdat(2,im)*wim + drfdat(2,i)*wi
-                    drfdat(3,ll)  = drfdat(3,im)*wim + drfdat(3,i)*wi
-                    qcmark(2,ll)  =max (qcmark(2,i),qcmark(2,im)) !QQM
-                    obserr(2,ll)  =max (obserr(2,i),obserr(2,im))  ! QOE
+                    obsdat(2,ll) = obsdat(2,im)*wim + obsdat(2,i)*wi
+                    drfdat(1,ll) = drfdat(1,im)*wim + drfdat(1,i)*wi
+                    drfdat(2,ll) = drfdat(2,im)*wim + drfdat(2,i)*wi
+                    drfdat(3,ll) = drfdat(3,im)*wim + drfdat(3,i)*wi
+                    qcmark(2,ll) = max (qcmark(2,i),qcmark(2,im)) !QQM
+                    obserr(2,ll) = max (obserr(2,i),obserr(2,im))  ! QOE
                  endif
 !!! define zob
                  if(  zqm(i)<4 .and.  zqm(im)<4  ) then
@@ -3369,14 +3436,14 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
         enddo !levs
 !!!!!!!!! w (not used) !!!!!!!!!!!!!!!!!!!!!!!!!!!
   elseif(kx==220)then
-     pqm(1)=idnint(min(qcmark(1,1),10000.0))
-     wqm(1)=idnint(min(qcmark(5,1),10000.0))
+     pqm(1)=nint(min(qcmark(1,1),10000.0))
+     wqm(1)=nint(min(qcmark(5,1),10000.0))
      call grdcrd(dpres,levs,prsltmp(1),nsig,-1)
      do i=2,levs
         im=i-1
-        wqm(i)=idnint(min(qcmark(5,i),10000.0))
-        zqm(i)=idnint(min(qcmark(4,i),10000.0))
-        pqm(i)=idnint(min(qcmark(1,i),10000.0))
+        wqm(i)=nint(min(qcmark(5,i),10000.0))
+        zqm(i)=nint(min(qcmark(4,i),10000.0))
+        pqm(i)=nint(min(qcmark(1,i),10000.0))
         if(  wqm(i)<4 .and.  wqm(im)<4 .and.  pqm(i)<4 .and.  pqm(im)<4 .and.&
         (cat(i)==2 .or. cat(im)==2 .or. cat(i)==5 .or. cat(im)==5) )then
            ku=dpres(i)-1

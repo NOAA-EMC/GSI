@@ -412,7 +412,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   end if
 
   do i=1,nobs
-     muse(i)=nint(data(iuse,i)) <= jiter
+     muse(i)=nint(data(iuse,i)) <= jiter .and. nint(data(iqc,i)) < 8
   end do
 !  If HD raobs available move prepbufr version to monitor
   if(nhdt > 0)then
@@ -1106,6 +1106,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         my_head%elat= data(ilate,i)
         my_head%elon= data(ilone,i)
 
+        if(npredt <= 0) write(6,*) ' npredt = ',npredt
         allocate(my_head%pred(npredt))
 
 !       Set (i,j,k) indices of guess gridpoint that bound obs location

@@ -49,10 +49,9 @@ subroutine get_gefs_ensperts_dualres
 !$$$ end documentation block
 
   use mpeu_util, only: die
-  use gridmod, only: idsl5
   use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd,oz_univ_static,ntlevs_ens
   use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
-  use constants,only: zero,zero_single,half,fv,rd_over_cp,one,qcmin
+  use constants,only: zero,zero_single,half,fv,one,qcmin
   use mpimod, only: mpi_comm_world,mype,npe
   use kinds, only: r_kind,i_kind,r_single
   use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens,limqens

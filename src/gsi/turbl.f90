@@ -41,7 +41,6 @@ subroutine turbl(uges,vges,pges,tges,oges,zges,termu,termv,termt,jstart,jstop)
   use kinds,only: r_kind,i_kind
   use constants,only: zero,one,two,half,rd_over_g,rd_over_cp,grav
   use gridmod,only: lat2,lon2,nsig,nsig_hlf
-  use turblmod, only: use_pbl
   use turblmod, only: dudz,dvdz,dodz,ri,rf,zi,km,kh,sm,sh
   use turblmod, only: lmix,dudtm,dvdtm,dtdtm,rdzi,rdzl
   use turblmod, only: kar0my20
@@ -70,8 +69,6 @@ subroutine turbl(uges,vges,pges,tges,oges,zges,termu,termv,termt,jstart,jstop)
   real(r_kind) px,rdzik,rdzlk,kmrdz,khrdz,ssq,aux,l0
   integer(i_kind) i,j,k
   
-  if(.not. use_pbl)return
-
   do k=1,nsig_hlf
      do j=jstart,jstop
         do i=1,lat2
