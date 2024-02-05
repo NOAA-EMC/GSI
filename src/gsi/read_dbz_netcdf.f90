@@ -223,9 +223,7 @@ real(r_single) :: elev_nc,firstgate_nc,lat_nc,lon_nc,height_nc
 
 
 real(r_single), allocatable :: azimuth_nc(:),beamwidth_nc(:),azimspacing_nc(:),gatewidth_nc(:)
-real(r_single), allocatable :: nyquist_nc(:),obdata_nc(:,:)
-real(r_single) nyquist_default_nc
-parameter(nyquist_default_nc=50.0_r_kind)
+real(r_single), allocatable :: obdata_nc(:,:)
 !clg
   !                                              !  due to representativeness error associated with the model
   !----------------------------------------------!
@@ -327,7 +325,7 @@ if (ierr /= nf90_noerr) call handle_err(ierr,"height")
 
 !reverse order of dimensions as stated in ncdump:
 allocate(azimuth_nc(numazim_nc),beamwidth_nc(numazim_nc),azimspacing_nc(numazim_nc),gatewidth_nc(numazim_nc))
-allocate(nyquist_nc(numazim_nc),obdata_nc(numgate_nc,numazim_nc))
+allocate(obdata_nc(numgate_nc,numazim_nc))
 
 ierr = NF90_GET_VAR(ncid,varid1,azimuth_nc)
 if (ierr /= nf90_noerr) call handle_err(ierr,"azimuth data")
@@ -607,18 +605,20 @@ strct_in_dbz(v,k)%field(:,:)=obdata_nc(:,:)
   
   !---------------DEALLOCATE ARRAYS-------------!
  
-  deallocate(cdata_all)
-  do v=1,nvol
-     do k=1,nelv
-        deallocate(strct_in_dbz(v,k)%azim)
-        deallocate(strct_in_dbz(v,k)%field)
-     end do
-  end do
-  deallocate(strct_in_dbz)
 
  else  !fileopen
   write(6,*) 'READ_dBZ: ERROR OPENING RADAR REFLECTIVITY FILE: ',trim(infile),' IOSTAT ERROR: ',ierror, ' SKIPPING...'
  end if fileopen
+ deallocate(cdata_all)
+ do v=1,nvol
+    do k=1,nelv
+       deallocate(strct_in_dbz(v,k)%azim)
+       deallocate(strct_in_dbz(v,k)%field)
+    end do
+ end do
+ deallocate(strct_in_dbz)
+ deallocate(obdata_nc,azimuth_nc)
+ deallocate(beamwidth_nc,azimspacing_nc,gatewidth_nc)
 
 end subroutine read_dbz_mrms_netcdf
 
@@ -850,9 +850,7 @@ integer(i_short),allocatable :: pixel_x_nc(:),pixel_y_nc(:)
 
 
 real(r_single), allocatable :: azimuth_nc(:),beamwidth_nc(:),azimspacing_nc(:),gatewidth_nc(:)
-real(r_single), allocatable :: nyquist_nc(:),obdata_nc(:,:),obdata_pixel_nc(:)
-real(r_single) nyquist_default_nc
-parameter(nyquist_default_nc=50.0_r_kind)
+real(r_single), allocatable :: obdata_pixel_nc(:)
 logical l_pixel_unlimited
 integer(i_kind):: ipix
 integer(i_kind)::real_numpixel,start_nc(1),count_nc(1)
@@ -961,7 +959,6 @@ if (ierr /= nf90_noerr) call handle_err(ierr,"height")
 
 !reverse order of dimensions as stated in ncdump:
 allocate(azimuth_nc(numazim_nc),beamwidth_nc(numazim_nc),azimspacing_nc(numazim_nc),gatewidth_nc(numazim_nc))
-allocate(nyquist_nc(numazim_nc),obdata_nc(numgate_nc,numazim_nc))
 allocate(obdata_pixel_nc(num_pixel_nc))
 allocate(pixel_x_nc(num_pixel_nc))
 allocate(pixel_y_nc(num_pixel_nc))
@@ -1263,6 +1260,9 @@ enddo
      end do
   end do
   deallocate(strct_in_dbz)
+  deallocate(azimuth_nc,beamwidth_nc,azimspacing_nc,gatewidth_nc)
+  deallocate(pixel_x_nc)
+  deallocate(pixel_y_nc)
 
  else  !fileopen
   write(6,*) 'READ_dBZ: ERROR OPENING RADAR REFLECTIVITY FILE: ',trim(infile),' IOSTAT ERROR: ',ierror, ' SKIPPING...'

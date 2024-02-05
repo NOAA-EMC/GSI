@@ -84,7 +84,7 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,sis,no
   real(r_kind) :: stnelev
   real(r_kind) :: usage,tsavg,ff10,sfcr,zz
   real(r_kind) :: mxtmoe,mitmoe,oberr,qtflg
-  real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
+  real(r_kind),allocatable,dimension(:,:):: cdata_all
 
   integer(i_kind) :: ikx(100:199) !order number of report type in convinfo file
   integer(i_kind) :: kxall(100:199)
@@ -407,19 +407,11 @@ subroutine read_mitm_mxtm(nread,ndata,nodata,infile,obstype,lunout,gstime,sis,no
   ndata=iout
   nodata=iout
 
-  allocate(cdata_out(nreal,ndata))
-  do i=1,ndata
-     do k=1,nreal
-        cdata_out(k,i)=cdata_all(k,i)
-     end do
-  end do
-
   call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
-  write(lunout) cdata_out
+  write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 
   deallocate(cdata_all)
-  deallocate(cdata_out)
 
   call destroy_rjlists
   if (lhilbert) call destroy_hilbertcurve

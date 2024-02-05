@@ -428,6 +428,7 @@ module hybrid_ensemble_parameters
   real(r_kind),allocatable:: region_lat_ens(:,:),region_lon_ens(:,:)
   real(r_kind),allocatable:: region_dx_ens(:,:),region_dy_ens(:,:)
 
+
 contains
 
 subroutine init_hybrid_ensemble_parameters
