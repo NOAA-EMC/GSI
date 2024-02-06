@@ -56,9 +56,9 @@ module read_l2bufr_mod
   public :: range_max,del_time,l2superob_only,elev_angle_max,del_azimuth
   public :: minnum,del_range,del_elev
 
-  public :: invtllv,radar_sites,radar_box,radar_rmesh,radar_zmesh
+  public :: invtllv,radar_sites,radar_box,radar_rmesh,radar_zmesh,radar_pmot
 
-  integer(i_kind) minnum
+  integer(i_kind) minnum,radar_pmot
   real(r_kind) del_azimuth,del_elev,del_range,del_time,elev_angle_max,range_max,radar_rmesh,radar_zmesh 
   logical l2superob_only,radar_sites,radar_box 
 
@@ -100,6 +100,14 @@ contains
     radar_box=.false. 
     radar_rmesh=10._r_kind 
     radar_zmesh=500._r_kind 
+
+!  radar_pmot of 0,1,2,3 will save different sets of obs output
+!  radar_pmot - all obs - thin obs
+!  radar_pmot - all obs
+!  radar_pmot - use obs
+!  radar_pmot - use obs + thin obs
+
+    radar_pmot = 2
   end subroutine initialize_superob_radar
 
   subroutine radar_bufr_read_all(npe,mype)
@@ -749,6 +757,7 @@ contains
           write(6,*)' nobs_hrbin=',nobs_hrbin1
           write(6,*)' nrange_max=',nrange_max1
        end if
+       deallocate(icount)
 
 !   Prepare to create superobs and write out.
        open(inbufr,file='radar_supobs_from_level2',form='unformatted',iostat=iret)
@@ -946,6 +955,7 @@ contains
        close(inbufr)
        close(inbufr)
     end if
+    deallocate(indx)
     deallocate(bins_work,bins,ibins2)
     if(l2superob_only) then
        call mpi_finalize(ierror)

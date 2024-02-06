@@ -36,7 +36,7 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
 !
   use kinds, only: r_kind,r_double,i_kind
   use constants, only: zero,one,deg2rad,r60inv
-  use convinfo, only: nconvtype,ctwind,icuse,ioctype
+  use convinfo, only: nconvtype,icuse,ioctype
   use gsi_4dvar, only: iwinbgn
   use gridmod, only: tll2xy
   use mod_wrfmass_to_a, only: wrfmass_obs_to_a8
@@ -83,15 +83,14 @@ subroutine read_fed(nread,ndata,nodata,infile,obstype,lunout,twind,sis,nobs)
   integer(i_kind) :: kint_maxloc
   real(r_kind) :: fed_max
   integer(i_kind) :: ndata2
-  integer(i_kind) :: ppp
 
   character(8) station_id
   real(r_double) :: rstation_id
   equivalence(rstation_id,station_id)
 
   integer(i_kind)  ::  maxlvl
-  integer(i_kind)  ::  numlvl,numfed,nmsgmax,maxobs
-  integer(i_kind)  ::  k,iret
+  integer(i_kind)  ::  numfed,maxobs
+  integer(i_kind)  ::  k
 
   real(r_kind),allocatable,dimension(:,:) :: fed3d_column  ! 3D fed in column
   real(r_kind),allocatable,dimension(:)   :: fed3d_hgt     ! fed height 

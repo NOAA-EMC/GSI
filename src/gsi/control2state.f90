@@ -39,15 +39,8 @@ use mpeu_util, only: getindex
 implicit none
 
 private
-public :: do_getprs,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,do_cw_to_hydro
-public :: do_cw_to_hydro_hwrf,nclouds,ngases
 public :: control2state
 public :: control2state_ad
-public :: c2sset
-public :: icpblh,icgust,icvis,icoz,icwspd10m,icw
-public :: ictd2m,icmxtm,icmitm,icpmsl,ichowv
-public :: icsfwter,icvpwter,ictcamt,iclcbas
-public :: iccldch,icuwnd10m,icvwnd10m
 
 logical :: do_getprs,do_normal_rh_to_q,do_tv_to_tsen,do_getuv,do_cw_to_hydro
 logical :: do_cw_to_hydro_hwrf
@@ -221,23 +214,6 @@ do jj=1,nsubwin
       end if
    end if
 
-   if(jj == 1)then
-!    Biases
-      do ii=1,nsclen
-         bval%predr(ii)=xhat%predr(ii)
-      enddo
-
-      do ii=1,npclen
-         bval%predp(ii)=xhat%predp(ii)
-      enddo
-
-      if (ntclen>0) then
-         do ii=1,ntclen
-            bval%predt(ii)=xhat%predt(ii)
-         enddo
-      end if
-   end if
-
 !$omp section
 !  Get pointers to required state variables
    call gsi_bundlegetpointer (sval(jj),'prse',sv_prse,istatus)
@@ -286,14 +262,57 @@ do jj=1,nsubwin
    call gsi_bundlegetvar ( wbundle, 'ps' , sv_ps,  istatus )
 
 !$omp section
-   call gsi_bundlegetpointer (sval(jj),'sst' ,sv_sst, istatus)
-   call gsi_bundlegetvar ( wbundle, 'sst', sv_sst, istatus )
    call gsi_bundlegetpointer (sval(jj),'oz'  ,sv_oz , istatus_oz)  
    if (icoz>0) then
       call gsi_bundlegetvar ( wbundle, 'oz' , sv_oz,  istatus )
    else
       if(istatus_oz==0) sv_oz=zero   
    end if
+
+!  Same one-to-one map for chemistry-vars; take care of them together 
+   if (.not.laeroana_fv3cmaq .and. icvt_cmaq_fv3 == 2) then
+         write(6,*) ' icvt_cmaq_fv3 == 2 but laeroana_fv3cmaq=false stop!!!'
+         call stop2(999)
+   endif
+   if (icvt_cmaq_fv3 == 2) then
+      call amass2aero_tl(sval(jj),wbundle,aeronames_cmaq_fv3,naero_cmaq_fv3)
+   else
+     do ic=1,ngases
+       ! take care gases and aero variables if one to one mapping
+       id=getindex(cvars3d,gases(ic))
+       if (id>0) then
+          call gsi_bundlegetpointer (sval(jj),gases(ic),sv_rank3,istatus)
+          call gsi_bundlegetvar     (wbundle, gases(ic),sv_rank3,istatus)
+       endif
+       id=getindex(cvars2d,gases(ic))
+       if (id>0) then
+          call gsi_bundlegetpointer (sval(jj),gases(ic),sv_rank2,istatus)
+          call gsi_bundlegetvar     (wbundle, gases(ic),sv_rank2,istatus)
+       endif
+     enddo
+   end if 
+
+!$omp section
+   if(jj == 1)then
+!    Biases
+      do ii=1,nsclen
+         bval%predr(ii)=xhat%predr(ii)
+      enddo
+
+      do ii=1,npclen
+         bval%predp(ii)=xhat%predp(ii)
+      enddo
+
+      if (ntclen>0) then
+         do ii=1,ntclen
+            bval%predt(ii)=xhat%predt(ii)
+         enddo
+      end if
+   end if
+
+   call gsi_bundlegetpointer (sval(jj),'sst' ,sv_sst, istatus)
+   call gsi_bundlegetvar ( wbundle, 'sst', sv_sst, istatus )
+
    if (icgust>0) then
       call gsi_bundlegetpointer (sval(jj),'gust' ,sv_gust, istatus)
       call gsi_bundlegetvar ( wbundle, 'gust', sv_gust, istatus )
@@ -361,28 +380,6 @@ do jj=1,nsubwin
       call gsi_bundlegetvar ( wbundle, 'vwnd10m', sv_vwnd10m, istatus )
    end if
 
-!  Same one-to-one map for chemistry-vars; take care of them together 
-   if (.not.laeroana_fv3cmaq .and. icvt_cmaq_fv3 == 2) then
-         write(6,*) ' icvt_cmaq_fv3 == 2 but laeroana_fv3cmaq=false stop!!!'
-         call stop2(999)
-   endif
-   if (icvt_cmaq_fv3 == 2) then
-      call amass2aero_tl(sval(jj),wbundle,aeronames_cmaq_fv3,naero_cmaq_fv3)
-   else
-     do ic=1,ngases
-       ! take care gases and aero variables if one to one mapping
-       id=getindex(cvars3d,gases(ic))
-       if (id>0) then
-          call gsi_bundlegetpointer (sval(jj),gases(ic),sv_rank3,istatus)
-          call gsi_bundlegetvar     (wbundle, gases(ic),sv_rank3,istatus)
-       endif
-       id=getindex(cvars2d,gases(ic))
-       if (id>0) then
-          call gsi_bundlegetpointer (sval(jj),gases(ic),sv_rank2,istatus)
-          call gsi_bundlegetvar     (wbundle, gases(ic),sv_rank2,istatus)
-       endif
-     enddo
-   end if 
 
 !$omp end parallel sections
 
@@ -513,7 +510,7 @@ call gsi_bundlegetpointer (xhat%step(1),'cldch',iccldch,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'uwnd10m',icuwnd10m,istatus)
 call gsi_bundlegetpointer (xhat%step(1),'vwnd10m',icvwnd10m,istatus)
 
-c2sset_flg=.false.
+c2sset_flg=.false.  ! set to true in setup.  set to false after first (only) call to c2sset
 return
 end subroutine c2sset
 subroutine control2state_ad(rval,bval,grad)
@@ -678,20 +675,6 @@ do jj=1,nsubwin
        endif
    endif
 
-   if(jj == 1)then
-      do ii=1,nsclen
-        grad%predr(ii)=bval%predr(ii)
-      enddo
-      do ii=1,npclen
-        grad%predp(ii)=bval%predp(ii)
-      enddo
-      if (ntclen>0) then 
-         do ii=1,ntclen
-           grad%predt(ii)=bval%predt(ii)
-         enddo
-      end if
-   end if
-
 !$omp section
 
 !  Get pointers to required control variables
@@ -743,8 +726,6 @@ do jj=1,nsubwin
 
 !$omp section
 
-   call gsi_bundlegetpointer (rval(jj),'sst' ,rv_sst, istatus)
-   call gsi_bundleputvar ( wbundle, 'sst', rv_sst, istatus )
 
 !  call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus)     
    call gsi_bundlegetpointer (rval(jj),'oz'  ,rv_oz , istatus_oz) 
@@ -778,6 +759,24 @@ do jj=1,nsubwin
        endif
      enddo
    end if
+!$omp section
+   if(jj == 1)then
+      do ii=1,nsclen
+        grad%predr(ii)=bval%predr(ii)
+      enddo
+      do ii=1,npclen
+        grad%predp(ii)=bval%predp(ii)
+      enddo
+      if (ntclen>0) then 
+         do ii=1,ntclen
+           grad%predt(ii)=bval%predt(ii)
+         enddo
+      end if
+   end if
+
+   call gsi_bundlegetpointer (rval(jj),'sst' ,rv_sst, istatus)
+   call gsi_bundleputvar ( wbundle, 'sst', rv_sst, istatus )
+
    if (icgust>0) then
       call gsi_bundlegetpointer (rval(jj),'gust' ,rv_gust, istatus)
       call gsi_bundleputvar ( wbundle, 'gust', rv_gust, istatus )
