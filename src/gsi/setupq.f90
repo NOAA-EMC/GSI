@@ -1016,7 +1016,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            my_head => null()
         ENDDO
 
-     endif  ! i_use_2mq4b block
+     endif  ! l_pbl_pseudo_itype
 !!!!!!!!!!!!!!!!!!  PBL pseudo surface obs  !!!!!!!!!!!!!!!!!!!!!!!
 
 ! End of loop over observations

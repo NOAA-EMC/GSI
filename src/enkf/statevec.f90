@@ -159,8 +159,6 @@ if (nproc == 0) then
   print *, 'ns3d: ', ns3d, ', ns2d: ', ns2d, ', nsdim: ', nsdim
 endif
 
-
-
 call getgridinfo(statefileprefixes(nstatefields/2+1), .false.)
 
 end subroutine init_statevec

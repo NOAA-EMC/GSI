@@ -1981,16 +1981,16 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                      pqm(k)=2 ! otherwise, type 183 will be discarded.
                      qm=2
                      tqm(k)=2
-                     if (kx==187) obserr(3,k)=2.0
-                     if (kx==181) obserr(3,k)=2.0
-                     if (kx==183) obserr(3,k)=2.0
+                     if (kx==187) obserr(3,k)=2.0_r_double
+                     if (kx==181) obserr(3,k)=2.0_r_double
+                     if (kx==183) obserr(3,k)=2.0_r_double
                 endif
                 if (qob .and. qm == 9 ) then 
                      qm = 2
                      ! qob err specified as fraction of qsat, multiplied by 10.
-                     if (kx==187) obserr(2,k)=1.0
-                     if (kx==181) obserr(2,k)=1.0
-                     if (kx==183) obserr(2,k)=1.0
+                     if (kx==187) obserr(2,k)=1.0_r_double
+                     if (kx==181) obserr(2,k)=1.0_r_double
+                     if (kx==183) obserr(2,k)=1.0_r_double
                 endif
               endif
 !             Set usage variable              
