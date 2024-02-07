@@ -1669,13 +1669,15 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               pmq(k)=nint(qcmark(8,k))
            end do
 
-!          181, 183, 187, and 188 are the screen-level obs over land
-           global_2m_land = ( (kx==181 .or. kx==183 .or. kx==188 .or. kx==188 ) .and. hofx_2m_sfcfile )
+!          187, 181, and 183 are the screen-level obs over land
+!          note: don't need the hofx_2m_sfcfile if set usage in convinfo, and qm updated in the input file
+           global_2m_land = ( (kx==187 .or. kx==181 .or. kx==183) .and. hofx_2m_sfcfile )
 
 !          If temperature ob, extract information regarding virtual
 !          versus sensible temperature
            if(tob) then
               ! use tvirtual if tsensible flag not set, and not in either 2Dregional or global_2m DA mode
+              ! for now, keeping 2m obs as sensible, for global system.
               if ( (.not. tsensible)  .and. .not. (twodvar_regional .or. global_2m_land) ) then
 
                  do k=1,levs
@@ -1979,18 +1981,17 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                      pqm(k)=2 ! otherwise, type 183 will be discarded.
                      qm=2
                      tqm(k)=2
-                     if (kx==187) obserr(3,k)=2.2
-                     if (kx==181) obserr(3,k)=1.5
-                     if (kx==183) obserr(3,k)=2.6
+                     if (kx==187) obserr(3,k)=2.0_r_double
+                     if (kx==181) obserr(3,k)=2.0_r_double
+                     if (kx==183) obserr(3,k)=2.0_r_double
                 endif
                 if (qob .and. qm == 9 ) then 
                      qm = 2
                      ! qob err specified as fraction of qsat, multiplied by 10.
-                     if (kx==187) obserr(2,k)=1.0
-                     if (kx==181) obserr(2,k)=1.0
-                     if (kx==183) obserr(2,k)=1.0
+                     if (kx==187) obserr(2,k)=1.0_r_double
+                     if (kx==181) obserr(2,k)=1.0_r_double
+                     if (kx==183) obserr(2,k)=1.0_r_double
                 endif
-
               endif
 !             Set usage variable              
               usage = zero
