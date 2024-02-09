@@ -448,7 +448,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   do k=1,nobs
      ikx=nint(data(ikxx,k))
      itype=ictype(ikx)
-     landsfctype =( itype==181 .or. itype==183 .or. itype==187 .or. itype==188 )
+     landsfctype =( itype==181 .or. itype==183 .or. itype==187 )
      do l=k+1,nobs
         if (twodvar_regional .or. (hofx_2m_sfcfile .and. landsfctype) ) then
            duplogic=data(ilat,k) == data(ilat,l) .and.  &
@@ -483,9 +483,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 ! Run a buddy-check
 ! Note: buddy check crashes for hofx_2m_sfcfile option.
-! Ccurrent params have buddy radius of 108 km, max diff of 8 K.
-! The gross error check removes O-F > 7., so this is probably removing
-! most obs that fail the buddy check already
   if (twodvar_regional .and. buddycheck_t) call buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
 
 ! If requested, save select data for output to diagnostic file
