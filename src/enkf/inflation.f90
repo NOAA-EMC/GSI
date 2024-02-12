@@ -77,7 +77,8 @@ use mpeu_util, only: getindex
 use constants, only: one, zero, rad2deg, deg2rad
 use covlocal, only: latval, taper
 use controlvec, only: ncdim, cvars3d, cvars2d, nc3d, nc2d, clevels
-use gridinfo, only: latsgrd, logp, npts, nlevs_pres
+! note: vars2d_landonly currently only defined for gridio_gfs, but smoothing only coded for gfs.
+use gridinfo, only: latsgrd, logp, npts, nlevs_pres, vars2d_landonly
 use loadbal, only: indxproc, numptsperproc, npts_max, anal_chunk, anal_chunk_prior
 use smooth_mod, only: smooth
 
@@ -101,9 +102,10 @@ real(r_single) sprdmin, sprdmax, sprdmaxall, &
 real(r_single),dimension(ndiag) :: sumcoslat,suma,suma2,sumi,sumf,sumitot,sumatot, &
      sumcoslattot,suma2tot,sumftot
 real(r_single) fnanalsml,coslat
-integer(i_kind) i,nn,iunit,ierr,nb,nnlvl,ps_ind
+integer(i_kind) i,nn,iunit,ierr,nb,nnlvl,ps_ind, this_ind, ind
+integer(i_kind), dimension(8) :: soil_index
 character(len=500) filename
-real(r_single), allocatable, dimension(:,:) :: tmp_chunk2,covinfglobal
+real(r_single), allocatable, dimension(:,:) :: tmp_chunk2,covinfglobal,store_presmooth
 real(r_single) r
 
 fnanalsml = one/(real(nanals-1,r_single))
@@ -231,7 +233,33 @@ if (smoothparm .gt. zero) then
    do nn=1,ncdim
      call mpi_allreduce(mpi_in_place,covinfglobal(1,nn),npts,mpi_real4,mpi_sum,mpi_comm_world,ierr)
    enddo
+   ! do not apply smoothing to soil temp. or soil moisture (not globally defined)
+
+   ind = 0
+   do i = 1,8
+       this_ind = getindex(cvars2d, vars2d_landonly(i))
+       if (this_ind>0) then
+            ind=ind+1
+            soil_index(ind)=this_ind
+       endif
+   enddo
+
+   if (ind>0) then
+        allocate(store_presmooth(npts,ind))
+        do i = 1, ind
+           store_presmooth(:,i) = covinfglobal(:,clevels(nc3d)+soil_index(i))
+        enddo
+   endif
+
    call smooth(covinfglobal)
+
+   if (ind>0) then
+        do i = 1, ind
+           covinfglobal(:,clevels(nc3d) + soil_index(i))  = store_presmooth(:,i)
+        enddo
+        deallocate(store_presmooth)
+   endif
+
    where (covinfglobal < covinflatemin) covinfglobal = covinflatemin
    where (covinfglobal > covinflatemax) covinfglobal = covinflatemax
    do i=1,numptsperproc(nproc+1)

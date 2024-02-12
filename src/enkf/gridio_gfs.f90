@@ -926,6 +926,7 @@
         endif  ! use_full_hydro
      enddo
   else if (use_gfs_ncio) then
+     clip=tiny_r_kind
      call read_vardata(dset, 'ugrd', ug3d,errcode=iret)
      if (iret /= 0) then
         print *,'error reading ugrd'
@@ -1203,36 +1204,36 @@
         call copytogrdin(ug,grdin(:,levels(n3d) + soilt4_ind,nb,ne))
      endif
      if (slc1_ind > 0) then
-        call read_vardata(dset_sfc, 'slc1', values_2d, errcode=iret)
+        call read_vardata(dset_sfc, 'soill1', values_2d, errcode=iret)
         if (iret /= 0) then
-                print *,'error reading slc1'
+                print *,'error reading soill1'
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))
         call copytogrdin(ug,grdin(:,levels(n3d) + slc1_ind,nb,ne))
      endif
      if (slc2_ind > 0) then
-        call read_vardata(dset_sfc, 'slc2', values_2d, errcode=iret)
+        call read_vardata(dset_sfc, 'soill2', values_2d, errcode=iret)
         if (iret /= 0) then
-                print *,'error reading slc2'
+                print *,'error reading soill2'
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))
         call copytogrdin(ug,grdin(:,levels(n3d) + slc2_ind,nb,ne))
      endif
      if (slc3_ind > 0) then
-        call read_vardata(dset_sfc, 'slc3', values_2d, errcode=iret)
+        call read_vardata(dset_sfc, 'soill3', values_2d, errcode=iret)
         if (iret /= 0) then
-                print *,'error reading slc3'
+                print *,'error reading soill3'
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))
         call copytogrdin(ug,grdin(:,levels(n3d) + slc3_ind,nb,ne))
      endif
      if (slc4_ind > 0) then
-        call read_vardata(dset_sfc, 'slc4', values_2d, errcode=iret)
+        call read_vardata(dset_sfc, 'soill4', values_2d, errcode=iret)
         if (iret /= 0) then
-                print *,'error reading slc2'
+                print *,'error reading soill4'
                 call stop2(22)
         endif
         ug = reshape(values_2d,(/nlons*nlats/))
@@ -2122,6 +2123,7 @@
   character(nemsio_charkind) :: field
   character(len=nf90_max_name) :: time_units
   logical :: hasfield
+  character(len=max_varname_length), dimension(n3d) :: no_vars3d
 
   real(r_kind) kap,kapr,kap1,clip
   real(r_single) compress_err
@@ -2143,10 +2145,12 @@
 
   call set_ncio_file_flags(vars3d, n3d, vars2d, n2d, write_sfc_file, write_atm_file)
 
-  if (write_sfc_file .and. nproc==0 ) then
+  if (write_sfc_file ) then
         ! adding the sfc increments requires adjusting several other variables. This is done is a separate
         ! program.
-        write(6,*)'gridio/writegriddata: not coded to write sfc analysis, use separate add_incr program instead'
+        if (nproc == 0) write(6,*)'gridio/writegriddata: not coded to write sfc analysis, will write increment for sfc fields'
+        no_vars3d=''
+        call  writeincrement(nanal1,nanal2,no_vars3d,vars2d,n3d,n2d,levels,ndim,grdin,no_inflate_flag)
   endif
 
   nocompress = .true.
@@ -3584,7 +3588,7 @@
   integer :: ql_ind, qi_ind, qr_ind, qs_ind, qg_ind
 
   ! netcdf things
-  integer(i_kind) :: dimids3(3), ncstart(3), nccount(3)
+  integer(i_kind) :: dimids3(3), ncstart(3), nccount(3), dimids2(2) 
   integer(i_kind) :: ncid_out, lon_dimid, lat_dimid, lev_dimid, ilev_dimid
   integer(i_kind) :: lonvarid, latvarid, levvarid, pfullvarid, ilevvarid, &
                      hyaivarid, hybivarid, uvarid, vvarid, delpvarid, delzvarid, &
@@ -3615,7 +3619,6 @@
 
   call set_ncio_file_flags(vars3d, n3d, vars2d, n2d, write_sfc_file, write_atm_file)
 
-  if ( write_atm_file) then
   use_full_hydro = .false.
   clip = tiny_r_kind
   read(datestring,*) iadateout
@@ -3623,6 +3626,7 @@
   ncstart = (/1, 1, 1/)
   nccount = (/nlons, nlats, nlevs/)
 
+  if ( write_atm_file) then
   ne = 0
   ensmemloop: do nanal=nanal1,nanal2
   ne = ne + 1
@@ -3978,20 +3982,21 @@
      ! create dimensions based on analysis resolution, not guess
      call nccheck_incr(nf90_def_dim(ncid_out, "longitude", nlons, lon_dimid))
      call nccheck_incr(nf90_def_dim(ncid_out, "latitude", nlats, lat_dimid))
+     dimids2 = (/ lon_dimid, lat_dimid /)
      ! create variables
      call nccheck_incr(nf90_def_var(ncid_out, "longitude", nf90_real, (/lon_dimid/), lonvarid))
      call nccheck_incr(nf90_def_var(ncid_out, "latitude", nf90_real, (/lat_dimid/), latvarid))
-     call nccheck_incr(nf90_def_var(ncid_out, "tmp2m_inc", nf90_real, dimids3(1:2), tmp2mvarid))
-     call nccheck_incr(nf90_def_var(ncid_out, "spfh2m_inc", nf90_real, dimids3(1:2), spfh2mvarid))
-     call nccheck_incr(nf90_def_var(ncid_out, "soilt1_inc", nf90_real, dimids3(1:2), soilt1varid))
-     call nccheck_incr(nf90_def_var(ncid_out, "soilt2_inc", nf90_real, dimids3(1:2), soilt2varid))
-     call nccheck_incr(nf90_def_var(ncid_out, "soilt3_inc", nf90_real, dimids3(1:2), soilt3varid))
-     call nccheck_incr(nf90_def_var(ncid_out, "soilt4_inc", nf90_real, dimids3(1:2), soilt4varid))
-     call nccheck_incr(nf90_def_var(ncid_out, "slc1_inc", nf90_real, dimids3(1:2), slc1varid))
-     call nccheck_incr(nf90_def_var(ncid_out, "slc2_inc", nf90_real, dimids3(1:2), slc2varid))
-     call nccheck_incr(nf90_def_var(ncid_out, "slc3_inc", nf90_real, dimids3(1:2), slc3varid))
-     call nccheck_incr(nf90_def_var(ncid_out, "slc4_inc", nf90_real, dimids3(1:2), slc4varid))
-     call nccheck_incr(nf90_def_var(ncid_out, "soilsnow_mask", nf90_int, dimids3(1:2), maskvarid))
+     call nccheck_incr(nf90_def_var(ncid_out, "tmp2m_inc", nf90_real, dimids2, tmp2mvarid))
+     call nccheck_incr(nf90_def_var(ncid_out, "spfh2m_inc", nf90_real, dimids2, spfh2mvarid))
+     call nccheck_incr(nf90_def_var(ncid_out, "soilt1_inc", nf90_real, dimids2, soilt1varid))
+     call nccheck_incr(nf90_def_var(ncid_out, "soilt2_inc", nf90_real, dimids2, soilt2varid))
+     call nccheck_incr(nf90_def_var(ncid_out, "soilt3_inc", nf90_real, dimids2, soilt3varid))
+     call nccheck_incr(nf90_def_var(ncid_out, "soilt4_inc", nf90_real, dimids2, soilt4varid))
+     call nccheck_incr(nf90_def_var(ncid_out, "slc1_inc", nf90_real, dimids2, slc1varid))
+     call nccheck_incr(nf90_def_var(ncid_out, "slc2_inc", nf90_real, dimids2, slc2varid))
+     call nccheck_incr(nf90_def_var(ncid_out, "slc3_inc", nf90_real, dimids2, slc3varid))
+     call nccheck_incr(nf90_def_var(ncid_out, "slc4_inc", nf90_real, dimids2, slc4varid))
+     call nccheck_incr(nf90_def_var(ncid_out, "soilsnow_mask", nf90_int, dimids2, maskvarid))
      ! place global attributes to serial calc_increment output
      call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "source", "GSI EnKF"))
      call nccheck_incr(nf90_put_att(ncid_out, nf90_global, "comment", &
@@ -4036,7 +4041,7 @@
      ! note: same logic/threshold used in global_cycle to produce
      ! mask on model grid.
 
-     call read_vardata(dsfg, 'slc1', values_2d, errcode=iret)
+     call read_vardata(dsfg, 'soill1', values_2d, errcode=iret)
 
      mask = 0
      do j=1,nlats

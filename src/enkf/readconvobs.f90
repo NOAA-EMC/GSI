@@ -24,7 +24,6 @@ module readconvobs
 !                       reflectivity and radial velocity assimilation. POC: xuguang.wang@ou.edu
 !   2017-12-13  shlyaeva - added netcdf diag read/write capability
 !   2019-03-21  CAPS(C. Tong) - added direct reflectivity DA capability
-!   2022-03-23  draper - added option to not scale qobs by forecast qsat.
 !
 ! attributes:
 !   language: f95

@@ -136,7 +136,7 @@ endif
 do i = 1, ns2d
   if (getindex(vars2d_supported, svars2d(i))<0) then
     if (nproc .eq. 0) then
-      print *,'Error: 2D variable ', svars2d(i), ' is not supported in current version.'
+      print *,'Error: state 2D variable ', svars2d(i), ' is not supported in current version.'
       print *,'Supported variables: ', vars2d_supported
     endif
     call stop2(502)
@@ -145,7 +145,7 @@ enddo
 do i = 1, ns3d
   if (getindex(vars3d_supported, svars3d(i))<0) then
     if (nproc .eq. 0) then 
-       print *,'Error: 3D variable ', svars3d(i), ' is not supported in current version.'
+       print *,'Error: state 3D variable ', svars3d(i), ' is not supported in current version.'
        print *,'Supported variables: ', vars3d_supported
     endif
     call stop2(502)
