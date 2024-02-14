@@ -10,7 +10,7 @@ local stack_gnu_ver=os.getenv("stack_gnu_ver") or "9.2.0"
 local stack_openmpi_ver=os.getenv("stack_openmpi_ver") or "4.1.5"
 local cmake_ver=os.getenv("cmake_ver") or "3.23.1"
 local prod_util_ver=os.getenv("prod_util_ver") or "2.1.1"
-local openblas_ver=os.getenv("openblas_ver") or "0.3.19"
+local openblas_ver=os.getenv("openblas_ver") or "0.3.24"
 
 load(pathJoin("stack-gcc", stack_gnu_ver))
 load(pathJoin("stack-openmpi", stack_openmpi_ver))
