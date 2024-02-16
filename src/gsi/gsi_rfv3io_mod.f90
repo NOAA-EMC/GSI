@@ -3964,7 +3964,7 @@ subroutine gsi_fv3ncdf_writeuv(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
     use mod_fv3_lola, only: fv3_ll_to_h,fv3_h_to_ll, &
                             fv3uv2earth,earthuv2fv3
     use netcdf, only: nf90_open,nf90_close,nf90_noerr
-    use netcdf, only: nf90_write,nf90_mpiio,nf90_inq_varid
+    use netcdf, only: nf90_write,nf90_mpiio,nf90_inq_varid,nf90_var_par_access,nf90_collective
     use netcdf, only: nf90_put_var,nf90_get_var
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid
 
@@ -4086,6 +4086,8 @@ subroutine gsi_fv3ncdf_writeuv(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
        else
           call check( nf90_inq_varid(gfile_loc,'u',ugrd_VarId) )
           call check( nf90_inq_varid(gfile_loc,'v',vgrd_VarId) )
+          call check( nf90_var_par_access(gfile_loc, ugrd_VarId, nf90_collective))
+          call check( nf90_var_par_access(gfile_loc, vgrd_VarId, nf90_collective))
           call check( nf90_get_var(gfile_loc,ugrd_VarId,work_bu,start=u_startloc,count=u_countloc) )
           call check( nf90_get_var(gfile_loc,vgrd_VarId,work_bv,start=v_startloc,count=v_countloc) )
        endif
@@ -4206,7 +4208,7 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
     use mod_fv3_lola, only: fv3_ll_to_h,fv3_h_to_ll, &
                             fv3uv2earth,earthuv2fv3
     use netcdf, only: nf90_open,nf90_close,nf90_noerr
-    use netcdf, only: nf90_write, nf90_mpiio,nf90_inq_varid
+    use netcdf, only: nf90_write, nf90_mpiio,nf90_inq_varid,nf90_var_par_access,nf90_collective
     use netcdf, only: nf90_put_var,nf90_get_var
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid
     implicit none
@@ -4228,14 +4230,15 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
     integer(i_kind) inative,ilev,ilevtot
     real(r_kind),allocatable,dimension(:,:,:,:):: worksub
     real(r_kind),allocatable,dimension(:,:):: work_au,work_av
-    real(r_kind),allocatable,dimension(:,:):: work_bu_s,work_bv_s
-    real(r_kind),allocatable,dimension(:,:):: work_bu_w,work_bv_w
+    real(r_kind),allocatable,dimension(:,:,:):: work_bu_s,work_bv_s
+    real(r_kind),allocatable,dimension(:,:,:):: work_bu_w,work_bv_w
     real(r_kind),allocatable,dimension(:,:):: u2d,v2d,workau2,workav2
     real(r_kind),allocatable,dimension(:,:):: workbu_s2,workbv_s2
     real(r_kind),allocatable,dimension(:,:):: workbu_w2,workbv_w2
     integer(i_kind) nlatcase,nloncase,nxcase,nycase
     integer(i_kind) uw_countloc(4),us_countloc(4),uw_startloc(4),us_startloc(4)
     integer(i_kind) vw_countloc(4),vs_countloc(4),vw_startloc(4),vs_startloc(4)
+    integer(i_kind):: kend_native,kbgn_native,kdim_native
 
     mm1=mype+1
     nloncase=grd_uv%nlon
@@ -4257,10 +4260,6 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
 
     allocate( u2d(nlon_regional,nlat_regional)) 
     allocate( v2d(nlon_regional,nlat_regional))
-    allocate( work_bu_s(nlon_regional,nlat_regional+1))
-    allocate( work_bv_s(nlon_regional,nlat_regional+1))
-    allocate( work_bu_w(nlon_regional+1,nlat_regional))
-    allocate( work_bv_w(nlon_regional+1,nlat_regional))
     allocate( work_au(nlatcase,nloncase),work_av(nlatcase,nloncase))
     if(add_saved) allocate( workau2(nlatcase,nloncase),workav2(nlatcase,nloncase))
        allocate( workbu_w2(nlon_regional+1,nlat_regional))
@@ -4269,49 +4268,58 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
        allocate( workbv_s2(nlon_regional,nlat_regional+1))
     filenamein=fv3filenamegin%dynvars
     call check( nf90_open(filenamein,ior(nf90_write, nf90_mpiio),gfile_loc,comm=mpi_comm_world,info=MPI_INFO_NULL) )
+
+    call check( nf90_inq_varid(gfile_loc,'u_s',u_sgrd_VarId) )
+    call check( nf90_var_par_access(gfile_loc, u_sgrd_VarId, nf90_collective))
+    call check( nf90_inq_varid(gfile_loc,'u_w',u_wgrd_VarId) )
+    call check( nf90_var_par_access(gfile_loc, u_wgrd_VarId, nf90_collective))
+    call check( nf90_inq_varid(gfile_loc,'v_s',v_sgrd_VarId) )
+    call check( nf90_var_par_access(gfile_loc, v_sgrd_VarId, nf90_collective))
+    call check( nf90_inq_varid(gfile_loc,'v_w',v_wgrd_VarId) )
+    call check( nf90_var_par_access(gfile_loc, v_wgrd_VarId, nf90_collective))
+    nz=grd_uv%nsig
+    nzp1=nz+1
+    kend_native=nzp1-grd_uv%lnames(1,kbgn)
+    kbgn_native=nzp1-grd_uv%lnames(1,kend)
+    kdim_native=kend_native-kbgn_native+1
+
+    uw_countloc= (/nlon_regional+1,nlat_regional,kdim_native,1/)
+    us_countloc= (/nlon_regional,nlat_regional+1,kdim_native,1/)
+    vw_countloc= (/nlon_regional+1,nlat_regional,kdim_native,1/)
+    vs_countloc= (/nlon_regional,nlat_regional+1,kdim_native,1/)
+      
+    uw_startloc=(/1,1,kbgn_native+1,1/)  !In the coldstart files, there is an extra top level 
+    us_startloc=(/1,1,kbgn_native+1,1/)
+    vw_startloc=(/1,1,kbgn_native+1,1/)
+    vs_startloc=(/1,1,kbgn_native+1,1/)
+    allocate( work_bu_s(nlon_regional,nlat_regional+1,kbgn_native:kend_native))
+    allocate( work_bv_s(nlon_regional,nlat_regional+1,kbgn_native:kend_native))
+    allocate( work_bu_w(nlon_regional+1,nlat_regional,kbgn_native:kend_native))
+    allocate( work_bv_w(nlon_regional+1,nlat_regional,kbgn_native:kend_native))
+
+!!!!!!!!  readin work_b !!!!!!!!!!!!!!!!
+    call check( nf90_get_var(gfile_loc,u_sgrd_VarId,work_bu_s,start=us_startloc,count=us_countloc) )
+    call check( nf90_get_var(gfile_loc,u_wgrd_VarId,work_bu_w,start=uw_startloc,count=uw_countloc) )
+    call check( nf90_get_var(gfile_loc,v_sgrd_VarId,work_bv_s,start=vs_startloc,count=vs_countloc) )
+    call check( nf90_get_var(gfile_loc,v_wgrd_VarId,work_bv_w,start=vw_startloc,count=vw_countloc) )
     do ilevtot=kbgn,kend
       varname=grd_uv%names(1,ilevtot)
       ilev=grd_uv%lnames(1,ilevtot)
-      nz=grd_uv%nsig
-      nzp1=nz+1
       inative=nzp1-ilev
-
-
-
-
-      uw_countloc= (/nlon_regional+1,nlat_regional,1,1/)
-      us_countloc= (/nlon_regional,nlat_regional+1,1,1/)
-      vw_countloc= (/nlon_regional+1,nlat_regional,1,1/)
-      vs_countloc= (/nlon_regional,nlat_regional+1,1,1/)
-      
-      uw_startloc=(/1,1,inative+1,1/)
-      us_startloc=(/1,1,inative+1,1/)
-      vw_startloc=(/1,1,inative+1,1/)
-      vs_startloc=(/1,1,inative+1,1/)
-
 
       work_au=hwork(1,:,:,ilevtot)
       work_av=hwork(2,:,:,ilevtot)
 
 
 
-      call check( nf90_inq_varid(gfile_loc,'u_s',u_sgrd_VarId) )
-      call check( nf90_inq_varid(gfile_loc,'u_w',u_wgrd_VarId) )
-      call check( nf90_inq_varid(gfile_loc,'v_s',v_sgrd_VarId) )
-      call check( nf90_inq_varid(gfile_loc,'v_w',v_wgrd_VarId) )
 
-!!!!!!!!  readin work_b !!!!!!!!!!!!!!!!
-      call check( nf90_get_var(gfile_loc,u_sgrd_VarId,work_bu_s,start=us_startloc,count=us_countloc) )
-      call check( nf90_get_var(gfile_loc,u_wgrd_VarId,work_bu_w,start=uw_startloc,count=uw_countloc) )
-      call check( nf90_get_var(gfile_loc,v_sgrd_VarId,work_bv_s,start=vs_startloc,count=vs_countloc) )
-      call check( nf90_get_var(gfile_loc,v_wgrd_VarId,work_bv_w,start=vw_startloc,count=vw_countloc) )
 
       if(add_saved)then
         do j=1,nlat_regional
-          u2d(:,j)=half * (work_bu_s(:,j)+ work_bu_s(:,j+1))
+          u2d(:,j)=half * (work_bu_s(:,j,inative)+ work_bu_s(:,j+1,inative))
         enddo
         do i=1,nlon_regional
-          v2d(i,:)=half*(work_bv_w(i,:)+work_bv_w(i+1,:))
+          v2d(i,:)=half*(work_bv_w(i,:,inative)+work_bv_w(i+1,:,inative))
         enddo
         call fv3_h_to_ll(u2d,workau2,nlon_regional,nlat_regional,nloncase,nlatcase,grid_reverse_flag)
         call fv3_h_to_ll(v2d,workav2,nlon_regional,nlat_regional,nloncase,nlatcase,grid_reverse_flag)
@@ -4341,40 +4349,40 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
 
 
 
-        work_bu_w(:,:)=work_bu_w(:,:)+workbu_w2(:,:)
-        work_bu_s(:,:)=work_bu_s(:,:)+workbu_s2(:,:)
-        work_bv_w(:,:)=work_bv_w(:,:)+workbv_w2(:,:)
-        work_bv_s(:,:)=work_bv_s(:,:)+workbv_s2(:,:)
+        work_bu_w(:,:,inative)=work_bu_w(:,:,inative)+workbu_w2(:,:)
+        work_bu_s(:,:,inative)=work_bu_s(:,:,inative)+workbu_s2(:,:)
+        work_bv_w(:,:,inative)=work_bv_w(:,:,inative)+workbv_w2(:,:)
+        work_bv_s(:,:,inative)=work_bv_s(:,:,inative)+workbv_s2(:,:)
       else
         call fv3_ll_to_h(work_au(:,:),u2d,nloncase,nlatcase,nlon_regional,nlat_regional,grid_reverse_flag)
         call fv3_ll_to_h(work_av(:,:),v2d,nloncase,nlatcase,nlon_regional,nlat_regional,grid_reverse_flag)
 
         do i=2,nlon_regional
-          work_bu_w(i,:)=half*(u2d(i-1,:)+u2d(i,:))
-          work_bv_w(i,:)=half*(v2d(i-1,:)+v2d(i,:))
+          work_bu_w(i,:,inative)=half*(u2d(i-1,:)+u2d(i,:))
+          work_bv_w(i,:,inative)=half*(v2d(i-1,:)+v2d(i,:))
         enddo
-        work_bu_w(1,:)=u2d(1,:)
-        work_bv_w(1,:)=v2d(1,:)
-        work_bu_w(nlon_regional+1,:)=u2d(nlon_regional,:)
-        work_bv_w(nlon_regional+1,:)=v2d(nlon_regional,:)
+        work_bu_w(1,:,inative)=u2d(1,:)
+        work_bv_w(1,:,inative)=v2d(1,:)
+        work_bu_w(nlon_regional+1,:,inative)=u2d(nlon_regional,:)
+        work_bv_w(nlon_regional+1,:,inative)=v2d(nlon_regional,:)
 
         do j=2,nlat_regional
-          work_bu_s(:,j)=half*(u2d(:,j-1)+u2d(:,j))
-          work_bv_s(:,j)=half*(v2d(:,j-1)+v2d(:,j))
+          work_bu_s(:,j,inative)=half*(u2d(:,j-1)+u2d(:,j))
+          work_bv_s(:,j,inative)=half*(v2d(:,j-1)+v2d(:,j))
         enddo
-        work_bu_s(:,1)=u2d(:,1)
-        work_bv_s(:,1)=v2d(:,1)
-        work_bu_s(:,nlat_regional+1)=u2d(:,nlat_regional)
-        work_bv_s(:,nlat_regional+1)=v2d(:,nlat_regional)
+        work_bu_s(:,1,inative)=u2d(:,1)
+        work_bv_s(:,1,inative)=v2d(:,1)
+        work_bu_s(:,nlat_regional+1,inative)=u2d(:,nlat_regional)
+        work_bv_s(:,nlat_regional+1,inative)=v2d(:,nlat_regional)
 
 
       endif
-
-      call check( nf90_put_var(gfile_loc,u_wgrd_VarId,work_bu_w,start=uw_startloc,count=uw_countloc) )
-      call check( nf90_put_var(gfile_loc,u_sgrd_VarId,work_bu_s,start=us_startloc,count=us_countloc) )
-      call check( nf90_put_var(gfile_loc,v_wgrd_VarId,work_bv_w,start=vw_startloc,count=vw_countloc) )
-      call check( nf90_put_var(gfile_loc,v_sgrd_VarId,work_bv_s,start=vs_startloc,count=vs_countloc) )
     enddo !
+
+    call check( nf90_put_var(gfile_loc,u_wgrd_VarId,work_bu_w,start=uw_startloc,count=uw_countloc) )
+    call check( nf90_put_var(gfile_loc,u_sgrd_VarId,work_bu_s,start=us_startloc,count=us_countloc) )
+    call check( nf90_put_var(gfile_loc,v_wgrd_VarId,work_bv_w,start=vw_startloc,count=vw_countloc) )
+    call check( nf90_put_var(gfile_loc,v_sgrd_VarId,work_bv_s,start=vs_startloc,count=vs_countloc) )
       
     call check( nf90_close(gfile_loc) )
     deallocate(work_bu_w,work_bv_w)
