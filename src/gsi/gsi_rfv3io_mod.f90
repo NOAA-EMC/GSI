@@ -547,7 +547,7 @@ subroutine gsi_rfv3io_get_ens_grid_specs(grid_spec,ierr)
 !
 !$$$ end documentation block
   use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
-  use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
+  use netcdf, only: nf90_nowrite,nf90_mpiio,nf90_inquire,nf90_inquire_dimension
   use netcdf, only: nf90_inquire_variable
   use mpimod, only: mype
   use mod_fv3_lola, only: definecoef_regular_grids
@@ -1312,6 +1312,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
       if(mype == 0) then
         if (allocated(fv3lam_io_dynmetvars2d_nouv)) &
           write(6,*)' fv3lam_io_dynmetvars2d_nouv is ',(trim(fv3lam_io_dynmetvars2d_nouv(i)), i=1,ndynvario2d)
+           call flush(6)
         if (allocated(fv3lam_io_tracermetvars2d_nouv))&
           write(6,*)'fv3lam_io_tracermetvars2d_nouv is ',(trim(fv3lam_io_tracermetvars2d_nouv(i)),i=1,ntracerio2d)
       endif      
@@ -1598,7 +1599,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
          if( fv3sar_bg_opt == 0) then 
             call gsi_fv3ncdf_readuv(grd_fv3lam_uv,ges_u,ges_v,fv3filenamegin(it),.false.)
          else
-            call gsi_fv3ncdf_readuv_v1(grd_fv3lam_uv,ges_u,ges_v,fv3filenamegin(it),.false.)
+           call gsi_fv3ncdf_readuv_v1(grd_fv3lam_uv,ges_u,ges_v,fv3filenamegin(it),.false.)
          endif
 
          if( fv3sar_bg_opt == 0) then 
@@ -2448,7 +2449,7 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin,ens
     use mpimod, only: mpi_comm_world,mpi_rtype,mype,npe,setcomm,mpi_integer,mpi_max
     use mpimod, only:  MPI_INFO_NULL
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
-    use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
+    use netcdf, only: nf90_nowrite,nf90_mpiio,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inquire_variable
     use netcdf, only: nf90_inq_varid
     use mod_fv3_lola, only: fv3_h_to_ll,fv3_h_to_ll_ens
@@ -2527,7 +2528,7 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin,ens
           allocate(gfile_loc_layout(0:fv3_io_layout_y-1))
           do nio=0,fv3_io_layout_y-1
              write(filename_layout,'(a,a,I4.4)') trim(filenamein),'.',nio
-             iret=nf90_open(filename_layout,nf90_nowrite,gfile_loc_layout(nio),comm=mpi_comm_read,info=MPI_INFO_NULL) !clt
+             iret=nf90_open(filename_layout,ior(nf90_nowrite,nf90_mpiio),gfile_loc_layout(nio),comm=mpi_comm_read,info=MPI_INFO_NULL) !clt
              if(iret/=nf90_noerr) then
                 write(6,*)' gsi_fv3ncdf_read: problem opening ',trim(filename_layout),gfile_loc_layout(nio),', Status = ',iret
                 call flush(6)
@@ -2535,7 +2536,7 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin,ens
              endif
           enddo
        else
-          iret=nf90_open(filenamein,nf90_nowrite,gfile_loc,comm=mpi_comm_read,info=MPI_INFO_NULL) !clt
+          iret=nf90_open(filenamein,ior(nf90_nowrite,nf90_mpiio),gfile_loc,comm=mpi_comm_read,info=MPI_INFO_NULL) !clt
           if(iret/=nf90_noerr) then
              write(6,*)' gsi_fv3ncdf_read: problem opening ',trim(filenamein),gfile_loc,', Status = ',iret
              call flush(6)
@@ -2670,10 +2671,10 @@ subroutine gsi_fv3ncdf_read_v1(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin,
 
 
     use kinds, only: r_kind,i_kind
-    use mpimod, only:  mpi_rtype,mpi_comm_world,mype,MPI_INFO_NULL
-    use mpimod, only: mpi_comm_world,mpi_rtype,mype
+    use mpimod, only:  npe,mpi_rtype,mpi_comm_world,mype,MPI_INFO_NULL
+    use mpimod, only: mpi_comm_world,mpi_rtype,mype,setcomm
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
-    use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
+    use netcdf, only: nf90_nowrite,nf90_mpiio,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inquire_variable
     use netcdf, only: nf90_inq_varid
     use mod_fv3_lola, only: fv3_h_to_ll,fv3_h_to_ll_ens
@@ -2699,6 +2700,12 @@ subroutine gsi_fv3ncdf_read_v1(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin,
     integer(i_kind) inative,ilev,ilevtot
     integer(i_kind) gfile_loc,iret
     integer(i_kind) nzp1,mm1
+    
+    integer(i_kind):: iworld,iworld_group,nread,mpi_comm_read,i,ierror
+    integer(i_kind),dimension(npe):: members,members_read,mype_read_rank
+    logical:: procuse
+
+
 
     mm1=mype+1
 
@@ -2711,10 +2718,32 @@ subroutine gsi_fv3ncdf_read_v1(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin,
      nxcase=nx
      nycase=ny
     end if
+    allocate(uu2d(nxcase,nycase))
+
     kbgn=grd_ionouv%kbegin_loc
     kend=grd_ionouv%kend_loc
-    allocate(uu2d(nxcase,nycase))
-    iret=nf90_open(filenamein,nf90_nowrite,gfile_loc,comm=mpi_comm_world,info=MPI_INFO_NULL) !clt
+    procuse = .false.
+    members=-1
+    members_read=-1
+    if (kbgn<=kend) then
+       procuse = .true.
+       members(mm1) = mype
+    endif
+    call mpi_allreduce(members,members_read,npe,mpi_integer,mpi_max,mpi_comm_world,ierror)
+
+    nread=0
+    mype_read_rank=-1
+    do i=1,npe
+       if (members_read(i) >= 0) then
+          nread=nread+1
+          mype_read_rank(nread) = members_read(i)
+       endif
+    enddo
+    
+    call setcomm(iworld,iworld_group,nread,mype_read_rank,mpi_comm_read,ierror)
+
+    if (procuse) then 
+    iret=nf90_open(filenamein,ior(nf90_nowrite,nf90_mpiio),gfile_loc,comm=mpi_comm_read,info=MPI_INFO_NULL) !clt
     if(iret/=nf90_noerr) then
        write(6,*)' gsi_fv3ncdf_read_v1: problem opening ',trim(filenamein),gfile_loc,', Status = ',iret
        call flush(6)
@@ -2751,8 +2780,9 @@ subroutine gsi_fv3ncdf_read_v1(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin,
       end if
         
     enddo ! i
-    call general_grid2sub(grd_ionouv,hwork,cstate_nouv%values)
     iret=nf90_close(gfile_loc)
+    endif
+    call general_grid2sub(grd_ionouv,hwork,cstate_nouv%values)
 
     deallocate (uu2d)
 
@@ -2784,7 +2814,7 @@ subroutine gsi_fv3ncdf_readuv(grd_uv,ges_u,ges_v,fv3filenamegin,ensgrid)
     use kinds, only: r_kind,i_kind
     use mpimod, only: mpi_comm_world,mpi_rtype,mype,mpi_info_null,npe,setcomm,mpi_integer,mpi_max
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
-    use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
+    use netcdf, only: nf90_nowrite,nf90_mpiio,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inquire_variable
     use netcdf, only: nf90_inq_varid
     use mod_fv3_lola, only: fv3_h_to_ll,fv3uv2earth,fv3_h_to_ll_ens,fv3uv2earthens
@@ -2877,7 +2907,7 @@ subroutine gsi_fv3ncdf_readuv(grd_uv,ges_u,ges_v,fv3filenamegin,ensgrid)
              endif
           enddo
        else
-          iret=nf90_open(filenamein,nf90_nowrite,gfile_loc,comm=mpi_comm_read,info=MPI_INFO_NULL) !clt
+          iret=nf90_open(filenamein,ior(nf90_nowrite,nf90_mpiio),gfile_loc,comm=mpi_comm_read,info=MPI_INFO_NULL) !clt
           if(iret/=nf90_noerr) then
              write(6,*)' problem opening6 ',trim(filenamein),', Status = ',iret
              call flush(6)
@@ -3018,9 +3048,10 @@ subroutine gsi_fv3ncdf_readuv_v1(grd_uv,ges_u,ges_v,fv3filenamegin,ensgrid)
 !$$$  end documentation block
     use constants, only:  half
     use kinds, only: r_kind,i_kind
-    use mpimod, only: mpi_comm_world,mpi_rtype,mype,mpi_info_null
+    use mpimod, only: setcomm, npe,mpi_comm_world,mpi_rtype,mype,mpi_info_null
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
-    use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
+    use netcdf, only: nf90_nowrite,nf90_mpiio,nf90_inquire,nf90_inquire_dimension
+    use netcdf, only: nf90_var_par_access,nf90_netcdf4
     use netcdf, only: nf90_inquire_variable
     use netcdf, only: nf90_inq_varid
     use mod_fv3_lola, only: fv3_h_to_ll,fv3_h_to_ll_ens
@@ -3048,8 +3079,11 @@ subroutine gsi_fv3ncdf_readuv_v1(grd_uv,ges_u,ges_v,fv3filenamegin,ensgrid)
     integer(i_kind) j,nzp1,mm1
     integer(i_kind) ilev,ilevtot,inative
     integer(i_kind) nxcase,nycase
-    integer(i_kind) us_countloc(4),us_startloc(4)
-    integer(i_kind) vw_countloc(4),vw_startloc(4)
+    integer(i_kind) us_countloc(3),us_startloc(3)
+    integer(i_kind) vw_countloc(3),vw_startloc(3)
+    integer(i_kind):: iworld,iworld_group,nread,mpi_comm_read,i,ierror
+    integer(i_kind),dimension(npe):: members,members_read,mype_read_rank
+    logical:: procuse
 
     allocate (worksub(2,grd_uv%lat2,grd_uv%lon2,grd_uv%nsig))
     mm1=mype+1
@@ -3066,8 +3100,31 @@ subroutine gsi_fv3ncdf_readuv_v1(grd_uv,ges_u,ges_v,fv3filenamegin,ensgrid)
     kend=grd_uv%kend_loc
     allocate (us2d(nxcase,nycase+1),vw2d(nxcase+1,nycase))
     allocate (uorv2d(nxcase,nycase))
+    procuse = .false.
+    members=-1
+    members_read=-1
+    if (kbgn<=kend) then
+       procuse = .true.
+       members(mm1) = mype
+    endif
+
+    call mpi_allreduce(members,members_read,npe,mpi_integer,mpi_max,mpi_comm_world,ierror)
+
+    nread=0
+    mype_read_rank=-1
+    do i=1,npe
+       if (members_read(i) >= 0) then
+          nread=nread+1
+          mype_read_rank(nread) = members_read(i)
+       endif
+    enddo
+
+    call setcomm(iworld,iworld_group,nread,mype_read_rank,mpi_comm_read,ierror)
+
+    if (procuse) then
+    
     filenamein=fv3filenamegin%dynvars
-    iret=nf90_open(filenamein,nf90_nowrite,gfile_loc,comm=mpi_comm_world,info=MPI_INFO_NULL) !clt
+    iret=nf90_open(filenamein,ior(nf90_netcdf4,ior(nf90_nowrite,nf90_mpiio)),gfile_loc,comm=mpi_comm_read,info=MPI_INFO_NULL) !clt
     if(iret/=nf90_noerr) then
        write(6,*)' gsi_fv3ncdf_read_v1: problem opening ',trim(filenamein),gfile_loc,', Status = ',iret
        call flush(6)
@@ -3087,20 +3144,20 @@ subroutine gsi_fv3ncdf_readuv_v1(grd_uv,ges_u,ges_v,fv3filenamegin,ensgrid)
       nzp1=nz+1
       inative=nzp1-ilev
       if (ensgrid) then
-       us_countloc= (/nlon_regionalens,nlat_regionalens+1,1,1/)
-       vw_countloc= (/nlon_regionalens+1,nlat_regionalens,1,1/)
+       us_countloc= (/nlon_regionalens,nlat_regionalens+1,1/)
+       vw_countloc= (/nlon_regionalens+1,nlat_regionalens,1/)
       else
-       us_countloc= (/nlon_regional,nlat_regional+1,1,1/)
-       vw_countloc= (/nlon_regional+1,nlat_regional,1,1/)
+       us_countloc= (/nlon_regional,nlat_regional+1,1/)
+       vw_countloc= (/nlon_regional+1,nlat_regional,1/)
       end if
-      us_startloc=(/1,1,inative+1,1/)
-      vw_startloc=(/1,1,inative+1,1/)
+      us_startloc=(/1,1,inative+1/)
+      vw_startloc=(/1,1,inative+1/)
 
 
 ! transfor to earth u/v, interpolate to analysis grid, reverse vertical order
-      iret=nf90_inq_varid(gfile_loc,trim(adjustl("u_s")),var_id)
-      
-      iret=nf90_get_var(gfile_loc,var_id,us2d,start=us_startloc,count=us_countloc)
+      call check(nf90_inq_varid(gfile_loc,trim(adjustl("u_s")),var_id))
+           
+      call check(nf90_get_var(gfile_loc,var_id,us2d,start=us_startloc,count=us_countloc))
       iret=nf90_inq_varid(gfile_loc,trim(adjustl("v_w")),var_id)
       iret=nf90_get_var(gfile_loc,var_id,vw2d,start=vw_startloc,count=vw_countloc)
       do j=1,ny
@@ -3122,10 +3179,11 @@ subroutine gsi_fv3ncdf_readuv_v1(grd_uv,ges_u,ges_v,fv3filenamegin,ensgrid)
       end if
           
     enddo ! iilevtoto
+    iret=nf90_close(gfile_loc)
+    endif !procuse
     call general_grid2sub(grd_uv,hwork,worksub) 
     ges_u=worksub(1,:,:,:)
     ges_v=worksub(2,:,:,:)
-    iret=nf90_close(gfile_loc)
     deallocate (us2d,vw2d,worksub)
 
 end subroutine gsi_fv3ncdf_readuv_v1
@@ -3159,7 +3217,7 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
     use mpimod, only: mpi_comm_world,mpi_rtype,mype
     use mpimod, only:  MPI_INFO_NULL
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
-    use netcdf, only: nf90_nowrite,nf90_inquire,nf90_inquire_dimension
+    use netcdf, only: nf90_nowrite,nf90_mpiio,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inquire_variable
     use netcdf, only: nf90_inq_varid
     use gridmod, only: nsig,nlon,nlat
@@ -3242,7 +3300,7 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
              endif
           enddo
        else
-          iret=nf90_open(filenamein,nf90_nowrite,gfile_loc)
+          iret=nf90_open(filenamein,ior(nf90_nowrite,nf90_mpiio),gfile_loc)
           if(iret/=nf90_noerr) then
              write(6,*)' gsi_fv3ncdf_read: problem opening ',trim(filenamein),gfile_loc,', Status = ',iret
              call flush(6)
@@ -4203,7 +4261,7 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
 !$$$ end documentation block
 
     use constants, only: half,zero
-    use mpimod, only:  mpi_rtype,mpi_comm_world,mype,mpi_info_null
+    use mpimod, only:  npe, setcomm,mpi_rtype,mpi_comm_world,mype,mpi_info_null
     use gridmod, only: nlon_regional,nlat_regional
     use mod_fv3_lola, only: fv3_ll_to_h,fv3_h_to_ll, &
                             fv3uv2earth,earthuv2fv3
@@ -4240,6 +4298,11 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
     integer(i_kind) vw_countloc(4),vs_countloc(4),vw_startloc(4),vs_startloc(4)
     integer(i_kind):: kend_native,kbgn_native,kdim_native
 
+
+    integer(i_kind):: iworld,iworld_group,nread,mpi_comm_read,ierror
+    integer(i_kind),dimension(npe):: members,members_read,mype_read_rank
+    logical:: procuse
+
     mm1=mype+1
     nloncase=grd_uv%nlon
     nlatcase=grd_uv%nlat
@@ -4261,13 +4324,43 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
     allocate( u2d(nlon_regional,nlat_regional)) 
     allocate( v2d(nlon_regional,nlat_regional))
     allocate( work_au(nlatcase,nloncase),work_av(nlatcase,nloncase))
+
     if(add_saved) allocate( workau2(nlatcase,nloncase),workav2(nlatcase,nloncase))
-       allocate( workbu_w2(nlon_regional+1,nlat_regional))
-       allocate( workbv_w2(nlon_regional+1,nlat_regional))
-       allocate( workbu_s2(nlon_regional,nlat_regional+1))
-       allocate( workbv_s2(nlon_regional,nlat_regional+1))
+    allocate( workbu_w2(nlon_regional+1,nlat_regional))
+    allocate( workbv_w2(nlon_regional+1,nlat_regional))
+    allocate( workbu_s2(nlon_regional,nlat_regional+1))
+    allocate( workbv_s2(nlon_regional,nlat_regional+1))
     filenamein=fv3filenamegin%dynvars
-    call check( nf90_open(filenamein,ior(nf90_write, nf90_mpiio),gfile_loc,comm=mpi_comm_world,info=MPI_INFO_NULL) )
+
+
+    procuse = .false.
+    members=-1
+    members_read=-1
+    if (kbgn<=kend) then
+       procuse = .true.
+       members(mm1) = mype
+    endif
+
+    call mpi_allreduce(members,members_read,npe,mpi_integer,mpi_max,mpi_comm_world,ierror)
+
+    nread=0
+    mype_read_rank=-1
+    do i=1,npe
+       if (members_read(i) >= 0) then
+          nread=nread+1
+          mype_read_rank(nread) = members_read(i)
+       endif
+    enddo
+
+    call setcomm(iworld,iworld_group,nread,mype_read_rank,mpi_comm_read,ierror)
+
+    if (procuse) then
+
+
+
+
+
+    call check( nf90_open(filenamein,ior(nf90_write, nf90_mpiio),gfile_loc,comm=mpi_comm_read,info=MPI_INFO_NULL) )
 
     call check( nf90_inq_varid(gfile_loc,'u_s',u_sgrd_VarId) )
     call check( nf90_var_par_access(gfile_loc, u_sgrd_VarId, nf90_collective))
@@ -4387,6 +4480,8 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
     call check( nf90_close(gfile_loc) )
     deallocate(work_bu_w,work_bv_w)
     deallocate(work_bu_s,work_bv_s)
+    endif !procuse
+
     deallocate(work_au,work_av,u2d,v2d)
     if(add_saved) deallocate(workau2,workav2)
     if (allocated(workbu_w2)) then
@@ -4811,7 +4906,7 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
 !
 !$$$ end documentation block
 
-    use mpimod, only: mpi_rtype,mpi_comm_world,mype,mpi_info_null
+    use mpimod, only: npe, setcomm,mpi_rtype,mpi_comm_world,mype,mpi_info_null
     use mod_fv3_lola, only: fv3_ll_to_h
     use mod_fv3_lola, only: fv3_h_to_ll
     use netcdf, only: nf90_open,nf90_close
@@ -4838,7 +4933,11 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
     real(r_kind),allocatable,dimension(:,:):: work_b
     real(r_kind),allocatable,dimension(:,:):: workb2,worka2
     character(len=max_varname_length) :: varname,vgsiname
-    integer(i_kind) nlatcase,nloncase,nxcase,nycase,countloc(4),startloc(4)
+    integer(i_kind) nlatcase,nloncase,nxcase,nycase,countloc(3),startloc(3)
+
+    integer(i_kind):: iworld,iworld_group,nread,mpi_comm_read,i,ierror
+    integer(i_kind),dimension(npe):: members,members_read,mype_read_rank
+    logical:: procuse
 
 
     mm1=mype+1
@@ -4854,7 +4953,30 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
     allocate( work_b(nlon_regional,nlat_regional))
     allocate( workb2(nlon_regional,nlat_regional))
     allocate( worka2(nlatcase,nloncase))
-    call check ( nf90_open(filenamein,ior(nf90_netcdf4,ior(nf90_write, nf90_mpiio)),gfile_loc,comm=mpi_comm_world,info=MPI_INFO_NULL)) !clt
+
+    procuse = .false.
+    members=-1
+    members_read=-1
+    if (kbgn<=kend) then
+       procuse = .true.
+       members(mm1) = mype
+    endif
+
+    call mpi_allreduce(members,members_read,npe,mpi_integer,mpi_max,mpi_comm_world,ierror)
+
+    nread=0
+    mype_read_rank=-1
+    do i=1,npe
+       if (members_read(i) >= 0) then
+          nread=nread+1
+          mype_read_rank(nread) = members_read(i)
+       endif
+    enddo
+
+    call setcomm(iworld,iworld_group,nread,mype_read_rank,mpi_comm_read,ierror)
+
+    if (procuse) then
+    call check ( nf90_open(filenamein,ior(nf90_netcdf4,ior(nf90_write, nf90_mpiio)),gfile_loc,comm=mpi_comm_read,info=MPI_INFO_NULL)) !clt
     do ilevtot=kbgn,kend
       vgsiname=grd_ionouv%names(1,ilevtot)
       if(trim(vgsiname)=='amassi') cycle
@@ -4871,8 +4993,8 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
       nz=grd_ionouv%nsig
       nzp1=nz+1
       inative=nzp1-ilev
-      startloc=(/1,1,inative+1,1/)
-      countloc=(/nxcase,nycase,1,1/)
+      startloc=(/1,1,inative+1/)
+      countloc=(/nxcase,nycase,1/)
 
       work_a=hwork(1,:,:,ilevtot)
 
@@ -4901,6 +5023,7 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
       call check( nf90_put_var(gfile_loc,VarId,work_b,start=startloc,count=countloc) )
     enddo  !ilevtot
     call check(nf90_close(gfile_loc))
+    endif
     deallocate(work_b,work_a)
     deallocate(worka2,workb2)
 
@@ -5436,7 +5559,7 @@ subroutine gsi_copy_bundle(bundi,bundo)
     character(len=max_varname_length),dimension(:),allocatable:: target_name_vars3d
     character(len=max_varname_length) ::varname 
     real(r_kind),dimension(:,:,:),pointer:: pvar3d=>NULL()
-    real(r_kind),dimension(:,:,:),pointer:: pvar2d =>NULL()
+    real(r_kind),dimension(:,:),pointer:: pvar2d =>NULL()
     integer(i_kind):: src_nc3d,src_nc2d,target_nc3d,target_nc2d
     integer(i_kind):: ivar,jvar,istatus
     src_nc3d=bundi%n3d
