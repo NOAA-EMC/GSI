@@ -197,6 +197,13 @@ module rapidrefresh_cldsurf_mod
 !                                just the reduced static BE of howv. If to make the analysis of howv
 !                                in hyrbid run is as similar as the analysis of howv in pure 3dvar run, 
 !                                the static BE of howv used in hybrid run needs to be tuned (inflated actually).
+!      corp_gust      - namelist real, static BE of gust (standard error deviation)
+!      hwllp_gust     - namelist real, static BE de-correlation length scale of gust
+!      oerr_gust      - namelist real, observation error of gust
+!      i_gust_3dda    - integer, control the analysis of gust in 3D analysis (either var or hybrid)
+!                          = 0 (gust-off: default) : no analysis of gust in 3D analysis.
+!                          = 1 (gust-on) : if variable name "gust" is found in anavinfo,
+!                                          set it to be 1 to turn on analysis of gust;
 !
 ! attributes:
 !   language: f90
@@ -270,6 +277,8 @@ module rapidrefresh_cldsurf_mod
   public :: i_precip_vertical_check
   public :: corp_howv, hwllp_howv
   public :: i_howv_3dda
+  public :: corp_gust, hwllp_gust, oerr_gust
+  public :: i_gust_3dda
 
   logical l_hydrometeor_bkio
   real(r_kind)  dfi_radar_latent_heat_time_period
@@ -330,6 +339,8 @@ module rapidrefresh_cldsurf_mod
   integer(i_kind)      i_precip_vertical_check
   real(r_kind)      :: corp_howv, hwllp_howv
   integer(i_kind)   :: i_howv_3dda
+  real(r_kind)      :: corp_gust, hwllp_gust, oerr_gust
+  integer(i_kind)   :: i_gust_3dda
 
 contains
 
@@ -447,6 +458,10 @@ contains
     corp_howv           = 0.42_r_kind                 ! 0.42 meters (default)
     hwllp_howv          = 170000.0_r_kind             ! 170,000.0 meters (170km as default for 3DRTMA, 50km is used in 2DRTMA)
     i_howv_3dda         = 0                           ! no analysis of significant wave height (howv) in 3D analysis (default)
+    corp_gust           = -3.00_r_kind                ! default to use the value (3.0 m/s) set in m_berror_stats_reg.f90
+    hwllp_gust          = -170000.0_r_kind            ! default to use the value (same as q)  set in m_berror_stats_reg.f90
+    oerr_gust           = -1.0_r_kind                 ! default to use the value (1.0 m/s) set in read_prepbufr.f90
+    i_gust_3dda         = 0                           ! no analysis of wind gust (gust) in 3D analysis (default)
 
 !-- searching for specific variable in state variable list (reading from anavinfo)
     do i2=1,ns2d
@@ -454,6 +469,12 @@ contains
         i_howv_3dda = 1
         if ( mype == 0 ) then
           write(6,'(1x,A,1x,A8,1x,A,1x,I4)')"init_rapidrefresh_cldsurf: anavinfo svars2d (state variable): ",trim(adjustl(svars2d(i2))), " is found in anavinfo, set i_howv_3dda = ", i_howv_3dda
+        end if
+      end if
+      if ( trim(svars2d(i2))=='gust' .or. trim(svars2d(i2))=='GUST'   ) then
+        i_gust_3dda = 1
+        if ( mype == 0 ) then
+          write(6,'(1x,A,1x,A8,1x,A,1x,I4)')"init_rapidrefresh_cldsurf: anavinfo svars2d (state variable): ",trim(adjustl(svars2d(i2))), " is found in anavinfo, set i_gust_3dda = ", i_gust_3dda
         end if
       end if
     end do ! i2 : looping over 2-D anasv

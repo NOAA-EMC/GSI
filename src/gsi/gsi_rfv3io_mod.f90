@@ -61,7 +61,7 @@ module gsi_rfv3io_mod
   use rapidrefresh_cldsurf_mod, only: i_use_2mq4b,i_use_2mt4b
   use chemmod, only: naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,laeroana_fv3cmaq
   use chemmod, only: naero_smoke_fv3,aeronames_smoke_fv3,laeroana_fv3smoke  
-  use rapidrefresh_cldsurf_mod, only: i_howv_3dda
+  use rapidrefresh_cldsurf_mod, only: i_howv_3dda, i_gust_3dda
 
   implicit none
   public type_fv3regfilenameg
@@ -147,7 +147,7 @@ module gsi_rfv3io_mod
   public :: mype_u,mype_v,mype_t,mype_q,mype_p,mype_oz,mype_ql
   public :: mype_qi,mype_qr,mype_qs,mype_qg,mype_qnr,mype_w
   public :: k_slmsk,k_tsea,k_vfrac,k_vtype,k_stype,k_zorl,k_smc,k_stc
-  public :: k_snwdph,k_f10m,mype_2d,n2d,k_orog,k_psfc,k_t2m,k_q2m,k_howv
+  public :: k_snwdph,k_f10m,mype_2d,n2d,k_orog,k_psfc,k_t2m,k_q2m,k_howv,k_gust
   public :: ijns,ijns2d,displss,displss2d,ijnz,displsz_g
   public :: fv3lam_io_dynmetvars3d_nouv,fv3lam_io_tracermetvars3d_nouv
   public :: fv3lam_io_tracerchemvars3d_nouv,fv3lam_io_tracersmokevars3d_nouv
@@ -158,7 +158,7 @@ module gsi_rfv3io_mod
   integer(i_kind) mype_qi,mype_qr,mype_qs,mype_qg,mype_qnr,mype_w
 
   integer(i_kind) k_slmsk,k_tsea,k_vfrac,k_vtype,k_stype,k_zorl,k_smc,k_stc
-  integer(i_kind) k_snwdph,k_f10m,mype_2d,n2d,k_orog,k_psfc,k_t2m,k_q2m,k_howv
+  integer(i_kind) k_snwdph,k_f10m,mype_2d,n2d,k_orog,k_psfc,k_t2m,k_q2m,k_howv,k_gust
   parameter(                   &  
     k_f10m =1,                  &   !fact10
     k_stype=2,                  &   !soil_type
@@ -174,7 +174,8 @@ module gsi_rfv3io_mod
     k_q2m  =12,                 & ! 2 m Q
     k_orog =13,                 & !terrain
     k_howv =14,                 &   ! significant wave height (aka howv in GSI)
-    n2d=14                   )
+    k_gust =15,                 &   ! wind gust (aka gust in GSI)
+    n2d=15                   )
   logical :: grid_reverse_flag
   character(len=max_varname_length),allocatable,dimension(:) :: fv3lam_io_dynmetvars3d_nouv 
                                     ! copy of cvars3d excluding uv 3-d fields   
@@ -996,6 +997,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
     real(r_kind),dimension(:,:),pointer::ges_t2m=>NULL()
     real(r_kind),dimension(:,:),pointer::ges_q2m=>NULL()
     real(r_kind),dimension(:,:),pointer::ges_howv=>NULL()
+    real(r_kind),dimension(:,:),pointer::ges_gust=>NULL()
 
     real(r_kind),dimension(:,:,:),pointer::ges_ql=>NULL()
     real(r_kind),dimension(:,:,:),pointer::ges_qi=>NULL()
@@ -1276,6 +1278,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
           else if(trim(vartem)=='t2m') then
           else if(trim(vartem)=='q2m') then
           else if(trim(vartem)=='howv') then
+          else if(trim(vartem)=='gust') then
           else 
             write(6,*)'the metvarname2 ',trim(vartem),' has not been considered yet, stop'
             call stop2(333)
@@ -1296,7 +1299,7 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
         vartem=trim(name_metvars2d(i))
         if(.not.( (trim(vartem)=='ps'.and.fv3sar_bg_opt==0).or.(trim(vartem)=="z") &
                   .or.(trim(vartem)=="t2m").or.(trim(vartem)=="q2m")               &
-                  .or.(trim(vartem)=="howv")))  then ! z is treated separately
+                  .or.(trim(vartem)=="howv").or.(trim(vartem)=="gust")))  then ! z is treated separately
           if (ifindstrloc(vardynvars,trim(vartem)) > 0) then
             jdynvar=jdynvar+1
             fv3lam_io_dynmetvars2d_nouv(jdynvar)=trim(vartem)
@@ -1560,6 +1563,12 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
             if (ier/=0) call die(trim(myname),'cannot get pointers for howv, ier=',ier)
          endif
 
+!---     wind gust (gust)
+         if ( i_gust_3dda == 1 ) then
+            call GSI_BundleGetPointer(GSI_MetGuess_Bundle(it),'gust',ges_gust,istatus ); ier=ier+istatus
+            if (ier/=0) call die(trim(myname),'cannot get pointers for gust, ier=',ier)
+         endif
+
          if(mype == 0 ) then
            call check(nf90_open(fv3filenamegin(it)%dynvars,nf90_nowrite,loc_id))
            call check(nf90_inquire(loc_id,formatNum=ncfmt))
@@ -1742,7 +1751,8 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
          endif
 
 
-         call gsi_fv3ncdf2d_read(fv3filenamegin(it),it,ges_z,ges_t2m,ges_q2m,ges_howv)
+         call gsi_fv3ncdf2d_read(fv3filenamegin(it),it,ges_z,ges_t2m,ges_q2m,   &
+                                 ges_howv,ges_gust)
 
          if(i_use_2mq4b > 0 .and. i_use_2mt4b > 0 ) then
 ! Convert 2m guess mixing ratio to specific humidity
@@ -1978,7 +1988,8 @@ end subroutine gsi_bundlegetpointer_fv3lam_tracerchem_nouv
 
 end subroutine read_fv3_netcdf_guess
 
-subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
+subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,          &
+                              ges_howv,ges_gust)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    gsi_fv3ncdf2d_read       
@@ -2025,6 +2036,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
     real(r_kind),               intent(in),dimension(:,:),pointer::ges_t2m
     real(r_kind),               intent(in),dimension(:,:),pointer::ges_q2m
     real(r_kind),               intent(in),dimension(:,:),pointer::ges_howv
+    real(r_kind),               intent(in),dimension(:,:),pointer::ges_gust
     type (type_fv3regfilenameg),intent(in) :: fv3filenamegin
 
     character(len=max_varname_length) :: name
@@ -2039,8 +2051,8 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
     integer(i_kind) kk,n,ns,j,ii,jj,mm1
       character(len=:),allocatable :: sfcdata   !='fv3_sfcdata'
       character(len=:),allocatable :: dynvars   !='fv3_dynvars'
-! for checking the existence of howv in firstguess file
-    integer(i_kind) id_howv
+! for checking the existence of howv/gust in firstguess file
+    integer(i_kind) id_howv, id_gust
     integer(i_kind) iret_bcast
 
 ! for io_layout > 1
@@ -2060,8 +2072,9 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
     allocate(work(itotsub*n2d))
     allocate( sfcn2d(lat2,lon2,n2d))
 
-!-- initialisation of the array for howv
+!-- initialisation of the array for howv/gust
     sfcn2d(:,:,k_howv) = zero
+    sfcn2d(:,:,k_gust) = zero
 
 !-- initialisation of the array for sfc_var_exist 
     sfc_var_exist = .false.
@@ -2110,6 +2123,21 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
              trim(sfcdata), ', iret, varid = ',iret, id_howv,' (on pe: ', mype,').'
          end if
        end if
+!---   check the existence of wind gust (gust) in 2D FV3-LAM firstguess file
+!      (similar as done above for howv)
+       if ( i_gust_3dda == 1 ) then
+         iret = nf90_inq_varid(gfile_loc,'gust',id_gust)
+         if ( iret /= nf90_noerr ) then
+           iret = nf90_inq_varid(gfile_loc,'GUST',id_gust) ! double check with name in uppercase
+         end if
+         if ( iret /= nf90_noerr ) then
+           i_gust_3dda = 0                ! gust does not exist in firstguess, then stop GSI run.
+           call die('gsi_fv3ncdf2d_read','Warning: CANNOT find gust in firstguess, aborting..., iret = ', iret)
+         else
+           write(6,'(1x,A,1x,A,1x,A,1x,I4,1x,I4,1x,A,1x,I4.4,A)') 'gsi_fv3ncdf2d_read:: Found gust in firstguess ',  &
+             trim(sfcdata), ', iret, varid = ',iret, id_gust,' (on pe: ', mype,').'
+         end if
+       end if
 
    !!!!!!!!!!!! read in 2d variables !!!!!!!!!!!!!!!!!!!!!!!!!!
        do i=ndimensions+1,nvariables
@@ -2152,6 +2180,9 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
              sfc_var_exist(k) = .true.
           else if( trim(name)=='HOWV'.or.trim(name)=='howv' ) then
              k=k_howv
+             sfc_var_exist(k) = .true.
+          else if( trim(name)=='GUST'.or.trim(name)=='gust' ) then
+             k=k_gust
              sfc_var_exist(k) = .true.
           else
              cycle 
@@ -2285,8 +2316,9 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
        if(allocated(sfc_fulldomain)) deallocate (sfc_fulldomain)
     endif  ! mype
 
-!-- broadcast the updated i_howv_3dda to all tasks (!!!!)
+!-- broadcast the updated i_howv_3dda, i_gust_3dda to all tasks (!!!!)
     call mpi_bcast(i_howv_3dda, 1, mpi_itype, mype_2d, mpi_comm_world, iret_bcast)
+    call mpi_bcast(i_gust_3dda, 1, mpi_itype, mype_2d, mpi_comm_world, iret_bcast)
 
 !-- broadcast the updated sfc_var_exist to all tasks (!!!!)
     call mpi_bcast(sfc_var_exist, n2d, mpi_itype, mype_2d, mpi_comm_world, iret_bcast)
@@ -2314,6 +2346,9 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
     endif
     if ( i_howv_3dda == 1 ) then
        if ( sfc_var_exist(k_howv)  ) ges_howv(:,:)=sfcn2d(:,:,k_howv)
+    endif
+    if ( i_gust_3dda == 1 ) then
+       if ( sfc_var_exist(k_gust)  ) ges_gust(:,:)=sfcn2d(:,:,k_gust)
     endif
     deallocate (sfcn2d,a)
     return
@@ -3587,6 +3622,7 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     real(r_kind),pointer,dimension(:,:  ):: ges_t2m =>NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_q2m  =>NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_howv =>NULL()
+    real(r_kind),pointer,dimension(:,:  ):: ges_gust =>NULL()
    
     integer(i_kind) i,k
 
@@ -3708,6 +3744,9 @@ subroutine wrfv3_netcdf(fv3filenamegin)
     endif
     if ( i_howv_3dda == 1 ) then
        call GSI_BundleGetPointer (GSI_MetGuess_Bundle(it),'howv',ges_howv,istatus); ier=ier+istatus
+    endif
+    if ( i_gust_3dda == 1 ) then
+       call GSI_BundleGetPointer (GSI_MetGuess_Bundle(it),'gust',ges_gust,istatus); ier=ier+istatus
     endif
     if (ier/=0) call die('wrfv3_netcdf','cannot get pointers for fv3 met-fields, ier =',ier)
 
@@ -3922,6 +3961,10 @@ subroutine wrfv3_netcdf(fv3filenamegin)
 !-- output analysis of howv
     if ( i_howv_3dda == 1 ) then
       call gsi_fv3ncdf_write_sfc(fv3filenamegin,'howv',ges_howv,add_saved)
+    endif
+!-- output analysis of gust
+    if ( i_gust_3dda == 1 ) then
+      call gsi_fv3ncdf_write_sfc(fv3filenamegin,'gust',ges_gust,add_saved)
     endif
 
     if(allocated(g_prsi)) deallocate(g_prsi)
