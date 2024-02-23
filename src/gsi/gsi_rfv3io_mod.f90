@@ -4059,6 +4059,7 @@ subroutine gsi_fv3ncdf_writeuv(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
     integer(i_kind),allocatable :: gfile_loc_layout(:)
     character(len=180)  :: filename_layout
     integer(i_kind):: kend_native,kbgn_native
+    integer(i_kind):: istat
 
     mm1=mype+1
     

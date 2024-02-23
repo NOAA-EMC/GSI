@@ -6,7 +6,8 @@ set -eux
 readonly DIR_ROOT=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}" )" )/.." && pwd -P)
 
 # User Options
-BUILD_TYPE=${BUILD_TYPE:-"Release"}
+#BUILD_TYPE=${BUILD_TYPE:-"Release"}
+BUILD_TYPE=${BUILD_TYPE:-"Debug"}
 CMAKE_OPTS=${CMAKE_OPTS:-}
 COMPILER=${COMPILER:-"intel"}
 BUILD_DIR=${BUILD_DIR:-"${DIR_ROOT}/build"}
@@ -29,7 +30,8 @@ module list
 set -x
 
 # Set CONTROLPATH variable to user develop installation
-CONTROLPATH="$DIR_ROOT/../develop/install/bin"
+#clt CONTROLPATH="$DIR_ROOT/../develop/install/bin"
+CONTROLPATH="/scratch2/NCEPDEV/fv3-cam/Ting.Lei/dr-emc-gsi/GSI/install/bin"
 # Collect BUILD Options
 CMAKE_OPTS+=" -DCMAKE_BUILD_TYPE=$BUILD_TYPE"
 
