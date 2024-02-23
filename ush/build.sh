@@ -29,7 +29,8 @@ module list
 set -x
 
 # Set CONTROLPATH variable to user develop installation
-CONTROLPATH="$DIR_ROOT/../develop/install/bin"
+#clt CONTROLPATH="$DIR_ROOT/../develop/install/bin"
+CONTROLPATH="/scratch2/NCEPDEV/fv3-cam/Ting.Lei/dr-emc-gsi/GSI/install/bin"
 # Collect BUILD Options
 CMAKE_OPTS+=" -DCMAKE_BUILD_TYPE=$BUILD_TYPE"
 
