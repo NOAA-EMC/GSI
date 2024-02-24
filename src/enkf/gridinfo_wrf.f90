@@ -77,6 +77,8 @@ module gridinfo
   ! supported variable names in anavinfo
   character(len=max_varname_length),public, dimension(19) :: vars3d_supported = (/'u   ', 'v   ', 'tv  ', 'q   ', 'w   ', 'cw  ', 'ph  ', 'ql  ', 'qr  ', 'qs  ', 'qg  ', 'qi  ', 'qni ', 'qnr ', 'qnc ', 'dbz ', 'oz  ', 'tsen', 'prse' /)
   character(len=max_varname_length),public, dimension(2)  :: vars2d_supported = (/ 'ps ', 'sst' /)
+  character(len=max_varname_length),public, dimension(8)  :: vars2d_landonly = (/'', '', '', '', '', '', '', '' /)
+
 
 contains
 
