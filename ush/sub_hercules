@@ -129,9 +129,6 @@ echo ". /apps/other/lmod/lmod/init/sh"                     >> $cfile
 echo "module purge"                                        >> $cfile
 echo "module use $modulefiles"                      >> $cfile
 echo "module load gsi_hercules.intel" >> $cfile
-#TODO reenable I_MPI_EXTRA_FILESYSTEM once regional ctests can properly handle parallel I/O on Hercules
-echo "unset I_MPI_EXTRA_FILESYSTEM"         >> $cfile
-echo ""                                                    >> $cfile
 cat $exec >> $cfile
 
 if [[ $nosub = YES ]];then
