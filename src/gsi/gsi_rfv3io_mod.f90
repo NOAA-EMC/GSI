@@ -2239,6 +2239,7 @@ subroutine gsi_fv3ncdf2d_read(fv3filenamegin,it,ges_z,ges_t2m,ges_q2m,ges_howv)
        do k=ndimensions+1,nvariables
           iret=nf90_inquire_variable(gfile_loc,k,name,len)
           if(trim(name)=='PHIS'   .or. trim(name)=='phis'  ) then
+             sfc_var_exist(k_orog) = .true.
              iret=nf90_inquire_variable(gfile_loc,k,ndims=ndim)
              if(fv3_io_layout_y > 1) then
                 do nio=0,fv3_io_layout_y-1
