@@ -191,7 +191,7 @@ subroutine read_control()
 ! read ensemble members on IO tasks
 implicit none
 real(r_double)  :: t1,t2
-integer(i_kind) :: nb,ne
+integer(i_kind) :: nb,nlev,ne
 integer(i_kind) :: q_ind
 integer(i_kind) :: ierr
 
@@ -215,13 +215,19 @@ allocate(grdin(npts,ncdim,nbackgrounds,nanals_per_iotask))
 q_ind = getindex(cvars3d, 'q')
 if (q_ind > 0)  allocate(qsat(npts,nlevs,nbackgrounds,nanals_per_iotask))
 if (paranc) then
-   if (nproc == 0) t1 = mpi_wtime()
+   if (nproc == 0) then
+     print *, 'calling readgriddata_pnc'
+     t1 = mpi_wtime()
+   end if
    call readgriddata_pnc(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,nbackgrounds, &
            fgfileprefixes,fgsfcfileprefixes,reducedgrid,grdin,qsat)
 end if
 if (nproc <= ntasks_io-1) then
    if (.not. paranc) then
-      if (nproc == 0) t1 = mpi_wtime()
+      if (nproc == 0) then
+        print *, 'calling readgriddata'
+        t1 = mpi_wtime()
+      end if
       call readgriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,nbackgrounds, &
            fgfileprefixes,fgsfcfileprefixes,reducedgrid,grdin,qsat)
    end if
@@ -229,7 +235,7 @@ if (nproc <= ntasks_io-1) then
    q_ind = getindex(cvars3d, 'q')
    if (nproc == 0) then
      t2 = mpi_wtime()
-     print *,'time in readgridata on root',t2-t1,'secs'
+     print *,'time in readgridata/readgrid_pnc on root',t2-t1,'secs'
    end if
    if (pseudo_rh .and. q_ind > 0) then
      do ne=1,nanals_per_iotask
@@ -357,7 +363,7 @@ if (paranc) then
      endif
      deallocate(grdin_mean)
      t2 = mpi_wtime()
-     print *,'time in write_control on root',t2-t1,'secs'
+     print *,'time in write_control paranc on root',t2-t1,'secs'
    endif 
 end if
 
