@@ -4655,7 +4655,7 @@ subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3file
     use mod_fv3_lola, only: fv3_h_to_ll
     use netcdf, only: nf90_open,nf90_close
     use netcdf, only: nf90_write,nf90_netcdf4, nf90_mpiio,nf90_inq_varid
-    use netcdf, only: nf90_put_var,nf90_get_var
+    use netcdf, only: nf90_put_var,nf90_get_var,nf90_independent,nf90_var_par_access
     use netcdf, only: nf90_inquire_dimension
     use gsi_bundlemod, only: gsi_bundle
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid
@@ -4778,6 +4778,7 @@ subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3file
           end if
           
           call check( nf90_inq_varid(gfile_loc,trim(varname),VarId) )
+          call check( nf90_var_par_access(gfile_loc, VarId, nf90_independent))
           
           
           if(index(vgsiname,"delzinc") > 0) then
@@ -4914,6 +4915,7 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
     use netcdf, only: nf90_open,nf90_close
     use netcdf, only: nf90_write, nf90_netcdf4,nf90_mpiio,nf90_inq_varid
     use netcdf, only: nf90_put_var,nf90_get_var
+    use netcdf, only: nf90_independent,nf90_var_par_access
     use gsi_bundlemod, only: gsi_bundle
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid
     implicit none
@@ -5002,6 +5004,7 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
 
 
       call check( nf90_inq_varid(gfile_loc,trim(varname),VarId) )
+      call check( nf90_var_par_access(gfile_loc, VarId, nf90_independent))
       call check( nf90_get_var(gfile_loc,VarId,work_b,start=startloc,count=countloc) )
       if(index(vgsiname,"delzinc") > 0) then
         write(6,*)'delz is not in the cold start fiels with this option, incompatible setup , stop'
