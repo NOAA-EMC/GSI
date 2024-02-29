@@ -87,15 +87,14 @@ case $regtest in
     rrfs_3denvar_glbens)
 
         if [[ "$machine" = "Hera" ]]; then
-#cltorg           topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
-           topts[1]="0:15:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
+           topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Orion" ]]; then
            topts[1]="0:15:00" ; popts[1]="20/1/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="20/2/" ; ropts[2]="/2"
         elif [[ "$machine" = "Hercules" ]]; then
            topts[1]="0:15:00" ; popts[1]="20/1/" ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="20/2/" ; ropts[2]="/2"
+           topts[2]="0:15:00" ; popts[2]="10/4/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
            topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
@@ -125,7 +124,7 @@ case $regtest in
            topts[2]="0:15:00" ; popts[2]="20/2/" ; ropts[2]="/2"
         elif [[ "$machine" = "Hercules" ]]; then
            topts[1]="0:15:00" ; popts[1]="20/1/" ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="2/20/" ; ropts[2]="/1"
+           topts[2]="0:15:00" ; popts[2]="10/4/" ; ropts[2]="/1"
         elif [[ "$machine" = "Jet" ]]; then
            topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
@@ -154,7 +153,7 @@ case $regtest in
            topts[2]="0:20:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Hercules" ]]; then
            topts[1]="0:20:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
-           topts[2]="0:20:00" ; popts[2]="4/10/"  ; ropts[2]="/1"
+           topts[2]="0:20:00" ; popts[2]="10/4/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Jet" ]]; then
            topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
@@ -304,7 +303,7 @@ elif [[ "$machine" = "Orion" ]]; then
    export APRUN="srun -n \$ntasks --cpus-per-task=\$threads"
 elif [[ "$machine" = "Hercules" ]]; then
    export OMP_STACKSIZE=2048M
-   export APRUN="srun -n \$ntasks --cpus-per-task=\$threads"
+   export APRUN="srun  -n \$ntasks --mem=0  --cpus-per-task=\$threads"
 elif [[ "$machine" = "Jet" ]]; then
    export OMP_STACKSIZE=1024M
    export MPI_BUFS_PER_PROC=256
