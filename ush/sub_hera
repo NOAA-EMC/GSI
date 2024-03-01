@@ -120,7 +120,7 @@ echo "#SBATCH --output=$output"                                                 
 echo "#SBATCH --job-name=$jobname"                                                 >> $cfile
 echo "#SBATCH --qos=$queue"                                                        >> $cfile
 echo "#SBATCH --time=$timew"                                                       >> $cfile
-echo "#SBATCH --nodes=$nodes --ntasks-per-node=$procs --cpus-per-task=$threads --exclusive"    >> $cfile
+echo "#SBATCH --nodes=$nodes --ntasks-per-node=$procs --exclusive"    >> $cfile
 #echo "#SBATCH -j oe"                                       >> $cfile
 echo "#SBATCH --account=$accnt"                                                    >> $cfile
 #cltorg echo "#SBATCH --mem=0"                                                             >> $cfile
@@ -143,8 +143,6 @@ echo "module list"                                         >> $cfile
 echo "" >>$cfile
 
 cat $exec >> $cfile
-echo 'thinkdeb cat cfile'
-cat $cfile 
 if [[ $nosub = YES ]];then
   cat $cfile
   exit
