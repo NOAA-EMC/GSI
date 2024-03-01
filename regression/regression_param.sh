@@ -87,7 +87,7 @@ case $regtest in
     rrfs_3denvar_glbens)
 
         if [[ "$machine" = "Hera" ]]; then
-           topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
+           topts[1]="0:15:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Orion" ]]; then
            topts[1]="0:15:00" ; popts[1]="10/2/" ; ropts[1]="/1"
