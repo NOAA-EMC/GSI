@@ -119,7 +119,6 @@ echo "export ntasks=$(( $nodes * $procs ))" >> $cfile
 echo "export ppn=$procs"                    >> $cfile
 echo "export threads=$threads"              >> $cfile
 echo "export OMP_NUM_THREADS=$threads"      >> $cfile
-##echo "export OMP_STACKSIZE=2048M"           >> $cfile
 echo "ulimit -s unlimited"                  >> $cfile
 
 echo "" >>$cfile
@@ -129,8 +128,9 @@ echo "" >>$cfile
 echo ". /apps/other/lmod/lmod/init/sh"                     >> $cfile
 echo "module purge"                                        >> $cfile
 echo "module use $modulefiles"                      >> $cfile
-echo "module load gsi_hercules" >> $cfile
-echo "module list"                                         >> $cfile
+echo "module load gsi_hercules.intel" >> $cfile
+#TODO reenable I_MPI_EXTRA_FILESYSTEM once regional ctests can properly handle parallel I/O on Hercules
+echo "unset I_MPI_EXTRA_FILESYSTEM"         >> $cfile
 echo ""                                                    >> $cfile
 cat $exec >> $cfile
 

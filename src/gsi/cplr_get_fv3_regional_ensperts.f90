@@ -430,7 +430,7 @@ contains
            if(.not.l_use_dbz_directDA .and.      if_model_dbz .and. .not.if_model_fed) i_caseflag=2
 
            ! only if_model_fed is true
-           if(.not.l_use_dbz_directDA .and. .not.if_model_dbz .and. .not.if_model_fed) i_caseflag=3
+           if(.not.l_use_dbz_directDA .and. .not.if_model_dbz .and.      if_model_fed) i_caseflag=3
 
            ! l_use_dbz_directDA=.true. and if_model_fed=.true.
            if(l_use_dbz_directDA      .and. .not.if_model_dbz .and.      if_model_fed) i_caseflag=4

@@ -129,7 +129,7 @@ echo "" >>$cfile
 echo ". /apps/lmod/lmod/init/sh"                           >> $cfile
 echo "module purge"                                        >> $cfile
 echo "module use $modulefiles"                      >> $cfile
-echo "module load gsi_orion" >> $cfile
+echo "module load gsi_orion.intel" >> $cfile
 echo "module list"                                         >> $cfile
 echo ""                                                    >> $cfile
 cat $exec >> $cfile

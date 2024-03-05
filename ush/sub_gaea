@@ -129,7 +129,7 @@ echo "" >>$cfile
 
 echo "source /lustre/f2/dev/role.epic/contrib/Lmod_init.sh"  >> $cfile
 echo "module use $modulefiles"                        >> $cfile
-echo "module load gsi_gaea" >> $cfile
+echo "module load gsi_gaea.intel" >> $cfile
 echo "module list"                                           >> $cfile
 echo "" >>$cfile
 

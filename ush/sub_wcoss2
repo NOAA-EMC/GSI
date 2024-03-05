@@ -125,7 +125,7 @@ echo "" >> $cfile
 
 echo "module reset"                         >> $cfile
 echo "module use $modulefiles"              >> $cfile
-echo "module load gsi_wcoss2"               >> $cfile
+echo "module load gsi_wcoss2.intel"               >> $cfile
 echo "module load envvar/1.0"               >> $cfile
 echo "module load cray-pals/1.2.2"          >> $cfile
 echo "module -t list 2>&1 | while read line;do module show $line 2>&1 | sed -n -e '2p';done | sort" >> $cfile
