@@ -1238,7 +1238,6 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
              fv3lam_io_phymetvars3d_nouv(jphyvar)=trim(vartem)
            else
               write(6,*)'the metvarname ',vartem,' is not expected, stop'
-              call flush(6)
               call stop2(333)
            endif
         endif
@@ -1253,7 +1252,6 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
       endif
       if(jdynvar /= ndynvario3d.or.jtracer /= ntracerio3d.or.jphyvar /= nphyvario3d  ) then
           write(6,*)'ndynvario3d is not as expected, stop'
-          call flush(6)
           call stop2(333)
       endif
       if(mype == 0) then
@@ -1312,7 +1310,6 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
       if(mype == 0) then
         if (allocated(fv3lam_io_dynmetvars2d_nouv)) &
           write(6,*)' fv3lam_io_dynmetvars2d_nouv is ',(trim(fv3lam_io_dynmetvars2d_nouv(i)), i=1,ndynvario2d)
-           call flush(6)
         if (allocated(fv3lam_io_tracermetvars2d_nouv))&
           write(6,*)'fv3lam_io_tracermetvars2d_nouv is ',(trim(fv3lam_io_tracermetvars2d_nouv(i)),i=1,ntracerio2d)
       endif      
@@ -1362,7 +1359,6 @@ subroutine read_fv3_netcdf_guess(fv3filenamegin)
            else
               if (trim(vartem) /= "pm2_5")then
                 write(6,*)'the chemvarname ',vartem,' is not in aeronames_smoke_fv3 !!!'
-                call flush(6)
               endif
            endif
         enddo
@@ -2532,7 +2528,6 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin,ens
              iret=nf90_open(filename_layout,ior(nf90_nowrite,nf90_mpiio),gfile_loc_layout(nio),comm=mpi_comm_read,info=MPI_INFO_NULL) !clt
              if(iret/=nf90_noerr) then
                 write(6,*)' gsi_fv3ncdf_read: problem opening ',trim(filename_layout),gfile_loc_layout(nio),', Status = ',iret
-                call flush(6)
                 call stop2(333)
              endif
           enddo
@@ -2540,7 +2535,6 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin,ens
           iret=nf90_open(filenamein,ior(nf90_nowrite,nf90_mpiio),gfile_loc,comm=mpi_comm_read,info=MPI_INFO_NULL) !clt
           if(iret/=nf90_noerr) then
              write(6,*)' gsi_fv3ncdf_read: problem opening ',trim(filenamein),gfile_loc,', Status = ',iret
-             call flush(6)
              call stop2(333)
           endif
        endif
@@ -2555,7 +2549,6 @@ subroutine gsi_fv3ncdf_read(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin,ens
           name=trim(varname)
           if(trim(filenamein) /= trim(filenamein2)) then
              write(6,*)'filenamein and filenamein2 are not the same as expected, stop'
-             call flush(6)
              call stop2(333)
           endif
           ilev=grd_ionouv%lnames(1,ilevtot)
@@ -2747,7 +2740,6 @@ subroutine gsi_fv3ncdf_read_v1(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin,
     iret=nf90_open(filenamein,ior(nf90_nowrite,nf90_mpiio),gfile_loc,comm=mpi_comm_read,info=MPI_INFO_NULL) !clt
     if(iret/=nf90_noerr) then
        write(6,*)' gsi_fv3ncdf_read_v1: problem opening ',trim(filenamein),gfile_loc,', Status = ',iret
-       call flush(6)
        call stop2(333)
     endif
 
@@ -2757,7 +2749,6 @@ subroutine gsi_fv3ncdf_read_v1(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin,
       call getfv3lamfilevname(vgsiname,fv3filenamegin,filenamein2,varname)
       if(trim(filenamein) /= trim(filenamein2)) then
         write(6,*)'filenamein and filenamein2 are not the same as expected, stop'
-        call flush(6)
         call stop2(333)
       endif
       ilev=grd_ionouv%lnames(1,ilevtot)
@@ -2903,7 +2894,6 @@ subroutine gsi_fv3ncdf_readuv(grd_uv,ges_u,ges_v,fv3filenamegin,ensgrid)
              iret=nf90_open(filename_layout,nf90_nowrite,gfile_loc_layout(nio),comm=mpi_comm_read,info=MPI_INFO_NULL)
              if(iret/=nf90_noerr) then
                 write(6,*)'problem opening6 ',trim(filename_layout),gfile_loc_layout(nio),', Status = ',iret
-                call flush(6)
                 call stop2(333)
              endif
           enddo
@@ -2911,7 +2901,6 @@ subroutine gsi_fv3ncdf_readuv(grd_uv,ges_u,ges_v,fv3filenamegin,ensgrid)
           iret=nf90_open(filenamein,ior(nf90_nowrite,nf90_mpiio),gfile_loc,comm=mpi_comm_read,info=MPI_INFO_NULL) !clt
           if(iret/=nf90_noerr) then
              write(6,*)' problem opening6 ',trim(filenamein),', Status = ',iret
-             call flush(6)
              call stop2(333)
           endif
        endif
@@ -2921,7 +2910,6 @@ subroutine gsi_fv3ncdf_readuv(grd_uv,ges_u,ges_v,fv3filenamegin,ensgrid)
           call getfv3lamfilevname(vgsiname,fv3filenamegin,filenamein2,varname)
           if(trim(filenamein) /= trim(filenamein2)) then
              write(6,*)'filenamein and filenamein2 are not the same as expected, stop'
-             call flush(6)
              call stop2(333)
           endif
           ilev=grd_uv%lnames(1,ilevtot)
@@ -3128,7 +3116,6 @@ subroutine gsi_fv3ncdf_readuv_v1(grd_uv,ges_u,ges_v,fv3filenamegin,ensgrid)
     iret=nf90_open(filenamein,ior(nf90_netcdf4,ior(nf90_nowrite,nf90_mpiio)),gfile_loc,comm=mpi_comm_read,info=MPI_INFO_NULL) !clt
     if(iret/=nf90_noerr) then
        write(6,*)' gsi_fv3ncdf_read_v1: problem opening ',trim(filenamein),gfile_loc,', Status = ',iret
-       call flush(6)
        call stop2(333)
     endif
     
@@ -3137,7 +3124,6 @@ subroutine gsi_fv3ncdf_readuv_v1(grd_uv,ges_u,ges_v,fv3filenamegin,ensgrid)
       filenamein2=fv3filenamegin%dynvars
       if(trim(filenamein) /=  trim(filenamein2)) then
         write(6,*)'filenamein and filenamein2 are not the same as expected, stop'
-        call flush(6)
         call stop2(333)
       endif
       ilev=grd_uv%lnames(1,ilevtot)
@@ -3296,7 +3282,6 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
              iret=nf90_open(filename_layout,nf90_nowrite,gfile_loc_layout(nio),comm=mpi_comm_world,info=MPI_INFO_NULL)
              if(iret/=nf90_noerr) then
                 write(6,*)' gsi_fv3ncdf_read: problem opening ',trim(filename_layout),gfile_loc_layout(nio),', Status = ',iret
-                call flush(6)
                 call stop2(333)
              endif
           enddo
@@ -3304,7 +3289,6 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
           iret=nf90_open(filenamein,ior(nf90_nowrite,nf90_mpiio),gfile_loc)
           if(iret/=nf90_noerr) then
              write(6,*)' gsi_fv3ncdf_read: problem opening ',trim(filenamein),gfile_loc,', Status = ',iret
-             call flush(6)
              call stop2(333)
           endif
        endif
@@ -3500,7 +3484,6 @@ subroutine gsi_fv3ncdf_readuv_ens_parallel_over_ens(ges_u,ges_v,fv3filenamegin,i
             iret=nf90_open(filename_layout,nf90_nowrite,gfile_loc_layout(nio),comm=mpi_comm_world,info=MPI_INFO_NULL)
             if(iret/=nf90_noerr) then
                write(6,*)'problem opening ',trim(filename_layout),gfile_loc_layout(nio),', Status = ',iret
-               call flush(6)
                call stop2(333)
             endif
          enddo
@@ -3508,7 +3491,6 @@ subroutine gsi_fv3ncdf_readuv_ens_parallel_over_ens(ges_u,ges_v,fv3filenamegin,i
           iret=nf90_open(filenamein,nf90_nowrite,gfile_loc)
           if(iret/=nf90_noerr) then
              write(6,*)' problem opening ',trim(filenamein),', Status = ',iret
-             call flush(6)
              call stop2(333)
           endif
        endif
@@ -4750,7 +4732,6 @@ subroutine gsi_fv3ncdf_write(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3file
           call getfv3lamfilevname(vgsiname,fv3filenamegin,filenamein2,varname)
           if(trim(filenamein) /= trim(filenamein2)) then
              write(6,*)'filenamein and filenamein2 are not the same as expected, stop'
-             call flush(6)
              call stop2(333)
           endif
           ilev=grd_ionouv%lnames(1,ilevtot)
@@ -4990,7 +4971,6 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
       call getfv3lamfilevname(vgsiname,fv3filenamegin,filenamein2,varname)
       if(trim(filenamein) /= trim(filenamein2)) then
         write(6,*)'filenamein and filenamein2 are not the same as expected, stop'
-        call flush(6)
         call stop2(333)
       endif
       ilev=grd_ionouv%lnames(1,ilevtot)
