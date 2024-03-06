@@ -2673,7 +2673,7 @@ subroutine gsi_fv3ncdf_read_v1(grd_ionouv,cstate_nouv,filenamein,fv3filenamegin,
 
     use kinds, only: r_kind,i_kind
     use mpimod, only:  npe,mpi_rtype,mpi_comm_world,mype,MPI_INFO_NULL
-    use mpimod, only: mpi_comm_world,mpi_rtype,mype,setcomm
+    use mpimod, only: mpi_comm_world,mpi_rtype,mype,setcomm,mpi_integer,mpi_max
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
     use netcdf, only: nf90_nowrite,nf90_mpiio,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_inquire_variable
@@ -3049,7 +3049,7 @@ subroutine gsi_fv3ncdf_readuv_v1(grd_uv,ges_u,ges_v,fv3filenamegin,ensgrid)
 !$$$  end documentation block
     use constants, only:  half
     use kinds, only: r_kind,i_kind
-    use mpimod, only: setcomm, npe,mpi_comm_world,mpi_rtype,mype,mpi_info_null
+    use mpimod, only: setcomm,mpi_integer,mpi_max, npe,mpi_comm_world,mpi_rtype,mype,mpi_info_null
     use netcdf, only: nf90_open,nf90_close,nf90_get_var,nf90_noerr
     use netcdf, only: nf90_nowrite,nf90_mpiio,nf90_inquire,nf90_inquire_dimension
     use netcdf, only: nf90_var_par_access,nf90_netcdf4
@@ -4263,7 +4263,7 @@ subroutine gsi_fv3ncdf_writeuv_v1(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
 !$$$ end documentation block
 
     use constants, only: half,zero
-    use mpimod, only:  npe, setcomm,mpi_rtype,mpi_comm_world,mype,mpi_info_null
+    use mpimod, only:  npe, setcomm,mpi_integer,mpi_max,mpi_rtype,mpi_comm_world,mype,mpi_info_null
     use gridmod, only: nlon_regional,nlat_regional
     use mod_fv3_lola, only: fv3_ll_to_h,fv3_h_to_ll, &
                             fv3uv2earth,earthuv2fv3
@@ -4909,7 +4909,7 @@ subroutine gsi_fv3ncdf_write_v1(grd_ionouv,cstate_nouv,add_saved,filenamein,fv3f
 !
 !$$$ end documentation block
 
-    use mpimod, only: npe, setcomm,mpi_rtype,mpi_comm_world,mype,mpi_info_null
+    use mpimod, only: npe, setcomm,mpi_integer,mpi_max,mpi_rtype,mpi_comm_world,mype,mpi_info_null
     use mod_fv3_lola, only: fv3_ll_to_h
     use mod_fv3_lola, only: fv3_h_to_ll
     use netcdf, only: nf90_open,nf90_close
