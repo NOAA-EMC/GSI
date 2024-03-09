@@ -1319,6 +1319,21 @@ contains
               do i=1,nchanl
                 pred(6,i) = zero
                 pred(7,i) = zero
+                clw_avg = half*(clw_obs+clw_guess_retrieval) * zero
+                if (i > 3 .and. clw_obs > 0.05_r_kind .and. clw_guess_retrieval > 0.05_r_kind .and. &
+                  abs(clw_obs-clw_guess_retrieval) < 0.005_r_kind .and. clw_avg < 0.5_r_kind) cld_rbc_idx2(i) = zero
+                if (i < 5 .and. clw_obs > 0.2_r_kind .and. clw_guess_retrieval > 0.2_r_kind .and. &
+                  abs(clw_obs-clw_guess_retrieval) < 0.005_r_kind .and. clw_avg < 0.5_r_kind) cld_rbc_idx2(i) = zero
+
+                if( i > 3 .and. clw_obs > 0.05_r_kind .and. clw_guess_retrieval > 0.05_r_kind .and. cld_rbc_idx(i) == zero) then
+                   pred(6,i) = clw_avg*clw_avg
+                   pred(7,i) = clw_avg
+                   tbc(i)=tbc(i) - pred(6,i)*predchan(6,i) - pred(7,i)*predchan(7,i)  !obs-ges with bias correction
+                else if( i < 5 .and. clw_obs > 0.2_r_kind .and. clw_guess_retrieval > 0.2_r_kind .and. cld_rbc_idx(i) == zero) then
+                   pred(6,i) = clw_avg*clw_avg
+                   pred(7,i) = clw_avg
+                   tbc(i)=tbc(i) - pred(6,i)*predchan(6,i) - pred(7,i)*predchan(7,i)  !obs-ges with bias correction
+                endif
               enddo
            endif
 
@@ -2704,9 +2719,6 @@ contains
                  if (iuse_rad(ich(ich_diag(i))) < 1) useflag=-one
 
                  call nc_diag_metadata("QC_Flag",sngl(id_qc(ich_diag(i))*useflag))! quality control mark or event indicator
-
-                 call nc_diag_metadata_to_single("clw_index", cld_rbc_idx(ich_diag(i))  )          ! cloud consistancy
-                 call nc_diag_metadata_to_single("clw_index2", cld_rbc_idx2(ich_diag(i))  )          ! cloud consistancy
 
                  call nc_diag_metadata_to_single("Emissivity",emissivity(ich_diag(i))      )           ! surface emissivity
                  call nc_diag_metadata_to_single("Weighted_Lapse_Rate",tlapchn(ich_diag(i))         )           ! stability index
