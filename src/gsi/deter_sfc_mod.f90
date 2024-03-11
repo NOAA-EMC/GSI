@@ -1354,11 +1354,6 @@ subroutine deter_sfc_gmi(dlat_earth,dlon_earth,isflg)
 !                2 sea ice
 !                3 snow
 !                4 mixed
-!      sfcpct(0:3)- percentage of 4 surface types
-!                 (0) - sea percentage
-!                 (1) - land percentage
-!                 (2) - sea ice percentage
-!                 (3) - snow percentage
 !
 ! attributes:
 !   language: f90
@@ -1412,7 +1407,7 @@ subroutine deter_sfc_gmi(dlat_earth,dlon_earth,isflg)
 
 
      grid_dist=rearth * (rlats_sfc(klatp1) - rlats_sfc(klat1))
-     n_grid=int(40 * 1000 / grid_dist) + 1
+     n_grid=int(40000 / grid_dist) + 1
      klatn = max(klat1 - n_grid, 1)
      klonn = klon1 - n_grid
      if (klonn < 0)  klonn = nlon_sfc - klonn
