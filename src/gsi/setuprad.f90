@@ -1298,7 +1298,8 @@ contains
               do i=1,nchanl
                 pred(6,i) = zero
                 pred(7,i) = zero
-                clw_avg = half*(clw_obs+clw_guess_retrieval) * zero
+!               Need to investigate clw_ave = half*(clw_obs+clw_guess_retrieval)
+                clw_avg = zero
                 if (i > 3 .and. clw_obs > 0.05_r_kind .and. clw_guess_retrieval > 0.05_r_kind .and. &
                   abs(clw_obs-clw_guess_retrieval) < 0.005_r_kind .and. clw_avg < 0.5_r_kind) cld_rbc_idx2(i) = zero
                 if (i < 5 .and. clw_obs > 0.2_r_kind .and. clw_guess_retrieval > 0.2_r_kind .and. &
