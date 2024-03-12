@@ -152,7 +152,7 @@
      displs(i+1) = ((lev_pe1(i)-1)*nlons*nlats)
   end do
 
- if (read_atm_file) then  ! read_atm_file ! 1.18.24 want to test only sfc?
+ if (read_atm_file) then  
 
   ! loop through times and do the read
   ne = 1
@@ -498,7 +498,7 @@
 
  end if   !read_atm_file
 
- if (read_sfc_file) then ! sfc read
+ if (read_sfc_file) then 
    ! loop through times and do the read
    ne = 1
    sfcbackgroundloop: do nb=1,ntimes
@@ -507,8 +507,6 @@
    sfcfilename = trim(adjustl(datapath))//trim(adjustl(filesfcprefixes(nb)))//trim(charnanal)
    if (use_gfs_ncio) then
      dset_sfc = open_dataset(sfcfilename, paropen=.true., mpicomm=iocomms(mem_pe(nproc)))
-     !londim = get_dim(dset,'grid_xt'); nlonsin = londim%len
-     !latdim = get_dim(dset,'grid_yt'); nlatsin = latdim%len
    else
      write(6,*)'READGRIDDATA_PNC sfc:  ***FATAL ERROR*** parallel read only supported for netCDF' , ' PROGRAM STOPS'
      call mpi_barrier(mpi_comm_world,ierr)
@@ -631,7 +629,7 @@
    call mpi_barrier(iocomms(mem_pe(nproc)), iret)
 
    end do sfcbackgroundloop ! loop over backgrounds to read in
- end if   !if (read_sfc_file
+ end if   !if (read_sfc_file)
 
   ! remove the sub communicators
   call mpi_barrier(iocomms(mem_pe(nproc)), iret)

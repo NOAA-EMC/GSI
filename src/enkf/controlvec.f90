@@ -215,19 +215,13 @@ allocate(grdin(npts,ncdim,nbackgrounds,nanals_per_iotask))
 q_ind = getindex(cvars3d, 'q')
 if (q_ind > 0)  allocate(qsat(npts,nlevs,nbackgrounds,nanals_per_iotask))
 if (paranc) then
-   if (nproc == 0) then
-     print *, 'calling readgriddata_pnc'
-     t1 = mpi_wtime()
-   end if
+   if (nproc == 0) t1 = mpi_wtime()
    call readgriddata_pnc(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,nbackgrounds, &
            fgfileprefixes,fgsfcfileprefixes,reducedgrid,grdin,qsat)
 end if
 if (nproc <= ntasks_io-1) then
    if (.not. paranc) then
-      if (nproc == 0) then
-        print *, 'calling readgriddata'
-        t1 = mpi_wtime()
-      end if
+      if (nproc == 0) t1 = mpi_wtime()
       call readgriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,nbackgrounds, &
            fgfileprefixes,fgsfcfileprefixes,reducedgrid,grdin,qsat)
    end if
