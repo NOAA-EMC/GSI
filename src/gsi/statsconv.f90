@@ -1591,7 +1591,7 @@ subroutine statsconv(mype,&
          ' number with abs(guess topography-station elevation) > 200m = ',i8)
 920 format(a44,i7)
 924 format(a50)
-925 format(' number of ',a5,' obs that failed gross test = ',I5,' nonlin qc test = ',I5)
+925 format(' number of ',a7,' obs that failed gross test = ',I6,' nonlin qc test = ',I6)
 949 format(' number of ',a5,' obs = ',i7,' pen= ',e25.18,' cpen= ',g13.6)
 950 format(' type ',a7,' jiter ',i3,' nread ',i9,' nkeep ',i7,' num ',i7)
 951 format(' type ',a7,' pen= ',e25.18,' qcpen= ',e25.18,' r= ',g13.6,' qcr= ',g13.6)

@@ -51,17 +51,14 @@ cyca=`echo $global_adate | cut -c9-10`
 PDYg=`echo $gdate | cut -c1-8`
 cycg=`echo $gdate | cut -c9-10`
 
-dumpobs=gdas
-prefix_obs=${dumpobs}.t${cyca}z
-prefix_ges=gdas.t${cycg}z
-prefix_ens=gdas.t${cycg}z
+prefix_obs=enkfgdas.t${cyca}z
+prefix_ens=enkfgdas.t${cycg}z
 suffix=tm00.bufr_d
 
 dumpges=gdas
 COMROOTgfs=$casesdir/gfs/prod
-datobs=$COMROOTgfs/enkfgdas.$PDYa/${cyca}/atmos
-datges=$COMROOTgfs/$dumpges.$PDYg/${cycg}/atmos
-datens=$COMROOTgfs/enkfgdas.$PDYg/${cycg}/atmos
+datobs=$COMROOTgfs/enkfgdas.$PDYa/${cyca}/ensstat/analysis/atmos
+datens=$COMROOTgfs/enkfgdas.$PDYg/${cycg}
 
 
 # Set up $tmpdir
@@ -166,19 +163,19 @@ nfhrs=`echo $IAUFHRS_ENKF | sed 's/,/ /g'`
 for fhr in $nfhrs; do
     for imem in $(seq 1 $NMEM_ENKF); do
 	memchar="mem"$(printf %03i $imem)
-	$nln $datens/$memchar/${prefix_ens}.atmf00${fhr}.nc sfg_${global_adate}_fhr0${fhr}_${memchar}
+	$nln $datens/$memchar/model_data/atmos/history/${prefix_ens}.atmf00${fhr}.nc sfg_${global_adate}_fhr0${fhr}_${memchar}
         if [ $cnvw_option = ".true." ]; then
-            $nln $datens/$memchar/${prefix_ens}sfcf00${fhr}.nc sfgsfc_${global_adate}_fhr0${fhr}_${memchar}
+            $nln $datens/$memchar/model_data/atmos/history/${prefix_ens}sfcf00${fhr}.nc sfgsfc_${global_adate}_fhr0${fhr}_${memchar}
         fi
 	(( imem = $imem + 1 ))
     done
-    $nln $datens/${prefix_ens}.atmf00${fhr}.ensmean.nc sfg_${global_adate}_fhr0${fhr}_ensmean
+    $nln $datens/ensstat/model_data/atmos/history/${prefix_ens}.atmf00${fhr}.ensmean.nc sfg_${global_adate}_fhr0${fhr}_ensmean
     if [ $cnvw_option = ".true." ]; then
         $nln $datens/${prefix_ens}.sfcf00${fhr}.ensmean.nc sfgsfc_${global_adate}_fhr0${fhr}_ensmean
     fi
 done
 
-$nln $datobs/${prefix_obs}.abias_int ./satbias_in
+$nln $datobs/${prefix_obs}.abias_int.ensmean ./satbias_in
 
 
 cd $tmpdir

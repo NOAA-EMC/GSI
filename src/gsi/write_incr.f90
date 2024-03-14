@@ -95,6 +95,7 @@ contains
     use state_vectors, only: svars3d
     use mpeu_util, only: getindex
     use control2state_mod, only: control2state
+    use ensctl2state_mod, only: ensctl2state
 
     implicit none
 

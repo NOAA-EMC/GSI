@@ -376,7 +376,6 @@ contains
   logical in_curbin, in_anybin, save_jacobian
   logical account_for_corr_obs
   logical,dimension(nobs):: zero_irjaco3_pole
-  logical abi2km    ! use 2km abi data (not CSR/ASR) 
 
 ! Declare local arrays
 
@@ -410,7 +409,6 @@ contains
   real(r_kind) :: clw_guess,clw_guess_retrieval,ciw_guess,rain_guess,snow_guess,clw_avg
   real(r_kind),dimension(:), allocatable :: rsqrtinv
   real(r_kind),dimension(:), allocatable :: rinvdiag
-  real(r_kind),dimension(nchanl) :: abi2km_bc
 
 !for GMI (dual scan angles)
   real(r_kind),dimension(nchanl):: emissivity2,ts2, emissivity_k2,tsim2
@@ -529,7 +527,6 @@ contains
   atms       = obstype == 'atms'
   saphir     = obstype == 'saphir'
   abi        = obstype == 'abi'
-  abi2km     = .false.
 
   ssmis=ssmis_las.or.ssmis_uas.or.ssmis_img.or.ssmis_env.or.ssmis 
 
@@ -1102,10 +1099,6 @@ contains
         endif
 
         predbias=zero
-        abi2km_bc = zero
-        abi2km_bc(2) = 233.5_r_kind
-        abi2km_bc(3) = 241.7_r_kind
-        abi2km_bc(4) = 250.5_r_kind
 
 !$omp parallel do  schedule(dynamic,1) private(i,mm,j,k,tlap,node,bias)
         do i=1,nchanl
@@ -1183,18 +1176,6 @@ contains
               do j=npred-angord+1, npred                                         
                  pred(j,i)=pred(j,i)*ang_rad(mm)
               end do
-           end if
-
-           if (abi2km .and. regional) then
-              pred(:,i) = zero
-              if (i>=2 .and. i<=4) then
-                 if (tb_obs(i) > 190.0_r_kind .and. tb_obs(i) < 300.0_r_kind) then
-                    pred(1,i)=1.0_r_kind
-                    pred(2,i)=tb_obs(i)-abi2km_bc(i)
-                    pred(3,i)=(tb_obs(i)-abi2km_bc(i))**2
-                    pred(4,i)=(tb_obs(i)-abi2km_bc(i))**3
-                 end if
-              end if
            end if
 
            do j = 1,npred
@@ -1282,8 +1263,8 @@ contains
            if(amsua.or.atms) then
               call ret_amsua(tsim_bc,nchanl,tsavg5,zasat,clw_guess_retrieval,ierrret)
            else if(gmi) then
-              call gmi_37pol_diff(tsim_bc(6),tsim_bc(7),tsim_clr_bc(6),tsim_clr_bc(7),clw_guess_retrieval,ierrret)
-              call gmi_37pol_diff(tb_obs(6),tb_obs(7),tsim_clr_bc(6),tsim_clr_bc(7),clw_obs,ierrret)
+              call gmi_37pol_diff(tsim(6),tsim(7),tsim_clr(6),tsim_clr(7),clw_guess_retrieval,ierrret)
+              call gmi_37pol_diff(tb_obs(6),tb_obs(7),tsim_clr(6),tsim_clr(7),clw_obs,ierrret)
            end if
            if (radmod%ex_obserr=='ex_obserr1') then
               call radiance_ex_biascor(radmod,nchanl,tsim_bc,tsavg5,zasat, &
@@ -1317,11 +1298,12 @@ contains
               do i=1,nchanl
                 pred(6,i) = zero
                 pred(7,i) = zero
-                clw_avg = half*(clw_obs+clw_guess_retrieval)
+!               Need to investigate clw_ave = half*(clw_obs+clw_guess_retrieval)
+                clw_avg = zero
                 if (i > 3 .and. clw_obs > 0.05_r_kind .and. clw_guess_retrieval > 0.05_r_kind .and. &
-                  abs(clw_obs-clw_guess_retrieval) < 0.005_r_kind .and. clw_avg < 0.5_r_kind) cld_rbc_idx2(i) = one
+                  abs(clw_obs-clw_guess_retrieval) < 0.005_r_kind .and. clw_avg < 0.5_r_kind) cld_rbc_idx2(i) = zero
                 if (i < 5 .and. clw_obs > 0.2_r_kind .and. clw_guess_retrieval > 0.2_r_kind .and. &
-                  abs(clw_obs-clw_guess_retrieval) < 0.005_r_kind .and. clw_avg < 0.5_r_kind) cld_rbc_idx2(i) = one
+                  abs(clw_obs-clw_guess_retrieval) < 0.005_r_kind .and. clw_avg < 0.5_r_kind) cld_rbc_idx2(i) = zero
 
                 if( i > 3 .and. clw_obs > 0.05_r_kind .and. clw_guess_retrieval > 0.05_r_kind .and. cld_rbc_idx(i) == zero) then
                    pred(6,i) = clw_avg*clw_avg

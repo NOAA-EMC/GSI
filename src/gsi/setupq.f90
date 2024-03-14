@@ -113,6 +113,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !                         for 3D-RTMA (if l_obsprvdiag is true).
 !   2023-03-09 Draper added option to interpolate screen-level q from model 2m output.
 !              (hofx_2m_sfcfile)
+!   2024-01-11 zhao     - added tdry/tvflg in obs diagnostic files for (2D/3D)RTMA
 !
 !
 !   input argument list:
@@ -172,6 +173,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use rapidrefresh_cldsurf_mod, only: l_sfcobserror_ramp_q
   use rapidrefresh_cldsurf_mod, only: l_pbl_pseudo_surfobsq,pblh_ration,pps_press_incr, &
                                       i_use_2mq4b,l_closeobs,i_coastline
+  use rapidrefresh_cldsurf_mod, only: l_rtma3d
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use sparsearr, only: sparr2, new, size, writearray, fullarray
@@ -245,6 +247,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   integer(i_kind) ier,ilon,ilat,ipres,iqob,id,itime,ikx,iqmax,iqc
   integer(i_kind) ier2,iuse,ilate,ilone,istnelv,iobshgt,izz,iprvd,isprvd
   integer(i_kind) idomsfc,iderivative
+  integer(i_kind) iqt
   integer(i_kind) ibb,ikk,idddd
   real(r_kind) :: delz
   type(sparr2) :: dhx_dx
@@ -335,9 +338,12 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   icat =22    ! index of data level category
   ijb  =23    ! index of non linear qc parameter
   iptrb=24    ! index of q perturbation
+  if (l_rtma3d .or. twodvar_regional) then
+    iqt  =25  ! index of flag indicating if virtual temp is associated to this moisture obs
+  end if
 
   do i=1,nobs
-     muse(i)=nint(data(iuse,i)) <= jiter
+     muse(i)=nint(data(iuse,i)) <= jiter .and. nint(data(iqc,i)) <  8
   end do
 !  If HD raobs available move prepbufr version to monitor
   if(nhdq > 0)then
@@ -376,7 +382,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   do k=1,nobs
      ikx=nint(data(ikxx,k))
      itype=ictype(ikx)
-     landsfctype =( itype==181 .or. itype==183 .or. itype==187 .or. itype==188  )
+     landsfctype =( itype==181 .or. itype==183 .or. itype==187 )
      do l=k+1,nobs
         if (twodvar_regional .or. (hofx_2m_sfcfile .and. landsfctype) ) then
            duplogic=data(ilat,k) == data(ilat,l) .and.  &
@@ -416,6 +422,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      iip=0
      nchar=1
      ioff0=21
+     if (l_rtma3d .or. twodvar_regional) ioff0 = ioff0 + 2 ! 22:tdry; 23:tvflag (in binary obsdiag for 2D/3DRTMA)
      nreal=ioff0
      if (lobsdiagsave) nreal=nreal+4*miter+1
      if (twodvar_regional .or. l_obsprvdiag) then
@@ -1232,6 +1239,11 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         rdiagbuf(20,ii) = qsges              ! guess saturation specific humidity
         rdiagbuf(21,ii) = 1e+10_r_single     ! spread (filled in by EnKF)
 
+        if (l_rtma3d .or. twodvar_regional) then   ! in binary obsdiag for 2D/3DRTMA
+          rdiagbuf(22,ii) = data(itemp,i)    ! dry temperature associated to qob
+          rdiagbuf(23,ii) = data(iqt,  i)    ! tv flag (0: virtual temp; 1: sensible temp)
+        end if
+
         ioff=ioff0
         if (lobsdiagsave) then
            do jj=1,miter 
@@ -1308,6 +1320,11 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
         rdiagbufp(20,iip) = qsges              ! guess saturation specific humidity
         rdiagbufp(21,iip) = 1e+10_r_single     ! spread (filled in by EnKF)
+
+        if (l_rtma3d .or. twodvar_regional) then  ! in binary obsdiag for 2D/3DRTMA
+          rdiagbufp(22,ii) = data(itemp,i)    ! dry temperature associated to qob
+          rdiagbufp(23,ii) = data(iqt,  i)    ! tv flag (0: virtual temp; 1: sensible temp)
+        end if
 
         ioff=ioff0
 !----
@@ -1387,6 +1404,10 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",ddiff     )
            call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",qob,qges,'-')
            call nc_diag_metadata_to_single("Forecast_Saturation_Spec_Hum",qsges    )
+           if (l_rtma3d .or. twodvar_regional) then
+              call nc_diag_metadata_to_single("Observation_Tdry", data(itemp,i)    )
+              call nc_diag_metadata_to_single("Setup_QC_Mark",    data(iqt,  i)    )
+           endif
            if (lobsdiagsave) then
               do jj=1,miter
                  if (odiag%muse(jj)) then
@@ -1451,6 +1472,10 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",ddiff     )
            call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",ddiff   )
            call nc_diag_metadata_to_single("Forecast_Saturation_Spec_Hum",qsges    )
+           if (l_rtma3d .or. twodvar_regional) then
+              call nc_diag_metadata_to_single("Observation_Tdry", data(itemp,i)    )
+              call nc_diag_metadata_to_single("Setup_QC_Mark",    data(iqt,  i)    )
+           endif
 !----
            if (lobsdiagsave) then
               do jj=1,miter

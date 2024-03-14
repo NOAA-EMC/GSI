@@ -25,6 +25,8 @@ character(len=max_varname_length),public, dimension(14) :: vars3d_supported = (/
                                                                                 'cw', 'prse', 'ql', 'qr', 'qi',    &
                                                                                 'qli', 'dbz', 'w'/)
 character(len=max_varname_length),public, dimension(2) :: vars2d_supported = (/ 'ps', 'sst' /)
+character(len=max_varname_length),public, dimension(8) :: vars2d_landonly = (/'', '', '', '', '', '', '', '' /)
+
 contains
 
 subroutine getgridinfo(fileprefix, reducedgrid)

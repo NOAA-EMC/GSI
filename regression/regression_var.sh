@@ -30,9 +30,7 @@ else
 fi
 
 # Determine the machine
-if [[ -d /glade ]]; then # Cheyenne
-  export machine="Cheyenne"
-elif [[ -d /scratch1 ]]; then # Hera
+if [[ -d /scratch1 ]]; then # Hera
   export machine="Hera"
 elif [[ -d /mnt/lfs4 || -d /jetmon || -d /mnt/lfs1 ]]; then # Jet
   export machine="Jet"
@@ -65,20 +63,6 @@ case $machine in
 
     export check_resource="no"
     export accnt="nggps_emc"
-  ;;
-  Cheyenne)
-    export queue="regular"
-    export noscrub="/glade/scratch/$LOGNAME/noscrub"
-    export group="global"
-    if [[ "$cmaketest" = "false" ]]; then
-      export basedir="/glade/scratch/$LOGNAME"
-    fi
-    export ptmp="/glade/scratch/$LOGNAME/$ptmpName"
-
-    export casesdir="/glade/work/epicufsrt/contrib/GSI_data/CASES/regtest"
-
-    export check_resource="no"
-    export accnt="NRAL0032"
   ;;
   wcoss2)
       export local_or_default="${local_or_default:-/lfs/h2/emc/da/noscrub/$LOGNAME}"
@@ -206,7 +190,7 @@ export savdir="$ptmp"
 export JCAP="62"
 
 # Case Study analysis dates
-export global_adate="2022110900"
+export global_adate="2024022300"
 export rtma_adate="2020022420"
 export fv3_netcdf_adate="2017030100"
 export rrfs_3denvar_glbens_adate="2021072518"
