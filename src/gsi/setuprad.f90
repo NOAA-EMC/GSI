@@ -1099,6 +1099,7 @@ contains
         endif
 
         predbias=zero
+
 !$omp parallel do  schedule(dynamic,1) private(i,mm,j,k,tlap,node,bias)
         do i=1,nchanl
            mm=ich(i)
@@ -1176,7 +1177,6 @@ contains
                  pred(j,i)=pred(j,i)*ang_rad(mm)
               end do
            end if
-
 
            do j = 1,npred
               predbias(j,i) = predchan(j,i)*pred(j,i)
@@ -1263,8 +1263,8 @@ contains
            if(amsua.or.atms) then
               call ret_amsua(tsim_bc,nchanl,tsavg5,zasat,clw_guess_retrieval,ierrret)
            else if(gmi) then
-              call gmi_37pol_diff(tsim_bc(6),tsim_bc(7),tsim_clr_bc(6),tsim_clr_bc(7),clw_guess_retrieval,ierrret)
-              call gmi_37pol_diff(tb_obs(6),tb_obs(7),tsim_clr_bc(6),tsim_clr_bc(7),clw_obs,ierrret)
+              call gmi_37pol_diff(tsim(6),tsim(7),tsim_clr(6),tsim_clr(7),clw_guess_retrieval,ierrret)
+              call gmi_37pol_diff(tb_obs(6),tb_obs(7),tsim_clr(6),tsim_clr(7),clw_obs,ierrret)
            end if
            if (radmod%ex_obserr=='ex_obserr1') then
               call radiance_ex_biascor(radmod,nchanl,tsim_bc,tsavg5,zasat, &
@@ -1298,11 +1298,12 @@ contains
               do i=1,nchanl
                 pred(6,i) = zero
                 pred(7,i) = zero
-                clw_avg = half*(clw_obs+clw_guess_retrieval)
+!               Need to investigate clw_ave = half*(clw_obs+clw_guess_retrieval)
+                clw_avg = zero
                 if (i > 3 .and. clw_obs > 0.05_r_kind .and. clw_guess_retrieval > 0.05_r_kind .and. &
-                  abs(clw_obs-clw_guess_retrieval) < 0.005_r_kind .and. clw_avg < 0.5_r_kind) cld_rbc_idx2(i) = one
+                  abs(clw_obs-clw_guess_retrieval) < 0.005_r_kind .and. clw_avg < 0.5_r_kind) cld_rbc_idx2(i) = zero
                 if (i < 5 .and. clw_obs > 0.2_r_kind .and. clw_guess_retrieval > 0.2_r_kind .and. &
-                  abs(clw_obs-clw_guess_retrieval) < 0.005_r_kind .and. clw_avg < 0.5_r_kind) cld_rbc_idx2(i) = one
+                  abs(clw_obs-clw_guess_retrieval) < 0.005_r_kind .and. clw_avg < 0.5_r_kind) cld_rbc_idx2(i) = zero
 
                 if( i > 3 .and. clw_obs > 0.05_r_kind .and. clw_guess_retrieval > 0.05_r_kind .and. cld_rbc_idx(i) == zero) then
                    pred(6,i) = clw_avg*clw_avg

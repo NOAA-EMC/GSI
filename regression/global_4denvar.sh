@@ -55,14 +55,15 @@ cycg=`echo $gdate | cut -c9-10`
 dumpobs=gdas
 prefix_obs=${dumpobs}.t${cyca}z
 prefix_ges=gdas.t${cycg}z
-prefix_ens=gdas.t${cycg}z
+prefix_ens=enkfgdas.t${cycg}z
 suffix=tm00.bufr_d
 
 dumpges=gdas
 COMROOTgfs=$casesdir/gfs/prod
-datobs=$COMROOTgfs/$dumpobs.$PDYa/${cyca}/atmos
-datges=$COMROOTgfs/$dumpges.$PDYg/${cycg}/atmos
-datens=$COMROOTgfs/enkfgdas.$PDYg/${cycg}/atmos
+datobs=$COMROOTgfs/$dumpobs.$PDYa/${cyca}/obs
+dathis=$COMROOTgfs/$dumpges.$PDYg/${cycg}/model_data/atmos/history
+datanl=$COMROOTgfs/gdas.$PDYg/${cycg}/analysis/atmos
+datens=$COMROOTgfs/enkfgdas.$PDYg/${cycg}
 
 
 # Set up $tmpdir
@@ -265,28 +266,28 @@ $nln $datobs/${prefix_obs}.esatms.${suffix}        ./atmsbufrears
 ## $nln $datobs/${prefix_obs}.amsr2.tm00.bufr_d    ./amsr2bufr
 
 # Copy bias correction, atmospheric and surface files
-$nln $datges/${prefix_ges}.abias                      ./satbias_in
-$nln $datges/${prefix_ges}.abias_pc                   ./satbias_pc
-$nln $datges/${prefix_ges}.abias_air                  ./aircftbias_in
-$nln $datges/${prefix_ges}.radstat                    ./radstat.gdas
+$nln $datanl/${prefix_ges}.abias                      ./satbias_in
+$nln $datanl/${prefix_ges}.abias_pc                   ./satbias_pc
+$nln $datanl/${prefix_ges}.abias_air                  ./aircftbias_in
+$nln $datanl/${prefix_ges}.radstat                    ./radstat.gdas
 
-$nln $datges/${prefix_ges}.sfcf003.nc         ./sfcf03
-$nln $datges/${prefix_ges}.sfcf004.nc         ./sfcf04
-$nln $datges/${prefix_ges}.sfcf005.nc         ./sfcf05
-$nln $datges/${prefix_ges}.sfcf006.nc         ./sfcf06
-$nln $datges/${prefix_ges}.sfcf007.nc         ./sfcf07
-$nln $datges/${prefix_ges}.sfcf008.nc         ./sfcf08
-$nln $datges/${prefix_ges}.sfcf009.nc         ./sfcf09
+$nln $dathis/${prefix_ges}.sfcf003.nc         ./sfcf03
+$nln $dathis/${prefix_ges}.sfcf004.nc         ./sfcf04
+$nln $dathis/${prefix_ges}.sfcf005.nc         ./sfcf05
+$nln $dathis/${prefix_ges}.sfcf006.nc         ./sfcf06
+$nln $dathis/${prefix_ges}.sfcf007.nc         ./sfcf07
+$nln $dathis/${prefix_ges}.sfcf008.nc         ./sfcf08
+$nln $dathis/${prefix_ges}.sfcf009.nc         ./sfcf09
 
-$nln $datges/${prefix_ges}.atmf003.nc         ./sigf03
-$nln $datges/${prefix_ges}.atmf004.nc         ./sigf04
-$nln $datges/${prefix_ges}.atmf005.nc         ./sigf05
-$nln $datges/${prefix_ges}.atmf006.nc         ./sigf06
-$nln $datges/${prefix_ges}.atmf007.nc         ./sigf07
-$nln $datges/${prefix_ges}.atmf008.nc         ./sigf08
-$nln $datges/${prefix_ges}.atmf009.nc         ./sigf09
+$nln $dathis/${prefix_ges}.atmf003.nc         ./sigf03
+$nln $dathis/${prefix_ges}.atmf004.nc         ./sigf04
+$nln $dathis/${prefix_ges}.atmf005.nc         ./sigf05
+$nln $dathis/${prefix_ges}.atmf006.nc         ./sigf06
+$nln $dathis/${prefix_ges}.atmf007.nc         ./sigf07
+$nln $dathis/${prefix_ges}.atmf008.nc         ./sigf08
+$nln $dathis/${prefix_ges}.atmf009.nc         ./sigf09
 
-$nln $datens/${prefix_ens}.sfcf006.ensmean.nc         ./sfcf06_anlgrid
+$nln $datens/ensstat/model_data/atmos/history/${prefix_ens}.sfcf006.ensmean.nc         ./sfcf06_anlgrid
 
 export ENS_PATH='./ensemble_data/'
 mkdir -p ${ENS_PATH}
@@ -296,7 +297,7 @@ for fh in $flist; do
     imem=1
     while [[ $imem -le $NMEM_ENKF ]]; do
 	member="mem"`printf %03i $imem`
-	$nln $datens/$member/$sigens ${ENS_PATH}sigf${fh}_ens_${member}
+	$nln $datens/$member/model_data/atmos/history/$sigens ${ENS_PATH}sigf${fh}_ens_${member}
 	(( imem = $imem + 1 ))
     done
 done
