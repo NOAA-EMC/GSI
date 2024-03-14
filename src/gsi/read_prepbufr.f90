@@ -149,8 +149,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2020-05-04  wu      - no rotate_wind for fv3_regional
 !   2020-09-05  CAPS(C. Tong) - add flag for new vadwind obs to assimilate around the analysis time only
 !   2023-03-23  draper  - add code for processing T2m and q2m for global system
-!   2023-07-30  Zhao    - added code to extract obs of significant wave height (howvob) from bufr record 
+!   2023-07-30  zhao    - added code to extract obs of significant wave height (howvob) from bufr record 
 !                         in prepbufr file for 3D analysis
+!   2024-01-11  zhao    - added code to extract sensible temp (tdry) and tv flag
+!                         for moisture obs(qob) when running (2D/3D)RTMA
 
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -225,6 +227,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use adjust_cloudobs_mod, only: adjust_convcldobs,adjust_goescldobs
   use mpimod, only: npe
   use rapidrefresh_cldsurf_mod, only: i_gsdsfc_uselist,i_gsdqc,i_ens_mean
+  use rapidrefresh_cldsurf_mod, only: l_rtma3d
   use gsi_io, only: verbose
   use phil2, only: denest       ! hilbert curve
 
@@ -390,6 +393,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   logical, allocatable,dimension(:)     :: rusage,rthin
 ! end of block
 
+! for extracting sensible-vs-virtual temp obs
+  integer(i_kind),dimension(1,255):: tqm4q
+  real(r_kind),dimension(1,255):: tvflg4q
+  real(r_double),dimension(1,255):: tobs4q
 
 !  equivalence to handle character names
   equivalence(r_prvstg(1,1),c_prvstg) 
@@ -875,6 +882,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      print*, "WARNING: GLERL program code not in this file."
      glcd=-999._r_double
   endif
+
+  if(print_verbose) write(6,'(1x,A,A,A,2(A,1x,F8.3))') 'read_prepbufr:',        &
+     trim(adjustl(obstype)),':', '  vtcd= ',vtcd,'  glcd= ',glcd
 
   call init_rjlists
   call init_aircraft_rjlists
@@ -1503,6 +1513,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            if(driftl)call ufbint(lunin,drfdat,8,255,iret,drift)
      
 ! raob level enhancement on temp and q obs 
+!    (note: levs is increased by sonde_ext, and not same as original value read from prepbufr)
            if(ext_sonde .and. kx==120) call sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levs,kx,vtcd)
 
            nread=nread+levs
@@ -1669,13 +1680,15 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               pmq(k)=nint(qcmark(8,k))
            end do
 
-!          181, 183, 187, and 188 are the screen-level obs over land
-           global_2m_land = ( (kx==181 .or. kx==183 .or. kx==188 .or. kx==188 ) .and. hofx_2m_sfcfile )
+!          187, 181, and 183 are the screen-level obs over land
+!          note: don't need the hofx_2m_sfcfile if set usage in convinfo, and qm updated in the input file
+           global_2m_land = ( (kx==187 .or. kx==181 .or. kx==183) .and. hofx_2m_sfcfile )
 
 !          If temperature ob, extract information regarding virtual
 !          versus sensible temperature
            if(tob) then
               ! use tvirtual if tsensible flag not set, and not in either 2Dregional or global_2m DA mode
+              ! for now, keeping 2m obs as sensible, for global system.
               if ( (.not. tsensible)  .and. .not. (twodvar_regional .or. global_2m_land) ) then
 
                  do k=1,levs
@@ -1710,6 +1723,25 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  end do
               end if
            end if
+
+!          If moisture ob (qob) and (2D/3D)RTMA, set tv flag information (based on tpc)
+!          regarding virtual vs. sensible temperaure, to get tdry (if virtual temp
+!          then compute tdry; if sensible temp, then tdry= tsen), then save tdry
+!          in q-obsdaig file for RTMA offline Auto-QC.
+           if (qob .and. (l_rtma3d .or. twodvar_regional)) then
+              tobs4q(1,:) = bmiss
+              tqm4q(1,:)  = bmiss
+              tvflg4q(1,:)= -one
+              do k=1,levs
+                 tvflg4q(1,k)=one                             ! initialize as sensible
+                 tobs4q(1,k)=obsdat(3,k)                      ! temp obs read in prepbufr
+                 tqm4q(1,k)=tqm(k)
+                 do j=1,20
+                    if (tpc(k,j)==vtcd) tvflg4q(1,k)=zero     ! reset flag if virtual
+                    if (tpc(k,j)>=bmiss) exit                 ! end of stack
+                 end do
+              end do
+           end if ! if qob & rtma
 
            if(i_gsdqc==2) then
 !          AMV acceptance for all obs (E. James)
@@ -1979,18 +2011,17 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                      pqm(k)=2 ! otherwise, type 183 will be discarded.
                      qm=2
                      tqm(k)=2
-                     if (kx==187) obserr(3,k)=2.2
-                     if (kx==181) obserr(3,k)=1.5
-                     if (kx==183) obserr(3,k)=2.6
+                     if (kx==187) obserr(3,k)=2.0_r_double
+                     if (kx==181) obserr(3,k)=2.0_r_double
+                     if (kx==183) obserr(3,k)=2.0_r_double
                 endif
                 if (qob .and. qm == 9 ) then 
                      qm = 2
                      ! qob err specified as fraction of qsat, multiplied by 10.
-                     if (kx==187) obserr(2,k)=1.0
-                     if (kx==181) obserr(2,k)=1.0
-                     if (kx==183) obserr(2,k)=1.0
+                     if (kx==187) obserr(2,k)=1.0_r_double
+                     if (kx==181) obserr(2,k)=1.0_r_double
+                     if (kx==183) obserr(2,k)=1.0_r_double
                 endif
-
               endif
 !             Set usage variable              
               usage = zero
@@ -2397,7 +2428,15 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  end if
                  qobcon=obsdat(2,k)*convert
                  tdry=r999
-                 if (tqm(k)<lim_tqm) tdry=(obsdat(3,k)+t0c)/(one+fv*qobcon)
+                 if (l_rtma3d .or. twodvar_regional) then
+                    if (tvflg4q(1,k) == one) then                  ! tobs is sensible temp (tdry=tsen)
+                      if (tqm4q(1,k)<lim_tqm) tdry= tobs4q(1,k)+t0c
+                    else if (tvflg4q(1,k) == zero) then            ! tobs is virtual temp (computing tdry with tv)
+                      if (tqm4q(1,k)<lim_tqm) tdry= (tobs4q(1,k)+t0c)/(one+fv*qobcon)
+                    end if 
+                 else
+                    if (tqm(k)<lim_tqm) tdry=(obsdat(3,k)+t0c)/(one+fv*qobcon)
+                 end if
                  cdata_all(1,iout)=qoe                     ! q error   
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
                  cdata_all(3,iout)=dlat                    ! grid relative latitude
@@ -2407,7 +2446,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(7,iout)=t4dv                    ! time
                  cdata_all(8,iout)=nc                      ! type
                  cdata_all(9,iout)=qmaxerr                 ! q max error
-                 cdata_all(10,iout)=tdry                   ! dry temperature (obs is tv)
+                 cdata_all(10,iout)=tdry                   ! dry temperature (obs is tv? No, depending on tvflg)
                  cdata_all(11,iout)=qqm(k)                 ! quality mark
                  cdata_all(12,iout)=obserr(2,k)*one_tenth  ! original obs error
                  cdata_all(13,iout)=usage                  ! usage parameter
@@ -2425,6 +2464,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if(perturb_obs)cdata_all(24,iout)=ran01dom()*perturb_fact ! q perturbation
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(15,iout),cdata_all(16,iout),cdata_all(12,iout),cdata_all(1,iout))
+                 if (l_rtma3d .or. twodvar_regional) &
+                    cdata_all(25,iout)=tvflg4q(1,k)        ! saving tv flag for q-obsdiag
   
 !             Total precipitable water (ssm/i)
               else if(pwob) then
