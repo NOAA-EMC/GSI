@@ -542,9 +542,9 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
               kx = 197
               sstoe = one
            elseif ( trim(subset) == 'NC031002' ) then                            ! TESAC
-              if (  tpf(1,1) >= one .and.  tpf(1,1) < 20.0_r_kind ) then
-                 zob = tpf(1,1)
-              elseif (  tpf(1,1) >= zero .and. tpf(1,1) < one ) then
+              if (  tpf2(1,1) >= one .and.  tpf2(1,1) < 20.0_r_kind ) then
+                 zob = tpf2(1,1)
+              elseif (  tpf2(1,1) >= zero .and. tpf2(1,1) < one ) then
                  zob = one
               endif
               kx = 198   
@@ -553,9 +553,9 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
               kx = 199                                                           ! classify argo & glider to be bathy type
               sstoe = r0_6
            elseif ( trim(subset) == 'NC031001' ) then                            ! BATHY
-              if (  tpf(1,1) >= one .and.  tpf(1,1) <= 20.0_r_kind ) then
-                 zob = tpf(1,1)
-              elseif (  tpf(1,1) >= zero .and. tpf(1,1) < one ) then
+              if (  tpf2(1,1) >= one .and.  tpf2(1,1) <= 20.0_r_kind ) then
+                 zob = tpf2(1,1)
+              elseif (  tpf2(1,1) >= zero .and. tpf2(1,1) < one ) then
                  zob = one
               endif
               kx = 199
@@ -566,7 +566,6 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            endif
 !
 !          Determine usage
-!
            ikx = 0
            do i = 1, nconvtype
               if(kx == ictype(i) .and. abs(icuse(i))== 1) ikx=i
