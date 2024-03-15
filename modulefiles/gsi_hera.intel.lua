@@ -17,7 +17,7 @@ load(pathJoin("cmake", cmake_ver))
 load("gsi_common")
 load(pathJoin("prod_util", prod_util_ver))
 
-unload("crtm/2.4.0")
+unload("crtm/2.4.0.1")
 setenv("crtm_ROOT","/scratch1/NCEPDEV/da/Emily.Liu/JEDI-GDAS/crtm-v2.4.1-jedi.1-intel/build")
 setenv("crtm_VERSION","2.4.1-jedi.1")
 setenv("CRTM_INC","/scratch1/NCEPDEV/da/Emily.Liu/JEDI-GDAS/crtm-v2.4.1-jedi.1-intel/build/module/crtm/Intel/2021.5.0.20211109")

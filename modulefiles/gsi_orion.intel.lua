@@ -16,7 +16,7 @@ load(pathJoin("cmake", cmake_ver))
 
 load("gsi_common")
 
-unload("crtm/2.4.0")
+unload("crtm/2.4.0.1")
 setenv("crtm_ROOT","/work/noaa/da/eliu/JEDI-GDAS/crtm_v2.4.1-jedi.1-intel2022/build")
 setenv("crtm_VERSION","2.4.1-jedi.1")
 setenv("CRTM_INC","/work/noaa/da/eliu/JEDI-GDAS/crtm_v2.4.1-jedi.1-intel2022/build/module")
