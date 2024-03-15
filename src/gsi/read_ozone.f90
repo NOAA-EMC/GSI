@@ -492,7 +492,6 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         else
            nhdrozg = 10
         endif
-        print *,'read_ozone:  orbn ',orbn,' nhdrozg ',nhdrozg
         if (.not.allocated(hdrozg)) allocate(hdrozg(nhdrozg))
         if (nhdrozg == 11) then
            call ufbint(lunin,hdrozg,nhdrozg,1,iret,ozgstr_v2)
