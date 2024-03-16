@@ -2456,14 +2456,14 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
         if (passive_bc .and. iuse_rad(j)==-1) then
           if (lcloud .ge. kmax(i)) then
             if(.not.cris) then
-              if(luse)aivals(11,is)   = aivals(11,is) + one
+               if(luse)aivals(11,is)   = aivals(11,is) + one
             else if(cris) then
-              if(.not. cris_sw .and. wavenumber(i) < 2000.0) then
-                if(luse)aivals(11,is)   = aivals(11,is) + one
-              else if(cris_sw .and. wavenumber(i) >= 2000.0) then
-                if(luse)aivals(11,is)   = aivals(11,is) + one
-              end if
-            endif
+               if(.not. cris_sw .and. wavenumber(i) < 2000.0) then
+                 if(luse)aivals(11,is)   = aivals(11,is) + one
+               else if(cris_sw .and. wavenumber(i) >= 2000.0) then
+                 if(luse)aivals(11,is)   = aivals(11,is) + one
+               end if
+            end if
             varinv(i) = zero
             varinv_use(i) = zero
             if(id_qc(i) == igood_qc)id_qc(i)=ifail_cloud_qc
@@ -2513,15 +2513,12 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
           if(abs(dts*ts(i)) > delta)then
 !           QC3 in statsrad
             if(.not.cris) then
-              if(luse .and. varinv(i) > zero) &
-                 aivals(10,is)   = aivals(10,is) + one
+              if(luse .and. varinv(i) > zero) aivals(10,is)   = aivals(10,is) + one
             else if(cris) then
               if(.not. cris_sw .and. wavenumber(i) < 2000.0) then
-                if(luse .and. varinv(i) > zero) &
-                   aivals(10,is)   = aivals(10,is) + one
+                 if(luse .and. varinv(i) > zero) aivals(10,is)   = aivals(10,is) + one
               else if(cris_sw .and. wavenumber(i) >= 2000.0) then
-                if(luse .and. varinv(i) > zero) &
-                   aivals(10,is)   = aivals(10,is) + one
+                 if(luse .and. varinv(i) > zero) aivals(10,is)   = aivals(10,is) + one
               end if
             end if
             varinv(i) = zero
@@ -2536,8 +2533,11 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
        do i=1,nchanl
           if (ts(i) > 0.2_r_kind) then
            !             QC3 in statsrad
-            if(luse .and. varinv(i) > zero) &
-                aivals(10,is) = aivals(10,is) + one
+            if(.not. cris_sw .and. wavenumber(i) < 2000.0) then
+              if(luse .and. varinv(i) > zero) aivals(10,is) = aivals(10,is) + one
+            else if(cris_sw .and. wavenumber(i) >= 2000.0) then
+              if(luse .and. varinv(i) > zero) aivals(10,is) = aivals(10,is) + one
+            end if
             varinv(i) = zero
             if(id_qc(i) == igood_qc) id_qc(i) = ifail_sfcir_qc
           end if
@@ -2566,13 +2566,13 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
               varinv(i) = zero
               if (  id_qc(i) == igood_qc ) id_qc(i) = ifail_tzr_qc
               if(.not.cris) then
-                 if(luse)aivals(13,is) = aivals(13,is) + one
-               else if(cris) then
-                 if(.not. cris_sw .and. wavenumber(i) < 2000.0) then
-                   if(luse) aivals(13,is)   = aivals(13,is) + one
-                 else if(cris_sw .and. wavenumber(i) >= 2000.0) then
-                   if(luse) aivals(13,is)   = aivals(13,is) + one
-                 end if
+                if(luse)aivals(13,is) = aivals(13,is) + one
+              else if(cris) then
+                if(.not. cris_sw .and. wavenumber(i) < 2000.0) then
+                  if(luse) aivals(13,is)   = aivals(13,is) + one
+                else if(cris_sw .and. wavenumber(i) >= 2000.0) then
+                  if(luse) aivals(13,is)   = aivals(13,is) + one
+                end if
               endif
            endif
          endif
@@ -2584,6 +2584,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
   if (cenlatx < one) then
      if(.not. cris_sw) then
         if(luse)aivals(6,is) = aivals(6,is) + one
+     endif
      efact   = half*(cenlatx+one)
      do i=1,nchanl
         if(varinv(i) > tiny_r_kind) errf(i)=efact*errf(i)
