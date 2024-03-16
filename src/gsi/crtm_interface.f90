@@ -40,12 +40,14 @@ module crtm_interface
 !   2019-03-13  eliu    - add quality control to identify areas with cold-air outbreak 
 !   2019-03-13  eliu    - add calculation of GFDL cloud fraction 
 !   2019-03-22  Wei/Martin - Added VIIRS AOD capability alongside MODIS AOD
-!   
+!   2019-07-24  ejones  - add get_crtm_temp_tl subroutine to get tangent linear
+!                         for obs Tb using crtm outputs
 !
 ! subroutines included:
 !   sub init_crtm
 !   sub call_crtm
 !   sub destroy_crtm
+!   sub get_crtm_temp_tl
 !
 ! attributes:
 !   language: f90
@@ -83,6 +85,7 @@ private
 public init_crtm            ! Subroutine initializes crtm for specified instrument
 public call_crtm            ! Subroutine creates profile for crtm, calls crtm, then adjoint of create
 public destroy_crtm         ! Subroutine destroys initialization for crtm
+public get_crtm_temp_tl     ! Subroutine computes tangent linear for obs Tb
 public sensorindex
 public surface
 public isatid               ! = 1  index of satellite id
@@ -3212,5 +3215,66 @@ subroutine get_lai(data_s,nchanl,nreal,itime,ilate,lai_type,lai)
 
   return
   end subroutine get_lai
+
+subroutine get_crtm_temp_tl(nchanl,sc_index,tb_obs,error0,tref,tl_tbobs)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    get_crtm_temp_tl
+!
+!   prgmmr: ejones           date: 2019-07-24
+!
+! abstract: get tangent linear temperature from the CRTM to appropriately
+!           inflate observation error when applicable (e.g. for shortwave
+!           hyperspectral IR channels, which have higher instrument noise at
+!           cooler temperatures).
+!
+! program history log:
+!   2019-07-24  ejones
+!
+!   input argument list:
+!     nchanl       - number of channels for sensor
+!     sc_index     - index of channel numbers in the full 2211 channel set
+!     tref         - reference temperature to compute reference radiance_tl at
+!     tb_obs       - brightness temperature array
+!     error0       - array of original obs errors from satinfo file (specified
+!                    for reference temperature)
+!
+!   output argument list:
+!     tl_tbobs     - array of scene/temperature dependent obs errors
+!
+! attributes:
+!   language: f90
+!
+!$$$
+!----------
+  use crtm_planck_functions, only: crtm_planck_radiance_tl, crtm_planck_radiance, &
+      crtm_planck_temperature_tl
+
+  implicit none
+
+! passed variables
+  integer(i_kind)                    ,intent(in)     :: nchanl
+  real(r_kind)                       ,intent(in)     :: tref     ! reference temperature (K)
+  integer(i_kind),dimension(nchanl)  ,intent(in)     :: sc_index ! channel number in 2211 set
+  real(r_kind),dimension(nchanl)     ,intent(in)     :: tb_obs   ! tbs
+  real(r_kind),dimension(nchanl)     ,intent(in)     :: error0   ! error from satinfo
+  real(r_kind),dimension(nchanl)     ,intent(out)    :: tl_tbobs ! new error to use
+
+! local variables
+  integer(i_kind)    :: i
+  integer(i_kind)    :: crtm_sensorindex         ! CRTM Sensor_Index
+  integer(i_kind)    :: crtm_channelindex        ! CRTM Channel_Index
+  real(r_kind)       :: tl_refrad,obsrad         ! computed radiances and tl_radiances
+
+  i=0
+  crtm_sensorindex=channelinfo(1)%sensor_index
+  do i=1,nchanl
+     crtm_channelindex=channelinfo(1)%channel_index(sc_index(i))
+     call crtm_planck_radiance_tl(crtm_sensorindex,crtm_channelindex,tref,error0(i),tl_refrad)
+     call crtm_planck_radiance(crtm_sensorindex,crtm_channelindex,tb_obs(i),obsrad)
+     call crtm_planck_temperature_tl(crtm_sensorindex,crtm_channelindex,obsrad,tl_refrad,tl_tbobs(i))
+  end do
+  return
+  end subroutine get_crtm_temp_tl
 
   end module crtm_interface

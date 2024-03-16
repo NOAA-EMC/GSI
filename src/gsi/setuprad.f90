@@ -213,6 +213,10 @@ contains
 !   2018-07-27  W. Gu   - code changes to reduce the round-off errors
 !   2019-03-13  eliu    - add components to handle precipitation-affected radiances 
 !   2019-03-13  eliu    - add calculation of scattering index for MHS/ATMS 
+!   2019-07-24  ejones  - add scene-dependent observation error for CrIS SW
+!   2019-07-24  ejones  - add capability to use different channel sets for cloud detection for CrIS
+!                         (i.e. use only LW channels for LW cloud detection and only SW channels for SW
+!                         cloud detection in qc_irsnd subroutine in qcmod.f90)
 !   2019-03-27  h. liu  - add ABI assimilation
 !   2019-08-20  zhu     - add flexibility to allow radiances being assimilated without bias correction
 !   2021-02-20  x.li    - add viirs
@@ -285,7 +289,8 @@ contains
       itime,ilon,ilat,ilzen_ang,ilazi_ang,iscan_ang,iscan_pos,iszen_ang,isazi_ang, &
       ifrac_sea,ifrac_lnd,ifrac_ice,ifrac_sno,itsavg, &
       izz,idomsfc,isfcr,iff10,ilone,ilate, &
-      isst_hires,isst_navy,idata_type,iclr_sky,itref,idtw,idtc,itz_tr
+      isst_hires,isst_navy,idata_type,iclr_sky,itref,idtw,idtc,itz_tr, &
+      get_crtm_temp_tl
   use qcmod, only: qc_ssmi,qc_geocsr,qc_ssu,qc_avhrr,qc_goesimg,qc_msu,qc_irsnd,qc_amsua,qc_mhs,qc_atms
   use crtm_interface, only: ilzen_ang2,iscan_ang2,iszen_ang2,isazi_ang2
   use clw_mod, only: calc_clw, ret_amsua, gmi_37pol_diff
@@ -351,6 +356,7 @@ contains
   real(r_kind) ys_bias_sst,cosza,val_obs
   real(r_kind) sstnv,sstcu,sstph,dtp_avh,dta,dqa
   real(r_kind) bearaz,sun_zenith,sun_azimuth
+  real(r_kind) sat_azimuth
 !  real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl,clwp_amsua,tpwc_guess_retrieval
 !  real(r_kind) sfc_speed,frac_sea,clw,tpwc,sgagl,tpwc_guess_retrieval
   real(r_kind) sfc_speed,frac_sea,tpwc_obs,sgagl,tpwc_guess_retrieval
@@ -376,6 +382,7 @@ contains
   logical in_curbin, in_anybin, save_jacobian
   logical account_for_corr_obs
   logical,dimension(nobs):: zero_irjaco3_pole
+  logical cris_sw   ! for CrIS SW processing
 
 ! Declare local arrays
 
@@ -409,6 +416,8 @@ contains
   real(r_kind) :: clw_guess,clw_guess_retrieval,ciw_guess,rain_guess,snow_guess,clw_avg
   real(r_kind),dimension(:), allocatable :: rsqrtinv
   real(r_kind),dimension(:), allocatable :: rinvdiag
+  real(r_kind),dimension(:), allocatable :: tl_tbobs,errf_LW,errf_SW
+  real(r_kind),dimension(:), allocatable :: varinv_LW,varinv_SW,varinv_useLW,varinv_useSW
 
 !for GMI (dual scan angles)
   real(r_kind),dimension(nchanl):: emissivity2,ts2, emissivity_k2,tsim2
@@ -421,6 +430,7 @@ contains
   integer(i_kind),dimension(nchanl):: ich,id_qc,ich_diag
   integer(i_kind),dimension(nchanl):: kmax
   integer(i_kind),allocatable,dimension(:) :: sc_index
+  integer(i_kind),allocatable,dimension(:) :: id_qcLW,id_qcSW
   integer(i_kind)  :: state_ind, nind, nnz
 
   logical,dimension(jpch_rad) :: channel_passive
@@ -490,6 +500,7 @@ contains
 ! Initialize logical flags for satellite platform
 
   cao_flag   = .false.     
+  cris_sw    = .false.
   hirs2      = obstype == 'hirs2'
   hirs3      = obstype == 'hirs3'
   hirs4      = obstype == 'hirs4'
@@ -720,6 +731,26 @@ contains
         if (no85GHz .and. mype == 0) write(6,*) &
            'SETUPRAD: using no85GHZ workaround for SSM/I ',isis
      endif
+  endif
+
+! Allocate some arrays for use with CrIS  - EEJ
+  tref = zero
+  errfl = zero
+  if (cris) then
+     allocate(tl_tbobs(nchanl),errf_LW(nchanl),errf_SW(nchanl))
+     allocate(varinv_LW(nchanl),varinv_SW(nchanl),varinv_useLW(nchanl),varinv_useSW(nchanl))
+     allocate(id_qcLW(nchanl),id_qcSW(nchanl))
+     do i=1,nchanl
+        tl_tbobs(i)=zero
+        varinv_LW(i)=zero
+        varinv_SW(i)=zero
+        varinv_useLW(i)=zero
+        varinv_useSW(i)=zero
+        errf_LW(i)=zero
+        errf_SW(i)=zero
+        id_qcLW=-999
+        id_qcSW=-999
+     end do
   endif
 
 !  Find number of channels written to diag file
@@ -1322,6 +1353,7 @@ contains
         do i=1,nchanl
            error0(i) = tnoise(i)
            errf0(i) = error0(i)
+           if(cris) tl_tbobs(i) = error0(i)
         end do
 
 !       Assign observation error for all-sky radiances 
@@ -1332,6 +1364,22 @@ contains
               call radiance_ex_obserr_gmi(radmod,nchanl,clw_obs,clw_guess_retrieval,tnoise,tnoise_cld,error0) 
            end if
         end if
+
+!       If sensor is CrIS, get scene-dependent instrument noise (important in
+!       short-wave) from CRTM to appropriately inflate obs error according to
+!       brightness temperature. Only do for channels in the 431 set with
+!       wavenumber .ge. 2165.63 and .lt. 2386.52 (these seem generally
+!       colder and more noisy)
+        if (cris) then
+           tref = 280.0_r_kind
+           errfl = 0.5_r_kind    ! Error floor or minimum inflation to add to scene-dep error
+           call get_crtm_temp_tl(nchanl,sc_index,tb_obs,error0,tref,tl_tbobs)
+           do i=1,nchanl
+              if (wavenumber(i) > 2165.0 .and. wavenumber(i) < 2386.0) then
+                 error0(i)     = sqrt(tl_tbobs(i)**2 + errfl**2)
+              endif
+           end do
+        endif
 
         do i=1,nchanl
            mm=ich(i)
@@ -1359,6 +1407,10 @@ contains
 
            frac_sea=data_s(ifrac_sea,n)
 
+!          pass solar and satellite azimuth for sun glint
+           sun_azimuth=data_s(isazi_ang,n)
+           sat_azimuth=data_s(ilazi_ang,n)
+
 !  NOTE:  The qc in qc_irsnd uses the inverse squared obs error.
 !     The loop below loads array varinv_use accounting for whether the 
 !     cloud detection flag is set.  Array
@@ -1373,13 +1425,70 @@ contains
               else
                  varinv_use(i) = zero
               end if
+!    Set up error and QC flag arrays for CrIS LW and SW channels to allow
+!    for the use of different channel selections for cloud detection in QC
+              if (cris) then
+                 varinv_useLW(i) = zero
+                 varinv_useSW(i) = zero
+                 id_qcLW(i) = id_qc(i)
+                 id_qcSW(i) = id_qc(i)
+                 varinv_LW(i) = varinv(i)
+                 varinv_SW(i) = varinv(i)
+                 errf_LW(i) = errf(i)
+                 errf_SW(i) = errf(i)
+                 if (varinv(i) < tiny_r_kind) then
+                    varinv_useLW(i) = zero
+                    varinv_useSW(i) = zero
+                 else
+                    if ((icld_det(m)>0) .and. (wavenumber(i)<2000.0)) then
+                       varinv_useLW(i) = varinv(i)
+                    else if ((icld_det(m)>0) .and. (wavenumber(i)>=2000.0)) then
+                       varinv_useSW(i) = varinv(i)
+                    end if
+                 end if
+              end if
            end do
 
-           call qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),goessndr,airs,cris,iasi,      &
-              hirs,zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise, &
-              wavenumber,ptau5,prsltmp,tvp,temp,wmix,chan_level,emissivity_k,ts,tsim,         &
-              id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole(n),     &
-              imager_cluster_fraction(:,n), imager_cluster_bt(:,:,n), imager_chan_stdev(:,n),imager_model_bt(:,n))
+           if (.not. cris) then
+              cris_sw=.false.
+              call qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),goessndr,airs,cris,iasi, &
+                 hirs,zsges,cenlat,frac_sea,pangs,trop5,zasat,sun_azimuth,sat_azimuth,tzbgr, &
+                 tsavg5,tbc,tb_obs,tbcnob,tnoise,wavenumber,ptau5,prsltmp,tvp,temp,wmix,chan_level, &
+                 emissivity_k,ts,tsim,id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax, & 
+                 zero_irjaco3_pole(n),imager_cluster_fraction(:,n),imager_cluster_bt(:,:,n), &
+                 imager_chan_stdev(:,n),imager_model_bt(:,n),cris_sw)
+           else if (cris) then
+            ! call qc_irsnd once using the LW channels for cloud detection for
+            ! LW QC flags
+              cris_sw=.false.
+              call qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),goessndr,airs,cris,iasi, &
+                 hirs,zsges,cenlat,frac_sea,pangs,trop5,zasat,sun_azimuth,sat_azimuth,tzbgr, &
+                 tsavg5,tbc,tb_obs,tbcnob,tnoise,wavenumber,ptau5,prsltmp,tvp,temp,wmix,chan_level, &
+                 emissivity_k,ts,tsim,id_qcLW,aivals,errf_LW,varinv_LW,varinv_useLW,cld,cldp,kmax, &
+                 zero_irjaco3_pole(n),imager_cluster_fraction(:,n),imager_cluster_bt(:,:,n), &
+                 imager_chan_stdev(:,n),imager_model_bt(:,n),cris_sw)
+            ! call qc_irsnd again using the SW channels for cloud detection for
+            ! SW QC flags
+              cris_sw=.true.
+              call qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),goessndr,airs,cris,iasi, &
+                 hirs,zsges,cenlat,frac_sea,pangs,trop5,zasat,sun_azimuth,sat_azimuth,tzbgr, &
+                 tsavg5,tbc,tb_obs,tbcnob,tnoise,wavenumber,ptau5,prsltmp,tvp,temp,wmix,chan_level, &
+                 emissivity_k,ts,tsim,id_qcSW,aivals,errf_SW,varinv_SW,varinv_useSW,cld,cldp,kmax, &
+                 zero_irjaco3_pole(n),imager_cluster_fraction(:,n),imager_cluster_bt(:,:,n), &
+                 imager_chan_stdev(:,n),imager_model_bt(:,n),cris_sw)
+            ! combine intermediate qc flag arrays
+              do i=1,nchanl
+                 if (wavenumber(i)<2000.0) then
+                    id_qc(i)=id_qcLW(i)
+                    varinv(i)=varinv_LW(i)
+                    errf(i)=errf_LW(i)
+                 else if (wavenumber(i)>=2000.0) then
+                    id_qc(i)=id_qcSW(i)
+                    varinv(i)=varinv_SW(i)
+                    errf(i)=errf_SW(i)
+                 end if
+              end do
+           end if
 
 !  --------- MSU -------------------
 !       QC MSU data
@@ -2184,6 +2293,16 @@ contains
 ! Deallocate arrays
   deallocate(diagbufchan)
   deallocate(sc_index)
+
+  if(allocated(tl_tbobs)) deallocate(tl_tbobs)
+  if(allocated(varinv_LW)) deallocate(varinv_LW)
+  if(allocated(varinv_SW)) deallocate(varinv_SW)
+  if(allocated(varinv_useLW)) deallocate(varinv_useLW)
+  if(allocated(varinv_useSW)) deallocate(varinv_useSW)
+  if(allocated(errf_LW)) deallocate(errf_LW)
+  if(allocated(errf_SW)) deallocate(errf_SW)
+  if(allocated(id_qcLW)) deallocate(id_qcLW)
+  if(allocated(id_qcSW)) deallocate(id_qcSW)
 
   if (rad_diagsave .and. nchanl_diag > 0) then
      if (netcdf_diag) call nc_diag_write
