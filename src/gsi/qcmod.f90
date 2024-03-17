@@ -2199,6 +2199,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 
 
   real(r_kind) :: demisf,dtempf,efact,dtbf,term,cenlatx,sfchgtfact
+  real(r_kind) :: pangs_rad,solazi_rad,satazi_rad,relazi_rad,glint_rad,glint
   real(r_kind) :: sum1,sum2,sum3,tmp,dts,delta
   integer(i_kind) :: i,j,lcloud,m,isurface_chan
   integer(i_kind), dimension(nchanl) :: irday
