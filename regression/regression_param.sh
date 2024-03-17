@@ -87,8 +87,8 @@ case $regtest in
     rrfs_3denvar_glbens)
 
         if [[ "$machine" = "Hera" ]]; then
-           topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
+           topts[1]="0:15:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="10/4/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Orion" ]]; then
            topts[1]="0:15:00" ; popts[1]="10/2/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="20/2/" ; ropts[2]="/2"
@@ -96,8 +96,8 @@ case $regtest in
            topts[1]="0:15:00" ; popts[1]="20/1/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="10/4/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
-           topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
+           topts[1]="0:15:00" ; popts[1]="5/5/"  ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="10/4/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Gaea" ]]; then
            topts[1]="0:15:00" ; popts[1]="18/1/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="18/2/"  ; ropts[2]="/1"
@@ -117,17 +117,17 @@ case $regtest in
     hafs_3denvar_hybens)
 
         if [[ "$machine" = "Hera" ]]; then
-           topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
+           topts[1]="0:15:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="10/4/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Orion" ]]; then
            topts[1]="0:15:00" ; popts[1]="5/4/" ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="20/2/" ; ropts[2]="/2"
+           topts[2]="0:15:00" ; popts[2]="10/4/" ; ropts[2]="/2"
         elif [[ "$machine" = "Hercules" ]]; then
            topts[1]="0:15:00" ; popts[1]="20/1/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="5/8/" ; ropts[2]="/1"
         elif [[ "$machine" = "Jet" ]]; then
-           topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
+           topts[1]="0:15:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="10/4/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Gaea" ]]; then
            topts[1]="0:15:00" ; popts[1]="18/1/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="18/2/"  ; ropts[2]="/1"
@@ -146,8 +146,8 @@ case $regtest in
 
     hafs_4denvar_glbens)
         if [[ "$machine" = "Hera" ]]; then
-           topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
+           topts[1]="0:15:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="10/4/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Orion" ]]; then
            topts[1]="0:20:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
            topts[2]="0:20:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
@@ -155,8 +155,8 @@ case $regtest in
            topts[1]="0:20:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
            topts[2]="0:20:00" ; popts[2]="10/4/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Jet" ]]; then
-           topts[1]="0:15:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
+           topts[1]="0:15:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="10/4/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Gaea" ]]; then
            topts[1]="0:15:00" ; popts[1]="18/1/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="18/2/"  ; ropts[2]="/1"
