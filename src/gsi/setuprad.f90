@@ -369,6 +369,7 @@ contains
   real(r_kind) si_obs,si_fg                
 ! real(r_kind) si_mean                     
   real(r_kind) total_cloud_cover
+  real(r_kind) tref,errfl
 
   logical cao_flag                       
   logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,ahi,mhs,abi
