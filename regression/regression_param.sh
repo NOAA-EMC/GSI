@@ -90,10 +90,10 @@ case $regtest in
            topts[1]="0:15:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="10/4/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Orion" ]]; then
-           topts[1]="0:15:00" ; popts[1]="10/2/" ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="20/2/" ; ropts[2]="/2"
+           topts[1]="0:15:00" ; popts[1]="5/4/" ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="10/4/" ; ropts[2]="/2"
         elif [[ "$machine" = "Hercules" ]]; then
-           topts[1]="0:15:00" ; popts[1]="20/1/" ; ropts[1]="/1"
+           topts[1]="0:15:00" ; popts[1]="5/4/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="10/4/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
            topts[1]="0:15:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
@@ -152,7 +152,7 @@ case $regtest in
            topts[1]="0:20:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
            topts[2]="0:20:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Hercules" ]]; then
-           topts[1]="0:20:00" ; popts[1]="20/1/"  ; ropts[1]="/1"
+           topts[1]="0:20:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
            topts[2]="0:20:00" ; popts[2]="10/4/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Jet" ]]; then
            topts[1]="0:15:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
