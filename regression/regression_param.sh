@@ -96,7 +96,7 @@ case $regtest in
            topts[1]="0:15:00" ; popts[1]="20/1/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="10/4/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
-           topts[1]="0:15:00" ; popts[1]="5/5/"  ; ropts[1]="/1"
+           topts[1]="0:15:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="10/4/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Gaea" ]]; then
            topts[1]="0:15:00" ; popts[1]="18/1/"  ; ropts[1]="/1"
