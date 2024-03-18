@@ -1450,7 +1450,7 @@ contains
               end if
            end do
 
-           if (.not. cris) then
+           if ((.not. cris) .or. (cris .and. cris_cads)) then
               cris_sw=.false.
               call qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),goessndr,airs,cris,iasi, &
                  hirs,zsges,cenlat,frac_sea,pangs,trop5,zasat,sun_azimuth,sat_azimuth,tzbgr, &
@@ -1458,7 +1458,7 @@ contains
                  emissivity_k,ts,tsim,id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax, & 
                  zero_irjaco3_pole(n),imager_cluster_fraction(:,n),imager_cluster_bt(:,:,n), &
                  imager_chan_stdev(:,n),imager_model_bt(:,n),cris_sw)
-           else if (cris) then
+           else if (cris .and. (.not. cris_cads)) then
             ! call qc_irsnd once using the LW channels for cloud detection for
             ! LW QC flags
               cris_sw=.false.
