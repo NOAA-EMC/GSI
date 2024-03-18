@@ -2330,7 +2330,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
   cldp=r10*prsltmp(1)
 
 !  Cloud and aerosol detection routines (ECMWF)
-  if (cris .and. cris_cads .and. (.not. cris_sw)) then
+  if (cris .and. cris_cads) then
       I_Sensor_ID = 27
       chan_array = nuchan(ich)                  ! channel numbers
       tb_bc = tbc + tsim                        ! observation BT with bias correction
@@ -2382,7 +2382,7 @@ subroutine qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse,goessndr,airs
 
 ! compute cloud stats 
 ! If using CADS
-  if ((cris .and. cris_cads) .or. (iasi .and. iasi_cads) .or. (airs .and. airs_cads) .and. (.not. cris_sw)) then
+  if ((cris .and. cris_cads) .or. (iasi .and. iasi_cads) .or. (airs .and. airs_cads)) then
 
 !   Reject channels affected by clouds
     do i=1, nchanl
