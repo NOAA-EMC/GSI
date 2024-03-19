@@ -101,7 +101,7 @@
   integer(i_kind) :: soilt4_ind,slc1_ind, slc2_ind, slc3_ind, slc4_ind
 
   integer(i_kind) :: k,iret,nb,i,imem,idvc,nlonsin,nlatsin,nlevsin,ne,nanal
-  !surface
+  ! surface
   integer(i_kind) :: nlonsin_sfc,nlatsin_sfc
 
   logical ice
