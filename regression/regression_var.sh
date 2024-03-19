@@ -190,7 +190,7 @@ export savdir="$ptmp"
 export JCAP="62"
 
 # Case Study analysis dates
-export global_adate="2022110900"
+export global_adate="2024022300"
 export rtma_adate="2020022420"
 export fv3_netcdf_adate="2017030100"
 export rrfs_3denvar_glbens_adate="2021072518"
