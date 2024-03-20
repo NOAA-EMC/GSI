@@ -566,6 +566,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            endif
 !
 !          Determine usage
+!
            ikx = 0
            do i = 1, nconvtype
               if(kx == ictype(i) .and. abs(icuse(i))== 1) ikx=i
