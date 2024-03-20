@@ -77,6 +77,10 @@ subroutine obs_para(ndata,mype)
   integer(i_kind) nobs_s
   logical print_verbose
 
+  integer(i_kind) :: n_gpsprof    ! Number of gps profiles in a single bufr dataset
+  integer(i_kind) :: gpsprof_accu ! Accumulated number of gps profiles
+  character(46) :: dummy_char46   ! 10(obstype) + 20 (isis) + 4*4 (nreal,nchanl,lat,lon)
+
   print_verbose=.false.
   if(verbose)print_verbose=.true.
 !
@@ -90,6 +94,8 @@ subroutine obs_para(ndata,mype)
   mm1=mype+1
   ndatax_all=0
   lunout=55
+
+  gpsprof_accu = 0
 
 !
 ! Set number of obs on each pe for each data type
@@ -113,9 +119,22 @@ subroutine obs_para(ndata,mype)
              end if
            end do obproc
                 
+           ! For gps observations, read the number of profiles
+           if (trim(dtype(is)) == 'gps_ref' .or. trim(dtype(is)) == 'gps_bnd') then
+              open(11, file=trim(obsfile_all(is)), form='unformatted')
+              read(11) dummy_char46, n_gpsprof
+              close(11)
+           end if
+
            if(nobs_sub(mm1,is) > zero)then    ! classical observations
               call disobs(ndata(is,1),nobs_sub(mm1,is),mm1,lunout, &
-                  obsfile_all(is),dtype(is))
+                  obsfile_all(is),dtype(is),gpsprof_accu)
+           end if
+
+           ! For gps observations, compute the accumulated number of profiles,
+           ! used to re-compute unique profile ID for the next gps bufr dataset
+           if (trim(dtype(is)) == 'gps_ref' .or. trim(dtype(is)) == 'gps_bnd') then
+              gpsprof_accu = gpsprof_accu + n_gpsprof
            end if
         end if
         nsat1(is)= nobs_sub(mm1,is)
@@ -159,6 +178,7 @@ subroutine obs_para(ndata,mype)
   end do
   close(lunout)
 
+  if (mype==0) write(6,*) 'OBS_PARA: total number of gps profiles =', gpsprof_accu
 
 ! If there are no obs available, turn off moisture constraint.  
 ! If the user still wants the moisture constraint active when no obs are
@@ -174,7 +194,7 @@ subroutine obs_para(ndata,mype)
   return
 end subroutine obs_para
 
-subroutine disobs(ndata,nobs,mm1,lunout,obsfile,obstypeall)
+subroutine disobs(ndata,nobs,mm1,lunout,obsfile,obstypeall,gpsprof_accu)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -218,6 +238,7 @@ subroutine disobs(ndata,nobs,mm1,lunout,obsfile,obstypeall)
   integer(i_kind)               ,intent(in   ) :: ndata,lunout,mm1,nobs
   character(len=*)              ,intent(in   ) :: obsfile
   character(len=*)              ,intent(in   ) :: obstypeall
+  integer(i_kind)               ,intent(in   ) :: gpsprof_accu
 
 ! Declare local variables
   integer(i_kind) lon,lat,lat_data,lon_data,n,k,lunin
@@ -259,6 +280,13 @@ subroutine disobs(ndata,nobs,mm1,lunout,obsfile,obstypeall)
 !  Read in all observations of a given type along with subdomain flags
   read(lunin) obs_data
   close(lunin)
+
+! For gps observations, re-compute a unique profile ID (considering multiple bufr datasets)
+  if (trim(obstypeall) == 'gps_ref' .or. trim(obstypeall) == 'gps_bnd') then
+     do n=1,ndata
+        obs_data(8,n) = obs_data(8,n) + gpsprof_accu
+     end do
+  end if
 
   ndata_s=0
   allocate(data1_s(nn_obs,nobs),luse_s(nobs),ioid_s(nobs))
