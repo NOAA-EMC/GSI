@@ -111,7 +111,7 @@ echo "#SBATCH --job-name=$jobname"                                              
 echo "#SBATCH --qos=$queue"                                                        >> $cfile
 echo "#SBATCH --partition=$partition"                                              >> $cfile
 echo "#SBATCH --time=$timew"                                                       >> $cfile
-echo "#SBATCH --nodes=$nodes --ntasks-per-node=$procs --cpus-per-task=$threads"    >> $cfile
+echo "#SBATCH --nodes=$nodes --ntasks-per-node=$procs --exclusive"    >> $cfile
 echo "#SBATCH --account=$accnt"                                                    >> $cfile
 
 echo "" >>$cfile
@@ -119,7 +119,6 @@ echo "export ntasks=$(( $nodes * $procs ))" >> $cfile
 echo "export ppn=$procs"                    >> $cfile
 echo "export threads=$threads"              >> $cfile
 echo "export OMP_NUM_THREADS=$threads"      >> $cfile
-##echo "export OMP_STACKSIZE=2048M"           >> $cfile
 echo "ulimit -s unlimited"                  >> $cfile
 
 echo "" >>$cfile
@@ -130,8 +129,9 @@ echo ". /apps/other/lmod/lmod/init/sh"                     >> $cfile
 echo "module purge"                                        >> $cfile
 echo "module use $modulefiles"                      >> $cfile
 echo "module load gsi_hercules.intel" >> $cfile
-echo "module list"                                         >> $cfile
-echo ""                                                    >> $cfile
+#TODO reenable I_MPI_EXTRA_FILESYSTEM once regional ctests can properly handle parallel I/O on Hercules
+echo "unset I_MPI_EXTRA_FILESYSTEM"         >> $cfile
+
 cat $exec >> $cfile
 
 if [[ $nosub = YES ]];then
