@@ -1326,11 +1326,7 @@ contains
 
     do i=1,nchanl
        if (radmod%lcloud4crtm(i)<0) cycle
-       if (clw_obs <= cclr(i) .and. clw_guess_retrieval <= cclr(i) .and. abs(clw_obs-clw_guess_retrieval) < 0.001_r_kind) then
-           cld_rbc_idx(i)=one   !clear/clear
-       else
-           cld_rbc_idx(i)=zero
-       endif
+       if ((clw_obs-cclr(i))*(clw_guess_retrieval-cclr(i))<zero .and. abs(clw_obs-clw_guess_retrieval)>=0.005_r_kind) cld_rbc_idx(i)=zero
     end do
     return
 
