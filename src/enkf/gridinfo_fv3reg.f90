@@ -47,7 +47,8 @@ use mpisetup, only: nproc, mpi_integer, mpi_real4,mpi_status
 use mpimod, only: mpi_comm_world
 use params, only: datapath,nlevs,nlons,nlats,use_gfs_nemsio, fgfileprefixes, &
                   fv3fixpath, nx_res,ny_res, ntiles,l_fv3reg_filecombined,paranc, &
-                  fv3_io_layout_nx,fv3_io_layout_ny
+                  fv3_io_layout_nx,fv3_io_layout_ny,taperanalperts,taperanalperts_akbot, &
+                  taperanalperts_aktop
           
 use kinds, only: r_kind, i_kind, r_double, r_single
 use constants, only: one,zero,pi,cp,rd,grav,rearth,max_varname_length
@@ -165,12 +166,28 @@ if (nproc .eq. 0) then
        eta2_ll(i)=bk(i)
    enddo
 
-
-
-
    ptop = eta1_ll(nlevsp1)
    call nc_check( nf90_close(file_id),&
    myname_,'close '//trim(filename) )
+
+   ! vertical taper function for ens perts
+   allocate(taper_vert(nlevs))
+   if (taperanalperts) then
+      do k=1,nlevs
+         if (k < nlevs/2 .and. (ak(k) <= taperanalperts_akbot .and. ak(k) >= taperanalperts_aktop)) then
+            taper_vert(nlevs-k+1)= log(ak(k) - taperanalperts_aktop)/log(taperanalperts_akbot - taperanalperts_aktop)
+         else if (bk(k) .eq. 0. .and. ak(k) < taperanalperts_aktop) then
+            taper_vert(nlevs-k+1) = 0.
+         endif
+      enddo
+      print *,'vertical taper for anal perts:'
+      do k=1,nlevs
+         print *,k,ak(nlevs-k+1),bk(nlevs-k+1),taper_vert(k)
+      enddo
+   else
+      taper_vert = one
+   endif
+
    deallocate(ak,bk)
 endif ! root task
 
@@ -284,8 +301,7 @@ endif
 if(nproc == 0)  then
   nn = 0
   npts=nx_res*ny_res
-  allocate(latsgrd(npts),lonsgrd(npts),taper_vert(nlevs))
-  taper_vert=one
+  allocate(latsgrd(npts),lonsgrd(npts))
 endif
 if(any (mpi_id_group == nproc))  then ! if paranc=.fales., this equal to "nproc== 00 
   call mpi_comm_rank(mpi_comm_userread,iope, ierror)
