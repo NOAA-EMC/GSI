@@ -1,6 +1,7 @@
 module gridinfo
 
-use mpisetup
+use mpisetup, only: nproc, mpi_integer, mpi_real4
+use mpimod, only: mpi_comm_world
 use params, only: datapath,nlevs,datestring,&
                   nmmb,regional,nlons,nlats,nbackgrounds,fgfileprefixes
 use kinds, only: r_kind, i_kind, r_double, r_single

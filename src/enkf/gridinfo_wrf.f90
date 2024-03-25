@@ -32,12 +32,13 @@ module gridinfo
 
   ! Define associated modules
 
-  use constants, only: rearth_equator, omega, pi, deg2rad, zero, rad2deg,    &
+  use constants, only: rearth_equator, omega, pi, deg2rad, zero, one, rad2deg, &
                        rearth,max_varname_length
   use kinds,     only: i_kind, r_kind, r_single, i_long, r_double
   use params,    only: datapath, nlevs, nlons, nlats,           &
                        arw, nmm
-  use mpisetup
+  use mpisetup, only: nproc, mpi_integer, mpi_real4,mpi_status
+  use mpimod, only: mpi_comm_world
   use netcdf_io
 
   implicit none
