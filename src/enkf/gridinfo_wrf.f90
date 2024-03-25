@@ -63,6 +63,7 @@ module gridinfo
   real(r_single),      dimension(:,:), allocatable, public     :: gridloc
   real(r_single),      dimension(:),   allocatable, public     :: lonsgrd
   real(r_single),      dimension(:),   allocatable, public     :: latsgrd
+  real(r_single),      dimension(:),   allocatable, public     :: taper_vert
   real(r_single),                                   public     :: ptop
   integer(i_long),                                  public     :: npts
   integer(i_kind),                                  public     :: nlevs_pres
@@ -211,7 +212,9 @@ contains
     ! Allocate memory for global arrays
     if(.not. allocated(lonsgrd)) allocate(lonsgrd(npts))
     if(.not. allocated(latsgrd)) allocate(latsgrd(npts))
+    if(.not. allocated(taper_vert)) allocate(taper_vert(nlevs))
     if(.not. allocated(logp))    allocate(logp(npts,nlevs_pres))
+    taper_vert = one
 
     !======================================================================
     ! Begin: Ingest all grid variables required for EnKF routines and
@@ -848,6 +851,7 @@ contains
   subroutine gridinfo_cleanup()
     if (allocated(lonsgrd))       deallocate(lonsgrd)
     if (allocated(latsgrd))       deallocate(latsgrd)
+    if (allocated(taper_vert))    deallocate(taper_vert)
     if (allocated(logp))          deallocate(logp)
     if (allocated(gridloc))       deallocate(gridloc)
   end subroutine gridinfo_cleanup

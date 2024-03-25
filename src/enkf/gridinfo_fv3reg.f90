@@ -65,6 +65,7 @@ public :: getgridinfo, gridinfo_cleanup
 public :: ak,bk,eta1_ll,eta2_ll
 real(r_single),public :: ptop
 real(r_single),public, allocatable, dimension(:) :: lonsgrd, latsgrd
+real(r_single),public, allocatalbe, dimension(:) :: taper_vert
 ! arrays passed to kdtree2 routines must be single
 real(r_single),public, allocatable, dimension(:,:) :: gridloc
 real(r_single),public, allocatable, dimension(:,:) :: logp
@@ -283,7 +284,8 @@ endif
 if(nproc == 0)  then
   nn = 0
   npts=nx_res*ny_res
-  allocate(latsgrd(npts),lonsgrd(npts))
+  allocate(latsgrd(npts),lonsgrd(npts),taper_vert(nlevs))
+  taper_vert=one
 endif
 if(any (mpi_id_group == nproc))  then ! if paranc=.fales., this equal to "nproc== 00 
   call mpi_comm_rank(mpi_comm_userread,iope, ierror)
@@ -463,7 +465,7 @@ endif ! nproc in IO group
 allocate(gridloc(3,npts))
 if (nproc .ne. 0) then
    ! allocate arrays on other (non-root) tasks
-   allocate(latsgrd(npts),lonsgrd(npts))
+   allocate(latsgrd(npts),lonsgrd(npts),taper_vert(nlevs))
    allocate(logp(npts,nlevs_pres)) ! log(ens mean first guess press) on mid-layers
    allocate(eta1_ll(nlevsp1),eta2_ll(nlevsp1))
 endif
@@ -473,6 +475,7 @@ do k=1,nlevs_pres
 enddo
 call mpi_bcast(lonsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(latsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
+call mpi_bcast(taper_vert,nlevs,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(eta1_ll,nlevsp1,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(eta2_ll,nlevsp1,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(ptop,1,mpi_real4,0,MPI_COMM_WORLD,ierr)
@@ -489,6 +492,7 @@ end subroutine getgridinfo
 subroutine gridinfo_cleanup()
 if (allocated(lonsgrd)) deallocate(lonsgrd)
 if (allocated(latsgrd)) deallocate(latsgrd)
+if (allocated(taper_vert)) deallocate(taper_vert)
 if (allocated(logp)) deallocate(logp)
 if (allocated(gridloc)) deallocate(gridloc)
 end subroutine gridinfo_cleanup
