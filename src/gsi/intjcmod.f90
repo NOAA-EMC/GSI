@@ -103,7 +103,7 @@ subroutine intlimq(rval,sval,itbin)
   call gsi_bundlegetpointer(gsi_metguess_bundle(itbin),'q',ges_q_it,ier)
   if(ier/=0)return
  
-!$omp parallel do  schedule(dynamic,1) private(k,j,i,q)
+!$omp parallel do  schedule(dynamic,1) private(k,j,i,ii,q)
   do k = 1,nsig
      do j = 2,lon1+1
         do i = 2,lat1+1
