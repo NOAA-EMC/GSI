@@ -65,7 +65,7 @@ public :: getgridinfo, gridinfo_cleanup
 public :: ak,bk,eta1_ll,eta2_ll
 real(r_single),public :: ptop
 real(r_single),public, allocatable, dimension(:) :: lonsgrd, latsgrd
-real(r_single),public, allocatalbe, dimension(:) :: taper_vert
+real(r_single),public, allocatable, dimension(:) :: taper_vert
 ! arrays passed to kdtree2 routines must be single
 real(r_single),public, allocatable, dimension(:,:) :: gridloc
 real(r_single),public, allocatable, dimension(:,:) :: logp
