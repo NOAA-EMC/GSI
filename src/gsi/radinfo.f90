@@ -897,7 +897,7 @@ contains
 !   Allocate arrays to receive angle dependent bias information.
 !   Open file to bias file (satang=satbias_angle).  Read data.
 
-    maxscan=250
+    maxscan=252
     if (.not.adp_anglebc) maxscan = 90 ! default value for old files
 
     if (adp_anglebc) then 
