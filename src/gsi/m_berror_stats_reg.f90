@@ -313,6 +313,7 @@ end subroutine berror_read_bal_reg
       use mpeu_util,only: getindex
       use radiance_mod, only: icloud_cv,n_clouds_fwd,cloud_names_fwd
       use chemmod, only: berror_fv3_cmaq_regional,berror_fv3_sd_regional
+      use rapidrefresh_cldsurf_mod, only: corp_gust, hwllp_gust, l_rtma3d
 
       implicit none
 
@@ -830,6 +831,10 @@ end subroutine berror_read_bal_reg
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_q)
         end do
+        if ( l_rtma3d ) then  ! tuning stddev and length for analysis of gust in 3drtma test run
+           if ( corp_gust  .gt. 0.0_r_kind ) corp(1:mlat,   n) = corp_gust
+           if ( hwllp_gust .gt. 0.0_r_kind ) hwllp(0:mlat+1,n) = hwllp_gust
+        end if
      else if (n==nrf2_vis) then
         do i=1,mlat
            corp(i,n)=3.0_r_kind

@@ -227,7 +227,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use adjust_cloudobs_mod, only: adjust_convcldobs,adjust_goescldobs
   use mpimod, only: npe
   use rapidrefresh_cldsurf_mod, only: i_gsdsfc_uselist,i_gsdqc,i_ens_mean
-  use rapidrefresh_cldsurf_mod, only: l_rtma3d
+  use rapidrefresh_cldsurf_mod, only: l_rtma3d, oerr_gust
   use gsi_io, only: verbose
   use phil2, only: denest       ! hilbert curve
 
@@ -1825,6 +1825,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  gustqm=0
                  if (kx==188 .or. kx==288 .or. kx==195 .or. kx==295 ) &
                  call get_gustqm(kx,c_station_id,c_prvstg,c_sprvstg,gustqm)
+                 if ( l_rtma3d ) gustqm = 0  ! skipping get_gustqm for 3drtma run (missing list file)
                  qm=gustqm
               else if(visob) then
                  visqm=0    ! need to fix this later
@@ -2556,6 +2557,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !                need to find out gustoe
 !                gustoe=1.8
                  gustoe=1.0
+                 if ( l_rtma3d .and. oerr_gust > 0.0_r_kind ) gustoe = oerr_gust
                  selev=stnelev
                  oelev=obsdat(4,k)
                  if(selev == oelev)oelev=r10+selev
@@ -2577,6 +2579,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                    if ((kx==188).or.(kx==288) .or.(kx==195) .or.(kx==295)) then
 !                     gustoe=2.5
                       gustoe=1.0
+                      if ( l_rtma3d .and. oerr_gust > 0.0_r_kind ) gustoe = oerr_gust
                       windcorr=abs(obsdat(5,k))<1.0 .and. abs(obsdat(6,k))<1.0 .and. obsdat(8,k)>10.0
                       if (windcorr) gustoe=gustoe*1.5_r_kind
 
