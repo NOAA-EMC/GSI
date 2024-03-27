@@ -48,7 +48,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
      use kinds, only: r_single,r_kind,r_double,i_kind
      use constants, only: zero,one_tenth,one,two,ten,deg2rad,t0c,half,&
          three,four,rad2deg,tiny_r_kind,huge_r_kind,r0_01,&
-         r60inv,r10,r100,r2000,hvap,eps,omeps,rv,grav
+         r60inv,r10,r100,r2000,hvap,eps,omeps,rv,grav,r_missing
      use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
          tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
          rlats,rlons,twodvar_regional,fv3_regional
@@ -1133,7 +1133,7 @@ subroutine read_fl_hdob(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,si
               cdata_all( 1,iout)=woe                    ! wind error
               cdata_all( 2,iout)=dlon                   ! grid relative longitude             
               cdata_all( 3,iout)=dlat                   ! grid relative latitude                  
-              cdata_all( 4,iout)=dlnpsob                ! ln(surface pressure in cb)
+              cdata_all( 4,iout)=r_missing                ! ln(surface pressure in cb) !Since dlnpsob is not provided by SFMR, force it to be r_missing. Not used in setupspd.f90
               cdata_all( 5,iout)=spdob*sqrt(two)*half   ! u obs
               cdata_all( 6,iout)=spdob*sqrt(two)*half   ! v obs
               cdata_all( 7,iout)=rstation_id            ! station id
