@@ -844,10 +844,10 @@ subroutine stpcalc(stpinout,sval,sbias,dirx,dval,dbias, &
            if(outpen(i) < outpensave)then
               stp(ii)=outstp(i)
               outpensave=outpen(i)
-              istp_use=i
+              istp_use=ii
            end if
         end do
-        if(istp_use /= istp_iter) then
+        if(istp_use /= nsteptot) then
            final_ii=ii
            exit stepsize
         end if

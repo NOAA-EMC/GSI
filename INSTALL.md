@@ -79,6 +79,7 @@ CMake allows for various options that can be specified on the command line via `
 | `OPENMP`              | Enable OpenMP Threading (`OFF`)                      |
 | `ENABLE_MKL`          | Use MKL (`ON`), If not found use LAPACK              |
 | `BUILD_GSDCLOUD`      | Build GSD Cloud Library (`OFF`)                      |
+| `BUILD_MGBF`          | Build MGBF Library (`ON`)                            |
 | `BUILD_GSI`           | Build GSI library and executable (`ON`)              |
 | `BUILD_ENKF`          | Build EnKF library and executable (`ON`)             |
 | `BUILD_REG_TESTING`   | Enable Regression Testing (`ON`)                     |
