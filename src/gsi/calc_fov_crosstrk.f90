@@ -1287,7 +1287,7 @@
        height=866._r_kind
     case('npp')
        height=840._r_kind
-    case('n20')
+    case('n20', 'n21', 'n22', 'n23')
        height=840._r_kind
     case default
        write(6,*) 'GET_SAT_HEIGHT: ERROR, unrecognized satellite id: ', trim(satid)
