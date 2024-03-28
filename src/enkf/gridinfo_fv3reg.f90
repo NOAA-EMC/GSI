@@ -135,7 +135,7 @@ kap1 = kap + one
 
 !when paranc=.false, fv3_io_layout_nx=fv3_io_layout_ny=1
 ! read data on root task
-if (nproc .eq. 0) then
+if (nproc == 0) then
 
    !  read ak,bk from ensmean fv_core.res.nc
    !  read nx,ny and nz from fv_core.res.nc
@@ -176,8 +176,8 @@ if (nproc .eq. 0) then
       do k=1,nlevs
          if (k < nlevs/2 .and. (ak(k) <= taperanalperts_akbot .and. ak(k) >= taperanalperts_aktop)) then
             taper_vert(nlevs-k+1)= log(ak(k) - taperanalperts_aktop)/log(taperanalperts_akbot - taperanalperts_aktop)
-         else if (bk(k) .eq. 0. .and. ak(k) < taperanalperts_aktop) then
-            taper_vert(nlevs-k+1) = 0.
+         else if (bk(k) == zero .and. ak(k) < taperanalperts_aktop) then
+            taper_vert(nlevs-k+1) = zero
          endif
       enddo
       print *,'vertical taper for anal perts:'
@@ -194,7 +194,7 @@ endif ! root task
 allocate(nxlocgroup(fv3_io_layout_nx,fv3_io_layout_ny))
 allocate(nylocgroup(fv3_io_layout_nx,fv3_io_layout_ny))
 
-if(nproc.eq.0) then 
+if(nproc == 0) then 
   ii=0
   do j=1,fv3_io_layout_ny
     do i=1,fv3_io_layout_nx

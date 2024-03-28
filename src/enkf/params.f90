@@ -256,8 +256,8 @@ logical,public :: write_ensmean = .false.
 
 ! taper analysis ens perturbations at top of model (gfs only)
 logical, public :: taperanalperts = .false.
-real, public :: taperanalperts_akbot = 500.
-real, public :: taperanalperts_aktop = -1.
+real(r_kind), public :: taperanalperts_akbot = 500.
+real(r_kind), public :: taperanalperts_aktop = -1.
 
 namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&

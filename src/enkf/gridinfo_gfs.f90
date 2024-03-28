@@ -106,7 +106,7 @@ kap = rd/cp
 kapr = cp/rd
 kap1 = kap + one
 nlevs_pres=nlevs+1
-if (nproc .eq. 0) then
+if (nproc == 0) then
 filename = trim(adjustl(datapath))//trim(adjustl(fileprefix))//"ensmean"
 if (use_gfs_nemsio) then
      call nemsio_init(iret=iret)
@@ -169,7 +169,7 @@ call mpi_bcast(ntrunc,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
 ! initialize spectral module on all tasks.
 if (.not. isinitialized) call init_spec_vars(nlons,nlats,ntrunc,4)
 
-if (nproc .eq. 0) then
+if (nproc == 0) then
    ! get pressure, lat/lon information from ensemble mean file.
    allocate(presslmn(nlons*nlats,nlevs))
    allocate(pressimn(nlons*nlats,nlevs+1))
@@ -340,8 +340,8 @@ if (nproc .eq. 0) then
      do k=1,nlevs
         if (k < nlevs/2 .and. (ak(k) <= taperanalperts_akbot .and. ak(k) >= taperanalperts_aktop)) then
            taper_vert(nlevs-k+1)= log(ak(k) - taperanalperts_aktop)/log(taperanalperts_akbot - taperanalperts_aktop)
-        else if (bk(k) .eq. 0. .and. ak(k) < taperanalperts_aktop) then
-           taper_vert(nlevs-k+1) = 0.
+        else if (bk(k) == zero .and. ak(k) < taperanalperts_aktop) then
+           taper_vert(nlevs-k+1) = zero
         endif
      enddo
      print *,'vertical taper for anal perts:'

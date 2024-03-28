@@ -113,7 +113,7 @@ fnanalsml = one/(real(nanals-1,r_single))
 if (analpertwtnh_rtpp > 1.e-5_r_single .and. &
     analpertwtnh_rtpp > 1.e-5_r_single .and. &
     analpertwttr_rtpp > 1.e-5_r_single) then
-if (nproc .eq. 0) print *,'performing RTPP inflation...'
+if (nproc == 0) print *,'performing RTPP inflation...'
 nbloop: do nb=1,nbackgrounds ! loop over time levels in background
 ! First perform RTPP ensemble inflation,
 ! as first described in:
@@ -139,7 +139,7 @@ if (abs(analpertwtnh) < 1.e-5_r_single .and. &
     abs(analpertwttr) < 1.e-5_r_single .and. &
     abs(analpertwtsh) < 1.e-5_r_single) return
 
-if (nproc .eq. 0) print *,'performing RTPS inflation...'
+if (nproc == 0) print *,'performing RTPS inflation...'
 
 ! now perform RTPS inflation
 nbloop2: do nb=1,nbackgrounds ! loop over time levels in background
@@ -303,7 +303,7 @@ sumi = zero
 ! apply inflation.
 do nn=1,ncdim
  nlev = index_pres(nn) ! vertical index for i'th control variable
- if (nlev .eq. nlevs+1) nlev=-1 ! 2d field
+ if (nlev == nlevs+1) nlev=-1 ! 2d field
  do i=1,numptsperproc(nproc+1)
 
    ! inflate posterior perturbations.
