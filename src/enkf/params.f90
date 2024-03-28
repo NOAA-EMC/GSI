@@ -254,6 +254,11 @@ character(len=12),dimension(10),public :: incvars_to_zero='NONE' !just picking 1
 ! write ensemble mean analysis (or analysis increment)
 logical,public :: write_ensmean = .false.
 
+! taper analysis ens perturbations at top of model (gfs only)
+logical, public :: taperanalperts = .false.
+real(r_kind), public :: taperanalperts_akbot = 500.0_r_kind
+real(r_kind), public :: taperanalperts_aktop = -1.0_r_kind
+
 namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    covinflatemax,covinflatemin,deterministic,sortinc,&
                    mincorrlength_fact,corrlengthnh,corrlengthtr,corrlengthsh,&
@@ -286,7 +291,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    fv3_native, paranc, nccompress, write_fv3_incr,incvars_to_zero,write_ensmean, &
                    corrlengthrdrnh,corrlengthrdrsh,corrlengthrdrtr,&
                    lnsigcutoffrdrnh,lnsigcutoffrdrsh,lnsigcutoffrdrtr,&
-                   l_use_enkf_directZDA
+                   l_use_enkf_directZDA,taperanalperts,taperanalperts_akbot,taperanalperts_aktop
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /nam_fv3/fv3fixpath,nx_res,ny_res,ntiles,l_pres_add_saved,l_fv3reg_filecombined, &
                   fv3_io_layout_nx,fv3_io_layout_ny
