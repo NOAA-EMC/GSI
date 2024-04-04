@@ -951,7 +951,6 @@ subroutine definecoef_regular_grids(nxen,nyen,grid_lon,grid_lont,grid_lat,grid_l
      do i=1,nxen
 !      center lat/lon of the edge 
         rlat=half*(grid_lat(i,j)+grid_lat(i+1,j))
-!        rlon=half*(grid_lon(i,j)+grid_lon(i+1,j))
         diff=(grid_lon(i,j)-grid_lon(i+1,j))**2
         if(diff < sq180)then
            rlon=half*(grid_lon(i,j)+grid_lon(i+1,j))
@@ -979,12 +978,11 @@ subroutine definecoef_regular_grids(nxen,nyen,grid_lon,grid_lont,grid_lat,grid_l
   do j=1,nyen
      do i=1,nxen+1
         rlat=half*(grid_lat(i,j)+grid_lat(i,j+1))
-!        rlon=half*(grid_lon(i,j)+grid_lon(i,j+1))
-        diff=(grid_lon(i,j)-grid_lon(i+1,j))**2
+        diff=(grid_lon(i,j)-grid_lon(i,j+1))**2
         if(diff < sq180)then
-           rlon=half*(grid_lon(i,j)+grid_lon(i+1,j))
+           rlon=half*(grid_lon(i,j)+grid_lon(i,j+1))
         else
-           rlon=half*(grid_lon(i,j)+grid_lon(i+1,j)-360._r_kind)
+           rlon=half*(grid_lon(i,j)+grid_lon(i,j+1)-360._r_kind)
         endif
         xr=cos(rlat*deg2rad)*cos(rlon*deg2rad)
         yr=cos(rlat*deg2rad)*sin(rlon*deg2rad)
