@@ -2857,8 +2857,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         qx = qxmr(k)*rho_air(k)    ! convert mixing ratio (kg/kg) to water content (kg/m3)
         if (qx < qmin) then
            lam_exp = no_exp* exp(1/(3.0_r_kind+1) * log ((am_g*gamma(3.0_r_kind +1))/qx))
-          lam_g=lam_exp*exp(1/3.0_r_kind*log(gamma(3.0_r_kind+mu_g+1)/((3.0_r_kind+mu_g+1)*(mu_g+1))))
-           reff(k) = 3.0_r_kind/ lam_g
+           lam_g=lam_exp*exp(1/3.0_r_kind*log(gamma(3.0_r_kind+mu_g+1)/((3.0_r_kind+mu_g+1)*(mu_g+1))))
+           reff(k) = 0.5_r_kind *(3.0_r_kind/ lam_g)*1.0e6_r_kind
            reff(k) = max(reff_min, min(reff_max, reff(k)))
         else
            reff(k) = zero
