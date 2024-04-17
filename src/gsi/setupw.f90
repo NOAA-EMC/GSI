@@ -945,7 +945,11 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            else
               if( presw >950.0_r_kind) error =zero       ! screen data beloww 950mb
            endif
-           if(itype ==242 .or. itype ==243 ) then  !  visible winds from JMA and EUMETSAT
+           if(itype == 241 ) then
+              if( presw >399.0_r_kind .and. presw <601.0_r_kind) then  !CIMISS(enhanced AMV) winds
+                 error=zero                          !  no data between400-600mb
+              endif
+           else if(itype ==242 .or. itype ==243 ) then  !  visible winds from JMA and EUMETSAT
               if(presw <700.0_r_kind) error=zero    !  no visible winds above 700mb
            else if(itype ==245 ) then
               if( presw >399.0_r_kind .and. presw <801.0_r_kind) then  !GOES IR  winds
