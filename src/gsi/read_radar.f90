@@ -907,6 +907,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
      end do superobs
 
      close(lnbufr)     ! A simple unformatted fortran file should not be mixed with a bufr I/O
+     nread=nsuper2_kept
 
      LEVEL_TWO_READ_2: if(loop==0 .and. sis=='l2rw') then      
         write(6,*)'READ_RADAR:  ',trim(outmessage),' reached eof on 2/2.5/3 superob radar file'
@@ -2151,6 +2152,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 
   end if
 
+  if (trim(infile) == 'tldplrbufr' .and. trim(infile) == 'tldplrso') then
   erad = rearth
   thiserr=5.0_r_kind
 
@@ -2190,6 +2192,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   naftswp=0
   nfore=0
   naft=0
+  end if
 
   xscale=100._r_kind
   xscalei=one/xscale
