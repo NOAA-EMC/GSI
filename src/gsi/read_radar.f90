@@ -2152,7 +2152,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 
   end if
 
-  if (trim(infile) == 'tldplrbufr' .and. trim(infile) == 'tldplrso') then
   erad = rearth
   thiserr=5.0_r_kind
 
@@ -2178,7 +2177,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   ibadstaheight=0
   notgood=0
   notgood0=0
-  nread=0
   ntdrvr_in=0
   ntdrvr_kept=0
   ntdrvr_thin1=0
@@ -2192,7 +2190,6 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   naftswp=0
   nfore=0
   naft=0
-  end if
 
   xscale=100._r_kind
   xscalei=one/xscale
@@ -2525,7 +2522,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
      end do ! end of loop, reading TDR so data files
      close(lnbufr)
 
-  else
+  else if (trim(infile) == 'tldplrbufr' ) then
 
      nswptype=0
      nmrecs=0
