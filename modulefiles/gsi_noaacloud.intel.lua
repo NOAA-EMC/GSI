@@ -1,7 +1,6 @@
 help([[
 ]])
 
-prepend_path("MODULEPATH", "/contrib/spack-stack/spack-stack-1.6.0/envs/unified-env/install/modulefiles/Core")
 prepend_path("MODULEPATH", "/contrib/spack-stack/spack-stack-1.6.0/envs/gsi-addon-env/install/modulefiles/Core")
 
 local python_ver=os.getenv("python_ver") or "3.10.13"
@@ -21,8 +20,6 @@ load(pathJoin("prod_util", prod_util_ver))
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
 
---pushenv("GSI_BINARY_SOURCE_DIR", "/scratch1/NCEPDEV/global/glopara/fix/gsi/20240208")
---pushenv("GSI_BINARY_SOURCE_DIR", "/work/noaa/global/glopara/fix/gsi/20240208")
 pushenv("GSI_BINARY_SOURCE_DIR", "/contrib/Wei.Huang/data/hack-orion/fix/gsi/20240208")
 
 whatis("Description: GSI environment on NOAA Cloud with Intel Compilers")
