@@ -128,6 +128,8 @@ errtable=$fixgsi/prepobs_errtable.global
 aeroinfo=$fixgsi/global_aeroinfo.txt
 atmsbeaminfo=$fixgsi/atms_beamwidth.txt
 cloudyinfo=$fixgsi/cloudy_radiance_info.txt
+cris_clddet=$fixgsi/CRIS_CLDDET.NL
+iasi_clddet=$fixgsi/IASI_CLDDET.NL
 
 emiscoef_IRwater=$fixcrtm/Nalli.IRwater.EmisCoeff.bin
 emiscoef_IRice=$fixcrtm/NPOESS.IRice.EmisCoeff.bin
@@ -169,6 +171,8 @@ $ncp $errtable ./errtable
 $ncp $aeroinfo ./aeroinfo
 $ncp $atmsbeaminfo ./atms_beamwidth.txt
 $ncp $cloudyinfo   ./cloudy_radiance_info.txt
+$ncp $cris_clddet ./CRIS_CLDDET.NL
+$ncp $iasi_clddet ./IASI_CLDDET.NL
 
 $ncp $bufrtable ./prepobs_prep.bufrtable
 $ncp $bftab_sst ./bftab_sstphr

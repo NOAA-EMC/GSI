@@ -961,14 +961,18 @@ subroutine upd_varch_
             enddo
             nchanl1=jc
 
-            if(nchanl1==0) call die(myname_,' improperly set GSI_BundleErrorCov')
             if(.not.amiset_(GSI_BundleErrorCov(itbl))) then 
-               if (iamroot_) write(6,*) 'WARNING: Error Covariance not set for ',trim(idnames(itbl))
+               if (iamroot_) write(6,*) trim(myname_), ' WARNING: Error Covariance not set for ',trim(idnames(itbl))
                cycle read_tab
             endif
 
             nch_active=GSI_BundleErrorCov(itbl)%nch_active
-            if(nch_active<0) return
+            if(nch_active<0) then
+               if (iamroot_) write(6,*) trim(myname_), ' WARNING: No active channels for ',trim(idnames(itbl))
+               return
+            endif
+            
+            if(nchanl1==0) call die(myname_,' improperly set GSI_BundleErrorCov')            
 
             if(GMAO_ObsErrorCov)then
                do jj=1,nch_active

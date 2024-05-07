@@ -75,6 +75,10 @@ elif [[ $MACHINE_ID = discover* ]]; then
     export PATH=$PATH:$SPACK_ROOT/bin
     . $SPACK_ROOT/share/spack/setup-env.sh
 
+elif [[ $MACHINE_ID = noaacloud* ]]; then
+    # We are on NOAA Cloud
+    module purge
+
 else
     echo WARNING: UNKNOWN PLATFORM 1>&2
 fi
