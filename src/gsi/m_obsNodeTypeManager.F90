@@ -15,6 +15,8 @@ module m_obsNodeTypeManager
 !   2018-01-23  k apodaca - add a new observation type i.e. lightning (light)
 !                           suitable for the GOES/GLM instrument
 !
+!   2024-04-07 k apodaca - add gnssrspdnode
+!
 !   input argument list: see Fortran 90 style document below
 !
 !   output argument list: see Fortran 90 style document below
@@ -54,6 +56,8 @@ module m_obsNodeTypeManager
   use m_wspd10mNode, only: wspd10mNode
   use m_uwnd10mNode, only: uwnd10mNode
   use m_vwnd10mNode, only: vwnd10mNode
+  
+  use m_gnssrspdNode, only: gnssrspdNode
 
   use m_td2mNode , only:  td2mNode
   use m_mxtmNode , only:  mxtmNode
@@ -70,7 +74,6 @@ module m_obsNodeTypeManager
 
   use m_lightNode, only: lightNode
   use m_dbzNode  , only:   dbzNode
-  use m_fedNode,   only:   fedNode
 
   use kinds, only: i_kind
   use m_obsNode, only: obsNode
@@ -125,7 +128,7 @@ module m_obsNodeTypeManager
 
   public:: iobsNode_light
   public:: iobsNode_dbz
-  public:: iobsNode_fed
+  public:: iobsNode_gnssrspd
 
   public :: obsNode_typeMold
   public :: obsNode_typeIndex
@@ -166,6 +169,8 @@ module m_obsNodeTypeManager
   type(wspd10mNode), target, save:: wspd10m_mold
   type(uwnd10mNode), target, save:: uwnd10m_mold
   type(vwnd10mNode), target, save:: vwnd10m_mold
+  
+  type(gnssrspdNode), target, save:: gnssrspd_mold
 
   type(   td2mNode), target, save::    td2m_mold
   type(   mxtmNode), target, save::    mxtm_mold
@@ -181,7 +186,6 @@ module m_obsNodeTypeManager
   type(   lwcpNode), target, save::    lwcp_mold
   type(  lightNode), target, save::   light_mold
   type(  dbzNode),   target, save::     dbz_mold
-  type(  fedNode),   target, save::     fed_mold
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   character(len=*),parameter :: myname='m_obsNodeTypeManager'
 
@@ -214,6 +218,7 @@ module m_obsNodeTypeManager
     enumerator:: iobsNode_w
     enumerator:: iobsNode_q
     enumerator:: iobsNode_spd
+    enumerator:: iobsNode_gnssrspd
     enumerator:: iobsNode_rw
     enumerator:: iobsNode_dw
     enumerator:: iobsNode_sst
@@ -248,7 +253,6 @@ module m_obsNodeTypeManager
     enumerator:: iobsNode_lwcp
     enumerator:: iobsNode_light
     enumerator:: iobsNode_dbz
-    enumerator:: iobsNode_fed
 
     enumerator:: iobsNode_extra_
   end enum
@@ -301,6 +305,8 @@ function vname2index_(vname) result(index_)
              "[uwnd10mnode]"); index_ = iobsNode_uwnd10m
   case("vwnd10m", &
              "[vwnd10mnode]"); index_ = iobsNode_vwnd10m
+  case("gnssrspd", &
+             "[gnssrspdnode]"); index_ = iobsNode_gnssrspd
 
   case("td2m" , "[td2mnode]"); index_ = iobsNode_td2m
   case("mxtm" , "[mxtmnode]"); index_ = iobsNode_mxtm
@@ -318,7 +324,6 @@ function vname2index_(vname) result(index_)
 
   case("light","[lightnode]"); index_ = iobsNode_light
   case("dbz"  ,  "[dbznode]"); index_ = iobsNode_dbz
-  case("fed"  ,  "[fednode]"); index_ = iobsNode_fed
 
   end select
 end function vname2index_
@@ -365,6 +370,8 @@ function vmold2index_select_(mold) result(index_)
   type is(wspd10mNode); index_ = iobsNode_wspd10m
   type is(uwnd10mNode); index_ = iobsNode_uwnd10m
   type is(vwnd10mNode); index_ = iobsNode_vwnd10m
+  
+  type is(gnssrspdNode); index_ = iobsNode_gnssrspd
 
   type is( td2mNode); index_ = iobsNode_td2m
   type is( mxtmNode); index_ = iobsNode_mxtm
@@ -382,7 +389,6 @@ function vmold2index_select_(mold) result(index_)
 
   type is(lightNode); index_ = iobsNode_light
   type is(  dbzNode); index_ = iobsNode_dbz
-  type is(  fedNode); index_ = iobsNode_fed
 
   end select
 end function vmold2index_select_
@@ -423,6 +429,8 @@ function index2vmold_(i_obType) result(obsmold_)
   case(iobsNode_wspd10m); obsmold_ => wspd10m_mold
   case(iobsNode_uwnd10m); obsmold_ => uwnd10m_mold
   case(iobsNode_vwnd10m); obsmold_ => vwnd10m_mold
+  
+  case(iobsNode_gnssrspd  ); obsmold_ => gnssrspd_mold
 
   case(iobsNode_td2m ); obsmold_ =>    td2m_mold
   case(iobsNode_mxtm ); obsmold_ =>    mxtm_mold
@@ -440,7 +448,6 @@ function index2vmold_(i_obType) result(obsmold_)
 
   case(iobsNode_light); obsmold_ =>   light_mold
   case(iobsNode_dbz);   obsmold_ =>     dbz_mold
-  case(iobsNode_fed);   obsmold_ =>     fed_mold
 
   end select
 end function index2vmold_
