@@ -544,11 +544,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      dlat_earth = dlat_earth*deg2rad
      dlon_earth = dlon_earth*deg2rad   
 
-! Just use every fifth scan position and scanline (and make sure that we have
-! position 48 as we need it for scan bias)
-     if (5*NINT(REAL(IScan(Iob))/5_r_kind) /= IScan(IOb) .OR. &
-          5*NINT(REAL(IFov-3)/5_r_kind) /= IFOV -3 ) CYCLE ObsLoop 
-
 !    Regional case
      if(regional)then
         call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)

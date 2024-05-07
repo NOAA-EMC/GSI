@@ -350,7 +350,7 @@ contains
   end subroutine makegvals
 
 
-  subroutine makegrids(rmesh,ithin,n_tbin)
+  subroutine makegrids(rmesh,ithin,n_tbin,itxmax_in)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    makegrids                            
@@ -386,7 +386,8 @@ contains
 
     real(r_kind)   ,intent(in   ) :: rmesh
     integer(i_kind),intent(in   ) :: ithin
-    integer(i_kind),intent(in   ), optional :: n_tbin 
+    integer(i_kind),intent(in   ), optional :: n_tbin
+    integer(i_kind),intent(in   ), optional :: itxmax_in
     real(r_kind),parameter:: r360 = 360.0_r_kind
     integer(i_kind) i,j
     integer(i_kind) mlonx,mlonj
@@ -402,7 +403,11 @@ contains
     itx_all=0
     if(abs(rmesh) <= one .or. ithin <= 0)then
       use_all=.true.
-      itxmax=1e9
+      if (present(itxmax_in)) then
+         itxmax = itxmax_in
+      else
+         itxmax = 1e7
+      endif
       allocate(icount(itxmax))
       allocate(score_crit(itxmax))
       do j=1,itxmax
