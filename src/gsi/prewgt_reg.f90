@@ -164,7 +164,6 @@ subroutine prewgt_reg(mype)
   real(r_kind),allocatable,dimension(:,:,:,:)::sli
   real(r_quad),dimension(180,nsig):: ozmz,cnt
   real(r_quad),dimension(180*nsig):: ozmz0,cnt0
-  real(r_kind),dimension(180,nsig):: ozmzt,cntt
 
   real(r_kind),dimension(:,:,:),pointer::ges_oz=>NULL()
 
@@ -267,13 +266,13 @@ subroutine prewgt_reg(mype)
      do k=1,nsig
         do ix=1,180
            i=i+1
-           ozmzt(ix,k)=ozmz0(i)
-           cntt(ix,k)=cnt0(i)
+           ozmz(ix,k)=ozmz0(i)
+           cnt(ix,k)=cnt0(i)
         end do
      end do
      do k=1,nsig
         do i=1,180
-           if(cntt(i,k)>zero) ozmzt(i,k)=sqrt(ozmzt(i,k)/cntt(i,k))
+           if(cnt(i,k)>zero) ozmz(i,k)=sqrt(ozmz(i,k)/cnt(i,k))
         enddo
      enddo
   endif ! regional_ozone
@@ -452,10 +451,10 @@ subroutine prewgt_reg(mype)
               d=region_lat(il,jl)*rad2deg+90._r_kind
               l=int(d)
               l2=l+1
-              dl2=d-float(l)
+              dl2=d-real(l,r_kind)
               dl1=one-dl2
               do k=1,nsig
-                 dssv(i,j,k,n)=(dl1*ozmzt(l,k)+dl2*ozmzt(l2,k))*dsv(1,k,llmin)
+                 dssv(i,j,k,n)=(dl1*ozmz(l,k)+dl2*ozmz(l2,k))*dsv(1,k,llmin)
               end do
            end do
         end do
@@ -581,7 +580,7 @@ subroutine prewgt_reg(mype)
                 do i=1,lon2
                     l=int(rllat1(j,i))
                     l2=min0(l+1,llmax)
-                    dl2=rllat1(j,i)-float(l)
+                    dl2=rllat1(j,i)-real(l,r_kind)
                     dl1=one-dl2
                     do k=1,nsig
                         dssv(j,i,k,n)=dl1*dsv(i,k,l)+dl2*dsv(i,k,l2)
@@ -604,7 +603,7 @@ subroutine prewgt_reg(mype)
            do i=1,lon2
               l=int(rllat1(j,i))
               l2=min0(l+1,llmax)
-              dl2=rllat1(j,i)-float(l)
+              dl2=rllat1(j,i)-real(l,r_kind)
               dl1=one-dl2
               do k=1,nsig
                  dssv(j,i,k,n)=dl1*dsv(i,k,l)+dl2*dsv(i,k,l2)
@@ -662,7 +661,7 @@ subroutine prewgt_reg(mype)
         do i=1,lon2
            l=int(rllat1(j,i))
            l2=min0(l+1,llmax)
-           dl2=rllat1(j,i)-float(l)
+           dl2=rllat1(j,i)-real(l,r_kind)
            dl1=one-dl2
            dssvs(j,i,n)=dl1*dsvs(i,l)+dl2*dsvs(i,l2)
            if (mvars>=2.and.n==nrf2_sst) then
@@ -738,7 +737,7 @@ subroutine prewgt_reg(mype)
                     do j=1,ny
                        l=int(rllat(j,i))
                        lp=min0(l+1,llmax)
-                       dl2=rllat(j,i)-float(l)
+                       dl2=rllat(j,i)-real(l,r_kind)
                        dl1=one-dl2
                        fact=one/(dl1*hwll(l,k1,nn)+dl2*hwll(lp,k1,nn))
                        slw((i-1)*ny+j,k)=slw((i-1)*ny+j,1)*fact**2
@@ -778,7 +777,7 @@ subroutine prewgt_reg(mype)
                  do j=1,ny
                     l=int(rllat(j,i))
                     lp=min0(l+1,llmax)
-                    dl2=rllat(j,i)-float(l)
+                    dl2=rllat(j,i)-real(l,r_kind)
                     dl1=one-dl2
                     fact=cc/(dl1*hwllp(l,nn)+dl2*hwllp(lp,nn))
                     slw((i-1)*ny+j,k)=slw((i-1)*ny+j,1)*fact**2

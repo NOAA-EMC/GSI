@@ -170,9 +170,9 @@ subroutine read_dbz_mrms_netcdf(nread,ndata,nodata,infile,obstype,lunout,sis,nob
  integer(i_kind) :: num_missing=0,num_nopcp=0, &      !counts 
                     numbadtime=0,num_badtilt=0, &    
                     num_badrange=0,num_m2nopcp=0, &
-		    num_noise=0,num_limmax=0 ,num_limmin=0    
-							     
-        	                                             							     
+                    num_noise=0,num_limmax=0 ,num_limmin=0    
+     
+                                                          
 
 !--General declarations
   integer(i_kind) :: ierror,lunrad,i,j,k,v,na,nb,nelv,nvol, &
@@ -185,7 +185,7 @@ subroutine read_dbz_mrms_netcdf(nread,ndata,nodata,infile,obstype,lunout,sis,nob
   real(r_kind) :: thistiltr,selev0,celev0,thisrange,this_stahgt,thishgt                           
   real(r_kind) :: celev,selev,gamma,thisazimuthr,rlon0, &
                   clat0,slat0,dlat,dlon,thiserr,thislon,thislat, &
-		  rlonloc,rlatloc,rlonglob,rlatglob,timeb,rad_per_meter	  
+                  rlonloc,rlatloc,rlonglob,rlatglob,timeb,rad_per_meter  
   real(r_kind) :: radartwindow
   real(r_kind) :: dbzerr,rmins_an,rmins_ob                                                     
   real(r_kind),allocatable,dimension(:,:):: cdata_all
@@ -203,7 +203,7 @@ subroutine read_dbz_mrms_netcdf(nread,ndata,nodata,infile,obstype,lunout,sis,nob
   !---------SETTINGS FOR FUTURE NAMELIST---------!
   integer(i_kind) :: maxobrange=999000 ! Range (m) *within* which to use observations - obs *outside* this range are not used
   integer(i_kind) :: minobrange=-999 ! Range (m) *outside* of which to use observatons - obs *inside* this range are not used
-  real(r_kind)    :: mintilt=0.0_r_kind   	 ! Only use tilt(elevation) angles (deg) >= this number 
+  real(r_kind)    :: mintilt=0.0_r_kind          ! Only use tilt(elevation) angles (deg) >= this number 
   real(r_kind)    :: maxtilt=20.0_r_kind         ! Do no use tilt(elevation) angles (deg) >= this number
   logical         :: missing_to_nopcp=.false.    ! Set missing observations to 'no precipitation' observations -> dbznoise (See Aksoy et al. 2009, MWR) 
   real(r_kind)    :: dbznoise=2.0_r_kind           ! dBZ obs must be >= dbznoise for assimilation
@@ -223,9 +223,7 @@ real(r_single) :: elev_nc,firstgate_nc,lat_nc,lon_nc,height_nc
 
 
 real(r_single), allocatable :: azimuth_nc(:),beamwidth_nc(:),azimspacing_nc(:),gatewidth_nc(:)
-real(r_single), allocatable :: nyquist_nc(:),obdata_nc(:,:)
-real(r_single) nyquist_default_nc
-parameter(nyquist_default_nc=50.0_r_kind)
+real(r_single), allocatable :: obdata_nc(:,:)
 !clg
   !                                              !  due to representativeness error associated with the model
   !----------------------------------------------!
@@ -241,13 +239,13 @@ parameter(nyquist_default_nc=50.0_r_kind)
      if(trim(obstype) == trim(ioctype(i)) .and. abs(icuse(i))== 1) then
         ikx=i 
         radartwindow=ctwind(ikx)*r60         !Time window units converted to minutes 
-	                                     !  (default setting for dbz within convinfo is 0.05 hours)
-	dbzerr=5_r_kind                      !Ob error (dB) to use for radar reflectivity factor
-	exit                                 !Exit loop when finished with initial convinfo fields     
+                                             !  (default setting for dbz within convinfo is 0.05 hours)
+        dbzerr=5_r_kind                      !Ob error (dB) to use for radar reflectivity factor
+        exit                                 !Exit loop when finished with initial convinfo fields     
      else if ( i==nconvtype ) then
         write(6,*) 'READ_dBZ: ERROR - OBSERVATION TYPE IS NOT PRESENT IN CONVINFO OR USE FLAG IS ZERO'
-	write(6,*) 'READ_dBZ: ABORTTING read_dbz.f90 - NO REFLECTIVITY OBS READ!'
-	return 	  
+        write(6,*) 'READ_dBZ: ABORTTING read_dbz.f90 - NO REFLECTIVITY OBS READ!'
+        return   
      endif
   end do     
     
@@ -327,7 +325,7 @@ if (ierr /= nf90_noerr) call handle_err(ierr,"height")
 
 !reverse order of dimensions as stated in ncdump:
 allocate(azimuth_nc(numazim_nc),beamwidth_nc(numazim_nc),azimspacing_nc(numazim_nc),gatewidth_nc(numazim_nc))
-allocate(nyquist_nc(numazim_nc),obdata_nc(numgate_nc,numazim_nc))
+allocate(obdata_nc(numgate_nc,numazim_nc))
 
 ierr = NF90_GET_VAR(ncid,varid1,azimuth_nc)
 if (ierr /= nf90_noerr) call handle_err(ierr,"azimuth data")
@@ -420,12 +418,12 @@ strct_in_dbz(v,k)%field(:,:)=obdata_nc(:,:)
      
         obdate(1)=strct_in_dbz(v,k)%year
         obdate(2)=strct_in_dbz(v,k)%month  
-        obdate(3)=strct_in_dbz(v,k)%day	 
+        obdate(3)=strct_in_dbz(v,k)%day 
         obdate(4)=strct_in_dbz(v,k)%hour   
         obdate(5)=strct_in_dbz(v,k)%minute 
         call w3fs21(obdate,mins_ob)                             !mins_ob -integer number of mins snce 01/01/1978
-	rmins_ob=mins_ob                                        !convert to real number
-	rmins_ob=rmins_ob+(strct_in_dbz(v,k)%second*r60inv)     !convert seconds to minutes and add to ob time
+        rmins_ob=mins_ob                                        !convert to real number
+        rmins_ob=rmins_ob+(strct_in_dbz(v,k)%second*r60inv)     !convert seconds to minutes and add to ob time
  
       !-Comparison is done in units of minutes
       
@@ -439,139 +437,140 @@ strct_in_dbz(v,k)%field(:,:)=obdata_nc(:,:)
         if (thistilt <= maxtilt .and. thistilt >= mintilt) then 
      
           gates: do i=1,strct_in_dbz(v,k)%num_gate
-           	  
-   	      thisrange=strct_in_dbz(v,k)%fstgatdis + float(i-1)*strct_in_dbz(v,k)%gateWidth
+             
+             thisrange=strct_in_dbz(v,k)%fstgatdis + real(i-1,r_kind)*strct_in_dbz(v,k)%gateWidth
        
              !-Check to make sure observations are within specified range 
 
-              if (thisrange <= maxobrange .and. thisrange >= minobrange) then	    
-	      azms: do j=1,strct_in_dbz(v,k)%num_beam
-	   
-	           !-Check to see if this is a missing observation 
-		    
-		    nread=nread+1
-		 
+              if (thisrange <= maxobrange .and. thisrange >= minobrange) then    
+                azms: do j=1,strct_in_dbz(v,k)%num_beam
+   
+                    !-Check to see if this is a missing observation 
+    
+                    nread=nread+1
+ 
                     if ( abs(strct_in_dbz(v,k)%field(i,j)) >= 99.0_r_kind ) then
-	               		      
-		      !--Extend no precip observations to missing data fields?
+                     
+                      !--Extend no precip observations to missing data fields?
                       !  May help suppress spurious convection if a problem.
-	  	   
+     
                        if (missing_to_nopcp) then
-	                  strct_in_dbz(v,k)%field(i,j) = dbznoise
-	     	          num_m2nopcp = num_m2nopcp+1
-	               else		  
-			  num_missing=num_missing+1
-	  	          cycle azms                        !No reason to process the ob if it is missing 
+                          strct_in_dbz(v,k)%field(i,j) = dbznoise
+                          num_m2nopcp = num_m2nopcp+1
+                       else  
+                          num_missing=num_missing+1
+                          cycle azms                        !No reason to process the ob if it is missing 
                        end if
-		       		       	         
+                       
                     end if
-		    
-		    
-		    if (l_limmax) then
-		       if ( strct_in_dbz(v,k)%field(i,j) > 60_r_kind ) then
-		          strct_in_dbz(v,k)%field(i,j) = 60_r_kind
-		          num_limmax=num_limmax+1
-		       end if    
-		    end if
-		    if (l_limmin) then
-		       if ( strct_in_dbz(v,k)%field(i,j) < 0_r_kind ) then
-		          strct_in_dbz(v,k)%field(i,j) = 0_r_kind
-		          num_limmin=num_limmin+1
-		       end if    
-		    end if
-		    		    
-		   !--Find observation height using method from read_l2bufr_mod.f90										       
-	         
-		    this_stahgt=strct_in_dbz(v,k)%radhgt
+ 
+    
+                    if (l_limmax) then
+                       if ( strct_in_dbz(v,k)%field(i,j) > 60_r_kind ) then
+                          strct_in_dbz(v,k)%field(i,j) = 60_r_kind
+                          num_limmax=num_limmax+1
+                       end if    
+                    end if
+                    if (l_limmin) then
+                       if ( strct_in_dbz(v,k)%field(i,j) < 0_r_kind ) then
+                          strct_in_dbz(v,k)%field(i,j) = 0_r_kind
+                          num_limmin=num_limmin+1
+                       end if    
+                    end if
+       
+                    !--Find observation height using method from read_l2bufr_mod.f90										       
+         
+                    this_stahgt=strct_in_dbz(v,k)%radhgt
                     aactual=rearth+this_stahgt                    
                     a43=four_thirds*aactual
                     thistiltr=thistilt*deg2rad
                     selev0=sin(thistiltr)
-                    celev0=cos(thistiltr)   		   
-		    b=thisrange*(thisrange+two*aactual*selev0)
+                    celev0=cos(thistiltr)      
+                    b=thisrange*(thisrange+two*aactual*selev0)
                     c=sqrt(aactual*aactual+b)
                     ha=b/(aactual+c)
                     epsh=(thisrange*thisrange-ha*ha)/(r8*aactual)
                     h=ha-epsh
-	            thishgt=this_stahgt+h 
+                    thishgt=this_stahgt+h 
 
-		   !--Find observation location using method from read_l2bufr_mod.f90
-		 
-		   !-Get corrected tilt angle
-	            celev=celev0
-	            selev=selev0
-           	    celev=a43*celev0/(a43+h)
-		    selev=(thisrange*thisrange+h*h+two*a43*h)/(two*thisrange*(a43+h))
-	          
-		    gamma=half*thisrange*(celev0+celev)
-	         
+                    !--Find observation location using method from read_l2bufr_mod.f90
+ 
+                    !-Get corrected tilt angle
+                    celev=celev0
+                    selev=selev0
+                    celev=a43*celev0/(a43+h)
+                    selev=(thisrange*thisrange+h*h+two*a43*h)/(two*thisrange*(a43+h))
+          
+                    gamma=half*thisrange*(celev0+celev)
+         
                    !-Get earth lat lon of observation
-	         	 
+          
                     rlon0=deg2rad*strct_in_dbz(v,k)%radlon
-	       	    clat0=cos(deg2rad*strct_in_dbz(v,k)%radlat)
-		    slat0=sin(deg2rad*strct_in_dbz(v,k)%radlat)		  
-		    thisazimuthr=(90.0_r_kind-strct_in_dbz(v,k)%azim(j))*deg2rad   !Storing as 90-azm to
-		                                                                   ! be consistent with 
-										   ! read_l2bufr_mod.f90
-		    rad_per_meter=one/rearth
-		    rlonloc=rad_per_meter*gamma*cos(thisazimuthr)
+                    clat0=cos(deg2rad*strct_in_dbz(v,k)%radlat)
+                    slat0=sin(deg2rad*strct_in_dbz(v,k)%radlat)  
+                    thisazimuthr=(90.0_r_kind-strct_in_dbz(v,k)%azim(j))*deg2rad   !Storing as 90-azm to
+                                                                                   ! be consistent with 
+                                                                                   ! read_l2bufr_mod.f90
+                    rad_per_meter=one/rearth
+                    rlonloc=rad_per_meter*gamma*cos(thisazimuthr)
                     rlatloc=rad_per_meter*gamma*sin(thisazimuthr)
-		                  
-		    call invtllv(rlonloc,rlatloc,rlon0,clat0,slat0,rlonglob,rlatglob)
+                  
+                    call invtllv(rlonloc,rlatloc,rlon0,clat0,slat0,rlonglob,rlatglob)
                  
-		    thislat=rlatglob*rad2deg
+                    thislat=rlatglob*rad2deg
                     thislon=rlonglob*rad2deg 
   
                    !-Check format of longitude and correct if necessary
                  
-		    if(thislon>=r360) thislon=thislon-r360
+                    if(thislon>=r360) thislon=thislon-r360
                     if(thislon<zero ) thislon=thislon+r360
-                 
-		   !-Convert back to radians                 
-         		       		       
-		    thislat = thislat*deg2rad
+                    if(thislon>=r360 .or. thislat >90.0_r_kind) cycle
+ 
+                   !-Convert back to radians                 
+                      
+                    thislat = thislat*deg2rad
                     thislon = thislon*deg2rad
-                 		 
-		    !find grid relative lat lon locations of earth lat lon
+                  
+                   !find grid relative lat lon locations of earth lat lon
                  
-		    call tll2xy(thislon,thislat,dlon,dlat,outside)
+                    call tll2xy(thislon,thislat,dlon,dlat,outside)
                     if (outside) cycle azms             !If observation is outside the domain
-		                                        ! then cycle, but don't increase range right away.
-							! Domain could be rectangular, so ob may be out of
-						        ! range at one end, but not the other.		     					                   		   		   
-		   thiserr=dbzerr
+                                                        ! then cycle, but don't increase range right away.
+                                                        ! Domain could be rectangular, so ob may be out of
+                                                        ! range at one end, but not the other.		     					                   		   		   
+                    thiserr=dbzerr
                 
-		    	     
-		    ndata  = min(ndata+1,maxobs)     
-		    nodata = min(nodata+1,maxobs)  !number of obs not used (no meaning here)
-		    
-		    this_staid=strct_in_dbz(v,k)%radid      !Via equivalence in declaration, value is propagated
-		    					    !  to rstation_id used below.
-		    
-		    cdata_all(1,ndata) = thiserr 		      ! reflectivity obs error (dB) - inflated/adjusted
-		    cdata_all(2,ndata) = dlon			      ! grid relative longitude
-		    cdata_all(3,ndata) = dlat			      ! grid relative latitude
-		    cdata_all(4,ndata) = thishgt		      ! obs absolute height (m)
-		    cdata_all(5,ndata) = strct_in_dbz(v,k)%field(i,j) ! radar reflectivity factor 
-		    cdata_all(6,ndata) = thisazimuthr		      ! 90deg-azimuth angle (radians)
-		    cdata_all(7,ndata) = timeb*r60inv		      ! obs time (analyis relative hour)
-		    cdata_all(8,ndata) = ikx			      ! type	 double check with the convinfo txt	   
-		    cdata_all(9,ndata) = thistiltr		      ! tilt angle (radians)
-		    cdata_all(10,ndata)= this_stahgt		      ! station elevation (m)
-		    cdata_all(11,ndata)= rstation_id		      ! station id
-		    cdata_all(12,ndata)= icuse(ikx)		      ! usage parameter
-		    cdata_all(13,ndata)= thislon*rad2deg	      ! earth relative longitude (degrees)
-		    cdata_all(14,ndata)= thislat*rad2deg	      ! earth relative latitude (degrees)
-		    cdata_all(15,ndata)= thisrange		      ! range from radar in m 
-		    cdata_all(16,ndata)= dbzerr                       ! orginal error from convinfo file
-		    cdata_all(17,ndata)= dbznoise                     ! noise threshold for reflectivity (dBZ)
+         
+                    ndata  = min(ndata+1,maxobs)     
+                    nodata = min(nodata+1,maxobs)  !number of obs not used (no meaning here)
+    
+                    this_staid=strct_in_dbz(v,k)%radid      !Via equivalence in declaration, value is propagated
+                                                            !  to rstation_id used below.
+   
+                    cdata_all(1,ndata) = thiserr                      ! reflectivity obs error (dB) - inflated/adjusted
+                    cdata_all(2,ndata) = dlon                         ! grid relative longitude
+                    cdata_all(3,ndata) = dlat                         ! grid relative latitude
+                    cdata_all(4,ndata) = thishgt                      ! obs absolute height (m)
+                    cdata_all(5,ndata) = strct_in_dbz(v,k)%field(i,j) ! radar reflectivity factor 
+                    cdata_all(6,ndata) = thisazimuthr                 ! 90deg-azimuth angle (radians)
+                    cdata_all(7,ndata) = timeb*r60inv                 ! obs time (analyis relative hour)
+                    cdata_all(8,ndata) = ikx                          ! type double check with the convinfo txt	   
+                    cdata_all(9,ndata) = thistiltr                    ! tilt angle (radians)
+                    cdata_all(10,ndata)= this_stahgt                  ! station elevation (m)
+                    cdata_all(11,ndata)= rstation_id                  ! station id
+                    cdata_all(12,ndata)= icuse(ikx)                   ! usage parameter
+                    cdata_all(13,ndata)= thislon*rad2deg              ! earth relative longitude (degrees)
+                    cdata_all(14,ndata)= thislat*rad2deg              ! earth relative latitude (degrees)
+                    cdata_all(15,ndata)= thisrange                    ! range from radar in m 
+                    cdata_all(16,ndata)= dbzerr                       ! orginal error from convinfo file
+                    cdata_all(17,ndata)= dbznoise                     ! noise threshold for reflectivity (dBZ)
 
                   end do azms  !j
               else
-	         num_badrange=num_badrange+1      !If outside acceptable range, increment
-	      end if   !Range check	
-		
-	   end do gates    !i
+                  num_badrange=num_badrange+1      !If outside acceptable range, increment
+              end if   !Range check	
+
+           end do gates    !i
      
         else
            num_badtilt=num_badtilt+1           !If outside acceptable tilts, increment
@@ -606,18 +605,20 @@ strct_in_dbz(v,k)%field(:,:)=obdata_nc(:,:)
   
   !---------------DEALLOCATE ARRAYS-------------!
  
-  deallocate(cdata_all)
-  do v=1,nvol
-     do k=1,nelv
-        deallocate(strct_in_dbz(v,k)%azim)
-        deallocate(strct_in_dbz(v,k)%field)
-     end do
-  end do
-  deallocate(strct_in_dbz)
 
  else  !fileopen
   write(6,*) 'READ_dBZ: ERROR OPENING RADAR REFLECTIVITY FILE: ',trim(infile),' IOSTAT ERROR: ',ierror, ' SKIPPING...'
  end if fileopen
+ deallocate(cdata_all)
+ do v=1,nvol
+    do k=1,nelv
+       deallocate(strct_in_dbz(v,k)%azim)
+       deallocate(strct_in_dbz(v,k)%field)
+    end do
+ end do
+ deallocate(strct_in_dbz)
+ deallocate(obdata_nc,azimuth_nc)
+ deallocate(beamwidth_nc,azimspacing_nc,gatewidth_nc)
 
 end subroutine read_dbz_mrms_netcdf
 
@@ -794,9 +795,9 @@ subroutine read_dbz_mrms_sparse_netcdf(nread,ndata,nodata,infile,obstype,lunout,
  integer(i_kind) :: num_missing=0,num_nopcp=0, &      !counts 
                     numbadtime=0,num_badtilt=0, &    
                     num_badrange=0,num_m2nopcp=0, &
-		    num_noise=0,num_limmax=0 ,num_limmin=0   
-							     
-        	                                             							     
+                    num_noise=0,num_limmax=0 ,num_limmin=0   
+    
+                                                          
 
 !--General declarations
   integer(i_kind) :: ierror,lunrad,i,j,k,v,na,nb,nelv,nvol, &
@@ -809,7 +810,7 @@ subroutine read_dbz_mrms_sparse_netcdf(nread,ndata,nodata,infile,obstype,lunout,
   real(r_kind) :: thistiltr,selev0,celev0,thisrange,this_stahgt,thishgt                           
   real(r_kind) :: celev,selev,gamma,thisazimuthr,rlon0, &
                   clat0,slat0,dlat,dlon,thiserr,thislon,thislat, &
-		  rlonloc,rlatloc,rlonglob,rlatglob,timeb,rad_per_meter	  
+                  rlonloc,rlatloc,rlonglob,rlatglob,timeb,rad_per_meter  
   real(r_kind) :: radartwindow
   real(r_kind) :: dbzerr,rmins_an,rmins_ob                                                     
   real(r_kind),allocatable,dimension(:,:):: cdata_all
@@ -827,7 +828,7 @@ subroutine read_dbz_mrms_sparse_netcdf(nread,ndata,nodata,infile,obstype,lunout,
   !---------SETTINGS FOR FUTURE NAMELIST---------!
   integer(i_kind) :: maxobrange=99900000 ! Range (m) *within* which to use observations - obs *outside* this range are not used
   integer(i_kind) :: minobrange=-999 ! Range (m) *outside* of which to use observatons - obs *inside* this range are not used
-  real(r_kind)    :: mintilt=0.0_r_kind   	 ! Only use tilt(elevation) angles (deg) >= this number 
+  real(r_kind)    :: mintilt=0.0_r_kind          ! Only use tilt(elevation) angles (deg) >= this number 
   real(r_kind)    :: maxtilt=20.0_r_kind         ! Do no use tilt(elevation) angles (deg) >= this number
   logical         :: missing_to_nopcp=.false.    ! Set missing observations to 'no precipitation' observations -> dbznoise (See Aksoy et al. 2009, MWR) 
   real(r_kind)    :: dbznoise=2_r_kind           ! dBZ obs must be >= dbznoise for assimilation
@@ -849,9 +850,7 @@ integer(i_short),allocatable :: pixel_x_nc(:),pixel_y_nc(:)
 
 
 real(r_single), allocatable :: azimuth_nc(:),beamwidth_nc(:),azimspacing_nc(:),gatewidth_nc(:)
-real(r_single), allocatable :: nyquist_nc(:),obdata_nc(:,:),obdata_pixel_nc(:)
-real(r_single) nyquist_default_nc
-parameter(nyquist_default_nc=50.0_r_kind)
+real(r_single), allocatable :: obdata_pixel_nc(:)
 logical l_pixel_unlimited
 integer(i_kind):: ipix
 integer(i_kind)::real_numpixel,start_nc(1),count_nc(1)
@@ -863,13 +862,13 @@ integer(i_kind)::real_numpixel,start_nc(1),count_nc(1)
      if(trim(obstype) == trim(ioctype(i)) .and. abs(icuse(i))== 1) then
         ikx=i 
         radartwindow=ctwind(ikx)*r60         !Time window units converted to minutes 
-	                                     !  (default setting for dbz within convinfo is 0.05 hours)
-	dbzerr=5_r_kind                      !Ob error (dB) to use for radar reflectivity factor
-	exit                                 !Exit loop when finished with initial convinfo fields     
+                                             !  (default setting for dbz within convinfo is 0.05 hours)
+        dbzerr=5_r_kind                      !Ob error (dB) to use for radar reflectivity factor
+        exit                                 !Exit loop when finished with initial convinfo fields     
      else if ( i==nconvtype ) then
         write(6,*) 'READ_dBZ: ERROR - OBSERVATION TYPE IS NOT PRESENT IN CONVINFO OR USE FLAG IS ZERO'
-	write(6,*) 'READ_dBZ: ABORTTING read_dbz.f90 - NO REFLECTIVITY OBS READ!'
-	return 	  
+        write(6,*) 'READ_dBZ: ABORTTING read_dbz.f90 - NO REFLECTIVITY OBS READ!'
+        return   
      endif
   end do     
     
@@ -960,7 +959,6 @@ if (ierr /= nf90_noerr) call handle_err(ierr,"height")
 
 !reverse order of dimensions as stated in ncdump:
 allocate(azimuth_nc(numazim_nc),beamwidth_nc(numazim_nc),azimspacing_nc(numazim_nc),gatewidth_nc(numazim_nc))
-allocate(nyquist_nc(numazim_nc),obdata_nc(numgate_nc,numazim_nc))
 allocate(obdata_pixel_nc(num_pixel_nc))
 allocate(pixel_x_nc(num_pixel_nc))
 allocate(pixel_y_nc(num_pixel_nc))
@@ -1017,20 +1015,20 @@ enddo
 
 ! transform the read-in ob to the intermidate  obs variables( radar obs  to be used in GSI
 
-         strct_in_dbz(v,k)%radid=radarsite_nc
-         strct_in_dbz(v,k)%vcpnum=vcp_nc
-         strct_in_dbz(v,k)%year=iyear  !  to be defind from infile name              
+        strct_in_dbz(v,k)%radid=radarsite_nc
+        strct_in_dbz(v,k)%vcpnum=vcp_nc
+        strct_in_dbz(v,k)%year=iyear  !  to be defind from infile name              
         strct_in_dbz(v,k)%month=imon                
         strct_in_dbz(v,k)%day=iday                  
         strct_in_dbz(v,k)%hour=ihour                 
         strct_in_dbz(v,k)%minute=imin               
         strct_in_dbz(v,k)%second=isec
-         strct_in_dbz(v,k)%radlat=lat_nc
+        strct_in_dbz(v,k)%radlat=lat_nc
         strct_in_dbz(v,k)%radlon=lon_nc   
         strct_in_dbz(v,k)%radhgt=height_nc
-         strct_in_dbz(v,k)%fstgatdis =firstgate_nc      
+        strct_in_dbz(v,k)%fstgatdis =firstgate_nc      
         strct_in_dbz(v,k)%gateWidth=gatewidth_nc(1) ! always the same ??)
-         strct_in_dbz(v,k)%elev_angle=elev_nc
+        strct_in_dbz(v,k)%elev_angle=elev_nc
         strct_in_dbz(v,k)%num_beam=numazim_nc          
         strct_in_dbz(v,k)%num_gate=numgate_nc
         na=strct_in_dbz(v,k)%num_beam
@@ -1065,8 +1063,8 @@ enddo
         obdate(5)=strct_in_dbz(v,k)%minute 
         call w3fs21(obdate,mins_ob)                             !mins_ob -integer number of mins snce 01/01/1978
        
-	rmins_ob=mins_ob                                        !convert to real number
-	rmins_ob=rmins_ob+(strct_in_dbz(v,k)%second*r60inv)     !convert seconds to minutes and add to ob time
+        rmins_ob=mins_ob                                        !convert to real number
+        rmins_ob=rmins_ob+(strct_in_dbz(v,k)%second*r60inv)     !convert seconds to minutes and add to ob time
  
       !-Comparison is done in units of minutes
       
@@ -1088,139 +1086,139 @@ enddo
           pixel: do ipix=1,real_numpixel
               j=pixel_x_nc(ipix)+1
               i=pixel_y_nc(ipix)+1
-           	  
-   	      thisrange=strct_in_dbz(v,k)%fstgatdis + float(i-1)*strct_in_dbz(v,k)%gateWidth
+             
+              thisrange=strct_in_dbz(v,k)%fstgatdis + real(i-1,r_kind)*strct_in_dbz(v,k)%gateWidth
        
              !-Check to make sure observations are within specified range 
 
-              if (thisrange <= maxobrange .and. thisrange >= minobrange) then	    
-	  	   
-		    
-		    nread=nread+1
+              if (thisrange <= maxobrange .and. thisrange >= minobrange) then    
+     
+    
+                    nread=nread+1
                     if ( abs(obdata_pixel_nc(ipix)) >= 999.0_r_kind ) then
-	               		      
-		      !--Extend no precip observations to missing data fields?
-                      !  May help suppress spurious convection if a problem.
-	  	   
-                       if (missing_to_nopcp) then
-	                  obdata_pixel_nc(ipix) = dbznoise
-	     	          num_m2nopcp = num_m2nopcp+1
-	               else		  
-			  num_missing=num_missing+1
-	  	          cycle pixel                       !No reason to process the ob if it is missing 
-                       end if
-		       		       	         
-                    end if
-		    
-		    
-		    if (l_limmax) then
-		       if ( obdata_pixel_nc(ipix) > 60_r_kind ) then
-		          obdata_pixel_nc(ipix) = 60_r_kind
-		          num_limmax=num_limmax+1
-		       end if    
-		    end if
-		    if (l_limmin) then
-		       if ( obdata_pixel_nc(ipix) < 0_r_kind ) then
-		          obdata_pixel_nc(ipix) = 0_r_kind
-		          num_limmin=num_limmin+1
-		       end if    
-		    end if
-		    		    
-		   !-Special treatment for no-precip obs?	       			       
 
-                                     			
-		   !--Find observation height using method from read_l2bufr_mod.f90										       
-	         
-		    this_stahgt=strct_in_dbz(v,k)%radhgt
+                      !--Extend no precip observations to missing data fields?
+                      !  May help suppress spurious convection if a problem.
+     
+                       if (missing_to_nopcp) then
+                          obdata_pixel_nc(ipix) = dbznoise
+                          num_m2nopcp = num_m2nopcp+1
+                       else  
+                          num_missing=num_missing+1
+                          cycle pixel                       !No reason to process the ob if it is missing 
+                       end if
+
+                    end if
+
+
+                    if (l_limmax) then
+                       if ( obdata_pixel_nc(ipix) > 60_r_kind ) then
+                          obdata_pixel_nc(ipix) = 60_r_kind
+                          num_limmax=num_limmax+1
+                       end if    
+                    end if
+                    if (l_limmin) then
+                       if ( obdata_pixel_nc(ipix) < 0_r_kind ) then
+                          obdata_pixel_nc(ipix) = 0_r_kind
+                          num_limmin=num_limmin+1
+                       end if    
+                    end if
+
+                   !-Special treatment for no-precip obs?	       			       
+
+
+                   !--Find observation height using method from read_l2bufr_mod.f90										       
+
+                    this_stahgt=strct_in_dbz(v,k)%radhgt
                     aactual=rearth+this_stahgt                    
                     a43=four_thirds*aactual
                     thistiltr=thistilt*deg2rad
                     selev0=sin(thistiltr)
-                    celev0=cos(thistiltr)   		   
-		    b=thisrange*(thisrange+two*aactual*selev0)
+                    celev0=cos(thistiltr)      
+                    b=thisrange*(thisrange+two*aactual*selev0)
                     c=sqrt(aactual*aactual+b)
                     ha=b/(aactual+c)
                     epsh=(thisrange*thisrange-ha*ha)/(r8*aactual)
                     h=ha-epsh
-	            thishgt=this_stahgt+h 
+                    thishgt=this_stahgt+h 
 
-		   !--Find observation location using method from read_l2bufr_mod.f90
-		 
-		   !-Get corrected tilt angle
-	            celev=celev0
-	            selev=selev0
-           	    celev=a43*celev0/(a43+h)
-		    selev=(thisrange*thisrange+h*h+two*a43*h)/(two*thisrange*(a43+h))
-	          
-		    gamma=half*thisrange*(celev0+celev)
-	         
+                   !--Find observation location using method from read_l2bufr_mod.f90
+ 
+                   !-Get corrected tilt angle
+                    celev=celev0
+                    selev=selev0
+                    celev=a43*celev0/(a43+h)
+                    selev=(thisrange*thisrange+h*h+two*a43*h)/(two*thisrange*(a43+h))
+          
+                    gamma=half*thisrange*(celev0+celev)
+         
                    !-Get earth lat lon of observation
-	         	 
+          
                     rlon0=deg2rad*strct_in_dbz(v,k)%radlon
-	       	    clat0=cos(deg2rad*strct_in_dbz(v,k)%radlat)
-		    slat0=sin(deg2rad*strct_in_dbz(v,k)%radlat)		  
-		    thisazimuthr=(90.0_r_kind-strct_in_dbz(v,k)%azim(j))*deg2rad   !Storing as 90-azm to
-		                                                                   ! be consistent with 
-										   ! read_l2bufr_mod.f90
-		    rad_per_meter=one/rearth
-		    rlonloc=rad_per_meter*gamma*cos(thisazimuthr)
+                    clat0=cos(deg2rad*strct_in_dbz(v,k)%radlat)
+                    slat0=sin(deg2rad*strct_in_dbz(v,k)%radlat)  
+                    thisazimuthr=(90.0_r_kind-strct_in_dbz(v,k)%azim(j))*deg2rad   !Storing as 90-azm to
+                                                                                   ! be consistent with 
+                                                                                   ! read_l2bufr_mod.f90
+                    rad_per_meter=one/rearth
+                    rlonloc=rad_per_meter*gamma*cos(thisazimuthr)
                     rlatloc=rad_per_meter*gamma*sin(thisazimuthr)
-		                  
-		    call invtllv(rlonloc,rlatloc,rlon0,clat0,slat0,rlonglob,rlatglob)
+                  
+                    call invtllv(rlonloc,rlatloc,rlon0,clat0,slat0,rlonglob,rlatglob)
                  
-		    thislat=rlatglob*rad2deg
+                    thislat=rlatglob*rad2deg
                     thislon=rlonglob*rad2deg 
   
                    !-Check format of longitude and correct if necessary
                  
-		    if(thislon>=r360) thislon=thislon-r360
+                    if(thislon>=r360) thislon=thislon-r360
                     if(thislon<zero ) thislon=thislon+r360
                  
-		   !-Convert back to radians                 
-         		       		       
-		    thislat = thislat*deg2rad
+                   !-Convert back to radians                 
+                      
+                    thislat = thislat*deg2rad
                     thislon = thislon*deg2rad
-                 		 
-		    !find grid relative lat lon locations of earth lat lon
                  
-		    call tll2xy(thislon,thislat,dlon,dlat,outside)
+                   !find grid relative lat lon locations of earth lat lon
+                 
+                    call tll2xy(thislon,thislat,dlon,dlat,outside)
                     if (outside) cycle pixel             !If observation is outside the domain
-		   thiserr=dbzerr
+                    thiserr=dbzerr
                 
-		      
-		      
-		      
+
+
+
 
                    !-Load good data into output array
-		    	     
-		    ndata  = min(ndata+1,maxobs)     
-		    nodata = min(nodata+1,maxobs)  !number of obs not used (no meaning here)
-		    
-		    this_staid=strct_in_dbz(v,k)%radid      !Via equivalence in declaration, value is propagated
-		    					    !  to rstation_id used below.
-		    
-		    cdata_all(1,ndata) = thiserr 		      ! reflectivity obs error (dB) - inflated/adjusted
-		    cdata_all(2,ndata) = dlon			      ! grid relative longitude
-		    cdata_all(3,ndata) = dlat			      ! grid relative latitude
-		    cdata_all(4,ndata) = thishgt		      ! obs absolute height (m)
-		    cdata_all(5,ndata) = obdata_pixel_nc(ipix)  !strct_in_dbz(v,k)%field(i,j) ! radar reflectivity factor 
-		    cdata_all(6,ndata) = thisazimuthr		      ! 90deg-azimuth angle (radians)
-		    cdata_all(7,ndata) = timeb*r60inv		      ! obs time (analyis relative hour)
-		    cdata_all(8,ndata) = ikx			      ! type		   
-		    cdata_all(9,ndata) = thistiltr		      ! tilt angle (radians)
-		    cdata_all(10,ndata)= this_stahgt		      ! station elevation (m)
-		    cdata_all(11,ndata)= rstation_id		      ! station id
-		    cdata_all(12,ndata)= icuse(ikx)		      ! usage parameter
-		    cdata_all(13,ndata)= thislon*rad2deg	      ! earth relative longitude (degrees)
-		    cdata_all(14,ndata)= thislat*rad2deg	      ! earth relative latitude (degrees)
-		    cdata_all(15,ndata)= thisrange		      ! range from radar in m 
-		    cdata_all(16,ndata)= dbzerr                       ! orginal error from convinfo file
-		    cdata_all(17,ndata)= dbznoise                     ! noise threshold for reflectivity (dBZ)
+         
+                    ndata  = min(ndata+1,maxobs)     
+                    nodata = min(nodata+1,maxobs)  !number of obs not used (no meaning here)
+    
+                    this_staid=strct_in_dbz(v,k)%radid      !Via equivalence in declaration, value is propagated
+                                                            !  to rstation_id used below.
+
+                    cdata_all(1,ndata) = thiserr                      ! reflectivity obs error (dB) - inflated/adjusted
+                    cdata_all(2,ndata) = dlon                         ! grid relative longitude
+                    cdata_all(3,ndata) = dlat                         ! grid relative latitude
+                    cdata_all(4,ndata) = thishgt                      ! obs absolute height (m)
+                    cdata_all(5,ndata) = obdata_pixel_nc(ipix)  !strct_in_dbz(v,k)%field(i,j) ! radar reflectivity factor 
+                    cdata_all(6,ndata) = thisazimuthr                 ! 90deg-azimuth angle (radians)
+                    cdata_all(7,ndata) = timeb*r60inv                 ! obs time (analyis relative hour)
+                    cdata_all(8,ndata) = ikx                          ! type		   
+                    cdata_all(9,ndata) = thistiltr                    ! tilt angle (radians)
+                    cdata_all(10,ndata)= this_stahgt                  ! station elevation (m)
+                    cdata_all(11,ndata)= rstation_id                  ! station id
+                    cdata_all(12,ndata)= icuse(ikx)                   ! usage parameter
+                    cdata_all(13,ndata)= thislon*rad2deg              ! earth relative longitude (degrees)
+                    cdata_all(14,ndata)= thislat*rad2deg              ! earth relative latitude (degrees)
+                    cdata_all(15,ndata)= thisrange                    ! range from radar in m 
+                    cdata_all(16,ndata)= dbzerr                       ! orginal error from convinfo file
+                    cdata_all(17,ndata)= dbznoise                     ! noise threshold for reflectivity (dBZ)
 
               else
-	         num_badrange=num_badrange+1      !If outside acceptable range, increment
-	      end if   !Range check	
-		
+                   num_badrange=num_badrange+1      !If outside acceptable range, increment
+              end if   !Range check	
+
      
               end do pixel    !i
         else
@@ -1262,6 +1260,9 @@ enddo
      end do
   end do
   deallocate(strct_in_dbz)
+  deallocate(azimuth_nc,beamwidth_nc,azimspacing_nc,gatewidth_nc)
+  deallocate(pixel_x_nc)
+  deallocate(pixel_y_nc)
 
  else  !fileopen
   write(6,*) 'READ_dBZ: ERROR OPENING RADAR REFLECTIVITY FILE: ',trim(infile),' IOSTAT ERROR: ',ierror, ' SKIPPING...'

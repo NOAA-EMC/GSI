@@ -210,7 +210,7 @@ subroutine statspcp(aivals,ndata)
      if (isum > 0 .and. display(is)) then
         rpen(is) = aivals(15,is)
         qcpen(is) = aivals(39,is)
-        rsum  = one/float(isum)
+        rsum  = one/real(isum,r_kind)
         icerr = nint(aivals(12,is))
         do j=13,16
            aivals(j,is)=aivals(j,is)*rsum

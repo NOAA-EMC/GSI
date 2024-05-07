@@ -23,12 +23,13 @@
   use gsi_dbzOper, only: diag_radardbz
   use gsi_fedOper, only: diag_fed
 
-  use obsmod, only: doradaroneob,oneoblat,oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,&
+  use obsmod, only: doradaroneob,dofedoneob,oneoblat,oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,&
      radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
-     rmesh_vr,zmesh_dbz,zmesh_vr,if_vterminal, if_model_dbz,if_vrobs_raw,if_use_w_vr,&
-     minobrangedbz,maxobrangedbz,maxobrangevr,maxtiltvr,missing_to_nopcp,&
+     rmesh_vr,zmesh_dbz,zmesh_vr,if_vterminal, if_model_dbz,if_model_fed,innov_use_model_fed,if_vrobs_raw,if_use_w_vr,&
+     minobrangedbz,maxobrangedbz,maxobrangevr,maxtiltvr,inflate_dbz_obserr,missing_to_nopcp,&
      ntilt_radarfiles,whichradar,&
-     minobrangevr,maxtiltdbz,mintiltvr,mintiltdbz,l2rwthin,hurricane_radar 
+     minobrangevr,maxtiltdbz,mintiltvr,mintiltdbz,l2rwthin,hurricane_radar,&
+     r_hgt_fed
 
   use obsmod, only: lwrite_predterms, &
      lwrite_peakwt,use_limit,lrun_subdirs,l_foreaft_thin,lobsdiag_forenkf,&
@@ -92,8 +93,14 @@
       erradar_inflate,tdrerr_inflate,use_poq7,qc_satwnds,&
       init_qcvars,vadfile,noiqc,c_varqc,gps_jacqc,qc_noirjaco3,qc_noirjaco3_pole,&
       buddycheck_t,buddydiag_save,njqc,vqc,nvqc,hub_norm,vadwnd_l2rw_qc, &
-      pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres,cao_check
+      pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres,cao_check, &
+      cris_cads, iasi_cads, airs_cads
   use qcmod, only: troflg,lat_c,nrand
+  use cads, only: M__Sensor,N__Num_Bands,N__GradChkInterval,N__Band_Size,N__Bands,N__Window_Width, &
+      N__Window_Bounds,R__BT_Threshold,R__Grad_Threshold,R__Window_Grad_Threshold, L__Do_Quick_Exit, &
+      L__Do_CrossBand, N__BandToUse,L__Do_Imager_Cloud_Detection, N__Num_Imager_Chans, &
+      N__Num_Imager_Clusters,N__Imager_Chans,R__Stddev_Threshold,R__Coverage_Threshold, &
+      R__FG_Departure_Threshold, CADS_Setup_Cloud
   use pcpinfo, only: npredp,diag_pcp,dtphys,deltim,init_pcp
   use jfunc, only: iout_iter,iguess,miter,factqmin,factqmax,superfact,limitqobs, &
      factql,factqi,factqr,factqs,factqg, &  
@@ -154,7 +161,7 @@
                          ntotensgrp,nsclgrp,naensgrp,ngvarloc,ntlevs_ens,naensloc, &
                          r_ensloccov4tim,r_ensloccov4var,r_ensloccov4scl,l_timloc_opt,&
                          vdl_scale,vloc_varlist,&
-                         global_spectral_filter_sd,assign_vdl_nml,parallelization_over_ensmembers
+                         global_spectral_filter_sd,assign_vdl_nml,parallelization_over_ensmembers,l_mgbf_loc
   use hybrid_ensemble_parameters,only : l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,weight_ens_gfs,weight_ens_fv3sar
   use rapidrefresh_cldsurf_mod, only: init_rapidrefresh_cldsurf, &
                             dfi_radar_latent_heat_time_period,metar_impact_radius,&
@@ -177,7 +184,7 @@
                             cld_bld_coverage,cld_clr_coverage,&
                             i_cloud_q_innovation,i_ens_mean,DTsTmax,&
                             i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check, &
-                            corp_howv, hwllp_howv
+                            corp_howv, hwllp_howv, corp_gust, hwllp_gust, oerr_gust
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
@@ -202,7 +209,7 @@
   use gsi_nstcouplermod, only: gsi_nstcoupler_init_nml
   use gsi_nstcouplermod, only: nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl
   use ncepnems_io, only: init_nems,imp_physics,lupp
-  use wrf_vars_mod, only: init_wrf_vars
+  use wrf_vars_mod, only: init_wrf_vars,fed_exist,dbz_exist
   use gsi_rfv3io_mod,only : fv3sar_bg_opt
   use radarz_cst,            only: mphyopt, MFflg
   use radarz_iface,          only: init_mphyopt
@@ -506,10 +513,23 @@
 !                           2. fv3_regional =      .true.  
 !                           3. fv3_cmaq_regional = .true. 
 !                           4. berror_fv3_cmaq_regional = .true. 
+!  09-02-2022 Jung      Added namelist entries to call a new IR cloud detection routine
+!                       the original cloud detection routine is the default.  To use the new 
+!                       cloud detection routine, set the flags to .true.
 !  09-15-2022 yokota  - add scale/variable/time-dependent localization
 !  2023-07-30 Zhao    - added namelist options for analysis of significant wave height
 !                       (aka howv in GSI code): corp_howv, hwllp_howv
 !                       (in namelist session rapidrefresh_cldsurf)
+!  
+!  2023-09-14 H. Wang - add namelist option for FED EnVar DA. 
+!                        - if_model_fed=.true.        :  FED in background and ens. If
+!                          perform FED DA, this has to be true along with fed in
+!                          control/analysis and metguess vectors. If only run GSI observer,
+!                          it can be false.
+!                        - innov_use_model_fed=.true. :  Use FED from BG to calculate innovation.
+!                          this requires if_model_fed=.true. 
+!                          it works either an EnVar DA run or a GSI observer run.
+!  02-20-2024 yokota  - add MGBF-based localization
 !
 !EOP
 !-------------------------------------------------------------------------
@@ -734,6 +754,10 @@
 !     optconv - downweighting option for iasi and cris for moisture channels to
 !     improve convergence.  default 0.0 (no change).  Larger number improves
 !     convergence.
+!     inflate_dbz_obserr - logical that controls inflation of reflectivity ob error
+!                          for obs that exceed gross error magnitude
+!                          if true, inflate ob error
+!                          if false, reject ob
 !
 !     NOTE:  for now, if in regional mode, then iguess=-1 is forced internally.
 !            add use of guess file later for regional mode.
@@ -769,17 +793,18 @@
        use_gfs_stratosphere,pblend0,pblend1,step_start,diag_precon,lrun_subdirs,&
        use_sp_eqspace,lnested_loops,lsingleradob,thin4d,use_readin_anl_sfcmask,&
        luse_obsdiag,id_drifter,id_ship,verbose,print_obs_para,lsingleradar,singleradar,lnobalance, &
-       missing_to_nopcp,minobrangedbz,minobrangedbz,maxobrangedbz,&
-       maxobrangevr,maxtiltvr,whichradar,doradaroneob,oneoblat,&
+       inflate_dbz_obserr,missing_to_nopcp,minobrangedbz,minobrangedbz,maxobrangedbz,&
+       maxobrangevr,maxtiltvr,whichradar,doradaroneob,dofedoneob,oneoblat,&
        oneoblon,oneobheight,oneobvalue,oneobddiff,oneobradid,&
        rmesh_vr,zmesh_dbz,zmesh_vr, ntilt_radarfiles, whichradar,&
        radar_no_thinning,ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,&
        minobrangevr, maxtiltdbz, mintiltvr,mintiltdbz,if_vterminal,if_vrobs_raw,if_use_w_vr,&
-       if_model_dbz,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,aircraft_recon,diag_version,&
+       if_model_dbz,if_model_fed,innov_use_model_fed,imp_physics,lupp,netcdf_diag,binary_diag,l_wcp_cwm,aircraft_recon,diag_version,&
        write_fv3_incr,incvars_to_zero,incvars_zero_strat,incvars_efold,diag_version,&
        cao_check,lcalc_gfdl_cfrac,tau_fcst,efsoi_order,lupdqc,lqcoef,cnvw_option,l2rwthin,hurricane_radar,&
        l_reg_update_hydro_delz, l_obsprvdiag,&
-       l_use_dbz_directDA, l_use_rw_columntilt, ta2tb, optconv
+       l_use_dbz_directDA, l_use_rw_columntilt, ta2tb, optconv, &
+       r_hgt_fed
 
 ! GRIDOPTS (grid setup variables,including regional specific variables):
 !     jcap     - spectral resolution
@@ -1036,6 +1061,13 @@
 !                                                wind observations.
 
 !     vad_near_analtime - assimilate newvadwnd obs around analysis time only
+!
+!     Flags to use the new IR cloud detection routine.  Flag must be set to true to use the new routine.  The default
+!     (no flag or .false.) will use the default.
+!     airs_cads: use the clod and aerosool detection software for the AIRS instrument
+!     cris_cads: use the cloud and aerosol detection software for CrIS instruments
+!     iasi_cads: use the cloud and aerosol detection software for IASI instruments
+!     
   
   namelist/obsqc/dfact,dfact1,erradar_inflate,tdrerr_inflate,oberrflg,&
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
@@ -1046,7 +1078,7 @@
        q_doe_a_136,q_doe_a_137,q_doe_b_136,q_doe_b_137, &
        t_doe_a_136,t_doe_a_137,t_doe_b_136,t_doe_b_137, &
        uv_doe_a_236,uv_doe_a_237,uv_doe_a_213,uv_doe_b_236,uv_doe_b_237,uv_doe_b_213, &
-       vad_near_analtime
+       vad_near_analtime,airs_cads,cris_cads,iasi_cads
 
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group
@@ -1421,6 +1453,7 @@
 !                             ^     ^     ^    ^     ^ 
 !                 s_ens_h  = v1L1  v2L1  v3L1  v1L2 v2L2
 !                 Then localization lengths will be assigned as above.
+!     l_mgbf_loc - if true, multi-grid beta filter is used for localization instead of recursive filter
 !
   namelist/hybrid_ensemble/l_hyb_ens,uv_hyb_ens,q_hyb_ens,aniso_a_en,generate_ens,n_ens,&
                 l_both_fv3sar_gfs_ens,n_ens_gfs,n_ens_fv3sar,weight_ens_gfs,weight_ens_fv3sar,nlon_ens,nlat_ens,jcap_ens,&
@@ -1431,7 +1464,7 @@
                 i_en_perts_io,l_ens_in_diff_time,ensemble_path,ens_fast_read,sst_staticB,limqens, &
                 nsclgrp,l_timloc_opt,ngvarloc,naensloc,r_ensloccov4tim,r_ensloccov4var,r_ensloccov4scl,&
                 vdl_scale,vloc_varlist,&
-                global_spectral_filter_sd,assign_vdl_nml,parallelization_over_ensmembers
+                global_spectral_filter_sd,assign_vdl_nml,parallelization_over_ensmembers,l_mgbf_loc
 
 ! rapidrefresh_cldsurf (options for cloud analysis and surface 
 !                             enhancement for RR appilcation  ):
@@ -1571,6 +1604,9 @@
 !                           = 0.42 meters (default)
 !      hwllp_howv    - real, background error de-correlation length scale of howv 
 !                           = 170,000.0 meters (default 170 km)
+!      corp_gust     - real, static background error of gust (stddev error)
+!      hwllp_gust    - real, background error de-correlation length scale of gust 
+!      oerr_gust     - real, observation error of gust
 !
   namelist/rapidrefresh_cldsurf/dfi_radar_latent_heat_time_period, &
                                 metar_impact_radius,metar_impact_radius_lowcloud, &
@@ -1592,7 +1628,7 @@
                                 cld_bld_coverage,cld_clr_coverage,&
                                 i_cloud_q_innovation,i_ens_mean,DTsTmax, &
                                 i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check, &
-                                corp_howv, hwllp_howv
+                                corp_howv, hwllp_howv, corp_gust, hwllp_gust, oerr_gust
 
 ! chem(options for gsi chem analysis) :
 !     berror_chem       - .true. when background  for chemical species that require
@@ -1647,6 +1683,40 @@
 !     fac_dtl  - index to apply diurnal thermocline layer  or not: 0 = no; 1 = yes.
 !     fac_tsl  - index to apply thermal skin layer or not: 0 = no; 1 = yes.
    namelist/nst/nst_gsi,nstinfo,zsea1,zsea2,fac_dtl,fac_tsl
+
+!  Initialize the Cloud and Aerosol Detection Software (CADS) 
+!
+!     M__Sensor                     Unique ID for sensor
+!     N__Num_Bands                  Number of channel bands
+!     N__Band_Size(:)               Number of channels in each band
+!     N__Bands(:,:)                 Channel lists
+!     N__Window_Width(:)            Smoothing filter window widths per band
+!     N__Window_Bounds(:,:)         Channels in the spectral window gradient check
+!     N__GradChkInterval(:)         Window width used in gradient calculation
+!     R__BT_Threshold(:)            BT threshold for cloud contamination
+!     R__Grad_Threshold(:)          Gradient threshold for cloud contamination
+!     R__Window_Grad_Threshold(:)   Threshold for window gradient check in QE
+!     L__Do_Quick_Exit              On/off switch for the Quick Exit scenario
+!     L__Do_CrossBand               On/off switch for the cross-band method
+!     N__BandToUse(:)               Band number assignment for each channel
+!     L__Do_Imager_Cloud_Detection  On/off switch for the imager cloud detection
+!     N__Num_Imager_Chans           No. of imager channels
+!     N__Num_Imager_Clusters        No. of clusters to be expected
+!     N__Imager_Chans(:)            List of imager channels
+!     R__Stddev_Threshold(:)        St. Dev. threshold, one for each imager channel
+!     R__Coverage_Threshold         Threshold for fractional coverage of a cluster
+!     R__FG_Departure_Threshold     Threshold for imager FG departure
+
+   NAMELIST / Cloud_Detect_Coeffs / M__Sensor, N__Num_Bands,            &
+           N__Band_Size, N__Bands, N__Window_Width, N__Window_Bounds,   &
+           N__GradChkInterval, R__BT_Threshold, R__Grad_Threshold,      &
+           R__Window_Grad_Threshold, L__Do_Quick_Exit,                  &
+           L__Do_CrossBand, N__BandToUse,                               &
+           L__Do_Imager_Cloud_Detection, N__Num_Imager_Chans,           &
+           N__Num_Imager_Clusters, N__Imager_Chans,                     &
+           R__Stddev_Threshold, R__Coverage_Threshold,                  &
+           R__FG_Departure_Threshold
+
 
 !EOC
 
@@ -1734,6 +1804,7 @@
   call set_fgrid2agrid
   call gsi_nstcoupler_init_nml
   call init_radaruse_directDA
+  call CADS_Setup_Cloud
 
  if(mype==0) write(6,*)' at 0 in gsimod, use_gfs_stratosphere,nems_nmmb_regional = ', &
                        use_gfs_stratosphere,nems_nmmb_regional
@@ -1919,6 +1990,18 @@
   regional=wrf_nmm_regional.or.wrf_mass_regional.or.twodvar_regional.or.nems_nmmb_regional .or. cmaq_regional
   regional=regional.or.fv3_regional.or.fv3_cmaq_regional
 
+! Force turn off MGBF-based localization except for regional application
+  if(.not.regional.and.l_mgbf_loc) then
+     l_mgbf_loc=.false.
+     if(mype==0) write(6,*)'GSIMOD: for global app, l_mgbf_loc is not applicable, reset l_mgbf_loc=',l_mgbf_loc
+  end if
+
+! Force turn off MGBF-based localization for lsqrtb=.true.
+  if(lsqrtb.and.l_mgbf_loc) then
+     l_mgbf_loc=.false.
+     if(mype==0) write(6,*)'GSIMOD: for lsqrtb=.true., l_mgbf_loc is not applicable, reset l_mgbf_loc=',l_mgbf_loc
+  end if
+
 ! Currently only able to have use_gfs_stratosphere=.true. for nems_nmmb_regional=.true.
   use_gfs_stratosphere=use_gfs_stratosphere.and.(nems_nmmb_regional.or.wrf_nmm_regional)   
   if(mype==0) write(6,*) 'in gsimod: use_gfs_stratosphere,nems_nmmb_regional,wrf_nmm_regional= ', &  
@@ -1978,6 +2061,20 @@
      endif
   endif
 
+  if (innov_use_model_fed .and. .not.if_model_fed) then
+     if(mype==0) write(6,*)' GSIMOD: invalid innov_use_model_fed=.true. but if_model_fed=.false.'
+     call die(myname_,'invalid innov_use_model_fed,if_model_fed, check namelist settings',330)
+  end if
+
+  if (.not. (miter == 0 .or. lobserver) .and. if_model_fed .and. .not. fed_exist) then
+     if(mype==0) write(6,*)' GSIMOD: .not. (miter == 0 .or. lobserver) and if_model_fed=.true. but fed is not in anavinfo file'
+     call die(myname_,'Please check namelist parameters and/or add fed in anavinfo (contro/state_vector and met_guess) when miter > 0 and if_model_fed=.true.',332)
+  end if
+
+  if (.not. (miter == 0 .or. lobserver) .and. if_model_dbz .and. .not. dbz_exist) then
+     if(mype==0) write(6,*)' GSIMOD: .not. (miter == 0 .or. lobserver) and if_model_dbz=.true. but dbz is not in anavinfo file'
+     call die(myname_,'Please check namelist parameters and/or add dbz in anavinfo (contro/state_vector and met_guess) when miter > 0 and if_model_fed=.true.',334)
+  end if
 
 ! Ensure valid number of horizontal scales
   if (nhscrf<0 .or. nhscrf>3) then

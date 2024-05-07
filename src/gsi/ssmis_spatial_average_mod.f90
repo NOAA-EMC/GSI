@@ -682,26 +682,15 @@ CONTAINS
 !            Define grid box by channel -
 !            Ch 1-2: 1 scan direction, 1 track direction
 !            Ch 3-13: 3 scan direction, 3 track direction
-                   if ((ic == 1) .or. (ic == 2)) then
-                      ns1 = iscan
-                      ns2 = iscan
-                      if (ns1 < 1) ns1=1
-                      if (ns2 > max_scan) ns2=max_scan
-                      np1 = ifov
-                      np2 = ifov
-                      if (np1 < 1) np1=1
-                      if (np2 > max_fov_gmi) np2=max_fov_gmi
-                   else if ((ic > 2) .and. (ic < 14)) then
-                      ns1 = iscan-1
-                      ns2 = iscan+1
-                      if (ns1 < 1) ns1=1
-                      if (ns2 > max_scan) ns2=max_scan
-                      np1 = ifov-1
-                      np2 = ifov+1
-                      if (np1 < 1) np1=1
-                      if (np2 > max_fov_gmi) np2=max_fov_gmi
-                   endif
 
+                   ns1 = iscan-4
+                   ns2 = iscan+4
+                   if (ns1 < 1) ns1=1
+                   if (ns2 > max_scan) ns2=max_scan
+                   np1 = ifov-8
+                   np2 = ifov+8
+                   if (np1 < 1) np1=1
+                   if (np2 > max_fov_gmi) np2=max_fov_gmi
                    xnum   = 0.0_r_kind
                    mta    = 0.0_r_kind
                    if (any(bt_image_orig(np1:np2,ns1:ns2,ic) < btmin .or. &
@@ -716,7 +705,7 @@ CONTAINS
                          lat2 = latitude(ip,is)
                          lon2 = longitude(ip,is)
                          dist = distance(lat1,lon1,lat2,lon2)
-                         if (dist > 50.0_r_kind) cycle gmi_box_x1  ! outside the box
+                         if (dist > 20.0_r_kind) cycle gmi_box_x1  ! outside the box
                          if (gaussian_wgt) then
                             wgt = exp(-0.5_r_kind*(dist/sigma)*(dist/sigma))
                          else
@@ -1551,7 +1540,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_distx, sampling_disty, &
          END DO
          J = J + K
  104  CONTINUE
-      XT = 1.0 / FLOAT( N )
+      XT = 1.0 / real( N,r_kind )
       DO 99 I = 1, N
          X(I) = XT * X(I)
  99   CONTINUE

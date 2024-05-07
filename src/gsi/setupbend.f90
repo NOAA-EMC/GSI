@@ -331,9 +331,9 @@ subroutine setupbend(obsLL,odiagLL, &
 
 ! Intialize variables
   nsig_up=nsig+nsig_ext ! extend nsig_ext levels above interface level nsig
-  rsig=float(nsig)
+  rsig=real(nsig,r_kind)
   rdog=rd/grav
-  rsig_up=float(nsig_up)
+  rsig_up=real(nsig_up,r_kind)
   nobs_out=0
   hob_s_top=one
   mm1=mype+1
@@ -618,7 +618,7 @@ subroutine setupbend(obsLL,odiagLL, &
        ihob=hob
        k1=min(max(1,ihob),nsig)
        k2=max(1,min(ihob+1,nsig))
-       delz=hob-float(k1)
+       delz=hob-real(k1,r_kind)
        delz=max(zero,min(delz,one))
        trefges=tges_o(k1,i)*(one-delz)+tges_o(k2,i)*delz
        qrefges=qges_o(k1)*(one-delz)+qges_o(k2)*delz !Lidia
@@ -715,7 +715,7 @@ subroutine setupbend(obsLL,odiagLL, &
             call setq(q_w(:,k),ref_rad(k-1:k+1),3)
          enddo
 
-         muse(i)=nint(data(iuse,i)) <= jiter
+         muse(i)=nint(data(iuse,i)) <= jiter 
 
 !        Get refractivity index-radius and [d(ln(n))/dx] in new grid.
          intloop: do j=1,grids_dim

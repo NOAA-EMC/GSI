@@ -217,7 +217,6 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   real(r_kind),dimension(nsig,nloz_omi+1):: doz_dz1
   integer(i_kind) :: oz_ind, nind, nnz
   type(sparr2) :: dhx_dx
-  real(r_single), dimension(nsdim) :: dhx_dx_array
 
   integer(i_kind) i,nlev,ii,jj,iextra,ibin, kk, nperobs
   integer(i_kind) k1,k2,k,j,nz,jc,idia,irdim1,istatus,ioff0,ioff1
@@ -1170,7 +1169,6 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   real(r_kind),dimension(nsig):: prsltmp
   real(r_single),dimension(ireal,nobs):: diagbuf
   real(r_single),allocatable,dimension(:,:,:)::rdiagbuf
-  real(r_kind),dimension(nsig+1)::prsitmp
   real(r_kind),dimension(nsig)::ozgestmp
 
   integer(i_kind) i,ii,jj,iextra,ibin
@@ -1361,13 +1359,13 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
 !    Check if observation above model top or below model surface
 
      rlow=max(sfcchk-dpres,zero)
-     rhgh=max(dpres-0.001_r_kind-float(nsig),zero)
+     rhgh=max(dpres-0.001_r_kind-real(nsig,r_kind),zero)
 
 !    calculate factor for error adjustment if too (high,low)
      ratio_errors=obserror/(obserror+1.0e6_r_kind*rhgh+four*rlow)
 
 !    Check to see if observations is above the top of the model
-     if (dpres > float(nsig)) then
+     if (dpres > real(nsig,r_kind)) then
          ratio_errors=zero
          obserror=1.0e6_r_kind
      end if
@@ -1379,7 +1377,7 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
      call tintrp31(ges_oz,o3ges,dlat,dlon,dpres,dtime, &
        hrdifsig,mype,nfldsig)
      iz = max(1, min( int(dpres), nsig))
-     delz = max(zero, min(dpres - float(iz), one))
+     delz = max(zero, min(dpres - real(iz,r_kind), one))
      if (save_jacobian) then
         oz_ind = getindex(svars3d, 'oz')
         if (oz_ind < 0) then

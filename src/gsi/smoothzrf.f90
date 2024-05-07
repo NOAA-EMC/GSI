@@ -81,7 +81,7 @@ subroutine frfhvo(p1,iv)
         do k=1,lat2
            l=int(rllat1(k,j))
            l2=min0(l+1,llmax)
-           dl2(k,j)=rllat1(k,j)-float(l)
+           dl2(k,j)=rllat1(k,j)-real(l,r_kind)
            dl1(k,j)=one-dl2(k,j)
         end do
      end do

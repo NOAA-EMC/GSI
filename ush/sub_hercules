@@ -1,6 +1,5 @@
 #!/bin/sh --login
 set -x
-echo "starting sub_cheyenne"
 usage="\
 Usage:  $0 [options] executable [args]
       where the options are:
@@ -88,10 +87,13 @@ export jobname=${jobname:-$bn}
 output=${output:-$jobname.out}
 myuser=$LOGNAME
 myhost=$(hostname)
+exp=${jobname}
 
-DATA=/glade/scratch/$LOGNAME/tmp
+DATA=${ptmp:-/work/noaa/da/stmp/$LOGNAME/tmp}
 mkdir -p $DATA
 
+#partition=${partition:-c1ms}
+queue=${queue:-batch}
 timew=${timew:-01:20:00}
 task_node=${task_node:-$procs}
 size=$((nodes*task_node))
@@ -101,16 +103,16 @@ threads=${rcpu:-1}
 export TZ=GMT
 cfile=$DATA/sub$$
 > $cfile
-echo "#!/bin/sh --login"                   >> $cfile
-echo ""                                    >> $cfile
-echo "#PBS -o $output"                     >> $cfile
-echo "#PBS -N $jobname"                    >> $cfile
-echo "#PBS -q $queue"                      >> $cfile
-echo "#PBS -l walltime=$timew"             >> $cfile
-echo "#PBS -l select=$nodes:ncpus=$procs:mpiprocs=$procs"     >> $cfile
-echo "#PBS -j oe"                          >> $cfile
-echo "#PBS -A $accnt"                      >> $cfile
-echo "#PBS -V"                             >> $cfile
+#echo "#PBS -S /bin/sh"                     >> $cfile
+echo "#!/bin/sh --login"                                                           >> $cfile
+echo ""                                                                            >> $cfile
+echo "#SBATCH --output=$output"                                                    >> $cfile
+echo "#SBATCH --job-name=$jobname"                                                 >> $cfile
+echo "#SBATCH --qos=$queue"                                                        >> $cfile
+echo "#SBATCH --partition=$partition"                                              >> $cfile
+echo "#SBATCH --time=$timew"                                                       >> $cfile
+echo "#SBATCH --nodes=$nodes --ntasks-per-node=$procs --exclusive"    >> $cfile
+echo "#SBATCH --account=$accnt"                                                    >> $cfile
 
 echo "" >>$cfile
 echo "export ntasks=$(( $nodes * $procs ))" >> $cfile
@@ -118,16 +120,17 @@ echo "export ppn=$procs"                    >> $cfile
 echo "export threads=$threads"              >> $cfile
 echo "export OMP_NUM_THREADS=$threads"      >> $cfile
 echo "ulimit -s unlimited"                  >> $cfile
+
 echo "" >>$cfile
 echo ". "$(awk '{ print $1, $2, $3, $4, $5, $6, $7, $8, $9 }' $regdir/regression_var.out)  >>$cfile
 echo "" >>$cfile
 
-echo "cfile = $cfile"
-echo "source /glade/u/apps/ch/modulefiles/default/localinit/localinit.sh >> $cfile"
+echo ". /apps/other/lmod/lmod/init/sh"                     >> $cfile
 echo "module purge"                                        >> $cfile
 echo "module use $modulefiles"                      >> $cfile
-echo "module load gsi_cheyenne.intel" >> $cfile
-echo "module list" >> $cfile
+echo "module load gsi_hercules.intel" >> $cfile
+#TODO reenable I_MPI_EXTRA_FILESYSTEM once regional ctests can properly handle parallel I/O on Hercules
+echo "unset I_MPI_EXTRA_FILESYSTEM"         >> $cfile
 
 cat $exec >> $cfile
 
@@ -150,12 +153,12 @@ elif [[ $verbose = YES ]];then
   set -x
   cat $cfile
 fi
-qsub=${qsub:-qsub}
+sbatch=${sbatch:-sbatch}
 
 ofile=$DATA/subout$$
 >$ofile
 chmod 777 $ofile
-$qsub $cfile >$ofile
+$sbatch --export=ALL $cfile >$ofile
 rc=$?
 cat $ofile
 if [[ -w $SUBLOG ]];then
@@ -164,6 +167,4 @@ if [[ -w $SUBLOG ]];then
 fi
 rm $cfile $ofile
 [[ $MKDATA = YES ]] && rmdir $DATA
-echo "ending sub_cheyenne"
 exit $rc
-

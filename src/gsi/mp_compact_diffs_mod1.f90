@@ -1550,8 +1550,8 @@ subroutine mp_compact_dlon(b,dbdx,vector)
                     polu=polu+grid3(ix)*coslon(ix)
                     polv=polv+grid3(ix)*sinlon(ix)
                  end do
-                 polu=polu/float(nlon)
-                 polv=polv/float(nlon)
+                 polu=polu/real(nlon,r_kind)
+                 polv=polv/real(nlon,r_kind)
                  do ix=1,nlon
                     grid3pol(ix)=polu*coslon(ix)+polv*sinlon(ix)
                  end do
@@ -1673,8 +1673,8 @@ subroutine mp_compact_dlon_ad(b,dbdx,vector)
                     polu=polu+grid3pol(ix)*coslon(ix)
                     polv=polv+grid3pol(ix)*sinlon(ix)
                  end do
-                 polu=polu/float(nlon)
-                 polv=polv/float(nlon)
+                 polu=polu/real(nlon,r_kind)
+                 polv=polv/real(nlon,r_kind)
                  do ix=1,nlon
                     grid3(ix)=grid3(ix)+polu*coslon(ix)+polv*sinlon(ix)
                  end do
@@ -1977,8 +1977,8 @@ subroutine mp_uv_pole(u,v)
            polsu=polsu+u(2,ix,k)*coslon(ix)+v(2,ix,k)*sinlon(ix)
            polsv=polsv+u(2,ix,k)*sinlon(ix)-v(2,ix,k)*coslon(ix)
         end do
-        polsu=polsu/float(nlon)
-        polsv=polsv/float(nlon)
+        polsu=polsu/real(nlon,r_kind)
+        polsv=polsv/real(nlon,r_kind)
         do ix=1,nlon
            u(1,ix,k)=polsu*coslon(ix)+polsv*sinlon(ix)
            v(1,ix,k)=polsu*sinlon(ix)-polsv*coslon(ix)
@@ -1993,8 +1993,8 @@ subroutine mp_uv_pole(u,v)
            polnu=polnu+u(1,ix,k)*coslon(ix)-v(1,ix,k)*sinlon(ix)
            polnv=polnv+u(1,ix,k)*sinlon(ix)+v(1,ix,k)*coslon(ix)
         end do
-        polnu=polnu/float(nlon)
-        polnv=polnv/float(nlon)
+        polnu=polnu/real(nlon,r_kind)
+        polnv=polnv/real(nlon,r_kind)
         do ix=1,nlon
            u(2,ix,k)= polnu*coslon(ix)+polnv*sinlon(ix)
            v(2,ix,k)=-polnu*sinlon(ix)+polnv*coslon(ix)
@@ -2055,8 +2055,8 @@ subroutine mp_uv_pole_ad(u,v)
            u(1,ix,k)=zero
            v(1,ix,k)=zero
         end do
-        polsu=polsu/float(nlon)
-        polsv=polsv/float(nlon)
+        polsu=polsu/real(nlon,r_kind)
+        polsv=polsv/real(nlon,r_kind)
         do ix=1,nlon
            u(2,ix,k)=u(2,ix,k)+polsu*coslon(ix)+polsv*sinlon(ix)
            v(2,ix,k)=v(2,ix,k)+polsu*sinlon(ix)-polsv*coslon(ix)
@@ -2073,8 +2073,8 @@ subroutine mp_uv_pole_ad(u,v)
            u(2,ix,k)=zero
            v(2,ix,k)=zero
         end do
-        polnu=polnu/float(nlon)
-        polnv=polnv/float(nlon)
+        polnu=polnu/real(nlon,r_kind)
+        polnv=polnv/real(nlon,r_kind)
         do ix=1,nlon
            u(1,ix,k)=u(1,ix,k)+polnu*coslon(ix)+polnv*sinlon(ix)
            v(1,ix,k)=v(1,ix,k)-polnu*sinlon(ix)+polnv*coslon(ix)

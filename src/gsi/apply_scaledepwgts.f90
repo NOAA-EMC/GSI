@@ -151,7 +151,6 @@ subroutine apply_scaledepwgts(m,grd_in,sp_in)
   use general_specmod, only: spec_vars
   use general_sub2grid_mod, only: sub2grid_info
   use hybrid_ensemble_parameters, only: spc_multwgt,en_perts,nsclgrp,n_ens
-  use mpimod, only: mype
   implicit none
 
 ! Declare passed variables

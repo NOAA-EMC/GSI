@@ -56,8 +56,8 @@ subroutine intrp2a(f,g,dx,dy,n,nlevs,mype)
      ix1=int(dx(i))
      iy1=int(dy(i))
      ix1=max(1,min(ix1,nlat))
-     delx=dx(i)-float(ix1)
-     dely=dy(i)-float(iy1)
+     delx=dx(i)-real(ix1,r_kind)
+     dely=dy(i)-real(iy1,r_kind)
      delx=max(zero,min(delx,one))
      ix=ix1-istart(mm1)+2
      iy=iy1-jstart(mm1)+2
@@ -135,8 +135,8 @@ subroutine intrp2a1(f,g,dx,dy,nlevs,mype)
   ix1=int(dx)
   iy1=int(dy)
   ix1=max(1,min(ix1,nlat))
-  delx=dx-float(ix1)
-  dely=dy-float(iy1)
+  delx=dx-real(ix1,r_kind)
+  dely=dy-real(iy1,r_kind)
   delx=max(zero,min(delx,one))
   ix=ix1-istart(mm1)+2
   iy=iy1-jstart(mm1)+2
@@ -211,8 +211,8 @@ subroutine intrp2a11(f,g,dx,dy,mype)
   ix1=int(dx)
   iy1=int(dy)
   ix1=max(1,min(ix1,nlat))
-  delx=dx-float(ix1)
-  dely=dy-float(iy1)
+  delx=dx-real(ix1,r_kind)
+  dely=dy-real(iy1,r_kind)
   delx=max(zero,min(delx,one))
   ix=ix1-istart(mm1)+2
   iy=iy1-jstart(mm1)+2

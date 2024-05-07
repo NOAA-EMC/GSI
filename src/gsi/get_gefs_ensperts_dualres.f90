@@ -49,10 +49,9 @@ subroutine get_gefs_ensperts_dualres
 !$$$ end documentation block
 
   use mpeu_util, only: die
-  use gridmod, only: idsl5
   use hybrid_ensemble_parameters, only: n_ens,write_ens_sprd,oz_univ_static,ntlevs_ens
   use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
-  use constants,only: zero,zero_single,half,fv,rd_over_cp,one,qcmin
+  use constants,only: zero,zero_single,half,fv,one,qcmin
   use mpimod, only: mpi_comm_world,mype,npe
   use kinds, only: r_kind,i_kind,r_single
   use hybrid_ensemble_parameters, only: grd_ens,q_hyb_ens,limqens
@@ -123,7 +122,7 @@ subroutine get_gefs_ensperts_dualres
   im=en_perts(1,1,1)%grid%im
   jm=en_perts(1,1,1)%grid%jm
   km=en_perts(1,1,1)%grid%km
-  bar_norm = one/float(n_ens)
+  bar_norm = one/real(n_ens,r_kind)
   sig_norm=sqrt(one/max(one,n_ens-one))
 
   ! Create temporary communication information for read ensemble routines
@@ -444,7 +443,7 @@ subroutine ens_spread_dualres(en_bar,ibin)
      call stop2(999)
   endif
 
-  sp_norm=(one/float(n_ens))
+  sp_norm=(one/real(n_ens,r_kind))
 
   sube%values=zero
   do n=1,n_ens

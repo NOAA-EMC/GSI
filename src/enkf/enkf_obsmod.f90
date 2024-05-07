@@ -109,6 +109,8 @@ use params, only: &
       lnsigcutoffnh, lnsigcutoffsh, lnsigcutofftr, corrlengthnh,&
       corrlengthtr, corrlengthsh, obtimelnh, obtimeltr, obtimelsh,&
       lnsigcutoffsatnh, lnsigcutoffsatsh, lnsigcutoffsattr,&
+      lnsigcutofffednh, lnsigcutofffedsh, lnsigcutofffedtr,&
+      corrlengthfednh, corrlengthfedtr, corrlengthfedsh,   &
       varqc, huber, zhuberleft, zhuberright, modelspace_vloc, &
       lnsigcutoffpsnh, lnsigcutoffpssh, lnsigcutoffpstr, neigv, &
       lnsigcutoffrdrnh, lnsigcutoffrdrsh, lnsigcutoffrdrtr,&
@@ -276,6 +278,8 @@ do nob=1,nobstot
       lnsigl(nob) = latval(deglat,lnsigcutoffsatnh,lnsigcutoffsattr,lnsigcutoffsatsh)
    else if (obtype(nob)(1:3) == ' ps') then
       lnsigl(nob) = latval(deglat,lnsigcutoffpsnh,lnsigcutoffpstr,lnsigcutoffpssh)
+   else if (obtype(nob)(1:3) == 'fed') then
+      lnsigl(nob) = latval(deglat,lnsigcutofffednh,lnsigcutofffedtr,lnsigcutofffedsh)
    else if ( (obtype(nob)(1:3) == 'dbz' .or. obtype(nob)(1:3) == ' rw') .and. l_use_enkf_directZDA ) then
       lnsigl(nob) = latval(deglat,lnsigcutoffrdrnh,lnsigcutoffrdrtr,lnsigcutoffrdrsh)
    else
@@ -292,6 +296,9 @@ do nob=1,nobstot
    corrlengthsq(nob)=latval(deglat,corrlengthnh,corrlengthtr,corrlengthsh)**2
    if ( (obtype(nob)(1:3) == 'dbz' .or. obtype(nob)(1:3) == ' rw') .and. l_use_enkf_directZDA ) then
        corrlengthsq(nob)=latval(deglat,corrlengthrdrnh,corrlengthrdrtr,corrlengthrdrsh)**2
+   end if
+   if (obtype(nob)(1:3) == 'fed') then
+       corrlengthsq(nob)=latval(deglat,corrlengthfednh,corrlengthfedtr,corrlengthfedsh)**2
    end if
    obtimel(nob)=latval(deglat,obtimelnh,obtimeltr,obtimelsh)
 end do

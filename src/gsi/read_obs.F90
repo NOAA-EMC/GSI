@@ -1618,6 +1618,7 @@ subroutine read_obs(ndata,mype)
                       string='READ_RADAR'
                    else if (sis == 'l2rw') then
                       if (l2rwthin)then 
+                         write(6,*)'READ_OBS: radial wind,read_radar_l2rw,dsis=',sis
                          call read_radar_l2rw(npuse,nouse,lunout,obstype,sis,nobs_sub1(1,i),hgtl_full) 
                          string='READ_RADAR_L2RW_NOVADQC'
                       else
@@ -1928,7 +1929,7 @@ subroutine read_obs(ndata,mype)
 !         Process satellite lightning observations (e.g. GOES/GLM)                     
           else if(ditype(i) == 'light')then
                if (obstype == 'goes_glm' ) then
-             call read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twind,sis)
+             call read_goesglm(nread,npuse,nodata,infile,obstype,lunout,twind,sis)
              string='READ_GOESGLM'
                endif
 
@@ -1973,6 +1974,7 @@ subroutine read_obs(ndata,mype)
 !   Deallocate arrays containing full horizontal surface fields
     call destroy_sfc
 !   Sum and distribute number of obs read and used for each input ob group
+    
     call mpi_allreduce(ndata1,ndata,ndat*3,mpi_integer,mpi_sum,mpi_comm_world,&
        ierror)
 

@@ -211,8 +211,8 @@ subroutine statsconv(mype,&
               rat1=zero
               rat2=zero
               if(num(k) > 0)then
-                 rat1=awork(4*nsig+k+100,i_uv)/float(num(k))
-                 rat2=awork(5*nsig+k+100,i_uv)/float(num(k))
+                 rat1=awork(4*nsig+k+100,i_uv)/real(num(k),r_kind)
+                 rat2=awork(5*nsig+k+100,i_uv)/real(num(k),r_kind)
               end if
               umplty=umplty+awork(4*nsig+k+100,i_uv)
               vmplty=vmplty+awork(5*nsig+k+100,i_uv)
@@ -225,8 +225,8 @@ subroutine statsconv(mype,&
               rat1=zero
               rat3=zero
               if(num(k) > 0)then
-                 rat1=(awork(4*nsig+k+100,i_uv)+awork(5*nsig+k+100,i_uv))/float(num(k))
-                 rat3=awork(3*nsig+k+100,i_uv)/float(num(k))
+                 rat1=(awork(4*nsig+k+100,i_uv)+awork(5*nsig+k+100,i_uv))/real(num(k),r_kind)
+                 rat3=awork(3*nsig+k+100,i_uv)/real(num(k),r_kind)
               end if
               uvqcplty=uvqcplty+awork(3*nsig+k+100,i_uv)
               write(iout_uv,240) 'w',num(k),k,awork(4*nsig+k+100,i_uv)+awork(5*nsig+k+100,i_uv), &
@@ -238,9 +238,9 @@ subroutine statsconv(mype,&
            write(iout_uv,925) 'wind',numgross,numfailqc
 !          Write statistics regarding penalties                   
            if(ntot > 0)then
-              tu=umplty/float(ntot)
-              tv=vmplty/float(ntot)
-              tuv=uvqcplty/float(ntot)
+              tu=umplty/real(ntot,r_kind)
+              tv=vmplty/real(ntot,r_kind)
+              tuv=uvqcplty/real(ntot,r_kind)
            end if
            if(numssm > 0)then
               tssm=awork(5,i_uv)/awork(6,i_uv)
@@ -293,8 +293,8 @@ subroutine statsconv(mype,&
               rat=zero
               rat3=zero
               if(num(k)>0) then
-                 rat=awork(6*nsig+k+100,i_gps)/float(num(k))
-                 rat3=awork(3*nsig+k+100,i_gps)/float(num(k))
+                 rat=awork(6*nsig+k+100,i_gps)/real(num(k),r_kind)
+                 rat3=awork(3*nsig+k+100,i_gps)/real(num(k),r_kind)
               end if
               ntot=ntot+num(k); gpsmplty=gpsmplty+awork(6*nsig+k+100,i_gps)
               gpsqcplty=gpsqcplty+awork(3*nsig+k+100,i_gps)
@@ -359,8 +359,8 @@ subroutine statsconv(mype,&
               rat=zero
               rat3=zero
               if(num(k) > 0)then
-                 rat=awork(5*nsig+k+100,i_q)/float(num(k))
-                 rat3=awork(3*nsig+k+100,i_q)/float(num(k))
+                 rat=awork(5*nsig+k+100,i_q)/real(num(k),r_kind)
+                 rat3=awork(3*nsig+k+100,i_q)/real(num(k),r_kind)
               end if
               qmplty=qmplty+awork(5*nsig+k+100,i_q)
               qqcplty=qqcplty+awork(3*nsig+k+100,i_q)
@@ -378,8 +378,8 @@ subroutine statsconv(mype,&
            numhgh      = nint(awork(3,i_q))
            write(iout_q,900) 'q',numhgh,numlow
            if(ntot > 0) then
-              tq=qmplty/float(ntot)
-              qctq=qqcplty/float(ntot)
+              tq=qmplty/real(ntot,r_kind)
+              qctq=qqcplty/real(ntot,r_kind)
            end if
         end if
 
@@ -421,8 +421,8 @@ subroutine statsconv(mype,&
            numfailqc=nint(awork(21,i_ps))
            write(iout_ps,925) 'psfc',numgross,numfailqc
            if(nump > 0)then
-              pw=awork(4,i_ps)/float(nump)
-              pw3=awork(22,i_ps)/float(nump)
+              pw=awork(4,i_ps)/real(nump,r_kind)
+              pw3=awork(22,i_ps)/real(nump,r_kind)
            end if
         end if
 
@@ -1158,8 +1158,8 @@ subroutine statsconv(mype,&
               num(k)=nint(awork(5*nsig+k+100,i_t))
               rat=zero ; rat3=zero
               if(num(k) > 0) then
-                 rat=awork(6*nsig+k+100,i_t)/float(num(k))
-                 rat3=awork(3*nsig+k+100,i_t)/float(num(k))
+                 rat=awork(6*nsig+k+100,i_t)/real(num(k),r_kind)
+                 rat3=awork(3*nsig+k+100,i_t)/real(num(k),r_kind)
               end if
               ntot=ntot+num(k); tmplty=tmplty+awork(6*nsig+k+100,i_t)
               tqcplty=tqcplty+awork(3*nsig+k+100,i_t)
@@ -1218,8 +1218,8 @@ subroutine statsconv(mype,&
               rat=zero
               rat3=zero
               if(num(k) > 0) then
-                 rat=awork(6*nsig+k+100,i_dw)/float(num(k))
-                 rat3=awork(3*nsig+k+100,i_dw)/float(num(k))
+                 rat=awork(6*nsig+k+100,i_dw)/real(num(k),r_kind)
+                 rat3=awork(3*nsig+k+100,i_dw)/real(num(k),r_kind)
               end if
               ntot=ntot+num(k)
               dwmplty=dwmplty+awork(6*nsig+k+100,i_dw)
@@ -1230,8 +1230,8 @@ subroutine statsconv(mype,&
            numgross=nint(awork(4,i_dw))
            numfailqc=nint(awork(21,i_dw))
            if(ntot > 0) then
-              tdw=dwmplty/float(ntot)
-              qctdw=dwqcplty/float(ntot)
+              tdw=dwmplty/real(ntot,r_kind)
+              qctdw=dwqcplty/real(ntot,r_kind)
            end if
            write(iout_dw,925) 'dw',numgross,numfailqc
            numlow       = nint(awork(2,i_dw))
@@ -1280,8 +1280,8 @@ subroutine statsconv(mype,&
               rat=zero
               rat3=zero
               if(num(k) > 0) then
-                 rat=awork(6*nsig+k+100,i_rw)/float(num(k))
-                 rat3=awork(3*nsig+k+100,i_rw)/float(num(k))
+                 rat=awork(6*nsig+k+100,i_rw)/real(num(k),r_kind)
+                 rat3=awork(3*nsig+k+100,i_rw)/real(num(k),r_kind)
               end if
               ntot=ntot+num(k)
               rwmplty=rwmplty+awork(6*nsig+k+100,i_rw)
@@ -1290,8 +1290,8 @@ subroutine statsconv(mype,&
                                               awork(3*nsig+k+100,i_rw),rat,rat3
            end do
            if(ntot > 0) then
-              trw=rwmplty/float(ntot)
-              qctrw=rwqcplty/float(ntot)
+              trw=rwmplty/real(ntot,r_kind)
+              qctrw=rwqcplty/real(ntot,r_kind)
            end if
            write(iout_rw,925) 'rw',numgross,numfailqc
            numlow       = nint(awork(2,i_rw))
@@ -1341,8 +1341,8 @@ subroutine statsconv(mype,&
               rat=zero
               rat3=zero
               if(num(k) > 0) then
-                 rat=awork(6*nsig+k+100,i_dbz)/float(num(k))
-                 rat3=awork(3*nsig+k+100,i_dbz)/float(num(k))
+                 rat=awork(6*nsig+k+100,i_dbz)/real(num(k),r_kind)
+                 rat3=awork(3*nsig+k+100,i_dbz)/real(num(k),r_kind)
               end if
               ntot=ntot+num(k)
               dbzmplty=dbzmplty+awork(6*nsig+k+100,i_dbz)
@@ -1351,8 +1351,8 @@ subroutine statsconv(mype,&
                                               awork(3*nsig+k+100,i_dbz),rat,rat3
            end do
            if(ntot > 0) then
-              tdbz=dbzmplty/float(ntot)
-              qctdbz=dbzqcplty/float(ntot)
+              tdbz=dbzmplty/real(ntot,r_kind)
+              qctdbz=dbzqcplty/real(ntot,r_kind)
            end if
            write(iout_dbz,925) 'dbz',numgross,numfailqc
            numlow       = nint(awork(2,i_dbz))
@@ -1402,8 +1402,8 @@ subroutine statsconv(mype,&
               rat=zero
               rat3=zero
               if(num(k) > 0) then
-                 rat=awork(6*nsig+k+100,i_fed)/float(num(k))
-                 rat3=awork(3*nsig+k+100,i_fed)/float(num(k))
+                 rat=awork(6*nsig+k+100,i_fed)/real(num(k),r_kind)
+                 rat3=awork(3*nsig+k+100,i_fed)/real(num(k),r_kind)
               end if
               ntot=ntot+num(k)
               fedmplty=fedmplty+awork(6*nsig+k+100,i_fed)
@@ -1412,8 +1412,8 @@ subroutine statsconv(mype,&
                                                awork(3*nsig+k+100,i_fed),rat,rat3
            end do
            if(ntot > 0) then
-              tfed=fedmplty/float(ntot)
-              qctfed=fedqcplty/float(ntot)
+              tfed=fedmplty/real(ntot,r_kind)
+              qctfed=fedqcplty/real(ntot,r_kind)
            end if
            write(iout_fed,925) 'fed',numgross,numfailqc
            numlow       = nint(awork(2,i_fed))
@@ -1461,8 +1461,8 @@ subroutine statsconv(mype,&
            write(iout_tcp,925) 'psfc',numgross,numfailqc
 
            if(nump > 0)then
-              pw=awork(4,i_tcp)/float(nump)
-              pw3=awork(22,i_tcp)/float(nump)
+              pw=awork(4,i_tcp)/real(nump,r_kind)
+              pw3=awork(22,i_tcp)/real(nump,r_kind)
            end if
         end if
 
@@ -1502,8 +1502,8 @@ subroutine statsconv(mype,&
               num(k)=nint(awork(6*nsig+k+100,i_lag))
               rat=zero ; rat3=zero
               if(num(k) > 0) then
-                 rat=awork(4*nsig+k+100,i_lag)/float(num(k))
-                 rat3=awork(3*nsig+k+100,i_lag)/float(num(k))
+                 rat=awork(4*nsig+k+100,i_lag)/real(num(k),r_kind)
+                 rat3=awork(3*nsig+k+100,i_lag)/real(num(k),r_kind)
               end if
               ntot=ntot+num(k); tmplty=tmplty+awork(4*nsig+k+100,i_lag)
               tqcplty=tqcplty+awork(3*nsig+k+100,i_lag)
@@ -1633,7 +1633,7 @@ subroutine statsconv(mype,&
          ' number with abs(guess topography-station elevation) > 200m = ',i8)
 920 format(a44,i7)
 924 format(a50)
-925 format(' number of ',a5,' obs that failed gross test = ',I5,' nonlin qc test = ',I5)
+925 format(' number of ',a7,' obs that failed gross test = ',I6,' nonlin qc test = ',I6)
 949 format(' number of ',a5,' obs = ',i7,' pen= ',e25.18,' cpen= ',g13.6)
 950 format(' type ',a7,' jiter ',i3,' nread ',i9,' nkeep ',i7,' num ',i7)
 951 format(' type ',a7,' pen= ',e25.18,' qcpen= ',e25.18,' r= ',g13.6,' qcr= ',g13.6)

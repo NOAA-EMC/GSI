@@ -1,6 +1,7 @@
 module gridinfo
 
-use mpisetup
+use mpisetup, only: nproc, mpi_integer, mpi_real4
+use mpimod, only: mpi_comm_world
 use params, only: datapath,nlevs,datestring,&
                   nmmb,regional,nlons,nlats,nbackgrounds,fgfileprefixes
 use kinds, only: r_kind, i_kind, r_double, r_single
@@ -16,6 +17,7 @@ public :: getgridinfo, gridinfo_cleanup, wind2mass, mass2wind
 integer(i_kind),public :: nlevs_pres
 real(r_single),public :: ptop
 real(r_single),public, allocatable, dimension(:) :: lonsgrd, latsgrd
+real(r_single),public, allocatable, dimension(:) :: taper_vert
 ! arrays passed to kdtree2 routines must be single
 real(r_single),public, allocatable, dimension(:,:) :: gridloc
 real(r_single),public, allocatable, dimension(:,:) :: logp
@@ -25,6 +27,8 @@ character(len=max_varname_length),public, dimension(14) :: vars3d_supported = (/
                                                                                 'cw', 'prse', 'ql', 'qr', 'qi',    &
                                                                                 'qli', 'dbz', 'w'/)
 character(len=max_varname_length),public, dimension(2) :: vars2d_supported = (/ 'ps', 'sst' /)
+character(len=max_varname_length),public, dimension(8) :: vars2d_landonly = (/'', '', '', '', '', '', '', '' /)
+
 contains
 
 subroutine getgridinfo(fileprefix, reducedgrid)
@@ -122,6 +126,8 @@ if (nproc .eq. 0) then
    allocate(latsgrd(npts),lonsgrd(npts))
    allocate(logp(npts,nlevs_pres)) ! log(ens mean first guess press) on mid-layers
    allocate(gridloc(3,npts))
+   allocate(taper_vert(nlevs))
+   taper_vert=one
    lonsgrd = lons; latsgrd = lats
    print *,'min/max lonsgrd',minval(lonsgrd),maxval(lonsgrd)
    print *,'min/max latsgrd',minval(latsgrd),maxval(latsgrd)
@@ -163,6 +169,7 @@ call mpi_bcast(npts,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
 if (nproc .ne. 0) then
    ! allocate arrays on other (non-root) tasks
    allocate(latsgrd(npts),lonsgrd(npts))
+   allocate(taper_vert(nlevs))
    allocate(logp(npts,nlevs_pres)) ! log(ens mean first guess press) on mid-layers
    allocate(gridloc(3,npts))
 endif
@@ -172,6 +179,7 @@ do k=1,nlevs_pres
 enddo
 call mpi_bcast(lonsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(latsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
+call mpi_bcast(taper_vert,nlevs,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(ptop,1,mpi_real4,0,MPI_COMM_WORLD,ierr)
 
 !==> precompute cartesian coords of analysis grid points.
@@ -186,6 +194,7 @@ end subroutine getgridinfo
 subroutine gridinfo_cleanup()
 if (allocated(lonsgrd)) deallocate(lonsgrd)
 if (allocated(latsgrd)) deallocate(latsgrd)
+if (allocated(taper_vert)) deallocate(taper_vert)
 if (allocated(logp)) deallocate(logp)
 if (allocated(gridloc)) deallocate(gridloc)
 end subroutine gridinfo_cleanup

@@ -3388,7 +3388,7 @@ contains
       myname_,'put_att:  START_DATE '//trim(flnm1) )
   call nc_check( nf90_put_att(dh1,nf90_global,'SIMULATION_START_DATE',trim(DateStr1)),&
       myname_,'put_att:  SIMULATION_START_DATE '//trim(flnm1) )
-  call nc_check( nf90_put_att(dh1,nf90_global,'GMT',float(ihour)),&
+  call nc_check( nf90_put_att(dh1,nf90_global,'GMT',real(ihour,r_single)),&
       myname_,'put_att: GMT '//trim(flnm1) )
   call nc_check( nf90_put_att(dh1,nf90_global,'JULYR',iyear),&
       myname_,'put_att: JULYR'//trim(flnm1) )
@@ -3885,7 +3885,7 @@ contains
       myname_,'put_att:  START_DATE '//trim(adjustl(flnm1)) )
   call nc_check( nf90_put_att(dh1,nf90_global,'SIMULATION_START_DATE',trim(DateStr1)),&
       myname_,'put_att:  SIMULATION_START_DATE '//trim(adjustl(flnm1)) )
-  call nc_check( nf90_put_att(dh1,nf90_global,'GMT',float(ihour)),&
+  call nc_check( nf90_put_att(dh1,nf90_global,'GMT',real(ihour,r_single)),&
       myname_,'put_att: GMT '//trim(adjustl(flnm1)) )
   call nc_check( nf90_put_att(dh1,nf90_global,'JULYR',iyear),&
       myname_,'put_att: JULYR'//trim(adjustl(flnm1)) )

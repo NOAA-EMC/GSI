@@ -243,7 +243,7 @@ subroutine setupwspd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
   goverrd=grav/rd
 
   do i=1,nobs
-     muse(i)=nint(data(iuse,i)) <= jiter
+     muse(i)=nint(data(iuse,i)) <= jiter .and. nint(data(iqc,i)) < 8
   end do
 
 ! Check for duplicate observations at same location
@@ -449,7 +449,7 @@ subroutine setupwspd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
            hrdifsig,mype,nfldsig)
  
         iz = max(1, min( int(dpres), nsig))
-        delz = max(zero, min(dpres - float(iz), one))
+        delz = max(zero, min(dpres - real(iz,r_kind), one))
 
         if (save_jacobian) then
 

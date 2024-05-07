@@ -487,7 +487,7 @@ contains
     deallocate(blend)
    
   ! Convert to mean
-    bar_norm = one/float(n_ens)
+    bar_norm = one/real(n_ens,r_kind)
     en_bar%values=en_bar%values*bar_norm
   
     if(write_ens_sprd)then
@@ -1064,15 +1064,15 @@ contains
     close(32)
   
     if(sn == 'S')then
-      clat=- one * float(iclat)/10.0_r_kind
+      clat=- one * real(iclat,r_kind)/10.0_r_kind
     else
-      clat=float(iclat)/10.0_r_kind
+      clat=real(iclat,r_kind)/10.0_r_kind
     endif
   
     if(ew == 'W')then
-       clon=360._r_kind - float(iclon)/10.0_r_kind
+       clon=360._r_kind - real(iclon,r_kind)/10.0_r_kind
     else
-       clon=float(iclon)/10.0_r_kind
+       clon=real(iclon,r_kind)/10.0_r_kind
     endif
   
   

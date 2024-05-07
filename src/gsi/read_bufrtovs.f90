@@ -673,7 +673,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            terrain = 50._r_kind
            if(llll == 1)terrain = 0.01_r_kind*abs(bfr1bhdr(13))                   
            crit0 = 0.01_r_kind + terrain
-           if (llll >  1 ) crit0 = crit0 + r100 * float(llll)
+           if (llll >  1 ) crit0 = crit0 + r100 * real(llll,r_kind)
            timeinflat=two
            call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
            call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
@@ -699,7 +699,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            if(hirs .and. ((jsatid == 'n16') .or. (jsatid == 'n17'))) &
               ifovmod=ifovmod+1
 
-           panglr=(start+float(ifovmod-1)*step)*deg2rad
+           panglr=(start+real(ifovmod-1,r_kind)*step)*deg2rad
            lzaest = asin(rato*sin(panglr))
            if( msu .or. hirs2 .or. ssu)then
               lza = lzaest
@@ -821,7 +821,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            end do
            if (iskip >= nchanl) cycle read_loop
 !          Map obs to thinning grid
-           crit1 = crit1 + 10._r_kind*float(iskip)
+           crit1 = crit1 + 10._r_kind*real(iskip,r_kind)
            call checkob(dist1,crit1,itx,iuse)
            if(.not. iuse)cycle read_loop
 

@@ -47,11 +47,11 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
       tll2xy,txy2ll, rlats,rlons
   use convinfo, only: nconvtype,ctwind, &
       ncmiter,ncgroup,ncnumgrp,icuse,ictype,icsubtype,ioctype, &
-      ithin_conv,rmesh_conv,pmesh_conv
+      ithin_conv,rmesh_conv,pmesh_conv,pmot_conv
   use converr,only: etabl
-  use obsmod, only: iadate, offtime_data, oberrflg
+  use obsmod, only: iadate, offtime_data, oberrflg,reduce_diag
   use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen,thin4d
-  use convthin, only: make3grids,map3grids,del3grids,use_all
+  use convthin, only: make3grids,map3grids_m,del3grids,use_all
   use mpimod, only: npe
 
   implicit none
@@ -85,15 +85,15 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   character(8) c_station_id
   character(1) sidchr(8)
 
-  integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2,icount,iiout
+  integer(i_kind) ireadmg,ireadsb,icntpnt,icntpnt2
   integer(i_kind) lunin,i,maxobs,nmsgmax,mxtb
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
-  integer(i_kind) nc,nx,ntread,itx,ii,ncsave
+  integer(i_kind) nc,nx,ntread,ii,ncsave
   integer(i_kind) ihh,idd,idate,iret,im,iy,k,levs
   integer(i_kind) kx,nreal,nchanl,ilat,ilon,ithin
   integer(i_kind) qm, swcpq, lwcpq
   integer(i_kind) nlevp         ! vertical level for thinning
-  integer(i_kind) ntmp,iout
+  integer(i_kind) iout
   integer(i_kind) pflag,irec
   integer(i_kind) ntest,nvtest,iosub,ixsub,isubsub,iobsub
   integer(i_kind) kl,k1,k2
@@ -105,7 +105,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind),dimension(255):: pqm
   integer(i_kind),dimension(nconvtype)::ntxall
   integer(i_kind),dimension(nconvtype+1)::ntx
-  integer(i_kind),allocatable,dimension(:):: isort,iloc,nrep
+  integer(i_kind),allocatable,dimension(:):: nrep
   integer(i_kind),allocatable,dimension(:,:):: tab
   real(r_kind) time,timex,timeobs,toff,t4dv,zeps
   real(r_kind) rmesh,ediff,usage
@@ -125,7 +125,12 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),dimension(nsig-1):: dpres
   real(r_kind),dimension(255)::plevs
   real(r_kind),allocatable,dimension(:):: presl_thin
-  real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
+  real(r_kind),allocatable,dimension(:,:):: cdata_all
+  logical,allocatable,dimension(:)::rthin,rusage
+  logical save_all
+! integer(i_kind) numthin,numqc,numrem
+  integer(i_kind) nxdata,pmot,numall
+
 
   real(r_double) rstation_id,qcmark_huge
   real(r_double),dimension(8):: hdr
@@ -294,25 +299,28 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 ! loop over convinfo file entries; operate on matches
   
-  allocate(cdata_all(nreal,maxobs),isort(maxobs))
-  isort = 0
-  cdata_all=zero
+  allocate(cdata_all(nreal,maxobs),rusage(maxobs),rthin(maxobs))
   nread=0
   ntest=0
   nvtest=0
   nchanl=0
   ilon=2
   ilat=3
+  rusage = .true.
+  rthin = .false.
   loop_convinfo: do nx=1, ntread
 
      use_all = .true.
      ithin=0
+     pmot=0
+
      if(nx > 1) then
         nc=ntx(nx)
         ithin=ithin_conv(nc)
         if (ithin > 0 ) then
            rmesh=rmesh_conv(nc)
            pmesh=pmesh_conv(nc)
+           pmot=nint(pmot_conv(nc))
            use_all = .false.
            if(pmesh > zero) then
               pflag=1
@@ -338,6 +346,9 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               trim(ioctype(nc)),ictype(nc),rmesh,pflag,nlevp,pmesh
         endif
      endif
+     if(reduce_diag .and. pmot < 2)pmot=pmot+2
+     save_all=.false.
+     if(pmot /= 2 .and. pmot /= 0) save_all=.true.
        
 
      call closbf(lunin)
@@ -380,32 +391,32 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            call ufbint(lunin,hdr,8,1,iret,hdstr)
            kx=hdr(5)
 
-              if(abs(hdr(3))>r90 .or. abs(hdr(2))>r360) cycle loop_readsb
-              if(hdr(2)== r360)hdr(2)=hdr(2)-r360
-              if(hdr(2) < zero)hdr(2)=hdr(2)+r360
-              dlon_earth_deg=hdr(2)
-              dlat_earth_deg=hdr(3)
-              dlon_earth=hdr(2)*deg2rad
-              dlat_earth=hdr(3)*deg2rad
+           if(abs(hdr(3))>r90 .or. abs(hdr(2))>r360) cycle loop_readsb
+           if(hdr(2)== r360)hdr(2)=hdr(2)-r360
+           if(hdr(2) < zero)hdr(2)=hdr(2)+r360
+           dlon_earth_deg=hdr(2)
+           dlat_earth_deg=hdr(3)
+           dlon_earth=hdr(2)*deg2rad
+           dlat_earth=hdr(3)*deg2rad
 
-              if(regional)then
-                 call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)    ! convert to rotated coordinate
-                 if(diagnostic_reg) then
-                    call txy2ll(dlon,dlat,rlon00,rlat00)
-                    ntest=ntest+1
-                    cdist=sin(dlat_earth)*sin(rlat00)+cos(dlat_earth)*cos(rlat00)* &
-                         (sin(dlon_earth)*sin(rlon00)+cos(dlon_earth)*cos(rlon00))
-                    cdist=max(-one,min(cdist,one))
-                    disterr=acos(cdist)*rad2deg
-                    disterrmax=max(disterrmax,disterr)
-                 end if
-                 if(outside) cycle loop_readsb   ! check to see if outside regional domain
-              else
-                 dlat = dlat_earth
-                 dlon = dlon_earth
-                 call grdcrd1(dlat,rlats,nlat,1)
-                 call grdcrd1(dlon,rlons,nlon,1)
-              endif
+           if(regional)then
+              call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)    ! convert to rotated coordinate
+              if(diagnostic_reg) then
+                 call txy2ll(dlon,dlat,rlon00,rlat00)
+                 ntest=ntest+1
+                 cdist=sin(dlat_earth)*sin(rlat00)+cos(dlat_earth)*cos(rlat00)* &
+                      (sin(dlon_earth)*sin(rlon00)+cos(dlon_earth)*cos(rlon00))
+                 cdist=max(-one,min(cdist,one))
+                 disterr=acos(cdist)*rad2deg
+                 disterrmax=max(disterrmax,disterr)
+              end if
+              if(outside) cycle loop_readsb   ! check to see if outside regional domain
+           else
+              dlat = dlat_earth
+              dlon = dlon_earth
+              call grdcrd1(dlat,rlats,nlat,1)
+              call grdcrd1(dlon,rlons,nlon,1)
+           endif
 
 !------------------------------------------------------------------------
 
@@ -430,28 +441,28 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
  
 !             Add obs reference time, then subtract analysis time to get obs time relative to analysis
  
-              time_correction=float(minobs-minan)*r60inv
+              time_correction=real(minobs-minan,r_kind)*r60inv
 
            else
               time_correction=zero
            end if
 
-              timeobs=real(real(hdr(4),r_single),r_double)
-              t4dv=timeobs + toff
-              zeps=1.0e-8_r_kind
-              if (t4dv<zero  .and.t4dv>      -zeps) t4dv=zero
-              if (t4dv>winlen.and.t4dv<winlen+zeps) t4dv=winlen
-              t4dv=t4dv + time_correction
-              time=timeobs + time_correction
+           timeobs=real(real(hdr(4),r_single),r_double)
+           t4dv=timeobs + toff
+           zeps=1.0e-8_r_kind
+           if (t4dv<zero  .and.t4dv>      -zeps) t4dv=zero
+           if (t4dv>winlen.and.t4dv<winlen+zeps) t4dv=winlen
+           t4dv=t4dv + time_correction
+           time=timeobs + time_correction
 
  
-              if (l4dvar.or.l4densvar) then
-                 if (t4dv<zero.OR.t4dv>winlen) cycle loop_readsb ! outside time window
-              else
-                 if((real(abs(time)) > real(ctwind(nc)) .or. real(abs(time)) > real(twindin)))cycle loop_readsb ! outside time window
-              endif
+           if (l4dvar.or.l4densvar) then
+              if (t4dv<zero.OR.t4dv>winlen) cycle loop_readsb ! outside time window
+           else
+              if((real(abs(time)) > real(ctwind(nc)) .or. real(abs(time)) > real(twindin)))cycle loop_readsb ! outside time window
+           endif
 
-              timex=time
+           timex=time
      
 !          Extract data information on levels
            call ufbint(lunin,obsdat,5,255,levs,obstr)
@@ -550,9 +561,11 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
               if(qm > 15 .or. qm < 0) cycle loop_k_levs
 
+!             Set usage variable              
+              usage = zero
+
 !             Special block for data thinning - if requested
               if (ithin > 0) then
-                 ntmp=ndata  ! counting moved to map3gridS
            
 !                Set data quality index for thinning
                  if (thin4d) then
@@ -568,9 +581,12 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     end do
                  endif
 
-                 call map3grids(-1,pflag,presl_thin,nlevp,dlat_earth,dlon_earth,&
-                    plevs(k),crit1,ndata,iout,icntpnt,iiout,luse,.false.,.false.)
+                 call map3grids_m(-1,save_all,pflag,presl_thin,nlevp, &
+                     dlat_earth,dlon_earth,plevs(k),crit1,ndata,&
+                     luse,maxobs,rthin,.false.,.false.)
 
+
+                 if(rthin(ndata))usage=101._r_kind
                  if (.not. luse) then
                     if(k==levs) then
                        cycle loop_readsb
@@ -578,26 +594,17 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                        cycle LOOP_K_LEVS
                     endif
                  endif
-                 if(iiout > 0) isort(iiout)=0
-                 if(ndata >  ntmp)then
-                    nodata=nodata+1
-                 end if
-                 isort(icntpnt)=iout
 
               else
                  ndata=ndata+1
-                 nodata=nodata+1
-                 iout=ndata
-                 isort(icntpnt)=iout
               endif
+              iout=ndata
 
               if(ndata > maxobs) then
                  write(6,*)'READ_WCPBUFR:  ***WARNING*** ndata > maxobs for ',obstype
                  ndata = maxobs
               end if
 
-!             Set usage variable              
-              usage = zero
 
 
               if(icuse(nc) <= 0)usage=100._r_kind
@@ -610,6 +617,7 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               if(ncnumgrp(nc)>0 )then                 ! default cross validation on
                  if(mod(ndata+1,ncnumgrp(nc))== ncgroup(nc)-1)usage=ncmiter(nc)
               end if
+              if(icuse(nc) <= 0 .or. qm >= 8) rusage(iout) = .false.
 
 !             Extract pressure level and quality marks
               dlnpob=log(plevs(k))  ! ln(pressure in cb)
@@ -670,7 +678,6 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
         deallocate(presl_thin)
         call del3grids
      endif
-
 ! Normal exit
 
   enddo loop_convinfo! loops over convinfo entry matches
@@ -679,35 +686,56 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   close(lunin)
   deallocate(lmsg,tab,nrep)
 
-! Write header record and data to output file for further processing
-  allocate(iloc(ndata))
-  icount=0
-  do i=1,maxobs
-     if(isort(i) > 0)then
-       icount=icount+1
-       iloc(icount)=isort(i)
-     end if
-  end do
-  if(ndata /= icount)then
-     write(6,*) ' WCPBUFR: mix up in read_wcpbufr ,ndata,icount ',ndata,icount
-     call stop2(50)
-  end if
-  allocate(cdata_out(nreal,ndata))
-  do i=1,ndata
-     itx=iloc(i)
-     do k=1,nreal
-        cdata_out(k,i)=cdata_all(k,itx)
+  nxdata=ndata
+  nodata=0
+  if(nxdata > 0)then
+!    numthin=0
+!    numqc=0
+!    numrem=0
+!    do i=1,nxdata
+!       if(.not. rusage(i))then
+!          numqc=numqc+1
+!       else if(rthin(i))then
+!          numthin=numthin+1
+!       else
+!          numrem=numrem+1
+!       end if
+!    end do
+!    write(6,*) ' wcp ',trim(ioctype(nc)),ictype(nc),icsubtype(nc),numall,numrem,numqc,numthin
+!   If thinned data set usage
+     do i=1,nxdata
+        if(rthin(i))cdata_all(11,i)=100._r_kind
      end do
-  end do
-  deallocate(iloc,isort,cdata_all)
+!  If flag to not save thinned data is set - compress data
+     do i=1,nxdata
+!   pmot=0 - all obs - thin obs
+!   pmot=1 - all obs
+!   pmot=2 - use obs
+!   pmot=3 - use obs + thin obs
+        if((pmot == 0 .and. .not. rthin(i)) .or. &
+           (pmot == 1) .or. &
+           (pmot == 2 .and. (rusage(i) .and. .not. rthin(i)))  .or. &
+           (pmot == 3 .and. rusage(i))) then
 
-  call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
+           ndata=ndata+1
+           do k=1,nreal
+              cdata_all(k,ndata)=cdata_all(k,i)
+           end do
+        end if
+     end do
+     nodata=nodata+ndata
+  end if
+
+  deallocate(rusage,rthin)
+
+! Write header record and data to output file for further processing
+
+  call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
   write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
-  write(lunout) cdata_out
+  write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
 
-  deallocate(cdata_out)
+  deallocate(cdata_all)
 
-900 continue
   if(diagnostic_reg .and. ntest>0) write(6,*)'READ_WCPBUFR:  ',&
      'ntest,disterrmax=',ntest,disterrmax
   if(diagnostic_reg .and. nvtest>0) write(6,*)'READ_WCPBUFR:  ',&

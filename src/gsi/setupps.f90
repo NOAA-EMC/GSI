@@ -273,7 +273,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
 !  muse = true  then used
 
   do i=1,nobs
-     muse(i)=nint(data(iuse,i)) <= jiter
+     muse(i)=nint(data(iuse,i)) <= jiter .and. nint(data(iqc,i)) < 8
   end do
 !  If HD raobs available move prepbufr version to monitor
   if(nhdps > 0)then
@@ -904,7 +904,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
            if(muse(i)) then
               call nc_diag_metadata("Analysis_Use_Flag",    1.0_r_single           )
            else
-              call nc_diag_metadata("Analysis_Use_Flag",    1.0_r_single           )
+              call nc_diag_metadata("Analysis_Use_Flag",   -1.0_r_single           )
            endif
 
            call nc_diag_metadata_to_single("Errinv_Input",  errinv_input           )

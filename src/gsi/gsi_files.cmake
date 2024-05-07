@@ -101,6 +101,7 @@ bkgvar_rewgt.f90
 blacklist.f90
 blendmod.f90
 buddycheck_mod.f90
+cads.f90
 calc_fov_conical.f90
 calc_fov_crosstrk.f90
 calctends.f90
@@ -156,7 +157,6 @@ ens_spread_mod.f90
 ensctl2model.f90
 ensctl2model_ad.f90
 ensctl2state.f90
-ensctl2state_ad.f90
 evaljgrad.f90
 evaljo.f90
 evalqlim.f90
@@ -274,6 +274,7 @@ intaod.f90
 intcldch.f90
 intco.f90
 intdbz.f90
+intfed.f90
 intdw.f90
 intgps.f90
 intgust.f90
@@ -594,6 +595,7 @@ stpcalc.f90
 stpcldch.f90
 stpco.f90
 stpdbz.f90
+stpfed.f90
 stpdw.f90
 stpgps.f90
 stpgust.f90

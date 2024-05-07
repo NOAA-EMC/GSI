@@ -271,7 +271,8 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_kind) err_input,err_adjst,err_final,skint,sfcr
   real(r_kind) dudiff_opp, dvdiff_opp, vecdiff, vecdiff_opp
   real(r_kind) dudiff_opp_rs, dvdiff_opp_rs, vecdiff_rs, vecdiff_opp_rs
-  real(r_kind) oscat_vec,ascat_vec,rapidscat_vec
+  real(r_kind) oscat_vec,rapidscat_vec
+! real(r_kind) ascat_vec
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(nsig)::prsltmp,tges,zges
@@ -420,7 +421,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   end if
 
   do i=1,nobs
-     muse(i)=nint(data(iuse,i)) <= jiter
+     muse(i)=nint(data(iuse,i)) <= jiter .and. nint(data(iqc,i)) < 8
   end do
 !  If HD raobs available move prepbufr version to monitor
   if(nhduv > 0)then
@@ -677,7 +678,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            hrdifsig,mype,nfldsig)
 
         iz = max(1, min( int(dpres), nsig))
-        delz = max(zero, min(dpres - float(iz), one))
+        delz = max(zero, min(dpres - real(iz,r_kind), one))
 
         if (save_jacobian) then
 
@@ -805,7 +806,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            hrdifsig,mype,nfldsig)
 
         iz = max(1, min( int(dpres), nsig))
-        delz = max(zero, min(dpres - float(iz), one))
+        delz = max(zero, min(dpres - real(iz,r_kind), one))
 
         if (save_jacobian) then
            u_ind = getindex(svars3d, 'u')
@@ -894,8 +895,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        if (itype==236) then
          magomb=sqrt(dudiff*dudiff+dvdiff*dvdiff)
          ratio_errors=error/((uv_doe_a_236*magomb+uv_doe_b_236)+drpx+1.0e6_r_kind*rhgh+four*rlow)
-       endif
-       if (itype==237) then
+       else if (itype==237) then
          magomb=sqrt(dudiff*dudiff+dvdiff*dvdiff)
          ratio_errors=error/((uv_doe_a_237*magomb+uv_doe_b_237)+drpx+1.0e6_r_kind*rhgh+four*rlow)
        endif
@@ -939,106 +939,102 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         if (itype >=240 .and. itype <=260) then
            call intrp2a11(tropprs,trop5,dlat,dlon,mype)
            if(presw < trop5-r50) error=zero            ! tropopose check for all satellite winds 
-        endif  
-   
-        if(itype >=240 .and. itype <=260) then
            if(i_gsdqc==2) then
               prsfc = r10*psges
               if( prsfc-presw < 100.0_r_kind) error =zero ! add check for obs within 100 hPa of sfc
            else
               if( presw >950.0_r_kind) error =zero       ! screen data beloww 950mb
            endif
-        endif
-        if(itype ==242 .or. itype ==243 ) then  !  visible winds from JMA and EUMETSAT
-           if(presw <700.0_r_kind) error=zero    !  no visible winds above 700mb
-        endif
-        if(itype ==245 ) then
-           if( presw >399.0_r_kind .and. presw <801.0_r_kind) then  !GOES IR  winds
-              error=zero                          !  no data between 400-800mb
-           endif
-        endif
-        if(itype == 252 .and. presw >499.0_r_kind .and. presw <801.0_r_kind) then  ! JMA IR winds
-           error=zero
-        endif
-        if(itype == 253 )  then
-           if(presw >401.0_r_kind .and. presw <801.0_r_kind) then  ! EUMET IR winds
-              error=zero
-           endif
-        endif
-        if( itype == 246 .or. itype == 250 .or. itype == 254 )   then     ! water vapor cloud top
-           if(presw >399.0_r_kind) error=zero
-        endif
-        if(itype ==257 .and. presw <249.0_r_kind) error=zero
-        if(itype ==258 .and. presw >600.0_r_kind) error=zero
-        if(itype ==259 .and. presw >600.0_r_kind) error=zero
-        if(itype ==259 .and. presw <249.0_r_kind) error=zero
-     endif ! qc_satwnds
+           if(itype == 241 ) then
+              if( presw >399.0_r_kind .and. presw <601.0_r_kind) then  !CIMISS(enhanced AMV) winds
+                 error=zero                          !  no data between400-600mb
+              endif
+           else if(itype ==242 .or. itype ==243 ) then  !  visible winds from JMA and EUMETSAT
+              if(presw <700.0_r_kind) error=zero    !  no visible winds above 700mb
+           else if(itype ==245 ) then
+              if( presw >399.0_r_kind .and. presw <801.0_r_kind) then  !GOES IR  winds
+                 error=zero                          !  no data between 400-800mb
+              endif
+           else if(itype == 252 )then
+              if( presw >499.0_r_kind .and. presw <801.0_r_kind) then  ! JMA IR winds
+                 error=zero
+              end if
+           else if(itype == 253 )  then
+              if(presw >401.0_r_kind .and. presw <801.0_r_kind) then  ! EUMET IR winds
+                 error=zero
+              endif
+           else if( itype == 246 .or. itype == 250 .or. itype == 254 )   then     ! water vapor cloud top
+              if(presw >399.0_r_kind) error=zero
 
-!    QC GOES CAWV - some checks above as well
-     if (itype==247) then
-        prsfc = r10*psges       ! surface pressure in hPa
+!       QC GOES CAWV - some checks above as well
+           else if (itype==247) then
+              prsfc = r10*psges       ! surface pressure in hPa
 
-!       Compute observed and guess wind speeds (m/s).  
-        spdges = sqrt(ugesin* ugesin +vgesin* vgesin )
+!             Compute observed and guess wind speeds (m/s).  
+              spdges = sqrt(ugesin* ugesin +vgesin* vgesin )
 
-!       Set and compute GOES CAWV specific departure parameters
-        LNVD_wspd = spdob
-        LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
-        LNVD_ratio = LNVD_omb / log(LNVD_wspd)
-        LNVD_threshold = 3.0_r_kind
-        if( .not. wrf_nmm_regional) then   ! LNVD check not use for CAWV winds in HWRF
-           if(LNVD_ratio >= LNVD_threshold .or. &      ! LNVD check
-              (presw > prsfc-110.0_r_kind .and. isli /= 0))then ! near surface check 110 ~1km
-              error = zero
-           endif
-        endif
-! check for direction departure gt 50 deg 
-        wdirdiffmax=50._r_kind
-        call getwdir(uob,vob,wdirob)
-        call getwdir(ugesin,vgesin,wdirgesin)
-        if ( min(abs(wdirob-wdirgesin),abs(wdirob-wdirgesin+r360), &
-                 abs(wdirob-wdirgesin-r360)) > wdirdiffmax ) then
-           error = zero
-        endif
-     endif
+!             Set and compute GOES CAWV specific departure parameters
+              LNVD_wspd = spdob
+              LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
+              LNVD_ratio = LNVD_omb / log(LNVD_wspd)
+              LNVD_threshold = 3.0_r_kind
+              if( .not. wrf_nmm_regional) then   ! LNVD check not use for CAWV winds in HWRF
+                 if(LNVD_ratio >= LNVD_threshold .or. &      ! LNVD check
+                    (presw > prsfc-110.0_r_kind .and. isli /= 0))then ! near surface check 110 ~1km
+                    error = zero
+                 endif
+              endif
+!       check for direction departure gt 50 deg 
+              wdirdiffmax=50._r_kind
+              call getwdir(uob,vob,wdirob)
+              call getwdir(ugesin,vgesin,wdirgesin)
+              if ( min(abs(wdirob-wdirgesin),abs(wdirob-wdirgesin+r360), &
+                       abs(wdirob-wdirgesin-r360)) > wdirdiffmax ) then
+                 error = zero
+              endif
    
 !    QC MODIS winds
-     if (itype==257 .or. itype==258 .or. itype==259 .or. itype ==260) then
-!       Get guess values of tropopause pressure and sea/land/ice
-!       mask at observation location
-        prsfc = r10*prsfc       ! surface pressure in hPa
+           else if (itype==257 .or. itype==258 .or. itype==259 .or. itype ==260) then
+              if(itype ==257 .and. presw <249.0_r_kind) error=zero
+              if(itype ==258 .and. presw >600.0_r_kind) error=zero
+              if(itype ==259 .and. presw >600.0_r_kind) error=zero
+              if(itype ==259 .and. presw <249.0_r_kind) error=zero
+!             Get guess values of tropopause pressure and sea/land/ice
+!             mask at observation location
+              prsfc = r10*prsfc       ! surface pressure in hPa
 
-!       Compute observed and guess wind speeds (m/s).  
-        spdges = sqrt(ugesin* ugesin +vgesin* vgesin )
+!             Compute observed and guess wind speeds (m/s).  
+              spdges = sqrt(ugesin* ugesin +vgesin* vgesin )
  
-!       Set and computes modis specific qc parameters
-        LNVD_wspd = spdob
-        LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
-        LNVD_ratio = LNVD_omb / log(LNVD_wspd)
-        LNVD_threshold = 3.0_r_kind
-        if(LNVD_ratio >= LNVD_threshold .or. &      ! LNVD check
-            (presw > prsfc-r200 .and. isli /= 0))then ! near surface check
-           error = zero
+!             Set and computes modis specific qc parameters
+              LNVD_wspd = spdob
+              LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
+              LNVD_ratio = LNVD_omb / log(LNVD_wspd)
+              LNVD_threshold = 3.0_r_kind
+              if(LNVD_ratio >= LNVD_threshold .or. &      ! LNVD check
+                  (presw > prsfc-r200 .and. isli /= 0))then ! near surface check
+                 error = zero
+              endif
+
+!          QC AVHRR winds
+           else if (itype==244) then
+!             Get guess values of tropopause pressure and sea/land/ice
+!             mask at observation location
+              prsfc = r10*prsfc       ! surface pressure in hPa
+
+!             Set and computes modis specific qc parameters
+              LNVD_wspd = spdob
+              LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
+              LNVD_ratio = LNVD_omb / log(LNVD_wspd)
+              LNVD_threshold = 3.0_r_kind
+
+              if(LNVD_ratio >= LNVD_threshold .or. &      ! LNVD check
+                  (presw > prsfc-r200 .and. isli /= 0))then ! near surface check
+                 error = zero
+              endif
+           endif                                                  ! end if all satellite winds
         endif
-     endif ! ???
-
-!    QC AVHRR winds
-     if (itype==244) then
-!       Get guess values of tropopause pressure and sea/land/ice
-!       mask at observation location
-        prsfc = r10*prsfc       ! surface pressure in hPa
-
-!       Set and computes modis specific qc parameters
-        LNVD_wspd = spdob
-        LNVD_omb = sqrt(dudiff*dudiff + dvdiff*dvdiff)
-        LNVD_ratio = LNVD_omb / log(LNVD_wspd)
-        LNVD_threshold = 3.0_r_kind
-
-        if(LNVD_ratio >= LNVD_threshold .or. &      ! LNVD check
-            (presw > prsfc-r200 .and. isli /= 0))then ! near surface check
-           error = zero
-        endif
-     endif                                                  ! end if all satellite winds
+     endif
      
 
 !    QC WindSAT winds
@@ -1050,10 +1046,9 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
              abs(dvdiff) > qcv ) then    ! v component check
            error = zero
         endif
-     endif
 
 !    QC ASCAT winds
-     if (itype==290) then
+     else if (itype==290) then
         qcu = five
         qcv = five
 !       Compute innovations for opposite vectors
@@ -1061,7 +1056,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         dvdiff_opp = -vob - vgesin
         vecdiff = sqrt(dudiff**2 + dvdiff**2)
         vecdiff_opp = sqrt(dudiff_opp**2 + dvdiff_opp**2)
-        ascat_vec = sqrt((dudiff**2 + dvdiff**2)/spdob**2)       
+!       ascat_vec = sqrt((dudiff**2 + dvdiff**2)/spdob**2)
 
         if ( abs(dudiff) > qcu  .or. &       ! u component check
              abs(dvdiff) > qcv  .or. &       ! v component check
@@ -1069,10 +1064,9 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
  
            error = zero
         endif
-     endif
 
 !    QC RAPIDSCAT winds
-     if (itype==296) then
+     else if (itype==296) then
         qcu = five
         qcv = five
 !       Compute innovations for opposite vectors
@@ -1086,10 +1080,9 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
              vecdiff_rs > vecdiff_opp_rs ) then    ! ambiguity check
            error = zero
         endif
-     endif
 
 !    QC OSCAT winds     
-     if (itype==291) then
+     else if (itype==291) then
         qcu = r6
         qcv = r6
         oscat_vec = sqrt((dudiff**2 + dvdiff**2)/spdob**2)
@@ -1267,7 +1260,9 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         nn=1
         if (.not. muse(i)) then
            nn=2
-           if(ratio_errors*error >=tiny_r_kind)nn=3
+           if(error*ratio_errors >= tiny_r_kind)nn=3
+!          if((data(iqc,i) >= 8 .and. data(iqc,i) <= 10) .or.  &
+!              error*ratio_errors >= tiny_r_kind)nn=3
         end if
         do k = 1,npres_print
            if(presw >ptop(k) .and. presw<=pbot(k))then
@@ -1325,10 +1320,9 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         my_head%ib=ibeta(ikx)
         my_head%ik=ikapa(ikx)
         my_head%luse=luse(i)
-!        if( i==3) print *,'SETUPW',my_head%ures,my_head%vres,my_head%err2
 
-        if (luse_obsdiag) then
-        endif ! (luse_obsdiag)
+!        if( i==3) print *,'SETUPW',my_head%ures,my_head%vres,my_head%err2
+         
 
         if(oberror_tune) then
            my_head%upertb=data(iptrbu,i)/error/ratio_errors
@@ -1352,6 +1346,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               enddo k_loop
            endif
         endif
+
 
         if (luse_obsdiag) then
            call obsdiagNode_assert(my_diagu, my_head%idv,my_head%iob,my_head%ich0+1_i_kind,myname,"my_diagu:my_head")

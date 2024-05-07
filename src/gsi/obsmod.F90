@@ -160,12 +160,10 @@ module obsmod
 !   2021-11-16 Zhao      - add option l_obsprvdiag (if true) to trigger the output of
 !                          observation provider and sub-provider information into
 !                          obsdiags files (used for AutoObsQC)
-<<<<<<< HEAD
 !  2022-03-15  K. Apodaca - add GNSS-R L2 ocean wind speed observations (CYGNSS, Spire) 
 !  2023-03-15  K. Apodaca - add GNSS-R Doppler Delay Map observations 
-=======
 !   2023-07-10  Y. Wang, D. Dowell - add variables for flash extent density
->>>>>>> upstream/develop
+!   2023-10-10  H. Wang (GSL) - add variables for flash extent density EnVar DA
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -193,6 +191,12 @@ module obsmod
 !   def diag_radardbz- namelist logical to compute/write (=true) radar
 !                                          reflectiivty diag files
 !   def diag_fed     - namelist logical to compute/write (=true) flash extent density diag files
+!   def innov_use_model_fed - namelist logical. True: use (the FEB in background to calculate innovation
+!                                               False: calculate innvation use
+!                                               the obs operator in GSI  
+!   def if_model_fed - namelist logical. True: Read in FED from background
+!                                              including from ensemble.  
+!   def r_hgt_fed    - height of fed observations
 !   def reduce_diag  - namelist logical to produce reduced radiance diagnostic files
 !   def use_limit    - parameter set equal to -1 if diag files produced or 0 if not diag files or reduce_diag
 !   def obs_setup    - prefix for files passing pe relative obs data to setup routines
@@ -479,11 +483,13 @@ module obsmod
   public :: ntilt_radarfiles
   public :: whichradar
   public :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, l2rwthin 
+  public :: vr_dealisingopt, if_vterminal, if_model_dbz, if_vrobs_raw, if_use_w_vr, l2rwthin
+  public :: inflate_dbz_obserr
 
   public :: doradaroneob,oneoblat,oneoblon
   public :: oneobddiff,oneobvalue,oneobheight,oneobradid
-  public :: ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,zmesh_dbz,rmesh_vr,zmesh_vr
-  public :: radar_no_thinning
+  public :: ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,zmesh_dbz,rmesh_vr,zmesh_vr,pmot_dbz
+  public :: radar_no_thinning,pmot_vr
   public :: mintiltvr,maxtiltvr,minobrangevr,maxobrangevr
   public :: mintiltdbz,maxtiltdbz,minobrangedbz,maxobrangedbz
   public :: debugmode
@@ -492,7 +498,12 @@ module obsmod
   public :: iout_dbz, mype_dbz
   ! --- DBZ DA ---
 
+  ! ==== FED DA ===
+  public :: if_model_fed, innov_use_model_fed
+  public :: r_hgt_fed
   public :: iout_fed, mype_fed  
+  public :: dofedoneob
+  ! --- FED DA ---
 
   public :: obsmod_init_instr_table
   public :: obsmod_final_instr_table
@@ -582,7 +593,7 @@ module obsmod
 
   real(r_kind) perturb_fact,time_window_max,time_offset,time_window_rad
   real(r_kind),dimension(50):: dmesh
-
+  real(r_kind) r_hgt_fed
   integer(i_kind) nchan_total,ianldate
   integer(i_kind) ndat,ndat_types,ndat_times,nprof_gps
   integer(i_kind) lunobs_obs,nloz_v6,nloz_v8,nobskeep,nloz_omi
@@ -592,7 +603,6 @@ module obsmod
   integer(i_kind) iout_dw,iout_gps,iout_sst,iout_tcp,iout_lag
   integer(i_kind) iout_co,iout_gust,iout_vis,iout_pblh,iout_tcamt,iout_lcbas
   integer(i_kind) iout_cldch
-<<<<<<< HEAD
   integer(i_kind) iout_wspd10m,iout_gnssrspd,iout_td2m,iout_mxtm,iout_mitm,iout_pmsl,iout_howv
   integer(i_kind) iout_uwnd10m,iout_vwnd10m   
   integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, &
@@ -600,7 +610,6 @@ module obsmod
                   mype_tcp,mype_lag,mype_co,mype_gust,mype_vis,mype_pblh, &
                   mype_wspd10m,mype_gnssrspd,mype_td2m,mype_mxtm,mype_mitm,mype_pmsl,mype_howv,&
                   mype_uwnd10m,mype_vwnd10m, mype_tcamt,mype_lcbas, mype_dbz
-=======
   integer(i_kind) iout_wspd10m,iout_td2m,iout_mxtm,iout_mitm,iout_pmsl,iout_howv
   integer(i_kind) iout_uwnd10m,iout_vwnd10m,iout_fed
   integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, &
@@ -608,7 +617,6 @@ module obsmod
                   mype_tcp,mype_lag,mype_co,mype_gust,mype_vis,mype_pblh, &
                   mype_wspd10m,mype_td2m,mype_mxtm,mype_mitm,mype_pmsl,mype_howv,&
                   mype_uwnd10m,mype_vwnd10m, mype_tcamt,mype_lcbas, mype_dbz, mype_fed
->>>>>>> upstream/develop
   integer(i_kind) mype_cldch
   integer(i_kind) iout_swcp, iout_lwcp
   integer(i_kind) mype_swcp, mype_lwcp
@@ -633,11 +641,14 @@ module obsmod
   real(r_kind) ,allocatable,dimension(:):: dval
   real(r_kind) ,allocatable,dimension(:):: time_window
 
-  integer(i_kind) ntilt_radarfiles,tcp_posmatch,tcp_box
+  integer(i_kind) ntilt_radarfiles,tcp_posmatch,tcp_box,pmot_dbz,pmot_vr
 
   logical ::  ta2tb
   logical ::  doradaroneob
   logical :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, l2rwthin
+  logical ::  doradaroneob,dofedoneob
+  logical :: vr_dealisingopt, if_vterminal, if_model_dbz,if_model_fed, innov_use_model_fed, if_vrobs_raw, if_use_w_vr, l2rwthin
+  logical :: inflate_dbz_obserr
   character(4) :: whichradar,oneobradid
   real(r_kind) :: oneoblat,oneoblon,oneobddiff,oneobvalue,oneobheight
   logical :: radar_no_thinning
@@ -770,10 +781,17 @@ contains
     if_vrobs_raw=.false.
     if_model_dbz=.true.
     inflate_obserr=.false.
+    if_use_w_vr=.true.
+    if_model_dbz=.false.
+    if_model_fed=.false.
+    innov_use_model_fed=.false.
+    inflate_dbz_obserr=.false.
     whichradar="KKKK"
 
     oneobradid="KKKK"
     doradaroneob=.false.
+    r_hgt_fed=6500_r_kind
+    dofedoneob=.false.
     oneoblat=-999_r_kind
     oneoblon=-999_r_kind
     oneobddiff=-999_r_kind
@@ -784,6 +802,14 @@ contains
     static_gsi_nopcp_dbz=0.0_r_kind
     rmesh_dbz=2
     rmesh_vr=2
+!  pmot_dbz values of 0,1,2,3 will save different sets of obs output
+!      pmot_dbz - all obs - thin obs
+!      pmot_dbz - all obs
+!      pmot_dbz - use obs
+!      pmot_dbz - use obs + thin obs
+
+    pmot_dbz=0
+    pmot_vr=2
     zmesh_dbz=500.0_r_kind
     zmesh_vr=500.0_r_kind
     minobrangedbz=10000.0_r_kind
@@ -874,12 +900,9 @@ contains
     iout_lwcp=236  ! liquid-water content path
     iout_light=237 ! lightning
     iout_dbz=238 ! radar reflectivity
-<<<<<<< HEAD
     iout_gnssrspd=239   ! GNSS-R wind speed
-=======
     iout_fed=239   ! flash extent density
 
->>>>>>> upstream/develop
     mype_ps = npe-1          ! surface pressure
     mype_t  = max(0,npe-2)   ! temperature
     mype_q  = max(0,npe-3)   ! moisture
@@ -913,12 +936,9 @@ contains
     mype_lwcp=max(0,npe-31)  ! liquid-water content path
     mype_light=max(0,npe-32)! GOES/GLM lightning
     mype_dbz=max(0,npe-33)   ! radar reflectivity
-<<<<<<< HEAD
-    mype_gnssrspd= max(0,npe-34) ! surface speed
-=======
     mype_fed= max(0,npe-34)  ! flash extent density
+    mype_gnssrspd= max(0,npe-35) ! surface GNSS-R speed
 
->>>>>>> upstream/develop
 
 !   Initialize arrays used in namelist obs_input 
     time_window_max = three ! set maximum time window to +/-three hours

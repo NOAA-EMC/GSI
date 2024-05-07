@@ -218,19 +218,23 @@ if (paranc) then
    if (nproc == 0) t1 = mpi_wtime()
    call readgriddata_pnc(cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,nbackgrounds, &
            fgfileprefixes,fgsfcfileprefixes,reducedgrid,grdin,qsat)
+   if (nproc == 0) then
+     t2 = mpi_wtime()
+     print *,'time in readgrid_pnc on root',t2-t1,'secs'
+   end if
 end if
 if (nproc <= ntasks_io-1) then
    if (.not. paranc) then
       if (nproc == 0) t1 = mpi_wtime()
       call readgriddata(nanal1(nproc),nanal2(nproc),cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,nbackgrounds, &
            fgfileprefixes,fgsfcfileprefixes,reducedgrid,grdin,qsat)
+      if (nproc == 0) then
+        t2 = mpi_wtime()
+        print *,'time in readgrid on root',t2-t1,'secs'
+      end if
    end if
    !print *,'min/max qsat',nanal,'=',minval(qsat),maxval(qsat)
    q_ind = getindex(cvars3d, 'q')
-   if (nproc == 0) then
-     t2 = mpi_wtime()
-     print *,'time in readgridata on root',t2-t1,'secs'
-   end if
    if (pseudo_rh .and. q_ind > 0) then
      do ne=1,nanals_per_iotask
      do nb=1,nbackgrounds
@@ -357,7 +361,7 @@ if (paranc) then
      endif
      deallocate(grdin_mean)
      t2 = mpi_wtime()
-     print *,'time in write_control on root',t2-t1,'secs'
+     print *,'time in write_control paranc on root',t2-t1,'secs'
    endif 
 end if
 

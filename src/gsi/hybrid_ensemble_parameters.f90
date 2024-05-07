@@ -149,6 +149,7 @@ module hybrid_ensemble_parameters
 !                         =0.0: cross-scale covariance is decreased to zero
 !                         =0.5: cross-scale covariance is decreased to half
 !                         =1.0: cross-scale covariance is retained
+!      l_mgbf_loc: if true, multi-grid beta filter is used for localization instead of recursive filter
 !=====================================================================================================
 !
 !
@@ -183,6 +184,7 @@ module hybrid_ensemble_parameters
 !   2015-02-11  Hu      - add flag l_ens_in_diff_time to force GSI hybrid use ensembles not available at analysis time
 !   2015-09-18  todling - add sst_staticB to control use of ensemble SST error covariance 
 !   2022-09-15  yokota  - add scale/variable/time-dependent localization
+!   2024-02-20  yokota  - add MGBF-based localization
 !
 ! subroutines included:
 
@@ -333,6 +335,7 @@ module hybrid_ensemble_parameters
   public :: alphacvarsclgrpmat
   public :: l_timloc_opt
   public :: r_ensloccov4tim,r_ensloccov4var,r_ensloccov4scl
+  public :: l_mgbf_loc
   public :: idaen3d,idaen2d
   public :: ens_fast_read
   public :: parallelization_over_ensmembers
@@ -348,6 +351,7 @@ module hybrid_ensemble_parameters
 
   logical l_hyb_ens,uv_hyb_ens,q_hyb_ens,oz_univ_static,sst_staticB
   logical l_timloc_opt
+  logical l_mgbf_loc
   logical aniso_a_en
   logical full_ensemble,pwgtflg
   logical generate_ens
@@ -428,6 +432,7 @@ module hybrid_ensemble_parameters
   real(r_kind),allocatable:: region_lat_ens(:,:),region_lon_ens(:,:)
   real(r_kind),allocatable:: region_dx_ens(:,:),region_dy_ens(:,:)
 
+
 contains
 
 subroutine init_hybrid_ensemble_parameters
@@ -461,6 +466,7 @@ subroutine init_hybrid_ensemble_parameters
 
   l_hyb_ens=.false.
   l_timloc_opt=.false.
+  l_mgbf_loc=.false.
   full_ensemble=.false.
   pwgtflg=.false.
   uv_hyb_ens=.false.

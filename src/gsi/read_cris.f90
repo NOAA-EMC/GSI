@@ -93,6 +93,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth,gsi_nstcoupler_deter
   use mpimod, only: npe
   use gsi_io, only: verbose
+  use qcmod,  only: cris_cads
 ! use radiance_mod, only: rad_obs_type
 
   implicit none
@@ -145,7 +146,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=40) :: infile2
   integer(i_kind)   :: kidsat, ksatid
   integer(i_kind)   :: iret,ireadsb,ireadmg,irec,next, nrec_startx
-  integer(i_kind)   :: bufr_nchan,maxinfo
+  integer(i_kind)   :: bufr_nchan,maxinfo,dval_info
   integer(i_kind),allocatable,dimension(:)::nrec
 
 
@@ -178,8 +179,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   logical          :: outside,iuse,assim,valid,clear
   logical          :: cris,quiet
 
-  integer(i_kind)  :: ifov, ifor, iscn, instr, ioff, ilat, ilon, sensorindex
-  integer(i_kind)  :: i, l, iskip, bad_line, llll
+  integer(i_kind)  :: ifov, ifor, iscn, instr, ioff, ilat, ilon, sensorindex_cris
+  integer(i_kind)  :: i, j, l, iskip, bad_line, llll
   integer(i_kind)  :: nreal, isflg
   integer(i_kind)  :: itx, k, nele, itt, n
   integer(i_kind):: idomsfc(1)
@@ -187,7 +188,23 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind):: error_status, irecx,ierr
   integer(i_kind):: radedge_min, radedge_max
   integer(i_kind):: bufr_size
-  character(len=20),dimension(1):: sensorlist
+  character(len=20),allocatable,dimension(:) :: sensorlist
+
+! Imager cluster information for CADS
+  integer(i_kind)              :: iexponent, sensorindex_imager, cads_info
+  integer(i_kind),dimension(7) :: imager_cluster_index
+  logical                      :: imager_coeff
+  logical,dimension(7)         :: imager_cluster_flag
+  character(len=80)            :: spc_filename
+  character(len=20)            :: sensorlist_imager
+  real(r_kind),dimension(83,7) :: imager_info
+  real(r_kind),dimension(7)    :: imager_cluster_size
+  real(r_kind),dimension(2)    :: imager_mean, imager_std_dev, imager_conversion
+  real(r_kind)                 :: imager_cluster_tot
+
+! bufr error codes
+!   real(r_kind),dimension(7,3)  :: error_codes
+
 
 ! scan angle calculation geometry based on:
 ! C. Root 2014: JPSS Ground Project Code 474-00032
@@ -209,6 +226,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Set standard parameters
   character(8),parameter:: fov_flag="crosstrk"
   integer(i_kind),parameter:: sfc_channel=501 !used in thinning routine if cloud informatino is not available
+  integer(i_kind),parameter:: band_2_start=714 !for CADS, if any of band 1 (chans 1 - 713) are missing, reject profile
   integer(i_kind),parameter:: ichan=-999  ! fov-based surface code is not channel specific for cris 
   real(r_kind),parameter:: expansion=one         ! exansion factor for fov-based surface code.
                                                  ! use one for ir sensors.
@@ -227,8 +245,12 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   maxinfo    =  31
   disterrmax=zero
   ntest=0
-  if(dval_use) maxinfo = maxinfo + 2
-  nreal  = maxinfo + nstinfo
+  dval_info = 0
+  if(dval_use) dval_info = 2
+  cads_info = 0
+  if(cris_cads) cads_info = 23
+  nreal  = maxinfo + cads_info + dval_info + nstinfo
+
   ndata = 0
   nodata = 0
   cris= obstype == 'cris' .or. obstype == 'cris-fsr'
@@ -301,21 +323,78 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
      'SAID YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH SAZA BEARAZ SOZA SOLAZI'
 
 ! Load spectral coefficient structure  
-  sensorlist(1)=sis
   quiet=.not. verbose
+
+  imager_coeff = .false. 
+!TODO  spc_filename = trim(crtm_coeffs_path)//'viirs-m_'//trim(jsatid)//'.SpcCoeff.bin'  ! when viirs naming convention becomes standarized
+  if ( trim(jsatid) == 'npp' ) then
+     spc_filename = trim(crtm_coeffs_path)//'viirs-m_npp.SpcCoeff.bin'
+     sensorlist_imager = 'viirs-m_npp'
+  elseif ( trim(jsatid) == 'n20' ) then
+     spc_filename = trim(crtm_coeffs_path)//'viirs-m_n20.SpcCoeff.bin' 
+     sensorlist_imager = 'viirs-m_n20'
+     inquire(file=trim(spc_filename), exist=imager_coeff)
+     if ( .not. imager_coeff ) then
+       spc_filename = trim(crtm_coeffs_path)//'viirs-m_j1.SpcCoeff.bin'
+       sensorlist_imager = 'viirs-m_j1'
+     endif
+  elseif ( trim(jsatid) == 'n21' ) then
+     spc_filename = trim(crtm_coeffs_path)//'viirs-m_n21.SpcCoeff.bin' 
+     sensorlist_imager = 'viirs-m_n21'
+     inquire(file=trim(spc_filename), exist=imager_coeff)
+     if ( .not. imager_coeff ) then
+       spc_filename = trim(crtm_coeffs_path)//'viirs-m_j2.SpcCoeff.bin'
+       sensorlist_imager = 'viirs-m_j2'
+     endif
+  endif   
+  inquire(file=trim(spc_filename), exist=imager_coeff)
+  if ( imager_coeff ) then
+     allocate( sensorlist(2))
+     sensorlist(1) = sis
+!TODO    sensorlist(2) = 'viirs-m_'//trim(jsatid)        !when viirs naming conventions becomes standardized
+     sensorlist(2) = trim(sensorlist_imager)
+  else 
+     allocate( sensorlist(1))
+     sensorlist(1) = sis
+  endif
+
   if( crtm_coeffs_path /= "" ) then
      if(mype_sub==mype_root .and. print_verbose) write(6,*)'READ_CRIS: crtm_spccoeff_load() on path "'//trim(crtm_coeffs_path)//'"'
      error_status = crtm_spccoeff_load(sensorlist,&
-        File_Path = crtm_coeffs_path,quiet=quiet )
+        File_Path = crtm_coeffs_path,quiet=quiet)
   else
      error_status = crtm_spccoeff_load(sensorlist,quiet=quiet)
   endif
 
   if (error_status /= success) then
      write(6,*)'READ_CRIS:  ***ERROR*** crtm_spccoeff_load error_status=',error_status,&
-        '   TERMINATE PROGRAM EXECUTION'
+           '   TERMINATE PROGRAM EXECUTION'
      call stop2(71)
   endif
+
+!  find CRIS sensorindex. 
+  sensorindex_cris = 0
+  if ( sc(1)%sensor_id(1:4) == 'cris' )then
+     sensorindex_cris = 1
+  else
+     write(6,*)'READ_CRIS: ***ERROR*** sensorindex_cris not set  NO CRIS DATA USED'
+     write(6,*)'READ_CRIS: We are looking for ', sc(1)%sensor_id, '   TERMINATE PROGRAM EXECUTION'
+     call stop2(71)
+  end if
+
+!  find imager sensorindex. 
+  sensorindex_imager = 0
+  if ( cris_cads .and. imager_coeff ) then
+     if ( sc(2)%sensor_id(1:4) == 'viir' )then
+        sensorindex_imager = 2
+     else
+        write(6,*)'READ_CRIS: ***ERROR*** sensorindex_viirs not set  NO VIIRS CLUSTER INFO USED BY CADS'
+        write(6,*)'READ_CRIS: We are looking for ', sc(2)%sensor_id, '   TERMINATE PROGRAM EXECUTION'
+        imager_coeff = .false.
+     end if
+   else
+     imager_coeff = .false.
+   end if
 
 ! Find the channels being used (from satinfo file) in the spectral coef. structure.
   do i=subset_start,subset_end
@@ -323,23 +402,13 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   end do
   sc_index(:) = 0
   satinfo_chan: do i=1,satinfo_nchan
-     spec_coef: do l=1,sc(1)%n_channels
-        if ( channel_number(i) == sc(1)%sensor_channel(l) ) then
+     spec_coef: do l=1,sc(sensorindex_cris)%n_channels
+        if ( channel_number(i) == sc(sensorindex_cris)%sensor_channel(l) ) then
            sc_index(i) = l
            exit spec_coef
         endif
      end do spec_coef
   end do  satinfo_chan
-
-!  find CRIS sensorindex. 
-  sensorindex = 0
-  if ( sc(1)%sensor_id(1:4) == 'cris' )then
-     sensorindex = 1
-  else
-     write(6,*)'READ_CRIS: ***ERROR*** sensorindex not set  NO CRIS DATA USED'
-     write(6,*)'READ_CRIS: We are looking for ', sc(1)%sensor_id, '   TERMINATE PROGRAM EXECUTION'
-     call stop2(71)
-  end if
 
 ! Calculate parameters needed for FOV-based surface calculation.
   if (isfcalc==1)then
@@ -582,7 +651,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          Increment nread counter by bufr_nchan    (should be changed to number of channels in satinfo file? (satinfo_nchan))
            nread = nread + satinfo_nchan
            crit0 = 0.01_r_kind
-           if( llll > 1 ) crit0 = crit0 + r100 * float(llll)
+           if( llll > 1 ) crit0 = crit0 + r100 * real(llll,r_kind)
            timeinflat=6.0_r_kind
            call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
            call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
@@ -600,8 +669,8 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            if( ifor <= 15 )  sat_zenang = -sat_zenang
 
 !          Compute scan angle including sensor twist. 
-           look_angle_est = (start + float((ifor-1))*step) * deg2rad + &
-              fov_dist(ifov) * sin(fov_ang(ifov) - float(ifor-1)*step*deg2rad)
+           look_angle_est = (start + real((ifor-1),r_kind)*step) * deg2rad + &
+              fov_dist(ifov) * sin(fov_ang(ifov) - real(ifor-1,r_kind)*step*deg2rad)
 
            sat_look_angle=asin(rato*sin(sat_zenang*deg2rad))
            if(abs(sat_look_angle)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
@@ -687,7 +756,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            clear = .false.
            pred = zero
 
-!          Cloud information  may be missing depending on how the VIIRS granules align
+!          Cloud information  may be missing depending on how the imager granules align
 !          with the CrIS granules.  
 !          Cloud Amount, TOCC is total cloud cover [%], HOCT is cloud height [m] 
            call ufbint(lnbufr,cloud_properties,2,1,iret,'TOCC HOCT')
@@ -699,7 +768,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
               else
                  pred1 = cloud_properties(2) *7.0_r_kind / r1000    ! Assume a lapse rate to convert hgt to delta TB.
                  radiance = allchan(2,sfc_channel_index) * r1000    ! Conversion from W to mW
-                 call crtm_planck_temperature(sensorindex,sfc_channel,radiance,temperature(sfc_channel_index))  ! radiance to BT calculation
+                 call crtm_planck_temperature(sensorindex_cris,sfc_channel,radiance,temperature(sfc_channel_index))  ! radiance to BT calculation
                  pred2 = tsavg *0.98_r_kind - temperature(sfc_channel_index)
                  pred = max(pred1,pred2)    ! use the largest of lapse rate (pred1) or sfc channel-surface difference (pred2)
               endif
@@ -709,7 +778,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          the surface channel is fixed and set earlier in the code (501).
 
              radiance = allchan(2,sfc_channel_index) * r1000    ! Conversion from W to mW
-             call crtm_planck_temperature(sensorindex,sfc_channel,radiance,temperature(sfc_channel_index))  ! radiance to BT calculation
+             call crtm_planck_temperature(sensorindex_cris,sfc_channel,radiance,temperature(sfc_channel_index))  ! radiance to BT calculation
              if (temperature(sfc_channel_index) > tbmin .and. temperature(sfc_channel_index) < tbmax ) then
                 if ( tsavg*0.98_r_kind <= temperature(sfc_channel_index)) then   ! 0.98 is a crude estimate of the surface emissivity
                    clear = .true.
@@ -743,7 +812,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 !             now such spectra are rejected.  
               if (( allchan(2,bufr_chan) > zero .and. allchan(2,bufr_chan) < 99999._r_kind)) then    ! radiance bounds
                  radiance = allchan(2,bufr_chan) * r1000    ! Conversion from W to mW
-                 call crtm_planck_temperature(sensorindex,sc_chan,radiance,temperature(bufr_chan))  ! radiance to BT calculation
+                 call crtm_planck_temperature(sensorindex_cris,sc_chan,radiance,temperature(bufr_chan))  ! radiance to BT calculation
               else           ! error with channel number or radiance
                  temperature(bufr_chan) = tbmin
               endif
@@ -756,14 +825,14 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
               bufr_chan = bufr_index(i)
               if(temperature(bufr_chan) <= tbmin .or. temperature(bufr_chan) >= tbmax ) then
                  temperature(bufr_chan) = tbmin
-                 if(iuse_rad(ioff+i) >= 0) iskip = iskip + 1
+                 if(iuse_rad(ioff+i) >= 0 .or. (cris_cads .and. sc_index(i) < band_2_start)) iskip = iskip + 1
               endif
            end do skip_loop
 
            if(iskip > 0 .and. print_verbose)write(6,*) ' READ_CRIS : iskip > 0 ',iskip
-!          if( iskip >= 10 )cycle read_loop 
+           if( iskip >= 10 .and. cris_cads ) cycle read_loop 
 
-           crit1=crit1 + ten*float(iskip)
+           crit1=crit1 + ten*real(iskip,r_kind)
 
 !          Final map obs to grids
            if ( clear ) then 
@@ -772,9 +841,86 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
               call finalcheck(one,crit1,itx,iuse)
            endif
            if(.not. iuse)cycle read_loop
-!
+
+!  Read the imager cluster information for the Cloud and Aerosol Detection Software.
+!  Only channels 15 and 16 are used.
+
+           if ( cris_cads ) then
+             call ufbseq(lnbufr,imager_info,83,7,iret,'CRISCS')
+             if ( iret == 7 .and. imager_info(3,1) <= 100.0_r_kind .and. &
+                  imager_info(3,1) >= zero .and. imager_coeff ) then   ! if imager cluster info exists
+               imager_mean = zero
+               imager_std_dev = zero
+               imager_cluster_tot = zero
+               imager_cluster_flag = .TRUE.
+               imager_cluster_size = imager_info(3,1:7)
+               imager_cluster_size(:) = imager_cluster_size(:) / sum(imager_cluster_size(:))
+               imager_conversion(1) = one / (sc(sensorindex_imager)%wavenumber(4) **2) 
+               imager_conversion(2) = one / (sc(sensorindex_imager)%wavenumber(5) **2)
+
+!  Order clusters from largest (1) to smallest (7)
+               imager_cluster_sort:  do i=1,7
+                 j = maxloc(imager_cluster_size,dim=1,mask=imager_cluster_flag)
+                 imager_cluster_index(i) = j
+                 imager_cluster_flag(j) = .FALSE.
+               end do imager_cluster_sort
+
+!  Convert from radiance to brightness temperature for mean and standard devation used by CADS
+!  Imager cluster info added to data_all array.
+
+               imager_cluster_info: do j=1,7
+                 i = imager_cluster_index(j)
+
+                 data_all(maxinfo+j,itx) =  imager_cluster_size(i)                ! Imager cluster fraction
+                 imager_cluster_tot = imager_cluster_tot + imager_info(3,i)
+
+                 iexponent = -(nint(imager_info(75,i)) -11)                        ! channel 15 radiance for each cluster
+                 imager_info(76,i) =  imager_info(76,i) * imager_conversion(1) * (ten ** iexponent) 
+
+                 iexponent = -(nint(imager_info(77,i)) -11)                        ! channel 15 radiance std dev for each cluster.
+                 imager_info(78,i) =  imager_info(78,i) * imager_conversion(1) * (ten ** iexponent) 
+
+                 call crtm_planck_temperature(sensorindex_imager,4,imager_info(76,i),data_all(maxinfo+7+j,itx))
+                 data_all(maxinfo+7+j,itx) = max(data_all(maxinfo+7+j,itx),zero)
+
+                 iexponent = -(nint(imager_info(80,i)) -11)                        ! channel 16 radiance for each cluster
+                 imager_info(81,i) =  imager_info(81,i) * imager_conversion(2) * (ten ** iexponent)
+
+                 iexponent = -(nint(imager_info(82,i))-5 )                        ! channel 16 radiance std dev for each cluster.
+                 iexponent = -(nint(imager_info(82,i)) -11)                        ! channel 16 radiance std dev for each cluster.
+                 imager_info(83,i) =  imager_info(83,i) * imager_conversion(2) * (ten ** iexponent)
+
+                 call crtm_planck_temperature(sensorindex_imager,5,imager_info(81,i),data_all(maxinfo+14+j,itx))
+                 data_all(maxinfo+14+j,itx) = max(data_all(maxinfo+14+j,itx),zero)
+
+
+                end do imager_cluster_info
+
+!  Compute cluster averages for each channel
+
+                imager_mean(1) = sum(imager_cluster_size(:) * imager_info(76,:))     ! Channel 15 radiance cluster average
+                imager_std_dev(1) = sum(imager_cluster_size(:) * (imager_info(76,:)**2 + imager_info(78,:)**2)) - imager_mean(1)**2
+                imager_std_dev(1) = sqrt(max(imager_std_dev(1),zero))                ! Channel 15 radiance RMSE
+                call crtm_planck_temperature(sensorindex_imager,4,(imager_std_dev(1) + imager_mean(1)),imager_std_dev(1))
+                call crtm_planck_temperature(sensorindex_imager,4,imager_mean(1),imager_mean(1))    ! Channel 15 average BT
+                imager_std_dev(1) = imager_std_dev(1) - imager_mean(1)               ! Channel 15 BT std dev
+                data_all(maxinfo+22,itx) = imager_std_dev(1)
+
+                imager_mean(2) = sum(imager_cluster_size(:) * imager_info(81,:))     ! Channel 16 radiance cluster average
+                imager_std_dev(2) = sum(imager_cluster_size(:) * (imager_info(81,:)**2 + imager_info(83,:)**2)) - imager_mean(1)**2
+                imager_std_dev(2) = sqrt(max(imager_std_dev(1),zero))                ! Channel 16 radiance RMSE
+                call crtm_planck_temperature(sensorindex_imager,5,(imager_std_dev(2) + imager_mean(2)),imager_std_dev(2))
+                call crtm_planck_temperature(sensorindex_imager,5,imager_mean(2),imager_mean(2))    ! Channel 16 average BT
+                imager_std_dev(2) = imager_std_dev(2) - imager_mean(2)               ! Channel 16 BT std dev
+                data_all(maxinfo+23,itx) = imager_std_dev(2)
+
+             else    !  Imager cluster information is missing.  Set everything to zero
+               data_all(maxinfo+1 : maxinfo+25,itx) = zero
+             endif
+          endif    ! cris_cads
+
 !          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
-!
+
            if ( nst_gsi > 0 ) then
               tref  = ts(0)
               dtw   = zero
@@ -818,15 +964,17 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
            data_all(31,itx)= dlat_earth_deg         ! earth relative latitude (degrees)
 
            if(dval_use) then
-              data_all(32,itx)= val_cris
-              data_all(33,itx)= itt
+              data_all(maxinfo+cads_info+1,itx)= val_cris
+              data_all(maxinfo+cads_info+2,itx)= itt
+!              data_all(32+cads_info,itx)= val_cris
+!              data_all(33+cads_info,itx)= itt
            end if
 
            if ( nst_gsi > 0 ) then
-              data_all(maxinfo+1,itx) = tref         ! foundation temperature
-              data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
-              data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
-              data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
+              data_all(maxinfo+cads_info+dval_info+1,itx) = tref         ! foundation temperature
+              data_all(maxinfo+cads_info+dval_info+2,itx) = dtw          ! dt_warm at zob
+              data_all(maxinfo+cads_info+dval_info+3,itx) = dtc          ! dt_cool at zob
+              data_all(maxinfo+cads_info+dval_info+4,itx) = tz_tr        ! d(Tz)/d(Tr)
            endif
 
 !          Put satinfo defined channel temperatures into data array

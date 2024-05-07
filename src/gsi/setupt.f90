@@ -412,7 +412,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   end if
 
   do i=1,nobs
-     muse(i)=nint(data(iuse,i)) <= jiter
+     muse(i)=nint(data(iuse,i)) <= jiter .and. nint(data(iqc,i)) < 8
   end do
 !  If HD raobs available move prepbufr version to monitor
   if(nhdt > 0)then
@@ -448,7 +448,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   do k=1,nobs
      ikx=nint(data(ikxx,k))
      itype=ictype(ikx)
-     landsfctype =( itype==181 .or. itype==183 .or. itype==187 .or. itype==188 )
+     landsfctype =( itype==181 .or. itype==183 .or. itype==187 )
      do l=k+1,nobs
         if (twodvar_regional .or. (hofx_2m_sfcfile .and. landsfctype) ) then
            duplogic=data(ilat,k) == data(ilat,l) .and.  &
@@ -483,9 +483,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 ! Run a buddy-check
 ! Note: buddy check crashes for hofx_2m_sfcfile option.
-! Ccurrent params have buddy radius of 108 km, max diff of 8 K.
-! The gross error check removes O-F > 7., so this is probably removing
-! most obs that fail the buddy check already
   if (twodvar_regional .and. buddycheck_t) call buddy_check_t(is,data,luse,mype,nele,nobs,muse,buddyuse)
 
 ! If requested, save select data for output to diagnostic file
@@ -515,7 +512,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      if(netcdf_diag) call init_netcdf_diag_
   end if
   scale=one
-  rsig=float(nsig)
+  rsig=real(nsig,r_kind)
   mm1=mype+1
 
 !  rsli=isli
@@ -770,7 +767,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
                 hrdifsig,mype,nfldsig)
 
            iz = max(1, min( int(dpres), nsig))
-           delz = max(zero, min(dpres - float(iz), one))
+           delz = max(zero, min(dpres - real(iz,r_kind), one))
 
            if (save_jacobian) then
               t_ind = getindex(svars3d, 'tv')
@@ -792,7 +789,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
                 hrdifsig,mype,nfldsig)
 
            iz = max(1, min( int(dpres), nsig))
-           delz = max(zero, min(dpres - float(iz), one))
+           delz = max(zero, min(dpres - real(iz,r_kind), one))
 
            if (save_jacobian) then
               t_ind = getindex(svars3d, 'tsen')
@@ -1109,6 +1106,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         my_head%elat= data(ilate,i)
         my_head%elon= data(ilone,i)
 
+        if(npredt <= 0) write(6,*) ' npredt = ',npredt
         allocate(my_head%pred(npredt))
 
 !       Set (i,j,k) indices of guess gridpoint that bound obs location

@@ -138,7 +138,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
   character(8) subset,subset6,subset8,subset8_ompsnp
   character(49) ozstr,ozostr
   character(63) lozstr
-  character(51) ozgstr
+  character(51) ozgstr_v1,ozgstr_v2
   character(27) ozgstr2
   character(42) ozostr2
   character(64) mlstr
@@ -165,11 +165,12 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
 ! maximum number of observations set to 
   real(r_kind),allocatable,dimension(:,:):: ozout
-  real(r_double) toq,poq
+  real(r_double) toq,poq,orbn
   real(r_double),dimension(nloz_v6):: ozone_v6
   real(r_double),dimension(29,nloz_v8):: ozone_v8
   real(r_double),dimension(10):: hdroz
-  real(r_double),dimension(10):: hdrozg
+  integer(i_kind):: nhdrozg
+  real(r_double),allocatable,dimension(:):: hdrozg
   real(r_double),dimension(5):: hdrozg2
   real(r_double),dimension(10):: hdrozo
   real(r_double),dimension(8) :: hdrozo2
@@ -195,8 +196,10 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
 
   data lozstr &
        / 'OSP12 OSP11 OSP10 OSP9 OSP8 OSP7 OSP6 OSP5 OSP4 OSP3 OSP2 OSP1 ' /
-  data ozgstr &
-       / 'SAID CLAT CLON YEAR DOYR HOUR MINU SECO SOZA SOLAZI' /
+  data ozgstr_v1 &
+       / 'SAID CLAT CLON SOZA SOLAZI YEAR DOYR HOUR MINU SECO' /
+    data ozgstr_v2 &
+       / 'SAID CLAT CLON SOZA SOLAZI YEAR MNTH DAYS HOUR MINU SECO' /
   data ozgstr2 &
        / 'CLDMNT SNOC ACIDX STKO FOVN' /
   data ozostr &
@@ -482,8 +485,19 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
            cycle obsloop
         endif
      
-!       extract header information
-        call ufbint(lunin,hdrozg,10,1,iret,ozgstr)
+!       Test for BUFR version using ORBN mnemonic
+        call ufbint(lunin,orbn,1,1,iret,'ORBN')
+        if (orbn > 100000000.0_r_kind) then
+           nhdrozg = 11
+        else
+           nhdrozg = 10
+        endif
+        if (.not.allocated(hdrozg)) allocate(hdrozg(nhdrozg))
+        if (nhdrozg == 11) then
+           call ufbint(lunin,hdrozg,nhdrozg,1,iret,ozgstr_v2)
+        else
+           call ufbint(lunin,hdrozg,nhdrozg,1,iret,ozgstr_v1)
+        endif
         call ufbint(lunin,hdrozg2,5,1,iret,ozgstr2)
         rsat = hdrozg(1); ksatid=rsat
 
@@ -494,7 +508,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         if (ksatid /= kidsat) cycle obsloop
 
 !       NESDIS does not put a flag for high SZA gome-2 data (SZA > 84 degree)
-        if ( hdrozg(9) > r84 ) cycle obsloop
+        if ( hdrozg(4) > r84 ) cycle obsloop
 
         nmrecs=nmrecs+nloz+1
     
@@ -520,15 +534,24 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         endif
      
 !       Convert observation time to relative time
-        idate5(1) = hdrozg(4)  !year
-        IDAYYR = hdrozg(5)     ! Day of year
-        JULIAN = -31739 + 1461 * (idate5(1) + 4799) /4 &
-                 -3 * ((idate5(1) + 4899) / 100) / 4 + IDAYYR
-        call w3fs26(JULIAN,idate5(1),idate5(2),idate5(3),IDAYWK,IDAYYR)
-!       idate5(2) month
-!       idate5(3) day
-        idate5(4) = hdrozg(6)  !hour
-        idate5(5) = hdrozg(7)  !minute
+        if (nhdrozg == 11) then
+           idate5(1) = hdrozg(6)  !year
+           idate5(2) = hdrozg(7)  !month
+           idate5(3) = hdrozg(8)  !day
+           idate5(4) = hdrozg(9)  !hour
+           idate5(5) = hdrozg(10)  !minute
+        else
+           idate5(1) = hdrozg(6)  !year
+           IDAYYR = hdrozg(7)     ! Day of year
+           JULIAN = -31739 + 1461 * (idate5(1) + 4799) /4 &
+                -3 * ((idate5(1) + 4899) / 100) / 4 + IDAYYR
+           call w3fs26(JULIAN,idate5(1),idate5(2),idate5(3),IDAYWK,IDAYYR)
+!          idate5(2) month
+!          idate5(3) day
+           idate5(4) = hdrozg(8)  !hour
+           idate5(5) = hdrozg(9)  !minute
+        endif
+
         call w3fs21(idate5,nmind)
         t4dv=real((nmind-iwinbgn),r_kind)*r60inv
         sstime=real(nmind,r_kind)
@@ -574,8 +597,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         ozout(5,itx)=dlon_earth_deg     ! earth relative longitude (degrees)
         ozout(6,itx)=dlat_earth_deg     ! earth relative latitude (degrees)
         ozout(7,itx)=toq                ! total ozone error flag
-        ozout(8,itx)=hdrozg(9)          ! solar zenith angle
-        ozout(9,itx)=hdrozg(10)         ! solar azimuth angle
+        ozout(8,itx)=hdrozg(4)          ! solar zenith angle
+        ozout(9,itx)=hdrozg(5)          ! solar azimuth angle
         ozout(10,itx)=hdrozg2(1)        ! CLOUD AMOUNT IN SEGMENT
         ozout(11,itx)=hdrozg2(2)        ! SNOW COVER
         ozout(12,itx)=hdrozg2(3)        ! AEROSOL CONTAMINATION INDEX
@@ -1056,7 +1079,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
            ozout(8,ndata)=usage1(k)          ! 
            ozout(9,ndata)=mlspres(k)         ! mls pressure in log(cb)
            ozout(10,ndata)=mlsozpc(k)        ! ozone mixing ratio precision in ppmv
-           ozout(11,ndata)=float(ipos(k))    ! pointer of obs level index in ozinfo.txt
+           ozout(11,ndata)=real(ipos(k),r_kind)    ! pointer of obs level index in ozinfo.txt
            ozout(12,ndata)=nloz              ! # of mls vertical levels
            ozout(nreal+1,ndata)=mlsoz(k)     ! ozone mixing ratio in ppmv
         end do
@@ -1220,7 +1243,7 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
          ozout(8,ndata)=usage1(k)          ! 
          ozout(9,ndata)=log(press(k))      ! ompslp pressure in log(cb)
          ozout(10,ndata)=omrstd(k)*ompslp_mult_fact   ! ozone mixing ratio precision in ppmv
-         ozout(11,ndata)=float(ipos(k))    ! pointer of obs level index in 
+         ozout(11,ndata)=real(ipos(k),r_kind)    ! pointer of obs level index in 
                                            ! ozinfo.txt
          ozout(12,ndata)=j !nloz              ! # of ompslp vertical levels
          ozout(13,ndata)=omr(k)            ! ozone mixing ratio in ppmv

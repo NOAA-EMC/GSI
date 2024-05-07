@@ -24,7 +24,6 @@ module readconvobs
 !                       reflectivity and radial velocity assimilation. POC: xuguang.wang@ou.edu
 !   2017-12-13  shlyaeva - added netcdf diag read/write capability
 !   2019-03-21  CAPS(C. Tong) - added direct reflectivity DA capability
-!   2022-03-23  draper - added option to not scale qobs by forecast qsat.
 !
 ! attributes:
 !   language: f95
@@ -42,9 +41,9 @@ public :: get_num_convobs, get_convobs_data, write_convobs_data
 
 
 !> observation types to read from netcdf files
-integer(i_kind), parameter :: nobtype = 11
+integer(i_kind), parameter :: nobtype = 12
 character(len=3), dimension(nobtype), parameter :: obtypes = (/'  t', '  q', ' ps', ' uv', 'tcp', &
-                                                               'gps', 'spd', ' pw', ' dw', ' rw', 'dbz' /)
+                                                               'gps', 'spd', ' pw', ' dw', ' rw', 'dbz', 'fed' /)
 
 contains
 
@@ -79,7 +78,7 @@ subroutine get_num_convobs_bin(obspath,datestring,num_obs_tot,num_obs_totdiag,id
     integer(i_kind)  :: iunit, nchar, nreal, ii, mype, ios, idate, i, ipe, ioff0
     integer(i_kind),dimension(2) :: nn,nobst, nobsps, nobsq, nobsuv, nobsgps, &
          nobstcp,nobstcx,nobstcy,nobstcz,nobssst, nobsspd, nobsdw, nobsrw, nobspw, &
-         nobsdbz
+         nobsdbz, nobsfed
     character(8),allocatable,dimension(:):: cdiagbuf
     real(r_single),allocatable,dimension(:,:)::rdiagbuf
     real(r_kind) :: errorlimit,errorlimit2,error,pres,obmax
@@ -104,6 +103,7 @@ subroutine get_num_convobs_bin(obspath,datestring,num_obs_tot,num_obs_totdiag,id
     nobspw = 0
     nobsgps = 0
     nobsdbz = 0
+    nobsfed = 0
     nobstcp = 0; nobstcx = 0; nobstcy = 0; nobstcz = 0
     init_pass = .true.
     peloop: do ipe=0,npefiles
@@ -187,6 +187,9 @@ subroutine get_num_convobs_bin(obspath,datestring,num_obs_tot,num_obs_totdiag,id
        else if (obtype == 'dbz') then
           nobsdbz = nobsdbz + nn
           num_obs_tot = num_obs_tot + nn(2)
+       else if (obtype == 'fed') then
+          nobsfed = nobsfed + nn
+          num_obs_tot = num_obs_tot + nn(2)
        else if (obtype == 'gps') then
           nobsgps = nobsgps + nn
           num_obs_tot = num_obs_tot + nn(2)
@@ -231,6 +234,7 @@ subroutine get_num_convobs_bin(obspath,datestring,num_obs_tot,num_obs_totdiag,id
           write(6,100) 'dw',nobsdw(1),nobsdw(2)
           write(6,100) 'rw',nobsrw(1),nobsrw(2)
           write(6,100) 'dbz',nobsdbz(1),nobsdbz(2)
+          write(6,100) 'fed',nobsfed(1),nobsfed(2)
           write(6,100) 'tcp',nobstcp(1),nobstcp(2)
           if (nobstcx(2) .gt. 0) then
              write(6,100) 'tcx',nobstcx(1),nobstcx(2)
@@ -1075,6 +1079,7 @@ subroutine get_convobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag,   &
     if (obtype == '  t' .or. obtype == ' uv' .or. obtype == ' ps' .or. &
         obtype == 'tcp' .or. obtype == '  q' .or. obtype == 'spd' .or. &
         obtype == 'sst' .or. obtype == ' rw' .or. obtype == 'dbz' .or. &
+        obtype == 'fed' .or.                                           &
         obtype == 'gps' .or. obtype == ' dw' .or. obtype == ' pw')  then
 
 !   direct reflectivitiy DA has a different routine for dbz obs.
