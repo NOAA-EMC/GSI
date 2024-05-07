@@ -38,10 +38,6 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !   2017-02-09  guo     - Remove m_alloc, n_alloc.
 !                       . Remove my_node with corrected typecast().
 !   2022-04-19  h.wang  - add code for fv3_cmaq_regional
-!                          - fv3_cmaq_regional=.true. : model is regional FV3-CMAQ
-!                          - laeroana_fv3cmaq=.true.  : produce the analysis for regional FV3-CMAQ
-!   2022-08-10  h.Wang  - add code for regional FV3-SD (RRFS-SMOKE/DUST) model
-!                          - laeroana_fv3smoke=.true. : produce the analysis for RRFS-SD
 !
 !   input argument list:
 !     lunin          - unit from which to read observations
@@ -114,8 +110,7 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
   use chemmod, only : s_2_5,d_2_5,nh4_mfac,oc_mfac
   use chemmod, only: naero_gocart_wrf,aeronames_gocart_wrf,&
       upper2lower,lower2upper,laeroana_gocart,wrf_pm2_5
-  use chemmod, only: naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,laeroana_fv3cmaq
-  use chemmod, only: naero_smoke_fv3,aeronames_smoke_fv3,laeroana_fv3smoke,pm2_5_innov_threshold 
+  use chemmod, only: naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3,laeroana_fv3cmaq 
   use gridmod, only : cmaq_regional,wrf_mass_regional,fv3_cmaq_regional 
   implicit none
   
@@ -183,7 +178,7 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 
   integer(i_kind) :: ipm2_5,n_gocart_var
 
-  integer(i_kind) :: n_cmaq_var,n_smoke_var
+  integer(i_kind) :: n_cmaq_var
   real(r_kind),allocatable,dimension(:,:,:,:,:) :: pm25wc
   real(r_kind) :: pm25wc_ges(3)
 
@@ -206,7 +201,8 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !*********************************************************************************
 ! get pointer to pm2_5 guess state, if not present return 
 
-  if ( cmaq_regional .or. (wrf_mass_regional .and. wrf_pm2_5) ) then
+  if ( (fv3_cmaq_regional .and. .not. laeroana_fv3cmaq) .or. cmaq_regional .or. (wrf_mass_regional .and. wrf_pm2_5) ) then
+!for fv3cmaq, ges_pm2_5 is calculated in read_fv3 aeros
 
      call gsi_chemguess_get ('var::pm2_5', ipm2_5, ier )
      if (ipm2_5 <= 0) then
@@ -235,72 +231,6 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
      endif
      
   endif
-
-  if (laeroana_fv3smoke)then
-!    check if aerosol species in control
-     call gsi_chemguess_get ( 'aerosols::3d', n_smoke_var, ier )
-
-!    n_smoke_var ges vars in anainfo; naero_smoke_fv3 in chemmod
-!    if naero_smoke_fv3 is greater than 3, change the dimension of pm25wc_ges(naero_smoke_fv3)
-     if (n_smoke_var /= naero_smoke_fv3) then
-        if (n_smoke_var < naero_smoke_fv3) then
-           write(6,*) 'setuppm2_5: not all smoke aerosols in anavinfo',n_smoke_var,naero_smoke_fv3
-           call stop2(451)
-        endif
-     endif
-
-     do i=1,naero_smoke_fv3
-        aeroname=aeronames_smoke_fv3(i)
-        call gsi_chemguess_get ('var::'//trim(aeroname), ipm2_5, ier )
-        if (ier > 0 .or. ipm2_5 <= 0) then
-           write(6,*) 'setuppm2_5: ',trim(aeroname),' missing in anavinfo'
-           call stop2(452)
-        endif
-     enddo
-
-     if (size(gsi_chemguess_bundle)==nfldsig) then
-        aeroname='smoke'
-        call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
-             rank3,ier)
-        if (ier==0) then
-           allocate(ges_pm2_5(size(rank3,1),size(rank3,2),size(rank3,3),&
-                nfldsig))
-           ges_pm2_5(:,:,:,1)=rank3
-           allocate(pm25wc(size(rank3,1),size(rank3,2),size(rank3,3),naero_smoke_fv3,nfldsig))
-           pm25wc(:,:,:,1,1)=rank3
-           do ifld=2,nfldsig
-              call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
-              ges_pm2_5(:,:,:,ifld)=rank3
-              pm25wc(:,:,:,1,ifld)=rank3
-           enddo
-        else
-           write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chembundle,ier= ',ier
-           call stop2(453)
-        endif
-
-        do i=2,naero_smoke_fv3
-           aeroname=trim(aeronames_smoke_fv3(i))
-           call gsi_bundlegetpointer(gsi_chemguess_bundle(1),trim(aeroname),&
-             rank3,ier)
-           pm25wc(:,:,:,i,1)=rank3
-           if (ier==0) then
-             ges_pm2_5(:,:,:,1)=ges_pm2_5(:,:,:,1)+rank3
-             do ifld=2,nfldsig
-               call gsi_bundlegetpointer(gsi_chemguess_bundle(ifld),trim(aeroname),rank3,ier)
-               ges_pm2_5(:,:,:,ifld)=ges_pm2_5(:,:,:,ifld)+rank3
-               pm25wc(:,:,:,i,ifld)=rank3
-             enddo
-           else
-             write(6,*) 'setuppm2_5: ',trim(aeroname),' not found in chembundle,ier= ',ier
-             call stop2(453)
-           end if
-        end do
-     else
-       write(6,*) 'setuppm2_5: size(gsi_chemguess_bundle)/=nfldsig ges_pm2_5 not setup !!!'
-       call stop2(454)
-     end if ! eq. nfldsig
-
-  endif 
 
   if (fv3_cmaq_regional .and. laeroana_fv3cmaq) then
 !check if pm25at, pm25ac and pm25co are in ges 
@@ -702,7 +632,7 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
 !convert for cmaq as well
 
 
-        if (wrf_mass_regional .or. fv3_cmaq_regional .or. laeroana_fv3smoke) then
+        if (wrf_mass_regional .or. fv3_cmaq_regional) then
            call tintrp2a11(ges_ps,ps_ges,dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
 
@@ -739,48 +669,17 @@ subroutine setuppm2_5(obsLL,odiagLL,lunin,mype,nreal,nobs,isis,is,conv_diagsave)
            call tintrp2a11(ges_pm2_5,pm2_5ges,dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
            innov = conc - pm2_5ges
-           if (laeroana_fv3smoke) then
-              if ( -1.0*innov >= pm2_5_innov_threshold .or. & 
-                  (innov > pm2_5_innov_threshold .and. pm2_5ges >=1.0_r_kind).or. &
-                  (conc >= 40.0_r_kind .and. pm2_5ges >=1.0_r_kind).or. &
-                   conc >= 100.0_r_kind ) then
-                 innov = innov
-              else 
-                 innov = 0.0_r_kind 
-                 muse(i)=.false.
-              end if
-              if (tv_ges-273.15_r_kind < 5.0_r_kind) then
-                 innov = 0.0_r_kind
-                 muse(i)=.false.
-              end if
-
-           end if
         end if
 
         if ( fv3_cmaq_regional .and. laeroana_fv3cmaq) then
-          ! interpoloate pm25ac
+! interpoloate pm25ac 
           call tintrp2a11(pm25wc(:,:,:,1,nfldsig),pm25wc_ges(1),dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig) 
           call tintrp2a11(pm25wc(:,:,:,2,nfldsig),pm25wc_ges(2),dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
           call tintrp2a11(pm25wc(:,:,:,3,nfldsig),pm25wc_ges(3),dlat,dlon,dtime,hrdifsig,&
                 mype,nfldsig)
-        elseif (laeroana_fv3smoke) then
-          call tintrp2a11(pm25wc(:,:,:,1,nfldsig),pm25wc_ges(1),dlat,dlon,dtime,hrdifsig,&
-                mype,nfldsig)
-          call tintrp2a11(pm25wc(:,:,:,2,nfldsig),pm25wc_ges(2),dlat,dlon,dtime,hrdifsig,&
-                mype,nfldsig)
 
-          if (pm25wc_ges(1) >= 1.0_r_kind) then
-            pm25wc_ges(1)=1.0_r_kind
-          else
-            pm25wc_ges(2)=0.0_r_kind
-          end if
-          if (pm25wc_ges(2) >= 1.0_r_kind) then
-            pm25wc_ges(2)=1.0_r_kind
-          else
-            pm25wc_ges(2)=0.0_r_kind
-          end if
         else
           pm25wc_ges = 0.0_r_kind
         end if

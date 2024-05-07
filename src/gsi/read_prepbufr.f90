@@ -200,7 +200,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen,thin4d
   use convthin, only: make3grids,map3grids,map3grids_m,del3grids,use_all
   use convthin_time, only: make3grids_tm,map3grids_tm,map3grids_m_tm,del3grids_tm,use_all_tm
-  use qcmod, only: errormod,errormod_aircraft,noiqc,newvad,njqc
+  use qcmod, only: errormod,errormod_aircraft,noiqc,newvad,njqc,errormod_test
   use qcmod, only: pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres
   use qcmod, only: nrand
   use nltransf, only: nltransf_forward
@@ -349,6 +349,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind) :: tempvis,visout
   real(r_kind) :: tempcldch,cldchout
   real(r_kind) :: windsensht
+  real(r_kind) :: vmag, pdiffu, pdiffd
 
   real(r_double) rstation_id,qcmark_huge
   real(r_double) vtcd,glcd !virtual temp program code and GLERL program code
@@ -475,7 +476,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   if(tob)then
      nreal=25
   else if(uvob) then 
-     nreal=27
+     nreal=34
   else if(spdob) then
      nreal=24
   else if(psob) then
@@ -521,11 +522,13 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !  Set qc limits based on noiqc flag
   if (noiqc) then
+     print *, "NickE noiqc"
      lim_qm=8
      if (psob)         lim_zqm=7
      if (qob.or.tdob)  lim_tqm=7
      if (tob)          lim_qqm=8
   else
+     print *, "NickE not noiqc"
      lim_qm=4
      if (psob)         lim_zqm=4
      if (qob.or.tdob)  lim_tqm=4
@@ -648,6 +651,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !       Extract type information
         call ufbint(lunin,hdr,4,1,iret,hdstr2)
         kx=hdr(1)
+        print *, "NickE kx is ", kx
         if (aircraft_t_bc .and. acft_profl_file) then
            kx0=kx
            if (.not. uvob) then
@@ -690,6 +694,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! identify drifting buoys - TYP=180/280 T29=562 and last three digits of SID between 500 and 999
 !  (see https://www.wmo.int/pages/prog/amp/mmop/wmo-number-rules.html)  Set kx to 199/299
         if (id_drifter .and. (kx==180 .or. kx==280) .and. nint(hdr(3))==562) then
+           print *, "NickE id_drifter, kx ==180or280, hdr3==562"
            rstation_id=hdr(4)
            read(c_station_id,*,iostat=ios) iwmo
            if (ios == 0 .and. iwmo > 0) then
@@ -700,27 +705,35 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
         end if
 
         if (id_ship .and. (kx==180) .and. (nint(hdr(3))==522 .or. nint(hdr(3))==523)) then
+           print *, "NickE id_ship, kx==180, hdr3 ==522or523"
            rstation_id=hdr(4)
            kx = kx + 18
         end if
 
         if(twodvar_regional)then
+           print *, "NickE twodvar_regional"
 !          If running in 2d-var (surface analysis) mode, check to see if observation
 !          is surface type or GOES cloud product(kx=151).  If not, read next observation report from bufr file
            sfctype=(kx>179.and.kx<190).or.(kx>=280.and.kx<=290).or. &
                    (kx>=192.and.kx<=199).or.(kx>=292.and.kx<=299) .or. &
                    (kx==151)
+           print *, "NickE twodvar_regional sfctype = ", sfctype
            if (.not.sfctype ) cycle loop_report
 
         end if
 
 ! temporary specify iobsub until put in bufr file
         iobsub = 0                                                  
-        if(kx == 280 .or. kx == 180 ) iobsub=hdr(3)                                            
+        if(kx == 280 .or. kx == 180 ) then
+           iobsub=hdr(3)
+           print *, "NickE kx==180or280 iobsub=hdr3= ", iobsub
+        endif                                            
         if(kx == 280 .or. kx ==180) then
           if ( hdr(3) >555.0_r_kind .and. hdr(3) <565.0_r_kind ) then
+            print *, "NickE 180or280 555<hdr<565"
             iobsub=00
           else
+            print *, "NickE 180or280 not 555<hdr<565"
             iobsub=01
           endif
         endif
@@ -969,16 +982,19 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 ! identify drifting buoys - TYP=180/280 T29=562 and last three digits of SID between 500 and 999
 !  (see https://www.wmo.int/pages/prog/amp/mmop/wmo-number-rules.html)  Set kx to 199/299
               if (id_drifter .and. (kx==180 .or. kx==280) .and.  nint(hdr(8))==562 ) then
+                 print *, "NickE id_drifter 2"
                  rstation_id=hdr(1)
                  read(c_station_id,*,iostat=ios) iwmo
                  if (ios == 0 .and. iwmo > 0) then
                     if(mod(iwmo,1000) >=500) then
                        kx = kx + 19
+                       print *, "NickE id_drifter kx is now 19 more"
                     end if
                  end if
               end if
 
               if (id_ship .and. (kx==180) .and.  (nint(hdr(8))==522 .or. nint(hdr(8))==523) ) then
+                 print *, "NickE id_ship 2 kx is 18 more"
                  rstation_id=hdr(1)
                  kx = kx + 18
               end if
@@ -1109,7 +1125,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
            sfctype=(kx>179.and.kx<190).or.(kx>=280.and.kx<=290).or. &
                    (kx>=192.and.kx<=199).or.(kx>=292.and.kx<=299)
-
+           if (sfctype) then
+              print *, "NickE sfctype because kx is ", kx
+           endif
            if (sfctype) then
               call ufbint(lunin,r_prvstg,1,1,iret,prvstr)
               call ufbint(lunin,r_sprvstg,1,1,iret,sprvstr)
@@ -1260,8 +1278,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (qob) then
                     itypex=itypey
                     ierr_q=0
+                    print *, "NickE qob itypex,y,maxsub_q",itypex,itypey,maxsub_q
                     do i =1,maxsub_q
                        if( icsubtype(nc) == isuble_q(itypex,i) ) then
+                          print *,"NickE icsubtype,isuble_q", icsubtype(nc), & 
+                                  isuble_q(itypex,i)
                           ierr_q=i+1
                           exit
                        else if( i == maxsub_q .and. icsubtype(nc) /= isuble_q(itypex,i)) then
@@ -1279,6 +1300,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                           endif
                        endif
                     enddo
+                    print *, "NickE qob levs", levs
                     do k=1,levs
                        ppb=obsdat(1,k)
                        if(kx==153)ppb=obsdat(11,k)*0.01_r_kind
@@ -2119,7 +2141,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (aircraftobs .and. aircraft_t_bc .and. acft_profl_file) then
                     call errormod_aircraft(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,hdr3)
                  else
-                    call errormod(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm)
+                    if (trim(c_station_id) == '50774') then
+                    call errormod_test(pqm,wqm,levs,plevs,errout,k,presl,dpres,nsig,lim_qm,vmag,pdiffu,pdiffd)
+                    write(*,*) "Number of obs in record",c_station_id,levs
+                    endif
                  end if
                  woe=obserr(5,k)*errout
                  if (inflate_error) woe=woe*r1_2
@@ -2234,10 +2259,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(20,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
                  cdata_all(21,iout)=zz                     ! terrain height at ob location
                  cdata_all(22,iout)=r_prvstg(1,1)          ! provider name
-                 cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
-                 cdata_all(24,iout)=obsdat(10,k)           ! cat
-                 cdata_all(25,iout)=var_jb(5,k)            ! non linear qc parameter
-                 cdata_all(26,iout)=one                    ! hilbert curve weight, modified later 
+                 !cdata_all(23,iout)=r_sprvstg(1,1)         ! subprovider name
+                 !cdata_all(24,iout)=obsdat(10,k)           ! cat
+                 !cdata_all(25,iout)=var_jb(5,k)            ! non linear qc parameter
+                 !cdata_all(26,iout)=one                    ! hilbert curve weight, modified later 
+                 cdata_all(23,iout)=errout                 ! 
+                 cdata_all(24,iout)=vmag                   ! Intermediate
+                 cdata_all(25,iout)=pdiffd                 ! errormod
+                 cdata_all(26,iout)=pdiffu                 ! variables
                  if(perturb_obs)then
                     cdata_all(28,iout)=ran01dom()*perturb_fact ! u perturbation
                     cdata_all(29,iout)=ran01dom()*perturb_fact ! v perturbation

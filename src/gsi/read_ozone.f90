@@ -624,7 +624,8 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
      call makegrids(rmesh,ithin,n_tbin=n_tbin)
 
 !    Set dependent variables and allocate arrays
-     nreal=14
+!    nreal=14   !orig
+     nreal=15   !emily  (add AFBO)
      nloz=0
      nchanl=1
      nozdat=nreal+nchanl
@@ -753,7 +754,9 @@ subroutine read_ozone(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
         ozout(12,itx)=hdrozo2(2)        !  aerosol index
         ozout(13,itx)=hdrozo2(3)        !  ascending/descending
         ozout(14,itx)=hdrozo2(7)        !  scan position
-        ozout(15,itx)=totoz
+        ozout(15,itx)=hdrozo2(8)        !  AFBO  !emily 
+        ozout(16,itx)=totoz                      !emily
+!orig   ozout(15,itx)=totoz
 
 !       End of loop over observations
      end do read_loop2

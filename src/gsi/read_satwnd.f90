@@ -271,7 +271,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Set lower limits for observation errors
   werrmin=one
   nsattype=0
-  nreal=27
+  nreal=34
   if(perturb_obs ) nreal=nreal+2
   ntread=1
   ntmatch=0
@@ -1587,10 +1587,18 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(25,iout)=var_jb              ! non linear qc parameter
            cdata_all(26,iout)=one                 ! hilbert curve weight
            cdata_all(27,iout)=obsdat(5)           ! AMVQ for GOES-17 mitig.AMVs 
+           ! extra variables for satwind qc for brett
+           cdata_all(28,iout)=hdrdat(9)           ! wind computation method
+           cdata_all(29,iout)=hdrdat(10)          ! satellite zenith angle
+           cdata_all(30,iout)=hdrdat(1)           ! satellite identifier
+           cdata_all(31,iout)=qifn                ! QI without forecast
+           cdata_all(32,iout)=qify                ! QI with forecast
+           cdata_all(33,iout)=ee                  ! expected error
+           cdata_all(34,iout)=pct1
 
            if(perturb_obs)then
-              cdata_all(28,iout)=ran01dom()*perturb_fact ! u perturbation
-              cdata_all(29,iout)=ran01dom()*perturb_fact ! v perturbation
+              cdata_all(35,iout)=ran01dom()*perturb_fact ! u perturbation
+              cdata_all(36,iout)=ran01dom()*perturb_fact ! v perturbation
            endif
 
         enddo  loop_readsb

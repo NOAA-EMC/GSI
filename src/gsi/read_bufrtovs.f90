@@ -1080,6 +1080,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      call count_obs(ndata,nele,ilat,ilon,data_all,nobs)
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
      write(lunout) ((data_all(k,n),k=1,nele),n=1,ndata)
+!     write(6,*)'emily checking jsatid       = ', jsatid 
+!     write(6,*)'emily checking nread        = ', nread
+!     write(6,*)'emily checking ndata        = ', ndata
+!     write(6,*)'emily checking ndata*nchanl = ', ndata*nchanl
+!     write(6,*)'emily checking nodata       = ', nodata
   end if
 
 ! Deallocate local arrays

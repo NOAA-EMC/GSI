@@ -113,7 +113,7 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use state_vectors, only: svars3d, levels
 
   use constants, only : zero,half,one,two,tiny_r_kind
-  use constants, only : rozcon,cg_term,wgtlim,h300,r10
+  use constants, only : rozcon,cg_term,wgtlim,h300,r10,r100,r1000,constoz
 
   use m_obsdiagNode, only : obs_diag
   use m_obsdiagNode, only : obs_diags
@@ -201,6 +201,7 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   real(r_kind),dimension(nlevs):: pobs,gross,tnoise
   real(r_kind),dimension(nreal+nlevs,nobs):: data
   real(r_kind),dimension(nsig+1)::prsitmp
+  real(r_kind),dimension(nsig)::ozgestmp   ! GeoVaLs for JEDI/UFO
   real(r_single),dimension(nlevs):: pob4,grs4,err4
   real(r_single),dimension(ireal,nobs):: diagbuf
   real(r_single),allocatable,dimension(:,:,:)::rdiagbuf
@@ -214,10 +215,10 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   type(sparr2) :: dhx_dx
 
   integer(i_kind) i,nlev,ii,jj,iextra,ibin, kk, nperobs
-  integer(i_kind) k,j,nz,jc,idia,irdim1,istatus,ioff0
+  integer(i_kind) k1,k2,k,j,nz,jc,idia,irdim1,istatus,ioff0
   integer(i_kind) ioff,itoss,ikeep,ierror_toq,ierror_poq
   integer(i_kind) isolz,ifovn,itoqf
-  integer(i_kind) mm1,itime,ilat,ilon,ilate,ilone,itoq,ipoq
+  integer(i_kind) mm1,itime,ilat,ilon,ilate,ilone,itoq,ipoq,iafbo !emily
   integer(i_kind),dimension(iint,nobs):: idiagbuf
   integer(i_kind),dimension(nlevs):: ipos,iouse,ikeepk
 
@@ -252,6 +253,9 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   call init_vars_
 
   mm1=mype+1
+
+  write(6,*)'emily checking: you are here ...', myname, obstype
+
 !
 !*********************************************************************************
 ! Initialize arrays
@@ -345,7 +349,7 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   isolz=8     ! index of solar zenith angle   (gome and omi only)
   itoqf=9     ! index of row anomaly           (omi only)
   ifovn=14    ! index of scan position (gome and omi only)
-
+  iafbo=15    ! index of algorithm flag for best ozone (for omi, ompsnm, and ompstc8)  !emily
 
 ! If requested, save data for diagnostic ouput
   if(ozone_diagsave)ii=0
@@ -409,7 +413,13 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
            ozp_omi(nloz_omi) = prsitmp(1)
            call grdcrd1(ozp_omi(nloz_omi),prsitmp,nsig+1,-1)
         end if
-        
+      
+       ! GeoVaLs for JEDI/UFO
+       call tintrp2a1(ges_oz,ozgestmp,dlat,dlon,dtime,hrdifsig,&
+                      nsig,mype,nfldsig)
+       call tintrp2a1(ges_prsi, prsitmp,dlat,dlon,dtime,hrdifsig,&
+                      nsig+1,mype,nfldsig)
+  
         if (obstype /= 'omieff' .and. obstype /= 'tomseff') then
            call intrp3oz1(ges_oz,ozges,dlat,dlon,ozp,dtime,&
                 nlevs,mype,doz_dz)
@@ -574,14 +584,33 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
               endif
 
               if (netcdf_diag) then
+                 k1 = k
+                 k2 = k - 1
+                 if(k2 == 0)k2 = 1
+                 if(k == nlevs)then
+                   k1=nlevs-1
+                   k2=1
+                 endif
+                 if (obstype == 'sbuv2' .or. obstype == 'ompsnp' ) then
+                    call nc_diag_metadata("TopLevelPressure",sngl(pobs(k2)*r100))
+                    call nc_diag_metadata("BottomLevelPressure", & sngl(pobs(k1)*r100))
+                 else
+                    call nc_diag_metadata("TopLevelPressure",sngl(prsitmp(nsig+1)*r1000) )
+                    call nc_diag_metadata("BottomLevelPressure", sngl(prsitmp(1)*r1000) )
+                 endif
+                 call nc_diag_data2d("mole_fraction_of_ozone_in_air", sngl(ozgestmp*constoz))
+                call nc_diag_data2d("air_pressure_levels",sngl(prsitmp*r1000))
                  call nc_diag_metadata("MPI_Task_Number", mype                      )
                  call nc_diag_metadata("Latitude",        sngl(data(ilate,i))       )
                  call nc_diag_metadata("Longitude",       sngl(data(ilone,i))       )
                  call nc_diag_metadata("Time",            sngl(data(itime,i)-time_offset) )
-                 call nc_diag_metadata("Reference_Pressure",     sngl(pobs(k))      )
+                 call nc_diag_metadata("Total_Ozone_Error_Flag", sngl(ierror_toq ))
+                 call nc_diag_metadata("Profile_Ozone_Error_Flag", sngl(ierror_poq ))
+                 call nc_diag_metadata("Reference_Pressure",     sngl(pobs(k)*r100)      )
                  call nc_diag_metadata("Analysis_Use_Flag",      iouse(k)           )
                  call nc_diag_metadata("Observation",                  sngl(ozobs(k)))
                  call nc_diag_metadata("Inverse_Observation_Error",    sngl(errorinv))
+                 call nc_diag_metadata("Input_Observation_Error",      sngl(error(k)))
                  call nc_diag_metadata("Obs_Minus_Forecast_adjusted",  sngl(ozone_inv(k)))
                  call nc_diag_metadata("Obs_Minus_Forecast_unadjusted",sngl(ozone_inv(k)))
                  if (obstype == 'gome' .or. obstype == 'omieff'  .or. &
@@ -597,6 +626,11 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
                  else
                     call nc_diag_metadata("Row_Anomaly_Index",         sngl(rmiss)  )
                  endif
+!>>emily
+                 if (obstype == 'omi' .or. obstype == 'ompstc8' .or. obstype == 'ompsnm') then
+                    call nc_diag_metadata("Algorithm_Flag_For_Best_Ozone", sngl(data(iafbo,i)))
+                 endif 
+!<<emily
                  if (save_jacobian) then
                    call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)
                    call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
@@ -1046,9 +1080,10 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   use obsmod, only : luse_obsdiag
 
   use guess_grids, only : nfldsig,ges_lnprsl,hrdifsig
+  use guess_grids, only : ges_prsi,ntguessig
 
   use constants, only : zero,half,one,two,tiny_r_kind,four
-  use constants, only : cg_term,wgtlim,r10,constoz
+  use constants, only : cg_term,wgtlim,r10,r100,r1000,constoz
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
 
@@ -1115,6 +1150,8 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
   real(r_kind) dpres,obserror,ozone_inv,preso3l
   real(r_kind),dimension(nreal+nlevs,nobs):: data
   real(r_kind),dimension(nsig):: prsltmp
+  real(r_kind),dimension(nsig+1)::prsitmp
+  real(r_kind),dimension(nsig)::ozgestmp   ! GeoVaLs for JEDI/UFO
   real(r_single),dimension(ireal,nobs):: diagbuf
   real(r_single),allocatable,dimension(:,:,:)::rdiagbuf
 
@@ -1158,6 +1195,7 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
 
   mm1=mype+1
 
+  write(6,*)'emily checking: you are here ...', myname, obstype
 
 !
 !*********************************************************************************
@@ -1272,6 +1310,12 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
 !    Interpolate log(pres) at mid-layers to obs locations/times
      call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig, &
           nsig,mype,nfldsig)
+
+       ! GeoVaLs for JEDI/UFO
+       call tintrp2a1(ges_oz,ozgestmp,dlat,dlon,dtime,hrdifsig,&
+                      nsig,mype,nfldsig)
+       call tintrp2a1(ges_prsi, prsitmp,dlat,dlon,dtime,hrdifsig,&
+                      nsig+1,mype,nfldsig)
 
 !    Get approximate k value of surface by using surface pressure
 !    for surface check.
@@ -1686,7 +1730,9 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
               call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
               call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
             endif
-
+			 ! GeoVaLs for JEDI/UFO
+			 call nc_diag_data2d("mole_fraction_of_ozone_in_air", sngl(ozgestmp*constoz))
+			 call nc_diag_data2d("air_pressure_levels",sngl(prsitmp*r1000))
            if (lobsdiagsave) then
               do jj=1,miter
                  if (odiag%muse(jj)) then

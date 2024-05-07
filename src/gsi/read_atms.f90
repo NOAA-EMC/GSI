@@ -177,6 +177,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_kind), ALLOCATABLE, TARGET :: dlat_earth_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: crit1_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: lza_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: satheight_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: satazi_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: solzen_save(:) 
   real(r_kind), ALLOCATABLE, TARGET :: solazi_save(:) 
@@ -352,6 +353,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   ALLOCATE(crit1_save(maxobs))
   ALLOCATE(it_mesh_save(maxobs))
   ALLOCATE(lza_save(maxobs))
+  ALLOCATE(satheight_save(maxobs))
   ALLOCATE(satazi_save(maxobs))
   ALLOCATE(solzen_save(maxobs)) 
   ALLOCATE(solazi_save(maxobs)) 
@@ -457,7 +459,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
            panglr=(start+float(ifov-1)*step)*deg2rad
            satellite_height=bfr1bhdr(13)
-!          Ensure orbit height is reasonable
+           satheight_save(iob)=satellite_height
            if (satellite_height < 780000.0_r_kind .OR. &
               satellite_height > 900000.0_r_kind) satellite_height = 824000.0_r_kind
            rato = one + satellite_height/rearth_equator
@@ -534,6 +536,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      it_mesh    => it_mesh_save(iob)
      ifov       => ifov_save(iob)
      lza        => lza_save(iob)
+     satellite_height = satheight_save(iob)
      satazi     => satazi_save(iob)
      solzen     => solzen_save(iob)
      solazi     => solazi_save(iob)
@@ -736,7 +739,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      data_all(3 ,itx)= dlon                      ! grid relative longitude
      data_all(4 ,itx)= dlat                      ! grid relative latitude
      data_all(5 ,itx)= lza                       ! local zenith angle
-     data_all(6 ,itx)= satazi                    ! local azimuth angle
+     !data_all(6 ,itx)= satazi                    ! local azimuth angle
+     data_all(6 ,itx)= satellite_height                    ! temporary output
      data_all(7 ,itx)= panglr                    ! look angle
      data_all(8 ,itx)= ifovmod                   ! scan position
      data_all(9 ,itx)= solzen                    ! solar zenith angle
