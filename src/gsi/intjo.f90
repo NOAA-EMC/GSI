@@ -15,7 +15,6 @@ module intjomod
 !   2018-08-10  guo     - a new generic intjo() implementation replaced type
 !                         specific intXYZ() calls with polymorphic %intjo().
 !   2022-03-15 K Apodaca - add CYGNSS and Spire ocean wind speed                        
-!   2023-03-15 K Apodaca - add GNSS-R DDM
 !
 ! subroutines included:
 !   sub intjo_
@@ -33,13 +32,8 @@ use gsi_obOperTypeManager, only: obOper_typeInfo
 use gsi_obOperTypeManager, only: &
   iobOper_t,          iobOper_pw,         iobOper_q,                                                    &
                                           iobOper_cldtot,     iobOper_w,          iobOper_dw,           &
-<<<<<<< HEAD
-  iobOper_rw,         iobOper_dbz,                                                                      &
-  iobOper_spd,        iobOper_gnssrspd,     iobOper_oz,         iobOper_o3l,        iobOper_colvk,      &
-=======
-  iobOper_rw,         iobOper_dbz,        iobOper_fed,                                                  &
+  iobOper_rw,         iobOper_dbz,        iobOper_fed,        iobOper_gnssrspd,                         &
                       iobOper_spd,        iobOper_oz,         iobOper_o3l,        iobOper_colvk,        &
->>>>>>> upstream/develop
   iobOper_pm2_5,      iobOper_pm10,       iobOper_ps,         iobOper_tcp,        iobOper_sst,          &
   iobOper_gpsbend,    iobOper_gpsref,                                                                   &
                       iobOper_rad,        iobOper_pcp,        iobOper_aero,       iobOper_gust,         &
@@ -67,13 +61,8 @@ end interface
 integer(i_kind),parameter,dimension(obOper_count):: ix_obtype = (/ &
   iobOper_t,          iobOper_pw,         iobOper_q,                                                    &
                                           iobOper_cldtot,     iobOper_w,          iobOper_dw,           &
-<<<<<<< HEAD
-  iobOper_rw,         iobOper_dbz,                                                                      &
-  iobOper_spd,        iobOper_gnssrspd,     iobOper_oz,         iobOper_o3l,        iobOper_colvk,      &
-=======
-  iobOper_rw,         iobOper_dbz,        iobOper_fed,                                                  &
+  iobOper_rw,         iobOper_dbz,        iobOper_fed,        iobOper_gnssrspd,                         &
                       iobOper_spd,        iobOper_oz,         iobOper_o3l,        iobOper_colvk,        &
->>>>>>> upstream/develop
   iobOper_pm2_5,      iobOper_pm10,       iobOper_ps,         iobOper_tcp,        iobOper_sst,          &
   iobOper_gpsbend,    iobOper_gpsref,                                                                   &
                       iobOper_rad,        iobOper_pcp,        iobOper_aero,       iobOper_gust,         &
