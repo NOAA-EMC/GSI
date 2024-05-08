@@ -161,7 +161,6 @@ module obsmod
 !                          observation provider and sub-provider information into
 !                          obsdiags files (used for AutoObsQC)
 !  2022-03-15  K. Apodaca - add GNSS-R L2 ocean wind speed observations (CYGNSS, Spire) 
-!  2023-03-15  K. Apodaca - add GNSS-R Doppler Delay Map observations 
 !   2023-07-10  Y. Wang, D. Dowell - add variables for flash extent density
 !   2023-10-10  H. Wang (GSL) - add variables for flash extent density EnVar DA
 ! 
@@ -447,8 +446,8 @@ module obsmod
   public :: diag_radardbz
   public :: diag_fed
   public :: lsaveobsens
-  public ::                  iout_cldch, mype_cldch
-  public ::          nprof_gps,time_offset,ianldate,tcp_box
+  public :: iout_cldch, mype_cldch
+  public :: nprof_gps,time_offset,ianldate,tcp_box
   public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,tcp_posmatch,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
   public :: lobsdiagsave,lobsdiag_forenkf,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
@@ -482,7 +481,6 @@ module obsmod
   ! ==== DBZ DA ===
   public :: ntilt_radarfiles
   public :: whichradar
-  public :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, l2rwthin 
   public :: vr_dealisingopt, if_vterminal, if_model_dbz, if_vrobs_raw, if_use_w_vr, l2rwthin
   public :: inflate_dbz_obserr
 
@@ -604,18 +602,11 @@ module obsmod
   integer(i_kind) iout_co,iout_gust,iout_vis,iout_pblh,iout_tcamt,iout_lcbas
   integer(i_kind) iout_cldch
   integer(i_kind) iout_wspd10m,iout_gnssrspd,iout_td2m,iout_mxtm,iout_mitm,iout_pmsl,iout_howv
-  integer(i_kind) iout_uwnd10m,iout_vwnd10m   
-  integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, &
-                  mype_rw,mype_dw,mype_gps,mype_sst, &
-                  mype_tcp,mype_lag,mype_co,mype_gust,mype_vis,mype_pblh, &
-                  mype_wspd10m,mype_gnssrspd,mype_td2m,mype_mxtm,mype_mitm,mype_pmsl,mype_howv,&
-                  mype_uwnd10m,mype_vwnd10m, mype_tcamt,mype_lcbas, mype_dbz
-  integer(i_kind) iout_wspd10m,iout_td2m,iout_mxtm,iout_mitm,iout_pmsl,iout_howv
   integer(i_kind) iout_uwnd10m,iout_vwnd10m,iout_fed
   integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, &
                   mype_rw,mype_dw,mype_gps,mype_sst, &
                   mype_tcp,mype_lag,mype_co,mype_gust,mype_vis,mype_pblh, &
-                  mype_wspd10m,mype_td2m,mype_mxtm,mype_mitm,mype_pmsl,mype_howv,&
+                  mype_wspd10m,mype_gnssrspd,mype_td2m,mype_mxtm,mype_mitm,mype_pmsl,mype_howv,&
                   mype_uwnd10m,mype_vwnd10m, mype_tcamt,mype_lcbas, mype_dbz, mype_fed
   integer(i_kind) mype_cldch
   integer(i_kind) iout_swcp, iout_lwcp
@@ -644,8 +635,6 @@ module obsmod
   integer(i_kind) ntilt_radarfiles,tcp_posmatch,tcp_box,pmot_dbz,pmot_vr
 
   logical ::  ta2tb
-  logical ::  doradaroneob
-  logical :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, l2rwthin
   logical ::  doradaroneob,dofedoneob
   logical :: vr_dealisingopt, if_vterminal, if_model_dbz,if_model_fed, innov_use_model_fed, if_vrobs_raw, if_use_w_vr, l2rwthin
   logical :: inflate_dbz_obserr
@@ -780,7 +769,6 @@ contains
     l2rwthin    =.false.  
     if_vrobs_raw=.false.
     if_model_dbz=.true.
-    inflate_obserr=.false.
     if_use_w_vr=.true.
     if_model_dbz=.false.
     if_model_fed=.false.
