@@ -14,11 +14,6 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,s
 !            domain
 
 ! program history log:
-!   2015-02-23  Rancic/Thomas - add thin4d to time window logical
-!   2015-02-26  su      - add njqc as an option to choose new non linear qc
-!   2016-03-15  Su      - modified the code so that the program won't stop when no subtype is found in non 
-!                         linear qc error table and b table
-!   2015-10-01  guo      - calc ob location once in deg
 !   2022-03-12  k apodaca- initial coding
 !
 !   input argument list:
@@ -64,7 +59,7 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,s
      use convb_uv,only: btabl_uv
      use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,time_4dvar,winlen,thin4d
      use qcmod, only: errormod,njqc
-     use convthin, only: make3grids,map3grids,del3grids,use_all
+     use convthin, only: make3grids,del3grids,use_all
      use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
      use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
      use mpimod, only: npe

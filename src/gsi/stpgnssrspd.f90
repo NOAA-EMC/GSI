@@ -4,19 +4,13 @@ module stpgnssrspdmod
 !$$$ module documentation block
 !           .      .    .                                       .
 ! module:   stpgnssrspdmod    module for stpgnssrspd and its tangent linear stpgnssrspd_tl
-!  prgmmr: kapodaca          org: Spire Global, Inc.      date: 2022-03-12
+!  prgmmr: K. Apodaca         org: Spire Global, Inc.      date: 2022-03-12
 !   Largely based on other stp_* routines 
 !
 ! abstract: module for stpgnssrspd and its tangent linear stpgnssrspd_tl
 !
 ! program history log:
-!   2005-05-20  Yanqiu zhu - wrap stpgnssrspd and its tangent linear stpgnssrspd_tl into one module
-!   2005-11-16  Derber - remove interfaces
-!   2008-12-02  Todling - remove stpgnssrspd_tl
-!   2009-08-12  lueken - update documentation
-!   2010-05-13  todling - uniform interface across stp routines
-!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
-!   2023-09-21  kapodaca - add documentation
+!   2023-09-21  K. Apodaca  - add documentation
 ! subroutine included:
 !   sub stpgnssrspd
 !
@@ -38,30 +32,12 @@ subroutine stpgnssrspd(gnssrspdhead,rval,sval,out,sges,nstep)
 !                .      .    .                                       .
 ! subprogram:    stpgnssrspd  calculate penalty and stepsize terms
 !                for wind speed, with nonlinear qc.
-!   prgmmr: derber           org: np23                date: 1991-02-26
+!   2023-03-15  K. Apodaca - add GNSS-R L2 ocean wind speed 
 !
 ! abstract: calculate penalty and stepsize terms for wind speed
 !
 ! program history log:
-!   1991-02-26  derber
-!   1998-02-03  derber
-!   1999-08-24  derber, j., treadon, r., yang, w., first frozen mpp version
-!   2004-07-29  treadon - add only to module use, add intent in/out
-!   2004-10-08  parrish - add nonlinear qc option
-!   2005-04-11  treadon - merge stpgnssrspd and stpgnssrspd_qc into single routine
-!   2005-08-02  derber  - modify for variational qc parameters for each ob
-!   2005-09-28  derber  - consolidate location and weight arrays
-!   2006-07-28  derber  - modify to use new inner loop obs data structure
-!                       - unify NL qc
-!   2006-09-18  derber  - modify output b1 and b3
-!   2007-03-19  tremolet - binning of observations
-!   2007-05-10  tremolet - add opt to run as linear procedure
-!   2007-06-04  derber  - use quad precision to get reproducability over number of processors
-!   2008-12-03  todling - changed handling of ptr%time
-!   2009-01-19  todling - re-implement Tremolet's linearization for q1fy10
-!   2010-01-04  zhang,b - bug fix: accumulate penalty for multiple obs bins
-!   2010-05-13  todling  - update to use gsi_bundle
-!   2010-09-25  todling  - fix linearlization
+
 !
 !   input argument list:
 !     gnssrspdhead

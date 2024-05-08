@@ -10,7 +10,6 @@ module gsi_gnssrspdOper
 ! abstract: an obOper extension for gnssrspdNode type
 !
 ! program history log:
-!   2018-08-10  j guo   - added this document block
 !   2023-04-21  k apodaca - initial version
 !   input argument list: see Fortran 90 style document below
 !

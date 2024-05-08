@@ -684,7 +684,7 @@ subroutine statsconv(mype,&
         open(iout_gnssrspd)
      else
         open(iout_gnssrspd,position='append')
-  end if
+     end if
 
      numgnssrspd=nint(awork(5,i_gnssrspd))
      pw=zero ; pw3=zero
@@ -754,6 +754,7 @@ subroutine statsconv(mype,&
 
         close(iout_td2m)
      end if
+  end if
 
 ! Summary report for conventional mxtm
   if(mype==mype_mxtm) then

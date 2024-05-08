@@ -9,12 +9,7 @@ module intgnssrspdmod
 ! abstract: module for intgnssrspd and its tangent linear intgnssrspd_tl
 !
 ! program history log:
-!   2005-05-11  Yanqiu zhu - wrap intspd and its tangent linear intspd_tl into one module
-!   2005-11-16  Derber - remove interfaces
-!   2008-11-26  Todling - remove intspd_tl; add interface back
-!   2009-08-13  lueken - update documentation
-!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - implemented obs adjoint test  
-!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
+!   2023-04-21  k apodaca - initial version
 !
 ! subroutines included:
 !   sub intgnssrspd_
@@ -54,26 +49,7 @@ subroutine intgnssrspd_(gnssrspdhead,rval,sval)
 ! abstract: apply nonlinear observation operator and adjoint for winds
 !
 ! program history log:
-!   1991-02-26  derber
-!   1997-12-12  weiyu yang
-!   1999-08-24  derber, j., treadon, r., yang, w., first frozen mpp version
-!   2004-08-02  treadon - add only to module use, add intent in/out
-!   2004-10-08 parrish  - add nonlinear qc option
-!   2005-03-01  parrish - nonlinear qc change to account for inflated obs error
-!   2005-04-11  treadon - merge intspd and intcspd_qc into single routine
-!   2005-08-02  derber  - modify for variational qc parameters for each ob
-!   2005-09-28  derber  - consolidate location and weight arrays
-!   2006-07-28  derber  - modify to use new inner loop obs data structure
-!                       - unify NL qc
-!   2007-03-19  tremolet - binning of observations
-!   2007-06-05  tremolet - use observation diagnostics structure
-!   2007-07-09  tremolet - observation sensitivity
-!   2008-01-04  tremolet - Don't apply H^T if l_do_adjoint is false
-!   2008-11-28  todling  - turn FOTO optional; changed handling of ptr%time
-!   2010-01-29  zhang,b  - fix adjoint of linearization
-!   2010-02-26  todling  - fix for observation sensitivity
-!   2010-05-13  todling  - update to use gsi_bundle; udpate interface
-!   2012-09-14  Syed RH Rizvi, NCAR/NESL/MMM/DAS  - introduced ladtest_obs         
+!   2023-04-21  k apodaca - initial version`
 !
 !   input argument list:
 !     gnssrspdhead  - obs type pointer to obs structure

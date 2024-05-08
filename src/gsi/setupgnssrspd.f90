@@ -22,65 +22,6 @@ subroutine setupgnssrspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_
 !              f) writes additional diagnostic information to output file
 !
 ! program history log:
-!   1990-10-06  parrish
-!   1998-04-10  weiyu yang
-!   1999-03-01  wu - ozone processing moved into setuprhs from setupoz
-!   1999-08-24  derber, j., treadon, r., yang, w., first frozen mpp version
-!   2004-06-17  treadon - update documentation
-!   2004-08-02  treadon - add only to module use, add intent in/out
-!   2004-10-06  parrish - increase size of vwork array for nonlinear qc
-!   2004-11-22  derber - remove weight, add logical for boundary point
-!   2004-12-22  treadon - move logical conv_diagsave from obsmod to argument list
-!   2005-03-02  dee - remove garbage from diagnostic file
-!   2005-03-09  parrish - nonlinear qc change to account for inflated obs error
-!   2005-05-27  derber - level output change
-!   2005-07-27  derber  - add print of monitoring and reject data
-!   2005-09-28  derber  - combine with prep,spr,remove tran and clean up
-!   2005-10-14  derber  - input grid location and fix regional lat/lon
-!   2005-11-03  treadon - correct error in ilone,ilate data array indices
-!   2005-11-29  derber - remove psfcg and use ges_lnps instead
-!   2006-01-31  todling/treadon - store wgt/wgtlim in rdiagbuf(6,ii)
-!   2006-02-02  treadon - rename lnprsl as ges_lnprsl
-!   2006-02-08  treadon - correct vertical dimension (nsig) in call tintrp2a(ges_tv...)
-!   2006-02-24  derber  - modify to take advantage of convinfo module
-!   2006-03-21  treadon - add option to perturb observation
-!   2006-05-30  su,derber,treadon - modify diagnostic output
-!   2006-06-06  su - move to wgtlim to constants module
-!   2006-07-28  derber  - modify to use new inner loop obs data structure
-!                       - modify handling of multiple data at same location
-!                       - unify NL qc
-!   2006-07-31  kleist - use ges_ps instead of lnps
-!   2006-08-28      su - fix a bug in variational qc
-!   2007-03-09      su - modify the observation perturbation
-!   2007-03-19  tremolet - binning of observations
-!   2007-06-05  tremolet - add observation diagnostics structure
-!   2007-08-28      su - modify the observation gross check error 
-!   2008-05-23  safford - rm unused vars and uses
-!   2008-12-03  todling - changed handling of ptr%time
-!   2009-02-06  pondeca - for each observation site, add the following to the
-!                         diagnostic file: local terrain height, dominate surface
-!                         type, station provider name, and station subprovider name
-!   2009-08-19  guo     - changed for multi-pass setup with dtime_check().
-!   2012-01-12  hu      - add code to get vertical grid coordinate ibased on height for
-!                         260 (nacelle) and 261 (tower) 
-!   2013-01-26  parrish - convert grdcrd to grdcrd1, tintrp2a to tintrp2a1, tintrp2a11,
-!                                    tintrp3 to tintrp31 (so debug compile works on WCOSS)
-!   2013-10-19  todling - metguess now holds background
-!   2014-01-28  todling - write sensitivity slot indicator (ioff) to header of diagfile
-!   2014-12-30  derber - Modify for possibility of not using obsdiag
-!   2015-10-01  guo   - full res obvsr: index to allow redistribution of obsdiags
-!   2016-05-18  guo     - replaced ob_type with polymorphic obsNode through type casting
-!   2016-06-24  guo     - fixed the default value of obsdiags(:,:)%tail%luse to luse(i)
-!                       . removed (%dlat,%dlon) debris.
-!   2016-11-29  shlyaeva - save linearized H(x) for EnKF
-!   2017-02-06  todling - add netcdf_diag capability; hidden as contained code
-!   2017-02-09  guo     - Remove m_alloc, n_alloc.
-!                       . Remove my_node with corrected typecast().
-!   2020-01-27  Winterbottom - moved the linear regression derived
-!                              coefficients for the dynamic observation
-!                              error (DOE) calculation to the namelist
-!                              level; they are now loaded by
-!                              aircraftinfo.  
 !   2023-03-15  K. Apodaca - add GNSS-R L2 ocean wind speed  
 !
 !   input argument list:
