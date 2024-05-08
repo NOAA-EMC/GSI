@@ -900,8 +900,8 @@ contains
     iout_lwcp=236  ! liquid-water content path
     iout_light=237 ! lightning
     iout_dbz=238 ! radar reflectivity
-    iout_gnssrspd=239   ! GNSS-R wind speed
     iout_fed=239   ! flash extent density
+    iout_gnssrspd=240 ! GNSS-R wind speed
 
     mype_ps = npe-1          ! surface pressure
     mype_t  = max(0,npe-2)   ! temperature
