@@ -495,7 +495,6 @@ subroutine general_reload_sfc(grd,g_t2m, g_q2m,g_ps,icount,iflag,work)
    enddo ! do k=1,icount
 
    icount=0
-
    iflag=0
 
    return

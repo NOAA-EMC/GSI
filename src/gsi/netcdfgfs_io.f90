@@ -161,12 +161,9 @@ contains
     real(r_kind),pointer,dimension(:,:,:):: ges_cf_it  => NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_ni_it  => NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_nr_it  => NULL()
-
-
     type(sub2grid_info) :: grd_t
     logical regional
     logical:: l_cld_derived,zflag,inithead
-
     type(gsi_bundle) :: atm_bundle
     type(gsi_grid)   :: atm_grid
     integer(i_kind),parameter :: n2d=2
@@ -195,7 +192,6 @@ contains
     inner_vars=1
 
     num_fields=min(n3d*grd_a%nsig+2,npe)
-!    num_fields=min(14*grd_a%nsig+2,npe)
 !  Create temporary communication information fore read routines
     call general_sub2grid_create_info(grd_t,inner_vars,grd_a%nlat,grd_a%nlon, &
           grd_a%nsig,num_fields,regional)
