@@ -48,7 +48,6 @@ module m_rhs
   public:: rhs_stats_oz
   public:: rhs_stats_co
   public:: rhs_toss_gps
-  public:: rhs_split_gps
 
   ! variable indices to rhs_awork(:,i_work).  e.g.
   !   ps_awork(:) => rhs_awork(:,i_ps)
@@ -116,7 +115,6 @@ module m_rhs
   real(r_kind),allocatable,dimension(:,:    ),save:: rhs_stats_oz
   real(r_kind),allocatable,dimension(:,:    ),save:: rhs_stats_co
   real(r_kind),allocatable,dimension(:      ),save:: rhs_toss_gps
-  integer(i_kind),allocatable,dimension(:    ),save:: rhs_split_gps
 
   enum, bind(C)
     enumerator:: i_zero = 0
@@ -240,7 +238,6 @@ _ENTRY_(myname_)
   deallocate(rhs_stats_oz)
 
   deallocate(rhs_toss_gps)
-  deallocate(rhs_split_gps)
 _EXIT_(myname_)
 end subroutine rhs_dealloc
 
