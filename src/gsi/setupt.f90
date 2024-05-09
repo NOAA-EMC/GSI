@@ -1856,7 +1856,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata_to_single("Prep_QC_Mark",data(iqc,i))
     call nc_diag_metadata_to_single("Setup_QC_Mark",data(iqt,i))
     call nc_diag_metadata_to_single("Prep_Use_Flag",data(iuse,i))
-    call nc_diag_metadata_to_single("Virtual_Temperature",nint(data(iqt,i)))
+    call nc_diag_metadata("Virtual_Temperature_Flag",nint(data(iqt,i)))
     if(muse(i)) then
        call nc_diag_metadata_to_single("Analysis_Use_Flag", one)
     else
