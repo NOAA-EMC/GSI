@@ -677,7 +677,7 @@ subroutine statsconv(mype,&
 
         close(iout_wspd10m)
      end if
-
+  end if
 ! Summary report for conventional gnssrspd
   if(mype==mype_gnssrspd) then
      if(first)then
@@ -753,7 +753,6 @@ subroutine statsconv(mype,&
         write(iout_td2m,951) 'td2m',awork(4,i_td2m),awork(22,i_td2m),pw,pw3
 
         close(iout_td2m)
-     end if
   end if
 
 ! Summary report for conventional mxtm
