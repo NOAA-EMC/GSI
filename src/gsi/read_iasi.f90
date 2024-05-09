@@ -127,6 +127,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth, gsi_nstcoupler_deter
   use mpimod, only: npe
   use gsi_io, only: verbose
+  use qcmod,  only: iasi_cads
 ! use radiance_mod, only: rad_obs_type
 
   implicit none
@@ -175,7 +176,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=4)  :: senname
   character(len=80) :: allspotlist
   character(len=40) :: infile2
-  integer(i_kind)   :: jstart
   integer(i_kind)   :: iret,ireadsb,ireadmg,irec,next, nrec_startx
   integer(i_kind),allocatable,dimension(:) :: nrec
 
@@ -202,17 +202,18 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),dimension(0:3) :: ts
   real(r_kind),dimension(10) :: sscale
   real(crtm_kind),allocatable,dimension(:) :: temperature
+  real(r_kind),allocatable,dimension(:) :: scalef
   real(r_kind),allocatable,dimension(:,:):: data_all
   real(r_kind) cdist,disterr,disterrmax,dlon00,dlat00
 
   logical          :: outside,iuse,assim,valid
   logical          :: iasi,quiet,cloud_info
 
-  integer(i_kind)  :: ifov, instr, iscn, ioff, sensorindex
+  integer(i_kind)  :: ifov, instr, iscn, ioff, sensorindex_iasi
   integer(i_kind)  :: i, j, l, iskip, ifovn, bad_line, ksatid, kidsat, llll
   integer(i_kind)  :: nreal, isflg
   integer(i_kind)  :: itx, k, nele, itt, n
-  integer(i_kind):: iexponent,maxinfo, bufr_nchan
+  integer(i_kind):: iexponent,maxinfo, bufr_nchan, dval_info
   integer(i_kind):: idomsfc(1)
   integer(i_kind):: ntest
   integer(i_kind):: error_status, irecx,ierr
@@ -221,8 +222,18 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)   :: sfc_channel_index
   integer(i_kind),allocatable, dimension(:) :: channel_number, sc_index, bufr_index
   integer(i_kind),allocatable, dimension(:) :: bufr_chan_test
-  character(len=20),dimension(1):: sensorlist
+  character(len=20),allocatable, dimension(:):: sensorlist
 
+! Imager clouser information for CADS
+  integer(i_kind)              :: sensorindex_imager, cads_info
+  integer(i_kind),dimension(7) :: imager_cluster_index
+  logical                      :: imager_coeff
+  logical,dimension(7)         :: imager_cluster_flag
+  character(len=80)            :: spc_filename
+  real(r_kind),dimension(33,7) :: imager_info
+  real(r_kind),dimension(7)    :: imager_cluster_size
+  real(r_kind),dimension(2)    :: imager_mean, imager_std_dev
+  real(r_kind)                 :: imager_cluster_tot
 
 ! Set standard parameters
   character(8),parameter:: fov_flag="crosstrk"
@@ -238,7 +249,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind),parameter :: ilon = 3
   integer(i_kind),parameter :: ilat = 4
   real(r_kind)    :: ptime,timeinflat,crit0
-  integer(i_kind) :: ithin_time,n_tbin,it_mesh
+  integer(i_kind) :: ithin_time,n_tbin,it_mesh,jstart
   logical print_verbose
 
   print_verbose=.false.
@@ -248,8 +259,11 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   maxinfo    =  31
   disterrmax=zero
   ntest=0
-  if(dval_use) maxinfo=maxinfo+2
-  nreal  = maxinfo + nstinfo
+  dval_info = 0
+  if(dval_use) dval_info = 2
+  cads_info = 0
+  if(iasi_cads) cads_info = 23
+  nreal  = maxinfo + cads_info + dval_info + nstinfo
 
   ndata = 0
   nodata = 0
@@ -315,7 +329,19 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! load spectral coefficient structure  
   quiet=.not. verbose
-  sensorlist(1)=sis
+
+  imager_coeff = .false.
+  spc_filename =trim(crtm_coeffs_path)//'avhrr3_'//trim(jsatid)//'.SpcCoeff.bin'
+  inquire(file=trim(spc_filename), exist=imager_coeff)
+  if ( imager_coeff ) then
+    allocate( sensorlist(2))
+    sensorlist(1) = sis
+    sensorlist(2) = 'avhrr3_'//trim(jsatid)
+  else
+    allocate( sensorlist(1))
+    sensorlist(1) = sis
+  endif
+
   if( crtm_coeffs_path /= "" ) then
      if(mype_sub==mype_root .and. print_verbose) write(6,*)'READ_IASI: crtm_spccoeff_load() on path "'//trim(crtm_coeffs_path)//'"'
      error_status = crtm_spccoeff_load(sensorlist,&
@@ -330,6 +356,31 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
      call stop2(71)
   endif
 
+!  find IASI sensorindex
+  sensorindex_iasi = 0
+  if ( sc(1)%sensor_id(1:4) == 'iasi' ) then
+     sensorindex_iasi = 1
+  else
+     write(6,*)'READ_IASI: ***ERROR*** sensorindex_iasi not set  NO IASI DATA USED'
+     write(6,*)'READ_IASI: We are looking for ', sc(1)%sensor_id, '   TERMINATE PROGRAM EXECUTION'
+     call stop2(71)
+  end if
+
+!  find imager sensorindex
+  sensorindex_imager = 0
+  if ( iasi_cads .and. imager_coeff ) then
+     if ( sc(2)%sensor_id(1:4) == 'avhr' ) then
+        sensorindex_imager = 2
+        imager_coeff = .true.
+     else
+        write(6,*)'READ_IASI: ***ERROR*** sensorindex_imager is not set  NO IASI DATA USED'
+        write(6,*)'READ_IASI: We are looking for ', sc(2)%sensor_id
+        imager_coeff = .false.
+     end if
+  else
+     imager_coeff = .false.
+  end if
+
 ! Find the channels being used (from satinfo file) in the spectral coef. structure.
   do i=subset_start,subset_end
      channel_number(i -subset_start +1) = nuchan(i)
@@ -337,22 +388,12 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   sc_index(:) = 0
   satinfo_chan: do i=1,satinfo_nchan
      spec_coef: do l=1,sc(1)%n_channels
-        if ( channel_number(i) == sc(1)%sensor_channel(l) ) then
+        if ( channel_number(i) == sc(sensorindex_iasi)%sensor_channel(l) ) then
            sc_index(i) = l
            exit spec_coef
         endif
      end do spec_coef
   end do  satinfo_chan
-
-!  find IASI sensorindex
-  sensorindex = 0
-  if ( sc(1)%sensor_id(1:4) == 'iasi' ) then
-     sensorindex = 1
-  else
-     write(6,*)'READ_IASI: sensorindex not set  NO IASI DATA USED'
-     write(6,*)'READ_IASI: We are looking for ', sc(1)%sensor_id, '   TERMINATE PROGRAM EXECUTION'
-     call stop2(71)
-  end if
 
 ! Calculate parameters needed for FOV-based surface calculation.
   if (isfcalc==1)then
@@ -396,6 +437,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   allocate(temperature(1))   ! dependent on # of channels in the bufr file
   allocate(allchan(2,1))     ! actual values set after ireadsb
   allocate(bufr_chan_test(1))! actual values set after ireadsb
+  allocate(scalef(1))
 
 ! Big loop to read data file
   next=0
@@ -442,10 +484,11 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            bufr_size = size(temperature,1)
            if ( bufr_size /= bufr_nchan ) then ! Re-allocation if number of channels has changed
 !             Allocate the arrays needed for the channel and radiance array
-              deallocate(temperature,allchan,bufr_chan_test)
+              deallocate(temperature,allchan,bufr_chan_test,scalef)
               allocate(temperature(bufr_nchan))   ! dependent on # of channels in the bufr file
               allocate(allchan(2,bufr_nchan))
               allocate(bufr_chan_test(bufr_nchan))
+              allocate(scalef(bufr_nchan))
               bufr_chan_test(:)=0
            endif       !  allocation if
 
@@ -575,7 +618,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            nread = nread + satinfo_nchan
 
            crit0 = 0.01_r_kind
-           if( llll > 1 ) crit0 = crit0 + r100 * float(llll)
+           if( llll > 1 ) crit0 = crit0 + r100 * real(llll,r_kind)
            timeinflat=6.0_r_kind
            call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
            call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
@@ -596,7 +639,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 !          Compare IASI satellite scan angle and zenith angle
            piece = -step_adjust
            if ( mod(ifovn,2) == 1) piece = step_adjust
-           lza = ((start + float((ifov-1)/4)*step) + piece)*deg2rad
+           lza = ((start + real((ifov-1)/4,r_kind)*step) + piece)*deg2rad
            sat_height_ratio = (earth_radius + linele(4))/earth_radius
            lzaest = asin(sat_height_ratio*sin(lza))*rad2deg
            if (abs(sat_zenang - lzaest) > one) then
@@ -675,6 +718,18 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !          Read IASI channel number(CHNM) and radiance (SCRA)
            call ufbseq(lnbufr,allchan,2,bufr_nchan,iret,'IASICHN')
+           jstart=1
+           scalef=one
+           do i=1,bufr_nchan
+               scaleloop: do j=jstart,10
+                  if(allchan(1,i) >= cscale(1,j) .and. allchan(1,i) <= cscale(2,j))then
+                     scalef(i) = sscale(j)
+                     jstart=j
+                     exit scaleloop
+                  end if
+               end do scaleloop
+           end do
+         
            if (iret /= bufr_nchan) then
               write(6,*)'READ_IASI:  ### ERROR IN READING ', senname, ' BUFR DATA:', &
                  iret, ' CH DATA IS READ INSTEAD OF ',bufr_nchan
@@ -703,51 +758,46 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
              cycle read_loop
            endif
 
-           iskip = 0
-           jstart=1
+!$omp parallel do schedule(dynamic,1) private(i,sc_chan,bufr_chan,radiance)
            channel_loop: do i=1,satinfo_nchan
-              sc_chan = sc_index(i)
-              if ( bufr_index(i) == 0 ) cycle channel_loop
               bufr_chan = bufr_index(i)
+              if (bufr_chan > 0 ) then
 !             check that channel number is within reason
-              if (( allchan(2,bufr_chan) > zero .and. allchan(2,bufr_chan) < 99999._r_kind)) then  ! radiance bounds
-                 radiance = allchan(2,bufr_chan)
-                 scaleloop: do j=jstart,10
-                    if(allchan(1,bufr_chan) >= cscale(1,j) .and. allchan(1,bufr_chan) <= cscale(2,j))then
-                       radiance = allchan(2,bufr_chan)*sscale(j)
-                       jstart=j
-                       exit scaleloop
-                    end if
-                 end do scaleloop
-                 call crtm_planck_temperature(sensorindex,sc_chan,radiance,temperature(bufr_chan))
-              else
-                 temperature(bufr_chan) = tbmin
-              endif
+                if (( allchan(2,bufr_chan) > zero .and. allchan(2,bufr_chan) < 99999._r_kind)) then  ! radiance bounds
+                  radiance = allchan(2,bufr_chan)*scalef(bufr_chan)
+                  sc_chan = sc_index(i)
+                  call crtm_planck_temperature(sensorindex_iasi,sc_chan,radiance,temperature(bufr_chan))
+                else
+                   temperature(bufr_chan) = tbmin
+                endif
+              end if
            end do channel_loop
 
 !          Check for reasonable temperature values
+           iskip = 0
            skip_loop: do i=1,satinfo_nchan
               if ( bufr_index(i) == 0 ) cycle skip_loop
               bufr_chan = bufr_index(i)
               if(temperature(bufr_chan) <= tbmin .or. temperature(bufr_chan) > tbmax ) then
-                 temperature(bufr_chan) = min(tbmax,max(zero,temperature(bufr_chan)))
+                 temperature(bufr_chan) = min(tbmax,max(tbmin,temperature(bufr_chan)))
                  if(iuse_rad(ioff+i) >= 0)iskip = iskip + 1
               endif
            end do skip_loop
 
-           if(iskip > 0 .and. print_verbose)write(6,*) ' READ_IASI : iskip > 0 ',iskip
-           if( iskip > 0 )cycle read_loop 
+           if(iskip > 0)then
+              if(print_verbose)write(6,*) ' READ_IASI : iskip > 0 ',iskip
+              cycle read_loop 
+           end if
 
-           crit1=crit1 + ten*float(iskip)
+!          crit1=crit1 + ten*real(iskip,r_kind)
 
-!          If the surface channel exists (~960.0 cm-1) and the AVHRR cloud information is missing, use an
+!          If the surface channel exists (~960.0 cm-1) and the imager cloud information is missing, use an
 !          estimate of the surface temperature to determine if the profile may be clear.
            if (.not. cloud_info) then
               pred = tsavg*0.98_r_kind - temperature(sfc_channel_index)
               pred = max(pred,zero)
+              crit1=crit1 + pred
            endif
-
-           crit1=crit1 + pred
 
 !          Map obs to grids
            if (pred == zero) then
@@ -757,6 +807,78 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            endif
            if(.not. iuse)cycle read_loop
 
+!   Read the imager cluster information for the Cloud and Aerosol Detection Software.
+!   Only channels 4 and 5 are used.
+
+           if ( iasi_cads ) then
+             call ufbseq(lnbufr,imager_info,33,7,iret,'IASIL1CS')
+             if (iret == 7 .and. imager_info(3,1) <= 100.0_r_kind .and. &
+                  imager_info(3,1) >= zero .and. imager_coeff ) then   ! if imager cluster info exists
+               imager_mean = zero
+               imager_std_dev = zero
+               imager_cluster_tot = zero
+               imager_cluster_flag = .TRUE.
+               imager_cluster_size = imager_info(3,1:7)
+               imager_cluster_size(:) = imager_cluster_size(:) / sum(imager_cluster_size(:))
+
+!  Order clusters from largest (1) to smallest (7)
+               imager_cluster_sort: do i=1,7
+                 j = maxloc(imager_cluster_size,dim=1,mask=imager_cluster_flag)
+                 imager_cluster_index(i) = j
+                 imager_cluster_flag(j) = .FALSE.
+               end do imager_cluster_sort
+
+!   Convert from radiance to brightness temperature for mean and standard deviation used by CADS.
+!   Imager cluster info added to data_all array
+
+               imager_cluster_info: do j=1,7
+                 i = imager_cluster_index(j)
+
+                 data_all(maxinfo+j,itx) =  imager_cluster_size(i)                ! Imager cluster fraction
+                 imager_cluster_tot = imager_cluster_tot + imager_info(3,i)
+
+                 iexponent = -(nint(imager_info(25,i))-5 )                        ! channel 4 radiance for each cluster.
+                 imager_info(26,i) =  imager_info(26,i) * (ten ** iexponent)
+
+                 iexponent = -(nint(imager_info(27,i))-5 )                        ! channel 4 radiance std dev for each cluster.
+                 imager_info(28,i) =  imager_info(28,i) * (ten ** iexponent)
+
+                 call crtm_planck_temperature(sensorindex_imager,2,imager_info(26,i),data_all(maxinfo+7+j,itx))
+                 data_all(maxinfo+7+j,itx) = max(data_all(maxinfo+7+j,itx),zero)
+
+                 iexponent = -(nint(imager_info(30,i))-5 )                        ! channel 5 radiance for each cluster
+                 imager_info(31,i) =  imager_info(31,i) * (ten ** iexponent)
+
+                 iexponent = -(nint(imager_info(32,i))-5 )                        ! channel 5 radiance std dev for each cluser.
+                 imager_info(33,i) =  imager_info(33,i) * (ten ** iexponent)
+
+                 call crtm_planck_temperature(sensorindex_imager,3,imager_info(31,i),data_all(maxinfo+14+j,itx))
+                 data_all(maxinfo+14+j,itx) = max(data_all(maxinfo+14+j,itx),zero)
+
+               end do imager_cluster_info
+
+! Compute cluster averages for each channel
+
+               imager_mean(1) = sum(imager_cluster_size(:) * imager_info(26,:))      ! Channel 4 radiance cluster average
+               imager_std_dev(1) = sum(imager_cluster_size(:) * (imager_info(26,:)**2 + imager_info(28,:)**2)) - imager_mean(1)**2
+               imager_std_dev(1) = sqrt(max(imager_std_dev(1),zero))                 ! Channel 4 radiance RMSE
+               call crtm_planck_temperature(sensorindex_imager,2,(imager_std_dev(1) + imager_mean(1)),imager_std_dev(1))
+               call crtm_planck_temperature(sensorindex_imager,2,imager_mean(1),imager_mean(1))    ! Channel 4 average BT
+               imager_std_dev(1) = imager_std_dev(1) - imager_mean(1)                ! Channel 4 BT std dev
+               data_all(maxinfo+22,itx) = imager_std_dev(1)
+
+               imager_mean(2) = sum(imager_cluster_size(:) * imager_info(31,:))      ! Channel 5 radiance cluster average
+               imager_std_dev(2) = sum(imager_cluster_size(:) * (imager_info(31,:)**2 + imager_info(33,:)**2)) - imager_mean(1)**2
+               imager_std_dev(2) = sqrt(max(imager_std_dev(1),zero))                 ! Channel 5 radiance RMSE
+               call crtm_planck_temperature(sensorindex_imager,3,(imager_std_dev(2) + imager_mean(2)),imager_std_dev(2))
+               call crtm_planck_temperature(sensorindex_imager,3,imager_mean(2),imager_mean(2))     ! Channel 5 average BT
+               imager_std_dev(2) = imager_std_dev(2) - imager_mean(2)                ! Channel 5 BT std dev
+               data_all(maxinfo+23,itx) = imager_std_dev(2)
+
+             else  ! Imager cluster information is missing.  Set everything to zero
+               data_all(maxinfo+1 : maxinfo+25,itx) = zero
+             endif
+           endif ! iasi_cads = .true.
 !
 !          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
@@ -804,25 +926,27 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            data_all(31,itx)= dlat_earth_deg            ! earth relative latitude (degrees)
 
            if(dval_use)then
-              data_all(32,itx)= val_iasi
-              data_all(33,itx)= itt
+              data_all(maxinfo+cads_info+1,itx)= val_iasi
+              data_all(maxinfo+cads_info+2,itx)= itt
            end if
 
            if ( nst_gsi > 0 ) then
-              data_all(maxinfo+1,itx) = tref         ! foundation temperature
-              data_all(maxinfo+2,itx) = dtw          ! dt_warm at zob
-              data_all(maxinfo+3,itx) = dtc          ! dt_cool at zob
-              data_all(maxinfo+4,itx) = tz_tr        ! d(Tz)/d(Tr)
+              data_all(maxinfo+cads_info+dval_info+1,itx) = tref         ! foundation temperature
+              data_all(maxinfo+cads_info+dval_info+2,itx) = dtw          ! dt_warm at zob
+              data_all(maxinfo+cads_info+dval_info+3,itx) = dtc          ! dt_cool at zob
+              data_all(maxinfo+cads_info+dval_info+4,itx) = tz_tr        ! d(Tz)/d(Tr)
            endif
 
 !          Put satinfo defined channel temperatures into data array
            do l=1,satinfo_nchan
+              ! Prevent out of bounds reference from temperature
+              if ( bufr_index(l) == 0 ) cycle
               i = bufr_index(l)
-              if ( bufr_index(l) /= 0 ) then
+              if(i /= 0)then
                  data_all(l+nreal,itx) = temperature(i)   ! brightness temerature
               else
                  data_all(l+nreal,itx) = tbmin
-              endif
+              end if
            end do
            nrec(itx)=irec
 
@@ -835,7 +959,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   end do ears_db_loop
 
-  deallocate(temperature, allchan, bufr_chan_test)
+  deallocate(temperature, allchan, bufr_chan_test,scalef)
   deallocate(channel_number,sc_index)
   deallocate(bufr_index)
 ! deallocate crtm info

@@ -125,7 +125,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use obsmod, only: l_obsprvdiag
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
-       nc_diag_write, nc_diag_data2d
+       nc_diag_write, nc_diag_data2d, nc_diag_metadata_to_single
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use gridmod, only: nsig,get_ij,twodvar_regional
   use constants, only: zero,one_tenth,one,half,pi,g_over_rd, &
@@ -287,7 +287,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
 !  muse = true  then used
 
   do i=1,nobs
-     muse(i)=nint(data(iuse,i)) <= jiter
+     muse(i)=nint(data(iuse,i)) <= jiter .and. nint(data(iqc,i)) < 8
   end do
 !  If HD raobs available move prepbufr version to monitor
   if(nhdps > 0)then
@@ -981,31 +981,36 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
            call nc_diag_metadata("Observation_Class",       obsclass               )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
-           call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
-           call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
-           call nc_diag_metadata("Station_Elevation",       sngl(data(istnelv,i))  )
-           call nc_diag_metadata("Pressure",                sngl(data(ipres,i)*r10))
-           call nc_diag_metadata("Height",                  sngl(dhgt)             )
-           call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
-           call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
-           call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )
-           call nc_diag_metadata("Nonlinear_QC_Var_Jb",     sngl(var_jb)           )
-           call nc_diag_metadata("Nonlinear_QC_Rel_Wgt",    sngl(rwgt)             )                 
+           !Replace direct calls to nc_diag_metadata with the screening subroutine
+           call nc_diag_metadata_to_single("Latitude",      data(ilate,i)          )
+           call nc_diag_metadata_to_single("Longitude",     data(ilone,i)          )
+           call nc_diag_metadata_to_single("Station_Elevation",data(istnelv,i)     )
+           call nc_diag_metadata_to_single("Pressure",      data(ipres,i),r10,'*'  )
+           call nc_diag_metadata_to_single("Height",        dhgt                   )
+           call nc_diag_metadata_to_single("Time",          dtime,time_offset,'-'  )
+           call nc_diag_metadata_to_single("Prep_QC_Mark",  data(iqc,i)            )
+           call nc_diag_metadata_to_single("Prep_Use_Flag", data(iuse,i)           )
+           call nc_diag_metadata_to_single("Nonlinear_QC_Var_Jb",var_jb            )
+           call nc_diag_metadata_to_single("Nonlinear_QC_Rel_Wgt",rwgt             )
            if(muse(i)) then
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)              )
+              call nc_diag_metadata("Analysis_Use_Flag",    1.0_r_single           )
            else
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)             )              
+              call nc_diag_metadata("Analysis_Use_Flag",   -1.0_r_single           )
            endif
 
-           call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)     )
-           call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
-           call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
+           call nc_diag_metadata_to_single("Errinv_Input",  errinv_input           )
+           call nc_diag_metadata_to_single("Errinv_Adjust", errinv_adjst           )
+           call nc_diag_metadata_to_single("Errinv_Final",  errinv_final           )
 
-           call nc_diag_metadata("Observation",                   sngl(pob)        )
-           call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(pob-pges)   )
-           call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(pob-pgesorig))
-           call nc_diag_metadata("Forecast_adjusted",             sngl(pges)       )
-           call nc_diag_metadata("Forecast_unadjusted",           sngl(pgesorig)   )
+           call nc_diag_metadata_to_single("Observation",   pob                    )
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",pob,pges,'-')
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",pob,pgesorig,'-')
+
+           call nc_diag_metadata_to_single("Observation",                   pob)        
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",   pob-pges)   
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted", pob-pgesorig)
+           call nc_diag_metadata_to_single("Forecast_adjusted",             pges)       
+           call nc_diag_metadata_to_single("Forecast_unadjusted",           pgesorig)   
  
           if (lobsdiagsave) then
 
@@ -1068,7 +1073,8 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
     call nc_diag_data2d("northward_wind", sngl(vtmp_reverse))
 !   call nc_diag_data2d("geopotential_height", sngl(hsges_reverse) )       !orig
     call nc_diag_data2d("geopotential_height", sngl(zges_read_reverse) ) !emily
-    !call nc_diag_data2d("geometric_height", sngl(zges_geometric_reverse) ) !emily
+    !call nc_diag_data2d("geometric_height", sngl(zges_geometric_reverse) )
+    !!emily
     !<<emily
            ! geovals for JEDI UFO
     !       call nc_diag_metadata("surface_geometric_height", sngl(zsges))
@@ -1080,13 +1086,15 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
            !call nc_diag_metadata("2m_specific_humidity", sngl())
            call nc_diag_metadata("landmask", sngl(msges))
     !       call nc_diag_data2d("geopotential_height", sngl(zsges+zges))
-    !       call nc_diag_data2d("atmosphere_pressure_coordinate", sngl(prsltmp2*r1000))
-    !       call nc_diag_data2d("atmosphere_pressure_coordinate_interface", sngl(prsitmp*r1000))
+    !       call nc_diag_data2d("atmosphere_pressure_coordinate",
+    !       sngl(prsltmp2*r1000))
+    !       call nc_diag_data2d("atmosphere_pressure_coordinate_interface",
+    !       sngl(prsitmp*r1000))
     !       call nc_diag_data2d("virtual_temperature", sngl(tvgestmp))
     !       call nc_diag_data2d("air_temperature", sngl(tsentmp))
     !       call nc_diag_data2d("specific_humidity", sngl(qtmp))
     !       call nc_diag_data2d("northward_wind", sngl(utmp))
-    !       call nc_diag_data2d("eastward_wind", sngl(vtmp))
+    !       call nc_diag_data2d("eastward_wind", sngl(vtmp
 
   end subroutine contents_netcdf_diag_
 

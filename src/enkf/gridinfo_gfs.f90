@@ -45,7 +45,8 @@ module gridinfo
 
 use mpisetup, only: nproc, mpi_integer, mpi_real4
 use mpimod, only: mpi_comm_world
-use params, only: datapath,nlevs,nlons,nlats,use_gfs_nemsio,use_gfs_ncio,fgfileprefixes
+use params, only: datapath,nlevs,nlons,nlats,use_gfs_nemsio,use_gfs_ncio,fgfileprefixes,&
+                  taperanalperts,taperanalperts_aktop,taperanalperts_akbot
 use kinds, only: r_kind, i_kind, r_double, r_single
 use constants, only: one,zero,pi,cp,rd,grav,rearth,max_varname_length
 use specmod, only: sptezv_s, sptez_s, init_spec_vars, isinitialized, asin_gaulats, &
@@ -57,7 +58,7 @@ private
 public :: getgridinfo, gridinfo_cleanup
 integer(i_kind),public :: nlevs_pres, idvc
 real(r_single),public :: ptop
-real(r_single),public, allocatable, dimension(:) :: lonsgrd, latsgrd
+real(r_single),public, allocatable, dimension(:) :: lonsgrd, latsgrd, taper_vert
 ! arrays passed to kdtree2 routines must be single
 real(r_single),public, allocatable, dimension(:,:) :: gridloc
 real(r_single),public, allocatable, dimension(:,:) :: logp
@@ -66,7 +67,8 @@ integer,public :: ntrunc
 ! supported variable names in anavinfo
 character(len=max_varname_length),public, dimension(13) :: vars3d_supported = (/'u   ', 'v   ', 'tv  ', 'q   ', 'oz  ', 'cw  ', 'tsen', 'prse', &
                                                                                 'ql  ', 'qi  ', 'qr  ', 'qs  ', 'qg  '/) 
-character(len=max_varname_length),public, dimension(3)  :: vars2d_supported = (/'ps ', 'pst', 'sst' /)
+character(len=max_varname_length),public, dimension(13)  :: vars2d_supported = (/'ps ', 'pst', 'sst', 't2m', 'q2m', 'st1', 'st2', 'st3', 'st4', 'sl1', 'sl2', 'sl3', 'sl4' /)
+character(len=max_varname_length),public, dimension(8)  :: vars2d_landonly = (/'st1', 'st2', 'st3', 'st4', 'sl1', 'sl2', 'sl3', 'sl4' /)
 ! supported variable names in anavinfo
 contains
 
@@ -104,7 +106,7 @@ kap = rd/cp
 kapr = cp/rd
 kap1 = kap + one
 nlevs_pres=nlevs+1
-if (nproc .eq. 0) then
+if (nproc == 0) then
 filename = trim(adjustl(datapath))//trim(adjustl(fileprefix))//"ensmean"
 if (use_gfs_nemsio) then
      call nemsio_init(iret=iret)
@@ -167,11 +169,13 @@ call mpi_bcast(ntrunc,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
 ! initialize spectral module on all tasks.
 if (.not. isinitialized) call init_spec_vars(nlons,nlats,ntrunc,4)
 
-if (nproc .eq. 0) then
+if (nproc == 0) then
    ! get pressure, lat/lon information from ensemble mean file.
    allocate(presslmn(nlons*nlats,nlevs))
    allocate(pressimn(nlons*nlats,nlevs+1))
    allocate(spressmn(nlons*nlats))
+   allocate(taper_vert(nlevs))
+   taper_vert=one
    if (use_gfs_nemsio) then
       call nemsio_readrecv(gfile,'pres','sfc',1,nems_wrk,iret=iret)
       if (iret/=0) then
@@ -220,7 +224,6 @@ if (nproc .eq. 0) then
       enddo
       call nemsio_close(gfile, iret=iret)
       ptop = ak(nlevs+1)
-      deallocate(ak,bk)
    else if (use_gfs_ncio) then
       call read_vardata(dset, 'pressfc', values_2d,errcode=iret)
       if (iret /= 0) then
@@ -237,7 +240,7 @@ if (nproc .eq. 0) then
          pressimn(:,k) = 0.01_r_kind*ak(nlevs-k+2)+bk(nlevs-k+2)*spressmn(:)
       enddo
       ptop = 0.01_r_kind*ak(1)
-      deallocate(ak,bk,values_2d)
+      deallocate(values_2d)
    else
 ! get pressure from ensemble mean,
 ! distribute to all processors.
@@ -277,7 +280,6 @@ if (nproc .eq. 0) then
       enddo
       call sigio_axdata(sigdata,iret)
       ptop = ak(nlevs+1)
-      deallocate(ak,bk)
    endif
    if (reducedgrid) then
       call reducedgrid_init(nlons,nlats,asin_gaulats)
@@ -333,11 +335,28 @@ if (nproc .eq. 0) then
       logp(:,nlevs_pres) = -log(spressmn(:))
    endif
    deallocate(spressmn,presslmn,pressimn)
+  ! vertical taper function for ens perts
+  if (taperanalperts) then
+     do k=1,nlevs
+        if (k < nlevs/2 .and. (ak(k) <= taperanalperts_akbot .and. ak(k) >= taperanalperts_aktop)) then
+           taper_vert(nlevs-k+1)= log(ak(k) - taperanalperts_aktop)/log(taperanalperts_akbot - taperanalperts_aktop)
+        else if (bk(k) == zero .and. ak(k) < taperanalperts_aktop) then
+           taper_vert(nlevs-k+1) = zero
+        endif
+     enddo
+     print *,'vertical taper for anal perts:'
+     do k=1,nlevs
+        print *,k,ak(nlevs-k+1),bk(nlevs-k+1),taper_vert(k)
+     enddo
+  endif
+  if (allocated(ak)) deallocate(ak)
+  if (allocated(bk)) deallocate(bk)
 end if
 call mpi_bcast(npts,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
 if (nproc .ne. 0) then
    ! allocate arrays on other (non-root) tasks
    allocate(latsgrd(npts),lonsgrd(npts))
+   allocate(taper_vert(nlevs))
    allocate(logp(npts,nlevs_pres)) ! log(ens mean first guess press) on mid-layers
    allocate(gridloc(3,npts))
    ! initialize reducedgrid_mod on other tasks.
@@ -351,6 +370,7 @@ do k=1,nlevs_pres
 enddo
 call mpi_bcast(lonsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(latsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
+call mpi_bcast(taper_vert,nlevs,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(ptop,1,mpi_real4,0,MPI_COMM_WORLD,ierr)
 !==> precompute cartesian coords of analysis grid points.
 do nn=1,npts
@@ -364,6 +384,7 @@ end subroutine getgridinfo
 subroutine gridinfo_cleanup()
 if (allocated(lonsgrd)) deallocate(lonsgrd)
 if (allocated(latsgrd)) deallocate(latsgrd)
+if (allocated(taper_vert)) deallocate(taper_vert)
 if (allocated(logp)) deallocate(logp)
 if (allocated(gridloc)) deallocate(gridloc)
 end subroutine gridinfo_cleanup

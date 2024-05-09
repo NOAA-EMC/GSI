@@ -43,10 +43,12 @@ module gridinfo
 !
 !$$$
 
-use mpisetup, only: nproc, mpi_integer, mpi_real4, mpi_comm_world,mpi_status
+use mpisetup, only: nproc, mpi_integer, mpi_real4,mpi_status
+use mpimod, only: mpi_comm_world
 use params, only: datapath,nlevs,nlons,nlats,use_gfs_nemsio, fgfileprefixes, &
                   fv3fixpath, nx_res,ny_res, ntiles,l_fv3reg_filecombined,paranc, &
-                  fv3_io_layout_nx,fv3_io_layout_ny
+                  fv3_io_layout_nx,fv3_io_layout_ny,taperanalperts,taperanalperts_akbot, &
+                  taperanalperts_aktop
           
 use kinds, only: r_kind, i_kind, r_double, r_single
 use constants, only: one,zero,pi,cp,rd,grav,rearth,max_varname_length
@@ -64,6 +66,7 @@ public :: getgridinfo, gridinfo_cleanup
 public :: ak,bk,eta1_ll,eta2_ll
 real(r_single),public :: ptop
 real(r_single),public, allocatable, dimension(:) :: lonsgrd, latsgrd
+real(r_single),public, allocatable, dimension(:) :: taper_vert
 ! arrays passed to kdtree2 routines must be single
 real(r_single),public, allocatable, dimension(:,:) :: gridloc
 real(r_single),public, allocatable, dimension(:,:) :: logp
@@ -71,13 +74,15 @@ integer(i_kind),                                  public     :: nlevs_pres
 integer(i_kind),public :: npts
 integer(i_kind),public :: ntrunc
 ! supported variable names in anavinfo
-character(len=max_varname_length),public, dimension(15) :: &
+character(len=max_varname_length),public, dimension(16) :: &
   vars3d_supported = [character(len=max_varname_length) :: &
     'u', 'v', 'w', 't', 'q', 'oz', 'cw', 'tsen', 'prse', &
-    'ql', 'qi', 'qr', 'qs', 'qg', 'qnr']
+    'ql', 'qi', 'qr', 'qs', 'qg', 'qnr','dbz']
 character(len=max_varname_length),public, dimension(3) :: &
   vars2d_supported = [character(len=max_varname_length) :: &
     'ps', 'pst', 'sst']
+character(len=max_varname_length),public, dimension(8)  :: &
+  vars2d_landonly = (/'', '', '', '', '', '', '', '' /)
 real(r_single), allocatable, dimension(:) :: ak,bk,eta1_ll,eta2_ll
 integer (i_kind),public,allocatable,dimension(:,:):: nxlocgroup,nylocgroup
 integer(i_kind):: numproc_io_sub
@@ -130,7 +135,7 @@ kap1 = kap + one
 
 !when paranc=.false, fv3_io_layout_nx=fv3_io_layout_ny=1
 ! read data on root task
-if (nproc .eq. 0) then
+if (nproc == 0) then
 
    !  read ak,bk from ensmean fv_core.res.nc
    !  read nx,ny and nz from fv_core.res.nc
@@ -161,19 +166,35 @@ if (nproc .eq. 0) then
        eta2_ll(i)=bk(i)
    enddo
 
-
-
-
    ptop = eta1_ll(nlevsp1)
    call nc_check( nf90_close(file_id),&
    myname_,'close '//trim(filename) )
+
+   ! vertical taper function for ens perts
+   allocate(taper_vert(nlevs))
+   if (taperanalperts) then
+      do k=1,nlevs
+         if (k < nlevs/2 .and. (ak(k) <= taperanalperts_akbot .and. ak(k) >= taperanalperts_aktop)) then
+            taper_vert(nlevs-k+1)= log(ak(k) - taperanalperts_aktop)/log(taperanalperts_akbot - taperanalperts_aktop)
+         else if (bk(k) == zero .and. ak(k) < taperanalperts_aktop) then
+            taper_vert(nlevs-k+1) = zero
+         endif
+      enddo
+      print *,'vertical taper for anal perts:'
+      do k=1,nlevs
+         print *,k,ak(nlevs-k+1),bk(nlevs-k+1),taper_vert(k)
+      enddo
+   else
+      taper_vert = one
+   endif
+
    deallocate(ak,bk)
 endif ! root task
 
 allocate(nxlocgroup(fv3_io_layout_nx,fv3_io_layout_ny))
 allocate(nylocgroup(fv3_io_layout_nx,fv3_io_layout_ny))
 
-if(nproc.eq.0) then 
+if(nproc == 0) then 
   ii=0
   do j=1,fv3_io_layout_ny
     do i=1,fv3_io_layout_nx
@@ -460,7 +481,7 @@ endif ! nproc in IO group
 allocate(gridloc(3,npts))
 if (nproc .ne. 0) then
    ! allocate arrays on other (non-root) tasks
-   allocate(latsgrd(npts),lonsgrd(npts))
+   allocate(latsgrd(npts),lonsgrd(npts),taper_vert(nlevs))
    allocate(logp(npts,nlevs_pres)) ! log(ens mean first guess press) on mid-layers
    allocate(eta1_ll(nlevsp1),eta2_ll(nlevsp1))
 endif
@@ -470,6 +491,7 @@ do k=1,nlevs_pres
 enddo
 call mpi_bcast(lonsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(latsgrd,npts,mpi_real4,0,MPI_COMM_WORLD,ierr)
+call mpi_bcast(taper_vert,nlevs,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(eta1_ll,nlevsp1,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(eta2_ll,nlevsp1,mpi_real4,0,MPI_COMM_WORLD,ierr)
 call mpi_bcast(ptop,1,mpi_real4,0,MPI_COMM_WORLD,ierr)
@@ -486,6 +508,7 @@ end subroutine getgridinfo
 subroutine gridinfo_cleanup()
 if (allocated(lonsgrd)) deallocate(lonsgrd)
 if (allocated(latsgrd)) deallocate(latsgrd)
+if (allocated(taper_vert)) deallocate(taper_vert)
 if (allocated(logp)) deallocate(logp)
 if (allocated(gridloc)) deallocate(gridloc)
 end subroutine gridinfo_cleanup

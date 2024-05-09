@@ -367,7 +367,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
            if ( rsc > 60.0_r_kind .or. rsc < zero ) rsc = zero   !second in real
 
            call w3fs21(idate5,nmind)
-           sstime=float(nmind)
+           sstime=real(nmind,r_kind)
  
            tdiff=(sstime-gstime)*r60inv
 
@@ -542,9 +542,9 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
               kx = 197
               sstoe = one
            elseif ( trim(subset) == 'NC031002' ) then                            ! TESAC
-              if (  tpf(1,1) >= one .and.  tpf(1,1) < 20.0_r_kind ) then
-                 zob = tpf(1,1)
-              elseif (  tpf(1,1) >= zero .and. tpf(1,1) < one ) then
+              if (  tpf2(1,1) >= one .and.  tpf2(1,1) < 20.0_r_kind ) then
+                 zob = tpf2(1,1)
+              elseif (  tpf2(1,1) >= zero .and. tpf2(1,1) < one ) then
                  zob = one
               endif
               kx = 198   
@@ -553,9 +553,9 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
               kx = 199                                                           ! classify argo & glider to be bathy type
               sstoe = r0_6
            elseif ( trim(subset) == 'NC031001' ) then                            ! BATHY
-              if (  tpf(1,1) >= one .and.  tpf(1,1) <= 20.0_r_kind ) then
-                 zob = tpf(1,1)
-              elseif (  tpf(1,1) >= zero .and. tpf(1,1) < one ) then
+              if (  tpf2(1,1) >= one .and.  tpf2(1,1) <= 20.0_r_kind ) then
+                 zob = tpf2(1,1)
+              elseif (  tpf2(1,1) >= zero .and. tpf2(1,1) < one ) then
                  zob = one
               endif
               kx = 199
@@ -667,6 +667,7 @@ subroutine read_nsstbufr(nread,ndata,nodata,gstime,infile,obstype,lunout, &
 
 ! Close unit to bufr file
 1020 continue
+  deallocate(data_all)
   if (oberrflg) deallocate(etabl)
   call closbf(lunin)
   close(lunin)

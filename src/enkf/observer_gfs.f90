@@ -66,7 +66,7 @@ subroutine setup_linhx(rlat, rlon, time, ix, delx, ixp, delxp, iy, dely,  &
 !$$$
   use kinds, only: r_kind,i_kind,r_single
   use params, only: nstatefields, nlons, nlats, nhr_state, fhr_assim
-  use gridinfo, only: latsgrd, lonsgrd
+  use gridinfo, only: latsgrd, lonsgrd, npts
   use constants, only: zero,one,pi
   use mpisetup
   implicit none
@@ -76,6 +76,7 @@ subroutine setup_linhx(rlat, rlon, time, ix, delx, ixp, delxp, iy, dely,  &
   real(r_single)                                   ,intent(in   ) :: time         ! observation time relative to middle of window
   integer(i_kind), intent(out) :: ix, iy, it, ixp, iyp, itp
   real(r_kind), intent(out) :: delx, dely, delxp, delyp, delt, deltp
+  integer(i_kind) :: ixnlons
 
 
   ! find interplation indices and deltas
@@ -87,17 +88,21 @@ subroutine setup_linhx(rlat, rlon, time, ix, delx, ixp, delxp, iy, dely,  &
   ix  = min(ix,   nlats-1)
   ixp = max(ix-1, 0)
 
+  ixnlons = ix*nlons
+
   if (ixp /= ix) then
-     delx = (rlat - latsgrd(ix*nlons+1)) / (latsgrd(ixp*nlons + 1) - latsgrd(ix*nlons+1))
+     delx = (rlat - latsgrd(ixnlons+1)) / (latsgrd(ixp*nlons + 1) - latsgrd(ixnlons+1))
   else
      delx = one
   endif
   delx = max(zero,min(delx,one))
 
-  iyp = 1
-  do while (iyp <= nlons .and. lonsgrd(ix*nlons + iyp) <= rlon)
-    iyp = iyp + 1
+  iyp=1
+  do while(iyp <= nlons .and. ixnlons+iyp <= npts)
+     if (lonsgrd(ixnlons+iyp) > rlon) exit
+     iyp = iyp + 1
   enddo
+
   iy = iyp - 1
   if(iy < 1)     iy = iy + nlons
   if(iyp > nlons) iyp = iyp - nlons

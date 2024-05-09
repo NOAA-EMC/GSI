@@ -14,7 +14,7 @@ module statevec
 !
 ! Public Variables:
 !  nanals: (integer scalar) number of ensemble members (from module params)
-!  nlevs: number of analysis vertical levels (from module params).
+!  nlevs: number of analysis atmos vertical levels (from module params).
 !  ns3d: number of 3D variables
 !  ns2d: number of 2D variables
 !  svars3d: names of 3D variables
@@ -120,7 +120,7 @@ do ii=1,nvars
       svars3d(ns3d)=trim(adjustl(var))
       slevels(ns3d)=ilev + slevels(ns3d-1)
    else 
-      if (nproc .eq. 0) print *,'Error: only ', nlevs, ' and ', nlevs+1,' number of levels is supported in current version, got ',ilev
+      if (nproc .eq. 0) print *,'Error statevec: - only ', nlevs, ' and ', nlevs+1,' number of levels is supported in current version, got ',ilev
       call stop2(503)
    endif
 enddo
@@ -136,7 +136,7 @@ endif
 do i = 1, ns2d
   if (getindex(vars2d_supported, svars2d(i))<0) then
     if (nproc .eq. 0) then
-      print *,'Error: 2D variable ', svars2d(i), ' is not supported in current version.'
+      print *,'Error: state 2D variable ', svars2d(i), ' is not supported in current version.'
       print *,'Supported variables: ', vars2d_supported
     endif
     call stop2(502)
@@ -145,7 +145,7 @@ enddo
 do i = 1, ns3d
   if (getindex(vars3d_supported, svars3d(i))<0) then
     if (nproc .eq. 0) then 
-       print *,'Error: 3D variable ', svars3d(i), ' is not supported in current version.'
+       print *,'Error: state 3D variable ', svars3d(i), ' is not supported in current version.'
        print *,'Supported variables: ', vars3d_supported
     endif
     call stop2(502)

@@ -596,7 +596,7 @@ subroutine anprewgt_reg(mype)
         do i=indices%ips,indices%ipe
            l =max(min(int(rllatf(i,j)),mlat),1)
            lp=min((l+1),mlat)
-           dl2=rllatf(i,j)-float(l)
+           dl2=rllatf(i,j)-real(l,r_kind)
            dl1=one-dl2
            if (ivar <= nrf) then
               if (nrf_3d(ivar)) then
@@ -1056,7 +1056,7 @@ subroutine get_aspect_reg_pt(mype)
               asp3=scalex3*asp3
            endif
 
-           rk1=float(k1-44)
+           rk1=real(k1-44,r_kind)
            fblend=half*(one-tanh(rk1))! one
 
            if (nvar_id(k) /= nrf3_loc(nrf3_q)) then
@@ -1126,7 +1126,7 @@ subroutine fact_qopt2(factk,rh,kvar)
   d  =20.0_r_kind * rh + one
   n  =int(d)
   np =n+1
-  dn2=d-float(n)
+  dn2=d-real(n,r_kind)
   dn1=one-dn2
   n =min0(max(1,n) ,25)
   np=min0(max(1,np),25)
@@ -2407,7 +2407,7 @@ subroutine read_bckgstats(mype)
      do k=1,nsig
         vzimax(k,n)=maxval(one/vz(k,0:mlat+1,n))
         vzimin(k,n)=minval(one/vz(k,0:mlat+1,n))
-        vziavg(k,n)=sum((one/vz(k,0:mlat+1,n)))/float(mlat+2)
+        vziavg(k,n)=sum((one/vz(k,0:mlat+1,n)))/real(mlat+2,r_kind)
      end do
      if(print_verbose) then
         do k=1,nsig
@@ -2428,13 +2428,13 @@ subroutine read_bckgstats(mype)
 
      do n=1,nrf3
         do k=1,nsig
-           corzavg(k,n)=sum(corz(1:mlat,k,n))/float(mlat)
-           hwllavg(k,n)=sum(hwll(0:mlat+1,k,n))/float(mlat+2)
+           corzavg(k,n)=sum(corz(1:mlat,k,n))/real(mlat,r_kind)
+           hwllavg(k,n)=sum(hwll(0:mlat+1,k,n))/real(mlat+2,r_kind)
         end do
      end do
      do n=1,nvars-nrf3
-        corpavg(n)=sum(corp(1:mlat,n))/float(mlat)
-        hwllpavg(n)=sum(hwllp(0:mlat+1,n))/float(mlat+2)
+        corpavg(n)=sum(corp(1:mlat,n))/real(mlat,r_kind)
+        hwllpavg(n)=sum(hwllp(0:mlat+1,n))/real(mlat+2,r_kind)
      end do
 
      do j=1,mlat
@@ -2869,7 +2869,7 @@ subroutine isotropic_scales(scale1,scale2,scale3,k)
                     else
                        l =max(min(int(rllatf(i,j)),mlat),1)
                        lp=min((l+1),mlat)
-                       dl2=rllatf(i,j)-float(l)
+                       dl2=rllatf(i,j)-real(l,r_kind)
                        dl1=one-dl2
                        hwll_loc=dl1*hwll(l,k1,n)+dl2*hwll(lp,k1,n)
                     end if
@@ -2886,7 +2886,7 @@ subroutine isotropic_scales(scale1,scale2,scale3,k)
 
                  l =max(min(int(rllatf(i,j)),mlat),1)
                  lp=min((l+1),mlat)
-                 dl2=rllatf(i,j)-float(l)
+                 dl2=rllatf(i,j)-real(l,r_kind)
                  dl1=one-dl2
                  hwll_loc=cc*(dl1*hwllp(l,n)+dl2*hwllp(lp,n))
                  scale3(i,j)=one
@@ -2903,7 +2903,7 @@ subroutine isotropic_scales(scale1,scale2,scale3,k)
 
                  l =max(min(int(rllatf(i,j)),mlat),1)
                  lp=min((l+1),mlat)
-                 dl2=rllatf(i,j)-float(l)
+                 dl2=rllatf(i,j)-real(l,r_kind)
                  dl1=one-dl2
                  hwll_loc=cc*(dl1*hwllp(l,nn)+dl2*hwllp(lp,nn))
                  scale3(i,j)=one
@@ -3027,7 +3027,7 @@ subroutine get_theta_corrl_lenghts(mype)
      mcount0=lon2*lat2! It's OK to count buffer points
      call mpi_allreduce(pbar4a,pbar4(k),1,mpi_real8,mpi_sum,mpi_comm_world,ierror)
      call mpi_allreduce(mcount0,mcount,1,mpi_integer4,mpi_sum,mpi_comm_world,ierror)
-     pbar4(k)=pbar4(k)/float(mcount)
+     pbar4(k)=pbar4(k)/real(mcount,r_kind)
      if(print_verbose) write(6,*)'in get_theta_corrl_lenghts,k,pbar4=',k,pbar4(k)
      call w3fa03(pbar4(k),hgt4(k),tbar4(k),thetabar4(k))
   end do
@@ -3881,15 +3881,15 @@ subroutine get_aspect_reg_ens(mype)
  
         do j=1,pf2aP1%nlonf
            do i=1,pf2aP1%nlatf
-              ensv(i,j,k,1)=(ensv(i,j,k,1)+ensv(i,j,k,2)+ensv(i,j,k,3))/sqrt(float(nt1))
-              ensv(i,j,k,2)=              (ensv(i,j,k,2)+ensv(i,j,k,3))/sqrt(float(nt2))
-              ensv(i,j,k,3)=                             ensv(i,j,k,3) /sqrt(float(nt3))
+              ensv(i,j,k,1)=(ensv(i,j,k,1)+ensv(i,j,k,2)+ensv(i,j,k,3))/sqrt(real(nt1,r_kind))
+              ensv(i,j,k,2)=              (ensv(i,j,k,2)+ensv(i,j,k,3))/sqrt(real(nt2,r_kind))
+              ensv(i,j,k,3)=                             ensv(i,j,k,3) /sqrt(real(nt3,r_kind))
 
               if( ibldani==0 .or. ibldani==2 .or. ibldani==3 ) then
                  do m=1,6
-                    c(m,1)=(aniasp(m,i,j,k,1)+aniasp(m,i,j,k,2)+aniasp(m,i,j,k,3))/float(nt1)
-                    c(m,2)=                  (aniasp(m,i,j,k,2)+aniasp(m,i,j,k,3))/float(nt2)
-                    c(m,3)=                                     aniasp(m,i,j,k,3) /float(nt3)
+                    c(m,1)=(aniasp(m,i,j,k,1)+aniasp(m,i,j,k,2)+aniasp(m,i,j,k,3))/real(nt1,r_kind)
+                    c(m,2)=                  (aniasp(m,i,j,k,2)+aniasp(m,i,j,k,3))/real(nt2,r_kind)
+                    c(m,3)=                                     aniasp(m,i,j,k,3) /real(nt3,r_kind)
                  end do
                  do igd=1,3
                     qlx=max(qlxmin(ivar,k1),ensv(i,j,k,igd))
@@ -3906,9 +3906,9 @@ subroutine get_aspect_reg_ens(mype)
                  end do
               else if(ibldani==1) then
                  do m=1,6
-                    aniasp(m,i,j,k,1)=(aniasp(m,i,j,k,1)+aniasp(m,i,j,k,2)+aniasp(m,i,j,k,3))/float(nt1)
-                    aniasp(m,i,j,k,2)=                  (aniasp(m,i,j,k,2)+aniasp(m,i,j,k,3))/float(nt2)
-                    aniasp(m,i,j,k,3)=                                     aniasp(m,i,j,k,3) /float(nt3)
+                    aniasp(m,i,j,k,1)=(aniasp(m,i,j,k,1)+aniasp(m,i,j,k,2)+aniasp(m,i,j,k,3))/real(nt1,r_kind)
+                    aniasp(m,i,j,k,2)=                  (aniasp(m,i,j,k,2)+aniasp(m,i,j,k,3))/real(nt2,r_kind)
+                    aniasp(m,i,j,k,3)=                                     aniasp(m,i,j,k,3) /real(nt3,r_kind)
                  end do
                  smax=real(maxval(ensv(i,j,k,1:3)),r_kind)
                  aensv(1,k)=aensv(1,k)+max(smax                  ,qlxmin(ivar,k1))/nlatlonf
@@ -5326,7 +5326,7 @@ subroutine get2berr_reg_subdomain_option(mype)
 
            l=max(min(int(rllatf(i,j)),mlat),1)
            lp=min((l+1),mlat)
-           dl2=rllatf(i,j)-float(l)
+           dl2=rllatf(i,j)-real(l,r_kind)
            dl1=one-dl2
            if (ivar <= nrf) then
               if (nrf_3d(ivar)) then
@@ -6520,7 +6520,7 @@ subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
                   else
                     l=int(rllat(iglob,jglob))
                     lp=l+1
-                    dl2=rllat(iglob,jglob)-float(l)
+                    dl2=rllat(iglob,jglob)-real(l,r_kind)
                     dl1=one-dl2
                     hwll_loc=dl1*hwll(l,k1,n)+dl2*hwll(lp,k1,n)
                     scale3(i,j)=one/vz(k1,l,n)
@@ -6536,7 +6536,7 @@ subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
 
                  l=int(rllat(iglob,jglob))
                  lp=l+1
-                 dl2=rllat(iglob,jglob)-float(l)
+                 dl2=rllat(iglob,jglob)-real(l,r_kind)
                  dl1=one-dl2
                  hwll_loc=cc*(dl1*hwllp(l,n)+dl2*hwllp(lp,n))
                  scale3(i,j)=one
@@ -6553,7 +6553,7 @@ subroutine isotropic_scales_subdomain_option(scale1,scale2,scale3,k,mype)
 
                  l=int(rllat(iglob,jglob))
                  lp=l+1
-                 dl2=rllat(iglob,jglob)-float(l)
+                 dl2=rllat(iglob,jglob)-real(l,r_kind)
                  dl1=one-dl2
                  hwll_loc=cc*(dl1*hwllp(l,nn)+dl2*hwllp(lp,nn))
                  scale3(i,j)=one

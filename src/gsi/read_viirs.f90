@@ -198,6 +198,7 @@ subroutine read_sst_viirs(mype,val_viirs,ithin,rmesh,jsatid,&
      bufsat = 226
   else
      write(*,*) 'READ_SST_VIIRS: Unrecognized value for jsatid '//jsatid//':RETURNING'
+     deallocate(amesh,hsst_thd)
      return
   end if
 
@@ -516,7 +517,7 @@ subroutine read_sst_viirs(mype,val_viirs,ithin,rmesh,jsatid,&
   endif
 
 ! Deallocate local arrays
-  deallocate(data_all)
+  deallocate(data_all,amesh,hsst_thd)
 
   if(diagnostic_reg.and.ntest>0 .and. mype_sub==mype_root) &
      write(6,*)'READ_VIIRS-M:  ',&

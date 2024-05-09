@@ -30,7 +30,7 @@ subroutine bicg()
 
 use kinds,     only: r_kind,i_kind,r_quad
 use gsi_4dvar, only: l4dvar, &
-                     ladtest, lgrtest, lanczosave, ltcost, nwrvecs
+                     ladtest, lgrtest, lanczosave, ltcost, nwrvecs, lsqrtb
 use jfunc,     only: jiter,miter,niter,xhatsave,yhatsave,jiterstart
 use constants, only: zero,tiny_r_kind
 use mpimod,    only: mype
@@ -39,6 +39,7 @@ use obs_sensitivity, only: lobsensmin, lobsensfc, lobsensincr, &
 use obsmod,    only: lsaveobsens,l_do_adjoint
 use adjtest,   only: adtest
 use grdtest,   only: grtest
+use gsi_bundlemod, only : gsi_bundlegetpointer
 use control_vectors, only: control_vector
 use control_vectors, only: allocate_cv,deallocate_cv,write_cv,inquire_cv
 use control_vectors, only: dot_product,assignment(=)
@@ -88,6 +89,13 @@ call allocate_cv(gradx)
 call allocate_cv(grady)
 call allocate_cv(gradf)
 call allocate_cv(grads)
+
+if(l_hyb_ens .and. .not. aniso_a_en) then
+   if (lsqrtb) then
+      write(6,*)'l_hyb_ens: not for use with lsqrtb'
+      call stop2(317)
+   end if
+end if
 
 
 ! Get initial cost function and gradient

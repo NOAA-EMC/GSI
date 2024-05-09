@@ -19,8 +19,8 @@ module general_commvars_mod
 !   def s2g_raf - used for subdomain to horizontal grid transfers of full control vector with motley variables
 !   def s2g_cv  - used in bkerror.f90 (full control vector without motley variables)
 !   def s2g2    - used in getprs.f90
-!   def s2g4    - used in get_derivatives2.f90
-!   def s1g4    - used in get_derivatives2.f90 (uv versions)
+!   def s2g4    - used in get_derivatives2.f90 
+!   def s1g4    - used in get_derivatives2.f90 
 !   def s2guv   - used in getuv.f90
 !   def s2g_d   - used in get_derivatives.f90
 !   def g1      - used in get_derivatives.f90
@@ -255,7 +255,8 @@ contains
       num_fields=3*nsig+1
       call general_sub2grid_create_info(g33p1,inner_vars,nlat,nlon,nsig,num_fields,regional,s_ref=s2g_raf)
 
-!  create general_sub2grid structure variable s2g4, which is used in get_derivatives2.f90
+!  create general_sub2grid structure variable s2g4, which is used in
+!  get_derivatives2.f90
 
       num_fields=2*nsig+1
       inner_vars=2
@@ -515,7 +516,7 @@ contains
       sumn=sumn+grid_in(i,1)
       sums=sums+grid_in(i,nlatm2)
    end do
-   rnlon=one/float(nlon)
+   rnlon=one/real(nlon,r_kind)
    sumn=sumn*rnlon
    sums=sums*rnlon
 
@@ -620,7 +621,7 @@ contains
       sumn=sumn+grid_in(i,1)
       sums=sums+grid_in(i,nlatm2)
    end do
-   rnlon=one/float(nlon)
+   rnlon=one/real(nlon,r_kind)
    sumn=sumn*rnlon
    sums=sums*rnlon
 
@@ -732,10 +733,10 @@ contains
       polsu=polsu+grid(i,2        )*coslon(i)+grid2(i,2        )*sinlon(i)
       polsv=polsv+grid(i,2        )*sinlon(i)-grid2(i,2        )*coslon(i)
    end do
-   polnu=polnu/float(nlon)
-   polnv=polnv/float(nlon)
-   polsu=polsu/float(nlon)
-   polsv=polsv/float(nlon)
+   polnu=polnu/real(nlon,r_kind)
+   polnv=polnv/real(nlon,r_kind)
+   polsu=polsu/real(nlon,r_kind)
+   polsv=polsv/real(nlon,r_kind)
    do i=1,nlon
       grid (i,nlat)= polnu*coslon(i)+polnv*sinlon(i)
       grid2(i,nlat)=-polnu*sinlon(i)+polnv*coslon(i)
@@ -845,10 +846,10 @@ contains
       polsu=polsu+grid(i,2        )*coslon(i)+grid2(i,2        )*sinlon(i)
       polsv=polsv+grid(i,2        )*sinlon(i)-grid2(i,2        )*coslon(i)
    end do
-   polnu=polnu/float(nlon)
-   polnv=polnv/float(nlon)
-   polsu=polsu/float(nlon)
-   polsv=polsv/float(nlon)
+   polnu=polnu/real(nlon,r_kind)
+   polnv=polnv/real(nlon,r_kind)
+   polsu=polsu/real(nlon,r_kind)
+   polsv=polsv/real(nlon,r_kind)
    do i=1,nlon
       grid (i,nlat)= polnu*coslon(i)+polnv*sinlon(i)
       grid2(i,nlat)=-polnu*sinlon(i)+polnv*coslon(i)

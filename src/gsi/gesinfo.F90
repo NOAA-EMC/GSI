@@ -62,7 +62,8 @@ subroutine gesinfo
 !                                      nfsecondn  FCST Secs (i_kind) numerator
 !                                      nfsecondd  FCST Secs (i_kind) denominator
 !
-!       %fhour = float(nfhour) + float(nfminute)/r60 + float(nfsecondn)/float(nfsecondd)/r3600
+!       %fhour = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+!                real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
 !
 ! attributes:
 !   language: f90
@@ -148,7 +149,7 @@ subroutine gesinfo
      write(filename,'("sigf",i2.2)')nhr_assimilation
      inquire(file=filename,exist=fexist)
      if(.not.fexist) then
-        write(6,*)' GESINFO:  ***ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
+        write(6,*)' GESINFO:  ***FATAL ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
         call stop2(99)
         stop
      end if
@@ -312,8 +313,8 @@ subroutine gesinfo
               nfhour, nfminute, nfsecondn, nfsecondd
            call stop2(99)
         endif
-        gfshead%fhour = float(nfhour) + float(nfminute)/r60 + &
-                        float(nfsecondn)/float(nfsecondd)/r3600
+        gfshead%fhour = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+                        real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
 
         gfshead%idate(1) = idate(4)  !hour
         gfshead%idate(3) = idate(3)  !day
@@ -339,12 +340,12 @@ subroutine gesinfo
         ! open the netCDF file
         atmges = open_dataset(filename,errcode=iret)
         if (iret /=0) then
-           write(6,*)'GESINFO:  ***ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
+           write(6,*)'GESINFO:  ***FATAL ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
            call stop2(99)
         endif
         sfcges = open_dataset(sfilename,errcode=iret)
         if (iret /=0) then
-           write(6,*)'GESINFO:  ***ERROR*** ',trim(sfilename),' NOT AVAILABLE: PROGRAM STOPS'
+           write(6,*)'GESINFO:  ***FATAL ERROR*** ',trim(sfilename),' NOT AVAILABLE: PROGRAM STOPS'
            call stop2(99)
         endif
         ! get dimension sizes
@@ -451,7 +452,7 @@ subroutine gesinfo
 !    Check for consistency with namelist settings
      if (gfshead%jcap/=jcap_b.and..not.regional .or. gfshead%levs/=nsig) then
         if (gfshead%levs/=nsig) then
-           write(6,*)'GESINFO:  ***ERROR*** guess levels inconsistent with namelist'
+           write(6,*)'GESINFO:  ***FATAL ERROR*** guess levels inconsistent with namelist'
            write(6,*)'      guess nsig=',gfshead%levs
            write(6,*)'   namelist nsig=',nsig
            fatal = .true.
@@ -466,7 +467,7 @@ subroutine gesinfo
               fatal = .false.
            else
               if ( mype == mype_out ) &
-                 write(6,*)'GESINFO:  ***ERROR*** guess jcap inconsistent with namelist'
+                 write(6,*)'GESINFO:  ***FATAL ERROR*** guess jcap inconsistent with namelist'
               fatal = .true.
            endif
            if ( mype == mype_out ) &
@@ -551,7 +552,7 @@ subroutine gesinfo
   ida(:)=0
   jda(:)=0
   fha(:)=zero
-  fha(2)=-float(int(min_offset/60))
+  fha(2)=-real(int(min_offset/60),r_kind)
   fha(3)=-(min_offset+fha(2)*r60)
   ida(1:3)=iadate(1:3)
   ida(5:6)=iadate(4:5)
@@ -582,7 +583,7 @@ subroutine gesinfo
 ! Get time offset
   call time_4dvar(ianldate,time_offset)
 #ifdef RR_CLOUDANALYSIS
-  fha(2)=float(int(min_offset/60))
+  fha(2)=real(int(min_offset/60),r_kind)
   fha(3)=(min_offset-fha(2)*r60)
   time_offset=time_offset+fha(3)/r60
 #endif

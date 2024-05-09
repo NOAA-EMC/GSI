@@ -661,7 +661,7 @@ contains
 
     ihwlb=hwlb/tin
     hwlb=ihwlb*tin
-!   tin=(hwle-hwlb)/float(nta-1)
+!   tin=(hwle-hwlb)/real(nta-1,r_kind)
     ntax=(hwle-hwlb)/tin+2
 !   write(6,*)'INIT_RFTABLE:  tin ',ntax,ihwlb,tin,hwlb,hwle
 
@@ -701,7 +701,7 @@ contains
        if(iuse(i))then
           nta=nta+1
           ipoint(i)=nta
-          dsh(nta)=one/(float(i-1+ihwlb)*tin)
+          dsh(nta)=one/(real(i-1+ihwlb,r_kind)*tin)
        end if
     end do
 !   write(6,*)'INIT_RFTABLE:  ntax,nta = ',ntax,nta
@@ -844,8 +844,7 @@ contains
     
 !   Grid constant for background error
 
-    allocate(be(ndeg), &
-         qvar3d(lat2,lon2,nsig))
+    allocate(be(ndeg),qvar3d(lat2,lon2,nsig))
     if(nc3d>0)then
        allocate(alv(llmin:llmax,ndeg,nsig,nc3d), &
             dssv(lat2,lon2,nsig,nc3d))

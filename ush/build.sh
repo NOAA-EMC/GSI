@@ -24,13 +24,12 @@ source $DIR_ROOT/ush/detect_machine.sh
 set +x
 source $DIR_ROOT/ush/module-setup.sh
 module use $DIR_ROOT/modulefiles
-module load gsi_$MACHINE_ID
+module load "gsi_${MACHINE_ID}.${COMPILER}"
 module list
 set -x
 
 # Set CONTROLPATH variable to user develop installation
 CONTROLPATH="$DIR_ROOT/../develop/install/bin"
-
 # Collect BUILD Options
 CMAKE_OPTS+=" -DCMAKE_BUILD_TYPE=$BUILD_TYPE"
 

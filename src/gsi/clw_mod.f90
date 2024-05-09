@@ -2019,7 +2019,7 @@ subroutine gmi_37pol_diff(tb37v,tb37h,tsim37v,tsim37h,clw,ierrret)
 
      clw = one - (tb37v-tb37h)/(tsim37v-tsim37h)
      clw=max(zero,clw)
-     if(tb37h > tb37v)  then
+     if ((tb37h > tb37v) .or. (tb37h > 500_r_kind )) then
         ierrret = 1
         clw= r1000
      endif

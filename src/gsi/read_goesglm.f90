@@ -76,9 +76,8 @@ subroutine read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twindin,sis)
   character(8)  subset
   character(1)  sidchr(8)
 
-  integer(i_kind) ireadmg,ireadsb,icntpnt,icount
+  integer(i_kind) ireadmg,ireadsb,icntpnt
   integer(i_kind) lunin,i
-  integer(i_kind) itx
   integer(i_kind) ihh,idd,idate,iret,im,iy,k
   integer(i_kind) nchanl,nreal,ilat,ilon
   integer(i_kind) lqm
@@ -89,7 +88,6 @@ subroutine read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twindin,sis)
   integer(i_kind) nmsg                ! message index
   integer(i_kind),parameter :: maxobs=2000000
   integer(i_kind),dimension(5):: idate5
-  integer(i_kind),allocatable,dimension(:):: isort,iloc
 
   real(r_kind) time
   real(r_kind) usage
@@ -99,7 +97,7 @@ subroutine read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twindin,sis)
   real(r_kind) cdist,disterr,disterrmax,rlon00,rlat00
   real(r_kind) vdisterrmax
   real(r_kind) timex,timeobs,toff,t4dv,zeps
-  real(r_kind),allocatable,dimension(:,:):: cdata_all,cdata_out
+  real(r_kind),allocatable,dimension(:,:):: cdata_all
 !--- flash rate
   real(r_kind),allocatable,dimension(:,:):: cdata_flash,cdata_flash_h
   integer(i_kind)                        :: ndata_flash,ndata_flash_h
@@ -122,6 +120,10 @@ subroutine read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twindin,sis)
 
   nreal=13
   lob = obstype == 'goes_glm'
+  if(.not.lob) then
+    write(6,*) 'mix-up reading goes_glm ',obstype
+    return
+  end if
 
 !                .      .    .                                       .
 
@@ -139,8 +141,7 @@ subroutine read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twindin,sis)
   nmsg = 0 
   disterrmax=-9999.0_r_kind 
 
-  allocate(cdata_all(nreal,maxobs),isort(maxobs))
-  isort = 0
+  allocate(cdata_all(nreal,maxobs))
   cdata_all=zero
   nread=0
   ntest=0
@@ -224,7 +225,7 @@ subroutine read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twindin,sis)
             call w3fs21(idate5,minan)    !  analysis ref time in seconds relative to historic date
            
 !           Add obs reference time, then subtract analysis time to get obs time relative to analysis
-            time_correction=float(minobs-minan)*r60inv
+            time_correction=real(minobs-minan,r_kind)*r60inv
         else
             time_correction=zero
         end if
@@ -276,9 +277,9 @@ subroutine read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twindin,sis)
         icntpnt=icntpnt+1
 
         ndata=ndata+1
+        if(ndata>maxobs) exit
         nodata=nodata+1
         iout=ndata
-        isort(icntpnt)=iout
 
         if (ndata > maxobs) then
            write(6,*)'READ_GOESGLM:  ***WARNING*** ndata > maxobs for ',obstype
@@ -290,21 +291,19 @@ subroutine read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twindin,sis)
         usage = zero
 
         if (iuse_light(nlighttype) <= 0)usage=100._r_kind
-        if (lob) then
-           cdata_all(1,iout) =loe                  ! lightning observation error
-           cdata_all(2,iout) =dlon                 ! grid relative longitude
-           cdata_all(3,iout) =dlat                 ! grid relative latitude
-           cdata_all(4,iout) =iout                 ! lightning obs
-           cdata_all(5,iout) =rstation_id          ! station id
-           cdata_all(6,iout) =t4dv                 ! analysis time
-           cdata_all(7,iout) =nlighttype           ! type
-           cdata_all(8,iout) =lmerr                ! lightning max error
-           cdata_all(9,iout) =lqm                  ! quality mark
-           cdata_all(10,iout)=loe                  ! original lightning obs error loe 
-           cdata_all(11,iout)=usage                ! usage parameter
-           cdata_all(12,iout)=dlon_earth*rad2deg   ! earth relative lon (degrees)
-           cdata_all(13,iout)=dlat_earth*rad2deg   ! earth relative lat (degrees)
-        end if
+        cdata_all(1,iout) =loe                  ! lightning observation error
+        cdata_all(2,iout) =dlon                 ! grid relative longitude
+        cdata_all(3,iout) =dlat                 ! grid relative latitude
+        cdata_all(4,iout) =iout                 ! lightning obs
+        cdata_all(5,iout) =rstation_id          ! station id
+        cdata_all(6,iout) =t4dv                 ! analysis time
+        cdata_all(7,iout) =nlighttype           ! type
+        cdata_all(8,iout) =lmerr                ! lightning max error
+        cdata_all(9,iout) =lqm                  ! quality mark
+        cdata_all(10,iout)=loe                  ! original lightning obs error loe 
+        cdata_all(11,iout)=usage                ! usage parameter
+        cdata_all(12,iout)=dlon_earth*rad2deg   ! earth relative lon (degrees)
+        cdata_all(13,iout)=dlat_earth*rad2deg   ! earth relative lat (degrees)
 
 
 ! end loop on read line BUFR
@@ -322,30 +321,7 @@ subroutine read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twindin,sis)
   call closbf(lunin)
 
 ! Write header record and data to output file for further processing
-  allocate(iloc(ndata))
-  icount=0.
-  do i=1,maxobs
-     if(isort(i) > 0)then
-       icount=icount+1
-       iloc(icount)=isort(i)
-     end if
-  end do
-  if(ndata /= icount)then
-     write(6,*) ' READ_GOESGLM: mix up in read_goesglm ,ndata,icount ',ndata,icount
-     call stop2(50)
-  end if
  
-  allocate(cdata_out(nreal,ndata))
-  do i=1,ndata
-     itx=iloc(i)
-     do k=1,nreal
-        cdata_out(k,i)=cdata_all(k,itx)
-     end do
-  end do
-
-  deallocate(iloc,isort,cdata_all)
-
-!                .      .    .                                       .
 
 ! Call to the subroutine that transforms lightning strikes into lightning flash rate
 
@@ -360,9 +336,9 @@ subroutine read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twindin,sis)
      allocate(cdata_flash_h(nreal,ndata_flash_h))
 
      call convert_to_flash_rate   &
-              (nreal,ndata,cdata_out,ndata_flash_h,cdata_flash_h,ndata_flash)
+              (nreal,ndata,cdata_all,ndata_flash_h,cdata_flash_h,ndata_flash)
  
-     deallocate(cdata_out)
+     deallocate(cdata_all)
      ndata=ndata_flash
      allocate(cdata_flash(nreal,ndata))
 
@@ -387,8 +363,8 @@ subroutine read_goesglm(nread,ndata,nodata,infile,obstype,lunout,twindin,sis)
   else  ! ndata=0
 
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon
-     write(lunout) cdata_out
-     deallocate(cdata_out)
+     write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
+     deallocate(cdata_all)
 
   end if  !!  if(ndata =/ 0) then
 
@@ -511,13 +487,13 @@ subroutine convert_to_flash_rate   &
 
      end do  !! do iobs=2,ndata_strike
 
-     darea=darea_sum/float(ndata_strike)
+     darea=darea_sum/real(ndata_strike,r_kind)
   else   !! ndata_strike=0
      darea=zero
 
   end if  !! if(ndata_strike>0) then
 
-  dtime=float(nhr_assimilation)
+  dtime=real(nhr_assimilation,r_kind)
 
   ! Regional
 
@@ -573,8 +549,8 @@ subroutine convert_to_flash_rate   &
 
 !!   find lightning strikes near the (ii0,jj0) point
 
-     xbound=float(ii0)
-     ybound=float(jj0)
+     xbound=real(ii0,r_kind)
+     ybound=real(jj0,r_kind)
 
      xflag=(xx>xbound) .AND. (xx<xbound+1.)
      yflag=(yy>ybound) .AND. (yy<ybound+1.)
@@ -605,10 +581,10 @@ subroutine convert_to_flash_rate   &
 
   do index=1,ngridh
      if (lcount(index)>0) then
-        glon_central(index)=glon_central(index)/float(lcount(index))
-        glat_central(index)=glat_central(index)/float(lcount(index))
-        lon_central(index)= lon_central(index)/float(lcount(index))
-        lat_central(index)= lat_central(index)/float(lcount(index))
+        glon_central(index)=glon_central(index)/real(lcount(index),r_kind)
+        glat_central(index)=glat_central(index)/real(lcount(index),r_kind)
+        lon_central(index)= lon_central(index)/real(lcount(index),r_kind)
+        lat_central(index)= lat_central(index)/real(lcount(index),r_kind)
      endif  !! if(lcount(index)>0) then
   enddo  !! do index=1,ngridh
 
@@ -652,7 +628,7 @@ subroutine convert_to_flash_rate   &
         cdata_flash_h( 3,icount)=glat_central(index)
 
         if (darea>0._r_kind) then
-           cdata_flash_h( 4,icount)=float(lcount(index))/(darea*dtime)
+           cdata_flash_h( 4,icount)=real(lcount(index),r_kind)/(darea*dtime)
         else 
            cdata_flash_h( 4,icount)=0. 
         end if
@@ -726,22 +702,22 @@ subroutine convert_time (date_old,date_new,nmax)
      jdd=INT(0.0001_r_kind*xdate(i))
      idd=INT(xdate(i))-jdd*10000
 
-     ysumidd=float(idd)
-     dd=float(INT(0.01_r_kind*ysumidd))
+     ysumidd=real(idd,r_kind)
+     dd=real(INT(0.01_r_kind*ysumidd),r_kind)
      hh=ysumidd-dd*100._r_kind
 
      sumidd=sumidd+dd*24._r_kind+hh
 
   enddo  !! do i=1,nmax
 
-  xsumidd=float(sumidd)/nmax
-  ysumidd=float(INT(xsumidd))
+  xsumidd=real(sumidd,r_kind)/nmax
+  ysumidd=real(INT(xsumidd),r_kind)
 
   kdd=INT(xsumidd/24._r_kind)
-  xdd=float(kdd)
-  xhh=ysumidd-float(kdd)*24._r_kind
+  xdd=real(kdd,r_kind)
+  xhh=ysumidd-real(kdd,r_kind)*24._r_kind
 
-  ydate=float(jdd)*10000._r_kind+xdd*100._r_kind+xhh+xccyy
+  ydate=real(jdd,r_kind)*10000._r_kind+xdd*100._r_kind+xhh+xccyy
       
   date_old=ydate 
       

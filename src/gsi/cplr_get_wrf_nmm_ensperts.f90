@@ -859,7 +859,7 @@ contains
   
   !
   ! CALCULATE ENSEMBLE MEAN
-      bar_norm = one/float(n_ens)
+      bar_norm = one/real(n_ens,r_kind)
       en_bar%values=en_bar%values*bar_norm
   
   ! Copy pbar to module array.  ps_bar may be needed for vertical localization

@@ -227,10 +227,10 @@ contains
                          start = (/1/), count = (/grdin%nlon,grdin%nlat/)))
        ! levels
        do k=1,grdin%nsig
-         levsout(k) = float(k)
-         ilevsout(k) = float(k)
+         levsout(k) = real(k,r_kind)
+         ilevsout(k) = real(k,r_kind)
        end do
-       ilevsout(grdin%nsig+1) = float(grdin%nsig+1)
+       ilevsout(grdin%nsig+1) = real(grdin%nsig+1,r_kind)
        ! write to file
        call ncceck_enspread(nf90_put_var(ncid_out, levvarid, sngl(levsout), &
                          start = (/1/), count = (/grdin%nsig/)))

@@ -33,10 +33,12 @@ use mpimod, only: mype
 use control_vectors, only: control_vector,allocate_cv,random_cv, &
     deallocate_cv,dot_product,assignment(=)
 use state_vectors, only: allocate_state,deallocate_state,dot_product
+use gridmod, only : minmype
 use gsi_bundlemod, only: gsi_bundle
 use gsi_bundlemod, only: assignment(=)
 use bias_predictors, only: predictors,allocate_preds,deallocate_preds, &
     assignment(=)
+use control2state_mod, only: control2state,control2state_ad
 
 implicit none
 private
@@ -81,7 +83,7 @@ type(predictors) :: sbias1,sbias2
 integer(i_kind) :: ii,idig
 real(r_kind) :: zz1,zz2,zz3
 
-if (mype==0) write(6,*)'ADTEST starting'
+if (mype==minmype) write(6,*)'ADTEST starting'
 
 ! ----------------------------------------------------------------------
 ! Allocate local variables
@@ -97,10 +99,10 @@ call allocate_preds(sbias2)
 ! Initialize control space vectors
 if (present(xhat)) then
    xtest1=xhat
-   if (mype==0) write(6,*)'ADTEST use input xhat'
+   if (mype==minmype) write(6,*)'ADTEST use input xhat'
 else
    call random_cv(xtest1)
-   if (mype==0) write(6,*)'ADTEST use random_cv(xhat)'
+   if (mype==minmype) write(6,*)'ADTEST use random_cv(xhat)'
 endif
 xtest2=zero
 
@@ -135,18 +137,20 @@ zz2=zero
 do ii=1,nsubwin
    zz2=zz2+dot_product(stest1(ii),stest1(ii))
 enddo
-DO ii=1,nrclen
+do ii=1,nrclen
    zz2=zz2+sbias1%values(ii)*sbias1%values(ii)
-ENDDO
+enddo
 
-if ( abs(zz1+zz2) > sqrt(tiny(zz3)) ) then
-   zz3=two*abs(zz1-zz2)/(zz1+zz2)
-else
-   zz3=abs(zz1-zz2)
-endif
-idig= int(-log(zz3+tiny(zz3))/log(10.0_r_kind))
+if (mype==minmype) then
+   if ( abs(zz1+zz2) > sqrt(tiny(zz3)) ) then
+      zz3=two*abs(zz1-zz2)/(zz1+zz2)
+   else
+      zz3=abs(zz1-zz2)
+   end if
+   idig= int(-log(zz3+tiny(zz3))/log(10.0_r_kind))
 
-if (mype==0) then
+! Note that this result is not completely correct especially on processors
+! other than minmype.  See issue 548.
    write(6,'(A)')' ADTEST            0.123456789012345678'
    write(6,'(A,ES25.18)')' ADTEST <F*F.Y,X>= ',zz1
    write(6,'(A,ES25.18)')' ADTEST <F.Y,F.Y>= ',zz2
@@ -166,7 +170,7 @@ call deallocate_preds(sbias1)
 call deallocate_preds(sbias2)
 ! ----------------------------------------------------------------------
 
-if (mype==0) write(6,*)'ADTEST finished'
+if (mype==minmype) write(6,*)'ADTEST finished'
 
 return
 end subroutine adtest

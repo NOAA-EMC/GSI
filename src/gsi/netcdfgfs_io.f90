@@ -105,6 +105,7 @@ contains
 !
 ! program history log:
 !   2019-09-24  Martin   - create routine based on read_nems
+!   2022-03-23  Draper   - add option to include T2m and q2m in MetGuess
 !
 !   input argument list:
 !
@@ -129,6 +130,7 @@ contains
     use general_sub2grid_mod, only: sub2grid_info,general_sub2grid_create_info,general_sub2grid_destroy_info
     use mpimod, only: npe,mype
     use cloud_efr_mod, only: cloud_calc_gfs,set_cloud_lower_bound
+    use jfunc, only: hofx_2m_sfcfile
     use gridmod, only: fv3_full_hydro
 
     implicit none
@@ -141,6 +143,8 @@ contains
 
     real(r_kind),pointer,dimension(:,:  ):: ges_ps_it  =>NULL()
     real(r_kind),pointer,dimension(:,:  ):: ges_z_it   =>NULL()
+    real(r_kind),pointer,dimension(:,:  ):: ges_t2m_it   =>NULL()
+    real(r_kind),pointer,dimension(:,:  ):: ges_q2m_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_u_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_v_it   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_div_it =>NULL()
@@ -164,8 +168,10 @@ contains
     type(gsi_grid)   :: atm_grid
     integer(i_kind),parameter :: n2d=2
     ! integer(i_kind),parameter :: n3d=8
+    integer(i_kind),parameter :: n2d_2m=4
     integer(i_kind),parameter :: n3d=14
     character(len=4), parameter :: vars2d(n2d) = (/ 'z   ', 'ps  ' /)
+    character(len=4), parameter :: vars2d_with2m(n2d_2m) = (/ 'z   ', 'ps  ','t2m ','q2m ' /)
     ! character(len=4), parameter :: vars3d(n3d) = (/ 'u   ', 'v   ', &
     !                                                 'vor ', 'div ', &
     !                                                 'tv  ', 'q   ', &
@@ -189,8 +195,11 @@ contains
 
 !   Allocate bundle used for reading members
     call gsi_gridcreate(atm_grid,lat2,lon2,nsig)
-
-    call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-read',istatus,names2d=vars2d,names3d=vars3d)
+    if (hofx_2m_sfcfile) then
+        call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-read',istatus,names2d=vars2d_with2m,names3d=vars3d)
+    else
+        call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-read',istatus,names2d=vars2d,names3d=vars3d)
+    endif
     if(istatus/=0) then
       write(6,*) myname_,': trouble creating atm_bundle'
       call stop2(999)
@@ -198,9 +207,15 @@ contains
 
     do it=1,nfldsig
 
-       write(filename,'(''sigf'',i2.2)') ifilesig(it)
-
 !      Read background fields into bundle
+       if (hofx_2m_sfcfile) then
+          if (mype==0) write(*,*) 'calling general_read_gfsatm_nc for 2m data', it
+          write(filename,'(''sfcf'',i2.2)') ifilesig(it)
+          call general_read_gfsatm_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
+              atm_bundle,.true.,istatus)
+          if (mype==0) write(*,*) 'done with general_read_gfsatm_nc for 2m data', it
+       end if
+       write(filename,'(''sigf'',i2.2)') ifilesig(it)
        if (fv3_full_hydro) then
           if (mype==0) write(*,*) 'calling general_read_gfsatm_allhydro_nc', it
           call general_read_gfsatm_allhydro_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
@@ -272,6 +287,16 @@ contains
     if (istatus==0) then
        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'z' ,ges_z_it ,istatus)
        if(istatus==0) ges_z_it = ptr2d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'t2m',ptr2d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'t2m' ,ges_t2m_it ,istatus)
+       if(istatus==0) ges_t2m_it = ptr2d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'q2m',ptr2d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'q2m' ,ges_q2m_it ,istatus)
+       if(istatus==0) ges_q2m_it = ptr2d
     endif
     call gsi_bundlegetpointer (atm_bundle,'u',ptr3d,istatus)
     if (istatus==0) then
@@ -1300,7 +1325,7 @@ contains
     ! open the netCDF file
     sfcges = open_dataset(filename,errcode=iret)
     if (iret/=0) then
-       write(6,*) trim(my_name),':  ***ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
+       write(6,*) trim(my_name),':  ***FATAL ERROR*** ',trim(filename),' NOT AVAILABLE: PROGRAM STOPS'
        call stop2(999)
     endif
 
@@ -3177,8 +3202,8 @@ contains
      sumn = ain(i,1)    + sumn
      sums = ain(i,latb) + sums
   end do
-  sumn = sumn/float(lonb)
-  sums = sums/float(lonb)
+  sumn = sumn/real(lonb,r_kind)
+  sums = sums/real(lonb,r_kind)
 !  Transfer from local work array to surface guess array
   do j = 1,lonb
      aout(1,j)=sums

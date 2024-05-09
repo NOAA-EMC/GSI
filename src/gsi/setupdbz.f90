@@ -131,7 +131,7 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
   use obsmod, only: luse_obsdiag, netcdf_diag, binary_diag, dirname, ianldate
   use obsmod, only: doradaroneob,oneobddiff,oneobvalue
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
-       nc_diag_write, nc_diag_data2d
+       nc_diag_write, nc_diag_data2d, nc_diag_metadata_to_single
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim,nc_diag_read_close
   use oneobmod, only: oneobtest
   use oneobmod, only: maginnov
@@ -150,7 +150,7 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype
   use convinfo, only: icsubtype
   use m_dtime, only: dtime_setup, dtime_check
-  use obsmod, only   : if_model_dbz, inflate_obserr
+  use obsmod, only   : if_model_dbz, inflate_dbz_obserr
   use setupdbz_lib, only:hx_dart,jqr_dart,jqs_dart,jqg_dart 
   use gridmod, only: wrf_mass_regional,nems_nmmb_regional, fv3_regional
   use sparsearr, only: sparr2, new, size, writearray, fullarray
@@ -364,7 +364,7 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
     iptrb=26    ! index of dbz perturbation
 
     do i=1,nobs
-       muse(i)=nint(data(iuse,i)) <= jiter
+       muse(i)=nint(data(iuse,i)) <= jiter .and. nint(data(iqc,i)) < 8
 
        if ( .not. luse(i) ) then
            icnt_nouse = icnt_nouse + 1
@@ -426,6 +426,7 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
      if (lobsdiagsave) nreal=nreal+4*miter+1
      if (.not.allocated(cdiagbuf)) allocate(cdiagbuf(nobs))
      if (.not.allocated(rdiagbuf)) allocate(rdiagbuf(nreal,nobs))
+     if(netcdf_diag) call init_netcdf_diag_
   end if
   mm1=mype+1
   scale=one
@@ -589,14 +590,17 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
 !    Compute observation pressure (only used for diagnostics)
      dz     = zges(k2)-zges(k1)
      dlnp   = prsltmp(k2)-prsltmp(k1)
-     pobl   = prsltmp(k1) + (dlnp/dz)*(zob-zges(k1))
-
-     presw  = ten*exp(pobl)
-
      if ( l_use_dbz_directDA ) then
-        presq  = presw         
+        pobl   = prsltmp(k1) + (dlnp/dz)*(zob-zges(k1))
+        presw  = ten*exp(pobl)
+        presq  = presw
      else
-        if( (k1 == k2) .and. (k1 == 1) ) presw=ten*exp(prsltmp(k1)) 
+        if( (k1 == k2) .and. (k1 == 1) ) then
+           presw  = ten*exp(prsltmp(k1))
+        else
+           pobl   = prsltmp(k1) + (dlnp/dz)*(zob-zges(k1))
+           presw  = ten*exp(pobl)
+        end if
      end if
 
 !    solution to Nan in some members only for EnKF which causes problem?
@@ -1256,8 +1260,11 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
          end if
 
      else
-        if (ratio > cgross(ikx) .or. ratio_errors < tiny_r_kind) then
-           if ( inflate_obserr .and. (ratio-cgross(ikx)) <= cgross(ikx) .and. ratio_errors >= tiny_r_kind) then 
+
+!       Apply gross error check only to reflectivity observations in precipitation (>= 5 dBZ).
+        if ( ( (data(idbzob,i) >= 5_r_kind) .and. (ratio > cgross(ikx)) ) .or. (ratio_errors < tiny_r_kind) ) then
+
+           if ( inflate_dbz_obserr .and. (ratio-cgross(ikx)) <= cgross(ikx) .and. ratio_errors >= tiny_r_kind) then 
            ! Since radar reflectivity can be very different from the model background
            ! good observations may be rejected during this QC step.  However, if these observations
            ! are allowed through, they can yield problems with convergence.  Therefore the error
@@ -1447,35 +1454,42 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
 
 ! Release memory of local guess arrays
   call final_vars_
-
 ! Write information to diagnostic file
-  if(radardbz_diagsave  .and. ii>0 )then
+  if(radardbz_diagsave .and. netcdf_diag) call nc_diag_write
+  if(radardbz_diagsave .and. binary_diag .and. ii>0  )then
 
-     write(string,600) jiter
-600  format('radardbz_',i2.2)
-     diag_file=trim(dirname) // trim(string)
-     if(init_pass) then
-        open(newunit=lu_diag,file=trim(diag_file),form='unformatted',status='unknown',position='rewind')
+     if( .not. l_use_dbz_directDA .and. .not. if_model_dbz )then
+        write(7)'dbz',nchar,nreal,ii,mype,ioff0
+        write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
+        deallocate(cdiagbuf,rdiagbuf)
      else
-        inquire(file=trim(diag_file),exist=diagexist)
-        if (diagexist) then
-           open(lu_diag,file=trim(diag_file),form='unformatted',status='old',position='append')
-        else
-           open(lu_diag,file=trim(diag_file),form='unformatted',status='unknown',position='rewind')
-        endif
-     endif
-     if(init_pass .and. mype == 0) then
-        if ( .not. l_use_dbz_directDA ) then    ! EnKF uses these diagnostics and EnKF uses single OBS file for now.
-           write(lu_diag) ianldate          ! So do not write analysis date for binary in case of using direct reflectivity DA.
-        end if
-        write(6,*)'SETUPDBZ:   write time record to file ',&
-                trim(diag_file), ' ',ianldate
-     endif
 
-     write(lu_diag)'dbz',nchar,nreal,ii,mype,ioff0
-     write(lu_diag)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
-     deallocate(cdiagbuf,rdiagbuf)
-     close(lu_diag)
+        write(string,600) jiter
+600     format('radardbz_',i2.2)
+        diag_file=trim(dirname) // trim(string)
+        if(init_pass) then
+           open(newunit=lu_diag,file=trim(diag_file),form='unformatted',status='unknown',position='rewind')
+        else
+           inquire(file=trim(diag_file),exist=diagexist)
+           if (diagexist) then
+              open(lu_diag,file=trim(diag_file),form='unformatted',status='old',position='append')
+           else
+              open(lu_diag,file=trim(diag_file),form='unformatted',status='unknown',position='rewind')
+           endif
+        endif
+        if(init_pass .and. mype == 0) then
+           if ( .not. l_use_dbz_directDA ) then    ! EnKF uses these diagnostics and EnKF uses single OBS file for now.
+              write(lu_diag) ianldate          ! So do not write analysis date for binary in case of using direct reflectivity DA.
+           end if
+           write(6,*)'SETUPDBZ:   write time record to file ',&
+                   trim(diag_file), ' ',ianldate
+        endif
+
+        write(lu_diag)'dbz',nchar,nreal,ii,mype,ioff0
+        write(lu_diag)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
+        deallocate(cdiagbuf,rdiagbuf)
+        close(lu_diag)
+     end if
   end if
   write(6,*)'mype, irefsmlobs,irejrefsmlobs are ',mype,' ',irefsmlobs, ' ',irejrefsmlobs
 ! close(52) !simulated obs
@@ -1773,7 +1787,7 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
      end if
 
      call nc_diag_init(diag_conv_file, append=append_diag)
-
+    
      if (.not. append_diag) then ! don't write headers on append - the module will break?
         call nc_diag_header("date_time",ianldate )
         call nc_diag_header("Number_of_state_vars", nsdim          )
@@ -1920,29 +1934,29 @@ subroutine setupdbz(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,radardbz_d
            call nc_diag_metadata("Observation_Class",       obsclass            )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)         )
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)      )
-           call nc_diag_metadata("Latitude",                sngl(data(ilate,i)) )
-           call nc_diag_metadata("Longitude",               sngl(data(ilone,i)) )
-           call nc_diag_metadata("Station_Elevation",       sngl(data(ielev,i)) )
-           call nc_diag_metadata("Pressure",                sngl(presw)         )
-           call nc_diag_metadata("Height",                  sngl(data(ihgt,i))  )
-           call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
-           call nc_diag_metadata("Prep_QC_Mark",            sngl(zero)          )
-           call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))  )
+           call nc_diag_metadata_to_single("Latitude",      data(ilate,i)       )
+           call nc_diag_metadata_to_single("Longitude",     data(ilone,i)       )
+           call nc_diag_metadata_to_single("Station_Elevation",data(ielev,i)    )
+           call nc_diag_metadata_to_single("Pressure",      presw               )
+           call nc_diag_metadata_to_single("Height",        data(ihgt,i)        )
+           call nc_diag_metadata_to_single("Time",          dtime, time_offset, "-")
+           call nc_diag_metadata_to_single("Prep_QC_Mark",  zero                )
+           call nc_diag_metadata_to_single("Prep_Use_Flag", data(iuse,i)        )
 !          call nc_diag_metadata("Nonlinear_QC_Var_Jb",     var_jb   !          )
-           call nc_diag_metadata("Nonlinear_QC_Rel_Wgt",    sngl(rwgt)          )
+           call nc_diag_metadata_to_single("Nonlinear_QC_Rel_Wgt",rwgt          )
            if(muse(i)) then
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)           )
+              call nc_diag_metadata_to_single("Analysis_Use_Flag",one           )
            else
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)          )
+              call nc_diag_metadata_to_single("Analysis_Use_Flag",-one          )
            endif
 
-           call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)  )
-           call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)  )
-           call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)  )
+           call nc_diag_metadata_to_single("Errinv_Input",  errinv_input        )
+           call nc_diag_metadata_to_single("Errinv_Adjust", errinv_adjst        )
+           call nc_diag_metadata_to_single("Errinv_Final",  errinv_final        )
 
-           call nc_diag_metadata("Observation",             sngl(data(idbzob,i)) )
-           call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)   )
-           call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(data(idbzob,i)-rdBZ) )
+           call nc_diag_metadata_to_single("Observation",   data(idbzob,i)      )
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",ddiff  )
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted", data(idbzob,i), rdBZ, "-")
 
            if (lobsdiagsave) then
               do jj=1,miter

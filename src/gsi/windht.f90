@@ -139,7 +139,7 @@ contains
     
   end subroutine destroy_windht_lists
 
-  subroutine find_wind_height(cprov,csubprov,finalheight)
+  subroutine find_wind_height(cprov,csubprov,finalheight,kcount)
 
     !abstract: Find provider and subprovider in pre-determined arrays
     !Then return wind sensor height
@@ -149,6 +149,7 @@ contains
 
     character(len=8),intent(in)::cprov,csubprov
     real(r_kind),intent(out)::finalheight
+    integer,dimension(3),intent(inout)::kcount
 
     !local vars
     integer(i_kind)::i
@@ -156,16 +157,35 @@ contains
 
     !sanity check
     if (.not.fexist) then
-       print*, "WARNING: File containing sensor heights does not exist.  Defaulting to 10 m..."
+    
+       if(kcount(1) < 10)then
+         print*, "WARNING: File containing sensor heights does not exist.  Defaulting to 10 m..."
+       else if(kcount(1) == 10)then
+         print*, "WARNING: List of providers not properly in memory.  Defaulting to 10 m..."
+         print*, "Many values see kcount (1) below "
+       end if
+       kcount(1) = kcount(1) + 1
        finalheight=r10
        return
     elseif(.not.listexist) then
-       print*, "WARNING: List of providers not properly in memory.  Defaulting to 10 m..."
+       if(kcount(2) < 10)then
+         print*, "WARNING: List of providers not properly in memory.  Defaulting to 10 m..."
+       else if(kcount(2) == 10)then
+         print*, "WARNING: List of providers not properly in memory.  Defaulting to 10 m..."
+         print*, "Many values see kcount (2) below "
+       end if
+       kcount(2) = kcount(2) + 1
        finalheight=r10
        return
     elseif (numprovs>nmax) then
-       print*, "WARNING: Invalid number of provider/subprovider combinations (number,max)=",numprovs,nmax
-       print*, "WARNING: Defaulting to 10 m wind sensor height!"
+       if(kcount(3) < 10)then
+         print*, "WARNING: Invalid number of provider/subprovider combinations (number,max)=",numprovs,nmax
+         print*, "WARNING: Defaulting to 10 m wind sensor height!"
+       else if(kcount(3) == 10)then
+         print*, "WARNING: Invalid number of provider/subprovider combinations (number,max)=",numprovs,nmax
+         print*, "Many values see kcount (3) below "
+       end if
+       kcount(3) = kcount(3) + 1
        finalheight=r10
        return
     endif

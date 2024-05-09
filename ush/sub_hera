@@ -120,10 +120,10 @@ echo "#SBATCH --output=$output"                                                 
 echo "#SBATCH --job-name=$jobname"                                                 >> $cfile
 echo "#SBATCH --qos=$queue"                                                        >> $cfile
 echo "#SBATCH --time=$timew"                                                       >> $cfile
-echo "#SBATCH --nodes=$nodes --ntasks-per-node=$procs --cpus-per-task=$threads"    >> $cfile
+echo "#SBATCH --nodes=$nodes --ntasks-per-node=$procs --exclusive"    >> $cfile
 #echo "#SBATCH -j oe"                                       >> $cfile
 echo "#SBATCH --account=$accnt"                                                    >> $cfile
-echo "#SBATCH --mem=0"                                                             >> $cfile
+#cltorg echo "#SBATCH --mem=0"                                                             >> $cfile
 #echo "#SBATCH -V"                                          >> $cfile
 #echo "#PBS -d"                             >> $cfile
 #. $exec                                    >> $cfile
@@ -137,13 +137,12 @@ echo "" >>$cfile
 
 echo ". /apps/lmod/lmod/init/sh"                           >> $cfile
 echo "module purge"                                        >> $cfile
-echo "module use $gsisrc/modulefiles"                      >> $cfile
+echo "module use $modulefiles"                      >> $cfile
 echo "module load gsi_hera.intel" >> $cfile
 echo "module list"                                         >> $cfile
 echo "" >>$cfile
 
 cat $exec >> $cfile
-
 if [[ $nosub = YES ]];then
   cat $cfile
   exit

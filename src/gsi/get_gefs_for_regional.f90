@@ -41,7 +41,7 @@ subroutine get_gefs_for_regional
                      fv3_regional
   use hybrid_ensemble_parameters, only: region_lat_ens,region_lon_ens
   use hybrid_ensemble_parameters, only: en_perts,ps_bar,nelen
-  use hybrid_ensemble_parameters, only: n_ens_gfs,grd_ens,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
+  use hybrid_ensemble_parameters, only: n_ens_gfs,weight_ens_gfs,grd_ens,grd_a1,grd_e1,p_e2a,uv_hyb_ens,dual_res
   use hybrid_ensemble_parameters, only: full_ensemble,q_hyb_ens,l_ens_in_diff_time,write_ens_sprd
   use hybrid_ensemble_parameters, only: ntlevs_ens,ensemble_path,jcap_ens
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
@@ -304,8 +304,8 @@ subroutine get_gefs_for_regional
      if (nframe /= 0) call error_msg(trim(my_name),trim(filename),'nframe', &
                                      'getfilehead',istop,nframe)
 
-     fhour = float(nfhour) + float(nfminute)/r60 + &
-             float(nfsecondn)/float(nfsecondd)/r3600
+     fhour = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+             real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
 
      nlat_gfs=latb+2
      nlon_gfs=lonb
@@ -897,8 +897,8 @@ subroutine get_gefs_for_regional
                  iimin=min(ii,iimin)
                  jjmax=max(jj,jjmax)
                  jjmin=min(jj,jjmin)
-                 dlon_ens=float(jj)
-                 dlat_ens=float(ii)
+                 dlon_ens=real(jj,r_kind)
+                 dlat_ens=real(ii,r_kind)
                  dlon=one+(dlon_ens-one)*ratio_x
                  dlat=one+(dlat_ens-one)*ratio_y
                  call rotate_wind_ll2xy(work_sub(1,i,j,ku),work_sub(1,i,j,kv), &
@@ -992,7 +992,7 @@ subroutine get_gefs_for_regional
   end do
 
 ! Convert to mean
-  bar_norm = one/float(n_ens_gfs)
+  bar_norm = one/real(n_ens_gfs,r_kind)
   do k=1,grd_mix%nsig
      do j=1,grd_mix%lon2
         do i=1,grd_mix%lat2
@@ -1311,7 +1311,7 @@ subroutine get_gefs_for_regional
 ! 2*J_b = x^T * (beta1*B + beta2*P_ens)^(-1) * x
 ! where  P_ens is the ensemble covariance which is the sum of outer products of the
 ! ensemble perturbations (unnormalized) divided by n_ens-1  (or n_ens, depending on who you read).
-     sig_norm=sqrt(one/max(one,n_ens_temp-one))
+     sig_norm=sqrt(weight_ens_gfs/max(one,n_ens_temp-one))
 
 !     if(n_ens_temp==n_ens.and.n==n_ens+1) sig_norm=one
 !                                                  if(n==1 .or. n==2 .or. n==50) then

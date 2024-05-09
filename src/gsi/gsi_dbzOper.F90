@@ -83,6 +83,10 @@ contains
     use jfunc   , only: jiter
 
     use mpeu_util, only: die
+
+    use directDA_radaruse_mod, only: l_use_dbz_directDA
+    use obsmod, only: dirname, ianldate
+
     implicit none
     class(dbzOper ), intent(inout):: self
     integer(i_kind), intent(in):: lunin
@@ -99,8 +103,25 @@ contains
     character(len=len_isis   ):: isis
     integer(i_kind):: nreal,nchanl,ier,nele
     logical:: diagsave
+    integer(i_kind):: lu_diag
+    character(128):: diag_file
+    character(80):: string
 
-    if(nobs == 0) return
+    if(nobs == 0) then
+
+       if( (mype == 0) .and. init_pass .and. (.not. l_use_dbz_directDA) ) then
+          write(string,600) jiter
+600       format('radardbz_',i2.2)
+          diag_file=trim(dirname) // trim(string)
+          write(6,*) 'write ianldate to ', diag_file
+          open(newunit=lu_diag,file=trim(diag_file),form='unformatted',status='unknown',position='rewind')
+          write(lu_diag) ianldate
+          close(lu_diag)
+       endif
+
+       return
+
+    endif
 
     read(lunin,iostat=ier) obstype,isis,nreal,nchanl
     if(ier/=0) call die(myname_,'read(obstype,...), iostat =',ier)

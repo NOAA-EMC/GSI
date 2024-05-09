@@ -961,14 +961,18 @@ subroutine upd_varch_
             enddo
             nchanl1=jc
 
-            if(nchanl1==0) call die(myname_,' improperly set GSI_BundleErrorCov')
             if(.not.amiset_(GSI_BundleErrorCov(itbl))) then 
-               if (iamroot_) write(6,*) 'WARNING: Error Covariance not set for ',trim(idnames(itbl))
+               if (iamroot_) write(6,*) trim(myname_), ' WARNING: Error Covariance not set for ',trim(idnames(itbl))
                cycle read_tab
             endif
 
             nch_active=GSI_BundleErrorCov(itbl)%nch_active
-            if(nch_active<0) return
+            if(nch_active<0) then
+               if (iamroot_) write(6,*) trim(myname_), ' WARNING: No active channels for ',trim(idnames(itbl))
+               return
+            endif
+            
+            if(nchanl1==0) call die(myname_,' improperly set GSI_BundleErrorCov')            
 
             if(GMAO_ObsErrorCov)then
                do jj=1,nch_active
@@ -977,11 +981,15 @@ subroutine upd_varch_
                   if(isurf==1) then 
                     if(iamroot_)write(6,'(1x,a6,a20,2i6,2f20.15)')'>>>',idnames(itbl),jj,nn,varch(mm),sqrt(GSI_BundleErrorCov(itbl)%R(jj,jj))
                     varch_sea(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(jj,jj))
-                  endif
-                  if(isurf==2) varch_land(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(jj,jj))
-                  if(isurf==3) varch_ice(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(jj,jj))
-                  if(isurf==4) varch_snow(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(jj,jj))
-                  if(isurf==5) varch_mixed(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(jj,jj))
+                  else if(isurf==2) then
+                    varch_land(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(jj,jj))
+                  else if(isurf==3) then
+                    varch_ice(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(jj,jj))
+                  else if(isurf==4) then
+                    varch_snow(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(jj,jj))
+                  else if(isurf==5) then
+                    varch_mixed(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(jj,jj))
+                  end if
                enddo
             else
                allocate(ircv(nchanl1))
@@ -1023,15 +1031,9 @@ subroutine upd_varch_
                      IJsubset(iii)=ijac(ii)  ! subset indexes in channels presently in use
                   endif
                enddo
-               if (iii/=ncp) then
+               if (iii/=ncp .or. jjj/=ncp) then
                   if (iamroot_) then
-                     write(6,*) myname, ' iii,ncp= ',iii,ncp
-                  endif
-                  call die(myname_,' serious dimensions insconsistency, aborting')
-               endif
-               if (jjj/=ncp) then
-                  if (iamroot_) then
-                     write(6,*) myname, ' jjj,ncp= ',jjj,ncp
+                     write(6,*) myname, ' iii,jjj,ncp= ',iii,jjj,ncp
                   endif
                   call die(myname_,' serious dimensions insconsistency, aborting')
                endif
@@ -1039,11 +1041,17 @@ subroutine upd_varch_
                   nn=IJsubset(ii)
                   mm=ich1(nn)
                   rr=IRsubset(ii)
-                  if(isurf==1) varch_sea(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(rr,rr))
-                  if(isurf==2) varch_land(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(rr,rr))
-                  if(isurf==3) varch_ice(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(rr,rr))
-                  if(isurf==4) varch_snow(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(rr,rr))
-                  if(isurf==5) varch_mixed(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(rr,rr))
+                  if(isurf==1) then
+                    varch_sea(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(rr,rr))
+                  else if(isurf==2) then
+                    varch_land(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(rr,rr))
+                  else if(isurf==3) then
+                    varch_ice(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(rr,rr))
+                  else if(isurf==4) then
+                    varch_snow(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(rr,rr))
+                  else if(isurf==5) then
+                    varch_mixed(mm)=sqrt(GSI_BundleErrorCov(itbl)%R(rr,rr))
+                  end if
                enddo
 ! clean up
                deallocate(IJsubset)
@@ -1260,17 +1268,11 @@ logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,diaga
        IJsubset(iii)=ijac(ii)  ! subset indexes in Jac/dep presently in use
      endif
    enddo
-   if (iii/=ncp) then
+   if (iii/=ncp .and. jjj/=ncp) then
      if (iamroot_) then
-       write(6,*) myname, ' iii,ncp= ',iii,ncp
+       write(6,*) myname, ' iii,ncp= ',iii,jjj,ncp
      endif
      call die(myname_,' serious dimensions insconsistency (R), aborting')
-   endif
-   if (jjj/=ncp) then
-     if (iamroot_) then
-       write(6,*) myname, ' jjj,ncp= ',jjj,ncp
-     endif
-     call die(myname_,' serious dimensions insconsistency (J), aborting')
    endif
 
    if( ErrorCov%method<0 ) then
@@ -1300,33 +1302,25 @@ logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,diaga
 
 ! decompose the sub-matrix - returning the result in the 
 !                            structure holding the full covariance
-       nsigjac=size(jacobian,1)
-       allocate(row(nsigjac,ncp))
-       allocate(col(ncp),col2(ncp))
-       row=zero_quad
-       col=zero_quad
-       col2=zero_quad
-
-       allocate(qcaj(ncp))
        allocate(UT(ncp,ncp))
-       qcaj = one
-       UT = zero
        if( ErrorCov%method==2 ) then
          if(lqcoef)then
+           allocate(qcaj(ncp))
            do jj=1,ncp
-             jjj=IJsubset(jj)
-             qcaj(jj) = raterr2(jjj)
+             qcaj(jj) = raterr2(IJsubset(jj))
            enddo
            subset = choleskydecom_inv_ (IRsubset,IJsubset,ErrorCov,UT,diagadd,qcaj)
+           deallocate(qcaj)
          else
            subset = choleskydecom_inv_ (IRsubset,IJsubset,ErrorCov,UT,diagadd) 
          endif
        else if( ErrorCov%method==1 ) then
+         allocate(qcaj(ncp))
          do jj=1,ncp
-           jjj=IJsubset(jj)
-           qcaj(jj) = varinv(jjj)
+           qcaj(jj) = varinv(IJsubset(jj))
          enddo
          subset = choleskydecom_inv_ (IRsubset,IJsubset,ErrorCov,UT,diagadd,qcaj)
+         deallocate(qcaj)
 
        endif
        if(.not.subset) then
@@ -1345,23 +1339,31 @@ logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,diaga
          do kk=ii,ncp 
            rinvdiag(ii)=rinvdiag(ii)+UT(ii,kk)**2
          enddo
-       enddo
+       end do
 
+       nsigjac=size(jacobian,1)
+       allocate(row(nsigjac,ncp))
+       allocate(col(ncp),col2(ncp))
+!$omp parallel do  schedule(dynamic,1) private(ii,jj,nn)
        do ii=1,ncp
+         row(:,ii)=zero_quad
+         col(ii)=zero_quad
+         col2(ii)=zero_quad
          do jj=1,ii 
             nn=IJsubset(jj)
             col(ii)   = col(ii)   + UT(jj,ii) * depart(nn)
-            col2(ii)   = col2(ii)   + UT(jj,ii) * obs(nn)
+            col2(ii)  = col2(ii)  + UT(jj,ii) * obs(nn)
             row(:,ii) = row(:,ii) + UT(jj,ii) * jacobian(:,nn)
          enddo
        enddo
+       deallocate(UT)
 
 !     Place Jacobian and departure in output arrays
-       do jj=1,ncp
-         mm=IJsubset(jj)
-         depart(mm)=col(jj)
-         obs(mm)=col2(jj)
-         jacobian(:,mm)=row(:,jj)
+       do ii=1,ncp
+         mm=IJsubset(ii)
+         depart(mm)=col(ii)
+         obs(mm)=col2(ii)
+         jacobian(:,mm)=row(:,ii)
          raterr2(mm) = one
          err2(mm) = one
          wgtjo(mm)    = one
@@ -1369,8 +1371,6 @@ logical function scale_jac_(depart,obs,err2,raterr2,jacobian,nchanl,varinv,diaga
 
        deallocate(col,col2)
        deallocate(row)
-       deallocate(qcaj)
-       deallocate(UT)
 
      else if( ErrorCov%method==3 ) then   !use diag(Re) scales GSI specified errors
                                           !    inv(Rg) = inv(De*Dg)
@@ -1445,17 +1445,16 @@ logical function choleskydecom_inv_(Isubset,IJsubset,ErrorCov,UT,diagadd,qcaj)
       do ii=1,ncp
         UT(ii,jj) = ErrorCov%R(Isubset(ii),Isubset(jj))/sqrt(qcaj(ii)*qcaj(jj))
       enddo
+      UT(jj,jj) = UT(jj,jj)+diagadd(IJsubset(jj))
     enddo
   else 
     do jj=1,ncp
       do ii=1,ncp
         UT(ii,jj) = ErrorCov%R(Isubset(ii),Isubset(jj))
       enddo
+      UT(jj,jj) = UT(jj,jj)+diagadd(IJsubset(jj))
     enddo
   endif
-  do jj=1,ncp
-      UT(jj,jj) = UT(jj,jj)+diagadd(IJsubset(jj))
-  enddo
   if(r_kind==r_single) then ! this trick only works because this uses the f77 lapack interfaces
      call SPOTRF('U', ncp, UT, ncp, info )
   else if(r_kind==r_double) then

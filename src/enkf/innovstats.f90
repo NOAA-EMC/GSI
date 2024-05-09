@@ -45,6 +45,7 @@ integer(i_kind) nobst_nh,nobst_sh,nobst_tr,&
  nobsspd_nh,nobsspd_sh,nobsspd_tr,&
  nobsgps_nh,nobsgps_sh,nobsgps_tr,&
  nobsdbz_nh,nobsdbz_sh,nobsdbz_tr,&
+ nobsfed_nh,nobsfed_sh,nobsfed_tr,&
  nobsrw_nh,nobsrw_sh,nobsrw_tr,&
  nobsq_nh,nobsq_sh,nobsq_tr,nobswnd_nh,nobswnd_sh,nobswnd_tr,&
  nobsoz_nh,nobsoz_sh,nobsoz_tr,nobsps_sh,nobsps_nh,nobsps_tr,nob
@@ -67,6 +68,9 @@ real(r_single) sumps_nh,biasps_nh,sumps_sh,biasps_sh,&
  sumdbz_nh,biasdbz_nh,sumdbz_spread_nh,sumdbz_oberr_nh,&
  sumdbz_sh,biasdbz_sh,sumdbz_spread_sh,sumdbz_oberr_sh,&
  sumdbz_tr,biasdbz_tr,sumdbz_spread_tr,sumdbz_oberr_tr,&
+ sumfed_nh,biasfed_nh,sumfed_spread_nh,sumfed_oberr_nh,&
+ sumfed_sh,biasfed_sh,sumfed_spread_sh,sumfed_oberr_sh,&
+ sumfed_tr,biasfed_tr,sumfed_spread_tr,sumfed_oberr_tr,&
  sumrw_nh,biasrw_nh,sumrw_spread_nh,sumrw_oberr_nh,&
  sumrw_sh,biasrw_sh,sumrw_spread_sh,sumrw_oberr_sh,&
  sumrw_tr,biasrw_tr,sumrw_spread_tr,sumrw_oberr_tr,&
@@ -112,6 +116,9 @@ if (nobs_conv+nobs_oz > 0) then
   nobsdbz_nh = 0
   nobsdbz_sh = 0
   nobsdbz_tr = 0
+  nobsfed_nh = 0
+  nobsfed_sh = 0
+  nobsfed_tr = 0
   nobsrw_nh = 0
   nobsrw_sh = 0
   nobsrw_tr = 0
@@ -168,6 +175,12 @@ if (nobs_conv+nobs_oz > 0) then
                  sumdbz_nh,biasdbz_nh,sumdbz_spread_nh,sumdbz_oberr_nh,nobsdbz_nh,&
                  sumdbz_sh,biasdbz_sh,sumdbz_spread_sh,sumdbz_oberr_sh,nobsdbz_sh,&
                  sumdbz_tr,biasdbz_tr,sumdbz_spread_tr,sumdbz_oberr_tr,nobsdbz_tr)
+         else if (obtype(nob)(1:3) == 'fed') then
+            call obstats(obfit(nob),oberrvar_orig(nob),&
+                 obsprd(nob),obloclat(nob),&
+                 sumfed_nh,biasfed_nh,sumfed_spread_nh,sumfed_oberr_nh,nobsfed_nh,&
+                 sumfed_sh,biasfed_sh,sumfed_spread_sh,sumfed_oberr_sh,nobsfed_sh,&
+                 sumfed_tr,biasfed_tr,sumfed_spread_tr,sumfed_oberr_tr,nobsfed_tr)
          else if (obtype(nob)(1:3) == ' rw') then
             call obstats(obfit(nob),oberrvar_orig(nob),&
                  obsprd(nob),obloclat(nob),&
@@ -213,9 +226,12 @@ if (nobs_conv+nobs_oz > 0) then
    call printstats('  all gps',sumgps_nh,biasq_nh,sumgps_spread_nh,sumgps_oberr_nh,nobsgps_nh,&
         sumgps_sh,biasgps_sh,sumgps_spread_sh,sumgps_oberr_sh,nobsgps_sh,&
         sumgps_tr,biasgps_tr,sumgps_spread_tr,sumgps_oberr_tr,nobsgps_tr)
-   call printstats('  all dbz',sumdbz_nh,biasq_nh,sumdbz_spread_nh,sumdbz_oberr_nh,nobsdbz_nh,&
+   call printstats('  all dbz',sumdbz_nh,biasdbz_nh,sumdbz_spread_nh,sumdbz_oberr_nh,nobsdbz_nh,&
         sumdbz_sh,biasdbz_sh,sumdbz_spread_sh,sumdbz_oberr_sh,nobsdbz_sh,&
         sumdbz_tr,biasdbz_tr,sumdbz_spread_tr,sumdbz_oberr_tr,nobsdbz_tr)
+   call printstats('  all fed',sumfed_nh,biasfed_nh,sumfed_spread_nh,sumfed_oberr_nh,nobsfed_nh,&
+        sumfed_sh,biasfed_sh,sumfed_spread_sh,sumfed_oberr_sh,nobsfed_sh,&
+        sumfed_tr,biasfed_tr,sumfed_spread_tr,sumfed_oberr_tr,nobsfed_tr)
    call printstats('  all  rw',sumrw_nh,biasq_nh,sumrw_spread_nh,sumrw_oberr_nh,nobsrw_nh,&
         sumrw_sh,biasrw_sh,sumrw_spread_sh,sumrw_oberr_sh,nobsrw_sh,&
         sumrw_tr,biasrw_tr,sumrw_spread_tr,sumrw_oberr_tr,nobsrw_tr)

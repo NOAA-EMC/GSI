@@ -15,10 +15,17 @@ elif [[ $MACHINE_ID = hera* ]] ; then
     fi
     module purge
 
+elif [[ $MACHINE_ID = hercules* ]] ; then
+    # We are on Hercules
+    if ( ! eval module help > /dev/null 2>&1 ) ; then
+        source /apps/other/lmod/lmod/init/bash
+    fi
+    module purge
+
 elif [[ $MACHINE_ID = orion* ]] ; then
     # We are on Orion
     if ( ! eval module help > /dev/null 2>&1 ) ; then
-        source /apps/lmod/init/bash
+        source /apps/lmod/lmod/init/bash
     fi
     module purge
 
@@ -32,13 +39,6 @@ elif [[ $MACHINE_ID = s4* ]] ; then
 elif [[ $MACHINE_ID = wcoss2 ]]; then
     # We are on WCOSS2
     module reset
-
-elif [[ $MACHINE_ID = cheyenne* ]] ; then
-    # We are on NCAR Cheyenne
-    if ( ! eval module help > /dev/null 2>&1 ) ; then
-        source /glade/u/apps/ch/modulefiles/default/localinit/localinit.sh
-    fi
-    module purge
 
 elif [[ $MACHINE_ID = stampede* ]] ; then
     # We are on TACC Stampede
@@ -57,32 +57,9 @@ elif [[ $MACHINE_ID = gaea* ]] ; then
         # /etc/profile here.
         source /etc/profile
         __ms_source_etc_profile=yes
-    else
-        __ms_source_etc_profile=no
     fi
-    module purge
-    # clean up after purge
-    unset _LMFILES_
-    unset _LMFILES_000
-    unset _LMFILES_001
-    unset LOADEDMODULES
-    module load modules
-    if [[ -d /opt/cray/ari/modulefiles ]] ; then
-        module use -a /opt/cray/ari/modulefiles
-    fi
-    if [[ -d /opt/cray/pe/ari/modulefiles ]] ; then
-        module use -a /opt/cray/pe/ari/modulefiles
-    fi
-    if [[ -d /opt/cray/pe/craype/default/modulefiles ]] ; then
-        module use -a /opt/cray/pe/craype/default/modulefiles
-    fi
-    if [[ -s /etc/opt/cray/pe/admin-pe/site-config ]] ; then
-        source /etc/opt/cray/pe/admin-pe/site-config
-    fi
-    if [[ "$__ms_source_etc_profile" == yes ]] ; then
-        source /etc/profile
-        unset __ms_source_etc_profile
-    fi
+
+    source /lustre/f2/dev/role.epic/contrib/Lmod_init.sh
 
 elif [[ $MACHINE_ID = expanse* ]]; then
     # We are on SDSC Expanse
@@ -97,6 +74,10 @@ elif [[ $MACHINE_ID = discover* ]]; then
     export SPACK_ROOT=/discover/nobackup/mapotts1/spack
     export PATH=$PATH:$SPACK_ROOT/bin
     . $SPACK_ROOT/share/spack/setup-env.sh
+
+elif [[ $MACHINE_ID = noaacloud* ]]; then
+    # We are on NOAA Cloud
+    module purge
 
 else
     echo WARNING: UNKNOWN PLATFORM 1>&2
