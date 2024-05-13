@@ -315,7 +315,7 @@ elif [[ "$machine" = "Gaea" ]]; then
    export MPI_BUFS_PER_PROC=256
    export MPI_BUFS_PER_HOST=256
    export MPI_GROUP_MAX=256
-   export APRUN="srun"
+   export APRUN="srun --export=ALL --mpi=pmi2 -n \$ntasks"
 elif [[ "$machine" = "wcoss2" ]]; then
    export OMP_PLACES=cores
    export OMP_STACKSIZE=2G
