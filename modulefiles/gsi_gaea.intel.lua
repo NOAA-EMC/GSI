@@ -1,7 +1,6 @@
 help([[
 ]])
 
-prepend_path("MODULEPATH", "/ncrc/proj/epic/spack-stack/spack-stack-1.6.0/envs/unified-env/install/modulefiles/Core")
 prepend_path("MODULEPATH", "/ncrc/proj/epic/spack-stack/spack-stack-1.6.0/envs/gsi-addon-dev/install/modulefiles/Core")
 
 local stack_python_ver=os.getenv("stack_python_ver") or "3.11.6"
@@ -25,7 +24,7 @@ pushenv("MKLROOT", MKLROOT)
 unload("cray-python")
 unload("darshan-runtime")
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/gpfs/f5/epic/proj-shared/global/glopara/data/fix/gsi/20240208")
+pushenv("GSI_BINARY_SOURCE_DIR", "/gpfs/f5/ufs-ard/world-shared/GSI_data/fix/gsi/20240208")
 
 setenv("CC","cc")
 setenv("FC","ftn")

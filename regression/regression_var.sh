@@ -51,11 +51,11 @@ echo "Running Regression Tests on '$machine'";
 
 case $machine in
   Gaea)
-    export queue="batch"
+    export queue="normal"
     export group="ufs-ard"
     export noscrub="/gpfs/f5/${group}/scratch/${USER}/$LOGNAME/gsi_tmp/noscrub"
     export ptmp="/gpfs/f5/${group}/scratch/${USER}/$LOGNAME/gsi_tmp/ptmp"
-    export casesdir="/gpfs/f5/epic/world-shared/GSI_data/CASES/regtest"
+    export casesdir="/gpfs/f5/ufs-ard/world-shared/GSI_data/CASES/regtest"
 
     export check_resource="no"
     export accnt="ufs-ard"
@@ -186,7 +186,7 @@ export savdir="$ptmp"
 export JCAP="62"
 
 # Case Study analysis dates
-export global_adate="2022110900"
+export global_adate="2024022300"
 export rtma_adate="2020022420"
 export fv3_netcdf_adate="2017030100"
 export rrfs_3denvar_glbens_adate="2021072518"
