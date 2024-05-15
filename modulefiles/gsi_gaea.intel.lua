@@ -27,4 +27,6 @@ setenv("CC","cc")
 setenv("FC","ftn")
 setenv("CXX","CC")
 pushenv("CRAYPE_LINK_TYPE","dynamic")
+
+unload("cray-libsci")
 whatis("Description: GSI environment on Gaea with Intel Compilers")
