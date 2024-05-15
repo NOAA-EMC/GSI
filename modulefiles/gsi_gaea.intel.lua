@@ -21,9 +21,6 @@ local MKLROOT="/opt/intel/oneapi/mkl/2022.0.2/"
 prepend_path("LD_LIBRARY_PATH",pathJoin(MKLROOT,"lib/intel64"))
 pushenv("MKLROOT", MKLROOT)
 
-unload("cray-python")
-unload("darshan-runtime")
-
 pushenv("GSI_BINARY_SOURCE_DIR", "/gpfs/f5/ufs-ard/world-shared/GSI_data/fix/gsi/20240208")
 
 setenv("CC","cc")
