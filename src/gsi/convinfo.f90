@@ -196,7 +196,7 @@ contains
        if (istat /= 0) exit
        nlines=nlines+1
        if(cflg == '!')cycle
-       if (cflg=='  '.and.iotype=='        ') then
+       if (cflg==' '.and.iotype=='        ') then
          if(print_verbose)write(6,*) 'Encountered a blank line in convinfo file at line number: ',nlines,' skipping!'
          cycle
        end if
@@ -246,7 +246,7 @@ contains
        cflg=' '
        iotype='        '
        read(lunin,1030)cflg,iotype,crecord
-       if (cflg=='  '.and.iotype=='        ') then
+       if (cflg==' '.and.iotype=='        ') then
          if(print_verbose)write(6,*) 'Encountered a blank line in convinfo file at line number: ',i,' skipping!'
          cycle
        end if
