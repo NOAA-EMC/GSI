@@ -56,10 +56,8 @@ elif [[ $MACHINE_ID = gaea* ]] ; then
         # the module command fails.  Hence we actually have to source
         # /etc/profile here.
         source /etc/profile
-        __ms_source_etc_profile=yes
     fi
-
-    source /lustre/f2/dev/role.epic/contrib/Lmod_init.sh
+    module reset
 
 elif [[ $MACHINE_ID = expanse* ]]; then
     # We are on SDSC Expanse
