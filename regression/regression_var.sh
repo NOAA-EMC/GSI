@@ -36,7 +36,7 @@ elif [[ -d /mnt/lfs4 || -d /jetmon || -d /mnt/lfs1 ]]; then # Jet
   export machine="Jet"
 elif [[ -d /discover ]]; then # NCCS Discover
   export machine="Discover"
-elif [[ -d /sw/gaea ]]; then # Gaea
+elif [[ -d /ncrc ]]; then # Gaea
   export machine="Gaea"
 elif [[ -d /data/prod ]]; then # S4
   export machine="S4"
@@ -52,17 +52,13 @@ echo "Running Regression Tests on '$machine'";
 case $machine in
   Gaea)
     export queue="normal"
-    export noscrub="/lustre/f2/scratch/$LOGNAME/gsi_tmp/noscrub"
-    export ptmp="/lustre/f2/scratch/$LOGNAME/gsi_tmp/ptmp"
-    export casesdir="/lustre/f2/dev/role.epic/contrib/GSI_data/CASES/regtest"
-
-    export group="global"
-    if [[ "$cmaketest" = "false" ]]; then
-      export basedir="/lustre/f2/dev/$LOGNAME/sandbox/GSI"
-    fi
+    export group="ufs-ard"
+    export noscrub="/gpfs/f5/${group}/scratch/${USER}/$LOGNAME/gsi_tmp/noscrub"
+    export ptmp="/gpfs/f5/${group}/scratch/${USER}/$LOGNAME/gsi_tmp/ptmp"
+    export casesdir="/gpfs/f5/ufs-ard/world-shared/GSI_data/CASES/regtest"
 
     export check_resource="no"
-    export accnt="nggps_emc"
+    export accnt="ufs-ard"
   ;;
   wcoss2)
       export local_or_default="${local_or_default:-/lfs/h2/emc/da/noscrub/$LOGNAME}"
