@@ -864,13 +864,9 @@ endif
     endif ! nvege_type
  endif ! regional or IGBP
     
-! Initial GFDL saturation water vapor pressure tables
-
-!Option for Thompson microphysics 
-
+! Initial GFDL saturation water vapor pressure tables 
   if (use_gfdl_qsat) then
-     if (n_actual_aerosols_wk>0 .or. n_clouds_fwd_wk>0 .and. imp_physics==11 .or. imp_physics==08) then
-
+      if (n_actual_aerosols_wk>0 .or. n_clouds_fwd_wk>0 .and. imp_physics==11) then
         if (mype==0) write(6,*)myname_,':initial and load GFDL saturation water vapor pressure tables'
   
         allocate(table (length))
@@ -1134,7 +1130,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
       reshape((/0.0_r_kind, 1.0_r_kind, 1.0_r_kind, 2.0_r_kind, 1.0_r_kind, &
                -1.0_r_kind, 1.0_r_kind, -1.0_r_kind/), (/4, 2/))
   real(r_kind),parameter:: jac_pert = 1.0_r_kind
-
+  real(r_kind),parameter:: xrc3 = 200.0_r_kind
 ! Declare local variables  
   integer(i_kind):: iquadrant  
   integer(i_kind):: ier,ii,kk,kk2,i,itype,leap_day,day_of_year
@@ -1148,9 +1144,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   integer(i_kind):: error_status_clr
   integer(i_kind):: idx700,dprs,dprs_min  
   integer(i_kind),dimension(8)::obs_time,anal_time
-  integer(i_kind),dimension(msig) :: klevel
-  real(r_kind),dimension(nsig) :: qsat
-  real(r_kind),dimension(nsig) :: qcond  
+  integer(i_kind),dimension(msig) :: klevel 
 
 ! ****************************** 
 ! Constrained indexing for lai
@@ -1183,6 +1177,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),dimension(nsig) :: rho_air   ! density of air (kg/m3)
   real(r_kind),dimension(nsig) :: cf_calc   ! GFDL cloud fraction calculation
   real(r_kind),dimension(nsig) :: qmix      ! water vapor mixing ratio
+  real(r_kind),dimension(nsig) :: qcond
   real(r_kind),allocatable,dimension(:,:) :: tgas1d
   real(r_kind),pointer,dimension(:,:  )::psges_itsig =>NULL()
   real(r_kind),pointer,dimension(:,:  )::psges_itsigp=>NULL()
@@ -1205,8 +1200,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind),pointer,dimension(:,:,:)::nrges_itsig =>NULL()
   real(r_kind),pointer,dimension(:,:,:)::nrges_itsigp=>NULL()  
   logical  :: lmfdeep2
-  real(r_kind) , parameter:: xrc3=200.0_r_kind
-
   logical :: sea,icmask
 
   integer(i_kind),parameter,dimension(12):: mday=(/0,31,59,90,&
@@ -1214,7 +1207,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind) ::   lai
 
   m1=mype+1
-
+  if (mype==0) write(6,*) myname_, ' imp_physics = ', imp_physics
   if (n_clouds_fwd_wk>0) hwp_guess=zero  
   hwp_total=zero  
   theta_700=zero
@@ -1374,9 +1367,9 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   iqs=istatus
   call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'q',qges_itsigp,istatus)
   iqs=iqs+istatus
-  call gsi_bundlegetpointer(gsi_metguess_bundle(itsig ),'cf',cfges_itsig ,icfs)
+  call gsi_bundlegetpointer(gsi_metguess_bundle(itsig ),'cf',cfges_itsig ,istatus)
   icfs=istatus
-  call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'cf',cfges_itsigp,icfs)
+  call gsi_bundlegetpointer(gsi_metguess_bundle(itsigp),'cf',cfges_itsigp,istatus)
   icfs=icfs+istatus
   call gsi_bundlegetpointer(gsi_metguess_bundle(itsig ),'ni',niges_itsig,istatus)
   inis=istatus
@@ -1761,9 +1754,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
             ges_qsat (ixp,iy ,k, itsigp)*w10+ &
             ges_qsat (ix ,iyp,k, itsigp)*w01+ &
             ges_qsat (ixp,iyp,k, itsigp)*w11)*dtsigp
-     rh(k) = q(k)/qsat(k)  !added for cloud fraction computation
+    
      c3(k)=r1000/(one-q(k))
      qmix(k)=q(k)*c3(k)  !convert specific humidity to mixing ratio
+     rh(k) = q(k)/qs(k)  !calculate relative humidity; added for cloud fraction computation
 ! Space-time interpolation of ozone(poz)
      if (iozs==0) then
          poz(k)=((ozges_itsig (ix ,iy ,k)*w00+ &
@@ -1790,7 +1784,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                  cfges_itsigp(ix ,iyp,k)*w01+ &
                  cfges_itsigp(ixp,iyp,k)*w11)*dtsigp)
 
-!        Ensure ozone is greater than ozsmall
+!        Ensure cloud fraction is between 0 and 1
 
          cf(k)=min(max(zero,cf(k)),one)
      endif ! cf
@@ -1903,7 +1897,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      cf_calc  = zero
          ! sum of the cloud condensate amount for all 5 hydrometeos (ql + qi + qs + qg + qh + qr) 
          qcond(:) = cloud(:,1) + cloud(:,2) + cloud(:,3) + cloud(:,4) + cloud(:,5)
-         call calc_thompson_cloudfrac (nsig , lmfdeep2, xrc3, prsl, qcond(:), rh, qsat,cf_calc)
+         call calc_thompson_cloudfrac (nsig , lmfdeep2, xrc3, prsl, qcond(:), rh, qs, cf_calc)
      cf   = cf_calc
      icfs = 0        ! load cloud fraction into CRTM
   endif
@@ -2122,21 +2116,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
               do ii=1,n_clouds_fwd_wk
                 !cloud_cont(k,ii)=cloud(kk2,ii)*kgkg_kgm2 
                  cloud_cont(k,ii)=cloud(kk2,ii)*c6(k)
-                !Option for Thompson added
-                 if (imp_physics==11 .or. imp_physics==08 .and. lprecip_wk .and.  cloud_cont(k,ii) > 1.0e-6_r_kind) then
+                 if (lprecip_wk .and.  cloud_cont(k,ii) > 1.0e-6_r_kind) then
                     cloud_efr(k,ii)=cloudefr(kk2,ii)
                  else
                     cloud_efr(k,ii)=zero
                  endif
-                 if (trim(cloud_names_fwd(ii))=='ni' .and.  atmosphere(1)%temperature(k)<t0c) then
-                     cloud_cont(k,ii)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,ii))
-                     cloud_efr(k,ii)=max(5.001_r_kind, cloud_efr(k,ii))
-                 endif
-                 if (trim(cloud_names_fwd(ii))=='nr' .and.  atmosphere(1)%temperature(k)<t0c) then
-                     cloud_cont(k,ii)=max(1.001_r_kind*1.0E-6_r_kind, cloud_cont(k,ii))
-                     cloud_efr(k,ii)=max(5.001_r_kind, cloud_efr(k,ii))
-                 endif
-
               enddo
             
 !             In CRTM, if cloud fraction of the layer < 1.0E-12, set cloud content and

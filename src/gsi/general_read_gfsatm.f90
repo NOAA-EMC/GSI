@@ -196,6 +196,7 @@ subroutine general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
   use kinds, only: r_kind,i_kind
   use mpimod, only: npe,mpi_comm_world,ierror,mpi_rtype
   use general_sub2grid_mod, only: sub2grid_info
+  use ncepnems_io, only: imp_physics
   implicit none
 
 ! !INPUT PARAMETERS:
@@ -393,7 +394,7 @@ subroutine general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
                g_qg(i,j,klev)=sub(ij,k)
             enddo
          enddo
-      elseif ( iflag(k) == 15 ) then
+      elseif ( iflag(k) == 15 .and. imp_physics == 8) then
          klev=ilev(k)
          ij=0
          do j=1,grd%lon2
@@ -402,7 +403,7 @@ subroutine general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
                g_ni(i,j,klev)=sub(ij,k)
             enddo
          enddo
-      elseif ( iflag(k) == 16 ) then
+      elseif ( iflag(k) == 16 .and. imp_physics == 8) then
          klev=ilev(k)
          ij=0
          do j=1,grd%lon2
