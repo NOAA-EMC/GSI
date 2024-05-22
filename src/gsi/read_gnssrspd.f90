@@ -5,7 +5,8 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,s
 !                .      .    .                                       .
 ! subprogram:  read_gnssrspd            read obs from gnssrspd bufr file
 !   prgmmr: kapodaca          org: Spire Global, Inc.                date: 2022-03-12
-!   Largely based on other read_* routines   
+!   Largely based on other read_* routines. For the  !Winds --- surface wind speed section
+!   ~L438, we used the exixting read_fl_hdob.f90 routine
 !
 ! abstract:  This routine reads GNSSRSPD L2 wind speed observations
 !
