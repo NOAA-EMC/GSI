@@ -68,6 +68,8 @@ jobs:
       - name: install-dependencies-with-spack
         if: steps.cache-env.outputs.cache-hit != 'true'
         run: |
+          # Allow post-checkout scripts to run on cloning a branch
+          export GIT_CLONE_PROTECTION_ACTIVE=false
           sudo mv /usr/local/ /usr_local_mv
           sudo apt-get install cmake
           git clone -c feature.manyFiles=true https://github.com/JCSDA/spack.git
