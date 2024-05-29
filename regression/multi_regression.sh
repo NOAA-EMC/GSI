@@ -1,16 +1,16 @@
 #!/bin/sh --login
 
 regtests_all="global_4denvar
-              netcdf_fv3_regional
-              rrfs_3denvar_glbens
+              rrfs_enkf_conv
+              rrfs_3denvar_rdasens
               hafs_4denvar_glbens
               hafs_3denvar_hybens
               rtma
               global_enkf"
 
 regtests_debug="global_4denvar
-                netcdf_fv3_regional
-                rrfs_3denvar_glbens
+                rrfs_enkf_conv
+                rrfs_3denvar_rdasens
                 hafs_4denvar_glbens
                 hafs_3denvar_hybens
                 rtma

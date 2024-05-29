@@ -40,13 +40,13 @@ endif()
 list(APPEND GSI_REG_TEST_NAMES
   global_4denvar
   rtma
-  rrfs_3denvar_glbens netcdf_fv3_regional
+  rrfs_3denvar_rdasens
   hafs_4denvar_glbens hafs_3denvar_hybens
 )
 
 # EnKF regression test names
 list(APPEND ENKF_REG_TEST_NAMES
-  global_enkf
+  global_enkf rrfs_enkf_conv
 )
 
 # Add GSI regression tests to list of tests
