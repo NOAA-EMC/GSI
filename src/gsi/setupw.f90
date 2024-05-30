@@ -1977,7 +1977,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     call nc_diag_metadata("surface_geopotential_height", sngl(zsges) ) !emily
     call nc_diag_metadata("tropopause_pressure", sngl(trop5*r100) )
     call nc_diag_metadata("surface_air_pressure", sngl(psges2*r1000) )
-    call nc_diag_metadata("Land_Type_Index", sngl(isli))
+    call nc_diag_metadata("Land_Type_Index", isli)
     ! END GEOVALS
     ! extra fields for AMV QC
     call nc_diag_metadata("wind_computation_method", sngl(data(28,i)))
