@@ -2743,7 +2743,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind), parameter :: reff_g_min =       150.0_r_kind  ! [micron] ! previous value was 0.0_r_kind
   real(r_kind), parameter :: reff_g_max =   5000.0_r_kind  ! [micron] ! previous value was 10000.0_r_kind
   real(r_kind), parameter:: mu_g = 0.0_r_kind
-  real(r_kind), parameter :: no_exp     =  1.0e-4_r_kind
+  real(r_kind), parameter :: no_exp     =  10.0_r_kind
 
 !cloud water
   if (trim(cloud_name)=='ql') then
@@ -2752,7 +2752,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      reff_max = reff_w_max
      do k = 1, nsig
         qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
-        if (qx < qmin) then
+        if (qx > qmin) then
                mu_w = MAX(2, MIN((NINT(1000.E6_r_kind/Nt_c) + 2), 15))
                lam_w=exp(1.0_r_kind / 3.0_r_kind * log ((am_w*Nt_c *gamma(mu_w + 3.0_r_kind + 1.0_r_kind))/(qx*gamma(mu_w+1.0_r_kind))))
 
@@ -2770,7 +2770,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      reff_max = reff_i_max
      do k = 1, nsig
         qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
-        if (qx < qmin) then
+        if (qx > qmin) then
        lam_i=exp(1.0_r_kind / 3.0_r_kind * log((am_i*ni(k) *gamma(mu_i + 3.0_r_kind + 1.0_r_kind))/(qx*gamma(mu_i+1.0_r_kind))))
        reff(k) = 0.5_r_kind * (3.0_r_kind /lam_i)*1.0e6_r_kind
        reff(k) = max(reff_min, min(reff_max, reff(k)))
@@ -2785,7 +2785,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      reff_max = reff_r_max
      do k = 1, nsig
         qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
-        if (qx < qmin) then
+        if (qx > qmin) then
            lam_r=exp(1.0_r_kind / 3.0_r_kind * log ((am_r*nr(k) *gamma(mu_r + 3.0_r_kind + 1.0_r_kind))/(qx*gamma(mu_r + 1.0_r_kind))))
           reff(k) = 0.5_r_kind *(3.0_r_kind/lam_r)*1.0e6_r_kind
           reff(k) = max(reff_min, min(reff_max, reff(k)))
@@ -2803,7 +2803,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !..Calculate bm_s+1 (th) moment, smoc.  Useful for diameter calcs.
         tc0 = MIN(-0.1_r_kind, tsen(k)-273.15_r_kind)
         qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
-        if (qx < qmin) then
+        if (qx > qmin) then
             smob =qx/am_s
             loga_ = sa(1) + sa(2)*tc0 + sa(3)*cse(1) &
                   + sa(4)*tc0*cse(1) + sa(5)*tc0*tc0 &
@@ -2830,7 +2830,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      am_g = rho_g*pi/6.0_r_kind
      do k = 1, nsig
         qx = qxmr(k)*rho_air(k)    ! convert mixing ratio (kg/kg) to water content (kg/m3)
-        if (qx < qmin) then
+        if (qx > qmin) then
            lam_exp = no_exp* exp(1.0_r_kind/(3.0_r_kind+1.0_r_kind) * log ((am_g*gamma(3.0_r_kind +1.0_r_kind))/qx))
            lam_g=lam_exp*exp(1/3.0_r_kind*log(gamma(3.0_r_kind+mu_g+1.0_r_kind)/((3.0_r_kind+mu_g+1.0_r_kind)*(mu_g+1.0_r_kind))))
            reff(k) = 0.5_r_kind *(3.0_r_kind/ lam_g)*1.0e6_r_kind
