@@ -402,8 +402,9 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   icat=24     ! index of data level category
   ijb=25      ! index of non linear qc parameter
   ihil=26     ! index of  hilbert curve weight
-  iptrbu=27   ! index of u perturbation
-  iptrbv=28   ! index of v perturbation
+  iamvq=27    ! index of AMVQ
+  iptrbu=35   ! index of u perturbation
+  iptrbv=36   ! index of v perturbation
 
   mm1=mype+1
   scale=one

@@ -1176,6 +1176,42 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
             call stop2(999)
         endif
      endif ! hofx_2m_sfcfile
+!    get u ...
+     varname='u'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_u))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_u(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_u(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_u(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get v ...
+     varname='v'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_v))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_v(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_v(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_v(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
 !    get q ...
      varname='q'
      call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
@@ -1441,16 +1477,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               call nc_diag_metadata_to_single("Observation_Tdry", data(itemp,i)    )
               call nc_diag_metadata_to_single("Setup_QC_Mark",    data(iqt,  i)    )
            endif
-           call nc_diag_metadata_to_single("Errinv_Input",            errinv_input)     
-           call nc_diag_metadata_to_single("Errinv_Adjust",           errinv_adjst)     
-           call nc_diag_metadata_to_single("Errinv_Final",            errinv_final)     
 
-           call nc_diag_metadata_to_single("Observation",                   data(iqob,i))
-           call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",   ddiff)       
-           call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted", qob-qges)    
-           call nc_diag_metadata_to_single("Forecast_adjusted",             data(iqob,i)-ddiff)
-           call nc_diag_metadata_to_single("Forecast_unadjusted",           qges)
-           call nc_diag_metadata_to_single("Forecast_Saturation_Spec_Hum",  qsges)       
            if (lobsdiagsave) then
               do jj=1,miter
                  if (odiag%muse(jj)) then
