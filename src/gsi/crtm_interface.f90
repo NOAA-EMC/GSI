@@ -1894,6 +1894,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
   ! Calculate Thompson cloud fraction 
   if ( icmask .and. n_clouds_fwd_wk > 0 .and. imp_physics==08 .and.  lprecip_wk ) then
+     lmfdeep2 = .true.     
      cf_calc  = zero
          ! sum of the cloud condensate amount for all 5 hydrometeos (ql + qi + qs + qg + qh + qr) 
          qcond(:) = cloud(:,1) + cloud(:,2) + cloud(:,3) + cloud(:,4) + cloud(:,5)
@@ -3102,8 +3103,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
       real(r_kind) , dimension(nsig), intent(inout) :: cldtot
 
 !  ---  local variables:
-       real(r_kind)  :: clwmin, clwm, clwt, onemrh, value, tem1, tem2
-       integer(i_kind) :: k
+      real(r_kind)  :: clwmin, clwm, clwt, onemrh, value, tem1, tem2
+      integer(i_kind) :: k
 	   
 !> - Compute layer cloud fraction.
         clwmin = 0.0_r_kind
