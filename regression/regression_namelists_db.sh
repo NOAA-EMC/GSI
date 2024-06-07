@@ -352,7 +352,7 @@ export gsi_namelist="
  &OBS_INPUT
    dmesh(1)=120.0,dmesh(2)=60.0,dmesh(3)=30,time_window_max=1.5,time_window_rad=1.0,ext_sonde=.true.,
  /
- OBS_INPUT::
+OBS_INPUT::
 !  dfile          dtype       dplat     dsis                 dval    dthin dsfcalc
    pm25bufr       pm2_5       null      TEOM                 1.0     0     0
    dbzobs.nc      dbz         null      dbz                  1.0     0     0

@@ -35,7 +35,7 @@ maxtime=1200
 # Copy stdout and incr files 
 # from $savdir to $tmpdir
 list="$exp1 $exp2 $exp3"
-if [[ `expr substr $exp1 1 4` = "rrfs" ]]; then
+if [[ $(expr substr $exp1 1 4) = "rrfs" ]]; then
    for exp in $list; do
       $ncp $savdir/$exp/stdout ./stdout.$exp
       nmem=5
@@ -237,7 +237,7 @@ fi
 
 # Next, check reproducibility of results between exp1 and exp2
 
-if [[ `expr substr $exp1 1 4` = "rrfs" ]]; then
+if [[ $(expr substr $exp1 1 4) = "rrfs" ]]; then
 
 {
 
@@ -355,7 +355,7 @@ else
 
 # Next, check reproducibility of results between exp1 and exp3
 
-   if [[ `expr substr $exp1 1 4` = "rrfs" ]]; then
+   if [[ $(expr substr $exp1 1 4) = "rrfs" ]]; then
 
 {
 

@@ -316,11 +316,11 @@ cp $obspath_tmp/rrfs.prod.${YYYYMMDDHH}_satbias    ./satbias_in
 cp $obspath_tmp/rrfs.prod.${YYYYMMDDHH}_radstat    ./radstat.rrfs
 
 if [ -r radstat.rrfs ]; then
-    listdiag=`tar xvf radstat.rrfs | cut -d' ' -f2 | grep _ges`
+    listdiag=$(tar xvf radstat.rrfs | cut -d' ' -f2 | grep _ges)
     for type in $listdiag; do
-      diag_file=`echo $type | cut -d',' -f1`
-      fname=`echo $diag_file | cut -d'.' -f1`
-      date=`echo $diag_file | cut -d'.' -f2`
+      diag_file=$(echo $type | cut -d',' -f1)
+      fname=$(echo $diag_file | cut -d'.' -f1)
+      date=$(echo $diag_file | cut -d'.' -f2)
       gunzip $diag_file
       fnameanl=$(echo $fname|sed 's/_ges//g')
       mv $fname.$date* $fnameanl
