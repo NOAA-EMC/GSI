@@ -54,6 +54,18 @@ subroutine setup_linhx(rlat, rlon, time, ix, delx, ixp, delxp, iy, dely,  &
   real(r_single)                                   ,intent(in   ) :: time         ! observation time relative to middle of window
   integer(i_kind), intent(out) :: ix, iy, it, ixp, iyp, itp
   real(r_kind), intent(out) :: delx, dely, delxp, delyp, delt, deltp
+  ix=0.0
+  iy=0.0
+  it=0.0
+  ixp=0.0
+  iyp=0.0
+  itp=0.0
+  delx=0.0
+  dely=0.0
+  delxp=0.0
+  delyp=0.0
+  delt=0.0
+  deltp=0.0
    write(6,*)'this is a dummy subroutine, running this means something wrong ,stop'
    call stop2(555)
 
@@ -110,6 +122,7 @@ subroutine calc_linhx(hx, dens, dhx_dx, hxpert, hx_ens, &
   type(raggedarr)                                  ,intent(inout) :: hxpert       ! interpolated background
   real(r_single)                                   ,intent(  out) :: hx_ens       ! H (x_ens)
   integer(i_kind) i,j
+  hx_ens=0.0
    write(6,*)'this is a dummy subroutine, running this means something wrong ,stop'
    call stop2(555)
 
@@ -155,6 +168,7 @@ subroutine calc_linhx_modens(hx, dhx_dx, hxpert, hx_ens, vscale)
   real(r_single)                                   ,intent(  out) :: hx_ens(neigv)! H (x_ens)
   real(r_double),dimension(neigv,nlevs+1)          ,intent(in   ) :: vscale       ! vertical scaling (for modulated ens)
   integer(i_kind) i
+  hx_ens=0.0
   write(6,*)'this is a dummy subroutine, running this means something wrong ,stop'
    call stop2(555)
 
