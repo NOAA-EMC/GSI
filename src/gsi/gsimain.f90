@@ -1,7 +1,6 @@
 !-------------------------------------------------------------------------
 !  NASA/GSFC, Global Modeling and Assimilation Office, Code 610.3, GMAO  !
 !-------------------------------------------------------------------------
-
 !BOP
 
 ! ! IPROGRAM: gsimain -- runs NCEP gsi
