@@ -768,7 +768,6 @@ contains
     if_vterminal=.false.
     l2rwthin    =.false.  
     if_vrobs_raw=.false.
-    if_model_dbz=.true.
     if_use_w_vr=.true.
     if_model_dbz=.false.
     if_model_fed=.false.
