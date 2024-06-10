@@ -279,16 +279,16 @@ function dtype2index_(dtype) result(index_)
     case("pcp_ssmi"); index_= iobOper_pcp
     case("pcp_tmi" ); index_= iobOper_pcp
 
-  case("oz"     ,"[ozoper]"     ); index_= iobOper_oz
-    case("sbuv2"  ); index_= iobOper_oz
-    case("omi"    ); index_= iobOper_oz
-    case("gome"   ); index_= iobOper_oz
-    case("ompstc8"); index_= iobOper_oz
-    case("ompsnp" ); index_= iobOper_oz
-    case("ompsnm" ); index_= iobOper_oz
-    case("omieff"   ); index_= iobOper_oz
-    case("tomseff"  ); index_= iobOper_oz
-    case("ompsnmeff"); index_= iobOper_oz
+  case("o3l"    ,"[o3loper]"    ); index_= iobOper_o3l
+    case("o3lev"    ); index_= iobOper_o3l
+    case("mls20"    ); index_= iobOper_o3l
+    case("mls22"    ); index_= iobOper_o3l
+    case("mls30"    ); index_= iobOper_o3l
+    case("mls55"    ); index_= iobOper_o3l
+    case("ompslp"   ); index_= iobOper_o3l
+    case("ompslpuv" ); index_= iobOper_o3l
+    case("ompslpvis"); index_= iobOper_o3l
+    case("ompslpnc" ); index_= iobOper_o3l
 
   case("o3l"    ,"[o3loper]"    ); index_= iobOper_o3l
     case("o3lev"    ); index_= iobOper_o3l
@@ -296,6 +296,7 @@ function dtype2index_(dtype) result(index_)
     case("mls22"    ); index_= iobOper_o3l
     case("mls30"    ); index_= iobOper_o3l
     case("mls55"    ); index_= iobOper_o3l
+
     case("omieff"   ); index_= iobOper_o3l
     case("tomseff"  ); index_= iobOper_o3l
     case("ompslpuv" ); index_= iobOper_o3l
@@ -370,6 +371,7 @@ function dtype2index_(dtype) result(index_)
   case("aero"   ,"[aerooper]"   ); index_= iobOper_aero
     case("aod"      ); index_= iobOper_aero
     case("modis_aod"); index_= iobOper_aero
+    case("viirs_aod"); index_= iobOper_aero
 
  !case("aerol"  ,"[aeroloper]"  ); index_= iobOper_aerol
 
