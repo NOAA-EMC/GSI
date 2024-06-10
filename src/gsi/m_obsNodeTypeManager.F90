@@ -126,11 +126,9 @@ module m_obsNodeTypeManager
   public:: iobsNode_cldch
   public:: iobsNode_swcp
   public:: iobsNode_lwcp
- 
   public:: iobsNode_light
   public:: iobsNode_dbz
   public:: iobsNode_fed
-  
   public:: iobsNode_gnssrspd
 
   public :: obsNode_typeMold
