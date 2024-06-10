@@ -258,7 +258,6 @@ integer(i_kind):: ibin,it,ix
 class(obOper),pointer:: it_obOper
 
 !******************************************************************************
-  call setrad(sval(1))
 
 ! "RHS for jo", as it was labeled in intall().
 !$omp parallel do  schedule(dynamic,1) private(ibin,it,ix,it_obOper)
