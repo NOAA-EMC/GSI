@@ -199,7 +199,7 @@ OBS_INPUT::
    generate_ens=.false.,uv_hyb_ens=.true.,jcap_ens=48,nlat_ens=98,nlon_ens=192,
    ANISO_A_EN=.false.,jcap_ens_test=48,oz_univ_static=.false.,
    ensemble_path='./ensemble_data/',ens_fast_read=.true.,write_ens_sprd=.false.,
-   s_ens_h=1000.0,300.0,685.0,s_ens_v=-0.5,-0.5,0.0,readin_localization=.false.,
+   s_ens_h=1000.0,450.0,685.0,s_ens_v=-0.5,-0.5,0.0,readin_localization=.false.,
    global_spectral_filter_sd=.false.,r_ensloccov4scl=1,nsclgrp=2,naensloc=3,
    $HYBRID_ENSEMBLE
  /
