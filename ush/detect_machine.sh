@@ -1,6 +1,5 @@
 #!/bin/bash
 
-set -x
 # The authoritative copy of this script lives in the ufs-weather-model at:
 # https://github.com/ufs-community/ufs-weather-model/blob/develop/tests/detect_machine.sh
 # If any local modifications are made or new platform support added,
@@ -34,7 +33,7 @@ case $(hostname -f) in
   fe[1-8]) MACHINE_ID=jet ;; ### jet01-8
   tfe[12]) MACHINE_ID=jet ;; ### tjet1-2
 
-  [Oo]rion-login-[1-4].HPC.MsState.Edu) MACHINE_ID=orion ;; ### orion1-4
+  Orion-login-[1-4].HPC.MsState.Edu) MACHINE_ID=orion ;; ### orion1-4
 
   [Hh]ercules-login-[1-4].[Hh][Pp][Cc].[Mm]s[Ss]tate.[Ee]du) MACHINE_ID=hercules ;; ### hercules1-4
 
@@ -76,8 +75,8 @@ elif [[ -d /scratch1 ]]; then
   MACHINE_ID=hera
 elif [[ -d /work ]]; then
   # We are on MSU Orion or Hercules
-  mount=$(findmnt -n -o SOURCE /home)   
-  if [[ ${mount} =~ "hercules" ]]; then
+  if [[ -d /apps/other ]]; then
+    # We are on Hercules
     MACHINE_ID=hercules
   else
     MACHINE_ID=orion

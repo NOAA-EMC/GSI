@@ -40,7 +40,7 @@ elif [[ -d /ncrc ]]; then # Gaea
   export machine="Gaea"
 elif [[ -d /data/prod ]]; then # S4
   export machine="S4"
-elif [[ -d /work && $(hostname) =~ "orion" ]]; then # Orion
+elif [[ -d /work && $(hostname) =~ "Orion" ]]; then # Orion
   export machine="Orion"
 elif [[ -d /work && $(hostname) =~ "hercules" ]]; then # Hercules
   export machine="Hercules"
