@@ -57,7 +57,7 @@ integer(i_kind),intent(in):: imin,jmin
 integer(i_kind),intent(in):: imax0
 integer(i_kind),intent(in):: ampl
 real(r_kind),dimension(imin:imax,jmin:jmax),intent(out):: V
-real(i_kind):: ng,mg,L,m,n
+integer(i_kind):: ng,mg,L,m,n
 !-----------------------------------------------------------------------
 
      do m=imin,jmax
@@ -134,7 +134,7 @@ integer(i_kind),intent(in):: imax,jmax,lmax
 integer(i_kind),intent(in):: imax0
 integer(i_kind),intent(in):: ampl,incrm
 real(r_kind),dimension(lmin:lmax,imin:imax,jmin:jmax),intent(out):: V
-real(i_kind):: ng,mg,L,m,n
+integer(i_kind):: ng,mg,L,m,n
 !-----------------------------------------------------------------------
 
    do l=lmin,lmax
