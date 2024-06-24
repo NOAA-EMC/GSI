@@ -174,9 +174,12 @@ OBS_INPUT::
    $LAGDATA
  /
  &HYBRID_ENSEMBLE
-   l_hyb_ens=.true.,n_ens=10,beta_s0=0.125,readin_beta=.false.,s_ens_h=800,s_ens_v=-0.8,generate_ens=.false.,uv_hyb_ens=.true.,jcap_ens=190,
-   nlat_ens=194,nlon_ens=384,aniso_a_en=.false.,jcap_ens_test=62,oz_univ_static=.false.,readin_localization=.true.,ensemble_path='./ensemble_data/',
-   ens_fast_read=.true.,write_ens_sprd=.false.,
+   l_hyb_ens=.true.,n_ens=$NMEM_ENKF,beta_s0=0.125,readin_beta=.false.,
+   generate_ens=.false.,uv_hyb_ens=.true.,jcap_ens=48,nlat_ens=98,nlon_ens=192,
+   ANISO_A_EN=.false.,jcap_ens_test=48,oz_univ_static=.false.,
+   ensemble_path='./ensemble_data/',ens_fast_read=.true.,write_ens_sprd=.false.,
+   s_ens_h=1000.0,450.0,685.0,s_ens_v=-0.5,-0.5,0.0,readin_localization=.false.,
+   global_spectral_filter_sd=.false.,r_ensloccov4scl=1,nsclgrp=2,naensloc=3,
    $HYBRID_ENSEMBLE
  /
  &RAPIDREFRESH_CLDSURF
