@@ -45,9 +45,15 @@ list(APPEND GSI_REG_TEST_NAMES
 )
 
 # EnKF regression test names
-list(APPEND ENKF_REG_TEST_NAMES
-  global_enkf rrfs_enkf_conv
-)
+if(ENKF_MODE MATCHES "^(FV3REG)$")
+  list(APPEND ENKF_REG_TEST_NAMES
+    rrfs_enkf_conv
+  )
+else()
+  list(APPEND ENKF_REG_TEST_NAMES
+    global_enkf
+  )
+endif()
 
 # Add GSI regression tests to list of tests
 if(GSICONTROLEXEC)
