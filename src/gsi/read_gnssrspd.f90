@@ -412,12 +412,12 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,s
               spdob = gnssrw(1,1) ! surface wind speed 
 
               ! Don't permit observations with ws <= 1 m/s
-              if (spdob <= 1.0) cycle loop_readsb2
+              if (spdob <= one) cycle loop_readsb2
               if (spdob >= missing) cycle loop_readsb2
 
               ! Get observation error from bufr file
               call ufbint(lunin,gnssrw,1,1,nlv,oestr)
-              obserr = max(gnssrw(1,1),1.5) ! surface wind speed error
+              obserr = max(gnssrw(1,1),1.5_r_kind) ! surface wind speed error
            endif
 
 
