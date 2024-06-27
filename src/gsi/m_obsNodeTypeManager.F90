@@ -257,7 +257,6 @@ module m_obsNodeTypeManager
     enumerator:: iobsNode_dbz
     enumerator:: iobsNode_fed
 
-
     enumerator:: iobsNode_extra_
   end enum
   
