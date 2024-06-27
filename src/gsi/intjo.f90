@@ -241,8 +241,6 @@ use m_obsdiags, only: obOper_create
 use m_obsdiags, only: obOper_destroy
 use gsi_obOper, only: obOper
 
-use intradmod, only: setrad
-
 implicit none
 
 ! Declare passed variables
