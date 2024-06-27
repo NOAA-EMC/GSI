@@ -84,17 +84,17 @@ case $regtest in
 
     ;;
 
-    rrfs_3denvar_glbens)
+    rrfs_3denvar_rdasens)
 
         if [[ "$machine" = "Hera" ]]; then
-           topts[1]="0:15:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="10/4/"  ; ropts[2]="/1"
+           topts[1]="0:05:00" ; popts[1]="40/3/"  ; ropts[1]="/1"
+           topts[2]="0:05:00" ; popts[2]="40/5/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Orion" ]]; then
            topts[1]="0:15:00" ; popts[1]="5/4/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="10/4/" ; ropts[2]="/2"
         elif [[ "$machine" = "Hercules" ]]; then
-           topts[1]="0:15:00" ; popts[1]="5/4/" ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="10/4/" ; ropts[2]="/2"
+           topts[1]="0:05:00" ; popts[1]="40/3/" ; ropts[1]="/1"
+           topts[2]="0:05:00" ; popts[2]="40/5/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
            topts[1]="0:15:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="10/4/"  ; ropts[2]="/1"
@@ -173,17 +173,17 @@ case $regtest in
 
     ;;
 
-    netcdf_fv3_regional)
+    rrfs_enkf_conv)
 
         if [[ "$machine" = "Hera" ]]; then
-           topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
+           topts[1]="0:05:00" ; popts[1]="40/2/"  ; ropts[1]="/1"
+           topts[2]="0:05:00" ; popts[2]="40/4/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Orion" ]]; then
            topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Hercules" ]]; then
-           topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
+           topts[1]="0:05:00" ; popts[1]="40/2/"  ; ropts[1]="/1"
+           topts[2]="0:05:00" ; popts[2]="40/4/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Jet" ]]; then
            topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
@@ -191,8 +191,8 @@ case $regtest in
            topts[1]="0:15:00" ; popts[1]="28/1/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="28/2/"  ; ropts[2]="/1"
         elif [[ "$machine" = "wcoss2" ]]; then
-           topts[1]="0:15:00" ; popts[1]="28/1/" ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="28/2/" ; ropts[2]="/1"
+           topts[1]="0:15:00" ; popts[1]="64/1/" ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="64/2/" ; ropts[2]="/1"
         fi
 
         if [ "$debug" = ".true." ] ; then
