@@ -47,8 +47,6 @@ elif [[ -d /work ]]; then # Orion or Hercules
   else
     export machine="Orion"
   fi
-elif [[ -d /work && $(hostname) =~ "hercules" ]]; then # Hercules
-  export machine="Hercules"
 elif [[ -d /lfs/h2 ]]; then # wcoss2
   export machine="wcoss2"
 fi
