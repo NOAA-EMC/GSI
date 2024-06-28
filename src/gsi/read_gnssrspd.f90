@@ -236,7 +236,7 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,s
      ncsave  =  0
      do nc = 1, nconvtype
                if (trim(ioctype(nc)) == trim(obstype)) then 
-                  if (trim(ioctype(nc)) == 'gnssrspd' .and. ictype(nc) == 298 ) then
+                  if (trim(ioctype(nc)) == 'gnssrspd' .and. ictype(nc) == 600 ) then
                ntmatch = ntmatch+1
                ncsave  = nc
                itype   = ictype(nc)
