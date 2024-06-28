@@ -32,7 +32,7 @@ fi
 # Determine the machine
 if [[ -d /scratch1 ]]; then # Hera
   export machine="Hera"
-elif [[ -d /mnt/lfs4 || -d /jetmon || -d /mnt/lfs1 ]]; then # Jet
+elif [[ -d /mnt/lfs4 || -d /jetmon || -d /mnt/lfs5 ]]; then # Jet
   export machine="Jet"
 elif [[ -d /discover ]]; then # NCCS Discover
   export machine="Discover"
@@ -142,16 +142,16 @@ case $machine in
   ;;
   Jet)
 
-    export noscrub=/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/noscrub
-    export ptmp=/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/ptmp
-    export casesdir="/lfs1/NESDIS/nesdis-rdo2/David.Huber/save/CASES/regtest"
+    export noscrub=/lfs5/NESDIS/nesdis-rdo2/$LOGNAME/noscrub
+    export ptmp=/lfs5/NESDIS/nesdis-rdo2/$LOGNAME/ptmp
+    export casesdir="/lfs5/NESDIS/nesdis-rdo2/David.Huber/save/CASES/regtest"
     export check_resource="no"
     export accnt="nesdis-rdo2"
 
     export group="global"
     export queue="batch"
     if [[ "$cmaketest" = "false" ]]; then
-      export basedir="/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/save/git/gsi"
+      export basedir="/lfs5/NESDIS/nesdis-rdo2/$LOGNAME/save/git/gsi"
     fi
 
     #  On Jet, there are no scrubbers to remove old contents from stmp* directories.
