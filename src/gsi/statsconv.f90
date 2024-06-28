@@ -680,14 +680,6 @@ subroutine statsconv(mype,&
   end if
 ! Summary report for conventional gnssrspd
   if(mype==mype_gnssrspd) then
-     if(first)then
-        open(iout_gnssrspd)
-     else
-        open(iout_gnssrspd,position='append')
-     end if
-
-     numgnssrspd=nint(awork(5,i_gnssrspd))
-     pw=zero ; pw3=zero
      nread=0
      nkeep=0
      do i=1,ndat
@@ -696,36 +688,39 @@ subroutine statsconv(mype,&
            nkeep=nkeep+ndata(i,3)
         end if
      end do
-     if(nkeep > 0)then
-        mesage='current fit of conventional gnssrspd data, ranges in  m/s'
-        do j=1,nconvtype
-           pflag(j)=trim(ioctype(j)) == 'gnssrspd'
-        end do
-        call dtast(bwork,1,pbotall,ptopall,mesage,jiter,iout_gnssrspd,pflag)
-
-        numgross=nint(awork(6,i_gnssrspd))
-        numfailqc=nint(awork(21,i_gnssrspd))
-        if(numgnssrspd > 0)then
-           pw=awork(4,i_gnssrspd)/numgnssrspd
-           pw3=awork(22,i_gnssrspd)/numgnssrspd
+     if(nread > 0)then
+        if(first)then
+           open(iout_gnssrspd)
+        else
+           open(iout_gnssrspd,position='append')
         end if
-        write(iout_gnssrspd,925) 'gnssrspd',numgross,numfailqc
-     end if
-     write(iout_gnssrspd,950) 'gnssrspd',jiter,nread,nkeep,numgnssrspd
-     write(iout_gnssrspd,951) 'gnssrspd',awork(4,i_gnssrspd),awork(22,i_gnssrspd),pw,pw3
 
-     close(iout_gnssrspd)
+        numgnssrspd=nint(awork(5,i_gnssrspd))
+        pw=zero ; pw3=zero
+        if(nkeep > 0)then
+           mesage='current fit of conventional gnssrspd data, ranges in  m/s'
+           do j=1,nconvtype
+              pflag(j)=trim(ioctype(j)) == 'gnssrspd'
+           end do
+           call dtast(bwork,1,pbotall,ptopall,mesage,jiter,iout_gnssrspd,pflag)
+
+           numgross=nint(awork(6,i_gnssrspd))
+           numfailqc=nint(awork(21,i_gnssrspd))
+           if(numgnssrspd > 0)then
+              pw=awork(4,i_gnssrspd)/numgnssrspd
+              pw3=awork(22,i_gnssrspd)/numgnssrspd
+           end if
+           write(iout_gnssrspd,925) 'gnssrspd',numgross,numfailqc
+        end if
+        write(iout_gnssrspd,950) 'gnssrspd',jiter,nread,nkeep,numgnssrspd
+        write(iout_gnssrspd,951) 'gnssrspd',awork(4,i_gnssrspd),awork(22,i_gnssrspd),pw,pw3
+
+        close(iout_gnssrspd)
+     end if
   end if
+
 ! Summary report for conventional td2m
   if(mype==mype_td2m) then
-        if(first)then
-           open(iout_td2m)
-        else
-           open(iout_td2m,position='append')
-        end if
-
-        numtd2m=nint(awork(5,i_td2m))
-        pw=zero ; pw3=zero
      nread=0
      nkeep=0
      do i=1,ndat
@@ -734,6 +729,15 @@ subroutine statsconv(mype,&
            nkeep=nkeep+ndata(i,3)
         end if
      end do
+     if(nread > 0)then
+        if(first)then
+           open(iout_td2m)
+        else
+           open(iout_td2m,position='append')
+        end if
+
+        numtd2m=nint(awork(5,i_td2m))
+        pw=zero ; pw3=zero
         if(nkeep > 0)then
            mesage='current fit of conventional td2m data, ranges in K $'
            do j=1,nconvtype
@@ -753,6 +757,7 @@ subroutine statsconv(mype,&
         write(iout_td2m,951) 'td2m',awork(4,i_td2m),awork(22,i_td2m),pw,pw3
 
         close(iout_td2m)
+     end if
   end if
 
 ! Summary report for conventional mxtm
