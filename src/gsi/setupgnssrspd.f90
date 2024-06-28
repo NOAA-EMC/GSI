@@ -329,7 +329,7 @@ subroutine setupgnssrspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_
 !    sea level. 
 
 !    Process cygnss observations at mslp
-     if ( nty == 298) then
+     if ( nty == 600 ) then
           z_height = .true.
           data(ihgt,i) = ten
      endif
