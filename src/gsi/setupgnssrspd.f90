@@ -67,7 +67,7 @@ subroutine setupgnssrspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_
   use gridmod, only: nsig,get_ij,twodvar_regional
   use qcmod, only: npres_print,ptop,pbot
   use constants, only: one,grav,rd,zero,four,tiny_r_kind, &
-       half,two,cg_term,huge_single,r1000,wgtlim
+       half,two,cg_term,huge_single,r1000,wgtlim,ten
   use jfunc, only: jiter,last,miter,jiterstart
   use state_vectors, only: svars3d, levels
   use qcmod, only: dfact,dfact1
@@ -100,7 +100,6 @@ subroutine setupgnssrspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_
   integer(i_kind)                                  ,intent(in   ) :: is ! ndat index
 
 ! Declare local variables
-  real(r_kind),parameter:: ten=10.0_r_kind
   character(len=*),parameter:: myname='setupgnssrspd'
 
 ! Declare external calls for code analysis
@@ -332,7 +331,7 @@ subroutine setupgnssrspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_
 !    Process cygnss observations at mslp
      if ( nty == 298) then
           z_height = .true.
-          data(ihgt,i) = 10
+          data(ihgt,i) = ten
      endif
      
      if (z_height) then
