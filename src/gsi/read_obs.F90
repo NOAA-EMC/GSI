@@ -497,6 +497,7 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
                lexist = .true.
                exit gnssrwndloop
            endif
+           nread = nread + 1
          end do gnssrwndloop
 
        else if(trim(dtype) == 'pm2_5')then
@@ -1464,7 +1465,6 @@ subroutine read_obs(ndata,mype)
                 endif
 
              else if (obstype == 'gnssrspd' .and. index(infile,'gnssrwndbufr') /=0 ) then
-                write(6,*) " Before read_gnssrspd: ndat=",ndat," nread=",nread," npuse=",npuse," nouse=",nouse
                 call read_gnssrspd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis, &
                       nobs_sub1(1,i))
                 string='READ_GNSSRSPD'
