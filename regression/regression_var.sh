@@ -32,7 +32,7 @@ fi
 # Determine the machine
 if [[ -d /scratch1 ]]; then # Hera
   export machine="Hera"
-elif [[ -d /mnt/lfs4 || -d /jetmon || -d /mnt/lfs1 ]]; then # Jet
+elif [[ -d /mnt/lfs4 || -d /jetmon || -d /mnt/lfs5 ]]; then # Jet
   export machine="Jet"
 elif [[ -d /discover ]]; then # NCCS Discover
   export machine="Discover"
@@ -137,16 +137,16 @@ case $machine in
   ;;
   Jet)
 
-    export noscrub=/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/noscrub
-    export ptmp=/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/ptmp
-    export casesdir="/lfs1/NESDIS/nesdis-rdo2/David.Huber/save/CASES/regtest"
+    export noscrub=/lfs5/NESDIS/nesdis-rdo2/$LOGNAME/noscrub
+    export ptmp=/lfs5/NESDIS/nesdis-rdo2/$LOGNAME/ptmp
+    export casesdir="/lfs5/NESDIS/nesdis-rdo2/David.Huber/save/CASES/regtest"
     export check_resource="no"
     export accnt="nesdis-rdo2"
 
     export group="global"
     export queue="batch"
     if [[ "$cmaketest" = "false" ]]; then
-      export basedir="/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/save/git/gsi"
+      export basedir="/lfs5/NESDIS/nesdis-rdo2/$LOGNAME/save/git/gsi"
     fi
 
     #  On Jet, there are no scrubbers to remove old contents from stmp* directories.
@@ -188,19 +188,19 @@ export JCAP="62"
 # Case Study analysis dates
 export global_adate="2024022300"
 export rtma_adate="2020022420"
-export fv3_netcdf_adate="2017030100"
-export rrfs_3denvar_glbens_adate="2021072518"
+export rrfs_enkf_adate="2023061012"
+export rrfs_3denvar_rdasens_adate="2023061012"
 export hafs_envar_adate="2020082512"
 
 # Paths for canned case data.
 export global_data="$casesdir/gfs/prod"
 export rtma_obs="$casesdir/regional/rtma_binary/$rtma_adate"
 export rtma_ges="$casesdir/regional/rtma_binary/$rtma_adate"
-export fv3_netcdf_obs="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
-export fv3_netcdf_ges="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
-export rrfs_3denvar_glbens_obs="$casesdir/regional/rrfs/$rrfs_3denvar_glbens_adate/obs"
-export rrfs_3denvar_glbens_ges="$casesdir/regional/rrfs/$rrfs_3denvar_glbens_adate/ges"
-export rrfs_3denvar_glbens_ens="$casesdir/regional/rrfs/$rrfs_3denvar_glbens_adate/ens"
+export rrfs_enkf_diag="$casesdir/regional/rrfs/$rrfs_enkf_adate/diag"
+export rrfs_enkf_ges="$casesdir/regional/rrfs/$rrfs_enkf_adate/ens"
+export rrfs_3denvar_rdasens_obs="$casesdir/regional/rrfs/$rrfs_3denvar_rdasens_adate/obs"
+export rrfs_3denvar_rdasens_ges="$casesdir/regional/rrfs/$rrfs_3denvar_rdasens_adate/ges"
+export rrfs_3denvar_rdasens_ens="$casesdir/regional/rrfs/$rrfs_3denvar_rdasens_adate/ens"
 export hafs_envar_obs="$casesdir/regional/hafs_RTdata/$hafs_envar_adate/obs"
 export hafs_envar_ges="$casesdir/regional/hafs_RTdata/$hafs_envar_adate/ges"
 export hafs_envar_ens="$casesdir/regional/hafs_RTdata/$hafs_envar_adate/ens"
