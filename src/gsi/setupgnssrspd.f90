@@ -323,6 +323,9 @@ subroutine setupgnssrspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_
 
      nty=ictype(ikx)
 
+!    Initialize logical     
+     z_height = .false.
+
 !    Process observations reported with height differently than those
 !    reported with pressure.  Type 260=nacelle 261=tower wind spd are
 !    encoded in NCEP prepbufr files with geometric height above
