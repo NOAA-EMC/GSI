@@ -84,8 +84,7 @@ subroutine setupgnssrspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_
   ! observations collected within hurricanes/tropical cyclones; these
   ! apply only to the regional forecast models (e.g., HWRF); Henry
   ! R. Winterbottom (henry.winterbottom@noaa.gov).
-  
-  use obsmod, only: uv_doe_a_213,uv_doe_b_213
+
   
   implicit none
 
