@@ -230,26 +230,26 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,s
 
      inflate_error = .true.
 
-!    Check if the obs type specified in the convinfo is in the fl hdob bufr file 
-!    If found, get the index (nc) from the convinfo for the specified type
-     ntmatch =  0
-     ncsave  =  0
-     do nc = 1, nconvtype
-               if (trim(ioctype(nc)) == trim(obstype)) then 
-                  if (trim(ioctype(nc)) == 'gnssrspd' .and. ictype(nc) == 600 ) then
-               ntmatch = ntmatch+1
-               ncsave  = nc
-               itype   = ictype(nc)
-           end if
+! Check if the obs type specified in the convinfo is in the fl hdob bufr file 
+! If found, get the index (nc) from the convinfo for the specified type
+ntmatch =  0
+ncsave  =  0
+do nc = 1, nconvtype
+    if (trim(ioctype(nc)) == trim(obstype)) then 
+        if (trim(ioctype(nc)) == 'gnssrspd' .and. ictype(nc) == 600 ) then
+            ntmatch = ntmatch + 1
+            ncsave  = nc
+            itype   = ictype(nc)
         end if
-     enddo
-     if(ntmatch == 0)then  ! Return if not specified in convinfo 
-        write(6,*) ' READ_GNSSRSPD: No matching obstype found in obsinfo ',obstype
-        return
-     else 
-        nc = ncsave
-        write(6,*) ' READ_GNSSRSPD: Processing GNSSRSPD data : ', ntmatch, nc, ioctype(nc), ictype(nc), itype 
-     end if
+    end if
+end do
+if (ntmatch == 0) then  ! Return if not specified in convinfo 
+    write(6,*) ' READ_GNSSRSPD: No matching obstype found in obsinfo ', obstype
+    return
+else 
+    nc = ncsave
+    write(6,*) ' READ_GNSSRSPD: Processing GNSSRSPD data : ', ntmatch, nc, ioctype(nc), ictype(nc), itype 
+end if
 
 
 !------------------------------------------------------------------------------------------------
