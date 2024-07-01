@@ -380,18 +380,6 @@ subroutine setupgnssrspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_
         pobl     = p1 + (dlnp21/dz21)*dz
         presw    = ten*exp(pobl)
 
-!    Process observations with reported pressure
-     else
-
-        presw = ten*exp(dpres)
-        dpres = dpres-log(psges)
-        drpx=zero
-        if(nty >= 280 .and. nty < 290)then
-           dpresave=dpres
-           dpres=-goverrd*data(ihgt,i)/tges(1)
-           if(nty < 283)drpx=abs(dpres-dpresave)*factw*thirty
-        end if
-
         prsfc=psges
         prsln2=log(exp(prsltmp(1))/prsfc)
         sfcchk=log(psges)
