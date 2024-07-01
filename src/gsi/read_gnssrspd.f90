@@ -154,7 +154,7 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,s
      real(r_kind) :: dx,dy,dx1,dy1,w00,w10,w01,w11
      real(r_kind) :: wdir,wspd
      real(r_kind) :: tob,uob,vob,qob,spdob,rrob
-     real(r_kind) :: rhob,tdob
+     real(r_kind) :: rhob,tdob,dlnpsob,log
      real(r_kind) :: pob_mb,pob_cb,pob_pa,gob
      real(r_kind) :: psob_mb,psob_cb,psob_pa
      real(r_kind) :: qmaxerr 
@@ -165,7 +165,7 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,s
      real(r_kind) :: es,qsat,rhob_calc,tdob_calc,tdry
      real(r_kind) :: dummy 
      real(r_kind) :: del,ediff,errmin,jbmin
-     real(r_kind) :: tvflg 
+     real(r_kind) :: tvflg,log100  
 
      real(r_kind) :: presl(nsig)
      real(r_kind) :: obstime(6,1)
@@ -215,6 +215,7 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,s
 
      nreal  = 0
      iecol  = 0
+     log100=log(100._r_kind)
  
  
      lim_qm = 4
@@ -432,6 +433,9 @@ end if
            ndata = ndata + 1
            nodata = nodata + 1
            iout = ndata
+
+!         Read extrapolated surface pressure [pa] and convert to [cb]
+           dlnpsob = log100         ! default (1000mb)           
 
 !-------------------------------------------------------------------------------------------------          
 
