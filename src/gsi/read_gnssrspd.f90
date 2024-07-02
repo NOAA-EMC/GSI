@@ -154,7 +154,7 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,s
      real(r_kind) :: dx,dy,dx1,dy1,w00,w10,w01,w11
      real(r_kind) :: wdir,wspd
      real(r_kind) :: tob,uob,vob,qob,spdob,rrob
-     real(r_kind) :: rhob,tdob,dlnpsob,log
+     real(r_kind) :: rhob,tdob
      real(r_kind) :: pob_mb,pob_cb,pob_pa,gob
      real(r_kind) :: psob_mb,psob_cb,psob_pa
      real(r_kind) :: qmaxerr 
