@@ -21,7 +21,7 @@ exp=$jobname
 #
 #-----------------------------------------------------------------------
 #
-adate=${rrfs_3denvar_glbens_adate}
+adate=${rrfs_3denvar_rdasens_adate}
 YYYYMMDDHH=$(date +%Y%m%d%H -d "${adate:0:8} ${adate:8:2}")
 JJJ=$(date +%j -d "${adate:0:8} ${adate:8:2}")
 
@@ -31,9 +31,6 @@ DD=${YYYYMMDDHH:6:2}
 HH=${YYYYMMDDHH:8:2}
 YYYYMMDD=${YYYYMMDDHH:0:8}
 #
-#MESO_USELIST_FN=$(date +%Y-%m-%d -d "${START_DATE} -1 day")_meso_uselist.txt
-#AIR_REJECT_FN=$(date +%Y%m%d -d "${START_DATE} -1 day")_rejects.txt
-
 #
 #-----------------------------------------------------------------------
 #
@@ -42,17 +39,16 @@ YYYYMMDD=${YYYYMMDDHH:0:8}
 #
 #-----------------------------------------------------------------------
 # Set runtime and save directories
-tmpdir=$tmpdir/tmpreg_rrfs_3denvar_glbens/${exp}
-savdir=$savdir/outreg_rrfs_3denvar_glbens/${exp}
+tmpdir=$tmpdir/tmpreg_rrfs_3denvar_rdasens/${exp}
+savdir=$savdir/outreg_rrfs_3denvar_rdasens/${exp}
 
 # Set up $tmpdir
 rm -rf $tmpdir
 mkdir -p $tmpdir
-chgrp rstprod $tmpdir
 chmod 750 $tmpdir
 cd $tmpdir
 
-bkpath=${rrfs_3denvar_glbens_ges}
+bkpath=${rrfs_3denvar_rdasens_ges}
 # decide background type
 if [ -r "${bkpath}/fv3_coupler.res" ]; then
   BKTYPE=0              # warm start
@@ -68,19 +64,59 @@ fixcrtm=${fixcrtm:-$CRTM_FIX}
 #
 #---------------------------------------------------------------------
 #
-echo "regional_ensemble_option is ",${regional_ensemble_option:-1}
-
+regional_ensemble_option=${regional_ensemble_option:-5}
+NUM_ENS_MEMBERS=5
+echo "regional_ensemble_option is ",${regional_ensemble_option}
+echo "regional_ensemble number is ",${NUM_ENS_MEMBERS}
 echo "$VERBOSE" "fixgsi is $fixgsi"
-echo "$VERBOSE" "fixgriddir is $fixgriddir"
 echo "$VERBOSE" "default bkpath is $bkpath"
 echo "$VERBOSE" "background type is is $BKTYPE"
 
 ifhyb=.false.
-if  [[ ${regional_ensemble_option:-1} -eq 1 ]]; then #using GDAS
+#
+# Check if we have enough FV3-LAM ensembles when regional_ensemble_option=5
+#
+if  [[ ${regional_ensemble_option} -eq 5 ]]; then
+
+  imem=1
+  ifound=0
+  while [[ $imem -le ${NUM_ENS_MEMBERS} ]];do
+    memcharv0=$( printf "%03d" $imem )
+    memchar=mem$( printf "%04d" $imem )
+
+    restart_prefix="${YYYYMMDD}.${HH}0000."
+    slash_ensmem_subdir=$memchar
+    bkpathmem=${rrfs_3denvar_rdasens_ens}/${slash_ensmem_subdir}/fcst_fv3lam/RESTART
+
+    dynvarfile=${bkpathmem}/${restart_prefix}fv_core.res.tile1.nc
+    tracerfile=${bkpathmem}/${restart_prefix}fv_tracer.res.tile1.nc
+    phyvarfile=${bkpathmem}/${restart_prefix}phy_data.nc
+    if [ -r "${dynvarfile}" ] && [ -r "${tracerfile}" ] && [ -r "${phyvarfile}" ] ; then
+      ln -snf ${bkpathmem}/${restart_prefix}fv_core.res.tile1.nc       fv3SAR01_ens_mem${memcharv0}-fv3_dynvars
+      ln -snf ${bkpathmem}/${restart_prefix}fv_tracer.res.tile1.nc     fv3SAR01_ens_mem${memcharv0}-fv3_tracer
+      ln -snf ${bkpathmem}/${restart_prefix}phy_data.nc                fv3SAR01_ens_mem${memcharv0}-fv3_phyvars
+      (( ifound += 1 ))
+    else
+      print_info_msg "WARNING: Cannot find ensemble files: ${dynvarfile} ${tracerfile} ${phyvarfile} "
+    fi
+    (( imem += 1 ))
+  done
+
+  ifhyb=.true.
+  nummem=${NUM_ENS_MEMBERS}
+  if [[ $ifound -ne ${NUM_ENS_MEMBERS} ]] || [[ ${BKTYPE} -eq 1 ]]; then
+    print_info_msg "Not enough FV3_LAM ensembles, will fall to GDAS"
+    regional_ensemble_option=1
+    l_both_fv3sar_gfs_ens=.false.
+    ifhyb=.false.
+  fi
+fi
+#
+if  [[ ${regional_ensemble_option} -eq 1 ]]; then #using GDAS
   #-----------------------------------------------------------------------
   # Make a list of the latest GFS EnKF ensemble
   #-----------------------------------------------------------------------
-  ls ${rrfs_3denvar_glbens_ens}/*gdas.t??z.atmf009.mem0??.nc >> filelist03
+  ls ${rrfs_3denvar_rdasens_ens}/*gdas.t??z.atmf009.mem0??.nc >> filelist03
 
   nummem=$(more filelist03 | wc -l)
   nummem=$((nummem - 3 ))
@@ -109,12 +145,13 @@ ln -snf ${bkpath}/fv3_akbk                     fv3_akbk
 ln -snf ${bkpath}/fv3_grid_spec                fv3_grid_spec
 
 if [ ${BKTYPE} -eq 1 ]; then  # cold start uses background from INPUT
-  ln -snf ${bkpath}/phis.nc               phis.nc
-  ncks -A -v  phis               phis.nc           ${bkpath}/gfs_data.tile7.halo0.nc
 
-  ln_vrfy -snf ${bkpath}/sfc_data.tile7.halo0.nc   fv3_sfcdata
-  ln_vrfy -snf ${bkpath}/gfs_data.tile7.halo0.nc   fv3_dynvars
-  ln_vrfy -s fv3_dynvars                           fv3_tracer
+  cp ${bkpath}/sfc_data.tile7.halo0.nc   fv3_sfcdata
+  cp ${bkpath}/gfs_data.tile7.halo0.nc   fv3_dynvars
+  ln_vrfy -s fv3_dynvars                 fv3_tracer
+
+  ln -snf ${bkpath}/phis.nc    phis.nc
+  ncks -A -v  phis  phis.nc    fv3_dynvars
 
   fv3lam_bg_type=1
 else                          # cycle uses background from restart
@@ -133,7 +170,6 @@ sed -i "s/mm/${MM}/"     coupler.res
 sed -i "s/dd/${DD}/"     coupler.res
 sed -i "s/hh/${HH}/"     coupler.res
 
-
 #
 #-----------------------------------------------------------------------
 #
@@ -143,7 +179,7 @@ sed -i "s/hh/${HH}/"     coupler.res
 #-----------------------------------------------------------------------
   obs_source=rap
   obsfileprefix=${YYYYMMDDHH}.${obs_source}
-  obspath_tmp=${rrfs_3denvar_glbens_obs}
+  obspath_tmp=${rrfs_3denvar_rdasens_obs}
 
   obs_files_source[0]=${obspath_tmp}/${obsfileprefix}.t${HH}${SUBH}z.prepbufr.tm00
   obs_files_target[0]=prepbufr
@@ -156,6 +192,73 @@ sed -i "s/hh/${HH}/"     coupler.res
   obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}${SUBH}z.nexrad.tm00.bufr_d
   obs_files_target[${obs_number}]=l2rwbufr
 
+  obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${YYYYMMDDHH}.Gridded_ref.nc
+  obs_files_target[${obs_number}]=dbzobs.nc
+
+  obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${YYYYMMDDHH}.fedobs.nc
+  obs_files_target[${obs_number}]=fedobs.nc
+
+  obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.1bamua.tm00.bufr_d
+  obs_files_target[${obs_number}]=amsuabufr
+
+  obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.esamua.tm00.bufr_d
+  obs_files_target[${obs_number}]=amsuabufrears
+
+  obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.1bmhs.tm00.bufr_d
+  obs_files_target[${obs_number}]=mhsbufr
+
+  obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.esmhs.tm00.bufr_d
+  obs_files_target[${obs_number}]=mhsbufrears
+
+  obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.atms.tm00.bufr_d
+  obs_files_target[${obs_number}]=atmsbufr
+
+  obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.esatms.tm00.bufr_d
+  obs_files_target[${obs_number}]=atmsbufrears
+
+  obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.atmsdb.tm00.bufr_d
+  obs_files_target[${obs_number}]=atmsbufr_db
+
+  obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.crisf4.tm00.bufr_d
+  obs_files_target[${obs_number}]=crisfsbufr
+
+  obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.crsfdb.tm00.bufr_d
+  obs_files_target[${obs_number}]=crisfsbufr_db
+
+  obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.mtiasi.tm00.bufr_d
+  obs_files_target[${obs_number}]=iasibufr
+
+  obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.esiasi.tm00.bufr_d
+  obs_files_target[${obs_number}]=iasibufrears
+
+    obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.iasidb.tm00.bufr_d
+  obs_files_target[${obs_number}]=iasibufr_db
+
+  obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.gsrcsr.tm00.bufr_d
+  obs_files_target[${obs_number}]=abibufr
+
+  obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.ssmisu.tm00.bufr_d
+  obs_files_target[${obs_number}]=ssmisbufr
+
+  obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.sevcsr.tm00.bufr_d
+  obs_files_target[${obs_number}]=sevcsr
 
 obs_number=${#obs_files_source[@]}
 for (( i=0; i<${obs_number}; i++ ));
@@ -176,7 +279,7 @@ done
 #
 #-----------------------------------------------------------------------
 
-ANAVINFO=${fixgsi}/anavinfo.rrfs
+ANAVINFO=${fixgsi}/anavinfo.rrfs_conv_dbz
 CONVINFO=${fixgsi}/convinfo.rrfs
 HYBENSINFO=${fixgsi}/hybens_info.rrfs
 OBERROR=${fixgsi}/errtable.rrfs
@@ -198,9 +301,31 @@ cp $OBERROR    errtable
 cp $ATMS_BEAMWIDTH atms_beamwidth.txt
 cp ${HYBENSINFO} hybens_info
 
-cp ${bkpath}/gsd_sfcobs_provider.txt gsd_sfcobs_provider.txt
-cp ${bkpath}/current_bad_aircraft current_bad_aircraft
-cp ${bpath}/gsd_sfcobs_uselist.txt  gsd_sfcobs_uselist.txt
+cp ${obspath_tmp}/gsd_sfcobs_provider.txt gsd_sfcobs_provider.txt
+cp ${obspath_tmp}/current_bad_aircraft current_bad_aircraft
+cp ${obspath_tmp}/gsd_sfcobs_uselist.txt  gsd_sfcobs_uselist.txt
+
+#-----------------------------------------------------------------------
+#
+# cycling radiance bias corretion files
+#
+#-----------------------------------------------------------------------
+
+cp $obspath_tmp/rrfs.prod.${YYYYMMDDHH}_satbias_pc ./satbias_pc
+cp $obspath_tmp/rrfs.prod.${YYYYMMDDHH}_satbias    ./satbias_in
+cp $obspath_tmp/rrfs.prod.${YYYYMMDDHH}_radstat    ./radstat.rrfs
+
+if [ -r radstat.rrfs ]; then
+    listdiag=$(tar xvf radstat.rrfs | cut -d' ' -f2 | grep _ges)
+    for type in $listdiag; do
+      diag_file=$(echo $type | cut -d',' -f1)
+      fname=$(echo $diag_file | cut -d'.' -f1)
+      date=$(echo $diag_file | cut -d'.' -f2)
+      gunzip $diag_file
+      fnameanl=$(echo $fname|sed 's/_ges//g')
+      mv $fname.$date* $fnameanl
+    done
+fi
 
 #-----------------------------------------------------------------------
 #
@@ -261,9 +386,9 @@ HYBRID_ENSEMBLE='ensemble_path="",'
 SINGLEOB="$SINGLEOB_update"
 
 if [ "$debug" = ".false." ]; then
-   . $scripts/regression_namelists.sh rrfs_3denvar_glbens
+   . $scripts/regression_namelists.sh rrfs_3denvar_rdasens
 else
-   . $scripts/regression_namelists_db.sh rrfs_3denvar_glbens
+   . $scripts/regression_namelists_db.sh rrfs_3denvar_rdasens
 fi
 
 cat << EOF > gsiparm.anl
@@ -278,10 +403,6 @@ if [[ $exp == *"updat"* ]]; then
 elif [[ $exp == *"contrl"* ]]; then
    $ncp $gsiexec_contrl ./gsi.x
 fi
-
-#cp $fv3_netcdf_ges/nam.t06z.satbias_pc.tm04 ./satbias_pc
-#cp $fv3_netcdf_ges/nam.t06z.satbias.tm04 ./satbias_in
-#cp $fv3_netcdf_ges/nam.t06z.radstat.tm04    ./radstat.gdas
 
 # Run GSI
 cd $tmpdir
