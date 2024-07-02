@@ -40,10 +40,13 @@ elif [[ -d /ncrc ]]; then # Gaea
   export machine="Gaea"
 elif [[ -d /data/prod ]]; then # S4
   export machine="S4"
-elif [[ -d /work && $(hostname) =~ "Orion" ]]; then # Orion
-  export machine="Orion"
-elif [[ -d /work && $(hostname) =~ "hercules" ]]; then # Hercules
-  export machine="Hercules"
+elif [[ -d /work ]]; then # Orion or Hercules
+  mount=$(findmnt -n -o SOURCE /home)
+  if [[ ${mount} =~ "hercules" ]]; then
+    export machine="Hercules"
+  else
+    export machine="Orion"
+  fi
 elif [[ -d /lfs/h2 ]]; then # wcoss2
   export machine="wcoss2"
 fi
