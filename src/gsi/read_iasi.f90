@@ -143,7 +143,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  ,intent(in   ) :: npe_sub
   integer(i_kind)  ,intent(in   ) :: mpi_comm_sub  
   character(len=*), intent(in   ) :: infile
-  character(len=10),intent(in   ) :: jsatid
+  character(len=*) ,intent(in   ) :: jsatid
   character(len=*), intent(in   ) :: obstype
   character(len=20),intent(in   ) :: sis
   real(r_kind)     ,intent(in   ) :: twind

@@ -414,7 +414,8 @@ subroutine read_radiag_header_nc(ftin,header_fix,header_chan,iflag)
   real(r_kind),allocatable,dimension(:)               :: r_var_stor
   integer(i_kind),allocatable,dimension(:)            :: i_var_stor
   character(20)                          :: isis
-  character(10)                          :: id, obstype
+  character(11)                          :: id
+  character(10)                          :: obstype
 !  integer(i_kind),dimension(:),allocatable           :: jiter, nchan_diag, npred, idate, &
   integer(i_kind)                        :: jiter, nchan_diag, npred, idate, &
                                             ireal, ipchan, iextra, jextra,   &
