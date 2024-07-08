@@ -43,7 +43,7 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,twind,sis,&
          tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
          rlats,rlons,twodvar_regional
      use convinfo, only: nconvtype, &
-         icuse,ictype,icsubtype,ioctype
+         icuse,ictype,ioctype
      use obsmod, only: ran01dom
      use obsmod, only: iadate,bmiss,offtime_data
      use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen
@@ -125,7 +125,7 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,twind,sis,&
      real(r_kind) :: vdisterrmax
      real(r_kind) :: spdob
      real(r_kind) :: gob
-     real(r_kind) :: dlnpsob,ppb
+     real(r_kind) :: dlnpsob
      real(r_kind) :: tdiff 
      real(r_kind) :: tsavg,ff10,sfcr,zz
      real(r_kind) :: errmin
