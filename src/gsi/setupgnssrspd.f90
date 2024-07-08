@@ -50,7 +50,7 @@ subroutine setupgnssrspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_
 
   use obsmod, only: rmiss_single,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,&
-                    lobsdiag_forenkf,aircraft_recon
+                    lobsdiag_forenkf
   use obsmod, only: netcdf_diag, binary_diag, dirname, ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
@@ -117,7 +117,7 @@ subroutine setupgnssrspd(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_
   real(r_kind) val2,ressw,ress,error,ddiff,dx10,rhgh,prsfc,r0_001
   real(r_kind) sfcchk,prsln2,rwgt,tfact                        
   real(r_kind) thirty,rsig,ratio,residual,obserrlm,obserror
-  real(r_kind) val,valqc,psges,drpx,dlat,dlon,dtime,dpresave,rlow
+  real(r_kind) val,valqc,psges,drpx,dlat,dlon,dtime,rlow
   real(r_kind) cg_gnssrspd,wgross,wnotgross,wgt,arg,exp_arg,term,rat_err2
   real(r_kind) errinv_input,errinv_adjst,errinv_final
   real(r_kind) err_input,err_adjst,err_final

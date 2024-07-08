@@ -1,4 +1,4 @@
-subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis,&
+subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,twind,sis,&
                        nobs)
 
 !$$$  subprogram documentation block
@@ -21,7 +21,6 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,s
 !     infile    - unit from which to read BUFR data
 !     obstype   - observation type to process
 !     lunout    - unit to which to write data for further processing
-!     gstime    - analysis time in minutes from reference date 
 !     twind     - input group time window (hours)
 !     sis       - satellite/instrument/sensor indicator
 !
@@ -38,29 +37,18 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,s
 !$$$
      use kinds, only: r_single,r_kind,r_double,i_kind
      use constants, only: zero,one_tenth,one,two,ten,deg2rad,t0c,half,&
-         three,four,rad2deg,tiny_r_kind,huge_r_kind,r0_01,&
-         r60inv,r10,r100,r2000,hvap,eps,omeps,rv,grav
-     use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
+         three,four,rad2deg,r0_01,&
+         r60inv,r10,r100,r2000,hvap
+     use gridmod, only: diagnostic_reg,regional,nlon,nlat,&
          tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
          rlats,rlons,twodvar_regional
      use convinfo, only: nconvtype, &
-         icuse,ictype,icsubtype,ioctype, &
-         ithin_conv,rmesh_conv,pmesh_conv
-     use obsmod, only: perturb_obs,perturb_fact,ran01dom
+         icuse,ictype,icsubtype,ioctype
+     use obsmod, only: ran01dom
      use obsmod, only: iadate,bmiss,offtime_data
-     use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,aircraft_t_bc_ext
-     use converr,only: etabl
-     use converr_ps,only: etabl_ps,isuble_ps,maxsub_ps
-     use converr_q,only: etabl_q,isuble_q,maxsub_q
-     use converr_t,only: etabl_t,isuble_t,maxsub_t
-     use converr_uv,only: etabl_uv,isuble_uv,maxsub_uv
-     use convb_ps,only: btabl_ps
-     use convb_q,only: btabl_q
-     use convb_t,only: btabl_t
-     use convb_uv,only: btabl_uv
-     use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,time_4dvar,winlen,thin4d
-     use qcmod, only: errormod,njqc
-     use convthin, only: make3grids,del3grids,use_all
+     use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen
+     use qcmod, only: errormod
+     use convthin, only: make3grids,del3grids
      use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
      use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
      use mpimod, only: npe
@@ -74,57 +62,42 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,s
      integer(i_kind) , dimension(npe), intent(inout) :: nobs
      integer(i_kind) , intent(inout) :: nread,ndata,nodata
      real(r_kind)    , intent(in   ) :: twind
-     real(r_kind)    , intent(in   ) :: gstime 
    
 !    Declare local variables
 !    Logical variables
      logical :: outside 
      logical :: inflate_error
-     logical :: ltob,lqob,luvob,lspdob,lpsob
-     logical :: luse
+     logical :: lspdob
 
 !    Character variables
-     character(40) :: hdstr,timestr,locstr,wndstr,sfmrstr,oestr  
-     character(40) :: psfstr,prsstr,g10str,qcmstr  
-     character(40) :: obs_region  
+     character(40) :: timestr,locstr,wndstr,oestr  
      character( 8) :: subset
      character( 8) :: c_prvstg,c_sprvstg
      character( 8) :: c_station_id
-     character( 6) :: bulstr1,bulstr2  
-     character( 6) :: obsbul(2,1)  
      character(10) date
 !    Integer variables
      integer(i_kind), parameter :: mxib  = 31
-     integer(i_kind), parameter :: ietabl= 19 
 
-     integer(i_kind) :: i,k,kl,k1,k2,j 
-     integer(i_kind) :: ihh,idd,idate,iret,im,iy,levs
+     integer(i_kind) :: i,k
+     integer(i_kind) :: ihh,idd,idate,im,iy
      integer(i_kind) :: lunin 
      integer(i_kind) :: ireadmg,ireadsb
      integer(i_kind) :: ilat,ilon 
      integer(i_kind) :: nlv
      integer(i_kind) :: nreal,nchanl
      integer(i_kind) :: idomsfc,isflg
-     integer(i_kind) :: ithin,iout 
+     integer(i_kind) :: iout 
      integer(i_kind) :: nc,ncsave
      integer(i_kind) :: ntmatch,ntb
      integer(i_kind) :: nmsg   
      integer(i_kind) :: maxobs 
-     integer(i_kind) :: itype,itypey,iecol
-     integer(i_kind) :: ierr_ps,ierr_q,ierr_t,ierr_uv,ncount_ps,ncount_q,ncount_t,ncount_uv 
+     integer(i_kind) :: itype,iecol
      integer(i_kind) :: qcm,lim_qm
-     integer(i_kind) :: p_qm,g_qm,t_qm,q_qm,uv_qm,wspd_qm,ps_qm
+     integer(i_kind) :: wspd_qm
      integer(i_kind) :: ntest,nvtest
-!    integer(i_kind) :: m,itypex,lcount,iflag
-     integer(i_kind) :: nlevp   ! vertical level for thinning
-     integer(i_kind) :: pflag   
-     integer(i_kind) :: ntmp,iiout,igood
-     integer(i_kind) :: kk,klon1,klat1,klonp1,klatp1
+     integer(i_kind) :: igood
      integer(i_kind) :: iuse
-     integer(i_kind) :: nmind
-     integer(i_kind) :: nib 
  
-     integer(i_kind) :: ibit(mxib)
      integer(i_kind) :: idate5(5)
      integer(i_kind) :: minobs,minan
 
@@ -144,47 +117,28 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,s
      real(r_kind), parameter :: r360    = 360.0_r_kind
 
      real(r_kind) :: toff,t4dv
-     real(r_kind) :: rmesh
      real(r_kind) :: usage
-     real(r_kind) :: woe,toe,qoe,psoe,obserr,var_jb
+     real(r_kind) :: woe,obserr
      real(r_kind) :: dlat,dlon,dlat_earth,dlon_earth
      real(r_kind) :: dlat_earth_deg,dlon_earth_deg
      real(r_kind) :: cdist,disterr,disterrmax,rlon00,rlat00
-     real(r_kind) :: vdisterrmax,u00,v00,u0,v0
-     real(r_kind) :: dx,dy,dx1,dy1,w00,w10,w01,w11
-     real(r_kind) :: wdir,wspd
-     real(r_kind) :: tob,uob,vob,qob,spdob,rrob
-     real(r_kind) :: rhob,tdob
-     real(r_kind) :: pob_mb,pob_cb,pob_pa,gob
-     real(r_kind) :: psob_mb,psob_cb,psob_pa
-     real(r_kind) :: qmaxerr 
-     real(r_kind) :: dlnpsob,dlnpob,ppb
-     real(r_kind) :: crit1,timedif,xmesh,pmesh
-     real(r_kind) :: sstime,tdiff 
+     real(r_kind) :: vdisterrmax
+     real(r_kind) :: spdob
+     real(r_kind) :: gob
+     real(r_kind) :: dlnpsob,ppb
+     real(r_kind) :: tdiff 
      real(r_kind) :: tsavg,ff10,sfcr,zz
-     real(r_kind) :: es,qsat,rhob_calc,tdob_calc,tdry
-     real(r_kind) :: dummy 
-     real(r_kind) :: del,ediff,errmin,jbmin
-     real(r_kind) :: tvflg,log100  
+     real(r_kind) :: errmin
+     real(r_kind) :: log100  
 
-     real(r_kind) :: presl(nsig)
      real(r_kind) :: obstime(6,1)
      real(r_kind) :: obsloc(2,1)
-     real(r_kind) :: obstmp(2,1)
-     real(r_kind) :: obswnd(4,1)
-     real(r_kind) :: obsfmr(2,1)
-     real(r_kind) :: obsmst(3,1)
-     real(r_kind) :: obsprs(1,1)
-     real(r_kind) :: obspsf(1,1)
-     real(r_kind) :: obsg10(1,1)
-     real(r_kind) :: obsqcm(2,1)
      real(r_kind) :: gnssrw(2,1)
       
      real(r_double) :: rstation_id
      real(r_double) :: r_prvstg(1,1),r_sprvstg(1,1)
 
      real(r_kind), allocatable,dimension(:,:) :: cdata_all,cdata_out
-     real(r_kind), allocatable,dimension(:)   :: presl_thin
 
 !    Equivalence to handle character names
      equivalence(r_prvstg(1,1),c_prvstg)
@@ -192,7 +146,6 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,s
      equivalence(rstation_id,c_station_id)
 
 !    Data 
-     data hdstr / 'SID' /
      !data timestr  / 'YEAR MNTH DAYS HOUR MINU SECO' /
      data timestr / 'DHR RPT' /
      !data locstr   / 'CLAT CLON' /
@@ -201,8 +154,6 @@ subroutine read_gnssrspd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,s
      data wndstr   / 'SOB' / !GNSSRSPD Wind speed
      data oestr   / 'WSU' / !GNSSRSPD Wind speed uncertainty/error 
      data lunin    / 13 /
-     data ithin    / -9 /
-     data rmesh    / -99.999_r_kind /
  
 !------------------------------------------------------------------------------------------------
 
@@ -346,7 +297,6 @@ end if
               tdiff=zero
            end if
 
-           !t4dv = real((minobs-iwinbgn),r_kind)*r60inv
            t4dv = toff+obstime(1,1)
 
            if (l4dvar.or.l4densvar) then
@@ -475,11 +425,6 @@ end if
 
 !    Close unit to bufr file
      call closbf(lunin)
-!    Deallocate arrays used for thinning data
-     !if (.not.use_all) then
-     !  deallocate(presl_thin)
-     !  call del3grids
-     !endif
  
 !    Write header record and data to output file for further processing
      write(6,*) "READ_GNSSRSPD: nreal=",nreal," ndata=",ndata
@@ -490,7 +435,6 @@ end if
         end do
      end do
      deallocate(cdata_all)
-!     deallocate(etabl)
 
      call count_obs(ndata,nreal,ilat,ilon,cdata_out,nobs)
      write(lunout) obstype,sis,nreal,nchanl,ilat,ilon

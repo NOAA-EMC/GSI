@@ -129,7 +129,7 @@ subroutine statsconv(mype,&
   integer(i_kind) numgrsswcp,numgrslwcp
   integer(i_kind) ntot,numlow,k,numssm,i,j
   integer(i_kind) numgross,numfailqc,numfailqc_ssmi,nread,nkeep
-  integer(i_kind) numfail1_gps,numfail2_gps,numfail3_gps,nreadspd,nkeepspd,nreadgnssrspd,nkeepgnssrspd
+  integer(i_kind) numfail1_gps,numfail2_gps,numfail3_gps,nreadspd,nkeepspd
   integer(i_kind),dimension(nsig)::num
 
   real(r_kind) grsmlt,tq,pw,rat,tgps,qmplty,tpw,tdw,rwmplty,trw,dbzmplty,tdbz

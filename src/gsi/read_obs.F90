@@ -1465,7 +1465,7 @@ subroutine read_obs(ndata,mype)
                 endif
 
              else if (obstype == 'gnssrspd' .and. index(infile,'gnssrwndbufr') /=0 ) then
-                call read_gnssrspd(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis, &
+                call read_gnssrspd(nread,npuse,nouse,infile,obstype,lunout,twind,sis, &
                       nobs_sub1(1,i))
                 string='READ_GNSSRSPD'
              
