@@ -160,6 +160,7 @@ module obsmod
 !   2021-11-16 Zhao      - add option l_obsprvdiag (if true) to trigger the output of
 !                          observation provider and sub-provider information into
 !                          obsdiags files (used for AutoObsQC)
+!  2022-03-15  K. Apodaca - add GNSS-R L2 ocean wind speed observations (CYGNSS, Spire) 
 !   2023-07-10  Y. Wang, D. Dowell - add variables for flash extent density
 !   2023-10-10  H. Wang (GSL) - add variables for flash extent density EnVar DA
 ! 
@@ -463,8 +464,8 @@ module obsmod
   public :: iout_lag,iout_uv,iout_gps,iout_ps,iout_light,mype_light
   public :: mype_gust,mype_vis,mype_pblh,iout_gust,iout_vis,iout_pblh
   public :: mype_tcamt,mype_lcbas,iout_tcamt,iout_lcbas
-  public :: mype_wspd10m,mype_td2m,iout_wspd10m,iout_td2m
-  public :: mype_uwnd10m,mype_vwnd10m,iout_uwnd10m,iout_vwnd10m
+  public :: mype_wspd10m,mype_gnssrspd,mype_td2m,iout_wspd10m,iout_gnssrspd,iout_td2m
+  public :: mype_uwnd10m,mype_vwnd10m,iout_uwnd10m,iout_vwnd10m 
   public :: mype_mxtm,mype_mitm,iout_mxtm,iout_mitm
   public :: mype_pmsl,mype_howv,iout_pmsl,iout_howv
   public :: mype_swcp,mype_lwcp,iout_swcp,iout_lwcp
@@ -600,12 +601,12 @@ module obsmod
   integer(i_kind) iout_dw,iout_gps,iout_sst,iout_tcp,iout_lag
   integer(i_kind) iout_co,iout_gust,iout_vis,iout_pblh,iout_tcamt,iout_lcbas
   integer(i_kind) iout_cldch
-  integer(i_kind) iout_wspd10m,iout_td2m,iout_mxtm,iout_mitm,iout_pmsl,iout_howv
+  integer(i_kind) iout_wspd10m,iout_gnssrspd,iout_td2m,iout_mxtm,iout_mitm,iout_pmsl,iout_howv
   integer(i_kind) iout_uwnd10m,iout_vwnd10m,iout_fed
   integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, &
                   mype_rw,mype_dw,mype_gps,mype_sst, &
                   mype_tcp,mype_lag,mype_co,mype_gust,mype_vis,mype_pblh, &
-                  mype_wspd10m,mype_td2m,mype_mxtm,mype_mitm,mype_pmsl,mype_howv,&
+                  mype_wspd10m,mype_gnssrspd,mype_td2m,mype_mxtm,mype_mitm,mype_pmsl,mype_howv,&
                   mype_uwnd10m,mype_vwnd10m, mype_tcamt,mype_lcbas, mype_dbz, mype_fed
   integer(i_kind) mype_cldch
   integer(i_kind) iout_swcp, iout_lwcp
@@ -887,6 +888,7 @@ contains
     iout_light=237 ! lightning
     iout_dbz=238 ! radar reflectivity
     iout_fed=239   ! flash extent density
+    iout_gnssrspd=240 ! GNSS-R wind speed
 
     mype_ps = npe-1          ! surface pressure
     mype_t  = max(0,npe-2)   ! temperature
@@ -922,6 +924,7 @@ contains
     mype_light=max(0,npe-32)! GOES/GLM lightning
     mype_dbz=max(0,npe-33)   ! radar reflectivity
     mype_fed= max(0,npe-34)  ! flash extent density
+    mype_gnssrspd= max(0,npe-35) ! surface GNSS-R speed
 
 
 !   Initialize arrays used in namelist obs_input 
