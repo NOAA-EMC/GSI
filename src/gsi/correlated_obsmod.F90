@@ -422,7 +422,7 @@ logical :: corr_obs
       ErrorCov%nch_active = coun
       if (.not.GMAO_ObsErrorCov) ErrorCov%nctot = nctot
       call create_(coun,ErrorCov)
-      allocate(indxRf(nch_active),indxR(nch_active),Rcov(nctot,nctot))
+      allocate(indxRf(coun),indxR(nch_active),Rcov(nctot,nctot))
 
 !     Read GSI-like channel numbers used in estimating R for this instrument
       read(lu,IOSTAT=ioflag) indxR
