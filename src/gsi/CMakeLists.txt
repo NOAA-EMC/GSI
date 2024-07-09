@@ -29,7 +29,7 @@ endif()
 option(OPENMP "Enable OpenMP Threading" OFF)
 option(ENABLE_MKL "Use MKL for LAPACK implementation (if available)" ON)
 option(USE_GSDCLOUD "Use GSD Cloud Analysis library" OFF)
-option(USE_MGBF "Use MGBF library" ON)
+option(USE_MGBF "Use MGBF library" OFF)
 
 set(GSI_VALID_MODES "GFS" "Regional")
 set(GSI_MODE "GFS" CACHE STRING "Choose the GSI Application.")
@@ -131,6 +131,9 @@ if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
 endif()
 if(USE_GSDCLOUD)
   list(APPEND GSI_Fortran_defs RR_CLOUDANALYSIS)
+endif()
+if(USE_MGBF)
+  list(APPEND GSI_Fortran_defs USE_MGBF_def)
 endif()
 
 # Create a library of GSI C sources
