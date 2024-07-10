@@ -88,7 +88,7 @@ module read_diag
 ! Declare structures for radiance diagnostic file information
   type diag_header_fix_list
      character(len=20) :: isis           ! sat and sensor type
-     character(len=10) :: id             ! sat type
+     character(len=11) :: id             ! sat type
      character(len=10) :: obstype        ! observation type
      integer(i_kind) :: jiter            ! outer loop counter
      integer(i_kind) :: nchan            ! number of channels in the sensor
@@ -516,7 +516,8 @@ subroutine read_radiag_header_bin(ftin,npred_radiag,retrieval,header_fix,header_
 
 !  Declare local variables
   character(len=2):: string
-  character(len=10):: satid,sentype
+  character(len=11):: satid
+  character(len=10):: sentype
   character(len=20):: sensat
   integer(i_kind) :: i,ich
   integer(i_kind):: jiter,nchanl,npred,ianldate,ireal,ipchan,iextra,jextra
