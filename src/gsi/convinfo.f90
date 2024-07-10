@@ -155,6 +155,8 @@ contains
 !   2009-01-22  todling - protect against non-initialized destroy call
 !   2010-05-29  todling - interface consistent w/ similar routines
 !   2014-07-10  carley  - add check to bypass blank lines in convinfo file
+!   2023-05-09  s.vetra-carvalho - extended iotype to be 8 characters long to
+!   allow for more descriptive observations names
 !
 !   input argument list:
 !     mype - mpi task id
@@ -171,7 +173,7 @@ contains
     implicit none
     
     character(len=1)cflg
-    character(len=7) iotype
+    character(len=8) iotype
     character(len=140) crecord
     integer(i_kind) lunin,i,nc,ier,istat
     integer(i_kind) nlines
@@ -188,13 +190,13 @@ contains
     nlines=0
     read1: do
        cflg=' '
-       iotype='       '
+       iotype='        '
        read(lunin,1030,iostat=istat,end=1130)cflg,iotype,crecord
-1030   format(a1,a7,2x,a140)
+1030   format(a1,a8,1x,a140)
        if (istat /= 0) exit
        nlines=nlines+1
        if(cflg == '!')cycle
-       if (cflg==' '.and.iotype=='       ') then
+       if (cflg==' '.and.iotype=='        ') then
          if(print_verbose)write(6,*) 'Encountered a blank line in convinfo file at line number: ',nlines,' skipping!'
          cycle
        end if
@@ -242,9 +244,9 @@ contains
 
     do i=1,nlines
        cflg=' '
-       iotype='       '
+       iotype='        '
        read(lunin,1030)cflg,iotype,crecord
-       if (cflg==' '.and.iotype=='       ') then
+       if (cflg==' '.and.iotype=='        ') then
          if(print_verbose)write(6,*) 'Encountered a blank line in convinfo file at line number: ',i,' skipping!'
          cycle
        end if
@@ -282,7 +284,7 @@ contains
        if(print_verbose .and. mype == 0)write(6,1031)ioctype(nc),ictype(nc),icsubtype(nc),icuse(nc),ctwind(nc),ncnumgrp(nc), &
           ncgroup(nc),ncmiter(nc),cgross(nc),cermax(nc),cermin(nc),cvar_b(nc),cvar_pg(nc), &
           ithin_conv(nc),rmesh_conv(nc),pmesh_conv(nc),idum,pmot_conv(nc),ptime_conv(nc),index_sub(nc),ibeta(nc),ikapa(nc)
-1031   format('READ_CONVINFO: ',a7,1x,i3,1x,i4,1x,i2,1x,g13.6,1x,3(I3,1x),5g13.6,i5,2g13.6,i5,2g13.6,3i5)
+1031   format('READ_CONVINFO: ',a8,1x,i3,1x,i4,1x,i2,1x,g13.6,1x,3(I3,1x),5g13.6,i5,2g13.6,i5,2g13.6,3i5)
     enddo
 
     close(lunin)
