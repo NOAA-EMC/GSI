@@ -218,6 +218,7 @@ gsi_dbzOper.F90
 gsi_dwOper.F90
 gsi_enscouplermod.f90
 gsi_fedOper.F90
+gsi_gnssrspdOper.F90
 gsi_gpsbendOper.F90
 gsi_gpsrefOper.F90
 gsi_gustOper.F90
@@ -276,6 +277,7 @@ intco.f90
 intdbz.f90
 intfed.f90
 intdw.f90
+intgnssrspd.f90
 intgps.f90
 intgust.f90
 inthowv.f90
@@ -342,6 +344,7 @@ m_dwNode.F90
 m_extOzone.F90
 m_fedNode.F90
 m_find.f90
+m_gnssrspdNode.F90
 m_gpsNode.F90
 m_gpsrhs.F90
 m_gsiBiases.f90
@@ -486,6 +489,7 @@ read_files.f90
 read_fl_hdob.f90
 read_gfs_ozone_for_regional.f90
 read_gmi.f90
+read_gnssrspd.f90
 read_goesglm.f90
 read_goesimg.f90
 read_goesimgr_skycover.f90
@@ -537,6 +541,7 @@ setupdbz.f90
 setupdbz_lib.f90
 setupdw.f90
 setupfed.f90
+setupgnssrspd.f90
 setupgust.f90
 setuphowv.f90
 setuplag.f90
@@ -597,6 +602,7 @@ stpco.f90
 stpdbz.f90
 stpfed.f90
 stpdw.f90
+stpgnssrspd.f90
 stpgps.f90
 stpgust.f90
 stphowv.f90
