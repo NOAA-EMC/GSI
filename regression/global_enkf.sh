@@ -76,14 +76,14 @@ export use_correlated_oberrs=${use_correlated_oberrs:-".false."}
 if [ $USE_CORRELATED_OBERRS == "YES" ]; then
     export use_correlated_oberrs=".true."
 fi
-export imp_physics=${imp_physics:-"11"}
+export imp_physics=${imp_physics:-"8"}
 export lupp=${lupp:-".true."}
 export corrlength=${corrlength:-1250}
 export lnsigcutoff=${lnsigcutoff:-2.75}
 export analpertwt=${analpertwt:-0.85}
 export readin_localization_enkf=".false."
-export readin_localization_enkf=${readin_localization_enkf:-".true."}
-export reducedgrid=${reducedgrid:-".true."}
+export readin_localization_enkf=${readin_localization_enkf:-".false."}
+export reducedgrid=${reducedgrid:-".false."}
 export letkf_flag=${letkf_flag:-".true."}
 export getkf=${getkf:-".true."}
 export denkf=${denkf:-".true."}
