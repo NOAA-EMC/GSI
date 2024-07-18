@@ -963,7 +963,7 @@ export gsi_namelist="
   nlons=$LONA,nlats=$LATA,nlevs=$LEVS,nanals=$NMEM_ENKF,
   deterministic=.true.,sortinc=.true.,lupd_satbiasc=.false.,
   reducedgrid=.false.,readin_localization=.false.,
-  use_gfs_nemsio=${use_gfs_nemsio},use_gfs_ncio=${use_gfs_ncio},imp_physics=$imp_physics,lupp=$lupp,
+  use_gfs_nemsio=${use_gfs_nemsio},use_gfs_ncio=${use_gfs_ncio},imp_physics=8,lupp=$lupp,
   univaroz=.false.,adp_anglebc=.true.,angord=4,use_edges=.false.,emiss_bc=.true.,
   letkf_flag=${letkf_flag},nobsl_max=${nobsl_max},denkf=${denkf},getkf=${getkf}.,
   nhr_anal=${IAUFHRS_ENKF},nhr_state=${IAUFHRS_ENKF},
