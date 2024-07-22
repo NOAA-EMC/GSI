@@ -21,7 +21,7 @@ export gsi_namelist="
    crtm_coeffs_path='./crtm_coeffs/',
    newpc4pred=.true.,adp_anglebc=.true.,angord=4,passive_bc=.true.,use_edges=.false.,
    diag_precon=.true.,step_start=1.e-3,emiss_bc=.true.,thin4d=.true.,cwoption=3,
-   verbose=.false.,imp_physics=11,lupp=.true.,binary_diag=.false.,netcdf_diag=.true.,
+   verbose=.false.,imp_physics=8,lupp=.true.,binary_diag=.false.,netcdf_diag=.true.,
    lobsdiag_forenkf=.false.,
    nhr_anal=3,6,9,
    l4densvar=.true.,ens_nstarthr=3,nhr_obsbin=1,nhr_assimilation=6,lwrite4danl=.true., tzr_qc=1,sfcnst_comb=.true.,
