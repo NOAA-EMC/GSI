@@ -388,7 +388,6 @@ subroutine prt_guess2(sgrep)
         if (ier==0) nvarsc=nvarsc+1
      endif
   end if
-  !nvarsc=n_actual_clouds
   call gsi_metguess_get ( 'var::cf', ivar, ier ); icf=ivar
   if (ivar > 0) then
      call gsi_bundlegetpointer (gsi_metguess_bundle(ntsig),'cf',ges_cf_it,istatus)

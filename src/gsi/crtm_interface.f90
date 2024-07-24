@@ -866,7 +866,7 @@ endif
     
 ! Initial GFDL saturation water vapor pressure tables 
   if (use_gfdl_qsat) then
-      if (n_actual_aerosols_wk>0 .or. n_clouds_fwd_wk>0 .and. imp_physics==11) then
+     if (n_actual_aerosols_wk>0 .or. n_clouds_fwd_wk>0 .and. imp_physics==11) then
         if (mype==0) write(6,*)myname_,':initial and load GFDL saturation water vapor pressure tables'
   
         allocate(table (length))
@@ -1144,8 +1144,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   integer(i_kind):: error_status_clr
   integer(i_kind):: idx700,dprs,dprs_min  
   integer(i_kind),dimension(8)::obs_time,anal_time
-  integer(i_kind),dimension(msig) :: klevel 
-
+  integer(i_kind),dimension(msig) :: klevel
 ! ****************************** 
 ! Constrained indexing for lai
 ! CRTM 2.1 implementation change
@@ -1897,8 +1896,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      lmfdeep2 = .true.     
      cf_calc  = zero
          ! sum of the cloud condensate amount for all 5 hydrometeos (ql + qi + qs + qg + qh + qr) 
-         qcond(:) = cloud(:,1) + cloud(:,2) + cloud(:,3) + cloud(:,4) + cloud(:,5)
-         call calc_thompson_cloudfrac (nsig , lmfdeep2, xrc3, prsl, qcond(:), rh, qs, cf_calc)
+      qcond(:) = cloud(:,1) + cloud(:,2) + cloud(:,3) + cloud(:,4) + cloud(:,5)
+      call calc_thompson_cloudfrac (nsig , lmfdeep2, xrc3, prsl, qcond(:), rh, qs, cf_calc)
      cf   = cf_calc
      icfs = 0        ! load cloud fraction into CRTM
   endif
@@ -2754,11 +2753,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      do k = 1, nsig
         qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
         if (qx > qmin) then
-               mu_w = MAX(2, MIN((NINT(1000.E6_r_kind/Nt_c) + 2), 15))
-               lam_w=exp(1.0_r_kind / 3.0_r_kind * log ((am_w*Nt_c *gamma(mu_w + 3.0_r_kind + 1.0_r_kind))/(qx*gamma(mu_w+1.0_r_kind))))
+           mu_w = MAX(2, MIN((NINT(1000.E6_r_kind/Nt_c) + 2), 15))
+           lam_w=exp(1.0_r_kind / 3.0_r_kind * log ((am_w*Nt_c *gamma(mu_w + 3.0_r_kind + 1.0_r_kind))/(qx*gamma(mu_w+1.0_r_kind))))
 
-               reff(k) = 0.5_r_kind * ((3.0_r_kind+mu_w)/lam_w)*1.0e6_r_kind
-       reff(k) = max(reff_min, min(reff_max, reff(k)))
+           reff(k) = 0.5_r_kind * ((3.0_r_kind+mu_w)/lam_w)*1.0e6_r_kind
+           reff(k) = max(reff_min, min(reff_max, reff(k)))
         else
            reff(k) = zero
         endif
@@ -2772,11 +2771,11 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      do k = 1, nsig
         qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
         if (qx > qmin) then
-       lam_i=exp(1.0_r_kind / 3.0_r_kind * log((am_i*ni(k) *gamma(mu_i + 3.0_r_kind + 1.0_r_kind))/(qx*gamma(mu_i+1.0_r_kind))))
-       reff(k) = 0.5_r_kind * (3.0_r_kind /lam_i)*1.0e6_r_kind
-       reff(k) = max(reff_min, min(reff_max, reff(k)))
+           lam_i=exp(1.0_r_kind / 3.0_r_kind * log((am_i*ni(k) *gamma(mu_i + 3.0_r_kind + 1.0_r_kind))/(qx*gamma(mu_i+1.0_r_kind))))
+        reff(k) = 0.5_r_kind * (3.0_r_kind /lam_i)*1.0e6_r_kind
+        reff(k) = max(reff_min, min(reff_max, reff(k)))
         else
-            reff(k) = zero
+           reff(k) = zero
         endif
      enddo
   !Rain
@@ -2788,8 +2787,8 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
         if (qx > qmin) then
            lam_r=exp(1.0_r_kind / 3.0_r_kind * log ((am_r*nr(k) *gamma(mu_r + 3.0_r_kind + 1.0_r_kind))/(qx*gamma(mu_r + 1.0_r_kind))))
-          reff(k) = 0.5_r_kind *(3.0_r_kind/lam_r)*1.0e6_r_kind
-          reff(k) = max(reff_min, min(reff_max, reff(k)))
+           reff(k) = 0.5_r_kind *(3.0_r_kind/lam_r)*1.0e6_r_kind
+           reff(k) = max(reff_min, min(reff_max, reff(k)))
         else
            reff(k) = zero
         endif
@@ -2805,20 +2804,20 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
         tc0 = MIN(-0.1_r_kind, tsen(k)-273.15_r_kind)
         qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
         if (qx > qmin) then
-            smob =qx/am_s
-            loga_ = sa(1) + sa(2)*tc0 + sa(3)*cse(1) &
-                  + sa(4)*tc0*cse(1) + sa(5)*tc0*tc0 &
-                  + sa(6)*cse(1)*cse(1) + sa(7)*tc0*tc0*cse(1) &
-                  + sa(8)*tc0*cse(1)*cse(1) + sa(9)*tc0*tc0*tc0 &
-                  + sa(10)*cse(1)*cse(1)*cse(1)
-            a_ = 10.0**loga_
-            b_ = sb(1)+ sb(2)*tc0 + sb(3)*cse(1) + sb(4)*tc0*cse(1) &
+           smob =qx/am_s
+           loga_ = sa(1) + sa(2)*tc0 + sa(3)*cse(1) &
+                 + sa(4)*tc0*cse(1) + sa(5)*tc0*tc0 &
+                 + sa(6)*cse(1)*cse(1) + sa(7)*tc0*tc0*cse(1) &
+                 + sa(8)*tc0*cse(1)*cse(1) + sa(9)*tc0*tc0*tc0 &
+                 + sa(10)*cse(1)*cse(1)*cse(1)
+           a_ = 10.0**loga_
+           b_ = sb(1)+ sb(2)*tc0 + sb(3)*cse(1) + sb(4)*tc0*cse(1) &
               + sb(5)*tc0*tc0 + sb(6)*cse(1)*cse(1) &
               + sb(7)*tc0*tc0*cse(1) + sb(8)*tc0*cse(1)*cse(1) &
               + sb(9)*tc0*tc0*tc0 + sb(10)*cse(1)*cse(1)*cse(1)
            smoc = a_ * smob**b_
            reff(k) = MAX(2.51E-6_r_kind, MIN(0.5*(smoc/smob), 1999.E-6_r_kind))
-       reff(k) = max(reff_min, min(reff_max, reff(k)*1.0e6_r_kind))
+           reff(k) = max(reff_min, min(reff_max, reff(k)*1.0e6_r_kind))
         else
            reff(k) = zero
         endif
@@ -3094,47 +3093,45 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   implicit none
 
 !  ---  inputs:
-      integer(i_kind), intent(in) :: nsig
-      real(r_kind) , dimension(nsig), intent(in) :: prsl, clwf, rhly, qstl  
-      logical, intent(in) :: lmfdeep2
-      real(r_kind) , intent(in):: xrc3
+  integer(i_kind), intent(in) :: nsig
+  real(r_kind) , dimension(nsig), intent(in) :: prsl, clwf, rhly, qstl  
+  logical, intent(in) :: lmfdeep2
+  real(r_kind) , intent(in):: xrc3
 
 !  ---  outputs
-      real(r_kind) , dimension(nsig), intent(inout) :: cldtot
+  real(r_kind) , dimension(nsig), intent(inout) :: cldtot
 
 !  ---  local variables:
-      real(r_kind)  :: clwmin, clwm, clwt, onemrh, value, tem1, tem2
-      integer(i_kind) :: k
-	   
+  real(r_kind)  :: clwmin, clwm, clwt, onemrh, value, tem1, tem2
+  integer(i_kind) :: k
+ 
 !> - Compute layer cloud fraction.
-        clwmin = 0.0_r_kind
-        do k = 1, nsig-1
+  clwmin = 0.0_r_kind
+  do k = 1, nsig-1
 ! converting prsl from cb to bar     
-          clwt = 1.0e-10_r_kind * (prsl(k)*0.01_r_kind)
-          if (clwf(k) > clwt) then
-            if(rhly(k) > 0.99_r_kind) then
-              cldtot(k) = 1.0_r_kind
-            else
-              onemrh= max( 1.e-10_r_kind, 1.0_r_kind-rhly(k) )
-              clwm  = clwmin / max( 0.01_r_kind, prsl(k)*0.01_r_kind )
+     clwt = 1.0e-10_r_kind * (prsl(k)*0.01_r_kind)
+     if (clwf(k) > clwt) then
+        if(rhly(k) > 0.99_r_kind) then
+           cldtot(k) = 1.0_r_kind
+        else
+           onemrh= max( 1.e-10_r_kind, 1.0_r_kind-rhly(k) )
+           clwm  = clwmin / max( 0.01_r_kind, prsl(k)*0.01_r_kind )
+           tem1  = min(max((onemrh*qstl(k))**0.49_r_kind,0.0001_r_kind),1.0_r_kind) 
+           if (lmfdeep2) then
+              tem1  = xrc3 / tem1
+           else
+              tem1  = 100.0_r_kind / tem1
+           endif 
+           value = max( min( tem1*(clwf(k)-clwm), 50.0_r_kind ), 0.0_r_kind )
+           tem2  = sqrt( sqrt(rhly(k)) )
+           cldtot(k) = max( tem2*(1.0_r_kind-exp(-value)), 0.0_r_kind )
+        endif
+     else
+        cldtot(k) = 0.0_r_kind
+     endif
+  enddo
 
-              tem1  = min(max((onemrh*qstl(k))**0.49_r_kind,0.0001_r_kind),1.0_r_kind) 
-              if (lmfdeep2) then
-                tem1  = xrc3 / tem1
-              else
-                tem1  = 100.0_r_kind / tem1
-              endif 
-
-              value = max( min( tem1*(clwf(k)-clwm), 50.0_r_kind ), 0.0_r_kind )
-              tem2  = sqrt( sqrt(rhly(k)) )
-              cldtot(k) = max( tem2*(1.0_r_kind-exp(-value)), 0.0_r_kind )
-            endif
-          else
-            cldtot(k) = 0.0_r_kind
-          endif
-        enddo
-
-      end subroutine calc_thompson_cloudfrac
+  end subroutine calc_thompson_cloudfrac
 !............................................ 
 
 subroutine qs_table(n)
