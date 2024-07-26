@@ -2694,11 +2694,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 ! Declare local variables
   character(len=*), parameter :: myname_ = 'calc_thompson_reff'
   integer(i_kind) :: k
-  integer(i_kind) :: j
   integer(i_kind) :: mu_w
   real(r_kind)    :: qx
   real(r_kind)    :: reff_min, reff_max
-  real(r_kind):: lam_i,lam_w,lam_s,lam_r, lam_g,lam_exp, am_r,am_w,am_i,am_g, N_0r ,N_0i,N_0w
+  real(r_kind):: lam_i,lam_w,lam_r, lam_g,lam_exp, am_r,am_w,am_i,am_g
   
   ! Parameters
   real(r_kind), parameter :: qmin = 1.0e-12_r_kind          ! [kg/kg ]
@@ -2736,7 +2735,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind), parameter :: am_s      =     0.069_r_kind
   real(r_kind), parameter :: bm_s = 2.0_r_kind
   real(r_kind), dimension(1), parameter :: cse = (/ bm_s + 1.0_r_kind /)
-  real(r_kind) :: tc0, smo2, smob, smoc, smoz, a_, b_, loga_
+  real(r_kind) :: tc0, smob, smoc, a_, b_, loga_
 
   ! Parameters for graupel  (Lin 1983)
   real(r_kind), parameter :: rho_g      =     500.0_r_kind  ! [kg/m3 ]
@@ -2810,7 +2809,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
                  + sa(6)*cse(1)*cse(1) + sa(7)*tc0*tc0*cse(1) &
                  + sa(8)*tc0*cse(1)*cse(1) + sa(9)*tc0*tc0*tc0 &
                  + sa(10)*cse(1)*cse(1)*cse(1)
-           a_ = 10.0**loga_
+           a_ = 10.0_r_kind**loga_
            b_ = sb(1)+ sb(2)*tc0 + sb(3)*cse(1) + sb(4)*tc0*cse(1) &
               + sb(5)*tc0*tc0 + sb(6)*cse(1)*cse(1) &
               + sb(7)*tc0*tc0*cse(1) + sb(8)*tc0*cse(1)*cse(1) &
