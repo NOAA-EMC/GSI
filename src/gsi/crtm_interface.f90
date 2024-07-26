@@ -2815,7 +2815,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
               + sb(7)*tc0*tc0*cse(1) + sb(8)*tc0*cse(1)*cse(1) &
               + sb(9)*tc0*tc0*tc0 + sb(10)*cse(1)*cse(1)*cse(1)
            smoc = a_ * smob**b_
-           reff(k) = MAX(2.51E-6_r_kind, MIN(0.5*(smoc/smob), 1999.E-6_r_kind))
+           reff(k) = MAX(2.51E-6_r_kind, MIN(0.5_r_kind*(smoc/smob), 1999.E-6_r_kind))
            reff(k) = max(reff_min, min(reff_max, reff(k)*1.0e6_r_kind))
         else
            reff(k) = zero
