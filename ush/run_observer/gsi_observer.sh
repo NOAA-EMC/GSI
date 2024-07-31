@@ -31,7 +31,7 @@ export NLAT=1538
 
 ## load modules for GSI
 #set +x
-MACHINE_ID=orion
+MACHINE_ID=$MACHINE
 source $GSIDIR/ush/module-setup.sh
 module use $GSIDIR/modulefiles
 module load gsi_$MACHINE_ID.intel

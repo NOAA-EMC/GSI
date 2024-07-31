@@ -17,6 +17,7 @@ workdir=/work2/noaa/da/$LOGNAME/ufoeval/GSIobserver/orion/$cycle/
 # GDASApp clone
 GDASApp=/work2/noaa/da/$LOGNAME/git/GDASApp
 #GDASApp=/work2/noaa/da/$LOGNAME/git/orion/GDASApp
+MACHINE=orion
 
 # gfs or gdas
 dump=gdas
@@ -48,7 +49,7 @@ export CRTM_FIX=$CRTM_FIX
 export rstprod=$rstprod
 export GSI_background_nhr=$nhr_bkg
 export GDASApp=$GDASApp
+export MACHINE=$MACHINE
 EOF
 
-#sbatch $GDASApp/ush/ufoeval/gsi/gsi_observer.sh $workdir/config.sh
 sbatch $GSIDIR/ush/run_observer/gsi_observer.sh $workdir/config.sh

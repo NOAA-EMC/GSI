@@ -3,7 +3,7 @@
 #SBATCH -o iodaconv.o%j
 #SBATCH -A da-cpu
 #SBATCH -q batch
-#SBATCH -p orion
+#SBATCH -p orion  
 #SBATCH --nodes=1
 #SBATCH --exclusive
 #SBATCH -t 1:30:00
@@ -20,7 +20,7 @@ adate=$3
 # source modulefile to get proper python on environment
 module purge
 module use $GDASApp/modulefiles
-module load GDAS/orion
+module load GDAS/$MACHINE
 module list 
 
 # executable paths
@@ -51,7 +51,6 @@ export PYTHONPATH=$GDASApp/build/lib/python3.7/pyiodaconv:$PYTHONPATH
 #
 # run script to generate IODA obs files
 $IODA_iodaconv_iodaconvbin -o $IODA_data_iodaoutdir/obs -g $IODA_data_iodaoutdir/geovals $workdir/diags
-#$IODA_iodaconv_iodaconvbin -o $IODA_data_iodaoutdir/obs -g $IODA_data_iodaoutdir/geovals $workdir/diags -q True -r True
 #
 # concatenate these files together
 python $IODA_iodaconv_iodacombinebin -i $IODA_data_iodaoutdir/obs/sfc_*.nc4 -o $IODA_data_iodaoutdir/obs/sfc_obs_"$adate".nc4 -g $IODA_data_iodaoutdir/geovals
