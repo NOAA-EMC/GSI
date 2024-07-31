@@ -232,7 +232,6 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
         pcc=bfr1ahdr(6)            ! profile per cent confidence
         roc=bfr1ahdr(7)            ! Earth local radius of curvature
         said=bfr1ahdr(8)           ! Satellite identifier
-        print *,' NICKE SAID2: ', said
         ptid=bfr1ahdr(9)           ! Platform transmitter ID number
         geoid=bfr1ahdr(10)         ! Geoid undulation
         sat_constid=bfr1ahdr(11)   ! Satellite classification
@@ -243,22 +242,13 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 ! Locate satellite id in convinfo file
         ikx = 0
         find_loop: do i=1,ngpsro_type
-            print *, 'NICKE find_loop A, ', said
             if ( (trim(sis)==trim(gpsro_ctype(i))) .and. (said == gpsro_itype(i)) ) then
               ikx=gpsro_ikx(i)
               igpsro_type = i
-              print *, 'NICKE SAID,ikx,c/itype', said, ikx, gpsro_ctype(i), &
-                 gpsro_itype
               exit find_loop
            endif
         end do find_loop
         if (ikx==0) then
-           if(said == 803) then
-              print *,'NICKE 803 cycle read_loop'
-           endif
-           if(said /= 803) then
-              print *,'NICKE NOT 803 cycle read_loop'
-           endif 
            cycle read_loop
         endif
    
@@ -281,9 +271,6 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
         endif
  
 ! Check profile quality flags
-        if (said == 803) then
-          print *, "NICKE SAID 803"
-        endif
         if ( ((said > 739).and.(said < 746)).or.(said == 820).or.(said == 786).or. &
              ((said > 749).and.(said < 756)).or.(said == 825).or.(said == 44) .or. &
               (said == 265).or.(said == 266).or.(said == 267).or.(said == 268).or. & 

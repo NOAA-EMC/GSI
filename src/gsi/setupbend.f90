@@ -314,7 +314,6 @@ subroutine setupbend(obsLL,odiagLL, &
 !268 => PlanetiQ GNOMES-B
 !269 => Spire Lemur 3U CubeSat
 !66 => Sentinel-6 
-  print *, "NICKE setupbend"
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
   if(.not.proceed) return  ! not all vars available, simply return
@@ -600,8 +599,6 @@ subroutine setupbend(obsLL,odiagLL, &
 !    Save some diagnostic information
 !    occultation identification
      satellite_id         = data(isatid,i) ! receiver occ id
-     print *, "NICKE ALL SATELLITE IDs: "
-     print *, satellite_id
      transmitter_id       = data(iptid,i)  ! transmitter occ id
      write(cdiagbuf(i),'(2(i4.4))') satellite_id,transmitter_id
 

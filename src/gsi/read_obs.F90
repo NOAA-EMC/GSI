@@ -203,7 +203,6 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
       call datelen(10)
       call readmg(lnbufr,subset,idate,iret)
       if(iret == 0)then
-         print *, "NICKE IRET ", trim(filename), trim(dtype)
 !        Extract date and check for consistency with analysis date
          if (idate<iadatebgn.or.idate>iadateend) then
             if(offtime_data) then
@@ -221,7 +220,6 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
          write(6,*)'***read_obs_check*** iret/=0 for reading date for ',trim(filename),dtype,jsatid,iret
          lexist=.false.
       end if
-      print *, 'NICKE JSATID', jsatid
       if(lexist)then
        kidsat=0
        if(jsatid == 'metop-a')then
@@ -337,16 +335,12 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
        else if ( jsatid == 'meghat' ) then
          kidsat = 440
        else
-         print *, 'NICKE jsatid not avail so kidsat =0'
          kidsat = 0
        end if
-
-       print *, 'NICKE kidsat: ', kidsat
 
        call closbf(lnbufr)
        close(lnbufr)
        open(lnbufr,file=trim(filename),form='unformatted',status ='unknown')
-       print *,' NICKE FILENAMEEE ', filename
        call openbf(lnbufr,'IN',lnbufr)
        call datelen(10)
 
@@ -409,9 +403,6 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
                (said == 723).or. (said == 265).or. (said == 266) .or. &
                (said == 267).or. (said == 268).or. (said == 269) .or. &
                (said == 803)) then
-             if(said == 803) then 
-               print *, 'NICKE 803'
-             end if
              lexist=.true. 
              exit gpsloop 
            end if 
