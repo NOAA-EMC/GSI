@@ -27,7 +27,9 @@ subroutine load_mrms_data_info (mrms_listfile,nrows0,ntot_mrms,nrows_mrms,nrows,
    integer(i_kind),parameter::nobstype_mrms=2 ! first for vr, and the second for ref
    integer(i_kind),intent(in):: nrows0,ntot_mrms,nrows_mrms,nrows
    character(len=*),intent(in),optional ::mrms_listfile, rcname ! input filename
-   character(10),intent(inout),dimension(nrows):: dtype,ditype,dplat
+   character(len=*),intent(inout),dimension(nrows):: dtype
+   character(len=*),intent(inout),dimension(nrows):: ditype
+   character(len=*),intent(inout),dimension(nrows):: dplat
    character(20),intent(inout),dimension(nrows):: obsfile_all
    character(*),intent(inout),dimension(nrows):: dfile
    character(20),intent(inout),dimension(nrows):: dsis
@@ -42,7 +44,8 @@ subroutine load_mrms_data_info (mrms_listfile,nrows0,ntot_mrms,nrows_mrms,nrows,
 
 
    real(r_kind),allocatable,dimension(:):: dmesh_mrms
-   character(10),allocatable,dimension(:):: dtype_mrms,ditype_mrms,dplat_mrms
+   character(10),allocatable,dimension(:):: dtype_mrms,ditype_mrms
+   character(11),allocatable,dimension(:):: dplat_mrms
    character(120),allocatable,dimension(:):: dfile_mrms
    character(20),allocatable,dimension(:):: dsis_mrms
    real(r_kind) ,allocatable,dimension(:):: dval_mrms
