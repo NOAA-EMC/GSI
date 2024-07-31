@@ -475,7 +475,7 @@ subroutine read_sst_viirs(mype,val_viirs,ithin,rmesh,jsatid,&
           nele,itxmax,nread,ndata_mesh,data_mesh,score_crit,nrec)
 
      if ( nread > 0 ) then
-        write(*,'(a,a10,I3,F6.1,3I10)') 'read_viirs,jsatid,imesh,amesh,itxmax,nread,ndata_mesh :',jsatid,imesh,amesh(imesh),itxmax,nread,ndata_mesh
+        write(*,'(a,a11,I3,F6.1,3I10)') 'read_viirs,jsatid,imesh,amesh,itxmax,nread,ndata_mesh :',jsatid,imesh,amesh(imesh),itxmax,nread,ndata_mesh
      endif
 !
 !    get data_all by combining data from all thinning box sizes

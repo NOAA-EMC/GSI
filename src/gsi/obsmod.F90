@@ -626,7 +626,8 @@ module obsmod
   character(128) dirname
   character(128) obs_input_common
   character(20),allocatable,dimension(:):: obsfile_all
-  character(10),allocatable,dimension(:):: dtype,ditype,dplat
+  character(10),allocatable,dimension(:):: dtype,ditype
+  character(11),allocatable,dimension(:):: dplat
   character(120),allocatable,dimension(:):: dfile
   character(20),allocatable,dimension(:):: dsis
   real(r_kind) ,allocatable,dimension(:):: dval
