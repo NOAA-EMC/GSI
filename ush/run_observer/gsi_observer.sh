@@ -520,4 +520,4 @@ set -x
 echo "GSI observer script completed"
 cd $workdir
 echo "Submitting IODA converters script"
-sbatch /work2/noaa/da/acollard/GSI_jedi/scripts/iodaconv.sh $GDASApp $workdir $adate
+sbatch $GSIDIR/ush/run_observer/iodaconv.sh $GDASApp $workdir $adate
