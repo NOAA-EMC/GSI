@@ -15,8 +15,8 @@ GSIDIR=$THISDIR/../..
 # top level working directory
 workdir=/work2/noaa/da/$LOGNAME/ufoeval/GSIobserver/orion/$cycle/
 # GDASApp clone
-GDASApp=/work2/noaa/da/$LOGNAME/git/GDASApp
-#GDASApp=/work2/noaa/da/$LOGNAME/git/orion/GDASApp
+#GDASApp=/work2/noaa/da/$LOGNAME/git/GDASApp
+GDASApp=/work2/noaa/da/$LOGNAME/git/orion/GDASApp
 MACHINE=orion
 
 # gfs or gdas
