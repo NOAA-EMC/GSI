@@ -625,10 +625,10 @@ subroutine setupozlay(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
                  call nc_diag_metadata_to_single("Latitude",        data(ilate,i))       
                  call nc_diag_metadata_to_single("Longitude",       data(ilone,i))       
                  call nc_diag_metadata_to_single("Time",            data(itime,i)-time_offset) 
-                 call nc_diag_metadata("Total_Ozone_Error_Flag", sngl(ierror_toq) )
-                 call nc_diag_metadata("Profile_Ozone_Error_Flag", sngl(ierror_poq) )
+                 call nc_diag_metadata("Total_Ozone_Error_Flag", float(ierror_toq) )
+                 call nc_diag_metadata("Profile_Ozone_Error_Flag", float(ierror_poq) )
                  call nc_diag_metadata_to_single("Reference_Pressure",(pobs(k)*r100))
-                 call nc_diag_metadata("Analysis_Use_Flag",   sngl(iouse(k))     )
+                 call nc_diag_metadata("Analysis_Use_Flag",   float(iouse(k))     )
                  call nc_diag_metadata_to_single("Observation",(ozobs(k)))
                  call nc_diag_metadata_to_single("Inverse_Observation_Error",(errorinv))
                  call nc_diag_metadata_to_single("Input_Observation_Error", (error(k)))
@@ -1786,10 +1786,10 @@ subroutine setupozlev(obsLL,odiagLL,lunin,mype,stats_oz,nlevs,nreal,nobs,&
               call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)
               call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
               call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
-            endif
-			 ! GeoVaLs for JEDI/UFO
-			 call nc_diag_data2d("mole_fraction_of_ozone_in_air", sngl(ozgestmp*constoz))
-			 call nc_diag_data2d("air_pressure_levels",sngl(prsitmp*r1000))
+           endif
+          ! GeoVaLs for JEDI/UFO
+           call nc_diag_data2d("mole_fraction_of_ozone_in_air", sngl(ozgestmp*constoz))
+           call nc_diag_data2d("air_pressure_levels",sngl(prsitmp*r1000))
            if (lobsdiagsave) then
               do jj=1,miter
                  if (odiag%muse(jj)) then
