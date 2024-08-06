@@ -1005,10 +1005,6 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
            call nc_diag_metadata_to_single("Observation",   pob                    )
            call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",pob,pges,'-')
            call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",pob,pgesorig,'-')
-
-           call nc_diag_metadata_to_single("Observation",                   pob)        
-           call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",   pob-pges)   
-           call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted", pob-pgesorig)
            call nc_diag_metadata_to_single("Forecast_adjusted",             pges)       
            call nc_diag_metadata_to_single("Forecast_unadjusted",           pgesorig)   
  
