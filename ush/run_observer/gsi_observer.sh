@@ -94,8 +94,6 @@ aeroinfo=$fixgsi/global_aeroinfo.txt
 atmsbeaminfo=$fixgsi/atms_beamwidth.txt
 cloudyinfo=$fixgsi/cloudy_radiance_info.txt
 
-CRTM_FIX=/apps/contrib/NCEP/libs/hpc-stack-gfsv16/intel-2018.4/crtm/2.3.0/fix/
-
 emiscoef_IRwater=$CRTM_FIX/Nalli.IRwater.EmisCoeff.bin
 emiscoef_IRice=$CRTM_FIX/NPOESS.IRice.EmisCoeff.bin
 emiscoef_IRland=$CRTM_FIX/NPOESS.IRland.EmisCoeff.bin
@@ -372,8 +370,8 @@ OBS_INPUT::
 #   tcvitl         tcp         null        tcp                 0.0     0     0
 #   seviribufr     seviri      m08         seviri_m08          0.0     1     0
 #   seviribufr     seviri      m09         seviri_m09          0.0     1     0
-#   seviribufr     seviri      m10         seviri_m10          0.0     1     0
-#   seviribufr     seviri      m11         seviri_m11          0.0     1     0
+   seviribufr     seviri      m10         seviri_m10          0.0     1     0
+   seviribufr     seviri      m11         seviri_m11          0.0     1     0
 #   hirs4bufr      hirs4       metop-b     hirs4_metop-b       0.0     1     0
    amsuabufr      amsua       metop-b     amsua_metop-b       0.0     1     0
    mhsbufr        mhs         metop-b     mhs_metop-b         0.0     1     0
@@ -381,11 +379,11 @@ OBS_INPUT::
 #   gomebufr       gome        metop-b     gome_metop-b        0.0     2     0
    atmsbufr       atms        npp         atms_npp            0.0     1     0
    atmsbufr       atms        n20         atms_n20            0.0     1     0
-#   atmsbufr       atms        n21         atms_n21            0.0     1     0
+   atmsbufr       atms        n21         atms_n21            0.0     1     0
 #   crisbufr       cris        npp         cris_npp            0.0     1     0
 #   crisfsbufr     cris-fsr    npp         cris-fsr_npp        0.0     1     0
    crisfsbufr     cris-fsr    n20         cris-fsr_n20        0.0     1     0
-#   crisfsbufr     cris-fsr    n21         cris-fsr_n21        0.0     1     0
+   crisfsbufr     cris-fsr    n21         cris-fsr_n21        0.0     1     0
 #   gsnd1bufr      sndrd1      g14         sndrD1_g14          0.0     1     0
 #   gsnd1bufr      sndrd2      g14         sndrD2_g14          0.0     1     0
 #   gsnd1bufr      sndrd3      g14         sndrD3_g14          0.0     1     0
@@ -406,6 +404,7 @@ OBS_INPUT::
    ahibufr        ahi         himawari8   ahi_himawari8       0.0     1     0
    abibufr        abi         g16         abi_g16             0.0     1     0
    abibufr        abi         g17         abi_g17             0.0     1     0
+   abibufr        abi         g18         abi_g18             0.0     1     0
 #   rapidscatbufr  uv          null        uv                  0.0     0     0
    ompsnpbufr     ompsnp      npp         ompsnp_npp          0.0     0     0
    ompstcbufr     ompstc8     npp         ompstc8_npp         0.0     2     0
@@ -464,15 +463,7 @@ diagtype[0]="conv conv_gps conv_ps conv_q conv_sst conv_t conv_uv"
 diagtype[1]="pcp_ssmi_dmsp pcp_tmi_trmm"
 diagtype[2]="sbuv2_n16 sbuv2_n17 sbuv2_n18 sbuv2_n19 gome_metop-a gome_metop-b omi_aura mls30_aura ompsnp_npp
 ompstc8_npp"
-diagtype[3]="hirs2_n14 msu_n14 sndr_g08 sndr_g11 sndr_g12 sndr_g13 sndr_g08_prep sndr_g11_prep sndr_g12_prep
-sndr_g13_prep sndrd1_g11 sndrd2_g11 sndrd3_g11 sndrd4_g11 sndrd1_g12 sndrd2_g12 sndrd3_g12 sndrd4_g12 sndrd1_g13
-sndrd2_g13 sndrd3_g13 sndrd4_g13 sndrd1_g14 sndrd2_g14 sndrd3_g14 sndrd4_g14 sndrd1_g15 sndrd2_g15 sndrd3_g15 sndrd4_g15
-hirs3_n15 hirs3_n16 hirs3_n17 amsua_n15 amsua_n16 amsua_n17 amsub_n15 amsub_n16 amsub_n17 hsb_aqua airs_aqua amsua_aqua
-imgr_g08 imgr_g11 imgr_g12 imgr_g14 imgr_g15 ssmi_f13 ssmi_f15 hirs4_n18 hirs4_metop-a amsua_n18 amsua_metop-a mhs_n18
-mhs_metop-a amsre_low_aqua amsre_mid_aqua amsre_hig_aqua ssmis_f16 ssmis_f17 ssmis_f18 ssmis_f19 ssmis_f20 iasi_metop-a
-hirs4_n19 amsua_n19 mhs_n19 seviri_m08 seviri_m09 seviri_m10 seviri_m11 cris_npp cris-fsr_npp cris-fsr_n20 atms_npp
-atms_n20 hirs4_metop-b amsua_metop-b mhs_metop-b iasi_metop-b amsua_metop-c mhs_metop-c avhrr_n18 avhrr_n19 avhrr_metop-a avhrr_metop-b avhrr_metop-c amsr2_gcom-w1 gmi_gpm
-saphir_meghat ahi_himawari8"
+diagtype[3]="msu_n14 sndr_g08 sndr_g11 sndr_g12 sndr_g13 sndr_g08_prep sndr_g11_prep sndr_g12_prep sndr_g13_prep sndrd1_g11 sndrd2_g11 sndrd3_g11 sndrd4_g11 sndrd1_g12 sndrd2_g12 sndrd3_g12 sndrd4_g12 sndrd1_g13 sndrd2_g13 sndrd3_g13 sndrd4_g13 sndrd1_g14 sndrd2_g14 sndrd3_g14 sndrd4_g14 sndrd1_g15 sndrd2_g15 sndrd3_g15 sndrd4_g15 amsua_n15 amsua_n16 amsua_n17 amsub_n15 amsub_n16 amsub_n17 hsb_aqua airs_aqua amsua_aqua imgr_g08 imgr_g11 imgr_g12 imgr_g14 imgr_g15 ssmi_f13 ssmi_f15 amsua_n18 amsua_metop-a mhs_n18 mhs_metop-a amsre_low_aqua amsre_mid_aqua amsre_hig_aqua ssmis_f16 ssmis_f17 ssmis_f18 ssmis_f19 ssmis_f20 iasi_metop-a amsua_n19 mhs_n19 seviri_m08 seviri_m09 seviri_m10 seviri_m11 cris_npp cris-fsr_npp cris-fsr_n20 atms_npp atms_n20 amsua_metop-b mhs_metop-b iasi_metop-b avhrr_metop-b avhrr_n18 avhrr_n19 avhrr_metop-a amsr2_gcom-w1 gmi_gpm saphir_meghat ahi_himawari8 abi_g16 abi_g17 amsua_metop-c mhs_metop-c iasi_metop-c avhrr_metop-c viirs-m_npp viirs-m_j1 abi_g18 ahi_himawari9 viirs-m_j2 cris-fsr_n21 atms_n21"
 
 prefix=" dir.*/"
 loops="01"

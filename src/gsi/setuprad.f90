@@ -2671,7 +2671,7 @@ contains
                     call nc_diag_metadata_to_single("Soil_Temperature",surface(1)%soil_temperature   ) ! soil temperature (K)
                     call nc_diag_metadata_to_single("Soil_Moisture",surface(1)%soil_moisture_content  ) ! soil moisture
                     call nc_diag_metadata("Land_Type_Index",       surface(1)%land_type             ) ! surface land type
-                    call nc_diag_metadata("tsavg5",                missing                          ) ! SST first guess used for SST retrieval
+                    call nc_diag_metadata("tsavg5",                tsavg5                           ) ! SST first guess used for SST retrieval
                     call nc_diag_metadata("sstcu",                 missing                          ) ! NCEP SST analysis at t
                     call nc_diag_metadata("sstph",                 missing                          ) ! Physical SST retrieval
                     call nc_diag_metadata("sstnv",                 missing                          ) ! Navy SST retrieval
@@ -2922,22 +2922,22 @@ contains
                  call nc_diag_metadata_to_single("tropopause_pressure", trop5*r1000)                                    ! trop5 is in kPa - convert to Pa for JEDI
 
                  ! Get GeoVaLs for atmosphere
-                 !call nc_diag_data2d("air_temperature",      atmosphere(1)%temperature)                       ! K 
-                 !call nc_diag_data2d("air_pressure",         atmosphere(1)%pressure*r100)                  
-                 !call nc_diag_data2d("air_pressure_levels",  atmosphere(1)%level_pressure*r100)            
+                 call nc_diag_data2d("air_temperature",      atmosphere(1)%temperature)                       ! K 
+                 call nc_diag_data2d("air_pressure",         atmosphere(1)%pressure*r100)                  
+                 call nc_diag_data2d("air_pressure_levels",  atmosphere(1)%level_pressure*r100)            
 
                  ! Get GeoVaLs for atmospheric absorbers
-                 !do iabsorb = 1, n_absorbers
-                 !  write (fieldname, "(A,I0.2)") "atmosphere_absorber_", atmosphere(1)%absorber_id(iabsorb)
-                 !  call nc_diag_data2d(trim(fieldname),      atmosphere(1)%absorber(:,iabsorb))               ! check %absorber_units
-                 !enddo
+                 do iabsorb = 1, n_absorbers
+                   write (fieldname, "(A,I0.2)") "atmosphere_absorber_", atmosphere(1)%absorber_id(iabsorb)
+                   call nc_diag_data2d(trim(fieldname),      atmosphere(1)%absorber(:,iabsorb))               ! check %absorber_units
+                 enddo
                  ! Get GeoVaLs for hydrometeors 
-                 !do icloud = 1, n_clouds_fwd_wk
-                 !  write (fieldname, "(A,I0.2)") "atmosphere_mass_content_of_cloud_", atmosphere(1)%Cloud(icloud)%Type
-                 !  call nc_diag_data2d(trim(fieldname),      atmosphere(1)%Cloud(icloud)%Water_Content)    
-                 !  write (fieldname, "(A,I0.2)") "effective_radius_of_cloud_particle_", atmosphere(1)%Cloud(icloud)%Type
-                 !  call nc_diag_data2d(trim(fieldname),      atmosphere(1)%Cloud(icloud)%Effective_Radius) 
-                 !enddo
+                 do icloud = 1, n_clouds_fwd_wk
+                   write (fieldname, "(A,I0.2)") "atmosphere_mass_content_of_cloud_", atmosphere(1)%Cloud(icloud)%Type
+                   call nc_diag_data2d(trim(fieldname),      atmosphere(1)%Cloud(icloud)%Water_Content)    
+                   write (fieldname, "(A,I0.2)") "effective_radius_of_cloud_particle_", atmosphere(1)%Cloud(icloud)%Type
+                   call nc_diag_data2d(trim(fieldname),      atmosphere(1)%Cloud(icloud)%Effective_Radius) 
+                 enddo
               enddo
 !  if (adp_anglebc) then
   if (.true.) then
