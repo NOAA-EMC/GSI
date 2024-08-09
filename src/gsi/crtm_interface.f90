@@ -2714,15 +2714,17 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind), parameter :: reff_i_min =    2.5_r_kind     ! previous value was 10_r_kind
   real(r_kind), parameter :: reff_i_max = 250.0_r_kind      ! previous value was 150_r_kind
   real(r_kind), parameter:: mu_i = 0.0_r_kind
+  real(r_kind), parameter:: ni_min = 1.0e-6_r_kind          ! minimum number concentration (ccpp-physics)
 
   ! Parameters for  rain (Lin 1983)
   real(r_kind), parameter :: rho_r      =    1000.0_r_kind  ! [kg/m3 ]
-  real(r_kind), parameter :: reff_r_min =       50.0_r_kind  ! [micron] ! previous value was 0.0_r_kind
-  real(r_kind), parameter :: reff_r_max =   1000.0_r_kind  ! [micron] ! previous value was 10000.0_r_kind
+  real(r_kind), parameter :: reff_r_min =       50.0_r_kind ! [micron] ! previous value was 0.0_r_kind
+  real(r_kind), parameter :: reff_r_max =   1000.0_r_kind   ! [micron] ! previous value was 10000.0_r_kind
   real(r_kind), parameter:: mu_r = 0.0_r_kind
   ! Parameters for snow
   real(r_kind), parameter :: reff_s_min =       5.0_r_kind  ! [micron] ! previous value was 0.0_r_kind
-  real(r_kind), parameter :: reff_s_max =   5000.0_r_kind  ! [micron] ! previous value was 10000.0_r_kind
+  real(r_kind), parameter :: reff_s_max =   5000.0_r_kind   ! [micron] ! previous value was 10000.0_r_kind
+  real(r_kind), parameter:: nr_min = 1.0e-6_r_kind          ! minimum number concentration (ccpp-physics)
 
 !For snow moments conversions  (from Field et al. 2005)
   real(r_kind), dimension(10), parameter:: &
@@ -2768,10 +2770,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      reff_max = reff_i_max
      do k = 1, nsig
         qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
-        if (qx > qmin .and. ni(k)>zero) then
+        if (qx > qmin .and. ni(k)>ni_min) then
            lam_i=exp(1.0_r_kind / 3.0_r_kind * log((am_i*ni(k) *gamma(mu_i + 3.0_r_kind + 1.0_r_kind))/(qx*gamma(mu_i+1.0_r_kind))))
-        reff(k) = 0.5_r_kind * (3.0_r_kind /lam_i)*1.0e6_r_kind
-        reff(k) = max(reff_min, min(reff_max, reff(k)))
+           reff(k) = 0.5_r_kind * (3.0_r_kind /lam_i)*1.0e6_r_kind
+           reff(k) = max(reff_min, min(reff_max, reff(k)))
         else
            reff(k) = zero
         endif
@@ -2783,7 +2785,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      reff_max = reff_r_max
      do k = 1, nsig
         qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
-        if (qx > qmin .and. nr(k)>zero) then
+        if (qx > qmin .and. nr(k)>nr_min) then
            lam_r=exp(1.0_r_kind / 3.0_r_kind * log ((am_r*nr(k) *gamma(mu_r + 3.0_r_kind + 1.0_r_kind))/(qx*gamma(mu_r + 1.0_r_kind))))
            reff(k) = 0.5_r_kind *(3.0_r_kind/lam_r)*1.0e6_r_kind
            reff(k) = max(reff_min, min(reff_max, reff(k)))
