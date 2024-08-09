@@ -1206,7 +1206,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind) ::   lai
 
   m1=mype+1
-  if (mype==0) write(6,*) myname_, ' imp_physics = ', imp_physics
   if (n_clouds_fwd_wk>0) hwp_guess=zero  
   hwp_total=zero  
   theta_700=zero
@@ -2769,7 +2768,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      reff_max = reff_i_max
      do k = 1, nsig
         qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
-        if (qx > qmin) then
+        if (qx > qmin .and. ni(k)>zero) then
            lam_i=exp(1.0_r_kind / 3.0_r_kind * log((am_i*ni(k) *gamma(mu_i + 3.0_r_kind + 1.0_r_kind))/(qx*gamma(mu_i+1.0_r_kind))))
         reff(k) = 0.5_r_kind * (3.0_r_kind /lam_i)*1.0e6_r_kind
         reff(k) = max(reff_min, min(reff_max, reff(k)))
@@ -2784,7 +2783,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      reff_max = reff_r_max
      do k = 1, nsig
         qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
-        if (qx > qmin) then
+        if (qx > qmin .and. nr(k)>zero) then
            lam_r=exp(1.0_r_kind / 3.0_r_kind * log ((am_r*nr(k) *gamma(mu_r + 3.0_r_kind + 1.0_r_kind))/(qx*gamma(mu_r + 1.0_r_kind))))
            reff(k) = 0.5_r_kind *(3.0_r_kind/lam_r)*1.0e6_r_kind
            reff(k) = max(reff_min, min(reff_max, reff(k)))
