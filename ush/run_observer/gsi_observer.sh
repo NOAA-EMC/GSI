@@ -205,6 +205,8 @@ $ncpl $datobs/${prefix_obs}.crisdb.${suffix}        ./crisbufr_db
 $ncpl $datobs/${prefix_obs}.atmsdb.${suffix}        ./atmsbufr_db
 $ncpl $datobs/${prefix_obs}.escris.${suffix}        ./crisbufrears
 $ncpl $datobs/${prefix_obs}.esatms.${suffix}        ./atmsbufrears
+$ncpl $datobs/${prefix_obs}.gsrcsr.${suffix}        ./abibufr
+$ncpl $datobs/${prefix_obs}.ahicsr.${suffix}        ./ahibufr
 
 ## copy gsistats
 $ncpl $datges/${prefix_obs}.gsistat        ./gsistat
@@ -348,28 +350,28 @@ OBS_INPUT::
    ssmisbufr      ssmis       f16         ssmis_f16           0.0     1     0
    ssmisbufr      ssmis       f17         ssmis_f17           0.0     1     0
    ssmisbufr      ssmis       f18         ssmis_f18           0.0     1     0
-#   gsnd1bufr      sndrd1      g12         sndrD1_g12          0.0     1     0
-#   gsnd1bufr      sndrd2      g12         sndrD2_g12          0.0     1     0
-#   gsnd1bufr      sndrd3      g12         sndrD3_g12          0.0     1     0
-#   gsnd1bufr      sndrd4      g12         sndrD4_g12          0.0     1     0
-#   gsnd1bufr      sndrd1      g11         sndrD1_g11          0.0     1     0
-#   gsnd1bufr      sndrd2      g11         sndrD2_g11          0.0     1     0
-#   gsnd1bufr      sndrd3      g11         sndrD3_g11          0.0     1     0
-#   gsnd1bufr      sndrd4      g11         sndrD4_g11          0.0     1     0
-#   gsnd1bufr      sndrd1      g13         sndrD1_g13          0.0     1     0
-#   gsnd1bufr      sndrd2      g13         sndrD2_g13          0.0     1     0
-#   gsnd1bufr      sndrd3      g13         sndrD3_g13          0.0     1     0
-#   gsnd1bufr      sndrd4      g13         sndrD4_g13          0.0     1     0
-#   iasibufr       iasi        metop-a     iasi_metop-a        0.0     1     0
-#   gomebufr       gome        metop-a     gome_metop-a        0.0     2     0
-#   omibufr        omi         aura        omi_aura            0.0     2     0
-#   sbuvbufr       sbuv2       n19         sbuv8_n19           0.0     0     0
+   gsnd1bufr      sndrd1      g12         sndrD1_g12          0.0     1     0
+   gsnd1bufr      sndrd2      g12         sndrD2_g12          0.0     1     0
+   gsnd1bufr      sndrd3      g12         sndrD3_g12          0.0     1     0
+   gsnd1bufr      sndrd4      g12         sndrD4_g12          0.0     1     0
+   gsnd1bufr      sndrd1      g11         sndrD1_g11          0.0     1     0
+   gsnd1bufr      sndrd2      g11         sndrD2_g11          0.0     1     0
+   gsnd1bufr      sndrd3      g11         sndrD3_g11          0.0     1     0
+   gsnd1bufr      sndrd4      g11         sndrD4_g11          0.0     1     0
+   gsnd1bufr      sndrd1      g13         sndrD1_g13          0.0     1     0
+   gsnd1bufr      sndrd2      g13         sndrD2_g13          0.0     1     0
+   gsnd1bufr      sndrd3      g13         sndrD3_g13          0.0     1     0
+   gsnd1bufr      sndrd4      g13         sndrD4_g13          0.0     1     0
+   iasibufr       iasi        metop-a     iasi_metop-a        0.0     1     0
+   gomebufr       gome        metop-a     gome_metop-a        0.0     2     0
+   omibufr        omi         aura        omi_aura            0.0     2     0
+   sbuvbufr       sbuv2       n19         sbuv8_n19           0.0     0     0
 #   hirs4bufr      hirs4       n19         hirs4_n19           0.0     1     0
-#   amsuabufr      amsua       n19         amsua_n19           0.0     1     0
-#   mhsbufr        mhs         n19         mhs_n19             0.0     1     0
-#   tcvitl         tcp         null        tcp                 0.0     0     0
-#   seviribufr     seviri      m08         seviri_m08          0.0     1     0
-#   seviribufr     seviri      m09         seviri_m09          0.0     1     0
+   amsuabufr      amsua       n19         amsua_n19           0.0     1     0
+   mhsbufr        mhs         n19         mhs_n19             0.0     1     0
+   tcvitl         tcp         null        tcp                 0.0     0     0
+   seviribufr     seviri      m08         seviri_m08          0.0     1     0
+   seviribufr     seviri      m09         seviri_m09          0.0     1     0
    seviribufr     seviri      m10         seviri_m10          0.0     1     0
    seviribufr     seviri      m11         seviri_m11          0.0     1     0
 #   hirs4bufr      hirs4       metop-b     hirs4_metop-b       0.0     1     0
