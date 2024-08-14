@@ -33,7 +33,7 @@ CRTM_FIX=/work/noaa/epic/role-epic/spack-stack/hercules/spack-stack-1.6.0/envs/u
 # so that GSI observer can run at full background res
 GSIFIX=/work2/noaa/da/cmartin/UFO_eval/geovals/GSI/fix
 dumpdir=/work/noaa/rstprod/dump
-gesroot=/work2/noaa/da/acollard/UFO_eval/data/para/output_ufo_eval_feb2024/
+gesroot=/work2/noaa/da/acollard/UFO_eval/data/para/output_ufo_eval_feb2024_9Aug
 
 mkdir -p $workdir
 cd $workdir
@@ -52,4 +52,5 @@ export GDASApp=$GDASApp
 export MACHINE=$MACHINE
 EOF
 
+#sbatch $GSIDIR/ush/run_observer/gsi_observer.sh $workdir/config.sh
 sbatch $GSIDIR/ush/run_observer/gsi_observer.sh $workdir/config.sh

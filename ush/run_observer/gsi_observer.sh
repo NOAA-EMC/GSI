@@ -307,7 +307,7 @@ cat > gsiparm.anl << EOF
   $OBSQC
 /
 &OBS_INPUT
-  dmesh(1)=145.0,dmesh(2)=150.0,dmesh(3)=100.0,time_window_max=3.0,
+  dmesh(1)=145.0,dmesh(2)=150.0,dmesh(3)=100.0,dmesh(4)=580,time_window_max=3.0,
   $OBSINPUT
 /
 OBS_INPUT::
@@ -362,7 +362,7 @@ OBS_INPUT::
    gsnd1bufr      sndrd2      g13         sndrD2_g13          0.0     1     0
    gsnd1bufr      sndrd3      g13         sndrD3_g13          0.0     1     0
    gsnd1bufr      sndrd4      g13         sndrD4_g13          0.0     1     0
-   iasibufr       iasi        metop-a     iasi_metop-a        0.0     1     0
+   iasibufr       iasi        metop-a     iasi_metop-a        0.0     4     0
    gomebufr       gome        metop-a     gome_metop-a        0.0     2     0
    omibufr        omi         aura        omi_aura            0.0     2     0
    sbuvbufr       sbuv2       n19         sbuv8_n19           0.0     0     0
@@ -377,15 +377,15 @@ OBS_INPUT::
 #   hirs4bufr      hirs4       metop-b     hirs4_metop-b       0.0     1     0
    amsuabufr      amsua       metop-b     amsua_metop-b       0.0     1     0
    mhsbufr        mhs         metop-b     mhs_metop-b         0.0     1     0
-   iasibufr       iasi        metop-b     iasi_metop-b        0.0     1     0
+   iasibufr       iasi        metop-b     iasi_metop-b        0.0     4     0
 #   gomebufr       gome        metop-b     gome_metop-b        0.0     2     0
    atmsbufr       atms        npp         atms_npp            0.0     1     0
    atmsbufr       atms        n20         atms_n20            0.0     1     0
    atmsbufr       atms        n21         atms_n21            0.0     1     0
-#   crisbufr       cris        npp         cris_npp            0.0     1     0
-#   crisfsbufr     cris-fsr    npp         cris-fsr_npp        0.0     1     0
-   crisfsbufr     cris-fsr    n20         cris-fsr_n20        0.0     1     0
-   crisfsbufr     cris-fsr    n21         cris-fsr_n21        0.0     1     0
+#   crisbufr       cris        npp         cris_npp            0.0     4     0
+#   crisfsbufr     cris-fsr    npp         cris-fsr_npp        0.0     4     0
+   crisfsbufr     cris-fsr    n20         cris-fsr_n20        0.0     4     0
+   crisfsbufr     cris-fsr    n21         cris-fsr_n21        0.0     4     0
 #   gsnd1bufr      sndrd1      g14         sndrD1_g14          0.0     1     0
 #   gsnd1bufr      sndrd2      g14         sndrD2_g14          0.0     1     0
 #   gsnd1bufr      sndrd3      g14         sndrD3_g14          0.0     1     0
@@ -412,7 +412,7 @@ OBS_INPUT::
    ompstcbufr     ompstc8     npp         ompstc8_npp         0.0     2     0
    amsuabufr      amsua       metop-c     amsua_metop-c       0.0     1     0
    mhsbufr        mhs         metop-c     mhs_metop-c         0.0     1     0
-   iasibufr       iasi        metop-c     iasi_metop-c        0.0     1     0
+   iasibufr       iasi        metop-c     iasi_metop-c        0.0     4     0
 ::
 &SUPEROB_RADAR
   $SUPERRAD
