@@ -27,7 +27,7 @@ rstprod="true"
 nhr_bkg=6
 
 # should NOT touch below this line
-CRTM_FIX=/work/noaa/epic/role-epic/spack-stack/hercules/spack-stack-1.6.0/envs/unified-env/install/intel/2021.9.0/crtm-fix-2.4.0.1_emc-2os2hw2/fix
+CRTM_FIX=/work/noaa/da/eliu/ORION/CRTM-fix/crtm_v2.4.1-jedi.1-fix_gdasapp
 # many people cannot clone this without gerrit permissions
 # plus, I have the C768 berror file here
 # so that GSI observer can run at full background res
@@ -50,6 +50,7 @@ export rstprod=$rstprod
 export GSI_background_nhr=$nhr_bkg
 export GDASApp=$GDASApp
 export MACHINE=$MACHINE
+export LD_LIBRARY_PATH=/work/noaa/da/eliu/${MACHINE^^}/CRTM/crtm_v2.4.1-jedi.1/build/lib:${LD_LIBRARY_PATH}
 EOF
 
 #sbatch $GSIDIR/ush/run_observer/gsi_observer.sh $workdir/config.sh
