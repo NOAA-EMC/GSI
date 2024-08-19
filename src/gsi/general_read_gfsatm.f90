@@ -3053,13 +3053,21 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
     !  call gsi_bundlegetpointer(gfs_bundle,'cw',g_cwmr,ier);istatus=istatus+ier
        istatus1=0   
        call gsi_bundlegetpointer(gfs_bundle,'ql',g_ql  ,ier);istatus1=istatus1+ier
+       write(6,*)'emily checking ql ier istatus1 = ', ier, istatus1
        call gsi_bundlegetpointer(gfs_bundle,'qi',g_qi  ,ier);istatus1=istatus1+ier
+       write(6,*)'emily checking qi ier istatus1 = ', ier, istatus1
        call gsi_bundlegetpointer(gfs_bundle,'qr',g_qr  ,ier);istatus1=istatus1+ier
+       write(6,*)'emily checking qr ier istatus1 = ', ier, istatus1
        call gsi_bundlegetpointer(gfs_bundle,'qs',g_qs  ,ier);istatus1=istatus1+ier
+       write(6,*)'emily checking qs ier istatus1 = ', ier, istatus1
        call gsi_bundlegetpointer(gfs_bundle,'qg',g_qg  ,ier);istatus1=istatus1+ier
+       write(6,*)'emily checking qg ier istatus1 = ', ier, istatus1
     !  call gsi_bundlegetpointer(gfs_bundle,'cf',g_cf  ,ier);istatus1=istatus1+ier
        call gsi_bundlegetpointer(gfs_bundle,'ni',g_ni  ,ier);istatus1=istatus1+ier
+       write(6,*)'emily checking ni ier istatus1 = ', ier, istatus1
        call gsi_bundlegetpointer(gfs_bundle,'nr',g_nr  ,ier);istatus1=istatus1+ier
+       write(6,*)'emily checking nr ier istatus1 = ', ier, istatus1
+
        if ( istatus1 /= 0 ) then
           if ( mype == 0 ) then
              write(6,*) 'general_read_gfsatm_allhydro_nc: ERROR'
@@ -3588,99 +3596,99 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
           if ( icount == icm .or. k==nlevs) then
              call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
                   g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
-      endif
-   enddo ! do k=1,nlevs
-
-   do k=1,nlevs
-      icount=icount+1
-      iflag(icount)=15
-      ilev(icount)=k
-      kr = levs+1-k ! netcdf is top to bottom, need to flip
-
-      if (mype==mype_use(icount)) then
-         call read_vardata(filges, 'nccice', rwork3d0, nslice=kr, slicedim=3)
-         ! cloud ice water number concentration.
-         if ( diff_res ) then
-            grid_b=rwork3d0(:,:,1)
-            vector(1)=.false.
-            call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-            call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-            do kk=1,grd%itotsub
-               i=grd%ltosi_s(kk)
-               j=grd%ltosj_s(kk)
-               work(kk)=grid2(i,j,1)
-            enddo
-         else
-            grid=rwork3d0(:,:,1)
-            call general_fill_ns(grd,grid,work)
-         endif
-      endif
-      if ( icount == icm .or. k==nlevs ) then
-         call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-              g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
-      endif
-   enddo ! do k=1,nlevs
-
-   do k=1,nlevs
-      icount=icount+1
-      iflag(icount)=16
-      ilev(icount)=k
-      kr = levs+1-k ! netcdf is top to bottom, need to flip
-
-      if (mype==mype_use(icount)) then
-         call read_vardata(filges, 'nconrd', rwork3d0, nslice=kr, slicedim=3)
-         ! rain number concentration.
-         if ( diff_res ) then
-            grid_b=rwork3d0(:,:,1)
-            vector(1)=.false.
-            call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-            call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-            do kk=1,grd%itotsub
-               i=grd%ltosi_s(kk)
-               j=grd%ltosj_s(kk)
-               work(kk)=grid2(i,j,1)
-            enddo
-         else
-            grid=rwork3d0(:,:,1)
-            call general_fill_ns(grd,grid,work)
-         endif
-      endif
-      if ( icount == icm .or. k==nlevs) then
-         call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-              g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
           endif
        enddo ! do k=1,nlevs
 
-!   do k=1,nlevs
-!      icount=icount+1
-!      iflag(icount)=17
-!      ilev(icount)=k
-!      kr = levs+1-k ! netcdf is top to bottom, need to flip
+       if (imp_physics == 8) then
+       do k=1,nlevs
+          icount=icount+1
+          iflag(icount)=15
+          ilev(icount)=k
+          kr = levs+1-k ! netcdf is top to bottom, need to flip
+
+          if (mype==mype_use(icount)) then
+             call read_vardata(filges, 'nccice', rwork3d0, nslice=kr, slicedim=3)
+             ! cloud ice water number concentration.
+             if ( diff_res ) then
+                grid_b=rwork3d0(:,:,1)
+                vector(1)=.false.
+                call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+                call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+                do kk=1,grd%itotsub
+                   i=grd%ltosi_s(kk)
+                   j=grd%ltosj_s(kk)
+                   work(kk)=grid2(i,j,1)
+                enddo
+             else
+                grid=rwork3d0(:,:,1)
+                call general_fill_ns(grd,grid,work)
+             endif
+          endif
+          if ( icount == icm .or. k==nlevs ) then
+             call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
+                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
+          endif
+       enddo ! do k=1,nlevs
+
+       do k=1,nlevs
+          icount=icount+1
+          iflag(icount)=16
+          ilev(icount)=k
+          kr = levs+1-k ! netcdf is top to bottom, need to flip
+
+          if (mype==mype_use(icount)) then
+             call read_vardata(filges, 'nconrd', rwork3d0, nslice=kr, slicedim=3)
+             ! rain number concentration.
+             if ( diff_res ) then
+                grid_b=rwork3d0(:,:,1)
+                vector(1)=.false.
+                call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+                call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+                do kk=1,grd%itotsub
+                   i=grd%ltosi_s(kk)
+                   j=grd%ltosj_s(kk)
+                   work(kk)=grid2(i,j,1)
+                enddo
+             else
+                grid=rwork3d0(:,:,1)
+                call general_fill_ns(grd,grid,work)
+             endif
+          endif
+          if ( icount == icm .or. k==nlevs) then
+             call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
+                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
+          endif
+       enddo ! do k=1,nlevs
+       endif ! imp_physics
+!       do k=1,nlevs
+!          icount=icount+1
+!          iflag(icount)=17
+!          ilev(icount)=k
+!          kr = levs+1-k ! netcdf is top to bottom, need to flip
 !
-!      if (mype==mype_use(icount)) then
-!         call read_vardata(filges, 'cld_amt', rwork3d0, nslice=kr, slicedim=3)
-!         ! Cloud amount (cloud fraction). 
-!         if ( diff_res ) then
-!            grid_b=rwork3d0(:,:,1)
-!            vector(1)=.false.
-!            call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-!            call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-!            do kk=1,grd%itotsub
-!               i=grd%ltosi_s(kk)
-!               j=grd%ltosj_s(kk)
-!               work(kk)=grid2(i,j,1)
-!            enddo
-!         else
-!            grid=rwork3d0(:,:,1)
-!            call general_fill_ns(grd,grid,work)
-!         endif
-!
-!      endif
-!      if ( icount == icm .or. k==nlevs ) then
-!         call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-!              g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_cf)
-!      endif
-!   enddo ! do k=1,nlevs
+!          if (mype==mype_use(icount)) then
+!             call read_vardata(filges, 'cld_amt', rwork3d0, nslice=kr, slicedim=3)
+!             ! Cloud amount (cloud fraction). 
+!             if ( diff_res ) then
+!                grid_b=rwork3d0(:,:,1)
+!                vector(1)=.false.
+!                call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+!                call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+!                do kk=1,grd%itotsub
+!                   i=grd%ltosi_s(kk)
+!                   j=grd%ltosj_s(kk)
+!                   work(kk)=grid2(i,j,1)
+!                enddo
+!             else
+!                grid=rwork3d0(:,:,1)
+!                call general_fill_ns(grd,grid,work)
+!             endif
+!          endif
+!          if ( icount == icm .or. k==nlevs ) then
+!             call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
+!                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_cf)
+!          endif
+!       enddo ! do k=1,nlevs
 
    else ! read_2m
 
