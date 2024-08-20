@@ -3060,7 +3060,6 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
     !  call gsi_bundlegetpointer(gfs_bundle,'cf',g_cf  ,ier);istatus1=istatus1+ier
        call gsi_bundlegetpointer(gfs_bundle,'ni',g_ni  ,ier);istatus1=istatus1+ier
        call gsi_bundlegetpointer(gfs_bundle,'nr',g_nr  ,ier);istatus1=istatus1+ier
-
        if ( istatus1 /= 0 ) then
           if ( mype == 0 ) then
              write(6,*) 'general_read_gfsatm_allhydro_nc: ERROR'
