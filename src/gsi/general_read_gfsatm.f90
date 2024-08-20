@@ -3591,66 +3591,67 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
           endif
        enddo ! do k=1,nlevs
 
-       do k=1,nlevs
-          icount=icount+1
-          iflag(icount)=15
-          ilev(icount)=k
-          kr = levs+1-k ! netcdf is top to bottom, need to flip
+       if (imp_physics == 8) then
+          do k=1,nlevs
+             icount=icount+1
+             iflag(icount)=15
+             ilev(icount)=k
+             kr = levs+1-k ! netcdf is top to bottom, need to flip
 
-          if (mype==mype_use(icount)) then
-             call read_vardata(filges, 'nccice', rwork3d0, nslice=kr, slicedim=3)
-             ! cloud ice water number concentration.
-             if ( diff_res ) then
-                grid_b=rwork3d0(:,:,1)
-                vector(1)=.false.
-                call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-                call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-                do kk=1,grd%itotsub
-                   i=grd%ltosi_s(kk)
-                   j=grd%ltosj_s(kk)
-                   work(kk)=grid2(i,j,1)
-                enddo
-             else
-                grid=rwork3d0(:,:,1)
-                call general_fill_ns(grd,grid,work)
+             if (mype==mype_use(icount)) then
+                call read_vardata(filges, 'nccice', rwork3d0, nslice=kr, slicedim=3)
+                ! cloud ice water number concentration.
+                if ( diff_res ) then
+                   grid_b=rwork3d0(:,:,1)
+                   vector(1)=.false.
+                   call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+                   call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+                   do kk=1,grd%itotsub
+                      i=grd%ltosi_s(kk)
+                      j=grd%ltosj_s(kk)
+                      work(kk)=grid2(i,j,1)
+                   enddo
+                else
+                   grid=rwork3d0(:,:,1)
+                   call general_fill_ns(grd,grid,work)
+                endif
              endif
-          endif
-          if ( icount == icm .or. k==nlevs ) then
-             call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
-          endif
-       enddo ! do k=1,nlevs
-
-       do k=1,nlevs
-          icount=icount+1
-          iflag(icount)=16
-          ilev(icount)=k
-          kr = levs+1-k ! netcdf is top to bottom, need to flip
-
-          if (mype==mype_use(icount)) then
-             call read_vardata(filges, 'nconrd', rwork3d0, nslice=kr, slicedim=3)
-             ! rain number concentration.
-             if ( diff_res ) then
-                grid_b=rwork3d0(:,:,1)
-                vector(1)=.false.
-                call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
-                call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
-                do kk=1,grd%itotsub
-                   i=grd%ltosi_s(kk)
-                   j=grd%ltosj_s(kk)
-                   work(kk)=grid2(i,j,1)
-                enddo
-             else
-                grid=rwork3d0(:,:,1)
-                call general_fill_ns(grd,grid,work)
+             if ( icount == icm .or. k==nlevs ) then
+                call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
+                     g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
              endif
-          endif
-          if ( icount == icm .or. k==nlevs) then
-             call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
-                  g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
-          endif
-       enddo ! do k=1,nlevs
+          enddo ! do k=1,nlevs
 
+          do k=1,nlevs
+             icount=icount+1
+             iflag(icount)=16
+             ilev(icount)=k
+             kr = levs+1-k ! netcdf is top to bottom, need to flip
+
+             if (mype==mype_use(icount)) then
+                call read_vardata(filges, 'nconrd', rwork3d0, nslice=kr, slicedim=3)
+                ! rain number concentration.
+                if ( diff_res ) then
+                   grid_b=rwork3d0(:,:,1)
+                   vector(1)=.false.
+                   call fill2_ns(grid_b,grid_c(:,:,1),latb+2,lonb)
+                   call g_egrid2agrid(p_high,grid_c,grid2,1,1,vector)
+                   do kk=1,grd%itotsub
+                      i=grd%ltosi_s(kk)
+                      j=grd%ltosj_s(kk)
+                      work(kk)=grid2(i,j,1)
+                   enddo
+                else
+                   grid=rwork3d0(:,:,1)
+                   call general_fill_ns(grd,grid,work)
+                endif
+             endif
+             if ( icount == icm .or. k==nlevs) then
+                call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
+                     g_ql,g_qi,g_qr,g_qs,g_qg,icount,iflag,ilev,work,uvflag,vordivflag,g_ni,g_nr)
+                endif
+          enddo ! do k=1,nlevs
+       endif ! imp_physics
 !       do k=1,nlevs
 !          icount=icount+1
 !          iflag(icount)=17
@@ -3674,7 +3675,6 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
 !                grid=rwork3d0(:,:,1)
 !                call general_fill_ns(grd,grid,work)
 !             endif
-!
 !          endif
 !          if ( icount == icm .or. k==nlevs ) then
 !             call general_reload2(grd,g_z,g_ps,g_tv,g_vor,g_div,g_u,g_v,g_q,g_oz, &
