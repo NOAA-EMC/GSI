@@ -3053,20 +3053,13 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
     !  call gsi_bundlegetpointer(gfs_bundle,'cw',g_cwmr,ier);istatus=istatus+ier
        istatus1=0   
        call gsi_bundlegetpointer(gfs_bundle,'ql',g_ql  ,ier);istatus1=istatus1+ier
-       write(6,*)'emily checking ql ier istatus1 = ', ier, istatus1
        call gsi_bundlegetpointer(gfs_bundle,'qi',g_qi  ,ier);istatus1=istatus1+ier
-       write(6,*)'emily checking qi ier istatus1 = ', ier, istatus1
        call gsi_bundlegetpointer(gfs_bundle,'qr',g_qr  ,ier);istatus1=istatus1+ier
-       write(6,*)'emily checking qr ier istatus1 = ', ier, istatus1
        call gsi_bundlegetpointer(gfs_bundle,'qs',g_qs  ,ier);istatus1=istatus1+ier
-       write(6,*)'emily checking qs ier istatus1 = ', ier, istatus1
        call gsi_bundlegetpointer(gfs_bundle,'qg',g_qg  ,ier);istatus1=istatus1+ier
-       write(6,*)'emily checking qg ier istatus1 = ', ier, istatus1
     !  call gsi_bundlegetpointer(gfs_bundle,'cf',g_cf  ,ier);istatus1=istatus1+ier
        call gsi_bundlegetpointer(gfs_bundle,'ni',g_ni  ,ier);istatus1=istatus1+ier
-       write(6,*)'emily checking ni ier istatus1 = ', ier, istatus1
        call gsi_bundlegetpointer(gfs_bundle,'nr',g_nr  ,ier);istatus1=istatus1+ier
-       write(6,*)'emily checking nr ier istatus1 = ', ier, istatus1
 
        if ( istatus1 /= 0 ) then
           if ( mype == 0 ) then
