@@ -3591,6 +3591,7 @@ subroutine general_read_gfsatm_allhydro_nc(grd,sp_a,filename,uvflag,vordivflag,z
           endif
        enddo ! do k=1,nlevs
 
+       ! Read fields specific to Thompson microphysics
        if (imp_physics == 8) then
           do k=1,nlevs
              icount=icount+1
