@@ -159,17 +159,17 @@ contains
     real(r_kind),pointer,dimension(:,:,:):: ges_qs_it  => NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_qg_it  => NULL()
     real(r_kind),pointer,dimension(:,:,:):: ges_cf_it  => NULL()
-
+    real(r_kind),pointer,dimension(:,:,:):: ges_ni_it  => NULL()
+    real(r_kind),pointer,dimension(:,:,:):: ges_nr_it  => NULL()
     type(sub2grid_info) :: grd_t
     logical regional
     logical:: l_cld_derived,zflag,inithead
-
     type(gsi_bundle) :: atm_bundle
     type(gsi_grid)   :: atm_grid
     integer(i_kind),parameter :: n2d=2
     ! integer(i_kind),parameter :: n3d=8
     integer(i_kind),parameter :: n2d_2m=4
-    integer(i_kind),parameter :: n3d=14
+    integer(i_kind),parameter :: n3d=16
     character(len=4), parameter :: vars2d(n2d) = (/ 'z   ', 'ps  ' /)
     character(len=4), parameter :: vars2d_with2m(n2d_2m) = (/ 'z   ', 'ps  ','t2m ','q2m ' /)
     ! character(len=4), parameter :: vars3d(n3d) = (/ 'u   ', 'v   ', &
@@ -182,13 +182,16 @@ contains
                                                     'cw  ', 'oz  ', &
                                                     'ql  ', 'qi  ', &
                                                     'qr  ', 'qs  ', &
-                                                    'qg  ', 'cf  ' /)
+                                                    'qg  ', 'ni  ', &
+                                                    'nr  ', 'cf  ' /)
+
     real(r_kind),pointer,dimension(:,:):: ptr2d   =>NULL()
     real(r_kind),pointer,dimension(:,:,:):: ptr3d =>NULL()
 
     regional=.false.
     inner_vars=1
-    num_fields=min(14*grd_a%nsig+2,npe)
+
+    num_fields=min(n3d*grd_a%nsig+2,npe)
 !  Create temporary communication information fore read routines
     call general_sub2grid_create_info(grd_t,inner_vars,grd_a%nlat,grd_a%nlon, &
           grd_a%nsig,num_fields,regional)
@@ -200,6 +203,7 @@ contains
     else
         call gsi_bundlecreate(atm_bundle,atm_grid,'aux-atm-read',istatus,names2d=vars2d,names3d=vars3d)
     endif
+
     if(istatus/=0) then
       write(6,*) myname_,': trouble creating atm_bundle'
       call stop2(999)
@@ -248,6 +252,8 @@ contains
                    if (associated(ges_qr_it)) ges_qr_it(i,j,k) = max(qcmin,ges_qr_it(i,j,k))
                    if (associated(ges_qs_it)) ges_qs_it(i,j,k) = max(qcmin,ges_qs_it(i,j,k))
                    if (associated(ges_qg_it)) ges_qg_it(i,j,k) = max(qcmin,ges_qg_it(i,j,k))
+                   if (associated(ges_ni_it)) ges_ni_it(i,j,k) = max(qcmin,ges_ni_it(i,j,k))
+                   if (associated(ges_nr_it)) ges_nr_it(i,j,k) = max(qcmin,ges_nr_it(i,j,k))
                    if (associated(ges_cf_it)) ges_cf_it(i,j,k) = min(max(zero,ges_cf_it(i,j,k)),one)
                 enddo
              enddo
@@ -256,6 +262,8 @@ contains
           l_cld_derived = associated(ges_cwmr_it).and.&
                           associated(ges_q_it)   .and.&
                           associated(ges_ql_it)  .and.&
+                          associated(ges_ni_it)  .and.&
+                          associated(ges_nr_it)  .and.&
                           associated(ges_qi_it)  .and.& 
                           associated(ges_tv_it)
 !         call set_cloud_lower_bound(ges_cwmr_it)
@@ -342,6 +350,16 @@ contains
     if (istatus==0) then
        call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ql',ges_ql_it,istatus)
        if(istatus==0) ges_ql_it = ptr3d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'ni',ptr3d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'ni',ges_ni_it,istatus)
+       if(istatus==0) ges_ni_it = ptr3d
+    endif
+    call gsi_bundlegetpointer (atm_bundle,'nr',ptr3d,istatus)
+    if (istatus==0) then
+       call gsi_bundlegetpointer (gsi_metguess_bundle(it),'nr',ges_nr_it,istatus)
+       if(istatus==0) ges_nr_it = ptr3d
     endif
     call gsi_bundlegetpointer (atm_bundle,'qi',ptr3d,istatus)
     if (istatus==0) then

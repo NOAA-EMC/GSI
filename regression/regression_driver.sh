@@ -59,7 +59,7 @@ if [ "$debug" == ".false." ]; then
 
    export scripts=${scripts_updat:-$scripts}
 
-   if [ $regtest = 'global_enkf' ]; then
+   if [ $regtest = 'global_enkf' ] || [ $regtest = 'rrfs_enkf_conv' ]; then
       /bin/sh $scripts/regression_test_enkf.sh ${job[1]} ${job[2]} ${job[3]} ${job[4]} ${tmpregdir} ${result} ${scaling[1]} ${scaling[2]} ${scaling[3]}
    else
       /bin/sh $scripts/regression_test.sh ${job[1]} ${job[2]} ${job[3]} ${job[4]} ${tmpregdir} ${result} ${scaling[1]} ${scaling[2]} ${scaling[3]}

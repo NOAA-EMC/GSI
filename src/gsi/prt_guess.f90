@@ -287,7 +287,8 @@ subroutine prt_guess2(sgrep)
   integer(i_kind), parameter :: nvars3=5
   integer(i_kind) :: nvars,nvars2,nvarsc,nc
   integer(i_kind) ii,istatus,ier,ivar
-  integer(i_kind) iql,iqi,iqr,iqs,iqg,icf    
+  integer(i_kind) iql,iqi,iqr,iqs,iqg,icf
+  integer(i_kind) ini,inr    
   integer(i_kind) ntsig
   integer(i_kind) ntsfc
   integer(i_kind) n_actual_clouds
@@ -307,6 +308,8 @@ subroutine prt_guess2(sgrep)
   real(r_kind),pointer,dimension(:,:,:)::ges_qr_it => NULL()
   real(r_kind),pointer,dimension(:,:,:)::ges_qs_it => NULL()
   real(r_kind),pointer,dimension(:,:,:)::ges_qg_it => NULL()
+  real(r_kind),pointer,dimension(:,:,:)::ges_ni_it => NULL()
+  real(r_kind),pointer,dimension(:,:,:)::ges_nr_it => NULL()
   real(r_kind),pointer,dimension(:,:,:)::ges_cf_it => NULL()  
 ! character(len=4) :: cvar(nvars+3)
   character(len=4),allocatable,dimension(:) :: cvar
@@ -338,6 +341,7 @@ subroutine prt_guess2(sgrep)
 ! get pointer to cloud water condensate
   ier=0;nvarsc=0
   iql=0;iqi=0;iqr=0;iqs=0;iqg=0
+  ini=0;inr=0
   call gsi_metguess_get('clouds::3d',n_actual_clouds,ier)
   if (mype==0) write(6,*)'prt_guess2: n_actual_clouds = ', n_actual_clouds
   if (n_actual_clouds>0) then
@@ -345,36 +349,52 @@ subroutine prt_guess2(sgrep)
      if (ivar > 0) then 
         call gsi_bundlegetpointer (gsi_metguess_bundle(ntsig),'ql',ges_ql_it,istatus)
         ier=ier+istatus
+        if (ier==0) nvarsc=nvarsc+1
      endif
      call gsi_metguess_get ( 'var::qi', ivar, ier ); iqi=ivar
      if (ivar > 0) then
         call gsi_bundlegetpointer (gsi_metguess_bundle(ntsig),'qi',ges_qi_it,istatus)
         ier=ier+istatus
+        if (ier==0) nvarsc=nvarsc+1
      endif
      call gsi_metguess_get ( 'var::qr', ivar, ier ); iqr=ivar
      if (ivar > 0) then
         call gsi_bundlegetpointer (gsi_metguess_bundle(ntsig),'qr',ges_qr_it,istatus)
         ier=ier+istatus
+        if (ier==0) nvarsc=nvarsc+1
      endif
      call gsi_metguess_get ( 'var::qs', ivar, ier ); iqs=ivar
      if (ivar > 0) then
         call gsi_bundlegetpointer (gsi_metguess_bundle(ntsig),'qs',ges_qs_it,istatus)
         ier=ier+istatus
+        if (ier==0) nvarsc=nvarsc+1
      endif
      call gsi_metguess_get ( 'var::qg', ivar, ier ); iqg=ivar
      if (ivar > 0) then
         call gsi_bundlegetpointer (gsi_metguess_bundle(ntsig),'qg',ges_qg_it,istatus)
         ier=ier+istatus
+        if (ier==0) nvarsc=nvarsc+1
+     endif
+     call gsi_metguess_get ( 'var::ni', ivar, ier ); ini=ivar
+     if (ivar > 0) then
+        call gsi_bundlegetpointer (gsi_metguess_bundle(ntsig),'ni',ges_ni_it,istatus)
+        ier=ier+istatus
+        if (ier==0) nvarsc=nvarsc+1
+     endif
+     call gsi_metguess_get ( 'var::nr', ivar, ier ); inr=ivar
+     if (ivar > 0) then
+        call gsi_bundlegetpointer (gsi_metguess_bundle(ntsig),'nr',ges_nr_it,istatus)
+        ier=ier+istatus
+        if (ier==0) nvarsc=nvarsc+1
      endif
   end if
-  nvarsc=n_actual_clouds
   call gsi_metguess_get ( 'var::cf', ivar, ier ); icf=ivar
   if (ivar > 0) then
      call gsi_bundlegetpointer (gsi_metguess_bundle(ntsig),'cf',ges_cf_it,istatus)
      ier=ier+istatus
      nvarsc=nvarsc+1
   endif
-! if (ier/=0) return ! this is a fundamental routine, when some not found just ! emily
+! if (ier/=0) return ! this is a fundamental routine, when some not found just !
 
   nvars  = nvars1+nvarsc+nvars3
   nvars2 = nvars1+nvarsc
@@ -414,6 +434,14 @@ subroutine prt_guess2(sgrep)
   if(iqg>0) then
      nc=nc+1
      cvar(nvars1+nc)='QG  '
+  endif
+  if(ini>0) then
+     nc=nc+1
+     cvar(nvars1+nc)='NI  '
+  endif
+  if(inr>0) then
+     nc=nc+1
+     cvar(nvars1+nc)='NR  '
   endif
   if(icf>0) then
      nc=nc+1
@@ -455,6 +483,17 @@ subroutine prt_guess2(sgrep)
      nc=nc+1
      zloc(nvars1+nc) = sum   (ges_qg_it (2:lat1+1,2:lon1+1,1:nsig))
   endif
+
+  if(ini>0) then
+     nc=nc+1
+     zloc(nvars1+nc) = sum   (ges_ni_it (2:lat1+1,2:lon1+1,1:nsig))
+  endif
+
+  if(inr>0) then
+     nc=nc+1
+     zloc(nvars1+nc) = sum   (ges_nr_it (2:lat1+1,2:lon1+1,1:nsig))
+  endif
+
   if(icf>0) then 
      nc=nc+1
      zloc(nvars1+nc) = sum   (ges_cf_it (2:lat1+1,2:lon1+1,1:nsig))
@@ -491,6 +530,16 @@ subroutine prt_guess2(sgrep)
      nc=nc+1
      zloc(nvars+nvars1+nc)   = minval(ges_qg_it (2:lat1+1,2:lon1+1,1:nsig))
   endif
+
+  if(ini>0) then
+     nc=nc+1
+     zloc(nvars+nvars1+nc)   = minval(ges_ni_it (2:lat1+1,2:lon1+1,1:nsig))
+  endif
+  if(inr>0) then
+     nc=nc+1
+     zloc(nvars+nvars1+nc)   = minval(ges_nr_it (2:lat1+1,2:lon1+1,1:nsig))
+  endif
+
   if(icf>0) then 
      nc=nc+1
      zloc(nvars+nvars1+nc)   = minval(ges_cf_it (2:lat1+1,2:lon1+1,1:nsig))
@@ -527,6 +576,15 @@ subroutine prt_guess2(sgrep)
      nc=nc+1
      zloc(2*nvars+nvars1+nc) = maxval(ges_qg_it (2:lat1+1,2:lon1+1,1:nsig))
   endif
+  if(ini>0) then
+     nc=nc+1
+     zloc(2*nvars+nvars1+nc) = maxval(ges_ni_it (2:lat1+1,2:lon1+1,1:nsig))
+  endif
+  if(inr>0) then
+     nc=nc+1
+     zloc(2*nvars+nvars1+nc) = maxval(ges_nr_it (2:lat1+1,2:lon1+1,1:nsig))
+  endif
+
   if(icf>0) then 
      nc=nc+1
      zloc(2*nvars+nvars1+nc) = maxval(ges_cf_it (2:lat1+1,2:lon1+1,1:nsig))

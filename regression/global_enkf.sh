@@ -76,14 +76,11 @@ export use_correlated_oberrs=${use_correlated_oberrs:-".false."}
 if [ $USE_CORRELATED_OBERRS == "YES" ]; then
     export use_correlated_oberrs=".true."
 fi
-export imp_physics=${imp_physics:-"11"}
 export lupp=${lupp:-".true."}
 export corrlength=${corrlength:-1250}
 export lnsigcutoff=${lnsigcutoff:-2.75}
 export analpertwt=${analpertwt:-0.85}
 export readin_localization_enkf=".false."
-export readin_localization_enkf=${readin_localization_enkf:-".true."}
-export reducedgrid=${reducedgrid:-".true."}
 export letkf_flag=${letkf_flag:-".true."}
 export getkf=${getkf:-".true."}
 export denkf=${denkf:-".true."}
@@ -163,13 +160,13 @@ nfhrs=`echo $IAUFHRS_ENKF | sed 's/,/ /g'`
 for fhr in $nfhrs; do
     for imem in $(seq 1 $NMEM_ENKF); do
 	memchar="mem"$(printf %03i $imem)
-	$nln $datens/$memchar/model_data/atmos/history/${prefix_ens}.atmf00${fhr}.nc sfg_${global_adate}_fhr0${fhr}_${memchar}
+	$nln $datens/$memchar/model/atmos/history/${prefix_ens}.atmf00${fhr}.nc sfg_${global_adate}_fhr0${fhr}_${memchar}
         if [ $cnvw_option = ".true." ]; then
-            $nln $datens/$memchar/model_data/atmos/history/${prefix_ens}sfcf00${fhr}.nc sfgsfc_${global_adate}_fhr0${fhr}_${memchar}
+            $nln $datens/$memchar/model/atmos/history/${prefix_ens}sfcf00${fhr}.nc sfgsfc_${global_adate}_fhr0${fhr}_${memchar}
         fi
 	(( imem = $imem + 1 ))
     done
-    $nln $datens/ensstat/model_data/atmos/history/${prefix_ens}.atmf00${fhr}.ensmean.nc sfg_${global_adate}_fhr0${fhr}_ensmean
+    $nln $datens/ensstat/model/atmos/history/${prefix_ens}.atmf00${fhr}.ensmean.nc sfg_${global_adate}_fhr0${fhr}_ensmean
     if [ $cnvw_option = ".true." ]; then
         $nln $datens/${prefix_ens}.sfcf00${fhr}.ensmean.nc sfgsfc_${global_adate}_fhr0${fhr}_ensmean
     fi
