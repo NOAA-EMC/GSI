@@ -410,6 +410,7 @@ subroutine read_goesimg(mype,val_img,ithin,rmesh,jsatid,gstime,&
      enddo read_loop
   enddo read_msg
 
+!  number of profiles kept after thinning and QC
   number_profiles = count(nrec(:) /= 999999,dim=1)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&

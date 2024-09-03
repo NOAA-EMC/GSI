@@ -563,9 +563,10 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
         enddo read_loop
      enddo read_msg
 
-     number_profiles = count(nrec(:) /= 999999,dim=1)
-
      call closbf(lnbufr)
+
+!  number of profiles kept after thinning and QC
+     number_profiles = count(nrec(:) /= 999999,dim=1)
 
      call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
           nele,itxmax,number_profiles,ndata_mesh,data_mesh,score_crit,nrec)

@@ -659,6 +659,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
 
      enddo obsloop
 
+!  number of profiles kept after thinning and QC
      number_profiles = count(nrec(:) /= 999999,dim=1)
 
 ! If multiple tasks read input bufr file, allow each tasks to write out

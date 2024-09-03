@@ -970,8 +970,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   end do ears_db_loop
 
-  number_profiles = count(nrec(:) /= 999999,dim=1)
-
   deallocate(temperature, allchan, bufr_chan_test,scalef)
   deallocate(channel_number,sc_index)
   deallocate(bufr_index)
@@ -979,6 +977,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   error_status = crtm_spccoeff_destroy()
   if (error_status /= success) &
     write(6,*)'OBSERVER:  ***ERROR*** crtm_destroy error_status=',error_status
+
+!  number of profiles kept after thinning and QC
+  number_profiles = count(nrec(:) /= 999999,dim=1)
 
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together

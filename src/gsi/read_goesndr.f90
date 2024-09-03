@@ -515,6 +515,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   call closbf(lnbufr)
   close(lnbufr)
 
+!  number of profiles kept after thinning and QC
   number_profiles = count(nrec(:) /= 999999,dim=1)
 
 ! If multiple tasks read input bufr file, allow each tasks to write out

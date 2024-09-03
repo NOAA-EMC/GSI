@@ -501,6 +501,7 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
      enddo read_loop
   enddo read_msg
 
+!  number of profiles kept after thinning and QC
   number_profiles = count(nrec(:) /= 999999,dim=1)
 
   call closbf(lnbufr)

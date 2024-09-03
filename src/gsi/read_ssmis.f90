@@ -811,6 +811,7 @@ subroutine read_ssmis(mype,val_ssmis,ithin,isfcalc,rmesh,jsatid,gstime,&
   deallocate(solazi_save)
   deallocate(bt_save)
 
+!  number of profiles kept after thinning and QC
   number_profiles = count(nrec(:) /= 999999,dim=1)
 
 ! If multiple tasks read input bufr file, allow each tasks to write out

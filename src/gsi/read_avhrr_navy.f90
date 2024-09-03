@@ -464,6 +464,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 ! Normal exit
 700 continue
 
+!  number of profiles kept after thinning and QC
   number_profiles = count(nrec(:) /= 999999,dim=1)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&

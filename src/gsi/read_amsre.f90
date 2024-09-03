@@ -645,6 +645,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,jsatid,gstime,&
      enddo read_loop
   enddo read_msg
 
+!  number of profiles kept after thinning and QC
   number_profiles = count(nrec(:) /= 999999,dim=1)
 
   call closbf(lnbufr)

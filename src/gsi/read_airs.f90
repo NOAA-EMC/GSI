@@ -861,6 +861,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   enddo read_subset
 
+!  number of profiles kept after thinning and QC
   number_profiles = count(nrec(:) /= 999999,dim=1)
 
   deallocate(allchan, chan_map, bufr_chan_test)

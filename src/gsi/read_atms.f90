@@ -792,6 +792,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   DEALLOCATE(solazi_save) 
   DEALLOCATE(bt_save)
 
+!  number of profiles kept after thinning and QC
   number_profiles = count(nrec(:) /= 999999,dim=1)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&

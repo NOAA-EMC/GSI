@@ -1013,6 +1013,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   if (error_status /= success) &
      write(6,*)'OBSERVER:  ***ERROR*** crtm_spccoeff_destroy error_status=',error_status
 
+!  number of profiles kept after thinning and QC
   number_profiles = count(nrec(:) /= 999999,dim=1)
 
 ! If multiple tasks read input bufr file, allow each tasks to write out

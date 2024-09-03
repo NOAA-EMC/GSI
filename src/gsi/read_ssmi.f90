@@ -513,6 +513,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
   end do read_subset
   call closbf(lnbufr)
 
+!  number of profiles kept after thinning and QC
   number_profiles = count(nrec(:) /= 999999,dim=1)
 
 ! If multiple tasks read input bufr file, allow each tasks to write out

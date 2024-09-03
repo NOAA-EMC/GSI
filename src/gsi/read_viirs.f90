@@ -469,6 +469,7 @@ subroutine read_sst_viirs(mype,val_viirs,ithin,rmesh,jsatid,&
      enddo read_msg
      call closbf(lnbufr)
 
+!  number of profiles kept after thinning and QC
      number_profiles = count(nrec(:) /= 999999,dim=1)
 
      call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&

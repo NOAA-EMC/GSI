@@ -1061,6 +1061,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   end do ears_db_loop
   deallocate(data1b8,data1b4)
 
+!  number of profiles kept after thinning and QC
   number_profiles = count(nrec(:) /= 999999,dim=1)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
