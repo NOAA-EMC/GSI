@@ -152,7 +152,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
       'SAID CLATH CLONH YEAR MNTH DAYS HOUR MINU SOZA SOLAZI RSST AOTQ RETRQ'
 
   integer(i_kind), parameter :: mxib  = 20,imax=6
-  integer(i_kind) :: nib
+  integer(i_kind) :: nib, number_profiles
   integer(i_kind) :: ibit(mxib)
 
   integer(i_kind) :: itx, itt, irec
@@ -351,8 +351,10 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
        
            end do read_modis
 
+           number_profiles = count(nrec(:) /= 999999,dim=1)
+
            call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-              naerodat,itxmax,nread,ndata,aeroout,score_crit,nrec)
+              naerodat,itxmax,number_profiles,ndata,aeroout,score_crit,nrec)
 
            if ( mype_sub == mype_root ) then
               do n = 1, ndata

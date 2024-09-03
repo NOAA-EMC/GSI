@@ -128,7 +128,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   real(r_kind)     :: dist1   
   real(r_kind),allocatable,dimension(:,:):: data_all
   integer(i_kind),allocatable,dimension(:)::nrec
-  integer(i_kind):: irec,next
+  integer(i_kind):: irec,next, number_profiles
   integer(i_kind):: method,iobs,num_obs   
   integer(i_kind),parameter  :: maxobs=2e7
 
@@ -659,11 +659,13 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
 
      enddo obsloop
 
+     number_profiles = count(nrec(:) /= 999999,dim=1)
+
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
+     nele,itxmax,number_profiles,ndata,data_all,score_crit,nrec)
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.

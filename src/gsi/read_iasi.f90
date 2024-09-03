@@ -219,7 +219,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind):: error_status, irecx,ierr
   integer(i_kind):: radedge_min, radedge_max
   integer(i_kind)   :: subset_start, subset_end, satinfo_nchan, sc_chan, bufr_chan
-  integer(i_kind)   :: sfc_channel_index
+  integer(i_kind)   :: sfc_channel_index, number_profiles
   integer(i_kind),allocatable, dimension(:) :: channel_number, sc_index, bufr_index
   integer(i_kind),allocatable, dimension(:) :: bufr_chan_test
   character(len=20),allocatable, dimension(:):: sensorlist
@@ -711,14 +711,14 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
                 iexponent = -(nint(cscale(3,i)) - 5)
                 sscale(i)=ten**iexponent
               else 
-                sscale(i)=0.0_r_kind
+                sscale(i)= zero
               endif
            end do
 
 !          Read IASI channel number(CHNM) and radiance (SCRA)
            call ufbseq(lnbufr,allchan,2,bufr_nchan,iret,'IASICHN')
            jstart=1
-           scalef=one
+           scalef=zero
            do i=1,bufr_nchan
                scaleloop: do j=jstart,10
                   if(allchan(1,i) >= cscale(1,j) .and. allchan(1,i) <= cscale(2,j))then
@@ -757,17 +757,17 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
              cycle read_loop
            endif
 
+                   temperature(:) = tbmin
 !$omp parallel do schedule(dynamic,1) private(i,sc_chan,bufr_chan,radiance)
            channel_loop: do i=1,satinfo_nchan
               bufr_chan = bufr_index(i)
               if (bufr_chan > 0 ) then
 !             check that channel number is within reason
-                if (( allchan(2,bufr_chan) > zero .and. allchan(2,bufr_chan) < 99999._r_kind)) then  ! radiance bounds
+                if (( allchan(2,bufr_chan) > zero .and. allchan(2,bufr_chan) < 99999._r_kind) &    ! radiance bounds
+                      .and. scalef(bufr_chan) > zero ) then  ! radiance scale factor exists 
                   radiance = allchan(2,bufr_chan)*scalef(bufr_chan)
                   sc_chan = sc_index(i)
                   call crtm_planck_temperature(sensorindex_iasi,sc_chan,radiance,temperature(bufr_chan))
-                else
-                   temperature(bufr_chan) = tbmin
                 endif
               end if
            end do channel_loop
@@ -777,8 +777,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            skip_loop: do i=1,satinfo_nchan
               if ( bufr_index(i) == 0 ) cycle skip_loop
               bufr_chan = bufr_index(i)
-              if(temperature(bufr_chan) <= tbmin .or. temperature(bufr_chan) > tbmax ) then
-                 temperature(bufr_chan) = min(tbmax,max(tbmin,temperature(bufr_chan)))
+              if(temperature(bufr_chan) <= tbmin .or. temperature(bufr_chan) >= tbmax ) then
+                 temperature(bufr_chan) = tbmin
                  if(iuse_rad(ioff+i) >= 0)iskip = iskip + 1
               endif
            end do skip_loop
@@ -970,6 +970,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   end do ears_db_loop
 
+  number_profiles = count(nrec(:) /= 999999,dim=1)
+
   deallocate(temperature, allchan, bufr_chan_test,scalef)
   deallocate(channel_number,sc_index)
   deallocate(bufr_index)
@@ -982,7 +984,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
+     nele,itxmax,number_profiles,ndata,data_all,score_crit,nrec)
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.

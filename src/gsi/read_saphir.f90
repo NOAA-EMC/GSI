@@ -110,7 +110,7 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   character(8)          :: subset
   character(80)         :: hdr1b,hdr2b
 
-  integer(i_kind)       :: ireadsb,ireadmg,irec
+  integer(i_kind)       :: ireadsb,ireadmg, number_profiles
   integer(i_kind)       :: i,j,k,ntest,iob
   integer(i_kind)       :: iret,idate,nchanl,n,idomsfc(1)
   integer(i_kind)       :: kidsat,maxinfo
@@ -293,7 +293,6 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
 !  hdr2b ='AGIND SOZA BEARAZ SOLAZI'  ! AGIND instead of SAZA
 
 ! Loop to read bufr file
-  irec=0
   read_subset: do while(ireadmg(lnbufr,subset,idate)>=0 .AND. iob < maxobs)
      read_loop: do while (ireadsb(lnbufr)==0 .and. iob < maxobs)
 
@@ -601,8 +600,10 @@ subroutine read_saphir(mype,val_tovs,ithin,isfcalc,&
   DEALLOCATE(solazi_save) 
   DEALLOCATE(bt_save)
 
+  number_profiles = count(nrec(:) /= 999999,dim=1)
+
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-       nele,itxmax,nread,ndata,data_all,score_crit,nrec)
+       nele,itxmax,number_profiles,ndata,data_all,score_crit,nrec)
 
   if(mype_sub==mype_root)then
      do n=1,ndata

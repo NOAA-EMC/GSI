@@ -187,7 +187,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind):: ntest
   integer(i_kind):: error_status, irecx,ierr
   integer(i_kind):: radedge_min, radedge_max
-  integer(i_kind):: bufr_size
+  integer(i_kind):: bufr_size, number_profiles
   character(len=20),allocatable,dimension(:) :: sensorlist
 
 ! Imager cluster information for CADS
@@ -455,7 +455,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Big loop to read data file
   next=0
   irec=0
-  nrec = 99999
+  nrec = 999999
 ! Big loop over standard data feed and possible rars/db data
 ! llll=1 is normal feed, llll=2 RARS data, llll=3 DB/UW data)
   ears_db_loop: do llll= 1, 3
@@ -1013,11 +1013,13 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
   if (error_status /= success) &
      write(6,*)'OBSERVER:  ***ERROR*** crtm_spccoeff_destroy error_status=',error_status
 
+  number_profiles = count(nrec(:) /= 999999,dim=1)
+
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
+     nele,itxmax,number_profiles,ndata,data_all,score_crit,nrec)
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.

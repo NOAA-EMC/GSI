@@ -169,7 +169,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind)     :: pred, crit1, dist1
   real(r_kind),allocatable,dimension(:,:):: data_all
   integer(i_kind),allocatable,dimension(:)::nrec
-  integer(i_kind):: irec,next
+  integer(i_kind):: irec,next,number_profiles
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),dimension(0:3):: ts
@@ -644,6 +644,9 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,jsatid,gstime,&
 
      enddo read_loop
   enddo read_msg
+
+  number_profiles = count(nrec(:) /= 999999,dim=1)
+
   call closbf(lnbufr)
   close(lnbufr)
 
@@ -651,7 +654,7 @@ subroutine read_amsre(mype,val_amsre,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
+     nele,itxmax,number_profiles,ndata,data_all,score_crit,nrec)
 
 
 ! Allow single task to check for bad obs, update superobs sum,

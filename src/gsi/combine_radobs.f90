@@ -74,7 +74,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
 
      nread=0
      if (mype_sub==mype_root) nread = ncounts1
-     if (ncounts1 == 0)return
+     if (ncounts1 <= 0)return
 
 !    Allocate arrays to hold data
 

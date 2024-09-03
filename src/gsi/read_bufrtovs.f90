@@ -192,7 +192,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   character(len=8) :: subset
   character(len=80):: hdr1b,hdr2b
 
-  integer(i_kind) ireadsb,ireadmg,irec,next,nrec_startx
+  integer(i_kind) ireadsb,ireadmg,irec,next,nrec_startx, number_profiles
   integer(i_kind) i,j,k,ifov,ntest,llll
   integer(i_kind) sacv
   integer(i_kind) iret,idate,nchanl,n,idomsfc(1)
@@ -490,7 +490,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   hdr2b ='SAZA SOZA BEARAZ SOLAZI'
   allocate(data_all(nele,itxmax),data1b8(nchanl),data1b4(nchanl),nrec(itxmax))
 
-
+  nrec = 999999
   next=0
   irec=0
 ! Big loop over standard data feed and possible ears/db data
@@ -1061,8 +1061,10 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   end do ears_db_loop
   deallocate(data1b8,data1b4)
 
+  number_profiles = count(nrec(:) /= 999999,dim=1)
+
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
+     nele,itxmax,number_profiles,ndata,data_all,score_crit,nrec)
 
 ! 
   if(mype_sub==mype_root)then

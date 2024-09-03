@@ -135,7 +135,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind) itx,k,i,bufsat
   integer(i_kind) ireadsb,ireadmg
   integer(i_kind) nreal,nele,itt
-  integer(i_kind) nlat_sst,nlon_sst,irec,next
+  integer(i_kind) nlat_sst,nlon_sst,irec,next, number_profiles
   integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) dlon,dlat,sfcr
@@ -255,6 +255,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   next=0
 
 ! Read BUFR Navy data
+  nrec = 999999
   irec=0
   read_msg: do while (ireadmg(lnbufr,subset,idate) >= 0)
      irec=irec+1
@@ -463,8 +464,10 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 ! Normal exit
 700 continue
 
+  number_profiles = count(nrec(:) /= 999999,dim=1)
+
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
+     nele,itxmax,number_profiles,ndata,data_all,score_crit,nrec)
 
 
 ! Now that we've identified the "best" observations, pull out best obs
