@@ -2320,7 +2320,7 @@
      endif
      do i=1,ndat
         write(6,401)dfile(i),dtype(i),dplat(i),dsis(i),dval(i),dthin(i),dsfcalc(i),time_window(i)
- 401    format(1x,a20,1x,a10,1x,a10,1x,a20,1x,f10.2,1x,I3,1x,I3,1x,f10.2)
+ 401    format(1x,a20,1x,a10,1x,a11,1x,a20,1x,f10.2,1x,I3,1x,I3,1x,f10.2)
      end do
      write(6,superob_radar)
      write(6,lag_data)
