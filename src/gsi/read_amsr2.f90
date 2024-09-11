@@ -666,7 +666,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,number_profiles,ndata,data_all,score_crit,nrec)
+     nele,itxmax,nread,number_profiles,ndata,data_all,score_crit,nrec)
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.

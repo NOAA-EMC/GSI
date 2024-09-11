@@ -468,7 +468,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   number_profiles = count(nrec(:) /= 999999,dim=1)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,number_profiles,ndata,data_all,score_crit,nrec)
+     nele,itxmax,nread,number_profiles,ndata,data_all,score_crit,nrec)
 
 
 ! Now that we've identified the "best" observations, pull out best obs

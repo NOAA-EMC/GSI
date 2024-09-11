@@ -569,7 +569,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
      number_profiles = count(nrec(:) /= 999999,dim=1)
 
      call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-          nele,itxmax,number_profiles,ndata_mesh,data_mesh,score_crit,nrec)
+          nele,itxmax,nread,number_profiles,ndata_mesh,data_mesh,score_crit,nrec)
 
      if ( nread > 0 ) then
         write(*,'(a,a10,I3,F6.1,3I10)') 'read_avhrr,satid,imesh,amesh,itxmax,nread,ndata_mesh : ',jsatid,imesh,amesh(imesh),itxmax,nread,ndata_mesh

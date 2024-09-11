@@ -1,5 +1,5 @@
 subroutine combine_radobs(mype_sub,mype_root,&
-     npe_sub,mpi_comm_sub,nele,itxmax,nread,ndata,&
+     npe_sub,mpi_comm_sub,nele,itxmax,nread,number_profiles,ndata,&
      data_all,data_crit,nrec)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -24,6 +24,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
 !     itxmax   - maximum number of observations
 !     data_all - observation data array
 !     data_crit- array containing observation "best scores"
+!     number_profiles - task specific number of radiance profiless passing quality control
 !     nread    - task specific number of obesrvations read from data file
 !     ndata    - task specific number of observations keep for assimilation
 !
@@ -50,6 +51,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
   integer(i_kind)                    ,intent(in   ) :: npe_sub,itxmax
   integer(i_kind)                    ,intent(in   ) :: nele
   integer(i_kind)                    ,intent(in   ) :: mpi_comm_sub
+  integer(i_kind)                    ,intent(in   ) :: number_profiles
   integer(i_kind)                    ,intent(inout) :: nread,ndata
   integer(i_kind),dimension(itxmax)  ,intent(in   ) :: nrec
   real(r_kind),dimension(itxmax)     ,intent(inout) :: data_crit
@@ -83,7 +85,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
 !    is only needed on task mype_root
      call mpi_allreduce(data_crit,data_crit_min,itxmax,mpi_rtype,mpi_min,mpi_comm_sub,ierror)
 
-     allocate(nloc(min(ncounts1,itxmax)),icrit(min(ncounts1,itxmax)))
+     allocate(nloc(itxmax),icrit(itxmax))
      icrit=1e9
      ndata=0
      ndata1=0

@@ -355,7 +355,7 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
            number_profiles = count(nrec(:) /= 999999,dim=1)
 
            call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-              naerodat,itxmax,number_profiles,ndata,aeroout,score_crit,nrec)
+              naerodat,itxmax,nread,number_profiles,ndata,aeroout,score_crit,nrec)
 
            if ( mype_sub == mype_root ) then
               do n = 1, ndata
@@ -582,8 +582,10 @@ subroutine read_aerosol(nread,ndata,nodata,jsatid,infile,gstime,lunout, &
               nrec(itx)=irec
            end do read_viirs
 
+           number_profiles = count(nrec(:) /= 999999,dim=1)
+
            call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-              naerodat,itxmax,nread,ndata,aeroout,score_crit,nrec)
+              naerodat,itxmax,nread,number_profiles,ndata,aeroout,score_crit,nrec)
 
            if ( mype_sub == mype_root ) then
               do n = 1, ndata

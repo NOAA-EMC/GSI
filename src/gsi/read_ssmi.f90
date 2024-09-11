@@ -520,7 +520,7 @@ subroutine read_ssmi(mype,val_ssmi,ithin,rmesh,jsatid,gstime,&
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,number_profiles,ndata,data_all,score_crit,nrec)
+     nele,itxmax,nread,number_profiles,ndata,data_all,score_crit,nrec)
 
   write(6,*) 'READ_SSMI: after combine_obs, nread,ndata is ',nread,ndata
 

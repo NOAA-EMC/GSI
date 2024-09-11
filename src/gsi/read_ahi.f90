@@ -519,7 +519,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
   close(lnbufr)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,number_profiles,ndata,data_all,score_crit,nrec)
+     nele,itxmax,nread,number_profiles,ndata,data_all,score_crit,nrec)
 
 ! If no observations read, jump to end of routine.
   if (mype_sub==mype_root.and.ndata>0) then
