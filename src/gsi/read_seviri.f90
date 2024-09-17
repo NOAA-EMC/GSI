@@ -103,7 +103,7 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   integer(i_kind) nchanl,ilath,ilonh,ilzah,iszah,irec,next
   integer(i_kind) nmind,lnbufr,idate,ilat,ilon,nhdr,nchn,ncld,nbrst,jj
   integer(i_kind) ireadmg,ireadsb,iret,nreal,nele,itt
-  integer(i_kind) itx,i,k,isflg,kidsat,n,iscan,idomsfc
+  integer(i_kind) itx,i,k,isflg,kidsat,n,iscan,idomsfc,number_profiles
   integer(i_kind) idate5(5),maxinfo
   integer(i_kind),allocatable,dimension(:)::nrec
 
@@ -527,6 +527,8 @@ subroutine read_seviri(mype,val_sev,ithin,rmesh,jsatid,&
   enddo read_msg
   call closbf(lnbufr)
   close(lnbufr)
+
+  number_profiles = count(nrec(:) /= 999999,dim=1)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
      nele,itxmax,nread,nread,ndata,data_all,score_crit,nrec)
