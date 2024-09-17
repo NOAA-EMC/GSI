@@ -762,7 +762,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
               sc_chan = sc_index(i)
               if ( bufr_index(i) == 0 ) cycle channel_loop
               bufr_chan = bufr_index(i)
-!           check that channel number is within reason
+!             check that channel number is within reason
               if (( allchan(2,bufr_chan) > zero .and. allchan(2,bufr_chan) < 99999._r_kind)) then  ! radiance bounds
                 radiance = allchan(2,bufr_chan)*scalef(bufr_chan)
                 call crtm_planck_temperature(sensorindex_iasi,sc_chan,radiance,temperature(bufr_chan))
