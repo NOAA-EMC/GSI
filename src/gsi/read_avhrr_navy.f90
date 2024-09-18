@@ -135,7 +135,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   integer(i_kind) itx,k,i,bufsat
   integer(i_kind) ireadsb,ireadmg
   integer(i_kind) nreal,nele,itt
-  integer(i_kind) nlat_sst,nlon_sst,irec,next, number_profiles
+  integer(i_kind) nlat_sst,nlon_sst,irec,next
   integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) dlon,dlat,sfcr
@@ -464,11 +464,8 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
 ! Normal exit
 700 continue
 
-!  number of profiles kept after thinning and QC
-  number_profiles = count(nrec(:) /= 999999,dim=1)
-
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,number_profiles,ndata,data_all,score_crit,nrec)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 
 ! Now that we've identified the "best" observations, pull out best obs

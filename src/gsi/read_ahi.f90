@@ -98,7 +98,7 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
   integer(i_kind) nmind,lnbufr,idate,ilat,ilon
   integer(i_kind) ireadmg,ireadsb,iret,nreal,nele,itt
   integer(i_kind) itx,i,k,isflg,kidsat,n,iscan,idomsfc
-  integer(i_kind) idate5(5),number_profiles
+  integer(i_kind) idate5(5)
   integer(i_kind),allocatable,dimension(:)::nrec
 
   real(r_kind) dg2ew,sstime,tdiff,t4dv,sfcr
@@ -511,15 +511,11 @@ subroutine read_ahi(mype,val_img,ithin,rmesh,jsatid,gstime,&
 
      enddo read_loop
   enddo read_msg
-
-!  number of profiles kept after thinning and QC
-  number_profiles = count(nrec(:) /= 999999,dim=1)
-
   call closbf(lnbufr)
   close(lnbufr)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,number_profiles,ndata,data_all,score_crit,nrec)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 ! If no observations read, jump to end of routine.
   if (mype_sub==mype_root.and.ndata>0) then

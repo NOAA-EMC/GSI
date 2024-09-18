@@ -211,7 +211,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
   integer(i_kind)  :: ifov, instr, iscn, ioff, sensorindex_iasi
   integer(i_kind)  :: i, j, l, iskip, ifovn, bad_line, ksatid, kidsat, llll
-  integer(i_kind)  :: nreal, isflg, number_profiles
+  integer(i_kind)  :: nreal, isflg
   integer(i_kind)  :: itx, k, nele, itt, n
   integer(i_kind):: iexponent,maxinfo, bufr_nchan, dval_info
   integer(i_kind):: idomsfc(1)
@@ -975,14 +975,11 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   if (error_status /= success) &
     write(6,*)'OBSERVER:  ***ERROR*** crtm_destroy error_status=',error_status
 
-!  number of profiles kept after thinning and QC
-  number_profiles = count(nrec(:) /= 999999,dim=1)
-
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,number_profiles,ndata,data_all,score_crit,nrec)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.

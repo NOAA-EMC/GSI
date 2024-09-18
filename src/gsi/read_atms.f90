@@ -134,7 +134,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   character(80) hdr1b,hdr2b
 
   integer(i_kind) ireadsb,ireadmg,nrec_startx
-  integer(i_kind) i,j,k,ntest,iob,llll, number_profiles
+  integer(i_kind) i,j,k,ntest,iob,llll
   integer(i_kind) iret,idate,nchanl,n,idomsfc(1)
   integer(i_kind) ich1,ich2,ich8,ich15,ich16,ich17
   integer(i_kind) kidsat,maxinfo
@@ -792,11 +792,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   DEALLOCATE(solazi_save) 
   DEALLOCATE(bt_save)
 
-!  number of profiles kept after thinning and QC
-  number_profiles = count(nrec(:) /= 999999,dim=1)
-
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-       nele,itxmax,nread,number_profiles,ndata,data_all,score_crit,nrec)
+       nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 ! 
   if(mype_sub==mype_root)then

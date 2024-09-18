@@ -166,7 +166,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 
   real(r_double), dimension(13) :: hdr
   real(r_double), dimension(3,5) :: bufrf
-  integer(i_kind) :: lnbufr,ireadsb,ireadmg,iskip,irec,next,number_profiles
+  integer(i_kind) :: lnbufr,ireadsb,ireadmg,iskip,irec,next
   integer(i_kind), allocatable, dimension(:) :: nrec
   real(r_kind), allocatable, dimension(:) :: amesh
   real(r_kind), allocatable, dimension(:) :: hsst_thd
@@ -562,14 +562,10 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
 
         enddo read_loop
      enddo read_msg
-
      call closbf(lnbufr)
 
-!  number of profiles kept after thinning and QC
-     number_profiles = count(nrec(:) /= 999999,dim=1)
-
      call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-          nele,itxmax,nread,number_profiles,ndata_mesh,data_mesh,score_crit,nrec)
+          nele,itxmax,nread,ndata_mesh,data_mesh,score_crit,nrec)
 
      if ( nread > 0 ) then
         write(*,'(a,a10,I3,F6.1,3I10)') 'read_avhrr,satid,imesh,amesh,itxmax,nread,ndata_mesh : ',jsatid,imesh,amesh(imesh),itxmax,nread,ndata_mesh

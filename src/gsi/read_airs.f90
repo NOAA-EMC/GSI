@@ -160,7 +160,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
   character(len=512)  :: table_file
   integer(i_kind)     :: lnbufr = 10
   integer(i_kind)     :: lnbufrtab = 11
-  integer(i_kind)     :: irec,next, number_profiles
+  integer(i_kind)     :: irec,next
 
 ! Variables for BUFR IO    
   real(r_double) :: crchn_reps
@@ -860,10 +860,6 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
      enddo read_loop
 
   enddo read_subset
-
-!  number of profiles kept after thinning and QC
-  number_profiles = count(nrec(:) /= 999999,dim=1)
-
   deallocate(allchan, chan_map, bufr_chan_test)
   call closbf(lnbufr)  ! Close bufr file
   close(lnbufr)
@@ -872,7 +868,7 @@ subroutine read_airs(mype,val_airs,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,number_profiles,data_all,score_crit,nrec)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 ! Allow single task to check for bad obs, update superobs sum,
 ! and write out data to scratch file for further processing.

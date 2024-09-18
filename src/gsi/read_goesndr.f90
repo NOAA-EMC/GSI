@@ -147,7 +147,7 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   integer(i_kind) itx,k,i,itt,iskip,l,ifov,n
   integer(i_kind) ichan8,ich8
   integer(i_kind) nele,iscan,nmind
-  integer(i_kind) ntest,ireadsb,ireadmg,irec,next, number_profiles
+  integer(i_kind) ntest,ireadsb,ireadmg,irec,next
   integer(i_kind),dimension(5):: idate5
   integer(i_kind),allocatable,dimension(:)::nrec
   integer(i_kind) ibfms         ! BUFR missing value function
@@ -515,14 +515,12 @@ subroutine read_goesndr(mype,val_goes,ithin,rmesh,jsatid,infile,&
   call closbf(lnbufr)
   close(lnbufr)
 
-!  number of profiles kept after thinning and QC
-  number_profiles = count(nrec(:) /= 999999,dim=1)
 
 ! If multiple tasks read input bufr file, allow each tasks to write out
 ! information it retained and then let single task merge files together
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
-     nele,itxmax,nread,number_profiles,ndata,data_all,score_crit,nrec)
+     nele,itxmax,nread,ndata,data_all,score_crit,nrec)
 
 
 ! Allow single task to check for bad obs, update superobs sum,
