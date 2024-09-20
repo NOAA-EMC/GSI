@@ -805,7 +805,7 @@ contains
     end do
     close(lunin)
 100 format(a1,a120)
-110 format(i4,1x,a20,' chan= ',i5,  &
+110 format(i5,1x,a20,' chan= ',i5,  &
           ' var= ',f7.3,' varch_cld=',f7.3,' use= ',i2,' ermax= ',F7.3, &
           ' b_rad= ',F7.2,' pg_rad=',F7.2,' icld_det=',I2,' icloud=',I2,' iaeros=',I2)
 111 format(i4,1x,a20,' chan= ',i5,  &
@@ -1135,7 +1135,7 @@ contains
                 nusis(j),nuchan(j),' not found in satbias_in file - set to zero '
              endif
           end do
-140       format(i4,1x,a20,12f12.6)
+140       format(i5,1x,a20,12f12.6)
 
        endif
 
@@ -1687,7 +1687,6 @@ contains
    integer(i_kind),parameter:: lntemp = 51
 
    integer(i_kind),parameter:: nthreshold = 100
-   integer(i_kind),parameter:: maxchn = 3000
    integer(i_kind),parameter:: maxdat = 100
    real(r_kind),   parameter:: atiny  = 1.0e-10_r_kind
 
@@ -1712,7 +1711,7 @@ contains
    integer(i_kind):: np,new_chan,nc
    integer(i_kind):: counttmp, jjstart, sensor_start, sensor_end
    integer(i_kind):: radedge_min, radedge_max
-   integer(i_kind),dimension(maxchn):: ich
+   integer(i_kind),allocatable,dimension(:):: ich
    integer(i_kind),dimension(maxdat):: ipoint
  
    real(r_kind):: bias,scan,errinv,rnad
@@ -1814,6 +1813,7 @@ contains
            mype, trim(fdiag_rad), header_fix%idate
       satsens = header_fix%isis
       n_chan = header_fix%nchan
+      allocate(ich(n_chan))
 
 !     Check for consistency between specified and retrieved satellite id
 !     after first sorting out some historical naming conventions
@@ -2063,7 +2063,7 @@ contains
                if ( nuchan(jj) == header_chan(j)%nuchan ) then
                   jjstart = jj + 1
                   write(lntemp,220) jj,tlapmean(jj),tsum_tlapmean(jj),count_tlapmean(jj)
-220               format(I5,1x,2e15.6,1x,I5)
+220               format(I5,1x,2e15.6,1x,I6)
                   cycle loop_c
                endif
             end do
