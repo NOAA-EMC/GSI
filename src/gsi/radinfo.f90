@@ -805,7 +805,7 @@ contains
     end do
     close(lunin)
 100 format(a1,a120)
-110 format(i6,1x,a20,' chan= ',i5,  &
+110 format(i5,1x,a20,' chan= ',i5,  &
           ' var= ',f7.3,' varch_cld=',f7.3,' use= ',i2,' ermax= ',F7.3, &
           ' b_rad= ',F7.2,' pg_rad=',F7.2,' icld_det=',I2,' icloud=',I2,' iaeros=',I2)
 111 format(i4,1x,a20,' chan= ',i5,  &
