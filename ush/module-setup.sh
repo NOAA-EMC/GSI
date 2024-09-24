@@ -40,6 +40,10 @@ elif [[ $MACHINE_ID = wcoss2 ]]; then
     # We are on WCOSS2
     module reset
 
+elif [[ $MACHINE_ID = acorn ]]; then
+    # We are on WCOSS2-Acorn
+    module reset
+
 elif [[ $MACHINE_ID = stampede* ]] ; then
     # We are on TACC Stampede
     if ( ! eval module help > /dev/null 2>&1 ) ; then
