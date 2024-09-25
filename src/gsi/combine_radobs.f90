@@ -25,11 +25,10 @@ subroutine combine_radobs(mype_sub,mype_root,&
 !     data_all - observation data array
 !     data_crit- array containing observation "best scores"
 !     nread    - task specific number of obesrvations read from data file
-!     ndata    - task specific number of observations keep for assimilation
 !
 !   output argument list:
 !     nread    - total number of observations read from data file (mype_root)
-!     ndata    - total number of observations keep for assimilation (mype_root)
+!     ndata    - total number of observation profiles kept for assimilation in the thinning box (mype_root)
 !     data_all - merged observation data array (mype_root)
 !     data_crit- merged array containing observation "best scores" (mype_root)
 !     
@@ -50,7 +49,8 @@ subroutine combine_radobs(mype_sub,mype_root,&
   integer(i_kind)                    ,intent(in   ) :: npe_sub,itxmax
   integer(i_kind)                    ,intent(in   ) :: nele
   integer(i_kind)                    ,intent(in   ) :: mpi_comm_sub
-  integer(i_kind)                    ,intent(inout) :: nread,ndata
+  integer(i_kind)                    ,intent(inout) :: nread
+  integer(i_kind)                    ,intent(  out) :: ndata
   integer(i_kind),dimension(itxmax)  ,intent(in   ) :: nrec
   real(r_kind),dimension(itxmax)     ,intent(inout) :: data_crit
   real(r_kind),dimension(nele,itxmax),intent(inout) :: data_all
@@ -74,7 +74,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
 
      nread=0
      if (mype_sub==mype_root) nread = ncounts1
-     if (ncounts1 == 0)return
+     if (ncounts1 <= 0)return
 
 !    Allocate arrays to hold data
 
@@ -83,7 +83,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
 !    is only needed on task mype_root
      call mpi_allreduce(data_crit,data_crit_min,itxmax,mpi_rtype,mpi_min,mpi_comm_sub,ierror)
 
-     allocate(nloc(min(ncounts1,itxmax)),icrit(min(ncounts1,itxmax)))
+     allocate(nloc(itxmax),icrit(itxmax))
      icrit=1e9
      ndata=0
      ndata1=0

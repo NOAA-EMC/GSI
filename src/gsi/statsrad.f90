@@ -161,7 +161,7 @@ subroutine statsrad(aivals,stats,ndata)
 2011 format(8x,f16.8,8(i7,1x))
 2012 format(12x,A7,5x,8(a7,1x))
 2999 format(' Illegal satellite type ')
-1102 format(1x,i4,i6,1x,a20,2i7,1x,f10.3,1x,6(f11.7,1x))
+1102 format(1x,i6,i6,1x,a20,2i7,1x,f10.3,1x,6(f11.7,1x))
 1109 format(t5,'it',t13,'satellite',t23,'instrument',t40, &
           '# read',t53,'# keep',t65,'# assim',&
           t75,'penalty',t88,'qcpnlty',t104,'cpen',t115,'qccpen')

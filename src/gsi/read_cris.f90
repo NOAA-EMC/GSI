@@ -455,7 +455,7 @@ subroutine read_cris(mype,val_cris,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Big loop to read data file
   next=0
   irec=0
-  nrec = 99999
+  nrec = 999999
 ! Big loop over standard data feed and possible rars/db data
 ! llll=1 is normal feed, llll=2 RARS data, llll=3 DB/UW data)
   ears_db_loop: do llll= 1, 3
