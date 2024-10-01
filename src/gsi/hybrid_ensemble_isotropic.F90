@@ -104,8 +104,10 @@ module hybrid_ensemble_isotropic
   use string_utility, only: StrUpCase
 
 ! For MGBF
+#ifdef USE_MGBF
   use mg_intstate
   use mg_timers
+#endif /* End of USE_MGBF block */
 
   implicit none
 
@@ -182,7 +184,9 @@ module hybrid_ensemble_isotropic
   integer(r_kind) :: nval_loc_en
 
 ! For MGBF
+#ifdef USE_MGBF_def
   type (mg_intstate_type), allocatable, dimension(:) :: obj_mgbf
+#endif /* End of USE_MGBF_def block */
   real(r_kind), allocatable, dimension(:,:,:) :: work_mgbf
 
 !    following is for special subdomain to slab variables used when internally generating ensemble members
@@ -1761,7 +1765,9 @@ end subroutine normal_new_factorization_rf_y
        enddo
        deallocate(ps_bar)
        deallocate(en_perts)
+#ifdef USE_MGBF_def
        if(l_mgbf_loc) call print_mg_timers("mgbf_timing_cpu.csv", print_cpu, mype)
+#endif /* End of USE_MGBF_def block */
     end if
     return
 
@@ -3735,6 +3741,8 @@ subroutine bkgcov_a_en_new_factorization(ig,a_en)
 !   because recursive filter is applied for ig>naensgrp
 !   to separate scales for scale-dependent localization
 !   even in MGBF-based localization)
+
+#ifdef USE_MGBF_def
   if(l_mgbf_loc.and.ig<=naensgrp) then
 
 ! Apply vertical smoother on each ensemble member
@@ -3774,6 +3782,7 @@ subroutine bkgcov_a_en_new_factorization(ig,a_en)
 ! Recursive/Spectral filter-based localization(ig<=naensgrp)
 ! or scale-separation(ig>naensgrp)
   else
+#endif /* End of USE_MGBF_def block */
 
 ! Apply vertical smoother on each ensemble member
 ! To avoid my having to touch the general sub2grid and grid2sub,
@@ -3824,7 +3833,9 @@ subroutine bkgcov_a_en_new_factorization(ig,a_en)
      enddo
      deallocate(a_en_work)
 
+#ifdef USE_MGBF_def
   endif
+#endif /* End of USE_MGBF_def block */
 
   return
 end subroutine bkgcov_a_en_new_factorization
@@ -3892,6 +3903,7 @@ subroutine ckgcov_a_en_new_factorization(ig,z,a_en)
   endif
 
 ! MGBF-based localization (now available only in regional=.true.)
+#ifdef USE_MGBF_def
   if(l_mgbf_loc) then
 
 ! Apply horizontal smoother for number of horizontal scales
@@ -3925,6 +3937,7 @@ subroutine ckgcov_a_en_new_factorization(ig,z,a_en)
 
 ! Recursive/Spectral filter-based localization
   else
+#endif /* End of USE_MGBF_def block */
 
      if(grd_loc%kend_loc+1-grd_loc%kbegin_loc==0) then
 !     no work to be done on this processor, but hwork still has allocated space, since
@@ -3973,8 +3986,9 @@ subroutine ckgcov_a_en_new_factorization(ig,z,a_en)
         call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
 
      enddo
-
+#ifdef USE_MGBF_def
   endif
+#endif /* End of USE_MGBF_def block */
 
   return
 end subroutine ckgcov_a_en_new_factorization
@@ -4047,6 +4061,7 @@ subroutine ckgcov_a_en_new_factorization_ad(ig,z,a_en)
   endif
 
 ! MGBF-based localization (now available only in regional=.true.)
+#ifdef USE_MGBF_def
   if(l_mgbf_loc) then
 
 ! Apply vertical smoother on each ensemble member
@@ -4080,6 +4095,7 @@ subroutine ckgcov_a_en_new_factorization_ad(ig,z,a_en)
 
 ! Recursive/Spectral filter-based localization
   else
+#endif /* End of USE_MGBF_def block */
 
 ! Apply vertical smoother on each ensemble member
      iadvance=1 ; iback=2
@@ -4125,11 +4141,14 @@ subroutine ckgcov_a_en_new_factorization_ad(ig,z,a_en)
         end if
      end if
 
+#ifdef USE_MGBF_def
   endif
+#endif /* End of USE_MGBF_def block */
 
   return
 end subroutine ckgcov_a_en_new_factorization_ad
 
+#ifdef USE_MGBF_def
 subroutine map_work_mgbf(f,g,iadvance,ig)
 !$$$  subprogram documentation block
 !                .      .    .
@@ -4198,6 +4217,7 @@ subroutine map_work_mgbf(f,g,iadvance,ig)
   return
 
 end subroutine map_work_mgbf
+#endif /* End of USE_MGBF_def block */
 
 ! ------------------------------------------------------------------------------
 ! ------------------------------------------------------------------------------
@@ -4538,6 +4558,7 @@ subroutine hybens_localization_setup
    call normal_new_factorization_rf_z
 
    if ( regional ) then ! convert s_ens_h from km to grid units.
+#ifdef USE_MGBF_def
       if ( l_mgbf_loc ) then
          allocate(obj_mgbf(naensgrp))
          do ig=1,naensgrp
@@ -4545,6 +4566,7 @@ subroutine hybens_localization_setup
             call obj_mgbf(ig)%mg_initialize(trim(mgbfname))
          enddo
       endif
+#endif /* End of USE_MGBF_def block */
       ! Even for MGBF-localization, recursive filter is applied for scale-separation
       ! in scale-dependent localization, so init_rf_[xy] should be called in nsclgrp>1
       if( .not. l_mgbf_loc .or. nsclgrp > 1 ) then
@@ -4767,13 +4789,17 @@ subroutine hybens_localization_setup
    ! nval_loc_en is the number of horizontally-filtered variables in the domain of each processor,
    ! which is the same as nval_lenz_en (horizontally-global and vertically-local) in recursive/spectral filter
    ! but horizontally-local and vertically-global in MGBF.
+#ifdef USE_MGBF_def
    if ( l_mgbf_loc ) then
       nval_loc_en = maxval( obj_mgbf(1:naensgrp)%km_all &
            & * (obj_mgbf(1:naensgrp)%im + obj_mgbf(1:naensgrp)%hx*2) &
            & * (obj_mgbf(1:naensgrp)%jm + obj_mgbf(1:naensgrp)%hy*2) )
    else
+#endif /* End of USE_MGBF_def block */
       nval_loc_en = nval_lenz_en
+#ifdef USE_MGBF_def
    endif
+#endif /* End of USE_MGBF_def block */
 
    ! setup vertical weighting for ensemble contribution to psfc
    call setup_pwgt
