@@ -723,6 +723,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
           else
             iobsub=01
           endif
+          if (nint(hdr(3)) == 560) iosub=02
         endif
 ! Su suggested to keep both 289 and 290.  But trunk only keep 290
 !       if(kx == 289 .or. kx == 290) iobsub=hdr(2)
