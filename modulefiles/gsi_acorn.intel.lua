@@ -1,7 +1,6 @@
 help([[
 ]])
 
-
 local PrgEnv_intel_ver=os.getenv("PrgEnv_intel_ver") or "8.1.0"
 local intel_ver=os.getenv("intel_ver") or "19.1.3.304"
 local craype_ver=os.getenv("craype_ver") or "2.7.8"
@@ -21,15 +20,18 @@ local sfcio_ver=os.getenv("sfcio_ver") or "1.4.1"
 local nemsio_ver=os.getenv("nemsio_ver") or "2.5.4"
 local wrf_io_ver=os.getenv("wrf_io_ver") or "1.2.0"
 local ncio_ver=os.getenv("ncio_ver") or "1.1.2"
+local crtm_ver=os.getenv("crtm_ver") or "2.4.0.1"
 local ncdiag_ver=os.getenv("ncdiag_ver") or "1.1.1"
 
-load("PrgEnv-intel")
-load("intel")
-load("craype")
-load("cray-mpich")
+load(pathJoin("PrgEnv-intel", PrgEnv_intel_ver))
+load(pathJoin("intel", intel_ver))
+load(pathJoin("craype", craype_ver))
+load(pathJoin("cray-mpich", cray_mpich_ver))
 load(pathJoin("cmake", cmake_ver))
 load(pathJoin("python", python_ver))
+
 load(pathJoin("prod_util", prod_util_ver))
+
 load(pathJoin("netcdf", netcdf_ver))
 load(pathJoin("bufr", bufr_ver))
 load(pathJoin("bacio", bacio_ver))
@@ -45,9 +47,8 @@ load(pathJoin("ncdiag",ncdiag_ver))
 
 -- Lastly, load CRTM from the EMC location
 append_path("MODULEPATH", "/lfs/h1/emc/nceplibs/noscrub/hpc-stack/libs/hpc-stack/modulefiles/compiler/intel/19.1.3.304")
-local crtm_ver=os.getenv("crtm_ver") or "2.4.0.1"
 load(pathJoin("crtm", crtm_ver))
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/gsi/20230911")
+pushenv("GSI_BINARY_SOURCE_DIR", "/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/gsi/20240208")
 
 whatis("Description: GSI environment on WCOSS2 Acorn")
