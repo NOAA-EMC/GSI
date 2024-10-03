@@ -45,7 +45,7 @@ for jn in `seq ${RSTART} ${REND}`; do
    fi
    rm -f ${job[$jn]}.out
 
-   /bin/sh $ush/$sub_cmd -q $queue -j ${job[$jn]} -t ${topts[$jn]} -p ${popts[$jn]} -r ${ropts[$jn]} $scripts/${regtest}.sh
+   /bin/sh $ush/$sub_cmd -m ${machine} -q $queue -j ${job[$jn]} -t ${topts[$jn]} -p ${popts[$jn]} -r ${ropts[$jn]} $scripts/${regtest}.sh
 
    if [ $debug == ".true." ]; then break; fi
    $scripts/regression_wait.sh ${job[$jn]} ${rcname} $check_resource
