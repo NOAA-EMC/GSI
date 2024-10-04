@@ -1,0 +1,6 @@
+&setup
+sondefilelist='filelist_vsesonde'
+numSondes=2
+cycledate=20181128
+cyclehour=15
+/

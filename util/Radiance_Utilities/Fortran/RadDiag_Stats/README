@@ -1,0 +1,19 @@
+Programs to produce netCDF files containing stats for a time-range of 
+diag files.
+-----------------------------
+
+Main programs:
+
+Compute_RadDiag_Stats.f90:  Computes statistics for a set of diag files for a 
+            given instrument and outputs to a netCDF file.  Stats are 
+            calculated for each channel including timeseries and as a 
+            function of scan position.
+            Compile with "make"
+
+Compute_RadDiag_Stats_2D.f90: Computes maps of radiance statistics for a given
+           instrument.   Compile with make -f Makefile_2D
+
+
+
+netCDF output from these routines can be read with the IDL routines in 
+util/Radiance_Utilities/IDL/RadDiag_Stats

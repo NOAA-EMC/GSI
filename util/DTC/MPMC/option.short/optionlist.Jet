@@ -1,0 +1,3 @@
+# Jet build option list
+# compiler,         MPI,             NETCDF
+  intel/18.0.5.274, impi           , netcdf/4.2.1.1

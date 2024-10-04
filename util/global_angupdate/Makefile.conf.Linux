@@ -1,0 +1,73 @@
+# This config file contains the compile options for compilation
+# of the GSI code on the NOAA HPCS.
+
+# ----------------------------------
+# Redefine variables for NOAA HPCS
+# ----------------------------------
+COREINC  = /home/mlueken/nwprod/incmod
+CORELIB  = /home/mlueken/nwprod/lib
+
+
+# ---------------------------
+# General targets/definitions
+# ---------------------------
+
+  AR     = ar -v
+
+# ----------------------------
+# Fortran compiler and options
+# ----------------------------
+
+  CF            = mpif90
+  FC            = $(CF)
+
+#--- Normal mode options
+  PROF= #-pg
+  OMP = #-qsmp=noauto
+
+  FFLAGS_F90    = -D_REAL8_ -fp-model strict -assume byterecl -g -traceback
+  FFLAGS_COM_N  = -I ./
+  FFLAGS_N      = -O3 $(FFLAGS_F90) $(FFLAGS_COM_N)
+
+#--- Debug mode options
+  FFLAGS_COM_D  =  -I ./ -O0 -xHOST -traceback -assume byterecl -debug full -g
+  FFLAGS_D  = $(FFLAGS_F90) $(FFLAGS_COM_D)
+
+
+# ----------------------
+# C Compiler and options
+# ----------------------
+
+  CC            = gcc
+
+#--- Normal mode options
+
+  CFLAGS_N      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -O3 $(PROF)
+
+#--- Debug mode options
+
+  CFLAGS_D      = -DLINUX -Dfunder -I ./ -DFortranByte=char -DFortranInt=int -DFortranLlong='long long' -g
+
+
+# ------------------
+# Linker and options
+# ------------------
+
+  LD            = $(CF)
+
+#--- Normal mode options
+  LIBS_N        = -L$(CORELIB) -lw3lib-1.9_d
+
+  LDFLAGS_N     =
+
+  LDFLAGS       = $(LDFLAGS_N)
+
+#--- Debug mode options
+
+  LIBS_D        = $(LIBS_N)
+
+  LDFLAGS_D     =
+
+#--- Empty out mpi library definition: embedded in compiler
+
+  LIBmpi	= 
