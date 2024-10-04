@@ -148,6 +148,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !
 !   2020-05-04  wu      - no rotate_wind for fv3_regional
 !   2020-09-05  CAPS(C. Tong) - add flag for new vadwind obs to assimilate around the analysis time only
+!   2024-10-04  Collard - Saildrone subtype introduced in GSI (not in prepobs) kx=180,280 subtype=02
 
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -723,6 +724,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
           else
             iobsub=01
           endif
+          ! Set saildrone to subtype 02
+          if (nint(hdr(3)) == 560) iobsub = 02
         endif
 ! Su suggested to keep both 289 and 290.  But trunk only keep 290
 !       if(kx == 289 .or. kx == 290) iobsub=hdr(2)
