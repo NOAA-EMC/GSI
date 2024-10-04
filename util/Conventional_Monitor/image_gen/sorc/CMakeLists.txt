@@ -1,5 +1,0 @@
-add_subdirectory(conmon_read_ps_IG.fd)
-add_subdirectory(conmon_read_pw_IG.fd)
-add_subdirectory(conmon_read_q_IG.fd)
-add_subdirectory(conmon_read_t_IG.fd)
-add_subdirectory(conmon_read_uv_IG.fd)

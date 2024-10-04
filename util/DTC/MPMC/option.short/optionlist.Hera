@@ -1,8 +1,0 @@
-# Hera build option list
-# intel/17.0.5.239    intel/18.0.5.274 (D)    intel/19.0.4.243
-#    impi/2017.0.4    impi/2018.0.4 (D)    impi/2019.0.4
-#       netcdf/4.6.1 (D)    netcdf/4.7.0
-#          pgi/18.10    pgi/19.4 (L,D)
-#
-#  compiler,         MPI,            NETCDF,          
-  intel/18.0.5.274, impi/2018.0.4, netcdf/4.6.1
