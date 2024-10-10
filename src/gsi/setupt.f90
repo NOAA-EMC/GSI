@@ -610,6 +610,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      prsltmp2 = exp(prsltmp)
      call tintrp2a1(ges_prsi,prsitmp,dlat,dlon,dtime,hrdifsig,&
           nsig+1,mype,nfldsig)
+     call tintrp2a1(ges_tv,tvtmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
      call tintrp2a1(ges_tsen,ttmp,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
      call tintrp2a1(ges_q,qtmp,dlat,dlon,dtime,hrdifsig,&
@@ -740,6 +742,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      call tintrp2a1(ges_prsi,prsitmp,dlat,dlon,dtime,hrdifsig,&
           nsig+1,mype,nfldsig)
      call tintrp2a1(ges_tsen,ttmp,dlat,dlon,dtime,hrdifsig,&
+          nsig,mype,nfldsig)
+     call tintrp2a1(ges_tv,tvtmp,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
      call tintrp2a1(ges_q,qtmp,dlat,dlon,dtime,hrdifsig,&
           nsig,mype,nfldsig)
