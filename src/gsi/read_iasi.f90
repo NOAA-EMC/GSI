@@ -118,7 +118,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   use crtm_spccoeff, only: sc,crtm_spccoeff_load,crtm_spccoeff_destroy
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,&
       tll2xy,txy2ll,rlats,rlons
-  use constants, only: zero,deg2rad,rad2deg,r60inv,one,ten,r100
+  use constants, only: zero,deg2rad,rad2deg,r60inv,one,ten,r100,r_missing
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use calc_fov_crosstrk, only: instrument_init, fov_check, fov_cleanup
   use deter_sfc_mod, only: deter_sfc,deter_sfc_fov
@@ -690,6 +690,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            if (iret == 7 .and. cloud_frac(1) <= r100 .and. cloud_frac(1) >= zero) then
               pred = r100 - cloud_frac(1)
               cloud_info = .true.
+              cloud_frac = cloud_frac/r100
+           else 
+              cloud_frac = r_missing   
            endif
 
            crit1 = crit1 + pred
@@ -913,7 +916,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            data_all(18,itx)= ts(3)                     ! snow skin temperature
            data_all(19,itx)= tsavg                     ! average skin temperature
            data_all(20,itx)= vty                       ! vegetation type
-           data_all(21,itx)= vfr                       ! vegetation fraction
+           !data_all(21,itx)= vfr                       ! vegetation fraction
+           data_all(21,itx)= cloud_frac(1)            ! temporary place for cloud fraction
            data_all(22,itx)= sty                       ! soil type
            data_all(23,itx)= stp                       ! soil temperature
            data_all(24,itx)= sm                        ! soil moisture

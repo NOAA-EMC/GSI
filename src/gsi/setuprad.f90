@@ -366,6 +366,7 @@ contains
   real(r_kind) si_obs,si_fg                
 ! real(r_kind) si_mean                     
   real(r_kind) total_cloud_cover
+  real(r_kind) cloud_frac 
 
   logical cao_flag                       
   logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,ahi,mhs,abi
@@ -840,6 +841,11 @@ contains
         zsges=data_s(izz,n)
         nadir = nint(data_s(iscan_pos,n))
         pangs  = data_s(iszen_ang,n)
+        if (iasi) then
+           cloud_frac = data_s(21,n)
+        else 
+           cloud_frac = r_missing
+        end if
 !       Extract warm load temperatures
 !       wltm1 = data_s(isty,n)
 !       wltm2 = data_s(istp,n)
@@ -2662,6 +2668,7 @@ contains
                  call nc_diag_metadata_to_single("Land_Fraction",surface(1)%land_coverage      ) ! fractional coverage by land
                  call nc_diag_metadata_to_single("Ice_Fraction",surface(1)%ice_coverage        ) ! fractional coverage by ice
                  call nc_diag_metadata_to_single("Snow_Fraction",surface(1)%snow_coverage      ) ! fractional coverage by snow
+                 call nc_diag_metadata_to_single("fractionOfClearPixelsInFOV",cloud_frac       ) ! fractional coverage by snow
 
                  if(.not. retrieval)then
                     call nc_diag_metadata_to_single("Water_Temperature",surface(1)%water_temperature  ) ! surface temperature over water (K)
