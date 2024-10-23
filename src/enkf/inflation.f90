@@ -71,13 +71,14 @@ use params, only: analpertwtnh,analpertwtsh,analpertwttr,nanals,nlevs,&
                   analpertwtnh_rtpp,analpertwtsh_rtpp,analpertwttr_rtpp,&
                   latbound, delat, datapath, covinflatemax, save_inflation, &
                   covinflatemin, nlons, nlats, smoothparm, nbackgrounds,&
-                  covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff
+                  covinflatenh,covinflatesh,covinflatetr,lnsigcovinfcutoff,taperanalperts
 use kinds, only: r_single, i_kind
 use mpeu_util, only: getindex
 use constants, only: one, zero, rad2deg, deg2rad
 use covlocal, only: latval, taper
-use controlvec, only: ncdim, cvars3d, cvars2d, nc3d, nc2d, clevels
-use gridinfo, only: latsgrd, logp, npts, nlevs_pres
+use controlvec, only: ncdim, cvars3d, cvars2d, nc3d, nc2d, clevels, index_pres
+! note: vars2d_landonly currently only defined for gridio_gfs, but smoothing only coded for gfs.
+use gridinfo, only: latsgrd, logp, npts, nlevs_pres, vars2d_landonly, taper_vert
 use loadbal, only: indxproc, numptsperproc, npts_max, anal_chunk, anal_chunk_prior
 use smooth_mod, only: smooth
 
@@ -101,9 +102,10 @@ real(r_single) sprdmin, sprdmax, sprdmaxall, &
 real(r_single),dimension(ndiag) :: sumcoslat,suma,suma2,sumi,sumf,sumitot,sumatot, &
      sumcoslattot,suma2tot,sumftot
 real(r_single) fnanalsml,coslat
-integer(i_kind) i,nn,iunit,ierr,nb,nnlvl,ps_ind
+integer(i_kind) i,k,nlev,nn,iunit,ierr,nb,nnlvl,ps_ind, this_ind, ind
+integer(i_kind), dimension(8) :: soil_index
 character(len=500) filename
-real(r_single), allocatable, dimension(:,:) :: tmp_chunk2,covinfglobal
+real(r_single), allocatable, dimension(:,:) :: tmp_chunk2,covinfglobal,store_presmooth
 real(r_single) r
 
 fnanalsml = one/(real(nanals-1,r_single))
@@ -111,7 +113,7 @@ fnanalsml = one/(real(nanals-1,r_single))
 if (analpertwtnh_rtpp > 1.e-5_r_single .and. &
     analpertwtnh_rtpp > 1.e-5_r_single .and. &
     analpertwttr_rtpp > 1.e-5_r_single) then
-if (nproc .eq. 0) print *,'performing RTPP inflation...'
+if (nproc == 0) print *,'performing RTPP inflation...'
 nbloop: do nb=1,nbackgrounds ! loop over time levels in background
 ! First perform RTPP ensemble inflation,
 ! as first described in:
@@ -137,7 +139,7 @@ if (abs(analpertwtnh) < 1.e-5_r_single .and. &
     abs(analpertwttr) < 1.e-5_r_single .and. &
     abs(analpertwtsh) < 1.e-5_r_single) return
 
-if (nproc .eq. 0) print *,'performing RTPS inflation...'
+if (nproc == 0) print *,'performing RTPS inflation...'
 
 ! now perform RTPS inflation
 nbloop2: do nb=1,nbackgrounds ! loop over time levels in background
@@ -231,7 +233,33 @@ if (smoothparm .gt. zero) then
    do nn=1,ncdim
      call mpi_allreduce(mpi_in_place,covinfglobal(1,nn),npts,mpi_real4,mpi_sum,mpi_comm_world,ierr)
    enddo
+   ! do not apply smoothing to soil temp. or soil moisture (not globally defined)
+
+   ind = 0
+   do i = 1,8
+       this_ind = getindex(cvars2d, vars2d_landonly(i))
+       if (this_ind>0) then
+            ind=ind+1
+            soil_index(ind)=this_ind
+       endif
+   enddo
+
+   if (ind>0) then
+        allocate(store_presmooth(npts,ind))
+        do i = 1, ind
+           store_presmooth(:,i) = covinfglobal(:,clevels(nc3d)+soil_index(i))
+        enddo
+   endif
+
    call smooth(covinfglobal)
+
+   if (ind>0) then
+        do i = 1, ind
+           covinfglobal(:,clevels(nc3d) + soil_index(i))  = store_presmooth(:,i)
+        enddo
+        deallocate(store_presmooth)
+   endif
+
    where (covinfglobal < covinflatemin) covinfglobal = covinflatemin
    where (covinfglobal > covinflatemax) covinfglobal = covinflatemax
    do i=1,numptsperproc(nproc+1)
@@ -274,10 +302,17 @@ sumi = zero
 
 ! apply inflation.
 do nn=1,ncdim
+ nlev = index_pres(nn) ! vertical index for i'th control variable
+ if (nlev == nlevs+1) nlev=-1 ! 2d field
  do i=1,numptsperproc(nproc+1)
 
    ! inflate posterior perturbations.
    anal_chunk(:,i,nn,nb) = tmp_chunk2(i,nn)*anal_chunk(:,i,nn,nb)
+
+   ! optionally 'deflate' perturbations to reduce spread near top of model
+   if (taperanalperts .and. nlev > 0) then
+      anal_chunk(:,i,nn,nb) = taper_vert(nlev)*anal_chunk(:,i,nn,nb)
+   endif
 
    ! area mean surface pressure posterior spread, inflation.
    ! (this diagnostic only makes sense for grids that are regular in longitude)

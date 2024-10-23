@@ -40,21 +40,23 @@ module chemmod
   public :: naero_cmaq_fv3,aeronames_cmaq_fv3,imodes_cmaq_fv3
 
 ! fv3smoke
-  public :: naero_smoke_fv3,aeronames_smoke_fv3,pm2_5_innov_threshold 
+  public :: naero_smoke_fv3,aeronames_smoke_fv3
+  public :: pm2_5_innov_threshold,pm2_5_urban_innov_threshold,pm2_5_bg_threshold 
+  public :: pm10_innov_threshold,pm10_urban_innov_threshold,pm10_bg_threshold,pm10_obs_threshold
 
   public :: naero_gocart_wrf,aeronames_gocart_wrf
 
   public :: pm2_5_guess,init_pm2_5_guess,&
        aerotot_guess,init_aerotot_guess
   public :: init_chem
-  public :: berror_chem,berror_fv3_cmaq_regional,oneobtest_chem,maginnov_chem,magoberr_chem,oneob_type_chem,conconeobs
+  public :: berror_chem,berror_fv3_cmaq_regional,berror_fv3_sd_regional,oneobtest_chem,maginnov_chem,magoberr_chem,oneob_type_chem,conconeobs
   public :: oblat_chem,oblon_chem,obpres_chem,diag_incr,oneobschem
   public :: site_scale,nsites
   public :: tunable_error
   public :: in_fname,out_fname,incr_fname,maxstr
   public :: code_pm25_ncbufr,code_pm25_anowbufr
   public :: code_pm10_ncbufr,code_pm10_anowbufr
-
+  public :: anowbufr_ext
   public :: l_aoderr_table
 
   public :: laeroana_gocart,laeroana_fv3cmaq,laeroana_fv3smoke,crtm_aerosol_model,crtm_aerosolcoeff_format,crtm_aerosolcoeff_file, &
@@ -79,7 +81,8 @@ module chemmod
   integer(i_kind) :: icvt_cmaq_fv3
   real(r_kind)    :: raod_radius_mean_scale,raod_radius_std_scale
   real(r_kind)    :: ppmv_conv = 96.06_r_kind/28.964_r_kind*1.0e+3_r_kind
-  real(r_kind)    :: pm2_5_innov_threshold 
+  real(r_kind)    :: pm2_5_innov_threshold,pm2_5_urban_innov_threshold,pm2_5_bg_threshold
+  real(r_kind)    :: pm10_innov_threshold,pm10_urban_innov_threshold,pm10_bg_threshold,pm10_obs_threshold
 
   logical :: wrf_pm2_5
 
@@ -90,7 +93,9 @@ module chemmod
 
   logical :: aero_ratios
 
-  logical :: oneobtest_chem,diag_incr,berror_chem,berror_fv3_cmaq_regional
+  logical :: oneobtest_chem,diag_incr,berror_chem
+  logical :: berror_fv3_cmaq_regional,berror_fv3_sd_regional
+  logical :: anowbufr_ext
   character(len=max_varname_length) :: oneob_type_chem
   integer(i_kind), parameter :: maxstr=256
   real(r_kind) :: maginnov_chem,magoberr_chem,conconeobs,&
@@ -103,7 +108,7 @@ module chemmod
   real(r_kind),parameter :: pm2_5_teom_max=900.0_r_kind !ug/m3
 !some parameters need to be put here since convinfo file won't
 !accomodate, stands for maximum realistic value of surface pm2.5
-  real(r_kind),parameter :: pm10_teom_max=150.0_r_kind !ug/m3
+  real(r_kind),parameter :: pm10_teom_max=3000.0_r_kind !ug/m3
 
 
   real(r_kind),parameter :: elev_missing=-9999.0_r_kind
@@ -157,10 +162,10 @@ module chemmod
         'AOLGAJ', 'AISO1J', 'AISO2J', 'AISO3J',   'ATRP1J', 'ATRP2J',&
         'ASQTJ',  'AOLGBJ', 'AORGCJ']
 ! fv3smoke
-  integer(i_kind), parameter ::  naero_smoke_fv3=2 
+  integer(i_kind), parameter ::  naero_smoke_fv3=3 
 
   character(len=max_varname_length), dimension(naero_smoke_fv3), parameter :: &
-        aeronames_smoke_fv3=[character(len=max_varname_length) ::  'smoke','dust' ]
+        aeronames_smoke_fv3=[character(len=max_varname_length) ::  'smoke','dust','coarsepm']
 
 ! FV3CMAQ
   integer(i_kind), parameter :: naero_cmaq_fv3=70 !  !number of cmaq aerosol species aero6
@@ -286,8 +291,15 @@ contains
 !initialiazes default values to &CHEM namelist parameters
     
     berror_chem=.false.
-    berror_fv3_cmaq_regional=.false.  ! Set .true. to use berror for fv3_cmaq_regional, whose cv has 10 characters
+    berror_fv3_cmaq_regional=.false.  ! .False. : Dont perform aerosal DA for the online RRFS_CMAQ model so dont need to read in B for RRFS_CMAQ.  
+                                      ! .true.  : Use berror for fv3_cmaq_regional, whose cv has 10 characters
+    berror_fv3_sd_regional=.false.    ! .False. : Dont perform aerosal DA for the RRFS_SD model so dont need to read in B for RRFS_SD.  
+                                      ! .true. to use berror for rrfs_sd model, whose cv has 10 characters
     oneobtest_chem=.false.
+    anowbufr_ext=.false.              ! .False. : use default anowbufr data
+                                      ! .True.  : use the extented bufr data
+                                      ! that includes PM10, station elevation
+                                      ! etal in addition to pm2.5. 
     maginnov_chem=30_r_kind
     magoberr_chem=2_r_kind
     oneob_type_chem='pm2_5'
@@ -307,9 +319,15 @@ contains
     laeroana_gocart = .false.
     laeroana_fv3cmaq = .false.    ! .true. for performing aerosol analysis for regional FV3-CMAQ model(Please other parameters requred in gsimod.F90) 
     laeroana_fv3smoke = .false.
-    pm2_5_innov_threshold = 20.0_r_kind
+    pm2_5_innov_threshold = 15.0_r_kind
+    pm2_5_urban_innov_threshold = 30.0_r_kind
+    pm2_5_bg_threshold = 2.0_r_kind
+    pm10_innov_threshold = 15.0_r_kind
+    pm10_urban_innov_threshold = 30.0_r_kind
+    pm10_bg_threshold = 2.0_r_kind
+    pm10_obs_threshold = 140.0_r_kind ! Barry's manuscript
     l_aoderr_table = .false.
-    icvt_cmaq_fv3   = 1           ! 1. Control variable is individual aerosol specie; 2: CV is total mass per I,J,K mode
+    icvt_cmaq_fv3   = 1           ! 1: Control variable is individual aerosol specie; 2: CV is total mass per I,J,K mode
     raod_radius_mean_scale = 1.0_r_kind  ! Tune radius of particles when calculating AOD using CRTM
     raod_radius_std_scale  = 1.0_r_kind  ! Tune standard deviation of particles when calculating AOD using CRTM with CMAQ LUTs.
     aod_qa_limit = 3

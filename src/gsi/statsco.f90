@@ -119,7 +119,7 @@ subroutine statsco(stats_co,bwork,awork,ndata)
      if (iasim > 0) then
         svar = error_co(i)
         if (iuse_co(i)/=1) svar = -svar
-        rsum = one/float(iasim)
+        rsum = one/real(iasim,r_kind)
         icerr = nint(stats_co(2,i))
         do j=3,6   ! j=3=obs-mod(w_biascor)
                    ! j=4=(obs-mod(w_biascor))**2
@@ -145,7 +145,7 @@ subroutine statsco(stats_co,bwork,awork,ndata)
   do i=1,ndat
      if (idisplay(i)) then
         cpen=zero
-        if (icount_asim(i)>0) cpen=rpenal(i)/float(icount_asim(i))
+        if (icount_asim(i)>0) cpen=rpenal(i)/real(icount_asim(i),r_kind)
         write(iout_co,1115) jiter,dplat(i),dtype(i),ndata(i,2), &
              ndata(i,3),icount_asim(i),rpenal(i),cpen,qcpenal(i),iqccount_asim(i)
      endif
@@ -184,8 +184,8 @@ subroutine statsco(stats_co,bwork,awork,ndata)
         num(k)=nint(awork(5*nsig+k+100))
         rat=zero ; rat3=zero
         if(num(k) > 0) then
-           rat=awork(6*nsig+k+100)/float(num(k))
-           rat3=awork(3*nsig+k+100)/float(num(k))
+           rat=awork(6*nsig+k+100)/real(num(k),r_kind)
+           rat3=awork(3*nsig+k+100)/real(num(k),r_kind)
         end if
         ntot=ntot+num(k); o3plty=o3plty+awork(6*nsig+k+100)
         o3qcplty=o3qcplty+awork(3*nsig+k+100)

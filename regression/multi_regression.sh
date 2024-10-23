@@ -1,22 +1,18 @@
 #!/bin/sh --login
 
-regtests_all="global_3dvar
-              global_4dvar
-              global_4denvar
-              netcdf_fv3_regional
-              rrfs_3denvar_glbens
-              hwrf_nmm_d2
-              hwrf_nmm_d3
+regtests_all="global_4denvar
+              rrfs_3denvar_rdasens
+              hafs_4denvar_glbens
+              hafs_3denvar_hybens
               rtma
               global_enkf"
 
-regtests_debug="global_3dvar
-                global_4dvar
-                global_4denvar
-                netcdf_fv3_regional
-                rrfs_3denvar_glbens
-                hwrf_nmm_d2
-                hwrf_nmm_d3
+#              rrfs_enkf_conv   : comment out RRFS enkf case for now
+#                                 need to update EnKF code
+regtests_debug="global_4denvar
+                rrfs_3denvar_rdasens
+                hafs_4denvar_glbens
+                hafs_3denvar_hybens
                 rtma
                 global_enkf"
 

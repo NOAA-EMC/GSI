@@ -87,6 +87,7 @@ anisofilter_glb.f90
 antcorr_application.f90
 antest_maps0.f90
 antest_maps0_glb.f90
+apply_scaledepwgts.f90
 atms_spatial_average_mod.f90
 balmod.f90
 berror.f90
@@ -100,6 +101,7 @@ bkgvar_rewgt.f90
 blacklist.f90
 blendmod.f90
 buddycheck_mod.f90
+cads.f90
 calc_fov_conical.f90
 calc_fov_crosstrk.f90
 calctends.f90
@@ -123,7 +125,6 @@ constants.f90
 control2model.f90
 control2model_ad.f90
 control2state.f90
-control2state_ad.f90
 control_vectors.f90
 convb_ps.f90
 convb_q.f90
@@ -156,7 +157,6 @@ ens_spread_mod.f90
 ensctl2model.f90
 ensctl2model_ad.f90
 ensctl2state.f90
-ensctl2state_ad.f90
 evaljgrad.f90
 evaljo.f90
 evalqlim.f90
@@ -217,6 +217,7 @@ gsi_colvkOper.F90
 gsi_dbzOper.F90
 gsi_dwOper.F90
 gsi_enscouplermod.f90
+gsi_fedOper.F90
 gsi_gpsbendOper.F90
 gsi_gpsrefOper.F90
 gsi_gustOper.F90
@@ -273,6 +274,7 @@ intaod.f90
 intcldch.f90
 intco.f90
 intdbz.f90
+intfed.f90
 intdw.f90
 intgps.f90
 intgust.f90
@@ -338,6 +340,7 @@ m_distance.f90
 m_dtime.F90
 m_dwNode.F90
 m_extOzone.F90
+m_fedNode.F90
 m_find.f90
 m_gpsNode.F90
 m_gpsrhs.F90
@@ -478,6 +481,7 @@ read_cris.f90
 read_dbz_nc.f90
 read_dbz_netcdf.f90
 read_diag.f90
+read_fed.f90
 read_files.f90
 read_fl_hdob.f90
 read_gfs_ozone_for_regional.f90
@@ -532,6 +536,7 @@ setupco.f90
 setupdbz.f90
 setupdbz_lib.f90
 setupdw.f90
+setupfed.f90
 setupgust.f90
 setuphowv.f90
 setuplag.f90
@@ -590,6 +595,7 @@ stpcalc.f90
 stpcldch.f90
 stpco.f90
 stpdbz.f90
+stpfed.f90
 stpdw.f90
 stpgps.f90
 stpgust.f90

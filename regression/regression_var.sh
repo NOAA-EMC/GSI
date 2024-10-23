@@ -14,6 +14,7 @@ if [ "$#" = 7 ] ; then
   export enkfexec_contrl=$7
   export fixgsi="$gsisrc/fix"
   export scripts="$gsisrc/regression"
+  export modulefiles="$gsisrc/modulefiles"
   export ush="$gsisrc/ush"
   export cmaketest="true"
   export clean="false"
@@ -29,40 +30,38 @@ else
 fi
 
 # Determine the machine
-if [[ -d /glade ]]; then # Cheyenne
-  export machine="Cheyenne"
-elif [[ -d /scratch1 ]]; then # Hera
+if [[ -d /scratch1 ]]; then # Hera
   export machine="Hera"
-elif [[ -d /jetmon ]]; then # Jet
+elif [[ -d /mnt/lfs4 || -d /jetmon || -d /mnt/lfs5 ]]; then # Jet
   export machine="Jet"
 elif [[ -d /discover ]]; then # NCCS Discover
   export machine="Discover"
-elif [[ -d /sw/gaea ]]; then # Gaea
+elif [[ -d /ncrc ]]; then # Gaea
   export machine="Gaea"
 elif [[ -d /data/prod ]]; then # S4
   export machine="S4"
-elif [[ -d /work ]]; then # Orion
-  export machine="Orion"
+elif [[ -d /work ]]; then # Orion or Hercules
+  mount=$(findmnt -n -o SOURCE /home)
+  if [[ ${mount} =~ "hercules" ]]; then
+    export machine="Hercules"
+  else
+    export machine="Orion"
+  fi
 elif [[ -d /lfs/h2 ]]; then # wcoss2
   export machine="wcoss2"
 fi
 echo "Running Regression Tests on '$machine'";
 
 case $machine in
-  Cheyenne)
-    export queue="economy"
-    export noscrub="/glade/scratch/$LOGNAME"
-    export group="global"
-    if [[ "$cmaketest" = "false" ]]; then
-      export basedir="/glade/scratch/$LOGNAME/gsi"
-    fi
-    export ptmp="/glade/scratch/$LOGNAME/$ptmpName"
-
-    export fixcrtm="/glade/p/ral/jntp/tools/crtm/2.2.3/fix_update"
-    export casesdir="/glade/p/ral/jntp/tools/CASES"
+  Gaea)
+    export queue="normal"
+    export group="ufs-ard"
+    export noscrub="/gpfs/f5/${group}/scratch/${USER}/$LOGNAME/gsi_tmp/noscrub"
+    export ptmp="/gpfs/f5/${group}/scratch/${USER}/$LOGNAME/gsi_tmp/ptmp"
+    export casesdir="/gpfs/f5/ufs-ard/world-shared/GSI_data/CASES/regtest"
 
     export check_resource="no"
-    export accnt="p48503002"
+    export accnt="ufs-ard"
   ;;
   wcoss2)
       export local_or_default="${local_or_default:-/lfs/h2/emc/da/noscrub/$LOGNAME}"
@@ -84,22 +83,28 @@ case $machine in
       export check_resource="no"
       export accnt="${accnt:-GFS-DEV}"
   ;;      
-  Orion)
+  Orion | Hercules)
       export local_or_default="${local_or_default:-/work/noaa/da/$LOGNAME}"
       if [ -d $local_or_default ]; then
-          export noscrub="$local_or_default/noscrub"
+         export noscrub="$local_or_default/noscrub"
       elif [ -d /work/noaa/global/$LOGNAME ]; then
-	  export noscrub="/work/noaa/global/$LOGNAME/noscrub"
+         export noscrub="/work/noaa/global/$LOGNAME/noscrub"
       fi
 
       export queue="${queue:-batch}"
+
+      if [[ "${machine}" == "Orion" ]]; then
+         export partition="${partition:-orion}"
+      else
+         export partition="${partition:-hercules}"
+      fi
+
       export group="${group:-global}"
       if [[ "$cmaketest" = "false" ]]; then
-	  export basedir="/work/noaa/da/$LOGNAME/gsi"
+         export basedir="/work/noaa/da/$LOGNAME/gsi"
       fi
       export ptmp="${ptmp:-/work/noaa/stmp/$LOGNAME/$ptmpName}"
 
-      export fixcrtm=${CRTM_FIX:-/apps/contrib/NCEPLIBS/orion/fix/crtm_v2.3.0}
       export casesdir="/work/noaa/da/rtreadon/CASES/regtest"
 
       export check_resource="no"
@@ -124,7 +129,6 @@ case $machine in
 
     export ptmp="${ptmp:-/scratch1/NCEPDEV/stmp2/$LOGNAME/$ptmpName}"
 
-##  export fixcrtm="${CRTM_FIX:-/scratch1/NCEPDEV/da/Michael.Lueken/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update}"
     export casesdir="/scratch1/NCEPDEV/da/Russ.Treadon/CASES/regtest"
 
     export check_resource="no"
@@ -136,20 +140,17 @@ case $machine in
   ;;
   Jet)
 
-    export noscrub=/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/noscrub
-    export ptmp=/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/ptmp
-    export fixcrtm="/lfs1/NESDIS/nesdis-rdo2/David.Huber/save/CRTM_REL-2.2.3/crtm_v2.2.3/fix_update"
-    export casesdir="/lfs1/NESDIS/nesdis-rdo2/David.Huber/save/CASES"
+    export noscrub=/lfs5/NESDIS/nesdis-rdo2/$LOGNAME/noscrub
+    export ptmp=/lfs5/NESDIS/nesdis-rdo2/$LOGNAME/ptmp
+    export casesdir="/lfs5/NESDIS/nesdis-rdo2/David.Huber/save/CASES/regtest"
     export check_resource="no"
     export accnt="nesdis-rdo2"
 
     export group="global"
     export queue="batch"
     if [[ "$cmaketest" = "false" ]]; then
-      export basedir="/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/gsi"
+      export basedir="/lfs5/NESDIS/nesdis-rdo2/$LOGNAME/save/git/gsi"
     fi
-
-    export ptmp="/lfs1/NESDIS/nesdis-rdo2/$LOGNAME/ptmp/$ptmpName"
 
     #  On Jet, there are no scrubbers to remove old contents from stmp* directories.
     #  After completion of regression tests, will remove the regression test subdirecories
@@ -163,7 +164,6 @@ case $machine in
     export ptmp=$basedir
     export ptmp=$basedir
     export noscrub=$basedir
-    export fixcrtm="/discover/nobackup/projects/gmao/share/gmao_ops/fvInput_4dvar/gsi/etc/fix_ncep20170329/REL-2.2.3-r60152_local-rev_1/CRTM_Coeffs/$endianness"
     export casesdir="/discover/nobackup/projects/gmao/obsdev/wrmccart/NCEP_regression/CASES"
     export check_resource="no"
     export accnt="g0613"
@@ -175,18 +175,6 @@ case $machine in
     exit 1
   ;;
 esac
-
-if [[ "$cmaketest" = "false" ]]; then
-  export builddir=$noscrub/build
-  export gsisrc="$basedir/$updat/src"
-  export gsiexec_updat="$gsisrc/global_gsi.x"
-  export gsiexec_contrl="$basedir/$contrl/src/global_gsi.x"
-  export enkfexec_updat="$gsisrc/enkf/global_enkf.x"
-  export enkfexec_contrl="$basedir/$contrl/src/enkf/global_enkf.x"
-  export fixgsi="$basedir/$updat/fix"
-  export scripts="$basedir/$updat/regression"
-  export ush="$basedir/$updat/ush"
-fi
 
 # We are dealing with *which* endian files
 export endianness="Big_Endian"
@@ -201,23 +189,25 @@ export savdir="$ptmp"
 export JCAP="62"
 
 # Case Study analysis dates
-export global_adate="2022110900"
+export global_adate="2024022300"
 export rtma_adate="2020022420"
-export hwrf_nmm_adate="2012102812"
-export fv3_netcdf_adate="2017030100"
-export rrfs_3denvar_glbens_adate="2021072518"
+export rrfs_enkf_adate="2023061012"
+export rrfs_3denvar_rdasens_adate="2023061012"
+export hafs_envar_adate="2020082512"
 
 # Paths for canned case data.
 export global_data="$casesdir/gfs/prod"
 export rtma_obs="$casesdir/regional/rtma_binary/$rtma_adate"
 export rtma_ges="$casesdir/regional/rtma_binary/$rtma_adate"
-export hwrf_nmm_obs="$casesdir/regional/hwrf_nmm/$hwrf_nmm_adate"
-export hwrf_nmm_ges="$casesdir/regional/hwrf_nmm/$hwrf_nmm_adate"
-export fv3_netcdf_obs="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
-export fv3_netcdf_ges="$casesdir/regional/fv3_netcdf/$fv3_netcdf_adate"
-export rrfs_3denvar_glbens_obs="$casesdir/regional/rrfs/$rrfs_3denvar_glbens_adate/obs"
-export rrfs_3denvar_glbens_ges="$casesdir/regional/rrfs/$rrfs_3denvar_glbens_adate/ges"
-export rrfs_3denvar_glbens_ens="$casesdir/regional/rrfs/$rrfs_3denvar_glbens_adate/ens"
+export rrfs_enkf_diag="$casesdir/regional/rrfs/$rrfs_enkf_adate/diag"
+export rrfs_enkf_ges="$casesdir/regional/rrfs/$rrfs_enkf_adate/ens"
+export rrfs_3denvar_rdasens_obs="$casesdir/regional/rrfs/$rrfs_3denvar_rdasens_adate/obs"
+export rrfs_3denvar_rdasens_ges="$casesdir/regional/rrfs/$rrfs_3denvar_rdasens_adate/ges"
+export rrfs_3denvar_rdasens_ens="$casesdir/regional/rrfs/$rrfs_3denvar_rdasens_adate/ens"
+export hafs_envar_obs="$casesdir/regional/hafs_RTdata/$hafs_envar_adate/obs"
+export hafs_envar_ges="$casesdir/regional/hafs_RTdata/$hafs_envar_adate/ges"
+export hafs_envar_ens="$casesdir/regional/hafs_RTdata/$hafs_envar_adate/ens"
+
 
 # Define type of GPSRO data to be assimilated (refractivity or bending angle)
 export gps_dtype="gps_bnd"
@@ -228,7 +218,7 @@ export regression_vfydir="$noscrub/regression"
 # Define debug variable - If you want to run the debug tests, set this variable to .true.  Default is .false.
 export debug=".false."
 
-# Define parameters for global_3dvar, global_4dvar, global_4denvar
+# Define parameters for global_4denvar
 export minimization="lanczos"  # If "lanczos", use sqrtb lanczos minimization algorithm.  Otherwise use "pcgsoi".
 export nhr_obsbin="6"          # Time window for observation binning.  Use "6" for 3d4dvar test.  Otherwise use "1"
 

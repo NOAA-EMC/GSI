@@ -812,7 +812,7 @@
  allocate (eccen(1:maxfov(instr)))
  
  do i = 1, npoly
-    psi(i) = two*pi*float(i-1)/float(npoly-1) ! Will connect Npoly points
+    psi(i) = two*pi*real(i-1,r_kind)/real(npoly-1,r_kind) ! Will connect Npoly points
  enddo
  
 ! Precompute angles and sizes for speed. For accurate representation of fov, 
@@ -1287,7 +1287,7 @@
        height=866._r_kind
     case('npp')
        height=840._r_kind
-    case('n20')
+    case('n20', 'n21', 'n22', 'n23')
        height=840._r_kind
     case default
        write(6,*) 'GET_SAT_HEIGHT: ERROR, unrecognized satellite id: ', trim(satid)

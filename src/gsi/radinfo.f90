@@ -615,7 +615,7 @@ contains
 ! !USES:
 
     use obsmod, only: iout_rad
-    use constants, only: zero,one,zero_quad
+    use constants, only: zero,one,zero_quad, r10
     use mpimod, only: mype
     use mpeu_util, only: perr,die
     implicit none
@@ -855,7 +855,8 @@ contains
                          varA(i,j)=varx(i)
                       end do
                       ostats(j)=ostatsx
-                      if ((any(varx/=zero) .and. iuse_rad(j)>-2) .or. iuse_rad(j)==4) & 
+                      if ((all(varx==zero) .and. iuse_rad(j)>-2) .or. iuse_rad(j)==4) cycle read3 
+                      if ((any(varx/=r10) .and. iuse_rad(j)>-2) .or. iuse_rad(j)==4) &
                          inew_rad(j)=.false.
                       cycle read3
                    end if
@@ -896,7 +897,7 @@ contains
 !   Allocate arrays to receive angle dependent bias information.
 !   Open file to bias file (satang=satbias_angle).  Read data.
 
-    maxscan=250
+    maxscan=252
     if (.not.adp_anglebc) maxscan = 90 ! default value for old files
 
     if (adp_anglebc) then 
@@ -1453,7 +1454,7 @@ contains
 
       piece=-0.625_r_kind
       if (mod(iscan,2) == 1) piece = 0.625_r_kind
-      rnad_pos=radstart(jch)+radstep(jch)*float((iscan-1)/2)+piece
+      rnad_pos=radstart(jch)+radstep(jch)*real((iscan-1)/2,r_kind)+piece
 
    else
 
@@ -1465,7 +1466,7 @@ contains
       else
          ifov=iscan
       end if
-      rnad_pos=radstart(jch)+radstep(jch)*float(ifov-1)
+      rnad_pos=radstart(jch)+radstep(jch)*real(ifov-1,r_kind)
 
    end if
 
@@ -1740,7 +1741,7 @@ contains
    if (.not. (any(inew_rad) .or. any(update_tlapmean))) return
    if (ndat==0) return
 
-   if (mype==0) write(6,*) 'INIT_PREDX:  enter routine'
+!  if (mype==0) write(6,*) 'INIT_PREDX:  enter routine'
 
 !  Allocate and initialize data arrays
    if (any(update_tlapmean)) then
@@ -1867,6 +1868,7 @@ contains
          end do 
       end do loop_a
 
+      write(6,*) 'INIT_PREDX: inst_sat  new_chan = ', trim(fdiag_rad), new_chan
       if (.not. update .and. new_chan==0) then 
          call close_radiag(fdiag_rad,lndiag)
          cycle loopf
@@ -2032,7 +2034,7 @@ contains
                         tlap2(jj) = tlap0(jj) + tlap1(jj)/tsum(jj)
                         count_tlapmean(jj)=count_tlapmean(jj)+one
                      elseif (tcnt(jj)>0) then
-                        ratio = max(zero,min(tcnt(jj)/float(nthreshold),one))
+                        ratio = max(zero,min(tcnt(jj)/real(nthreshold,r_kind),one))
                         tsum(jj)=ratio*tsum(jj)+tsum0(jj)
 !                       tlap2(jj) = tlap0(jj) + ratio*wgtlap*tlap1(jj)/tsum(jj)
                         tlap2(jj) = tlap0(jj) + ratio*tlap1(jj)/tsum(jj)

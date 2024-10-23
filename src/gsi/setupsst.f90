@@ -99,7 +99,7 @@ subroutine setupsst(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
   use obsmod, only: luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag, dirname,ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
-       nc_diag_write, nc_diag_data2d
+       nc_diag_write, nc_diag_data2d, nc_diag_metadata_to_single
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use oneobmod, only: magoberr,maginnov,oneobtest
@@ -585,35 +585,35 @@ contains
            call nc_diag_metadata("Observation_Class",       obsclass               )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
-           call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
-           call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
-           call nc_diag_metadata("Station_Elevation",       sngl(data(istnelv,i))  )
+           call nc_diag_metadata_to_single("Latitude",data(ilate,i)      )
+           call nc_diag_metadata_to_single("Longitude",data(ilone,i)      )
+           call nc_diag_metadata_to_single("Station_Elevation",data(istnelv,i)  )
            call nc_diag_metadata("Pressure",                missing                )
-           call nc_diag_metadata("Height",                  sngl(data(izob,i))     )
-           call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
-           call nc_diag_metadata("Prep_QC_Mark",            sngl(data(ipct,i))     )
-           call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )
+           call nc_diag_metadata_to_single("Height",data(izob,i)       )
+           call nc_diag_metadata_to_single("Time",dtime,time_offset,'-')
+           call nc_diag_metadata_to_single("Prep_QC_Mark",data(ipct,i)       )
+           call nc_diag_metadata_to_single("Prep_Use_Flag",data(iuse,i)       )
 !          call nc_diag_metadata("Nonlinear_QC_Var_Jb",     var_jb                 )
-           call nc_diag_metadata("Nonlinear_QC_Rel_Wgt",    sngl(rwgt)             )                 
+           call nc_diag_metadata_to_single("Nonlinear_QC_Rel_Wgt",rwgt               )
            if(muse(i)) then
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)              )
+              call nc_diag_metadata("Analysis_Use_Flag",    1.0_r_single           )
            else
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)             )              
+              call nc_diag_metadata("Analysis_Use_Flag",    -1.0_r_single          )
            endif
 
-           call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)     )
-           call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
-           call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
+           call nc_diag_metadata_to_single("Errinv_Input",errinv_input       )
+           call nc_diag_metadata_to_single("Errinv_Adjust",errinv_adjst       )
+           call nc_diag_metadata_to_single("Errinv_Final",errinv_final       )
 
-           call nc_diag_metadata("Observation",                   sngl(data(isst,i)) )
-           call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)      )
-           call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(data(isst,i)-sstges) )
+           call nc_diag_metadata_to_single("Observation",data(isst,i) )
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",ddiff        )
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",data(isst,i),sstges,'-')
 
            if (nst_gsi>0) then
-              call nc_diag_metadata("FoundationTempBG",        sngl(data(itref,i)) )
-              call nc_diag_metadata("DiurnalWarming_at_zob",   sngl(data(idtw,i)) )
-              call nc_diag_metadata("SkinLayerCooling_at_zob", sngl(data(idtw,i)) )
-              call nc_diag_metadata("Sensitivity_Tzob_Tr",     sngl(data(itz_tr,i)) )
+              call nc_diag_metadata_to_single("FoundationTempBG",data(itref,i) )
+              call nc_diag_metadata_to_single("DiurnalWarming_at_zob",data(idtw,i) )
+              call nc_diag_metadata_to_single("SkinLayerCooling_at_zob",data(idtc,i) )
+              call nc_diag_metadata_to_single("Sensitivity_Tzob_Tr",data(itz_tr,i) )
            endif
  
            if (lobsdiagsave) then

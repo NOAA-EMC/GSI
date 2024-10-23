@@ -3,6 +3,11 @@ if(BUILD_GSDCLOUD)
   add_subdirectory(GSD)
 endif()
 
+if(BUILD_MGBF)
+  message(STATUS "Building MGBF library")
+  add_subdirectory(mgbf)
+endif()
+
 if(BUILD_GSI)
   message(STATUS "Building GSI")
   add_subdirectory(gsi)

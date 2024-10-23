@@ -177,6 +177,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_kind), ALLOCATABLE, TARGET :: dlat_earth_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: crit1_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: lza_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: satheight_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: satazi_save(:)
   real(r_kind), ALLOCATABLE, TARGET :: solzen_save(:) 
   real(r_kind), ALLOCATABLE, TARGET :: solazi_save(:) 
@@ -352,6 +353,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   ALLOCATE(crit1_save(maxobs))
   ALLOCATE(it_mesh_save(maxobs))
   ALLOCATE(lza_save(maxobs))
+  ALLOCATE(satheight_save(maxobs))
   ALLOCATE(satazi_save(maxobs))
   ALLOCATE(solzen_save(maxobs)) 
   ALLOCATE(solazi_save(maxobs)) 
@@ -401,7 +403,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
 !          inflate selection value for ears_db data
            crit0 = 0.01_r_kind
-           if ( llll > 1 ) crit0 = crit0 + r100 * float(llll)
+           if ( llll > 1 ) crit0 = crit0 + r100 * real(llll,r_kind)
 
            call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
 
@@ -455,9 +457,9 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
            lza = bfr2bhdr(1)*deg2rad      ! local zenith angle
            if(ifov <= 48)    lza=-lza
 
-           panglr=(start+float(ifov-1)*step)*deg2rad
+           panglr=(start+real(ifov-1,r_kind)*step)*deg2rad
            satellite_height=bfr1bhdr(13)
-!          Ensure orbit height is reasonable
+           satheight_save(iob)=satellite_height
            if (satellite_height < 780000.0_r_kind .OR. &
               satellite_height > 900000.0_r_kind) satellite_height = 824000.0_r_kind
            rato = one + satellite_height/rearth_equator
@@ -511,10 +513,10 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   ALLOCATE(Relative_Time_In_Seconds(Num_Obs))
   ALLOCATE(IScan(Num_Obs))
   Relative_Time_In_Seconds = 3600.0_r_kind*T4DV_Save(1:Num_Obs)
-  write(6,*) 'Calling ATMS_Spatial_Average'
+! write(6,*) 'Calling ATMS_Spatial_Average'
   CALL ATMS_Spatial_Average(Num_Obs, NChanl, IFOV_Save(1:Num_Obs), &
        Relative_Time_In_Seconds, BT_Save(1:nchanl,1:Num_Obs), IScan, IRet)
-  write(6,*) 'ATMS_Spatial_Average Called with IRet=',IRet
+! write(6,*) 'ATMS_Spatial_Average Called with IRet=',IRet
   DEALLOCATE(Relative_Time_In_Seconds)
   
   IF (IRet /= 0) THEN
@@ -534,6 +536,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      it_mesh    => it_mesh_save(iob)
      ifov       => ifov_save(iob)
      lza        => lza_save(iob)
+     satellite_height = satheight_save(iob)
      satazi     => satazi_save(iob)
      solzen     => solzen_save(iob)
      solazi     => solazi_save(iob)
@@ -543,11 +546,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      dlon_earth_deg = dlon_earth
      dlat_earth = dlat_earth*deg2rad
      dlon_earth = dlon_earth*deg2rad   
-
-! Just use every fifth scan position and scanline (and make sure that we have
-! position 48 as we need it for scan bias)
-     if (5*NINT(REAL(IScan(Iob))/5_r_kind) /= IScan(IOb) .OR. &
-          5*NINT(REAL(IFov-3)/5_r_kind) /= IFOV -3 ) CYCLE ObsLoop 
 
 !    Regional case
      if(regional)then
@@ -648,7 +646,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
              idomsfc(1),sfcpct,ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
      endif
 
-     crit1 = crit1 + rlndsea(isflg) + 10._r_kind*float(iskip) + 0.01_r_kind * abs(zz)
+     crit1 = crit1 + rlndsea(isflg) + 10._r_kind*real(iskip,r_kind) + 0.01_r_kind * abs(zz)
      call checkob(dist1,crit1,itx,iuse)
      if(.not. iuse)cycle ObsLoop
 
@@ -726,7 +724,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      endif
 
 ! Re-calculate look angle
-     panglr=(start+float(ifov-1)*step)*deg2rad
+     panglr=(start+real(ifov-1,r_kind)*step)*deg2rad
 
 
 !     Load selected observation into data array
@@ -736,7 +734,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      data_all(3 ,itx)= dlon                      ! grid relative longitude
      data_all(4 ,itx)= dlat                      ! grid relative latitude
      data_all(5 ,itx)= lza                       ! local zenith angle
-     data_all(6 ,itx)= satazi                    ! local azimuth angle
+     !data_all(6 ,itx)= satazi                    ! local azimuth angle
+     data_all(6 ,itx)= satellite_height                    ! temporary output
      data_all(7 ,itx)= panglr                    ! look angle
      data_all(8 ,itx)= ifovmod                   ! scan position
      data_all(9 ,itx)= solzen                    ! solar zenith angle

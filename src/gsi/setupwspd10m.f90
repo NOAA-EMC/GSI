@@ -243,7 +243,7 @@ subroutine setupwspd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
   goverrd=grav/rd
 
   do i=1,nobs
-     muse(i)=nint(data(iuse,i)) <= jiter
+     muse(i)=nint(data(iuse,i)) <= jiter .and. nint(data(iqc,i)) < 8
   end do
 
 ! Check for duplicate observations at same location
@@ -449,7 +449,7 @@ subroutine setupwspd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
            hrdifsig,mype,nfldsig)
  
         iz = max(1, min( int(dpres), nsig))
-        delz = max(zero, min(dpres - float(iz), one))
+        delz = max(zero, min(dpres - real(iz,r_kind), one))
 
         if (save_jacobian) then
 
@@ -635,7 +635,7 @@ subroutine setupwspd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
      lowlevelsat=itype==242.or.itype==243.or.itype==245.or.itype==246.or. &
                  itype==247.or.itype==250.or.itype==251.or.itype==252.or. &
                  itype==253.or.itype==254.or.itype==257.or.itype==258.or. &
-                 itype==259
+                 itype==259.or.itype==241
      if (lowlevelsat .and. twodvar_regional) then
          call windfactor(presw,factw)
          data(iuob,i)=factw*data(iuob,i)

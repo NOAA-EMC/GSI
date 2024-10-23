@@ -49,6 +49,7 @@ module hybrid_ensemble_isotropic
 !   2016-05-13  parrish - remove beta12mult
 !   2018-02-15  wu      - add code for fv3_regional option
 !   2022-09-15  yokota  - add scale/variable/time-dependent localization
+!   2024-02-20  yokota  - add MGBF-based localization
 !
 ! subroutines included:
 !   sub init_rf_z                         - initialize localization recursive filter (z direction)
@@ -101,6 +102,10 @@ module hybrid_ensemble_isotropic
 
   use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
   use string_utility, only: StrUpCase
+
+! For MGBF
+  use mg_intstate
+  use mg_timers
 
   implicit none
 
@@ -174,6 +179,12 @@ module hybrid_ensemble_isotropic
   real(r_kind),allocatable,dimension(:,:,:)  :: spectral_filter,sqrt_spectral_filter
   integer(i_kind),allocatable,dimension(:) :: k_index
 
+  integer(r_kind) :: nval_loc_en
+
+! For MGBF
+  type (mg_intstate_type), allocatable, dimension(:) :: obj_mgbf
+  real(r_kind), allocatable, dimension(:,:,:) :: work_mgbf
+
 !    following is for special subdomain to slab variables used when internally generating ensemble members
 
   integer(i_kind) nval2f,nscl
@@ -182,7 +193,6 @@ module hybrid_ensemble_isotropic
   integer(i_kind),allocatable,dimension(:):: i_recv,k_recv
 
   logical,parameter:: debug=.false.
-
 
 contains
 
@@ -247,7 +257,7 @@ subroutine init_rf_z(z_len)
   kap1=rd_over_cp+one
   kapr=one/rd_over_cp
   nxy=grd_ens%latlon11
-  rnsig=float(nsig)
+  rnsig=real(nsig,r_kind)
 
 !    use new factorization:
 
@@ -591,7 +601,7 @@ subroutine new_factorization_rf_x(f,iadvance,iback,nlevs,ig)
   ny=grd_loc%nlat ; nx=grd_loc%nlon ; nz=nlevs
 
   if(vvlocal)then
-!$omp parallel do schedule(dynamic,1) private(k,j,i,l)
+!$omp parallel do schedule(static,1) private(k,j,i,l)
      do k=1,nz
 
         if(iadvance == 1) then
@@ -634,7 +644,7 @@ subroutine new_factorization_rf_x(f,iadvance,iback,nlevs,ig)
 
      enddo
   else 
-!$omp parallel do schedule(dynamic,1) private(k,j,i,l)
+!$omp parallel do schedule(static,1) private(k,j,i,l)
      do k=1,nz
 
         if(iadvance == 1) then
@@ -1607,7 +1617,7 @@ end subroutine normal_new_factorization_rf_y
     real(r_kind) zloc1(ny,nx)
     integer(i_kind) i,ii,j,jj,k
 
-!$omp parallel do schedule(dynamic,1) private(j,k,i,jj,ii,zloc1)
+!$omp parallel do schedule(static,1) private(j,k,i,jj,ii,zloc1)
     do j=1,nscl
        do k=1,nnnn1o
           i=0
@@ -1686,7 +1696,7 @@ end subroutine normal_new_factorization_rf_y
     end if
     do m=1,ntlevs_ens
        do ig=1,ntotensgrp
-!$omp parallel do schedule(dynamic,1) private(n,i,j,k,w3,istatus)
+!$omp parallel do schedule(static,1) private(n,i,j,k,w3,istatus)
           do n=1,n_ens
              call gsi_bundlegetpointer(en_perts(n,ig,m),'q',w3,istatus)
              if(istatus/=0) then
@@ -1732,6 +1742,7 @@ end subroutine normal_new_factorization_rf_y
     use hybrid_ensemble_parameters, only: l_hyb_ens,n_ens,ntlevs_ens
     use hybrid_ensemble_parameters, only: en_perts,ps_bar
     use hybrid_ensemble_parameters, only: ntotensgrp
+    use hybrid_ensemble_parameters, only: l_mgbf_loc
     implicit none
 
     integer(i_kind) istatus,n,m,ig
@@ -1750,6 +1761,7 @@ end subroutine normal_new_factorization_rf_y
        enddo
        deallocate(ps_bar)
        deallocate(en_perts)
+       if(l_mgbf_loc) call print_mg_timers("mgbf_timing_cpu.csv", print_cpu, mype)
     end if
     return
 
@@ -1835,7 +1847,7 @@ end subroutine normal_new_factorization_rf_y
  
     ipx=1
 
-!$omp parallel do schedule(dynamic,1) private(j,n,ic3,k,i,ipic,ig,iaens)
+!$omp parallel do schedule(static,1) private(j,n,ic3,k,i,ipic,ig,iaens)
     do k=1,km
        do ic3=1,nc3d
           ipic=ipc3d(ic3)
@@ -1860,7 +1872,6 @@ end subroutine normal_new_factorization_rf_y
        enddo
     enddo
 
-!$omp parallel do schedule(dynamic,1) private(j,n,k,i,ic2,ipic,ig,iaens)
     do ic2=1,nc2d
        ipic=ipc2d(ic2)
        do j=1,jm
@@ -1883,8 +1894,8 @@ end subroutine normal_new_factorization_rf_y
                 iaens=ensgrp2aensgrp(ig,ic2+nc3d,ibin)
                 if(iaens>0) then
                    do n=1,n_ens
-                      do j=1,jm
-                         do k=1,km_tmp
+                      do k=1,km_tmp
+                         do j=1,jm
                             do i=1,im
                                cvec%r2(ipic)%q(i,j)=cvec%r2(ipic)%q(i,j) &
                                     +a_en(iaens,n)%r3(ipx)%q(i,j,k)*en_perts(n,ig,ibin)%r2(ipic)%qr4(i,j)*pwgt(i,j,k)
@@ -2012,7 +2023,7 @@ end subroutine normal_new_factorization_rf_y
     im=work_ens%grid%im
     jm=work_ens%grid%jm
     km=work_ens%grid%km
-!$omp parallel do schedule(dynamic,1) private(j,n,ic3,k,i,ipic,ig,iaens)
+!$omp parallel do schedule(static,1) private(j,n,ic3,k,i,ipic,ig,iaens)
     do k=1,km
        do ic3=1,nc3d
           ipic=ipc3d(ic3)
@@ -2036,7 +2047,6 @@ end subroutine normal_new_factorization_rf_y
           enddo
        enddo
     enddo
-!$omp parallel do schedule(dynamic,1) private(j,n,k,i,ic2,ipic,ig,iaens)
     do ic2=1,nc2d
        ipic=ipc2d(ic2)
        do j=1,jm
@@ -2189,7 +2199,7 @@ end subroutine normal_new_factorization_rf_y
     endif
 
     ipx=1
-!$omp parallel do schedule(dynamic,1) private(j,n,ic3,k,i,ic2,ipic,ig,iaens)
+!$omp parallel do schedule(static,1) private(j,n,ic3,k,i,ic2,ipic,ig,iaens)
     do n=1,n_ens
        do ig=1,ntotensgrp
           do ic3=1,nc3d
@@ -2206,6 +2216,7 @@ end subroutine normal_new_factorization_rf_y
                 enddo
              endif ! iaens>0
           enddo
+
           do ic2=1,nc2d
              iaens=ensgrp2aensgrp(ig,ic2+nc3d,ibin)
              if(iaens>0) then
@@ -2354,7 +2365,7 @@ end subroutine normal_new_factorization_rf_y
     im=a_en(1,1)%grid%im
     jm=a_en(1,1)%grid%jm
     km=a_en(1,1)%grid%km
-!$omp parallel do schedule(dynamic,1) private(j,n,ic3,k,i,ic2,ipic,ig,iaens)
+!$omp parallel do schedule(static,1) private(j,n,ic3,k,i,ic2,ipic,ig,iaens)
     do n=1,n_ens
        do ig=1,ntotensgrp
           do ic3=1,nc3d
@@ -2686,7 +2697,7 @@ subroutine sqrt_beta_s_mult_cvec(grady)
   endif
 
   ! multiply by sqrt_beta_s
-!$omp parallel do schedule(dynamic,1) private(ic3,ic2,k,j,i,ii)
+!$omp parallel do schedule(static,1) private(ic3,ic2,k,j,i,ii)
   do j=1,lon2
      do ii=1,nsubwin
         do ic3=1,nc3d
@@ -2784,7 +2795,7 @@ subroutine sqrt_beta_s_mult_bundle(grady)
   endif
 
   ! multiply by sqrt_beta_s
-!$omp parallel do schedule(dynamic,1) private(ic3,ic2,k,j,i)
+!$omp parallel do schedule(static,1) private(ic3,ic2,k,j,i)
   do j=1,lon2
      do ic3=1,nc3d
         ! check for ozone and skip if oz_univ_static = true
@@ -2864,12 +2875,12 @@ subroutine sqrt_beta_e_mult_cvec(grady)
   call timer_ini('sqrt_beta_e_mult')
 
   ! multiply by sqrt_beta_e
-!$omp parallel do schedule(dynamic,1) private(nn,k,j,i,ii,ig)
-  do j=1,grd_ens%lon2
+!$omp parallel do schedule(static,1) private(nn,k,j,i,ii,ig)
+  do nn=1,n_ens
      do ii=1,nsubwin
         do ig=1,naensgrp
-           do nn=1,n_ens
-              do k=1,nsig
+           do k=1,nsig
+              do j=1,grd_ens%lon2
                  do i=1,grd_ens%lat2
                     grady%aens(ii,ig,nn)%r3(1)%q(i,j,k) = sqrt_beta_e(k)*grady%aens(ii,ig,nn)%r3(1)%q(i,j,k)
                  enddo
@@ -2931,11 +2942,11 @@ subroutine sqrt_beta_e_mult_bundle(aens)
   call timer_ini('sqrt_beta_e_mult')
 
   ! multiply by sqrt_beta_e
-!$omp parallel do schedule(dynamic,1) private(nn,k,j,i,ig)
-  do j=1,grd_ens%lon2
+!$omp parallel do schedule(static,1) private(nn,k,j,i,ig)
+  do nn=1,n_ens
      do ig=1,naensgrp
-        do nn=1,n_ens
-           do k=1,nsig
+        do k=1,nsig
+           do j=1,grd_ens%lon2
               do i=1,grd_ens%lat2
                  aens(ig,nn)%r3(1)%q(i,j,k) = sqrt_beta_e(k)*aens(ig,nn)%r3(1)%q(i,j,k)
               enddo
@@ -2993,19 +3004,18 @@ subroutine init_sf_xy(jcap_in)
 
   integer(i_kind),intent(in   ) :: jcap_in
 
-  integer(i_kind) i,ii,j,k,l,n,jcap,kk,nsigend,ig
-  real(r_kind),allocatable::g(:),gsave(:)
+  integer(i_kind) i,ii,j,igg,k,l,n,jcap,kk,nsigend,ig
+  real(r_kind),allocatable::g(:),gtemp(:)
   real(r_kind) factor
   real(r_kind),allocatable::rkm(:),f(:,:),f0(:,:)
   real(r_kind) ftest(grd_loc%nlat,grd_loc%nlon,grd_loc%kbegin_loc:grd_loc%kend_alloc)
   real(r_single) out1(grd_ens%nlon,grd_ens%nlat)
-  real(r_single),allocatable::pn0_npole(:)
+  real(r_single) pn0_npole
   real(r_kind) s_ens_h_min
   real(r_kind) rlats_ens_local(grd_ens%nlat)
   real(r_kind) rlons_ens_local(grd_ens%nlon)
   character(5) mapname
   logical make_test_maps
-  logical,allocatable,dimension(:)::ksame
   integer(i_kind) nord_sploc2ens
   integer(i_kind) nlon_sploc0,nlon_sploc,nlat_sploc,num_fields
   logical print_verbose
@@ -3157,101 +3167,107 @@ subroutine init_sf_xy(jcap_in)
 
   if(.not.allocated(spectral_filter)) allocate(spectral_filter(naensloc,sp_loc%nc,grd_sploc%nsig))
   if(.not.allocated(sqrt_spectral_filter)) allocate(sqrt_spectral_filter(naensloc,sp_loc%nc,grd_sploc%nsig))
-  allocate(g(sp_loc%nc),gsave(sp_loc%nc))
-  allocate(pn0_npole(0:sp_loc%jcap))
-  allocate(ksame(grd_sploc%nsig))
+  allocate(g(sp_loc%nc),gtemp(sp_loc%nc))
   do ig=1,naensloc
-     ksame=.false.
-     do k=2,grd_sploc%nsig
-        if(s_ens_hv(k,ig) == s_ens_hv(k-1,ig))ksame(k)=.true.
-     enddo
      spectral_filter(ig,:,:)=zero
-     do k=1,grd_sploc%nsig
-        if(ksame(k))then
-           spectral_filter(ig,:,k)=spectral_filter(ig,:,k-1)
-        else
-           do i=1,grd_sploc%nlat
-              f0(i,1)=exp(-half*(rkm(i)/s_ens_hv(k,ig))**2)
-           enddo
-
-           do j=2,grd_sploc%nlon
-              do i=1,grd_sploc%nlat
-                 f0(i,j)=f0(i,1)
-              enddo
-           enddo
-
-           call general_g2s0(grd_sploc,sp_loc,g,f0)
-
-           call general_s2g0(grd_sploc,sp_loc,g,f)
-
-!          adjust so value at np = 1
-           f=f/f(grd_sploc%nlat,1)
-           f0=f
-           call general_g2s0(grd_sploc,sp_loc,g,f)
-           call general_s2g0(grd_sploc,sp_loc,g,f)
-           if(mype == 0)then
-              nsigend=k
-              do kk=k+1,grd_sploc%nsig
-                 if(s_ens_hv(kk,ig) /= s_ens_hv(k,ig))exit
-                 nsigend=nsigend+1
-              enddo
-              write(6,900)k,nsigend,sp_loc%jcap,s_ens_hv(k,ig),maxval(abs(f0-f))
-900           format(' in init_sf_xy, jcap,s_ens_hv(',i5,1x,'-',i5,'), max diff(f0-f)=', &
-                                           i10,f10.2,e20.10)
+     level_loop: do k=1,grd_sploc%nsig
+        do kk=1,k-1
+           if(s_ens_hv(k,ig) == s_ens_hv(kk,ig))then
+              spectral_filter(ig,:,k)=spectral_filter(ig,:,k-1)
+              cycle level_loop
            end if
-
-!          correct spectrum by dividing by pn0_npole
-           gsave=g
-
-!          obtain pn0_npole
-           do n=0,sp_loc%jcap
-              g=zero
-              g(2*n+1)=one
-              call general_s2g0(grd_sploc,sp_loc,g,f)
-              pn0_npole(n)=f(grd_sploc%nlat,1)
-           enddo
-   
-           g=zero
-           do n=0,sp_loc%jcap
-              g(2*n+1)=gsave(2*n+1)/pn0_npole(n)
-           enddo
-
-!          obtain spectral_filter
-
-           ii=0
-           do l=0,sp_loc%jcap
-              if(ig>naensgrp) then
-                 factor=one/g(1)
-              else
-                 factor=one
-                 if(l>0) factor=half
-              end if
-              do n=l,sp_loc%jcap
-                 ii=ii+1
-                 if(sp_loc%factsml(ii)) then
-                    spectral_filter(ig,ii,k)=zero
-                 else
-                    spectral_filter(ig,ii,k)=factor*g(2*n+1)
+        end do
+        if(ig > 1)then
+           do igg=1,ig-1
+              do kk=1,grd_sploc%nsig
+                 if(s_ens_hv(k,ig) == s_ens_hv(kk,igg))then
+                    spectral_filter(ig,:,k)=spectral_filter(igg,:,kk)
+                    cycle level_loop
                  end if
-                 ii=ii+1
-                 if(l == 0 .or. sp_loc%factsml(ii)) then
-                    spectral_filter(ig,ii,k)=zero
-                 else
-                    spectral_filter(ig,ii,k)=factor*g(2*n+1)
-                 end if
-              enddo
-           enddo
+              end do
+           end do
         end if
-     enddo
+
+        do i=1,grd_sploc%nlat
+           f0(i,1)=exp(-half*(rkm(i)/s_ens_hv(k,ig))**2)
+        enddo
+
+
+        do j=2,grd_sploc%nlon
+           do i=1,grd_sploc%nlat
+              f0(i,j)=f0(i,1)
+           enddo
+        end do
+
+
+        call general_g2s0(grd_sploc,sp_loc,g,f0)
+
+        call general_s2g0(grd_sploc,sp_loc,g,f)
+
+!       adjust so value at np = 1
+        f=f/f(grd_sploc%nlat,1)
+        f0=f
+        call general_g2s0(grd_sploc,sp_loc,g,f)
+        call general_s2g0(grd_sploc,sp_loc,g,f)
+        if(mype == 0)then
+           nsigend=k
+           do kk=k+1,grd_sploc%nsig
+              if(s_ens_hv(kk,ig) /= s_ens_hv(k,ig))exit
+              nsigend=nsigend+1
+           enddo
+           write(6,900)k,nsigend,sp_loc%jcap,s_ens_hv(k,ig),maxval(abs(f0-f))
+900        format(' in init_sf_xy, jcap,s_ens_hv(',i5,1x,'-',i5,'), max diff(f0-f)=', &
+                                           i10,f10.2,e20.10)
+        end if
+
+!       correct spectrum by dividing by pn0_npole
+
+!       obtain pn0_npole
+!$omp parallel do schedule(static,1) private(n,gtemp,f)
+        do n=0,sp_loc%jcap
+           gtemp=zero
+           gtemp(2*n+1)=one
+           call general_s2g0(grd_sploc,sp_loc,gtemp,f)
+           pn0_npole=f(grd_sploc%nlat,1)
+           g(2*n+1)=g(2*n+1)/pn0_npole
+        enddo
+   
+
+!       obtain spectral_filter
+
+        ii=0
+        do l=0,sp_loc%jcap
+           if(ig>naensgrp) then
+              factor=one/g(1)
+           else
+              factor=one
+              if(l>0) factor=half
+           end if
+           do n=l,sp_loc%jcap
+              ii=ii+1
+              if(sp_loc%factsml(ii)) then
+                 spectral_filter(ig,ii,k)=zero
+              else
+                 spectral_filter(ig,ii,k)=factor*g(2*n+1)
+              end if
+              ii=ii+1
+              if(l == 0 .or. sp_loc%factsml(ii)) then
+                 spectral_filter(ig,ii,k)=zero
+              else
+                 spectral_filter(ig,ii,k)=factor*g(2*n+1)
+              end if
+           enddo
+        enddo
+     enddo level_loop
   enddo !ig loop
-  deallocate(g,gsave,pn0_npole,ksame)
+  deallocate(g,gtemp)
 
 ! Compute sqrt(spectral_filter).  Ensure spectral_filter >=0 zero
-!$omp parallel do schedule(dynamic,1) private(k,i)
+!$omp parallel do schedule(static,1) private(k,i)
   do ig=1,naensloc
      do k=1,grd_sploc%nsig
         do i=1,sp_loc%nc
-           if (spectral_filter(ig,i,k) < zero) spectral_filter(ig,i,k)=zero
+           spectral_filter(ig,i,k) = max(spectral_filter(ig,i,k),zero)
            sqrt_spectral_filter(ig,i,k) = sqrt(spectral_filter(ig,i,k))
         end do
      end do
@@ -3337,13 +3353,14 @@ subroutine sf_xy(ig,f,k_start,k_end)
   if(.not.use_localization_grid) then
 
     if(ig>naensgrp) then
+!$omp parallel do schedule(static,1) private(k,g)
        do k=k_start,k_end
           call general_g2s0(grd_ens,sp_loc,g,f(:,:,k))
           g(:)=g(:)*spectral_filter(ig,:,k_index(k))
           call general_s2g0(grd_ens,sp_loc,g,f(:,:,k))
        enddo
     else
-!$omp parallel do schedule(dynamic,1) private(k)
+!$omp parallel do schedule(static,1) private(k)
        do k=k_start,k_end
           call sfilter(grd_ens,sp_loc,spectral_filter(ig,:,k_index(k)),f(1,1,k))
        enddo
@@ -3353,6 +3370,7 @@ subroutine sf_xy(ig,f,k_start,k_end)
 
     vector=.false.
     if(ig>naensgrp) then
+!$omp parallel do schedule(static,1) private(k,g,work)
        do k=k_start,k_end
           call g_agrid2egrid(p_sploc2ens,work,f(:,:,k:k),k,k,vector(k:k))
           call general_g2s0(grd_ens,sp_loc,g,f(:,:,k))
@@ -3361,7 +3379,7 @@ subroutine sf_xy(ig,f,k_start,k_end)
           call g_egrid2agrid(p_sploc2ens,work,f(:,:,k:k),k,k,vector(k:k))
        enddo
     else
-!$omp parallel do schedule(dynamic,1) private(k,work)
+!$omp parallel do schedule(static,1) private(k,work)
        do k=k_start,k_end
           call g_egrid2agrid_ad(p_sploc2ens,work,f(:,:,k:k),k,k,vector(k:k))
           call sfilter(grd_ens,sp_loc,spectral_filter(ig,:,k_index(k)),f(1,1,k))
@@ -3421,6 +3439,7 @@ subroutine sqrt_sf_xy(ig,z,f,k_start,k_end)
 
   if(.not.use_localization_grid) then
 
+!$omp parallel do schedule(static,1) private(k,g)
     do k=k_start,k_end
        g(:)=z(:,k)*sqrt_spectral_filter(ig,:,k_index(k))
        call general_s2g0(grd_ens,sp_loc,g,f(:,:,k))
@@ -3429,6 +3448,7 @@ subroutine sqrt_sf_xy(ig,z,f,k_start,k_end)
   else
 
      vector=.false.
+!$omp parallel do schedule(static,1) private(k,g,work)
      do k=k_start,k_end
         g(:)=z(:,k)*sqrt_spectral_filter(ig,:,k_index(k))
         call general_s2g0(grd_sploc,sp_loc,g,work)
@@ -3488,6 +3508,7 @@ subroutine sqrt_sf_xy_ad(ig,z,f,k_start,k_end)
 
   if(.not.use_localization_grid) then
 
+!$omp parallel do schedule(static,1) private(k,g)
     do k=k_start,k_end
        call general_s2g0_ad(grd_ens,sp_loc,g,f(:,:,k))
        z(:,k)=g(:)*sqrt_spectral_filter(ig,:,k_index(k))
@@ -3496,6 +3517,7 @@ subroutine sqrt_sf_xy_ad(ig,z,f,k_start,k_end)
   else
 
      vector=.false.
+!$omp parallel do schedule(static,1) private(k,g,work)
      do k=k_start,k_end
         call g_egrid2agrid_ad(p_sploc2ens,work,f(:,:,k:k),k,k,vector(k:k))
         call general_s2g0_ad(grd_sploc,sp_loc,g,work)
@@ -3592,13 +3614,12 @@ subroutine bkerror_a_en(grady)
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
   use constants, only: zero
-  use gsi_4dvar, only: nsubwin, lsqrtb
+  use gsi_4dvar, only: nsubwin
   use control_vectors, only: control_vector
   use timermod, only: timer_ini,timer_fnl
   use hybrid_ensemble_parameters, only: n_ens
   use hybrid_ensemble_parameters, only: naensgrp
   use hybrid_ensemble_parameters, only: alphacvarsclgrpmat
-  use hybrid_ensemble_parameters, only: nval_lenz_en
   use gsi_bundlemod,only: gsi_bundlegetpointer
   implicit none
 
@@ -3608,12 +3629,7 @@ subroutine bkerror_a_en(grady)
 ! Declare local variables
   integer(i_kind) ii,ip,istatus,k,ig,ig2
   real(r_kind),allocatable,dimension(:,:) :: z
-  real(r_kind),allocatable,dimension(:) :: ztmp
-
-  if (lsqrtb) then
-     write(6,*)'bkerror_a_en: not for use with lsqrtb'
-     call stop2(317)
-  end if
+  real(r_kind),allocatable,dimension(:) :: z2
 
 ! Initialize timer
   call timer_ini('bkerror_a_en')
@@ -3629,33 +3645,29 @@ subroutine bkerror_a_en(grady)
   call sqrt_beta_e_mult(grady)
 
 ! Apply variances, as well as vertical & horizontal parts of background error
-  do ii=1,nsubwin
-     if (naensgrp==1) then
+  if (naensgrp==1) then
+     do ii=1,nsubwin
         call bkgcov_a_en_new_factorization(1,grady%aens(ii,1,1:n_ens))
-     else
-        allocate(z(naensgrp,nval_lenz_en))
+     end do
+  else
+     allocate(z(nval_loc_en,naensgrp))
+     allocate(z2(nval_loc_en))
+     do ii=1,nsubwin
         do ig=1,naensgrp
-           call ckgcov_a_en_new_factorization_ad(ig,z(ig,:),grady%aens(ii,ig,1:n_ens))
+           call ckgcov_a_en_new_factorization_ad(ig,z(1,ig),grady%aens(ii,ig,1:n_ens))
         enddo
-        allocate(ztmp(naensgrp))
-        do k=1,nval_lenz_en
-           ztmp=zero
-           do ig=1,naensgrp
-              do ig2=1,naensgrp
-                 ztmp(ig) = ztmp(ig) + z(ig2,k) * alphacvarsclgrpmat(ig,ig2)  
+        do ig=1,naensgrp
+           z2=zero
+           do ig2=1,naensgrp
+              do k=1,nval_loc_en
+                 z2(k) = z2(k) + z(k,ig2) * alphacvarsclgrpmat(ig,ig2)  
               enddo
            enddo
-           do ig=1,naensgrp
-              z(ig,k) = ztmp(ig)
-           enddo
+           call ckgcov_a_en_new_factorization(ig,z2,grady%aens(ii,ig,1:n_ens))
         enddo
-        deallocate(ztmp)
-        do ig=1,naensgrp
-           call ckgcov_a_en_new_factorization(ig,z(ig,:),grady%aens(ii,ig,1:n_ens))
-        enddo
-        deallocate(z)
-     endif
-  enddo
+     enddo
+     deallocate(z,z2)
+  endif
 
 !  multiply by sqrt_beta_e_mult
   call sqrt_beta_e_mult(grady)
@@ -3698,9 +3710,11 @@ subroutine bkgcov_a_en_new_factorization(ig,a_en)
   use kinds, only: r_kind,i_kind
   use gridmod, only: regional
   use hybrid_ensemble_parameters, only: n_ens,grd_loc
+  use hybrid_ensemble_parameters, only: l_mgbf_loc,naensgrp
   use general_sub2grid_mod, only: general_sub2grid,general_grid2sub
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
+  use constants, only: zero
 
   implicit none
 
@@ -3710,66 +3724,107 @@ subroutine bkgcov_a_en_new_factorization(ig,a_en)
   type(gsi_bundle),intent(inout) :: a_en(n_ens)
 
 ! Local Variables
-  integer(i_kind) ii,k,iflg,iadvance,iback,is,ie,ipnt,istatus
+  integer(i_kind) ii,k,iadvance,iback,is,ie,ipnt,istatus
   real(r_kind) hwork(grd_loc%inner_vars,grd_loc%nlat,grd_loc%nlon,grd_loc%kbegin_loc:grd_loc%kend_alloc)
   real(r_kind),allocatable,dimension(:):: a_en_work
 
-  iflg=1
+  ipnt=1
 
-  call gsi_bundlegetpointer(a_en(1),'a_en',ipnt,istatus)
-  if(istatus/=0) then
-     write(6,*)'bkgcov_a_en_new_factorization: trouble getting pointer to ensemble CV'
-     call stop2(999)
-  endif
+! MGBF-based localization (now available only in regional=.true.)
+!  (Note that MGBF is applied only in ig<=naensgrp
+!   because recursive filter is applied for ig>naensgrp
+!   to separate scales for scale-dependent localization
+!   even in MGBF-based localization)
+  if(l_mgbf_loc.and.ig<=naensgrp) then
+
+! Apply vertical smoother on each ensemble member
+     allocate(work_mgbf(obj_mgbf(1)%km_a_all,obj_mgbf(1)%nm,obj_mgbf(1)%mm))
+     work_mgbf=zero
+     iadvance=1 ; iback=2
+!$omp parallel do schedule(static,1) private(k,ii,is,ie)
+     do k=1,n_ens
+        ii=(k-1)*grd_loc%nsig
+        is=ii+1
+        ie=ii+grd_loc%nsig
+        if(.not.obj_mgbf(1)%l_vertical_filter) call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,1)
+        call map_work_mgbf(a_en(k)%r3(ipnt)%q,work_mgbf(is:ie,:,:),iadvance,1)
+     enddo
+
+! Mapping from analysis grid to filter grid
+     call obj_mgbf(1)%anal_to_filt_allmap(work_mgbf)
+
+! Apply horizontal smoother for number of horizontal scales
+     call obj_mgbf(1)%filtering_procedure(obj_mgbf(1)%mgbf_proc,0)
+
+! Mapping from filter grid to analysis grid
+     call obj_mgbf(1)%filt_to_anal_allmap(work_mgbf)
+
+! Apply vertical smoother on each ensemble member
+     iadvance=2 ; iback=1
+!$omp parallel do schedule(static,1) private(k,ii,is,ie)
+     do k=1,n_ens
+        ii=(k-1)*grd_loc%nsig
+        is=ii+1
+        ie=ii+grd_loc%nsig
+        call map_work_mgbf(a_en(k)%r3(ipnt)%q,work_mgbf(is:ie,:,:),iadvance,1)
+        if(.not.obj_mgbf(1)%l_vertical_filter) call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,1)
+     enddo
+     deallocate(work_mgbf)
+
+! Recursive/Spectral filter-based localization(ig<=naensgrp)
+! or scale-separation(ig>naensgrp)
+  else
 
 ! Apply vertical smoother on each ensemble member
 ! To avoid my having to touch the general sub2grid and grid2sub,
 ! get copy for ensemble components to work array
-  allocate(a_en_work(n_ens*a_en(1)%ndim),stat=istatus)
-  if(istatus/=0) then
-     write(6,*)'bkgcov_a_en_new_factorization: trouble in alloc(a_en_work)'
-     call stop2(999)
-  endif
-  iadvance=1 ; iback=2
-!$omp parallel do schedule(dynamic,1) private(k,ii,is,ie)
-  do k=1,n_ens
-     call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
-     ii=(k-1)*a_en(1)%ndim
-     is=ii+1
-     ie=ii+a_en(1)%ndim
-     a_en_work(is:ie)=a_en(k)%values(1:a_en(k)%ndim)
-  enddo
+     allocate(a_en_work(n_ens*a_en(1)%ndim),stat=istatus)
+     if(istatus/=0) then
+        write(6,*)'bkgcov_a_en_new_factorization: trouble in alloc(a_en_work)'
+        call stop2(999)
+     endif
+     iadvance=1 ; iback=2
+!$omp parallel do schedule(static,1) private(k,ii,is,ie)
+     do k=1,n_ens
+        call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
+        ii=(k-1)*a_en(1)%ndim
+        is=ii+1
+        ie=ii+a_en(1)%ndim
+        a_en_work(is:ie)=a_en(k)%values(1:a_en(k)%ndim)
+     enddo
 
 ! Convert from subdomain to full horizontal field distributed among processors
-  call general_sub2grid(grd_loc,a_en_work,hwork)
+     call general_sub2grid(grd_loc,a_en_work,hwork)
 
 ! Apply horizontal smoother for number of horizontal scales
-  if(regional) then
-     iadvance=1 ; iback=2
-     call new_factorization_rf_x(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
-     call new_factorization_rf_y(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
-     iadvance=2 ; iback=1
-     call new_factorization_rf_y(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
-     call new_factorization_rf_x(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
-  else
-     call sf_xy(ig,hwork,grd_loc%kbegin_loc,grd_loc%kend_loc)
-  end if
+     if(regional) then
+        iadvance=1 ; iback=2
+        call new_factorization_rf_x(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
+        call new_factorization_rf_y(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
+        iadvance=2 ; iback=1
+        call new_factorization_rf_y(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
+        call new_factorization_rf_x(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
+     else
+        call sf_xy(ig,hwork,grd_loc%kbegin_loc,grd_loc%kend_loc)
+     end if
 
 ! Put back onto subdomains
-  call general_grid2sub(grd_loc,hwork,a_en_work)
+     call general_grid2sub(grd_loc,hwork,a_en_work)
 
 ! Retrieve ensemble components from long vector
 ! Apply vertical smoother on each ensemble member
-  iadvance=2 ; iback=1
-!$omp parallel do schedule(dynamic,1) private(k,ii,is,ie)
-  do k=1,n_ens
-     ii=(k-1)*a_en(1)%ndim
-     is=ii+1
-     ie=ii+a_en(1)%ndim
-     a_en(k)%values(1:a_en(k)%ndim)=a_en_work(is:ie)
-     call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
-  enddo
-  deallocate(a_en_work)
+     iadvance=2 ; iback=1
+!$omp parallel do schedule(static,1) private(k,ii,is,ie)
+     do k=1,n_ens
+        ii=(k-1)*a_en(1)%ndim
+        is=ii+1
+        ie=ii+a_en(1)%ndim
+        a_en(k)%values(1:a_en(k)%ndim)=a_en_work(is:ie)
+        call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
+     enddo
+     deallocate(a_en_work)
+
+  endif
 
   return
 end subroutine bkgcov_a_en_new_factorization
@@ -3801,7 +3856,7 @@ subroutine ckgcov_a_en_new_factorization(ig,z,a_en)
   use constants, only: zero
   use gridmod, only: regional
   use hybrid_ensemble_parameters, only: n_ens,grd_loc
-  use hybrid_ensemble_parameters, only: nval_lenz_en
+  use hybrid_ensemble_parameters, only: l_mgbf_loc
   use general_sub2grid_mod, only: general_grid2sub
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -3811,17 +3866,23 @@ subroutine ckgcov_a_en_new_factorization(ig,z,a_en)
 ! Passed Variables
   integer(i_kind),intent(in   ) :: ig
   type(gsi_bundle),intent(inout) :: a_en(n_ens)
-  real(r_kind),dimension(nval_lenz_en),intent(in   ) :: z
+  real(r_kind),dimension(nval_loc_en),intent(in   ) :: z
+!NOTE:
+! nval_loc_en is the number of horizontally-filtered variables in the domain of each processor.
+! In MGBF-based localization, it is horizontally-local and vertically-global as
+!   nval_loc_en = nhoriz * obj_mgbf(ig)%km_all
+!      and nhoriz = ( obj_mgbf(ig)%im + obj_mgbf(ig)%hx*2 ) * ( obj_mgbf(ig)%jm + obj_mgbf(ig)%hy*2 )
+! In recursive/spectral filter-based localization, it is horizontally-global and vertically-local as
+!   nval_loc_en = nhoriz * ( grd_loc%kend_alloc - grd_loc%kbegin_loc + 1 )
+!      and nhoriz =  grd_loc%nlat     *  grd_loc%nlon     (for regional recursive filter)
+!          nhoriz = ( sp_loc%jcap+1 ) * ( sp_loc%jcap+2 ) (for global spectral filter)
+! but internal array hwork always has
+! dimension grd_loc%nlat * grd_loc%nlon * ( grd_loc%kend_alloc - grd_loc%kbegin_loc + 1 )
+! which would be used as nval_loc_en when the recursive filter is used.
 
 ! Local Variables
-  integer(i_kind) ii,k,iadvance,iback,is,ie,ipnt,istatus
+  integer(i_kind) ii,i,j,k,iadvance,iback,is,ie,ipnt,istatus
   real(r_kind) hwork(grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1))
-!NOTE:   nval_lenz_en = nhoriz*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
-!      and nhoriz = grd_loc%nlat*grd_loc%nlon for regional,
-!          nhoriz = (sp_loc%jcap+1)*(sp_loc%jcap+2) for global
-!   but internal array hwork always has
-!      dimension grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
-!    which just happens to match up with nval_lenz_en for regional case, but not global.
   real(r_kind),allocatable,dimension(:):: a_en_work
 
   call gsi_bundlegetpointer(a_en(1),'a_en',ipnt,istatus)
@@ -3830,53 +3891,90 @@ subroutine ckgcov_a_en_new_factorization(ig,z,a_en)
      call stop2(999)
   endif
 
+! MGBF-based localization (now available only in regional=.true.)
+  if(l_mgbf_loc) then
 
-  if(grd_loc%kend_loc+1-grd_loc%kbegin_loc==0) then
-!     no work to be done on this processor, but hwork still has allocated space, since
-!                     grd_loc%kend_alloc = grd_loc%kbegin_loc in this case, so set to zero.
-     hwork=zero
-  else
 ! Apply horizontal smoother for number of horizontal scales
-     if(regional) then
-! Make a copy of input variable z to hwork
-        hwork=z
-        iadvance=2 ; iback=1
-        call new_factorization_rf_y(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
-        call new_factorization_rf_x(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
-     else
-#ifdef LATER
-        call sqrt_sf_xy(ig,z,hwork,grd_loc%kbegin_loc,grd_loc%kend_loc)
-#else
-        write(6,*) ' problem with ibm compiler with "use hybrid_ensemble_isotropic, only: sqrt_sf_xy"'
-#endif /*LATER*/
-     end if
-  end if
+     ii=0
+     do k=1,obj_mgbf(ig)%km_all
+        do j=1-obj_mgbf(ig)%hy,obj_mgbf(ig)%jm+obj_mgbf(ig)%hy
+           do i=1-obj_mgbf(ig)%hx,obj_mgbf(ig)%im+obj_mgbf(ig)%hx
+              ii=ii+1
+              obj_mgbf(ig)%VALL(k,i,j)=z(ii)
+           enddo
+        enddo
+     enddo
+     call obj_mgbf(ig)%filtering_procedure(obj_mgbf(ig)%mgbf_proc,1)
 
-! Put back onto subdomains
-  allocate(a_en_work(n_ens*a_en(1)%ndim),stat=istatus)
-  if(istatus/=0) then
-     write(6,*)'ckgcov_a_en_new_factorization: trouble in alloc(a_en_work)'
-     call stop2(999)
-  endif
-  call general_grid2sub(grd_loc,hwork,a_en_work)
-
-! Retrieve ensemble components from long vector
-  ii=0
-  do k=1,n_ens
-     is=ii+1
-     ie=ii+a_en(1)%ndim
-     a_en(k)%values(1:a_en(k)%ndim)=a_en_work(is:ie)
-     ii=ii+a_en(1)%ndim
-  enddo
-  deallocate(a_en_work)
+! Mapping from filter grid to analysis grid
+     allocate(work_mgbf(obj_mgbf(ig)%km_a_all,obj_mgbf(ig)%nm,obj_mgbf(ig)%mm))
+     work_mgbf=zero
+     call obj_mgbf(ig)%filt_to_anal_allmap(work_mgbf)
 
 ! Apply vertical smoother on each ensemble member
-  do k=1,n_ens
-
      iadvance=2 ; iback=1
-     call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
+!$omp parallel do schedule(static,1) private(k,ii,is,ie)
+     do k=1,n_ens
+        ii=(k-1)*grd_loc%nsig
+        is=ii+1
+        ie=ii+grd_loc%nsig
+        call map_work_mgbf(a_en(k)%r3(ipnt)%q,work_mgbf(is:ie,:,:),iadvance,ig)
+        if(.not.obj_mgbf(ig)%l_vertical_filter) call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
+     enddo
+     deallocate(work_mgbf)
 
-  enddo
+! Recursive/Spectral filter-based localization
+  else
+
+     if(grd_loc%kend_loc+1-grd_loc%kbegin_loc==0) then
+!     no work to be done on this processor, but hwork still has allocated space, since
+!                     grd_loc%kend_alloc = grd_loc%kbegin_loc in this case, so set to zero.
+        hwork=zero
+     else
+! Apply horizontal smoother for number of horizontal scales
+        if(regional) then
+! Make a copy of input variable z to hwork
+           hwork=z
+           iadvance=2 ; iback=1
+           call new_factorization_rf_y(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
+           call new_factorization_rf_x(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
+        else
+#ifdef LATER
+           call sqrt_sf_xy(ig,z,hwork,grd_loc%kbegin_loc,grd_loc%kend_loc)
+#else
+           write(6,*) ' problem with ibm compiler with "use hybrid_ensemble_isotropic, only: sqrt_sf_xy"'
+#endif /*LATER*/
+        end if
+     end if
+
+! Put back onto subdomains
+     allocate(a_en_work(n_ens*a_en(1)%ndim),stat=istatus)
+     if(istatus/=0) then
+        write(6,*)'ckgcov_a_en_new_factorization: trouble in alloc(a_en_work)'
+        call stop2(999)
+     endif
+     call general_grid2sub(grd_loc,hwork,a_en_work)
+
+! Retrieve ensemble components from long vector
+     ii=0
+     do k=1,n_ens
+        is=ii+1
+        ie=ii+a_en(1)%ndim
+        a_en(k)%values(1:a_en(k)%ndim)=a_en_work(is:ie)
+        ii=ii+a_en(1)%ndim
+     enddo
+     deallocate(a_en_work)
+
+! Apply vertical smoother on each ensemble member
+     iadvance=2 ; iback=1
+!$omp parallel do schedule(static,1) private(k)
+     do k=1,n_ens
+
+        call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
+
+     enddo
+
+  endif
 
   return
 end subroutine ckgcov_a_en_new_factorization
@@ -3913,7 +4011,7 @@ subroutine ckgcov_a_en_new_factorization_ad(ig,z,a_en)
   use constants, only: zero
   use gridmod, only: regional
   use hybrid_ensemble_parameters, only: n_ens,grd_loc
-  use hybrid_ensemble_parameters, only: nval_lenz_en
+  use hybrid_ensemble_parameters, only: l_mgbf_loc
   use general_sub2grid_mod, only: general_sub2grid
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
@@ -3923,17 +4021,23 @@ subroutine ckgcov_a_en_new_factorization_ad(ig,z,a_en)
 ! Passed Variables
   integer(i_kind),intent(in   ) :: ig
   type(gsi_bundle),intent(inout) :: a_en(n_ens)
-  real(r_kind),dimension(nval_lenz_en),intent(inout) :: z
+  real(r_kind),dimension(nval_loc_en),intent(inout) :: z
+!NOTE:
+! nval_loc_en is the number of horizontally-filtered variables in the domain of each processor.
+! In MGBF-based localization, it is horizontally-local and vertically-global as
+!   nval_loc_en = nhoriz * obj_mgbf(ig)%km_all
+!      and nhoriz = ( obj_mgbf(ig)%im + obj_mgbf(ig)%hx*2 ) * ( obj_mgbf(ig)%jm + obj_mgbf(ig)%hy*2 )
+! In recursive/spectral filter-based localization, it is horizontally-global and vertically-local as
+!   nval_loc_en = nhoriz * ( grd_loc%kend_alloc - grd_loc%kbegin_loc + 1 )
+!      and nhoriz =  grd_loc%nlat     *  grd_loc%nlon     (for regional recursive filter)
+!          nhoriz = ( sp_loc%jcap+1 ) * ( sp_loc%jcap+2 ) (for global spectral filter)
+! but internal array hwork always has
+! dimension grd_loc%nlat * grd_loc%nlon * ( grd_loc%kend_alloc - grd_loc%kbegin_loc + 1 )
+! which would be used as nval_loc_en when the recursive filter is used.
 
 ! Local Variables
-  integer(i_kind) ii,k,iadvance,iback,is,ie,ipnt,istatus
+  integer(i_kind) ii,i,j,k,iadvance,iback,is,ie,ipnt,istatus
   real(r_kind) hwork(grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1))
-!NOTE:   nval_lenz_en = nhoriz*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
-!      and nhoriz = grd_loc%nlat*grd_loc%nlon for regional,
-!          nhoriz = (sp_loc%jcap+1)*(sp_loc%jcap+2) for global
-!   but internal array hwork always has
-!      dimension grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
-!    which just happens to match up with nval_lenz_en for regional case, but not global.
   real(r_kind),allocatable,dimension(:):: a_en_work
 
   call gsi_bundlegetpointer(a_en(1),'a_en',ipnt,istatus)
@@ -3942,51 +4046,158 @@ subroutine ckgcov_a_en_new_factorization_ad(ig,z,a_en)
      call stop2(999)
   endif
 
-! Apply vertical smoother on each ensemble member
-  do k=1,n_ens
+! MGBF-based localization (now available only in regional=.true.)
+  if(l_mgbf_loc) then
 
+! Apply vertical smoother on each ensemble member
+     allocate(work_mgbf(obj_mgbf(ig)%km_a_all,obj_mgbf(ig)%nm,obj_mgbf(ig)%mm))
+     work_mgbf=zero
      iadvance=1 ; iback=2
-     call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
- 
-  enddo
+!$omp parallel do schedule(static,1) private(k,ii,is,ie)
+     do k=1,n_ens
+        ii=(k-1)*grd_loc%nsig
+        is=ii+1
+        ie=ii+grd_loc%nsig
+        if(.not.obj_mgbf(ig)%l_vertical_filter) call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
+        call map_work_mgbf(a_en(k)%r3(ipnt)%q,work_mgbf(is:ie,:,:),iadvance,ig)
+     enddo
+
+! Mapping from analysis grid to filter grid
+     call obj_mgbf(ig)%anal_to_filt_allmap(work_mgbf)
+     deallocate(work_mgbf)
+
+! Apply horizontal smoother for number of horizontal scales
+     call obj_mgbf(ig)%filtering_procedure(obj_mgbf(ig)%mgbf_proc,-1)
+     ii=0
+     do k=1,obj_mgbf(ig)%km_all
+        do j=1-obj_mgbf(ig)%hy,obj_mgbf(ig)%jm+obj_mgbf(ig)%hy
+           do i=1-obj_mgbf(ig)%hx,obj_mgbf(ig)%im+obj_mgbf(ig)%hx
+              ii=ii+1
+              z(ii)=obj_mgbf(ig)%VALL(k,i,j)
+           enddo
+        enddo
+     enddo
+
+! Recursive/Spectral filter-based localization
+  else
+
+! Apply vertical smoother on each ensemble member
+     iadvance=1 ; iback=2
+!$omp parallel do schedule(static,1) private(k)
+     do k=1,n_ens
+
+        call new_factorization_rf_z(a_en(k)%r3(ipnt)%q,iadvance,iback,ig)
+
+     enddo
 
 ! To avoid my having to touch the general sub2grid and grid2sub,
 ! get copy for ensemble components to work array
-  allocate(a_en_work(n_ens*a_en(1)%ndim),stat=istatus)
-  if(istatus/=0) then
-     write(6,*)'ckgcov_a_en_new_factorization_ad: trouble in alloc(a_en_work)'
-     call stop2(999)
-  endif
-  ii=0
-  do k=1,n_ens
-     is=ii+1
-     ie=ii+a_en(1)%ndim
-     a_en_work(is:ie)=a_en(k)%values(1:a_en(k)%ndim)
-     ii=ii+a_en(1)%ndim
-  enddo
+     allocate(a_en_work(n_ens*a_en(1)%ndim),stat=istatus)
+     if(istatus/=0) then
+        write(6,*)'ckgcov_a_en_new_factorization_ad: trouble in alloc(a_en_work)'
+        call stop2(999)
+     endif
+     ii=0
+     do k=1,n_ens
+        is=ii+1
+        ie=ii+a_en(1)%ndim
+        a_en_work(is:ie)=a_en(k)%values(1:a_en(k)%ndim)
+        ii=ii+a_en(1)%ndim
+     enddo
 
 ! Convert from subdomain to full horizontal field distributed among processors
-  call general_sub2grid(grd_loc,a_en_work,hwork)
-  deallocate(a_en_work)
+     call general_sub2grid(grd_loc,a_en_work,hwork)
+     deallocate(a_en_work)
 
-  if(grd_loc%kend_loc+1-grd_loc%kbegin_loc==0) then
+     if(grd_loc%kend_loc+1-grd_loc%kbegin_loc==0) then
 !     no work to be done on this processor, but z still has allocated space, since
 !                     grd_loc%kend_alloc = grd_loc%kbegin_loc in this case, so set to zero.
-     z=zero
-  else
-! Apply horizontal smoother for number of horizontal scales
-     if(regional) then
-        iadvance=1 ; iback=2
-        call new_factorization_rf_x(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
-        call new_factorization_rf_y(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
-        z=hwork
+        z=zero
      else
-        call sqrt_sf_xy_ad(ig,z,hwork,grd_loc%kbegin_loc,grd_loc%kend_loc)
+! Apply horizontal smoother for number of horizontal scales
+        if(regional) then
+           iadvance=1 ; iback=2
+           call new_factorization_rf_x(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
+           call new_factorization_rf_y(hwork,iadvance,iback,grd_loc%kend_loc+1-grd_loc%kbegin_loc,ig)
+           z=hwork
+        else
+           call sqrt_sf_xy_ad(ig,z,hwork,grd_loc%kbegin_loc,grd_loc%kend_loc)
+        end if
      end if
-  end if
+
+  endif
 
   return
 end subroutine ckgcov_a_en_new_factorization_ad
+
+subroutine map_work_mgbf(f,g,iadvance,ig)
+!$$$  subprogram documentation block
+!                .      .    .
+! subprogram:    map_work_mgbf
+!   prgrmmr:  yokota         org: NCEP/EMC                          date: 2024-02-20
+!
+! abstract:  mapping field for MGBF
+!
+! program history log:
+!
+!   input argument list:
+!     f        - field to be filtered
+!     g        - field for MGBF
+!     iadvance - =1  to map from f to g, =2 to map from g to f
+!     ig       - number for smoothing scales
+!
+!   output argument list:
+!     f        - field to be filtered
+!     g        - field for MGBF
+!
+! attributes:
+!   language:  f90
+!   machine:   ibm RS/6000 SP
+!
+!$$$ end documentation block
+
+  use constants, only: zero
+  use hybrid_ensemble_parameters, only: grd_loc
+  implicit none
+
+  integer(i_kind),intent(in   ) :: iadvance,ig
+  real(r_kind)   ,intent(inout) :: f(grd_loc%lat2,grd_loc%lon2,grd_loc%nsig)
+  real(r_kind)   ,intent(inout) :: g(grd_loc%nsig,obj_mgbf(ig)%nm,obj_mgbf(ig)%mm)
+
+  real(r_kind) :: work_tmp(grd_loc%lon2,grd_loc%lat2)
+  integer(i_kind) i,j,k
+
+  if(iadvance == 1) then
+     do k=1,grd_loc%nsig
+        do j=1,grd_loc%lat2
+           do i=1,grd_loc%lon2
+              work_tmp(i,j)=f(j,i,k)
+           enddo
+        enddo
+        do j=1,obj_mgbf(ig)%mm
+           do i=1,obj_mgbf(ig)%nm
+              g(k,i,j)=work_tmp(i+1,j+1)
+           enddo
+        enddo
+     enddo
+  elseif(iadvance == 2) then
+     do k=1,grd_loc%nsig
+        work_tmp=zero
+        do j=1,obj_mgbf(ig)%mm
+           do i=1,obj_mgbf(ig)%nm
+              work_tmp(i+1,j+1)=g(k,i,j)
+           enddo
+        enddo
+        do j=1,grd_loc%lat2
+           do i=1,grd_loc%lon2
+              f(j,i,k)=work_tmp(i,j)
+           enddo
+        enddo
+     enddo
+  endif
+  return
+
+end subroutine map_work_mgbf
 
 ! ------------------------------------------------------------------------------
 ! ------------------------------------------------------------------------------
@@ -4004,7 +4215,8 @@ subroutine hybens_grid_setup
 !   2010-02-20  parrish, adapt for dual resolution
 !   2011-01-30  parrish, fix so regional application depends only on parameters regional
 !                  and dual_res.  Rename subroutine get_regional_gefs_grid to get_regional_dual_res_grid.
-!
+! 
+!   2022-03-01  X.Lu & X.Wang - add vars for hafs dual ens.  POC: xuguang.wang@ou.edu
 !   input argument list:
 !
 !   output argument list:
@@ -4029,6 +4241,9 @@ subroutine hybens_grid_setup
   use constants, only: zero,one
   use control_vectors, only: cvars3d,nc2d,nc3d
   use gridmod, only: region_lat,region_lon,region_dx,region_dy
+  use hybrid_ensemble_parameters, only:nsclgrp,spc_multwgt,spcwgt_params,global_spectral_filter_sd
+  use hybrid_ensemble_parameters, only:regional_ensemble_option
+  use gsi_rfv3io_mod,only:gsi_rfv3io_get_ens_grid_specs
 
   implicit none
 
@@ -4037,6 +4252,8 @@ subroutine hybens_grid_setup
   logical,allocatable::vector(:)
   real(r_kind) eps,r_e
   real(r_kind) rlon_a(nlon),rlat_a(nlat),rlon_e(nlon),rlat_e(nlat)
+  character(:),allocatable:: fv3_ens_spec_grid_filename
+  integer :: ierr
 
   nord_e2a=4       !   soon, move this to hybrid_ensemble_parameters
 
@@ -4080,8 +4297,8 @@ subroutine hybens_grid_setup
         region_lat_ens=region_lat
      end if
   end if
-                 if(mype==0) write(6,*)' dual_res,nlat,nlon,nlat_ens,nlon_ens,r_e,eps=',&
-                                                     dual_res,nlat,nlon,nlat_ens,nlon_ens,r_e,eps
+  if(mype==0) write(6,*)' dual_res,nlat,nlon,nlat_ens,nlon_ens,r_e,eps=',&
+                               dual_res,nlat,nlon,nlat_ens,nlon_ens,r_e,eps
 
   if(nlon_ens<=0 .or. nlat_ens<=0) then
      nlon_ens=nlon ; nlat_ens=nlat
@@ -4123,10 +4340,36 @@ subroutine hybens_grid_setup
   else
      if(dual_res) then
         call get_region_dx_dy_ens(region_dx_ens,region_dy_ens)
+        if(regional_ensemble_option == 5) then
+           fv3_ens_spec_grid_filename="fv3_ens_grid_spec"
+           call gsi_rfv3io_get_ens_grid_specs(fv3_ens_spec_grid_filename,ierr)
+        endif
      else
         region_dx_ens=region_dx
         region_dy_ens=region_dy
      end if
+  end if
+
+  if(global_spectral_filter_sd .and. nsclgrp > 1)then
+     allocate(spc_multwgt(sp_ens%nc,nsclgrp))
+     allocate(spcwgt_params(4,nsclgrp))
+     spc_multwgt=1.0
+
+     ! The below parameters are used in Huang et al. (2021, MWR)
+     spcwgt_params(1,1)=4000.0_r_kind
+     spcwgt_params(2,1)=100000000.0_r_kind
+     spcwgt_params(3,1)=1.0_r_kind
+     spcwgt_params(4,1)=3000.0_r_kind
+
+     if( nsclgrp >=3 )then
+       spcwgt_params(1,3)=0.0_r_kind
+       spcwgt_params(2,3)=500.0_r_kind
+       spcwgt_params(3,3)=1.0_r_kind
+       spcwgt_params(4,3)=500.0_r_kind
+     end if
+
+     call init_mult_spc_wgts(jcap_ens)
+
   end if
 
   return
@@ -4148,6 +4391,8 @@ subroutine hybens_localization_setup
 !   2012-10-16  wu - only call setup_ens_wgt if necessary
 !   2014-05-22  wu  modification to allow vertically varying localization scales in regional
 !   2022-09-15  yokota - add scale/variable/time-dependent localization
+!   2022-12-09  Y. Wang and X. Wang - add a variable-dependent localization option (assign_vdl_nml=.true.),
+!                                     poc: xuguang.wang@ou.edu
 !
 !   input argument list:
 !
@@ -4168,9 +4413,12 @@ subroutine hybens_localization_setup
    use hybrid_ensemble_parameters, only: readin_beta,beta_s,beta_e,beta_s0,beta_e0,sqrt_beta_s,sqrt_beta_e
    use hybrid_ensemble_parameters, only: readin_localization,create_hybens_localization_parameters, &
                                          vvlocal,s_ens_h,s_ens_hv,s_ens_v,s_ens_vv
-   use hybrid_ensemble_parameters, only: ntotensgrp,naensgrp,naensloc,ntlevs_ens,nsclgrp
-   use hybrid_ensemble_parameters, only: en_perts
+   use hybrid_ensemble_parameters, only: ntotensgrp,naensgrp,naensloc,ntlevs_ens,nsclgrp,assign_vdl_nml
+   use hybrid_ensemble_parameters, only: en_perts,vdl_scale,vloc_varlist,global_spectral_filter_sd
+   use hybrid_ensemble_parameters, only: ngvarloc
+   use hybrid_ensemble_parameters, only: l_mgbf_loc
    use gsi_io, only: verbose
+   use string_utility, only: StrLowCase
 
    implicit none
 
@@ -4183,9 +4431,12 @@ subroutine hybens_localization_setup
    real(r_kind),allocatable:: s_ens_h_gu_x(:,:),s_ens_h_gu_y(:,:)
    logical :: l_read_success
    type(gsi_bundle) :: a_en(n_ens)
+   type(gsi_bundle),allocatable :: en_pertstmp(:,:),en_pertstmp1(:,:)
    type(gsi_grid)  :: grid_ens
    real(r_kind), pointer :: values(:) => NULL()
+   integer(i_kind) :: iscl, iv, smooth_scales_num
    character(len=*),parameter::myname_=myname//'*hybens_localization_setup'
+   character(len=40) :: mgbfname='mgbf_locXX.nml'
 
    l_read_success=.false.
    print_verbose=.false. .and. mype == 0
@@ -4245,9 +4496,8 @@ subroutine hybens_localization_setup
          vvlocal = .true.
          nz = msig
          kl = grd_loc%kend_alloc-grd_loc%kbegin_loc+1
-         if(.not.allocated(s_ens_h_gu_x)) allocate(s_ens_h_gu_x(grd_loc%nsig*n_ens,naensloc))
-         if(.not.allocated(s_ens_h_gu_y)) allocate(s_ens_h_gu_y(grd_loc%nsig*n_ens,naensloc))
       endif
+
 
    endif ! if ( readin_localization .or. readin_beta )
 
@@ -4276,8 +4526,6 @@ subroutine hybens_localization_setup
    if ( .not. readin_localization ) then ! assign all levels to same value, s_ens_h, s_ens_v
       nz = 1
       kl = 1
-      if(.not.allocated(s_ens_h_gu_x)) allocate(s_ens_h_gu_x(1,naensloc))
-      if(.not.allocated(s_ens_h_gu_y)) allocate(s_ens_h_gu_y(1,naensloc))
       do ig=1,naensloc
          s_ens_hv(:,ig) = s_ens_h(ig)
          s_ens_vv(:,ig) = s_ens_v(ig)
@@ -4290,29 +4538,46 @@ subroutine hybens_localization_setup
    call normal_new_factorization_rf_z
 
    if ( regional ) then ! convert s_ens_h from km to grid units.
-      if ( vvlocal ) then
-         call convert_km_to_grid_units(s_ens_h_gu_x(1:nz,:),s_ens_h_gu_y(1:nz,:),nz)
-         do n=2,n_ens
-            nk=(n-1)*nz
-            do k=1,nz
-               s_ens_h_gu_x(nk+k,:)=s_ens_h_gu_x(k,:)
-               s_ens_h_gu_y(nk+k,:)=s_ens_h_gu_y(k,:)
-            enddo
+      if ( l_mgbf_loc ) then
+         allocate(obj_mgbf(naensgrp))
+         do ig=1,naensgrp
+            write(mgbfname(9:10),'(i2.2)') ig
+            call obj_mgbf(ig)%mg_initialize(trim(mgbfname))
          enddo
-         call init_rf_x(s_ens_h_gu_x(grd_loc%kbegin_loc:grd_loc%kend_alloc,:),kl)
-         call init_rf_y(s_ens_h_gu_y(grd_loc%kbegin_loc:grd_loc%kend_alloc,:),kl)
-      else
-         call convert_km_to_grid_units(s_ens_h_gu_x,s_ens_h_gu_y,nz)
-         call init_rf_x(s_ens_h_gu_x,kl)
-         call init_rf_y(s_ens_h_gu_y,kl)
       endif
-      call normal_new_factorization_rf_x
-      call normal_new_factorization_rf_y
+      ! Even for MGBF-localization, recursive filter is applied for scale-separation
+      ! in scale-dependent localization, so init_rf_[xy] should be called in nsclgrp>1
+      if( .not. l_mgbf_loc .or. nsclgrp > 1 ) then
+         if ( vvlocal ) then
+            allocate(s_ens_h_gu_x(grd_loc%nsig*n_ens,naensloc))
+            allocate(s_ens_h_gu_y(grd_loc%nsig*n_ens,naensloc))
+            call convert_km_to_grid_units(s_ens_h_gu_x(1:nz,:),s_ens_h_gu_y(1:nz,:),nz)
+            do n=2,n_ens
+               nk=(n-1)*nz
+               do k=1,nz
+                  s_ens_h_gu_x(nk+k,:)=s_ens_h_gu_x(k,:)
+                  s_ens_h_gu_y(nk+k,:)=s_ens_h_gu_y(k,:)
+               enddo
+            enddo
+            call init_rf_x(s_ens_h_gu_x(grd_loc%kbegin_loc:grd_loc%kend_alloc,:),kl)
+            call init_rf_y(s_ens_h_gu_y(grd_loc%kbegin_loc:grd_loc%kend_alloc,:),kl)
+         else
+            allocate(s_ens_h_gu_x(1,naensloc))
+            allocate(s_ens_h_gu_y(1,naensloc))
+            call convert_km_to_grid_units(s_ens_h_gu_x,s_ens_h_gu_y,nz)
+            call init_rf_x(s_ens_h_gu_x,kl)
+            call init_rf_y(s_ens_h_gu_y,kl)
+         endif
+         call normal_new_factorization_rf_x
+         call normal_new_factorization_rf_y
+         deallocate(s_ens_h_gu_x)
+         deallocate(s_ens_h_gu_y)
+      endif
    else
       call init_sf_xy(jcap_ens)
    endif
 
-   if(ntotensgrp>1) then
+   if(ntotensgrp>1 .and. (.not. global_spectral_filter_sd)) then
       call gsi_bundlegetpointer(en_perts(1,1,1),cvars3d,ipc3d,istatus)
       if(istatus/=0) then
          write(6,*) myname_,': cannot find 3d pointers'
@@ -4326,64 +4591,162 @@ subroutine hybens_localization_setup
       if(nsclgrp>1) then
          call gsi_gridcreate(grid_ens,grd_ens%lat2,grd_ens%lon2,grd_ens%nsig)
          allocate(values(grd_ens%latlon11*grd_ens%nsig*n_ens))
-         do ig=1,nsclgrp-1
-            ii=0
-            do n=1,n_ens
-               a_en(n)%values => values(ii+1:ii+grd_ens%latlon11*grd_ens%nsig)
-               call gsi_bundleset(a_en(n),grid_ens,'Ensemble Bundle',istatus,names3d=(/'a_en'/),bundle_kind=r_kind)
-               if (istatus/=0) then
-                  write(6,*) myname_,': error alloc(ensemble bundle)'
-                  call stop2(999)
-               endif
-               ii=ii+grd_ens%latlon11*grd_ens%nsig
-            enddo
-            do m=1,ntlevs_ens
+         if( .not. assign_vdl_nml )then
+            do ig=1,nsclgrp-1
+               ii=0
                do n=1,n_ens
-                  en_perts(n,ig+1,m)%valuesr4=en_perts(n,ig,m)%valuesr4
+                  a_en(n)%values => values(ii+1:ii+grd_ens%latlon11*grd_ens%nsig)
+                  call gsi_bundleset(a_en(n),grid_ens,'Ensemble Bundle',istatus,names3d=(/'a_en'/),bundle_kind=r_kind)
+                  if (istatus/=0) then
+                     write(6,*) myname_,': error alloc(ensemble bundle)'
+                     call stop2(999)
+                  endif
+                  ii=ii+grd_ens%latlon11*grd_ens%nsig
                enddo
-               do ic3=1,nc3d
-                  ipic=ipc3d(ic3)
+               do m=1,ntlevs_ens
                   do n=1,n_ens
-                     do k=1,grd_ens%nsig
-                        a_en(n)%r3(1)%q(:,:,k)=en_perts(n,ig,m)%r3(ipic)%qr4(:,:,k)
+                     en_perts(n,ig+1,m)%valuesr4=en_perts(n,ig,m)%valuesr4
+                  enddo
+                  do ic3=1,nc3d
+                     ipic=ipc3d(ic3)
+                     do n=1,n_ens
+                        do k=1,grd_ens%nsig
+                           a_en(n)%r3(1)%q(:,:,k)=en_perts(n,ig,m)%r3(ipic)%qr4(:,:,k)
+                        enddo
+                     enddo
+                     call bkgcov_a_en_new_factorization(naensgrp+ig,a_en)
+                     do n=1,n_ens
+                        do k=1,grd_ens%nsig
+                           en_perts(n,ig,m)%r3(ipic)%qr4(:,:,k)=a_en(n)%r3(1)%q(:,:,k)
+                        enddo
                      enddo
                   enddo
-                  call bkgcov_a_en_new_factorization(naensgrp+ig,a_en)
-                  do n=1,n_ens
-                     do k=1,grd_ens%nsig
-                        en_perts(n,ig,m)%r3(ipic)%qr4(:,:,k)=a_en(n)%r3(1)%q(:,:,k)
+                  do ic2=1,nc2d
+                     ipic=ipc2d(ic2)
+                     do n=1,n_ens
+                        do k=1,grd_ens%nsig
+                           a_en(n)%r3(1)%q(:,:,k)=en_perts(n,ig,m)%r2(ipic)%qr4(:,:)
+                        enddo
+                     enddo
+                     call bkgcov_a_en_new_factorization(naensgrp+ig,a_en)
+                     do n=1,n_ens
+                        en_perts(n,ig,m)%r2(ipic)%qr4(:,:)=a_en(n)%r3(1)%q(:,:,1)
                      enddo
                   enddo
-               enddo
-               do ic2=1,nc2d
-                  ipic=ipc2d(ic2)
                   do n=1,n_ens
-                     do k=1,grd_ens%nsig
-                        a_en(n)%r3(1)%q(:,:,k)=en_perts(n,ig,m)%r2(ipic)%qr4(:,:)
-                     enddo
-                  enddo
-                  call bkgcov_a_en_new_factorization(naensgrp+ig,a_en)
-                  do n=1,n_ens
-                     en_perts(n,ig,m)%r2(ipic)%qr4(:,:)=a_en(n)%r3(1)%q(:,:,1)
+                     en_perts(n,ig+1,m)%valuesr4=en_perts(n,ig+1,m)%valuesr4-en_perts(n,ig,m)%valuesr4
                   enddo
                enddo
                do n=1,n_ens
-                  en_perts(n,ig+1,m)%valuesr4=en_perts(n,ig+1,m)%valuesr4-en_perts(n,ig,m)%valuesr4
+                  call gsi_bundleunset(a_en(n),istatus)
                enddo
             enddo
-            do n=1,n_ens
-               call gsi_bundleunset(a_en(n),istatus)
+         else ! assign_vdl_nml
+            smooth_scales_num = naensloc - naensgrp
+            ngvarloc = 1 ! forced to 1 in this option
+            allocate(en_pertstmp(n_ens,ntlevs_ens))
+            allocate(en_pertstmp1(n_ens,ntlevs_ens))
+            do n = 1, n_ens
+              do m = 1, ntlevs_ens
+                 call gsi_bundlecreate(en_pertstmp(n,m),grid_ens,'ensemble2',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_single)
+                 call gsi_bundlecreate(en_pertstmp1(n,m),grid_ens,'ensemble1',istatus,names2d=cvars2d,names3d=cvars3d,bundle_kind=r_single)
+              end do
+            end do
+            ig = 1
+            do iscl=1,smooth_scales_num + 1
+               ii=0
+               do n=1,n_ens
+                  a_en(n)%values => values(ii+1:ii+grd_ens%latlon11*grd_ens%nsig)
+                  call gsi_bundleset(a_en(n),grid_ens,'Ensemble Bundle',istatus,names3d=(/'a_en'/),bundle_kind=r_kind)
+                  if (istatus/=0) then
+                     write(6,*) myname_,': error alloc(ensemble bundle)'
+                     call stop2(999)
+                  endif
+                  ii=ii+grd_ens%latlon11*grd_ens%nsig
+               enddo
+           
+               do m=1,ntlevs_ens
+                  if( ig == 1 )then
+                    do n=1,n_ens
+                       en_pertstmp(n,m)%valuesr4=en_perts(n,ig,m)%valuesr4
+                    enddo
+                  end if
+                  do ic3=1,nc3d
+                     ipic=ipc3d(ic3)
+                     do n=1,n_ens
+                        do k=1,grd_ens%nsig
+                           a_en(n)%r3(1)%q(:,:,k)=en_pertstmp(n,m)%r3(ipic)%qr4(:,:,k)
+                        enddo
+                     enddo
+                     if(iscl <= smooth_scales_num) call bkgcov_a_en_new_factorization(naensgrp+iscl,a_en)
+                     do n=1,n_ens
+                        do k=1,grd_ens%nsig
+                           en_pertstmp1(n,m)%r3(ipic)%qr4(:,:,k)=a_en(n)%r3(1)%q(:,:,k)
+                           if( vdl_scale(ig) == 0 )then
+                              en_perts(n,ig,m)%r3(ipic)%qr4(:,:,k)=a_en(n)%r3(1)%q(:,:,k)
+                           else  ! VDL is activated
+                             do iv = 1, vdl_scale(ig)
+                                en_perts(n,ig+iv-1,m)%r3(ipic)%qr4(:,:,k)=0.0_r_single
+                                if( any( trim(StrLowCase(cvars3d(ic3))) == vloc_varlist(ig+iv-1,:) ) ) then
+                                   en_perts(n,ig+iv-1,m)%r3(ipic)%qr4(:,:,k)=a_en(n)%r3(1)%q(:,:,k)
+                                end if
+                             end do
+                           end if
+                        enddo
+                     enddo
+                  enddo
+                  do ic2=1,nc2d
+                     ipic=ipc2d(ic2)
+                     do n=1,n_ens
+                        do k=1,grd_ens%nsig
+                           a_en(n)%r3(1)%q(:,:,k)=en_pertstmp(n,m)%r2(ipic)%qr4(:,:)
+                        enddo
+                     enddo
+                     if(iscl <= smooth_scales_num) call bkgcov_a_en_new_factorization(naensgrp+iscl,a_en)
+                     do n=1,n_ens
+                       en_pertstmp1(n,m)%r2(ipic)%qr4(:,:)=a_en(n)%r3(1)%q(:,:,1)
+                       if( vdl_scale(ig) == 0 )then
+                          en_perts(n,ig,m)%r2(ipic)%qr4(:,:)=a_en(n)%r3(1)%q(:,:,1)
+                       else  ! VDL is activated
+                          do iv = 1, vdl_scale(ig)
+                             en_perts(n,ig+iv-1,m)%r2(ipic)%qr4(:,:)=0.0_r_single
+                             if( any( trim(StrLowCase(cvars2d(ic2)))  == vloc_varlist(ig+iv-1,:) ) ) then
+                                en_perts(n,ig+iv-1,m)%r2(ipic)%qr4(:,:)=a_en(n)%r3(1)%q(:,:,1)
+                             end if
+                          end do
+                       end if
+                     enddo
+                  enddo
+                  do n=1,n_ens
+                     en_pertstmp(n,m)%valuesr4=en_pertstmp(n,m)%valuesr4-en_pertstmp1(n,m)%valuesr4
+                  enddo
+               enddo
+               do n=1,n_ens
+                  call gsi_bundleunset(a_en(n),istatus)
+               enddo
+               if( vdl_scale(ig) == 0 )then
+                  ig = ig + 1
+               else
+                  ig = ig + vdl_scale(ig)
+               end if
             enddo
-         enddo
-         deallocate(values)
-      endif
-      do ig=nsclgrp+1,ntotensgrp
-         do m=1,ntlevs_ens
             do n=1,n_ens
-               en_perts(n,ig,m)%valuesr4=en_perts(n,ig-nsclgrp,m)%valuesr4
-            enddo
-         enddo
-      enddo
+              do m=1,ntlevs_ens
+                 call gsi_bundledestroy(en_pertstmp(n,m),istatus)
+                 call gsi_bundledestroy(en_pertstmp1(n,m),istatus)
+              end do
+            end do
+            deallocate(en_pertstmp,en_pertstmp1)
+          end if
+          deallocate(values)
+       endif
+       do ig=nsclgrp+1,ntotensgrp
+          do m=1,ntlevs_ens
+             do n=1,n_ens
+                en_perts(n,ig,m)%valuesr4=en_perts(n,ig-nsclgrp,m)%valuesr4
+             enddo
+          enddo
+       enddo
    endif
 
    !!!!!!!! setup beta_s, beta_e!!!!!!!!!!!!
@@ -4400,6 +4763,16 @@ subroutine hybens_localization_setup
       nval_lenz_en = grd_loc%nlat*grd_loc%nlon*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
    else
       nval_lenz_en = sp_loc%nc*(grd_loc%kend_alloc-grd_loc%kbegin_loc+1)
+   endif
+   ! nval_loc_en is the number of horizontally-filtered variables in the domain of each processor,
+   ! which is the same as nval_lenz_en (horizontally-global and vertically-local) in recursive/spectral filter
+   ! but horizontally-local and vertically-global in MGBF.
+   if ( l_mgbf_loc ) then
+      nval_loc_en = maxval( obj_mgbf(1:naensgrp)%km_all &
+           & * (obj_mgbf(1:naensgrp)%im + obj_mgbf(1:naensgrp)%hx*2) &
+           & * (obj_mgbf(1:naensgrp)%jm + obj_mgbf(1:naensgrp)%hy*2) )
+   else
+      nval_loc_en = nval_lenz_en
    endif
 
    ! setup vertical weighting for ensemble contribution to psfc
@@ -5314,6 +5687,7 @@ subroutine acceptable_for_essl_fft(nin,nout)
       nout=n_acceptable_table(i)
       if(nout.ge.nin) exit
     enddo
+    deallocate(n_acceptable_table)
     return
 
 end subroutine acceptable_for_essl_fft
@@ -5428,7 +5802,7 @@ subroutine setup_ensgrp2aensgrp
 !
 !$$$ end documentation block
   use constants, only: zero,one
-  use hybrid_ensemble_parameters, only: l_timloc_opt,i_ensloccov4tim,i_ensloccov4var,i_ensloccov4scl
+  use hybrid_ensemble_parameters, only: l_timloc_opt,r_ensloccov4tim,r_ensloccov4var,r_ensloccov4scl
   use hybrid_ensemble_parameters, only: ensloccov4tim,ensloccov4var,ensloccov4scl
   use hybrid_ensemble_parameters, only: ntotensgrp,naensgrp,ntlevs_ens,nsclgrp,ngvarloc
   use hybrid_ensemble_parameters, only: ensgrp2aensgrp
@@ -5471,33 +5845,12 @@ subroutine setup_ensgrp2aensgrp
      enddo
   enddo
 
-  if (i_ensloccov4tim==0) then
-     ensloccov4tim=one
-  elseif (i_ensloccov4tim==1)then
-     ensloccov4tim=zero
-     ensloccov4tim(1)=one
-  else
-     write(6,*)'setup_ensgrp2aensgrp: wrong i_ensloccov4tim'
-     call stop2(666)
-  endif
-  if (i_ensloccov4var==0) then
-     ensloccov4var=one
-  elseif (i_ensloccov4var==1)then
-     ensloccov4var=zero
-     ensloccov4var(1)=one
-  else
-     write(6,*)'setup_ensgrp2aensgrp: wrong i_ensloccov4var'
-     call stop2(666)
-  endif
-  if (i_ensloccov4scl==0) then
-     ensloccov4scl=one
-  elseif (i_ensloccov4scl==1)then
-     ensloccov4scl=zero
-     ensloccov4scl(1)=one
-  else
-     write(6,*)'setup_ensgrp2aensgrp: wrong i_ensloccov4scl'
-     call stop2(666)
-  endif
+  ensloccov4tim=r_ensloccov4tim
+  ensloccov4tim(1)=one
+  ensloccov4var=r_ensloccov4var
+  ensloccov4var(1)=one
+  ensloccov4scl=r_ensloccov4scl
+  ensloccov4scl(1)=one
 
   do itim2=1,ntimloc
      do itim1=1,ntimloc

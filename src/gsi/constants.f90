@@ -74,9 +74,10 @@ module constants
   public :: psv_a, psv_b, psv_c, psv_d
   public :: ef_alpha, ef_beta, ef_gamma
   public :: max_varname_length
+  public :: max_filename_length
   public :: z_w_max,tfrozen
   public :: qmin,qcmin,tgmin
-  public :: i_missing, r_missing
+  public :: i_missing, r_missing, s_missing
   public :: tice,t_wfr,e00,rvgas,rdgas,hlv,hlf,cp_vap,c_liq,c_ice,cp_air,cv_air
 
   public :: izero, qimin, qsmin, qgmin,qrmin
@@ -90,7 +91,8 @@ module constants
 
 ! Declare derived constants
   integer(i_kind):: huge_i_kind
-  integer(i_kind), parameter :: max_varname_length=64
+  integer(i_kind), parameter :: max_varname_length=20
+  integer(i_kind), parameter :: max_filename_length=80
   real(r_single):: tiny_single, huge_single
   real(r_kind):: xai, xa, xbi, xb, dldt, rozcon,ozcon,fv, tpwcon,eps, rd_over_g
   real(r_kind):: el2orc, g_over_rd, rd_over_cp, cpr, omeps, epsm1, factor2
@@ -287,6 +289,7 @@ module constants
 ! Constant used to detect missing input value
   integer(i_kind),parameter:: i_missing=-9999
   integer(r_kind),parameter:: r_missing=-9999._r_kind
+  real(r_single),parameter::  s_missing = -9.99e9_r_single
 
 ! Constants initialized
   logical :: constants_initialized = .true.

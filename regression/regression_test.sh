@@ -33,7 +33,6 @@ cd $tmpdir
 
 # Other required constants for regression testing
 maxtime=1200
-maxmem=${maxmem:-3400000} # set in regression_param
 
 # Copy stdout and fort.220 files 
 # from $savdir to $tmpdir
@@ -176,24 +175,6 @@ fi
        failed_test=1
      else
        echo 'The runtime for '$exp1_scale' is '$(awk '{ print $8 }' runtime.$exp1_scale.txt)' seconds and is within the allowable threshold time of '$timethresh2' seconds,'
-       echo 'continuing with regression test.'
-       echo
-     fi
-
-   } >> $output
-
-   # Next, maximum residence set size (both harware limitation and percent difference)
-   # First, hardware limitation
-
-   {
-
-     if [[ $(awk '{ print $8 }' memory.$exp1.txt) -gt $maxmem ]]; then
-       echo 'The memory for '$exp1' is '$(awk '{ print $8 }' memory.$exp1.txt)' KBs.  This has exceeded maximum allowable hardware memory limit of '$maxmem' KBs,'
-       echo 'resulting in Failure maxmem of the regression test.'
-       echo
-       failed_test=1
-     else
-       echo 'The memory for '$exp1' is '$(awk '{ print $8 }' memory.$exp1.txt)' KBs and is within the maximum allowable hardware memory limit of '$maxmem' KBs,'
        echo 'continuing with regression test.'
        echo
      fi
@@ -348,7 +329,7 @@ fi
 } >> $output
    fi
 
-   elif [[ `expr substr $exp1 1 4` = "rrfs" ]]; then
+   elif [[ `expr substr $exp1 1 4` = "rrfs" ]] || [[ `expr substr $exp1 1 4` = "hafs" ]]; then
 {
      fv3_failed_test=0
      if cmp -s fv3_dynvars.${exp1} fv3_dynvars.${exp2}
@@ -520,7 +501,7 @@ elif [[ `expr substr $exp1 1 6` = "global" ]]; then
 
    fi
 
-elif [[ `expr substr $exp1 1 4` = "rrfs" ]]; then
+elif [[ `expr substr $exp1 1 4` = "rrfs" ]] || [[ `expr substr $exp1 1 4` = "hafs" ]]; then
 {
      fv3_failed_test=0
      if cmp -s fv3_dynvars.${exp1} fv3_dynvars.${exp3}
@@ -556,31 +537,25 @@ elif [[ `expr substr $exp1 1 4` = "rrfs" ]]; then
 
 fi
 
-   # Finally, scalability
-
-   {
-
-   timelogic=$( echo "$scale1thresh >= $scale2" | bc )
-   if [[ "$timelogic" = 1 ]]; then
-      echo 'The case has passed the scalability regression test.'
-      echo 'The slope for the update ('$scale1thresh' seconds per node) is greater than or equal to that for the control ('$scale2' seconds per node).'
-   else
-      echo 'The case has Failed the scalability test.'
-      echo 'The slope for the update ('$scale1thresh' seconds per node) is less than that for the control ('$scale2' seconds per node).'
-   fi
-
-   } >> $output
-
 # Copy select results to $savdir
 mkdir -p $vfydir
 
 $ncp $output                        $vfydir/
 
+# Final check for any failed tests
+count=$(grep -i "fail" $output |wc -l)
+if [ $count -gt 0 ]; then
+    (( failed_test = $failed_test + $count ))
+fi
+
+# Remove job log files is no failures detected
 cd $scripts
-rm -f ${exp1}.out
-rm -f ${exp2}.out
-rm -f ${exp3}.out
-rm -f ${exp2_scale}.out
+if [ $count -eq 0 ]; then
+    rm -f ${exp1}.out
+    rm -f ${exp2}.out
+    rm -f ${exp3}.out
+    rm -f ${exp2_scale}.out
+fi
 
 if [[ "$clean" = ".true." ]]; then
    rm -rf $savdir

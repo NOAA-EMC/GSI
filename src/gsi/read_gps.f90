@@ -137,21 +137,32 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
                bend_error,ref_error,bend_pccf,ref_pccf
 
   real(r_kind),allocatable,dimension(:,:):: cdata_all
- 
-  integer(i_kind),parameter:: n1ahdr=10
+
+!> xuanli 
+!  integer(i_kind),parameter:: n1ahdr=10
+  integer(i_kind),parameter:: n1ahdr=13
+!< xuanli
   real(r_double),dimension(n1ahdr):: bfr1ahdr
   real(r_double),dimension(50,maxlevs):: data1b
   real(r_double),dimension(50,maxlevs):: data2a
   real(r_double),dimension(maxlevs):: nreps_this_ROSEQ2
+
+!> xuanli
+  real(r_kind):: azm_ang, sat_ascd, sat_constid, siid, ogce
+!< xuanli
  
   data lnbufr/10/
-  data hdr1a / 'YEAR MNTH DAYS HOUR MINU PCCF ELRC SAID PTID GEODU' / 
+!  data hdr1a / 'YEAR MNTH DAYS HOUR MINU PCCF ELRC SAID PTID GEODU' / 
+  data hdr1a / 'YEAR MNTH DAYS HOUR MINU PCCF ELRC SAID PTID GEODU SCLF SIID OGCE' / 
   data nemo /'QFRO'/
   
 !***********************************************************************************
 
   maxobs=2e6
-  nreal=maxinfo
+!> xuanli
+!  nreal=maxinfo
+  nreal=24
+!< xuanli
   nchanl=0
   ilon=2
   ilat=3
@@ -170,7 +181,6 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
      write(6,*)'READ GPS:  CONVINFO DOES NOT INCLUDE ANY ',trim(sis),' DATA'
      return
   end if
-
 ! Open file for input, then read bufr data
   open(lnbufr,file=trim(infile),form='unformatted')
   call openbf(lnbufr,'IN',lnbufr)
@@ -214,16 +224,19 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
         call ufbint(lnbufr,qfro,1,1,iret,nemo)
 
 ! observation time in minutes
-        idate5(1) = bfr1ahdr(1) ! year
-        idate5(2) = bfr1ahdr(2) ! month
-        idate5(3) = bfr1ahdr(3) ! day
-        idate5(4) = bfr1ahdr(4) ! hour
-        idate5(5) = bfr1ahdr(5) ! minute
-        pcc=bfr1ahdr(6)         ! profile per cent confidence
-        roc=bfr1ahdr(7)         ! Earth local radius of curvature
-        said=bfr1ahdr(8)        ! Satellite identifier
-        ptid=bfr1ahdr(9)        ! Platform transmitter ID number
-        geoid=bfr1ahdr(10)      ! Geoid undulation
+        idate5(1) = bfr1ahdr(1)    ! year
+        idate5(2) = bfr1ahdr(2)    ! month
+        idate5(3) = bfr1ahdr(3)    ! day
+        idate5(4) = bfr1ahdr(4)    ! hour
+        idate5(5) = bfr1ahdr(5)    ! minute
+        pcc=bfr1ahdr(6)            ! profile per cent confidence
+        roc=bfr1ahdr(7)            ! Earth local radius of curvature
+        said=bfr1ahdr(8)           ! Satellite identifier
+        ptid=bfr1ahdr(9)           ! Platform transmitter ID number
+        geoid=bfr1ahdr(10)         ! Geoid undulation
+        sat_constid=bfr1ahdr(11)   ! Satellite classification
+        siid=bfr1ahdr(12)          ! Satellite instrument
+        ogce = bfr1ahdr(13)        ! Identification of originating/generating centre
         call w3fs21(idate5,minobs)
 
 ! Locate satellite id in convinfo file
@@ -235,7 +248,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
               exit find_loop
            endif
         end do find_loop
-        if (ikx==0) then 
+        if (ikx==0) then
            cycle read_loop
         endif
    
@@ -296,6 +309,16 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
            endif
         endif
 
+!> xuanli ascending flag: when qfro bit3 is set, occultation is ascending 
+!                                   bit3 is clear, occultation is descending 
+       sat_ascd = 0.0   
+       call upftbv(lnbufr,nemo,qfro,mxib,ibit,nib)
+        if(nib > 0) then
+          do i=1,nib
+            if(ibit(i) .eq. 3) sat_ascd=1.0
+          enddo
+        endif
+!< xuanli
 
 ! Read bending angle information
 ! Get the number of occurences of sequence ROSEQ2 in this subset
@@ -345,6 +368,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
            nread=nread+1  ! count observations
            rlat=data1b(1,k)  ! earth relative latitude (degrees)
            rlon=data1b(2,k)  ! earth relative longitude (degrees)
+           azm_ang=data1b(3,k)  ! azimuth angle  !xuanli
            height=data2a(1,k)
            ref=data2a(2,k)
            ref_error=data2a(4,k)
@@ -368,8 +392,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
            good=.true.
            if((abs(rlat)>90._r_kind).or.(abs(rlon)>r360).or.(height<=zero)) then
               good=.false.
-           endif
-           if (ref_obs) then
+           else if (ref_obs) then
               if ((ref>=1.e+9_r_kind).or.(ref<=zero).or.(height>=1.e+9_r_kind)) then
                  good=.false.
               endif
@@ -440,7 +463,16 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
               cdata_all(14,ndata)= dlon_earth_deg  ! earth relative longitude (degrees)
               cdata_all(15,ndata)= dlat_earth_deg  ! earth relative latitude (degrees)
               cdata_all(16,ndata)= geoid           ! geoid undulation (m)
-
+!> xuanli
+              cdata_all(17,ndata)= qfro            ! qfro
+              cdata_all(18,ndata)= sat_ascd        ! ascending flag
+              cdata_all(19,ndata)= azm_ang         ! azimuth angle
+              cdata_all(20,ndata)= sat_constid     ! satellite classification
+              cdata_all(21,ndata)= siid            ! occulting satellite 
+              cdata_all(22,ndata)= ogce            ! Identification of originating/generating centre 
+              cdata_all(23,ndata)= ref             ! refractivity obs (units of N)
+              cdata_all(24,ndata)= height          ! geometric height above geoid (m)
+!< xuanli
            else
               notgood = notgood + 1
            end if
@@ -466,8 +498,9 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   write(6,*)'READ_GPS:  # bad or missing data=', notgood
   do i=1,ngpsro_type
      if (nmrecs_id(i)>0) &
-          write(6,1020)'READ_GPS:  LEO_id,nprof_gps = ',gpsro_itype(i),nmrecs_id(i)
+          write(6,1021)'READ_GPS:  LEO_id,nprof_gps = ',gpsro_itype(i),nmrecs_id(i)
   end do
+1021 format(a31,i6,i6)
   write(6,1020)'READ_GPS:  ref_obs,nprof_gps= ',ref_obs,nprof_gps
 1020 format(a31,L,i6)
 

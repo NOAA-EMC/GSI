@@ -99,7 +99,7 @@ subroutine general_g2s0_ad(grd,sp,spectral_in,grid_out)
   integer(i_kind) i,j,jj
 
   do i=1,sp%nc
-     spec_work(i)=spectral_in(i)/float(grd%nlon)
+     spec_work(i)=spectral_in(i)/real(grd%nlon,r_kind)
      if(sp%factsml(i))spec_work(i)=zero
   end do
   do i=2*sp%jcap+3,sp%nc
@@ -277,7 +277,7 @@ subroutine general_s2g0_ad(grd,sp,spectral_out,grid_in)
   call general_sptez_s(sp,spec_work,work,-1)
 
   do i=1,sp%nc
-     spec_work(i)=spec_work(i)*float(grd%nlon)
+     spec_work(i)=spec_work(i)*real(grd%nlon,r_kind)
   end do
   do i=2*sp%jcap+3,sp%nc
      spec_work(i)=two*spec_work(i)
@@ -368,8 +368,7 @@ subroutine sfilter(grd,sp,filter,grid)
 
   call general_sptez_s(sp,spec_work,work,-1)
 
-  gnlon=float(grd%nlon)
-! gnlon=real(grd%nlon,r_kind)
+  gnlon=real(grd%nlon,r_kind)
   do i=1,sp%nc
      spec_work(i)=spec_work(i)*gnlon
   end do
@@ -522,8 +521,8 @@ subroutine general_uvg2zds_ad(grd,sp,zsp,dsp,ugrd,vgrd)
   integer(i_kind) i,j,jj
 
   do i=1,sp%nc
-     spcwrk1(i)=dsp(i)/float(grd%nlon)
-     spcwrk2(i)=zsp(i)/float(grd%nlon)
+     spcwrk1(i)=dsp(i)/real(grd%nlon,r_kind)
+     spcwrk2(i)=zsp(i)/real(grd%nlon,r_kind)
      if(sp%factvml(i))then
         spcwrk1(i)=zero
         spcwrk2(i)=zero
@@ -866,8 +865,8 @@ subroutine general_zds2uvg_ad(grd,sp,zsp,dsp,ugrd,vgrd)
   end do
 
   do i=1,sp%nc
-     spcwrk1(i)=spcwrk1(i)*float(grd%nlon)
-     spcwrk2(i)=spcwrk2(i)*float(grd%nlon)
+     spcwrk1(i)=spcwrk1(i)*real(grd%nlon,r_kind)
+     spcwrk2(i)=spcwrk2(i)*real(grd%nlon,r_kind)
   end do
 
   do i=2*sp%jcap+3,sp%nc

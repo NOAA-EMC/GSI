@@ -31,7 +31,7 @@ use gsi_obOperTypeManager, only: obOper_typeInfo
 use gsi_obOperTypeManager, only: &
   iobOper_t,          iobOper_pw,         iobOper_q,                                                    &
                                           iobOper_cldtot,     iobOper_w,          iobOper_dw,           &
-  iobOper_rw,         iobOper_dbz,                                                                      &
+  iobOper_rw,         iobOper_dbz,        iobOper_fed,                                                  &
                       iobOper_spd,        iobOper_oz,         iobOper_o3l,        iobOper_colvk,        &
   iobOper_pm2_5,      iobOper_pm10,       iobOper_ps,         iobOper_tcp,        iobOper_sst,          &
   iobOper_gpsbend,    iobOper_gpsref,                                                                   &
@@ -60,7 +60,7 @@ end interface
 integer(i_kind),parameter,dimension(obOper_count):: ix_obtype = (/ &
   iobOper_t,          iobOper_pw,         iobOper_q,                                                    &
                                           iobOper_cldtot,     iobOper_w,          iobOper_dw,           &
-  iobOper_rw,         iobOper_dbz,                                                                      &
+  iobOper_rw,         iobOper_dbz,        iobOper_fed,                                                  &
                       iobOper_spd,        iobOper_oz,         iobOper_o3l,        iobOper_colvk,        &
   iobOper_pm2_5,      iobOper_pm10,       iobOper_ps,         iobOper_tcp,        iobOper_sst,          &
   iobOper_gpsbend,    iobOper_gpsref,                                                                   &
@@ -240,8 +240,6 @@ use m_obsdiags, only: obOper_create
 use m_obsdiags, only: obOper_destroy
 use gsi_obOper, only: obOper
 
-use intradmod, only: setrad
-
 implicit none
 
 ! Declare passed variables
@@ -257,7 +255,6 @@ integer(i_kind):: ibin,it,ix
 class(obOper),pointer:: it_obOper
 
 !******************************************************************************
-  call setrad(sval(1))
 
 ! "RHS for jo", as it was labeled in intall().
 !$omp parallel do  schedule(dynamic,1) private(ibin,it,ix,it_obOper)

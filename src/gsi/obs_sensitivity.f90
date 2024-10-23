@@ -61,6 +61,8 @@ use hybrid_ensemble_parameters,only : l_hyb_ens,ntlevs_ens,destroy_hybens_locali
 use hybrid_ensemble_isotropic, only: create_ensemble,load_ensemble,destroy_ensemble
 use hybrid_ensemble_isotropic, only: hybens_localization_setup
 use mpeu_util, only: perr,die
+use control2state_mod, only: control2state,control2state_ad
+use ensctl2state_mod, only: ensctl2state,ensctl2state_ad
 ! ------------------------------------------------------------------------------
 implicit none
 save

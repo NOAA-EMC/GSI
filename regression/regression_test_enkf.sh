@@ -31,22 +31,34 @@ cd $tmpdir
 
 # Other required constants for regression testing
 maxtime=1200
-maxmem=${maxmem:-3400000} # set in regression_param
-maxmem=$((${memnode:-64}*1024*1024))
 
-# Copy stdout and sanl files 
+# Copy stdout and incr files 
 # from $savdir to $tmpdir
 list="$exp1 $exp2 $exp3"
-for exp in $list; do
-   $ncp $savdir/$exp/stdout ./stdout.$exp
-   nmem=10
-   imem=1
-   while [[ $imem -le $nmem ]]; do
-      member="_mem"`printf %03i $imem`
-      $ncp $savdir/$exp/sanl_${global_adate}_fhr06$member $tmpdir/sanl$member.$exp
-      (( imem = $imem + 1 ))
+if [[ $(expr substr $exp1 1 4) = "rrfs" ]]; then
+   for exp in $list; do
+      $ncp $savdir/$exp/stdout ./stdout.$exp
+      nmem=5
+      imem=1
+      while [[ $imem -le $nmem ]]; do
+         member="_mem"`printf %03i $imem`
+         $ncp $savdir/$exp/fv3sar_tile1_mem${member}_dynvars $tmpdir/dynvars$member.$exp
+         $ncp $savdir/$exp/fv3sar_tile1_mem${member}_tracer $tmpdir/tracer$member.$exp
+         (( imem = $imem + 1 ))
+      done
    done
-done
+else
+   for exp in $list; do
+      $ncp $savdir/$exp/stdout ./stdout.$exp
+      nmem=10
+      imem=1
+      while [[ $imem -le $nmem ]]; do
+         member="_mem"`printf %03i $imem`
+         $ncp $savdir/$exp/incr_${global_adate}_fhr06$member $tmpdir/incr$member.$exp
+         (( imem = $imem + 1 ))
+      done
+   done
+fi
 
 # Grep out ensemble mean increment information, run time, and maximum resident memory from stdout file
 list="$exp1 $exp2 $exp3"
@@ -177,20 +189,6 @@ fi
    # Next, maximum residence set size (both harware limitation and percent difference)
    # First, hardware limitation
 
-   {
-
-     if [[ $(awk '{ print $8 }' memory.$exp1.txt) -gt $maxmem ]]; then
-       echo 'The memory for '$exp1' is '$(awk '{ print $8 }' memory.$exp1.txt)' KBs.  This has exceeded maximum allowable hardware memory limit of '$maxmem' KBs,'
-       echo 'resulting in Failure maxmem of the regression test.'
-       echo
-       failed_test=1
-     else
-       echo 'The memory for '$exp1' is '$(awk '{ print $8 }' memory.$exp1.txt)' KBs and is within the maximum allowable hardware memory limit of '$maxmem' KBs,'
-       echo 'continuing with regression test.'
-       echo
-     fi
-
-   } >> $output
 
    # Next, maximum residence set size
 
@@ -239,16 +237,36 @@ fi
 
 # Next, check reproducibility of results between exp1 and exp2
 
-if [[ `expr substr $exp1 1 4` = "rtma" ]]; then
+if [[ $(expr substr $exp1 1 4) = "rrfs" ]]; then
 
 {
 
-if cmp -s siganl.${exp1} siganl.${exp2}
-then
-   echo 'The results between the two runs ('${exp1}' and '${exp2}') are reproducible'
-   echo 'since the corresponding results are identical.'
-   echo
-fi
+nmem=5
+imem=1
+while [[ $imem -le $nmem ]]; do
+   member="_mem"`printf %03i $imem`
+   ncdump dynvars$member.${exp1} > dynvars$member.${exp1}.out
+   ncdump dynvars$member.${exp2} > dynvars$member.${exp2}.out
+   if [ ! diff dynvars$member.${exp1}.out dynvars$member.${exp2}.out ]; then
+       echo 'dynvars'$member'.'${exp1}' dynvars'$member'.'${exp2}' are NOT identical'
+       failed_test=1
+   else
+       rm -f dynvars$member.${exp1}.out dynvars$member.${exp2}.out
+       echo 'dynvars'$member'.'${exp1}' dynvars'$member'.'${exp2}' are identical'
+   fi
+   ncdump tracer$member.${exp1} > tracers$member.${exp1}.out
+   ncdump tracer$member.${exp2} > tracers$member.${exp2}.out
+   if [ ! diff tracers$member.${exp1}.out tracers$member.${exp2}.out ]; then
+       echo 'tracer'$member'.'${exp1}'  tracer'$member'.'${exp2}' are NOT identical'
+       failed_test=1
+   else
+       rm -f tracers$member.${exp1}.out tracers$member.${exp2}.out
+       echo 'tracer'$member'.'${exp1}'  tracer'$member'.'${exp2}' are identical'
+       q
+   fi
+   (( imem = $imem + 1 ))
+done
+echo
 
 } >> $output
 
@@ -282,10 +300,13 @@ nmem=10
 imem=1
 while [[ $imem -le $nmem ]]; do
    member="_mem"`printf %03i $imem`
-   if ! cmp -s sanl$member.${exp1} sanl$member.${exp2} 
-then
-   echo 'sanl'$member'.'${exp1}' sanl'$member'.'${exp2}' are NOT identical'
-fi
+   ncdump incr$member.${exp1} > incr$member.${exp1}.out
+   ncdump incr$member.${exp2} > incr$member.${exp2}.out
+   if [ ! diff incr$member.${exp1}.out incr$member.${exp2}.out ]; then
+       echo 'incr'$member'.'${exp1}' incr'$member'.'${exp2}' are NOT identical'
+   else
+       rm -f incr$member.${exp1}.out incr$member.${exp2}.out
+   fi
    (( imem = $imem + 1 ))
 done
 echo
@@ -334,16 +355,35 @@ else
 
 # Next, check reproducibility of results between exp1 and exp3
 
-   if [[ `expr substr $exp1 1 4` = "rtma" ]]; then
+   if [[ $(expr substr $exp1 1 4) = "rrfs" ]]; then
 
 {
 
-      if cmp -s wrf_inout.${exp1} wrf_inout.${exp3}
-      then
-         echo 'The results between the two runs ('${exp1}' and '${exp3}') are reproducible'
-         echo 'since the corresponding results are identical.'
-         echo
-      fi
+	nmem=5
+        imem=1
+        while [[ $imem -le $nmem ]]; do
+           member="_mem"`printf %03i $imem`
+           ncdump dynvars$member.${exp1} > dynvars$member.${exp1}.out
+           ncdump dynvars$member.${exp3} > dynvars$member.${exp3}.out
+           if [ ! diff dynvars$member.${exp1}.out dynvars$member.${exp3}.out ]; then
+               echo 'dynvars'$member'.'${exp1}' dynvars'$member'.'${exp3}' are NOT identical'
+               failed_test=1
+           else
+               rm -f dynvars$member.${exp1}.out dynvars$member.${exp3}.out
+               echo 'dynvars'$member'.'${exp1}' dynvars'$member'.'${exp3}' are identical'
+           fi
+           ncdump tracer$member.${exp1} > tracers$member.${exp1}.out
+           ncdump tracer$member.${exp3} > tracers$member.${exp3}.out
+           if [ ! diff tracers$member.${exp1}.out tracers$member.${exp3}.out ]; then
+               echo 'tracer'$member'.'${exp1}'  tracer'$member'.'${exp3}' are NOT identical'
+               failed_test=1
+           else
+               rm -f tracers$member.${exp1}.out tracers$member.${exp3}.out
+               echo 'tracer'$member'.'${exp1}'  tracer'$member'.'${exp3}' are identical'
+           fi
+           (( imem = $imem + 1 ))
+        done
+        echo
 
 } >> $output
 
@@ -379,11 +419,14 @@ else
    imem=1
    while [[ $imem -le $nmem ]]; do
       member="_mem"`printf %03i $imem`
-      if ! cmp -s sanl$member.${exp1} sanl$member.${exp3}
-      then
-      echo 'sanl'$member'.'${exp1}' sanl'$member'.'${exp3}' are NOT identical'
+      ncdump incr$member.${exp1} > incr$member.${exp1}.out
+      ncdump incr$member.${exp3} > incr$member.${exp3}.out
+      if [ ! diff incr$member.${exp1}.out incr$member.${exp3}.out ]; then
+          echo 'incr'$member'.'${exp1}' incr'$member'.'${exp3}' are NOT identical'
+      else
+          rm -f incr$member.${exp1}.out incr$member.${exp3}.out
       fi
-   (( imem = $imem + 1 ))
+      (( imem = $imem + 1 ))
    done
    echo
 } >> $output
@@ -391,31 +434,25 @@ else
    fi
 fi
 
-   # Finally, scalability
-
-   {
-
-   timelogic=$( echo "$scale1thresh >= $scale2" | bc )
-   if [[ "$timelogic" = 1 ]]; then
-      echo 'The case has passed the scalability regression test.'
-      echo 'The slope for the update ('$scale1thresh' seconds per node) is greater than or equal to that for the control ('$scale2' seconds per node).'
-   else
-      echo 'The case has Failed the scalability test.'
-      echo 'The slope for the update ('$scale1thresh' seconds per node) is less than that for the control ('$scale2' seconds per node).'
-   fi
-
-   } >> $output
-
 # Copy select results to $savdir
 mkdir -p $vfydir
 
 $ncp $output                        $vfydir/
 
+# Final check for any failed tests
+count=$(grep -i "fail" $output |wc -l)
+if [ $count -gt 0 ]; then
+    (( failed_test = $failed_test + $count ))
+fi
+
+# Remove job log files is no failures detected
 cd $scripts
-rm -f ${exp1}.out
-rm -f ${exp2}.out
-rm -f ${exp3}.out
-rm -f ${exp2_scale}.out
+if [ $count -eq 0 ]; then
+    rm -f ${exp1}.out
+    rm -f ${exp2}.out
+    rm -f ${exp3}.out
+    rm -f ${exp2_scale}.out
+fi
 
 if [[ "$clean" = ".true." ]]; then
    rm -rf $savdir

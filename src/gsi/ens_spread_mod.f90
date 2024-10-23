@@ -78,7 +78,7 @@ subroutine ens_spread_dualres_regional(en_bar)
           call stop2(999)
        endif
 
-  sp_norm=(one/float(n_ens))
+  sp_norm=(one/real(n_ens,r_kind))
 
   sube%values=zero
 !

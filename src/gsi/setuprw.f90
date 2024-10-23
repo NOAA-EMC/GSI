@@ -114,10 +114,10 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   use obsmod, only: rmiss_single,lobsdiag_forenkf,&
                     lobsdiagsave,nobskeep,lobsdiag_allocated,time_offset,&
                     if_vterminal, ens_hx_dbz_cut, if_model_dbz, &
-                    doradaroneob,oneobddiff,oneobvalue, if_vrobs_raw
+                    doradaroneob,oneobddiff,oneobvalue, if_vrobs_raw, if_use_w_vr
   use obsmod, only: netcdf_diag, binary_diag, dirname,ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
-       nc_diag_write, nc_diag_data2d
+       nc_diag_write, nc_diag_data2d, nc_diag_metadata_to_single
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use m_obsNode, only: obsNode
   use m_rwNode, only: rwNode
@@ -252,7 +252,7 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   if(.not.proceed) return  ! not all vars available, simply return
 
 ! If require guess vars available, extract from bundle ...
-  call init_vars_
+  call init_vars_(include_w)
 
   if ( l_use_rw_columntilt) then
 !
@@ -286,7 +286,6 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
 !*******************************************************************************
 ! Read and reformat observations in work arrays.
   read(lunin)data,luse,ioid
-
 
 !    index information for data array (see reading routine)
   ier=1       ! index of obs error
@@ -566,6 +565,7 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
      error = one/error
 
      if(dpres < zero .or. dpres > rsig)ratio_errors = zero
+     wgesin=zero
 
 !    Interpolate guess u, v, and w to observation location and time.
      call tintrp31(ges_u,ugesin,dlat,dlon,dpres,dtime,&
@@ -788,7 +788,7 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
         end if
      end if 
 
-!    Gross error checks
+ !    Gross error checks
      obserror = one/max(ratio_errors*error,tiny_r_kind)
      obserrlm = max(cermin(ikx),min(cermax(ikx),obserror))
      residual = abs(ddiff)
@@ -871,7 +871,7 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
               jiter=jiter, muse=muse(i), nldepart=ddiff)
         end if
      endif
-     
+             
 !    If obs is "acceptable", load array with obs info for use
 !    in inner loop minimization (int* and stp* routines)
      if ( .not. last .and. muse(i)) then
@@ -902,6 +902,7 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
         my_head%luse    = luse(i)
         my_head%b       = cvar_b(ikx)
         my_head%pg      = cvar_pg(ikx)
+
 
         if (luse_obsdiag) then
            call obsdiagNode_assert(my_diag,my_head%idv,my_head%iob,1,myname,'my_diag:my_head')
@@ -972,7 +973,7 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   call gsi_metguess_get ('var::v' , ivar, istatus )
   proceed=proceed.and.ivar>0
   call gsi_metguess_get ('var::w' , ivar, istatus )
-  if (ivar>0) then
+  if (if_use_w_vr.and.ivar>0) then
      include_w=.true.
      if(if_vterminal)then
       if( .not. if_model_dbz ) then
@@ -992,8 +993,9 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   endif
   end subroutine check_vars_ 
 
-  subroutine init_vars_
+  subroutine init_vars_(include_w)
 
+  logical,intent(in   ):: include_w
   real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
   real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
   character(len=5) :: varname
@@ -1319,30 +1321,30 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
            call nc_diag_metadata("Observation_Class",       obsclass               )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
-           call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
-           call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
-           call nc_diag_metadata("Station_Elevation",       sngl(data(ielev,i))    )
-           call nc_diag_metadata("Pressure",                sngl(presw)            )
-           call nc_diag_metadata("Height",                  sngl(data(ihgt,i))     )
-           call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
-           call nc_diag_metadata("Prep_QC_Mark",            sngl(zero)             )
-           call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )
+           call nc_diag_metadata_to_single("Latitude",data(ilate,i)      )
+           call nc_diag_metadata_to_single("Longitude",data(ilone,i)      )
+           call nc_diag_metadata_to_single("Station_Elevation",data(ielev,i)      )
+           call nc_diag_metadata_to_single("Pressure",presw              )
+           call nc_diag_metadata_to_single("Height",data(ihgt,i)       )
+           call nc_diag_metadata_to_single("Time",dtime,time_offset,'-')
+           call nc_diag_metadata("Prep_QC_Mark",            0.0_r_single           )
+           call nc_diag_metadata_to_single("Prep_Use_Flag",data(iuse,i)       )
 !          call nc_diag_metadata("Nonlinear_QC_Var_Jb",     var_jb                 )
-           call nc_diag_metadata("Nonlinear_QC_Rel_Wgt",    sngl(rwgt)             )                 
+           call nc_diag_metadata_to_single("Nonlinear_QC_Rel_Wgt",rwgt               )
            if(muse(i)) then
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)              )
+              call nc_diag_metadata("Analysis_Use_Flag",    1.0_r_single           )
            else
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)             )              
+              call nc_diag_metadata("Analysis_Use_Flag",    -1.0_r_single          )
            endif
 
-           call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)     )
-           call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
-           call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
+           call nc_diag_metadata_to_single("Errinv_Input",errinv_input       )
+           call nc_diag_metadata_to_single("Errinv_Adjust",errinv_adjst       )
+           call nc_diag_metadata_to_single("Errinv_Final",errinv_final       )
 
-           call nc_diag_metadata("Observation",                   sngl(data(irwob,i))  )
-           call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(ddiff)          )
-           call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(data(irwob,i)-rwwind) )
- 
+           call nc_diag_metadata_to_single("Observation",data(irwob,i)  )
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",ddiff            )
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",data(irwob,i),rwwind,'-')
+
            if (lobsdiagsave) then
               do jj=1,miter
                  if (odiag%muse(jj)) then
@@ -1351,18 +1353,18 @@ subroutine setuprw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
                        obsdiag_iuse(jj) = -one
                  endif
               enddo
-   
+
               call nc_diag_data2d("ObsDiagSave_iuse",     obsdiag_iuse                             )
               call nc_diag_data2d("ObsDiagSave_nldepart", odiag%nldepart )
               call nc_diag_data2d("ObsDiagSave_tldepart", odiag%tldepart )
-              call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )             
+              call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )
            endif
            if (save_jacobian) then
               call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)
               call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
               call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
            endif
-   
+
   end subroutine contents_netcdf_diag_
 
   subroutine final_vars_

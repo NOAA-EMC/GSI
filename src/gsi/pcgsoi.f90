@@ -130,8 +130,8 @@ subroutine pcgsoi()
        iguess,read_guess_solution, &
        niter_no_qc,print_diag_pcg
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar, iwrtinc, ladtest, &
-                       iorthomax
-  use gridmod, only: twodvar_regional,periodic
+                       iorthomax,lsqrtb
+  use gridmod, only: twodvar_regional,periodic,minmype
   use constants, only: zero,one,tiny_r_kind
   use mpimod, only: mype
   use mpl_allreducemod, only: mpl_allreduce
@@ -148,15 +148,17 @@ subroutine pcgsoi()
   use bias_predictors, only: update_bias_preds
   use xhat_vordivmod, only : xhat_vordiv_init, xhat_vordiv_calc, xhat_vordiv_clean
   use timermod, only: timer_ini,timer_fnl
-  use hybrid_ensemble_parameters,only : l_hyb_ens,ntlevs_ens
+  use hybrid_ensemble_parameters,only : l_hyb_ens,ntlevs_ens,aniso_a_en
   use gsi_bundlemod, only : gsi_bundle
   use gsi_bundlemod, only : self_add,assignment(=)
   use gsi_bundlemod, only : gsi_bundleprint
+  use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_4dcouplermod, only : gsi_4dcoupler_grtests
   use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
   use gsi_io, only: verbose
   use berror, only: vprecond
   use stpjomod, only: stpjo_setup
+  use intradmod, only: setrad
   
 
   implicit none
@@ -187,7 +189,7 @@ subroutine pcgsoi()
   type(control_vector), allocatable, dimension(:) :: cglwork
   type(control_vector), allocatable, dimension(:) :: cglworkhat
   integer(i_kind) :: iortho
-  logical :: print_verbose
+  logical :: print_verbose,ortho,diag_print
   logical :: lanlerr,read_success
 
 ! Step size diagnostic strings
@@ -235,7 +237,9 @@ subroutine pcgsoi()
   nlnqc_iter=.false.
   call stpjo_setup(nobs_bins)
 
+  ortho=.false.
   if(iorthomax>0) then 
+     ortho=.true.
      allocate(cglwork(iorthomax+1))
      DO ii=1,iorthomax+1
         CALL allocate_cv(cglwork(ii))
@@ -252,10 +256,19 @@ subroutine pcgsoi()
   end do
   sbias=zero
 
+  call setrad(sval(1))
+  if(l_hyb_ens .and. .not. aniso_a_en) then
+     if (lsqrtb) then
+        write(6,*)'l_hyb_ens: not for use with lsqrtb'
+        call stop2(317)
+     end if
+  end if
 ! Perform inner iteration
   inner_iteration: do iter=0,niter(jiter)
+ 
+     diag_print= iter <= 1 .and. print_diag_pcg
 
-! Gradually turn on variational qc to avoid possible convergence problems
+! Gradually turn on old variational qc to avoid possible convergence problems
      if(vqc) then
         nlnqc_iter = iter >= niter_no_qc(jiter)
         if(jiter == jiterstart) then
@@ -266,17 +279,11 @@ subroutine pcgsoi()
         endif
      end if
 !    1. Calculate gradient
-     do ii=1,nobs_bins
-        rval(ii)=zero
-     end do
-     rbias=zero
      gradx=zero
 
-     llprt=(mype==0).and.(iter<=1)
-!    Control to state
-!    call c2s(xhat,sval,sbias,llprt,.true.)
+     llprt=(mype==minmype).and.(iter<=1)
 
-     if (iter<=1 .and. print_diag_pcg) then
+     if (diag_print) then
         do ii=1,nobs_bins
            call prt_state_norms(sval(ii),'sval')
         enddo
@@ -285,20 +292,23 @@ subroutine pcgsoi()
 !    Compare obs to solution and transpose back to grid
      call intall(sval,sbias,rval,rbias)
 
-     if (iter<=1 .and. print_diag_pcg) then
+     if (diag_print) then
         do ii=1,nobs_bins
            call prt_state_norms(rval(ii),'rval')
         enddo
      endif
 
+
 !    Adjoint of control to state
      call c2s_ad(gradx,rval,rbias,llprt)
 
 !    Print initial Jo table
-     if (iter==0 .and. print_diag_pcg .and. luse_obsdiag) then
-        nprt=2
-        call evaljo(zjo,iobs,nprt,llouter)
-        call prt_control_norms(gradx,'gradx')
+     if (iter==0) then
+        if(print_diag_pcg .and. luse_obsdiag) then
+           nprt=2
+           call evaljo(zjo,iobs,nprt,llouter)
+           call prt_control_norms(gradx,'gradx')
+        end if
      endif
 
 !    Add contribution from background term
@@ -308,7 +318,7 @@ subroutine pcgsoi()
 !  End of gradient calculation
 
 !    Re-orthonormalization if requested
-     if(iorthomax>0) then 
+     if(ortho) then 
         iortho=min(iorthomax,iter) 
         if(iter .ne. 0) then 
            do ii=iortho,1,-1
@@ -323,13 +333,13 @@ subroutine pcgsoi()
 !    2. Multiply by background error
      call multb(gradx,grady)
 
-     if(iorthomax>0) then
+     if(ortho) then
 !       save gradients
         if (iter <= iortho) then
-           zdla = sqrt(dot_product(gradx,grady,r_quad))
+           zdla = one/sqrt(dot_product(gradx,grady,r_quad))
            do i=1,nclen
-              cglwork(iter+1)%values(i)=gradx%values(i)/zdla
-              cglworkhat(iter+1)%values(i)=grady%values(i)/zdla
+              cglwork(iter+1)%values(i)=gradx%values(i)*zdla
+              cglworkhat(iter+1)%values(i)=grady%values(i)*zdla
            end do
         end if
      end if
@@ -350,7 +360,7 @@ subroutine pcgsoi()
 !       different due to round off, so use average.
         gnorm(2)=dprod(2)-0.5_r_quad*(dprod(3)+dprod(4))
         gnorm(3)=dprod(2)
-        if(mype == 0)then
+        if(mype == minmype)then
            aindex=abs(dprod(3)/dprod(2))
            write(iout_iter,*) 'NL Index ',aindex
            if(aindex > 0.5_r_kind .or. print_verbose) write(iout_iter,*) 'NL Values ', dprod(3),dprod(2)
@@ -370,7 +380,7 @@ subroutine pcgsoi()
 
      gnorm(1)=dprod(1)
 
-     if(mype == 0)write(iout_iter,*)'Minimization iteration',iter
+     if(mype == minmype)write(iout_iter,*)'Minimization iteration',iter
 
 !    4. Calculate b and new search direction
      b=zero
@@ -378,13 +388,13 @@ subroutine pcgsoi()
         if (iter > 1 .or. .not. read_success)then
            if (gsave>1.e-16_r_kind) b=gnorm(2)/gsave
            if (b<zero .or. b>30.0_r_kind) then
-              if (mype==0) then
+              if (mype==minmype) then
                  if (iout_6) write(6,105) gnorm(2),gsave,b
                  write(iout_iter,105) gnorm(2),gsave,b
               endif
               b=zero
            endif
-           if (mype==0 .and. print_verbose) write(6,888)'pcgsoi: gnorm(1:3),b=',gnorm,b
+           if (mype==minmype .and. print_verbose) write(6,888)'pcgsoi: gnorm(1:3),b=',gnorm,b
         end if
 
         do i=1,nclen
@@ -432,22 +442,20 @@ subroutine pcgsoi()
      gnormx=gnorm(1)/gnormorig
      penx=penalty/penorig
 
-     if (mype==0) then
+     if (mype==minmype) then
         if (iter==0) then
            zgini=gnorm(1)
            zfini=penalty
            write(6,888)'Initial cost function =',zfini
            write(6,888)'Initial gradient norm =',sqrt(zgini)
         endif
-        if(print_verbose)then
-           write(iout_iter,888)'pcgsoi: gnorm(1:2)',gnorm
-           write(iout_iter,999)'costterms Jb,Jo,Jc,Jl  =',jiter,iter,fjcost
-        end if
         istep=1
         if (stp<small_step) istep=2
         write(6,9992)'cost,grad,step,b,step? =',jiter,iter,penalty,sqrt(gnorm(1)),stp,b,step(istep)
         write(iout_iter,9992)'cost,grad,step,b,step? =',jiter,iter,penalty,sqrt(gnorm(1)),stp,b,step(istep)
         if(print_verbose)then
+           write(iout_iter,888)'pcgsoi: gnorm(1:2)',gnorm
+           write(iout_iter,999)'costterms Jb,Jo,Jc,Jl  =',jiter,iter,fjcost
            if (zgini>tiny_r_kind .and. zfini>tiny_r_kind) then
               write(iout_iter,9993) 'estimated penalty reduction this iteration',&
                     jiter,iter,(penalty-penaltynew),(penalty-penaltynew)/penorig,'%'
@@ -467,7 +475,7 @@ subroutine pcgsoi()
      if(gnormx < converge .or. penalty < converge  .or.  &
         penx >= pennorm .or. end_iter)then
 
-        if(mype == 0)then
+        if(mype == minmype)then
            if(iout_6) write(6,101)
            write(iout_iter,101)
 
@@ -508,7 +516,7 @@ subroutine pcgsoi()
 !  End of inner iteration
 
 !  Deallocate space for renormalization
-  if(iorthomax>0) then 
+  if(ortho) then 
      do ii=1,iorthomax+1
         call deallocate_cv(cglwork(ii))
      enddo
@@ -521,7 +529,7 @@ subroutine pcgsoi()
 
 ! Calculate adjusted observation error factor
   if( oberror_tune .and. (.not.l4dvar) ) then
-     if (mype == 0) write(6,*) 'PCGSOI:  call penal for obs perturbation'
+     if (mype == minmype) write(6,*) 'PCGSOI:  call penal for obs perturbation'
 !    call c2s(xhat,sval,sbias,.false.,.false.)
 
      call penal(sval(1))
@@ -535,17 +543,14 @@ subroutine pcgsoi()
 
   if (l_tlnmc .and. baldiag_inc) call strong_baldiag_inc(sval,size(sval))
 
-  llprt=(mype==0)
+  llprt=(mype==minmype)
 ! call c2s(xhat,sval,sbias,llprt,.false.)
 
   if(print_diag_pcg)then
 
 ! Evaluate final cost function and gradient
-     if (mype==0) write(6,*)'Minimization final diagnostics'
+     if (mype==minmype) write(6,*)'Minimization final diagnostics'
 
-     do ii=1,nobs_bins
-       rval(ii)=zero
-     end do
      call intall(sval,sbias,rval,rbias)
      gradx=zero
      call c2s_ad(gradx,rval,rbias,llprt)
@@ -575,16 +580,16 @@ subroutine pcgsoi()
 !       fjcost(1) = dot_product(xhatsave,yhatsave,r_quad)
      end if
 !    fjcost(2) = zjo
-     zfend=penaltynew
-!    if(l_hyb_ens) zfend=zfend+fjcost_e
 
-     if (mype==0) then
+     if (mype==minmype) then
+        zfend=penaltynew
         if(l_hyb_ens) then
 
 !          If hybrid ensemble run, print out contribution to Jb and Je separately
 
            write(iout_iter,999)'costterms Jb,Je,Jo,Jc,Jl =',jiter,iter,fjcostnew(1)- fjcost_e, &
                fjcost_e,fjcostnew(2:4)
+!          zfend=zfend+fjcost_e
 
         else
            write(iout_iter,999)'costterms Jb,Jo,Jc,Jl =',jiter,iter,fjcostnew
@@ -633,13 +638,7 @@ subroutine pcgsoi()
 ! Write output analysis files
   if(.not.l4dvar) call prt_guess('analysis')
   call prt_state_norms(sval(1),'increment')
-  if (twodvar_regional) then
-      call write_all(-1)
-    else
-      if(jiter == miter) then
-         call write_all(-1)
-      endif
-  endif
+  if (twodvar_regional .or. jiter == miter) call write_all(-1)
 
 ! Overwrite guess with increment (4d-var only, for now)
   if (iwrtinc>0) then
@@ -905,6 +904,8 @@ subroutine c2s(hat,val,bias,llprt,ltest)
   use gsi_bundlemod, only : gsi_bundle,assignment(=)
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar
   use gsi_4dcouplermod, only : gsi_4dcoupler_grtests
+  use control2state_mod, only: control2state,control2state_ad
+  use ensctl2state_mod, only: ensctl2state
   implicit none
   
   type(control_vector)                     ,intent(inout) :: hat
@@ -971,6 +972,8 @@ subroutine c2s_ad(hat,val,bias,llprt)
   use gsi_bundlemod, only : gsi_bundle,assignment(=)
   use gsi_bundlemod, only : self_add
   use gsi_4dvar, only: nobs_bins, nsubwin, l4dvar
+  use control2state_mod, only: control2state_ad
+  use ensctl2state_mod, only: ensctl2state_ad
   implicit none
   
   type(control_vector)                     ,intent(inout) :: hat

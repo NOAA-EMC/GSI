@@ -37,7 +37,7 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
 !     v        - meridional wind on subdomain
 !     t        - virtual temperature on subdomain
 !     mype     - task id
-!     uvflag   - logical, set to true for st,vp wind components, instead of stream/potential function
+!     uvflag   - logical, set to true for u,v wind components, instead of stream/potential function
 !
 !   output argument list:
 !     u_t      - time tendency of u
@@ -64,6 +64,7 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use derivsmod, only: gsi_xderivative_bundle
   use derivsmod, only: gsi_yderivative_bundle
+  use turblmod, only: use_pbl
   implicit none
 
 ! Declare passed variables
@@ -244,28 +245,21 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
       end if
     end if
 
-!   top/bottom boundary condition:
 
     do j=jtstart(kk),jtstop(kk)
       do i=1,lat2
+
+!   top/bottom boundary condition:
+
         what(i,j,1)=zero
         what(i,j,nsig+1)=zero
-      enddo
-    enddo
-
 
 !   load actual dp/dt
 
-    do j=jtstart(kk),jtstop(kk)
-      do i=1,lat2
         p_t(i,j)=prsth(i,j,1)
-      end do
-    end do
 
 !   before big k loop, zero out the km1 summation arrays
 
-    do j=jtstart(kk),jtstop(kk)
-      do i=1,lat2
         sumkm1  (i,j)=zero
         sum2km1 (i,j)=zero
         sumvkm1 (i,j)=zero
@@ -371,7 +365,7 @@ subroutine calctends_no_tl(st,vp,t,p,mype,u_t,v_t,t_t,p_t,uvflag)
       end do   !end do j
     end do  !end do k
 
-    call turbl_tl(ges_prsi(1,1,1,it),ges_tv,ges_teta(1,1,1,it),&
+    if(use_pbl)call turbl_tl(ges_prsi(1,1,1,it),ges_tv,ges_teta(1,1,1,it),&
                u,v,pri,t,u_t,v_t,t_t,jtstart(kk),jtstop(kk))
 
     if(.not.wrf_nmm_regional.and..not.nems_nmmb_regional)then

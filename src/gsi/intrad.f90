@@ -83,13 +83,14 @@ subroutine setrad(sval)
   use gsi_bundlemod, only: gsi_bundlegetpointer
   use gsi_metguess_mod, only: gsi_metguess_get
   use mpeu_util, only: getindex
+  use mpimod, only: mype
   implicit none
 
 ! Declare passed variables
   type(gsi_bundle), intent(in   ) :: sval
 
 ! Declare local variables
-  integer(i_kind) ier,istatus,indx
+  integer(i_kind) indx
   logical         look
 
   real(r_kind),pointer,dimension(:) :: st,sq,scw,soz,su,sv,sqg,sqh,sqi,sql,sqr,sqs
@@ -97,91 +98,110 @@ subroutine setrad(sval)
 
   if(done_setting) return
 
-! Retrieve pointers; return when not found (except in case of non-essentials)
-  ier=0; itsen=0; iqv=0; ius=0; ivs=0; isst=0; ioz=0; icw=0
-  iqg=0; iqh=0; iqi=0; iql=0; iqr=0; iqs=0
-  call gsi_bundlegetpointer(sval,'u',  su, istatus);ius=istatus+ius
-  call gsi_bundlegetpointer(sval,'v',  sv, istatus);ivs=istatus+ivs
-  call gsi_bundlegetpointer(sval,'tsen' ,st, istatus);itsen=istatus+itsen
-  call gsi_bundlegetpointer(sval,'q',  sq, istatus);iqv=istatus+iqv
-  call gsi_bundlegetpointer(sval,'cw' ,scw,istatus);icw=istatus+icw
-  call gsi_bundlegetpointer(sval,'oz' ,soz,istatus);ioz=istatus+ioz
-  call gsi_bundlegetpointer(sval,'sst',sst,istatus);isst=istatus+isst
-  call gsi_bundlegetpointer(sval,'qg' ,sqg,istatus);iqg=istatus+iqg
-  call gsi_bundlegetpointer(sval,'qh' ,sqh,istatus);iqh=istatus+iqh
-  call gsi_bundlegetpointer(sval,'qi' ,sqi,istatus);iqi=istatus+iqi
-  call gsi_bundlegetpointer(sval,'ql' ,sql,istatus);iql=istatus+iql
-  call gsi_bundlegetpointer(sval,'qr' ,sqr,istatus);iqr=istatus+iqr
-  call gsi_bundlegetpointer(sval,'qs' ,sqs,istatus);iqs=istatus+iqs
-  lgoback=(ius/=0).and.(ivs/=0).and.(itsen/=0).and.(iqv/=0).and.(ioz/=0).and.(icw/=0).and.(isst/=0)
-  lgoback=lgoback .and.(iqg/=0).and.(iqh/=0).and.(iqi/=0).and.(iql/=0).and.(iqr/=0).and.(iqs/=0)
-  if(lgoback)return
-
 ! check to see if variable participates in forward operator
 ! tsen
   indx=getindex(radjacnames,'tsen')
-  look=(itsen==0.and.indx>0)
   itsen=-1
-  if(look) itsen=radjacindxs(indx)
+  if(indx > 0)then
+    call gsi_bundlegetpointer(sval,'tsen',st, itsen)
+    look=itsen==0
+    if(look) itsen=radjacindxs(indx)
+  end if
 ! q
   indx=getindex(radjacnames,'q')
-  look=(iqv==0.and.indx>0)
   iqv=-1
-  if(look) iqv=radjacindxs(indx)
+  if(indx > 0)then
+     call gsi_bundlegetpointer(sval,'q',   sq, iqv)
+     look=iqv==0
+     if(look) iqv=radjacindxs(indx)
+  end if
 ! oz
   indx=getindex(radjacnames,'oz')
-  look=(ioz ==0.and.indx>0)
   ioz=-1
-  if(look) ioz =radjacindxs(indx)
+  if(indx > 0)then
+     call gsi_bundlegetpointer(sval,'oz' , soz,ioz)
+     look=ioz ==0
+     if(look) ioz =radjacindxs(indx)
+  end if
 ! cw
   indx=getindex(radjacnames,'cw')
-  look=(icw ==0.and.indx>0)
   icw=-1
-  if(look) icw =radjacindxs(indx)
+  if(indx > 0)then
+     call gsi_bundlegetpointer(sval,'cw' , scw,icw)
+     look=icw ==0
+     if(look) icw =radjacindxs(indx)
+  end if
 ! sst
   indx=getindex(radjacnames,'sst')
-  look=(isst==0.and.indx>0)
   isst=-1
-  if(look) isst=radjacindxs(indx)
+  if(indx > 0)then
+     call gsi_bundlegetpointer(sval,'sst', sst,isst)
+     look=isst==0
+     if(look) isst=radjacindxs(indx)
+  end if
 ! us & vs
   indx=getindex(radjacnames,'u')
-  look=(ius==0.and.indx>0)
   ius=-1
-  if(look) ius=radjacindxs(indx)
+  if(indx > 0)then
+     call gsi_bundlegetpointer(sval,'u',   su, ius)
+     look=ius==0
+     if(look) ius=radjacindxs(indx)
+  end if
   indx=getindex(radjacnames,'v')
-  look=(ivs==0.and.indx>0)
   ivs=-1
-  if(look) ivs=radjacindxs(indx)
+  if(indx > 0)then
+     call gsi_bundlegetpointer(sval,'v',   sv, ivs)
+     look=ivs==0
+     if(look) ivs=radjacindxs(indx)
+  end if
 ! qg
   indx=getindex(radjacnames,'qg')
-  look=(iqg ==0.and.indx>0)
   iqg=-1
-  if(look) iqg =radjacindxs(indx)
+  if(indx > 0)then
+     call gsi_bundlegetpointer(sval,'qg' , sqg,iqg)
+     look=iqg ==0
+     if(look) iqg =radjacindxs(indx)
+  end if
 ! qh
   indx=getindex(radjacnames,'qh')
-  look=(iqh ==0.and.indx>0)
   iqh=-1
-  if(look) iqh =radjacindxs(indx)
+  if(indx > 0)then
+     call gsi_bundlegetpointer(sval,'qh' , sqh,iqh)
+     look=iqh ==0
+     if(look) iqh =radjacindxs(indx)
+  end if
 ! qi
   indx=getindex(radjacnames,'qi')
-  look=(iqi ==0.and.indx>0)
   iqi=-1
-  if(look) iqi =radjacindxs(indx)
+  if(indx > 0)then
+     call gsi_bundlegetpointer(sval,'qi' , sqi,iqi)
+     look=iqi ==0
+     if(look) iqi =radjacindxs(indx)
+  end if
 ! ql
   indx=getindex(radjacnames,'ql')
-  look=(iql ==0.and.indx>0)
   iql=-1
-  if(look) iql =radjacindxs(indx)
+  if(indx > 0)then
+     call gsi_bundlegetpointer(sval,'ql' , sql,iql)
+     look=iql ==0
+     if(look) iql =radjacindxs(indx)
+  end if
 ! qr
   indx=getindex(radjacnames,'qr')
-  look=(iqr ==0.and.indx>0)
   iqr=-1
-  if(look) iqr =radjacindxs(indx)
+  if(indx > 0)then
+     call gsi_bundlegetpointer(sval,'qr' , sqr,iqr)
+     look=iqr ==0
+     if(look) iqr =radjacindxs(indx)
+  end if
 ! qs
   indx=getindex(radjacnames,'qs')
-  look=(iqs ==0.and.indx>0)
   iqs=-1
-  if(look) iqs =radjacindxs(indx)
+  if(indx > 0)then
+     call gsi_bundlegetpointer(sval,'qs' , sqs,iqs)
+     look=iqs ==0
+     if(look) iqs =radjacindxs(indx)
+  end if
 
   luseu=ius>=0
   lusev=ivs>=0
@@ -196,6 +216,26 @@ subroutine setrad(sval)
   luseqr=iqr>=0
   luseqs=iqs>=0
   lusesst=isst>=0
+  lgoback=.not.(luseu .or. lusev .or. luset .or. luseq .or. luseoz .or. lusecw .or. &
+          luseql .or. luseqi .or. luseqh .or. luseqg .or. luseqr .or. luseqs .or. &
+          lusesst)
+
+  if(mype == 0)then
+     write(6,*) ' following variables are used in int and stp radiance calculations '
+     if(luset) write(6,*)'tsen'
+     if(luseq) write(6,*)'q'
+     if(luseoz)write(6,*)'oz'
+     if(luseu) write(6,*)'u'
+     if(lusev) write(6,*)'v'
+     if(lusesst) write(6,*)'sst'
+     if(lusecw) write(6,*)'cw'
+     if(luseql) write(6,*)'ql'
+     if(luseqi) write(6,*)'qi'
+     if(luseqh) write(6,*)'qh'
+     if(luseqg) write(6,*)'qg'
+     if(luseqr) write(6,*)'qr'
+     if(luseqs) write(6,*)'qs'
+   end if
 
   done_setting = .true.
 
@@ -308,7 +348,7 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
 
 ! Declare local variables
   integer(i_kind) i1,i2,i3,i4,n,k,ic,ix,nn,mm,ncr1,ncr2
-  integer(i_kind) ier,istatus
+  integer(i_kind) istatus
   integer(i_kind),dimension(nsig) :: i1n,i2n,i3n,i4n
   real(r_kind),allocatable,dimension(:):: val
   real(r_kind) w1,w2,w3,w4
@@ -331,7 +371,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
   call timer_ini('intrad')
 
 ! Retrieve pointers; return when not found (except in case of non-essentials)
-  ier=0
   if(luseu)then
     call gsi_bundlegetpointer(sval,'u',  su, istatus)
     call gsi_bundlegetpointer(rval,'u',  ru, istatus)
@@ -405,7 +444,8 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         i4n(k) = i4n(k-1)+latlon11
      enddo
 
-!$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4,mm)
+     tdir=zero
+!$omp parallel do schedule(dynamic,1) private(k,i1,i2,i3,i4)
      do k=1,nsig
         i1 = i1n(k)
         i2 = i2n(k)
@@ -468,7 +508,6 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
      end do
 
 
-
 !  For all other configurations
 !  begin channel specific calculations
      allocate(val(radptr%nchan))
@@ -487,10 +526,8 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         end do
      end if
 
-!$omp parallel do schedule(dynamic,1) private(nn,ic,ix,k)
+!$omp parallel do schedule(dynamic,1) private(nn,k,ncr1,val_quad,mm)
      do nn=1,radptr%nchan
-        ic=radptr%icx(nn)
-        ix=(ic-1)*npred
 
 !       include observation increment and lapse rate contributions to bias correction
         val(nn)=zero
@@ -499,25 +536,24 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
         do k=1,nsigradjac
            val(nn)=val(nn)+tdir(k)*radptr%dtb_dvar(k,nn)
         end do
-     end do
 
-     ncr1=0
 !       Include contributions from remaining bias correction terms
-     do nn=1,radptr%nchan
         if( .not. ladtest_obs) then
            if(radptr%use_corr_obs)then
               val_quad = zero_quad
               do mm=1,nn
-                 ncr1=ncr1+1
+                 ncr1=radptr%iccerr(nn)+mm
                  val_quad=val_quad+radptr%rsqrtinv(ncr1)*biasvect(mm)
               enddo
               val(nn)=val(nn) + val_quad
            else
-              val(nn)=val(nn)+biasvect(nn)
+              val(nn)=val(nn) + biasvect(nn)
            endif
         end if
+     end do
 
-        if(luse_obsdiag)then
+     if(luse_obsdiag)then
+        do nn=1,radptr%nchan
            if (lsaveobsens) then
               val(nn)=val(nn)*radptr%err2(nn)*radptr%raterr2(nn)
               !-- radptr%diags(nn)%ptr%obssen(jiter) = val(nn)
@@ -526,13 +562,14 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
               !-- if (radptr%luse) radptr%diags(nn)%ptr%tldepart(jiter) = val(nn)
               if (radptr%luse) call obsdiagNode_set(radptr%diags(nn)%ptr,jiter=jiter,tldepart=val(nn))
            endif
-        endif
-     end do
+        end do
+     end if
 
      if (l_do_adjoint) then
-        do nn=1,radptr%nchan
-           ic=radptr%icx(nn)
-           if (.not. lsaveobsens) then
+        if (.not. lsaveobsens) then
+!$omp parallel do schedule(dynamic,1) private(nn,ic,cg_rad,wnotgross,wgross,p0)
+           do nn=1,radptr%nchan
+              ic=radptr%icx(nn)
               if( .not. ladtest_obs)   val(nn)=val(nn)-radptr%res(nn)
 
 !             Multiply by variance.
@@ -546,51 +583,45 @@ subroutine intrad_(radhead,rval,sval,rpred,spred)
               endif
 
               if(.not.ladtest_obs) val(nn) = val(nn)*radptr%err2(nn)*radptr%raterr2(nn)
-           endif
-        enddo
+           enddo
+        endif
 
 !          Extract contributions from bias correction terms
-!          use compensated summation
 
         if( .not. ladtest_obs) then
-           if (radptr%use_corr_obs) then
-             ncr1 = 0
-             do mm=1,radptr%nchan
-               ncr1 = ncr1 + mm
-               ncr2 = ncr1
-               biasvect(mm) = zero
-               do nn=mm,radptr%nchan
-                 biasvect(mm)=biasvect(mm)+radptr%rsqrtinv(ncr2)*val(nn)
-                 ncr2 = ncr2 + nn
-               enddo
-             end do
-           endif
-
-           if(radptr%luse)then
-             if(radptr%use_corr_obs)then
-                do nn=1,radptr%nchan
-                   ix=(radptr%icx(nn)-1)*npred
-                   do n=1,npred
-                      rpred(ix+n)=rpred(ix+n)+biasvect(nn)*radptr%pred(n,nn)
-                   enddo
+          if(radptr%luse)then
+            if (radptr%use_corr_obs) then
+!$omp parallel do schedule(dynamic,1) private(n,nn,ix,ncr1,ncr2,mm)
+              do nn=1,radptr%nchan
+                ncr1 = radptr%iccerr(nn)+nn
+                ncr2 = ncr1
+                biasvect(nn) = zero
+                do mm=nn,radptr%nchan
+                  biasvect(nn)=biasvect(nn)+radptr%rsqrtinv(ncr2)*val(mm)
+                  ncr2 = ncr2 + mm
                 enddo
-             else
-                do nn=1,radptr%nchan
-                   ix=(radptr%icx(nn)-1)*npred
-                   do n=1,npred
-                      rpred(ix+n)=rpred(ix+n)+radptr%pred(n,nn)*val(nn)
-                   end do
-                end do
-             end if
-           end if
 
-           deallocate(biasvect)
+                ix=(radptr%icx(nn)-1)*npred
+                do n=1,npred
+                   rpred(ix+n)=rpred(ix+n)+biasvect(nn)*radptr%pred(n,nn)
+                enddo
+              enddo
+            else
+!$omp parallel do schedule(dynamic,1) private(n,nn,ix)
+              do nn=1,radptr%nchan
+                 ix=(radptr%icx(nn)-1)*npred
+                 do n=1,npred
+                    rpred(ix+n)=rpred(ix+n)+radptr%pred(n,nn)*val(nn)
+                 end do
+              end do
+            end if
+          end if
+
+          deallocate(biasvect)
         end if ! not ladtest_obs
 
-     endif
 
 !          Begin adjoint
-     if (l_do_adjoint) then
 !$omp parallel do schedule(dynamic,1) private(k,nn)
         do k=1,nsigradjac
            tval(k)=zero

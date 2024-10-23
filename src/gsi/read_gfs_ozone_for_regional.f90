@@ -291,8 +291,8 @@ subroutine read_gfs_ozone_for_regional
      if (nframe /= 0) call error_msg(trim(my_name),trim(filename),'nframe', &
                                      'getfilehead',istop,nframe)
 
-     fhour = float(nfhour) + float(nfminute)/r60 + &
-             float(nfsecondn)/float(nfsecondd)/r3600
+     fhour = real(nfhour,r_kind) + real(nfminute,r_kind)/r60 + &
+             real(nfsecondn,r_kind)/real(nfsecondd,r_kind)/r3600
 
      nsig_gfs=levs
      jcap_org=njcap
@@ -319,9 +319,6 @@ subroutine read_gfs_ozone_for_regional
         call stop2(85)
      endif
 
-     allocate(vcoord(levs+1,nvcoord))
-     vcoord(:,1:nvcoord) = nems_vcoord(:,1:nvcoord,1)
-     deallocate(nems_vcoord)
 
      call nemsio_close(gfile,iret=iret)
      if ( iret /= 0 ) call error_msg(trim(my_name),trim(filename),' ', &
@@ -416,7 +413,7 @@ subroutine read_gfs_ozone_for_regional
         write(6,*)'READ_GFS_OZONE_FOR_REGIONAL:  ***ERROR*** INVALID value for nvcoord=',sighead%nvcoord,filename
         call stop2(85)
      endif
-   else if ( use_gfs_ncio ) then 
+  else if ( use_gfs_ncio ) then 
      if (gfshead%nvcoord == 1) then
         do k=1,nsig_gfs+1
            bk5(k) = gfsheadv%vcoord(k,1)
@@ -437,6 +434,8 @@ subroutine read_gfs_ozone_for_regional
         call stop2(85)
      endif
   else
+     allocate(vcoord(levs+1,nvcoord))
+     vcoord(:,1:nvcoord) = nems_vcoord(:,1:nvcoord,1)
      if (nvcoord == 1) then
         do k=1,nsig_gfs+1
            bk5(k) = vcoord(k,1)
@@ -456,6 +455,7 @@ subroutine read_gfs_ozone_for_regional
         write(6,*)'GET_GEFS_FOR_REGIONAL:  ***ERROR*** INVALID value for nvcoord=',nvcoord
         call stop2(85)
      endif
+     deallocate(vcoord,nems_vcoord)
   end if
 
 ! Load reference temperature array (used by general coordinate)
@@ -497,7 +497,6 @@ subroutine read_gfs_ozone_for_regional
   vector=.false.
   call general_sub2grid_create_info(grd_gfs,inner_vars,nlat_gfs,nlon_gfs,nsig_gfs,num_fields, &
                                   .not.regional,vector)
-  deallocate(vector)
   jcap_gfs_test=jcap_gfs
   call general_init_spec_vars(sp_gfs,jcap_gfs,jcap_gfs_test,grd_gfs%nlat,grd_gfs%nlon)
   if (hires .and. .not. use_gfs_nemsio .and. .not. use_gfs_ncio) then
@@ -507,9 +506,6 @@ subroutine read_gfs_ozone_for_regional
 !  also want to set up regional grid structure variable grd_mix, which still has number of
 !   vertical levels set to nsig_gfs, but horizontal dimensions set to regional domain.
 
-  num_fields=2*nsig_gfs
-  allocate(vector(num_fields))
-  vector=.false.
   call general_sub2grid_create_info(grd_mix,inner_vars,nlat,nlon,nsig_gfs,num_fields,regional,vector)
   deallocate(vector)
 

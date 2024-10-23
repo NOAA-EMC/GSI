@@ -123,19 +123,14 @@ echo "" >> $cfile
 echo ". "$(awk '{ print $1, $2, $3, $4, $5, $6, $7, $8, $9 }' $regdir/regression_var.out)  >>$cfile
 echo "" >> $cfile
 
-echo "module purge"                        >> $cfile
-echo "module load envvar/1.0"              >> $cfile
-echo "module load PrgEnv-intel/8.2.0"      >> $cfile
-echo "module load intel/19.1.3.304"        >> $cfile
-echo "module load craype/2.7.13"           >> $cfile
-echo "module load cray-mpich/8.1.12"       >> $cfile
-echo "module load cray-pals/1.1.3"         >> $cfile
-echo "module load prod_util/2.0.14"        >> $cfile
-echo "module load prod_envir/2.0.6"        >> $cfile
-echo "module load crtm/2.4.0"              >> $cfile
-echo "module load cfp/2.0.4"               >> $cfile
-echo "module load netcdf/4.7.4"            >> $cfile
-echo "module list"                         >> $cfile
+echo "module reset"                         >> $cfile
+echo "module use $modulefiles"              >> $cfile
+echo "module load gsi_wcoss2.intel"               >> $cfile
+echo "module load envvar/1.0"               >> $cfile
+echo "module load cray-pals/1.2.2"          >> $cfile
+echo "module -t list 2>&1 | while read line;do module show $line 2>&1 | sed -n -e '2p';done | sort" >> $cfile
+echo "module avail" >> $cfile
+
 echo "" >> $cfile
 
 cat $exec >> $cfile

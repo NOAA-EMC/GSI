@@ -184,7 +184,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   integer(i_kind) :: jc,bufsat,n    
   integer(i_kind),dimension(5):: iobsdate
   integer(i_kind):: method,iobs,num_obs
-  integer(i_kind),parameter   :: maxobs=4000000
+  integer(i_kind),parameter   :: maxobs=6000000
   !-- integer(i_kind),parameter   :: nscan=74       ! after binning ifov, 221/3 + 1
   integer(i_kind),parameter   :: nscan=221
 
@@ -414,7 +414,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
           call ufbrep(lnbufr,var_check1,1,nchanl,iret,'GMICHQ')
           !call ufbrep(lnbufr,gmirfi,1,nchanl,iret,'GMIRFI')
           call ufbrep(lnbufr,pixelsaza,1,ngs,iret,'SAZA')
-          call ufbrep(lnbufr,val_angls,n_angls,ngs,iret,'SAMA SZA SMA SGA')
+          call ufbrep(lnbufr,val_angls,n_angls,ngs,iret,'BEARAZ SOZA SOLAZI SSGA')
           call ufbint(lnbufr,pixelloc,2, 1,iret,'CLATH CLONH')
 
         if (any(var_check1 < 99999999999_r_double)) then   ! 100000000000 seems to be the missing value
@@ -528,6 +528,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
         flgch = 0
 
         iobs=iobs+1
+        if(iobs>maxobs) exit
      end do read_loop
   end do read_subset
 690 continue
@@ -677,7 +678,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
        if(.not. regional .and. dist1 > 0.75_r_kind) cycle obsloop
     endif
 
-    crit1 = crit1 + 10._r_kind * float(iskip)
+    crit1 = crit1 + 10._r_kind * real(iskip,r_kind)
     call checkob(dist1,crit1,itx,iuse)
     if(.not. iuse) then
        cycle obsloop
@@ -695,7 +696,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
 
     call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg,idomsfc,sfcpct, &
          ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-    call deter_sfc_gmi(dlat_earth,dlon_earth,isflg,sfcpct)
+    call deter_sfc_gmi(dlat_earth,dlon_earth,isflg)
 
 
 !   Only keep obs over ocean    - ej
@@ -818,7 +819,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
          if(pos_max==0) then
            j2=1
          else
-           j2=nint(float(pos_statis(i))/pos_max)
+           j2=nint(real(pos_statis(i),r_kind)/pos_max)
            j2=max(1,j2)
          endif
          do j=1,pos_statis(i),j2
@@ -834,7 +835,7 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
          if(pos_max==0) then
            j2=1
          else
-           j2=nint(float(pos_statis(i))/pos_max)
+           j2=nint(real(pos_statis(i),r_kind)/pos_max)
            j2=max(1,j2)
          endif
          do j=1,pos_statis(i),j2

@@ -26,7 +26,7 @@ module write_incr
 
 contains
 
-  subroutine write_fv3_inc_ (grd,sp_a,filename,mype_out,gfs_bundle,ibin)
+  subroutine write_fv3_inc_ (grd,filename,mype_out,gfs_bundle,ibin)
 
 !$$$  subprogram documentation block
 !                .      .    .
@@ -76,6 +76,7 @@ contains
     use general_sub2grid_mod, only: sub2grid_info
 
     use gsi_bundlemod, only: gsi_bundle, gsi_bundlegetpointer
+    use gsi_bundlemod, only: assignment(=)
     use control_vectors, only: control_vector
 
     use constants, only: one, rad2deg, r1000
@@ -93,13 +94,14 @@ contains
 
     use state_vectors, only: svars3d
     use mpeu_util, only: getindex
+    use control2state_mod, only: control2state
+    use ensctl2state_mod, only: ensctl2state
 
     implicit none
 
 ! !INPUT PARAMETERS:
 
     type(sub2grid_info), intent(in) :: grd
-    type(spec_vars),     intent(in) :: sp_a
     character(len=24),   intent(in) :: filename  ! file to open and write to
     integer(i_kind),     intent(in) :: mype_out  ! mpi task to write output file
     type(gsi_bundle),    intent(in) :: gfs_bundle
@@ -158,7 +160,6 @@ contains
 !   set up state space based off of xhatsave
 !   Convert from control space directly to physical
 !   space for comparison with obs.
-    call allocate_preds(sbiasinc)
     do iii=1,nobs_bins
        call allocate_state(svalinc(iii))
     end do
@@ -168,7 +169,10 @@ contains
     do iii=1,ntlevs_ens
        call allocate_state(evalinc(iii))
     end do
+
+    call allocate_preds(sbiasinc)
     call control2state(xhatsave,mvalinc,sbiasinc)
+    call deallocate_preds(sbiasinc)
 
     if (l4dvar) then
        if (l_hyb_ens) then
@@ -193,6 +197,12 @@ contains
           end do
        end if
     end if
+    do iii=1,ntlevs_ens
+       call deallocate_state(evalinc(iii))
+    end do
+    do iii=1,nsubwin
+       call deallocate_state(mvalinc(iii))
+    end do
 
     ! Check hydrometeors in control variables 
     iql = getindex(svars3d,'ql')
@@ -334,10 +344,10 @@ contains
                          start = (/1/), count = (/grd%nlon/)))
        ! levels
        do k=1,grd%nsig
-         levsout(k) = float(k)
-         ilevsout(k) = float(k)
+         levsout(k) = real(k,r_kind)
+         ilevsout(k) = real(k,r_kind)
        end do
-       ilevsout(grd%nsig+1) = float(grd%nsig+1)
+       ilevsout(grd%nsig+1) = real(grd%nsig+1,r_kind)
        ! write to file
        call nccheck_incr(nf90_put_var(ncid_out, levvarid, sngl(levsout), &
                          start = (/1/), count = (/grd%nsig/)))
@@ -366,10 +376,9 @@ contains
       ncstart = (/ jstart(mype+1), 1, 1 /)
       nccount = (/ grd%lon1, grd%lat1-1, grd%nsig /)
       j1 = 2
-      j2 = grd%lat1-1
     else if (istart(mype+1)+grd%lat1 == grd%nlat+1) then
       nccount = (/ grd%lon1, grd%lat1-1, grd%nsig /)
-      j2 = grd%lat1-2
+      j2 = grd%lat1-1       
     end if
     call mpi_barrier(mpi_comm_world,ierror)
     allocate(out3d(nccount(1),nccount(2),grd%nsig))
@@ -528,6 +537,10 @@ contains
     endif
 !    ! cleanup and exit
     call nccheck_incr(nf90_close(ncid_out))
+    deallocate(out3d)
+    do iii=1,nobs_bins
+       call deallocate_state(svalinc(iii))
+    end do
     if ( mype == mype_out ) then
        write(6,*) "FV3 netCDF increment written, file= "//trim(filename)//".nc"
     end if

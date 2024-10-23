@@ -125,15 +125,16 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   use obsmod, only: netcdf_diag, binary_diag, dirname
   use obsmod, only: l_obsprvdiag
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
-       nc_diag_write, nc_diag_data2d
+       nc_diag_write, nc_diag_data2d, nc_diag_metadata_to_single
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
   use gridmod, only: nsig,get_ij,twodvar_regional
   use constants, only: zero,one_tenth,one,half,pi,g_over_rd, &
              huge_r_kind,tiny_r_kind,two,huge_single, &
-             r1000,wgtlim,tiny_single,r10,three
+             r1000,r100,wgtlim,tiny_single,r10,three
   use jfunc, only: jiter,last,jiterstart,miter
   use qcmod, only: dfact,dfact1,npres_print,vqc,nvqc
   use guess_grids, only: hrdifsig,ges_lnprsl,nfldsig,ntguessig
+  use guess_grids, only: geop_hgtl, ges_prsi, ges_tsen
   use convinfo, only: nconvtype,cermin,cermax,cgross,cvar_b,cvar_pg,ictype,icsubtype
   use convinfo, only: ibeta,ikapa 
 
@@ -181,15 +182,26 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   real(r_kind) cg_t,cvar,wgt,rat_err2,qcgross
   real(r_kind),dimension(nobs):: dup
   real(r_kind),dimension(nsig):: prsltmp
+  real(r_kind),dimension(nsig):: zges, prsltmp2, tvgestmp, tsentmp, qtmp, utmp, vtmp
+  real(r_kind) :: tgges,roges
+  real(r_kind),dimension(nsig+1):: prsitmp
   real(r_kind),dimension(nele,nobs):: data
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
+  ! GSI profiles are stored with bottom up index; output the profiles
+  ! with top down index  
+  real(r_kind),dimension(nsig):: ttmp_reverse,tvtmp_reverse,qtmp_reverse,utmp_reverse,vtmp_reverse
+  real(r_kind),dimension(nsig):: zges_reverse,prsltmp2_reverse
+  real(r_kind),dimension(nsig):: zges_read_reverse, zges_geometric_reverse
+  real(r_kind),dimension(nsig+1):: prsitmp_reverse
+  !<< JEDI 
 
   integer(i_kind) ier,ilon,ilat,ipres,ihgt,itemp,id,itime,ikx,iqc,iptrb,ijb
   integer(i_kind) ier2,iuse,ilate,ilone,istnelv,idomsfc,izz,iprvd,isprvd
   integer(i_kind) ikxx,nn,ibin,ioff,ioff0
-  integer(i_kind) i,j,nchar,nreal,ii,jj,k,l,mm1
+  integer(i_kind) i,j,nchar,nreal,ii,jj,k,kk,l,mm1
   integer(i_kind) itype,isubtype 
   integer(i_kind) ibb,ikk,idddd
+  integer(i_kind) msges
 
   logical,dimension(nobs):: luse,muse
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
@@ -214,6 +226,8 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_ps
   real(r_kind),allocatable,dimension(:,:,:  ) :: ges_z
   real(r_kind),allocatable,dimension(:,:,:,:) :: ges_tv
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_q
+  real(r_kind),allocatable,dimension(:,:,:,:) :: ges_u, ges_v
 
   type(sparr2) :: dhx_dx
   integer(i_kind) :: ps_ind, nnz, nind
@@ -273,7 +287,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
 !  muse = true  then used
 
   do i=1,nobs
-     muse(i)=nint(data(iuse,i)) <= jiter
+     muse(i)=nint(data(iuse,i)) <= jiter .and. nint(data(iqc,i)) < 8
   end do
 !  If HD raobs available move prepbufr version to monitor
   if(nhdps > 0)then
@@ -298,26 +312,26 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   hr_offset=min_offset/60.0_r_kind
 !  Check for duplicate observations at same location
   dup=one
-  do k=1,nobs
-     do l=k+1,nobs
-        if(data(ilat,k) == data(ilat,l) .and. &
-           data(ilon,k) == data(ilon,l) .and. &
-           data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
-           muse(k) .and. muse(l))then
-           if(l_closeobs) then
-              if(abs(data(itime,k)-hr_offset)<abs(data(itime,l)-hr_offset)) then
-                  muse(l)=.false.
-              else
-                  muse(k)=.false.
-              endif
-           else
-              tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
-              dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
-              dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
-           endif
-        end if
-     end do
-  end do
+!  do k=1,nobs
+!     do l=k+1,nobs
+!        if(data(ilat,k) == data(ilat,l) .and. &
+!           data(ilon,k) == data(ilon,l) .and. &
+!           data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
+!           muse(k) .and. muse(l))then
+!           if(l_closeobs) then
+!              if(abs(data(itime,k)-hr_offset)<abs(data(itime,l)-hr_offset)) then
+!                  muse(l)=.false.
+!              else
+!                  muse(k)=.false.
+!              endif
+!           else
+!              tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
+!              dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
+!              dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
+!           endif
+!        end if
+!     end do
+!  end do
 
 
 ! If requested, save select data for output to diagnostic file
@@ -410,6 +424,28 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
         mype,nfldsig)
      call tintrp2a1(ges_lnprsl,prsltmp,dlat,dlon,dtime,hrdifsig,&
         nsig,mype,nfldsig)
+
+!   interpolate geopotential height to location
+    call tintrp2a1(geop_hgtl, zges, dlat, dlon, dtime, hrdifsig, nsig, mype, nfldsig)
+    prsltmp2 = exp(prsltmp) ! pressure on model layers
+    ! pressure on interfaces
+    call tintrp2a1(ges_prsi,prsitmp,dlat,dlon,dtime,hrdifsig,nsig+1,mype,nfldsig)
+    ! virtual temperature profile
+    call tintrp2a1(ges_tv,tvgestmp,dlat,dlon,dtime,hrdifsig,nsig,mype,nfldsig)
+    ! sensible temperature profile
+    call tintrp2a1(ges_tsen,tsentmp,dlat,dlon,dtime,hrdifsig,nsig,mype,nfldsig)
+    ! specific humidity
+    call tintrp2a1(ges_q,qtmp,dlat,dlon,dtime,hrdifsig,nsig,mype,nfldsig)
+    ! winds
+    call tintrp2a1(ges_u,utmp,dlat,dlon,dtime,hrdifsig,nsig,mype,nfldsig)
+    call tintrp2a1(ges_v,vtmp,dlat,dlon,dtime,hrdifsig,nsig,mype,nfldsig)
+    ! landmask
+    msges = 0
+    if(itype == 180 .or. itype == 182 .or. itype == 183 .or. itype == 199) then    !sea
+      msges=0
+    elseif(itype == 181 .or. itype == 187 .or. itype == 188) then  !land
+      msges=1
+    endif
 
 ! Convert pressure to grid coordinates
 
@@ -765,6 +801,61 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
      endif
+!    get q ...
+     varname='q'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_q))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_q(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_q(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_q(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+
+!    get u ...
+     varname='u'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_u))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_u(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_u(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_u(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
+!    get v ...
+     varname='v'
+     call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+     if (istatus==0) then
+         if(allocated(ges_v))then
+            write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+            call stop2(999)
+         endif
+         allocate(ges_v(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+         ges_v(:,:,:,1)=rank3
+         do ifld=2,nfldsig
+            call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+            ges_v(:,:,:,ifld)=rank3
+         enddo
+     else
+         write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+         call stop2(999)
+     endif
   else
      write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
                  nfldsig,size(gsi_metguess_bundle)
@@ -890,29 +981,32 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
            call nc_diag_metadata("Observation_Class",       obsclass               )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
-           call nc_diag_metadata("Latitude",                sngl(data(ilate,i))    )
-           call nc_diag_metadata("Longitude",               sngl(data(ilone,i))    )
-           call nc_diag_metadata("Station_Elevation",       sngl(data(istnelv,i))  )
-           call nc_diag_metadata("Pressure",                sngl(data(ipres,i)*r10))
-           call nc_diag_metadata("Height",                  sngl(dhgt)             )
-           call nc_diag_metadata("Time",                    sngl(dtime-time_offset))
-           call nc_diag_metadata("Prep_QC_Mark",            sngl(data(iqc,i))      )
-           call nc_diag_metadata("Prep_Use_Flag",           sngl(data(iuse,i))     )
-           call nc_diag_metadata("Nonlinear_QC_Var_Jb",     sngl(var_jb)           )
-           call nc_diag_metadata("Nonlinear_QC_Rel_Wgt",    sngl(rwgt)             )                 
+           !Replace direct calls to nc_diag_metadata with the screening subroutine
+           call nc_diag_metadata_to_single("Latitude",      data(ilate,i)          )
+           call nc_diag_metadata_to_single("Longitude",     data(ilone,i)          )
+           call nc_diag_metadata_to_single("Station_Elevation",data(istnelv,i)     )
+           call nc_diag_metadata_to_single("Pressure",      data(ipres,i),r10,'*'  )
+           call nc_diag_metadata_to_single("Height",        dhgt                   )
+           call nc_diag_metadata_to_single("Time",          dtime,time_offset,'-'  )
+           call nc_diag_metadata_to_single("Prep_QC_Mark",  data(iqc,i)            )
+           call nc_diag_metadata_to_single("Prep_Use_Flag", data(iuse,i)           )
+           call nc_diag_metadata_to_single("Nonlinear_QC_Var_Jb",var_jb            )
+           call nc_diag_metadata_to_single("Nonlinear_QC_Rel_Wgt",rwgt             )
            if(muse(i)) then
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(one)              )
+              call nc_diag_metadata("Analysis_Use_Flag",    1.0_r_single           )
            else
-              call nc_diag_metadata("Analysis_Use_Flag",    sngl(-one)             )              
+              call nc_diag_metadata("Analysis_Use_Flag",   -1.0_r_single           )
            endif
 
-           call nc_diag_metadata("Errinv_Input",            sngl(errinv_input)     )
-           call nc_diag_metadata("Errinv_Adjust",           sngl(errinv_adjst)     )
-           call nc_diag_metadata("Errinv_Final",            sngl(errinv_final)     )
+           call nc_diag_metadata_to_single("Errinv_Input",  errinv_input           )
+           call nc_diag_metadata_to_single("Errinv_Adjust", errinv_adjst           )
+           call nc_diag_metadata_to_single("Errinv_Final",  errinv_final           )
 
-           call nc_diag_metadata("Observation",                   sngl(pob)        )
-           call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   sngl(pob-pges)   )
-           call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", sngl(pob-pgesorig))
+           call nc_diag_metadata_to_single("Observation",   pob                    )
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_adjusted",pob,pges,'-')
+           call nc_diag_metadata_to_single("Obs_Minus_Forecast_unadjusted",pob,pgesorig,'-')
+           call nc_diag_metadata_to_single("Forecast_adjusted",             pges)       
+           call nc_diag_metadata_to_single("Forecast_unadjusted",           pgesorig)   
  
           if (lobsdiagsave) then
 
@@ -945,12 +1039,68 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
              call nc_diag_data2d("Observation_Operator_Jacobian_val", real(dhx_dx%val,r_single))
            endif
 
+    ! GEOVALS
+    !>>emily
+    do k = 1, nsig
+       kk  = nsig-k+1
+       utmp_reverse(kk)     = utmp(k)
+       vtmp_reverse(kk)     = vtmp(k)
+       ttmp_reverse(kk)     = tsentmp(k)
+       tvtmp_reverse(kk)    = tvgestmp(k)   !emily
+       qtmp_reverse(kk)     = qtmp(k)
+       !hsges_reverse(kk)    = hsges(k)
+       !zges_read_reverse(kk)= zges_read(k)
+       !zges_geometric_reverse(kk)= zges_geometric(k)
+       zges_read_reverse(kk)= zsges+zges(k)
+       !zges_geometric_reverse(kk)= zges_geometric(k)
+       zges_reverse(kk)     = zges(k)
+       prsltmp2_reverse(kk) = prsltmp2(k)
+    enddo
+    do k = 1, nsig+1
+       kk  = (nsig+1)-k+1
+       prsitmp_reverse(kk)  = prsitmp(k)
+    enddo
+    call nc_diag_data2d("atmosphere_pressure_coordinate", sngl(prsltmp2_reverse*r1000))
+    call nc_diag_data2d("atmosphere_pressure_coordinate_interface", sngl(prsitmp_reverse*r1000))
+    call nc_diag_data2d("air_temperature", sngl(ttmp_reverse))
+    call nc_diag_data2d("virtual_temperature", sngl(tvtmp_reverse)) !emily
+    call nc_diag_data2d("specific_humidity", sngl(qtmp_reverse))
+    call nc_diag_data2d("eastward_wind", sngl(utmp_reverse))
+    call nc_diag_data2d("northward_wind", sngl(vtmp_reverse))
+!   call nc_diag_data2d("geopotential_height", sngl(hsges_reverse) )       !orig
+    call nc_diag_data2d("geopotential_height", sngl(zges_read_reverse) ) !emily
+    !call nc_diag_data2d("geometric_height", sngl(zges_geometric_reverse) )
+    !!emily
+    !<<emily
+           ! geovals for JEDI UFO
+    !       call nc_diag_metadata("surface_geometric_height", sngl(zsges))
+           call nc_diag_metadata("surface_pressure", sngl(pgesorig*r100))
+           !call nc_diag_metadata("surface_roughness", sngl())
+           !call nc_diag_metadata("surface_height", sngl())
+           !call nc_diag_metadata("skin_temperature", sngl(tgges))
+           !call nc_diag_metadata("2m_temperature", sngl(tgges))
+           !call nc_diag_metadata("2m_specific_humidity", sngl())
+           call nc_diag_metadata("landmask", msges)
+    !       call nc_diag_data2d("geopotential_height", sngl(zsges+zges))
+    !       call nc_diag_data2d("atmosphere_pressure_coordinate",
+    !       sngl(prsltmp2*r1000))
+    !       call nc_diag_data2d("atmosphere_pressure_coordinate_interface",
+    !       sngl(prsitmp*r1000))
+    !       call nc_diag_data2d("virtual_temperature", sngl(tvgestmp))
+    !       call nc_diag_data2d("air_temperature", sngl(tsentmp))
+    !       call nc_diag_data2d("specific_humidity", sngl(qtmp))
+    !       call nc_diag_data2d("northward_wind", sngl(utmp))
+    !       call nc_diag_data2d("eastward_wind", sngl(vtmp
+
   end subroutine contents_netcdf_diag_
 
   subroutine final_vars_
     if(allocated(ges_tv)) deallocate(ges_tv)
     if(allocated(ges_z )) deallocate(ges_z )
     if(allocated(ges_ps)) deallocate(ges_ps)
+    if(allocated(ges_q)) deallocate(ges_q)
+    if(allocated(ges_u)) deallocate(ges_u)
+    if(allocated(ges_v)) deallocate(ges_v)
   end subroutine final_vars_
 
 end subroutine setupps

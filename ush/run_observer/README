@@ -1,0 +1,5 @@
+Main driver script is submit_gsi_observer.sh
+
+This calls gsi_observer.sh where the GSI observer is run producing GSI diag files in $workdir/diags ($workdir is defined in submit_gsi_observer.sh)
+
+This calls iodaconv.sh which runs the iodacoverters in $GDASApp and outputs to $workdir/ioda

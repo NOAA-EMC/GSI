@@ -18,12 +18,17 @@ module mod_fv3_lola
 !                        fv3_ll_to_h
 !   2019-11-01  wu   - add checks in generate_anl_grid to present the mean
 !                      longitude correctly to fix problem near lon=0
+!   2022-03-01  X.Lu & X.Wang - add functions for HAFS dual ens capability. POC:
+!   xuguang.wang@ou.edu
 !   
 ! subroutines included:
 !   sub generate_anl_grid
+!   sub definecoef_regular_grids
 !   sub earthuv2fv3
 !   sub fv3uv2earth
+!   sub fv3uv2earthens
 !   sub fv3_h_to_ll
+!   sub fv3_h_to_ll_ens
 !   sub fv3_ll_to_h
 !   sub rotate2deg 
 !   sub unrotate2deg 
@@ -65,6 +70,9 @@ module mod_fv3_lola
   public :: generate_anl_grid,fv3_h_to_ll,fv3_ll_to_h,fv3uv2earth,earthuv2fv3
   public :: fv3dx,fv3dx1,fv3dy,fv3dy1,fv3ix,fv3ixp,fv3jy,fv3jyp,a3dx,a3dx1,a3dy,a3dy1,a3ix,a3ixp,a3jy,a3jyp
   public :: nxa,nya,cangu,sangu,cangv,sangv,nx,ny,bilinear
+  public :: definecoef_regular_grids,fv3_h_to_ll_ens,fv3uv2earthens
+  public :: fv3dxens,fv3dx1ens,fv3dyens,fv3dy1ens,fv3ixens,fv3ixpens,fv3jyens,fv3jypens,a3dxens,a3dx1ens,a3dyens,a3dy1ens,a3ixens,a3ixpens,a3jyens,a3jypens
+  public :: nxe,nye,canguens,sanguens,cangvens,sangvens
 
   logical bilinear
   integer(i_kind) nxa,nya,nx,ny
@@ -73,6 +81,12 @@ module mod_fv3_lola
   real(r_kind) ,allocatable,dimension(:,:):: a3dx,a3dx1,a3dy,a3dy1
   real(r_kind) ,allocatable,dimension(:,:):: cangu,sangu,cangv,sangv
   integer(i_kind),allocatable,dimension(:,:)::  a3ix,a3ixp,a3jy,a3jyp
+  integer(i_kind) nxe,nye
+  real(r_kind) ,allocatable,dimension(:,:):: fv3dxens,fv3dx1ens,fv3dyens,fv3dy1ens
+  integer(i_kind),allocatable,dimension(:,:)::  fv3ixens,fv3ixpens,fv3jyens,fv3jypens
+  real(r_kind) ,allocatable,dimension(:,:):: a3dxens,a3dx1ens,a3dyens,a3dy1ens
+  real(r_kind) ,allocatable,dimension(:,:):: canguens,sanguens,cangvens,sangvens
+  integer(i_kind),allocatable,dimension(:,:)::  a3ixens,a3ixpens,a3jyens,a3jypens
   
 
 contains
@@ -321,10 +335,10 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
 
 !!!!  define analysis A grid  !!!!!!!!!!!!!
   do j=1,nxa
-     xa_a(j)=(float(j-nlonh)-cx)*grid_ratio_fv3_regional
+     xa_a(j)=(real(j-nlonh,r_kind)-cx)*grid_ratio_fv3_regional
   end do
   do i=1,nya
-     ya_a(i)=(float(i-nlath)-cy)*grid_ratio_fv3_regional
+     ya_a(i)=(real(i-nlath,r_kind)-cy)*grid_ratio_fv3_regional
   end do
 
 !!!!!compute fv3 to A grid interpolation parameters !!!!!!!!!
@@ -574,7 +588,418 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
      enddo
   enddo
   deallocate( xc,yc,zc,gclat,gclon,gcrlat,gcrlon)
+  deallocate(rlat_in,rlon_in)
 end subroutine generate_anl_grid
+
+subroutine definecoef_regular_grids(nxen,nyen,grid_lon,grid_lont,grid_lat,grid_latt)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    generate_??ens_grid
+!clt modified from generate_regular_grid
+!   prgmmr: parrish
+!
+! abstract:  define rotated lat-lon analysis grid which is centered on fv3 tile 
+!             and oriented to completely cover the tile.
+!
+! program history log:
+!   2017-05-02  parrish
+!   2017-10-10  wu   - 1. setup analysis A-grid, 
+!                      2. compute/setup FV3 to A grid interpolation parameters
+!                      3. compute/setup A to FV3 grid interpolation parameters         
+!                      4. setup weightings for wind conversion from FV3 to earth
+!   2021-02-01 Lu & Wang - modify variable intent for HAFS dual ens. POC:
+!   xuguang.wang@ou.edu
+!
+!   input argument list:
+!    nxen, nyen               - number of cells = nxen*nyen 
+!    grid_lon ,grid_lat   - longitudes and latitudes of fv3 grid cell corners
+!    grid_lont,grid_latt  - longitudes and latitudes of fv3 grid cell centers
+!
+!   output argument list:
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block
+  use kinds, only: r_kind,i_kind
+  use constants, only: quarter,one,two,half,zero,deg2rad,rearth,rad2deg
+  use gridmod,  only:grid_ratio_fv3_regional
+  use mpimod, only: mype
+  use hybrid_ensemble_parameters, only: nlon_ens,nlat_ens,region_lon_ens,region_lat_ens
+  implicit none
+  real(r_kind),allocatable,dimension(:)::xbh_a,xa_a,xa_b
+  real(r_kind),allocatable,dimension(:)::ybh_a,ya_a,ya_b,yy
+  real(r_kind),allocatable,dimension(:,:)::xbh_b,ybh_b
+  real(r_kind) dlat,dlon
+
+  real(r_kind),allocatable:: region_lat_tmp(:,:),region_lon_tmp(:,:)
+  integer(i_kind), intent(in   ) :: nxen,nyen                 ! fv3 tile x- and y-dimensions
+  real(r_kind)   , intent(inout) :: grid_lon(nxen+1,nyen+1)   ! fv3 cell corner longitudes
+  real(r_kind)   , intent(inout) :: grid_lont(nxen,nyen)      ! fv3 cell center longitudes
+  real(r_kind)   , intent(inout) :: grid_lat(nxen+1,nyen+1)   ! fv3 cell corner latitudes
+  real(r_kind)   , intent(inout) :: grid_latt(nxen,nyen)      ! fv3 cell center latitudes
+  integer(i_kind) i,j,ir,jr,n
+  real(r_kind),allocatable,dimension(:,:) :: xc,yc,zc,gclat,gclon,gcrlat,gcrlon,rlon_in,rlat_in
+  real(r_kind) xcent,ycent,zcent,rnorm,centlat,centlon
+  integer(i_kind) nxh,nyh
+  integer(i_kind) ib1,ib2,jb1,jb2,jj
+  integer (i_kind):: index0
+  integer(i_kind) nord_e2a
+  real(r_kind)gxa,gya
+
+  real(r_kind) x(nxen+1,nyen+1),y(nxen+1,nyen+1),z(nxen+1,nyen+1),xr,yr,zr,xu,yu,zu,rlat,rlon
+  real(r_kind) xv,yv,zv,vval
+  real(r_kind) uval,ewval,nsval
+
+  real(r_kind) d(4),ds
+  integer(i_kind) kk,k
+  real(r_kind) diff,sq180
+
+  nord_e2a=4
+  bilinear=.false.
+
+!   create xc,yc,zc for the cell centers.
+  allocate(xc(nxen,nyen))
+  allocate(yc(nxen,nyen))
+  allocate(zc(nxen,nyen))
+  allocate(gclat(nxen,nyen))
+  allocate(gclon(nxen,nyen))
+  allocate(gcrlat(nxen,nyen))
+  allocate(gcrlon(nxen,nyen))
+  do j=1,nyen
+     do i=1,nxen
+        xc(i,j)=cos(grid_latt(i,j)*deg2rad)*cos(grid_lont(i,j)*deg2rad)
+        yc(i,j)=cos(grid_latt(i,j)*deg2rad)*sin(grid_lont(i,j)*deg2rad)
+        zc(i,j)=sin(grid_latt(i,j)*deg2rad)
+     enddo
+  enddo
+
+!  compute center as average x,y,z coordinates of corners of domain --
+
+  xcent=quarter*(xc(1,1)+xc(1,nyen)+xc(nxen,1)+xc(nxen,nyen))
+  ycent=quarter*(yc(1,1)+yc(1,nyen)+yc(nxen,1)+yc(nxen,nyen))
+  zcent=quarter*(zc(1,1)+zc(1,nyen)+zc(nxen,1)+zc(nxen,nyen))
+
+  rnorm=one/sqrt(xcent**2+ycent**2+zcent**2)
+  xcent=rnorm*xcent
+  ycent=rnorm*ycent
+  zcent=rnorm*zcent
+  centlat=asin(zcent)*rad2deg
+  centlon=atan2(ycent,xcent)*rad2deg
+
+!!  compute new lats, lons
+  call rotate2deg(grid_lont,grid_latt,gcrlon,gcrlat, &
+                  centlon,centlat,nxen,nyen)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!  compute analysis A-grid  lats, lons
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!--------------------------obtain analysis grid dimensions nxe,nye
+  nxe=nlon_ens
+  nye=nlat_ens
+  if(mype==0) print *,'nlat,nlon=nye,nxe= ',nlat_ens,nlon_ens
+
+  allocate(rlat_in(nlat_ens,nlon_ens),rlon_in(nlat_ens,nlon_ens))
+  allocate(region_lon_tmp(nlat_ens,nlon_ens),region_lat_tmp(nlat_ens,nlon_ens))
+  region_lon_tmp=region_lon_ens*rad2deg
+  region_lat_tmp=region_lat_ens*rad2deg
+  call rotate2deg(region_lon_tmp,region_lat_tmp,rlon_in,rlat_in, &
+                    centlon,centlat,nlat_ens,nlon_ens)
+
+!--------------------------obtain analysis grid spacing
+  dlat=(maxval(gcrlat)-minval(gcrlat))/(nyen-1)
+  dlon=(maxval(gcrlon)-minval(gcrlon))/(nxen-1)
+
+
+!-----setup analysis A-grid from center of the domain
+!--------------------compute all combinations of relative coordinates
+
+  allocate(xbh_a(nxen),xbh_b(nxen,nyen),xa_a(nxe),xa_b(nxe))
+  allocate(ybh_a(nyen),ybh_b(nxen,nyen),ya_a(nye),ya_b(nye))
+
+  nxh=nxen/2
+  nyh=nyen/2
+
+
+!!!!!! fv3 rotated grid; not equal spacing, non_orthogonal !!!!!!
+  do j=1,nyen
+     jr=nyen+1-j
+     do i=1,nxen
+        ir=nxen+1-i
+        xbh_b(ir,jr)=gcrlon(i,j)/dlon
+     end do
+  end do
+  do j=1,nyen
+     jr=nyen+1-j
+     do i=1,nxen
+       ir=nxen+1-i
+       ybh_b(ir,jr)=gcrlat(i,j)/dlat
+     end do
+  end do
+
+!!!!  define analysis A grid  !!!!!!!!!!!!!
+
+  index0=1
+  do j=1,nxe
+     xa_a(j)= rlon_in(index0,j)/dlon
+  end do
+  do i=1,nye
+     ya_a(i)= rlat_in(i,index0)/dlat
+  end do
+
+!!!!!compute fv3 to A grid interpolation parameters !!!!!!!!!
+  allocate (fv3dxens(nxe,nye),fv3dx1ens(nxe,nye),fv3dyens(nxe,nye),fv3dy1ens(nxe,nye))
+  allocate (fv3ixens(nxe,nye),fv3ixpens(nxe,nye),fv3jyens(nxe,nye),fv3jypens(nxe,nye))
+  allocate(yy(nyen))
+
+! iteration to find the fv3 grid cell
+  jb1=1
+  ib1=1
+  do j=1,nye
+     do i=1,nxe
+      do n=1,3
+         gxa=xa_a(i)
+         if(gxa < xbh_b(1,jb1))then
+            gxa= 1
+         else if(gxa > xbh_b(nxen,jb1))then
+            gxa= nxen
+         else
+            call grdcrd1(gxa,xbh_b(1,jb1),nxen,1)
+         endif
+         ib2=ib1
+         ib1=gxa
+         do jj=1,nyen
+            yy(jj)=ybh_b(ib1,jj)
+         enddo
+         gya=ya_a(j)
+         if(gya < yy(1))then
+            gya= 1
+         else if(gya > yy(nyen))then
+            gya= nyen
+         else
+            call grdcrd1(gya,yy,nyen,1)
+         endif
+         jb2=jb1
+         jb1=gya
+         if(ib1+1 > nxen)then  !this block( 6 lines)  is copied from GSL gsi repository
+            ib1=ib1-1
+         endif
+         if(jb1+1 > nyen)then
+            jb1=jb1-1
+         endif
+
+         if((ib1 == ib2) .and. (jb1 == jb2)) exit
+         if(n==3 ) then
+!!!!!!!   if not converge, find the nearest corner point
+            d(1)=(xa_a(i)-xbh_b(ib1,jb1))**2+(ya_a(j)-ybh_b(ib1,jb1))**2
+            d(2)=(xa_a(i)-xbh_b(ib1+1,jb1))**2+(ya_a(j)-ybh_b(ib1+1,jb1))**2
+            d(3)=(xa_a(i)-xbh_b(ib1,jb1+1))**2+(ya_a(j)-ybh_b(ib1,jb1+1))**2
+            d(4)=(xa_a(i)-xbh_b(ib1+1,jb1+1))**2+(ya_a(j)-ybh_b(ib1+1,jb1+1))**2
+            kk=1
+            do k=2,4
+               if(d(k)<d(kk))kk=k
+            enddo
+!!!!!!!!!!! Find the cell for interpolation
+            gxa=xa_a(i)
+            gya=ya_a(j)
+            if(kk==1)then
+               call grdcrd1(gxa,xbh_b(1,jb1),nxen,1)
+               do jj=1,nyen
+                  yy(jj)=ybh_b(ib1,jj)
+               enddo
+               call grdcrd1(gya,yy,nyen,1)
+            else if(kk==2)then
+               call grdcrd1(gxa,xbh_b(1,jb1),nxen,1)
+               do jj=1,nyen
+                  yy(jj)=ybh_b(ib1+1,jj)
+               enddo
+               call grdcrd1(gya,yy,nyen,1)
+            else if(kk==3)then
+               call grdcrd1(gxa,xbh_b(1,jb1+1),nxen,1)
+               do jj=1,nyen
+                  yy(jj)=ybh_b(ib1,jj)
+               enddo
+               call grdcrd1(gya,yy,nyen,1)
+            else if(kk==4)then
+               call grdcrd1(gxa,xbh_b(1,jb1+1),nxen,1)
+               do jj=1,nyen
+                  yy(jj)=ybh_b(ib1+1,jj)
+               enddo
+               call grdcrd1(gya,yy,nyen,1)
+            endif
+            exit
+         endif  !n=3   
+      enddo  ! n
+
+      fv3ixens(i,j)=int(gxa)
+      fv3ixens(i,j)=min(max(1,fv3ixens(i,j)),nxen)
+      fv3ixpens(i,j)=min(nxen,fv3ixens(i,j)+1)
+      fv3jyens(i,j)=int(gya)
+      fv3jyens(i,j)=min(max(1,fv3jyens(i,j)),nyen)
+      fv3jypens(i,j)=min(nyen,fv3jyens(i,j)+1)
+
+      if(bilinear)then
+         fv3dyens(i,j)=max(zero,min(one,gya-fv3jyens(i,j)))
+         fv3dy1ens(i,j)=one-fv3dyens(i,j)
+         fv3dxens(i,j)=max(zero,min(one,gxa-fv3ixens(i,j)))
+         fv3dx1ens(i,j)=one-fv3dxens(i,j)
+      else ! inverse-distance weighting average 
+         ib1=fv3ixens(i,j)
+         ib2=fv3ixpens(i,j)
+         jb1=fv3jyens(i,j)
+         jb2=fv3jypens(i,j)
+         if(xa_a(i)==xbh_b(ib1,jb1) .and. ya_a(j)==ybh_b(ib1,jb1))then
+            fv3dyens(i,j)=zero
+            fv3dy1ens(i,j)=zero
+            fv3dxens(i,j)=one
+            fv3dx1ens(i,j)=zero
+         else if(xa_a(i)==xbh_b(ib2,jb1) .and. ya_a(j)==ybh_b(ib2,jb1))then
+            fv3dyens(i,j)=zero
+            fv3dy1ens(i,j)=zero
+            fv3dxens(i,j)=zero
+            fv3dx1ens(i,j)=one
+         else if(xa_a(i)==xbh_b(ib1,jb2) .and. ya_a(j)==ybh_b(ib1,jb2))then
+            fv3dyens(i,j)=one
+            fv3dy1ens(i,j)=zero
+            fv3dxens(i,j)=zero
+            fv3dx1ens(i,j)=zero
+         else if(xa_a(i)==xbh_b(ib2,jb2) .and. ya_a(j)==ybh_b(ib2,jb2))then
+            fv3dyens(i,j)=zero
+            fv3dy1ens(i,j)=one
+            fv3dxens(i,j)=zero
+            fv3dx1ens(i,j)=zero
+         else
+            d(1)=one/((xa_a(i)-xbh_b(ib1,jb1))**2+(ya_a(j)-ybh_b(ib1,jb1))**2)
+            d(2)=one/((xa_a(i)-xbh_b(ib2,jb1))**2+(ya_a(j)-ybh_b(ib2,jb1))**2)
+            d(3)=one/((xa_a(i)-xbh_b(ib1,jb2))**2+(ya_a(j)-ybh_b(ib1,jb2))**2)
+            d(4)=one/((xa_a(i)-xbh_b(ib2,jb2))**2+(ya_a(j)-ybh_b(ib2,jb2))**2)
+            ds=one/(d(1)+d(2)+d(3)+d(4))
+            fv3dyens(i,j)=d(3)*ds
+            fv3dy1ens(i,j)=d(4)*ds
+            fv3dxens(i,j)=d(1)*ds
+            fv3dx1ens(i,j)=d(2)*ds
+         endif
+      endif !bilinear
+
+     end do ! i
+  end do ! j
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1111
+!!!!!compute A to fv3 grid interpolation parameters
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1111
+  allocate (a3dxens(nyen,nxen),a3dx1ens(nyen,nxen),a3dyens(nyen,nxen),a3dy1ens(nyen,nxen))
+  allocate (a3ixens(nyen,nxen),a3ixpens(nyen,nxen),a3jyens(nyen,nxen),a3jypens(nyen,nxen))
+
+  do i=1,nxen
+     do j=1,nyen
+        gxa=xbh_b(i,j)
+        if(gxa < xa_a(1))then
+           gxa= 1
+        else if(gxa > xa_a(nxe))then
+           gxa= nxe
+        else
+           call grdcrd1(gxa,xa_a,nxe,1)
+        endif
+        a3ixens(j,i)=int(gxa)
+        a3ixens(j,i)=min(max(1,a3ixens(j,i)),nxe)
+        a3dxens(j,i)=max(zero,min(one,gxa-a3ixens(j,i)))
+        a3dx1ens(j,i)=one-a3dxens(j,i)
+        a3ixpens(j,i)=min(nxe,a3ixens(j,i)+1)
+     end do
+  end do
+
+  do i=1,nxen
+    do j=1,nyen
+        gya=ybh_b(i,j)
+        if(gya < ya_a(1))then
+           gya= 1
+        else if(gya > ya_a(nye))then
+           gya= nye
+        else
+           call grdcrd1(gya,ya_a,nye,1)
+        endif
+        a3jyens(j,i)=int(gya)
+        a3jyens(j,i)=min(max(1,a3jyens(j,i)),nye)
+        a3dyens(j,i)=max(zero,min(one,gya-a3jyens(j,i)))
+        a3dy1ens(j,i)=one-a3dyens(j,i)
+        a3jypens(j,i)=min(nye,a3jyens(j,i)+1)
+     end do
+  end do
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!! find coefficients for wind conversion btw FV3 & earth
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  allocate (canguens(nxen,nyen+1),sanguens(nxen,nyen+1),cangvens(nxen+1,nyen),sangvens(nxen+1,nyen))
+
+!   1.  compute x,y,z at cell cornor from grid_lon, grid_lat
+
+  do j=1,nyen+1
+     do i=1,nxen+1
+        x(i,j)=cos(grid_lat(i,j)*deg2rad)*cos(grid_lon(i,j)*deg2rad)
+        y(i,j)=cos(grid_lat(i,j)*deg2rad)*sin(grid_lon(i,j)*deg2rad)
+        z(i,j)=sin(grid_lat(i,j)*deg2rad)
+     enddo
+  enddo
+
+!  2   find angles to E-W and N-S for U edges
+
+  sq180=180._r_kind**2
+  do j=1,nyen+1
+     do i=1,nxen
+!      center lat/lon of the edge 
+        rlat=half*(grid_lat(i,j)+grid_lat(i+1,j))
+        diff=(grid_lon(i,j)-grid_lon(i+1,j))**2
+        if(diff < sq180)then
+           rlon=half*(grid_lon(i,j)+grid_lon(i+1,j))
+        else
+           rlon=half*(grid_lon(i,j)+grid_lon(i+1,j)-360._r_kind)
+        endif
+!    vector to center of the edge
+        xr=cos(rlat*deg2rad)*cos(rlon*deg2rad)
+        yr=cos(rlat*deg2rad)*sin(rlon*deg2rad)
+        zr=sin(rlat*deg2rad)
+!     vector of the edge
+        xu= x(i+1,j)-x(i,j)
+        yu= y(i+1,j)-y(i,j)
+        zu= z(i+1,j)-z(i,j)
+!    find angle with cross product
+        uval=sqrt((xu**2+yu**2+zu**2))
+        ewval=sqrt((xr**2+yr**2))
+        nsval=sqrt((xr*zr)**2+(zr*yr)**2+(xr*xr+yr*yr)**2)
+        canguens(i,j)=(-yr*xu+xr*yu)/ewval/uval
+        sanguens(i,j)=(-xr*zr*xu-zr*yr*yu+(xr*xr+yr*yr)*zu) / nsval/uval
+     enddo
+  enddo
+
+!  3   find angles to E-W and N-S for V edges
+  do j=1,nyen
+     do i=1,nxen+1
+        rlat=half*(grid_lat(i,j)+grid_lat(i,j+1))
+        diff=(grid_lon(i,j)-grid_lon(i,j+1))**2
+        if(diff < sq180)then
+           rlon=half*(grid_lon(i,j)+grid_lon(i,j+1))
+        else
+           rlon=half*(grid_lon(i,j)+grid_lon(i,j+1)-360._r_kind)
+        endif
+        xr=cos(rlat*deg2rad)*cos(rlon*deg2rad)
+        yr=cos(rlat*deg2rad)*sin(rlon*deg2rad)
+        zr=sin(rlat*deg2rad)
+        xv= x(i,j+1)-x(i,j)
+        yv= y(i,j+1)-y(i,j)
+        zv= z(i,j+1)-z(i,j)
+        vval=sqrt((xv**2+yv**2+zv**2))
+        ewval=sqrt((xr**2+yr**2))
+        nsval=sqrt((xr*zr)**2+(zr*yr)**2+(xr*xr+yr*yr)**2)
+        cangvens(i,j)=(-yr*xv+xr*yv)/ewval/vval
+        sangvens(i,j)=(-xr*zr*xv-zr*yr*yv+(xr*xr+yr*yr)*zv) / nsval/vval
+     enddo
+  enddo
+  deallocate( xc,yc,zc,gclat,gclon,gcrlat,gcrlon)
+  deallocate(rlat_in,rlon_in)
+end subroutine definecoef_regular_grids
 
 subroutine earthuv2fv3(u,v,nx,ny,u_out,v_out)
 !$$$  subprogram documentation block
@@ -679,6 +1104,51 @@ subroutine fv3uv2earth(u,v,nx,ny,u_out,v_out)
   return
 end subroutine fv3uv2earth
 
+subroutine fv3uv2earthens(u,v,nxen,nyen,u_out,v_out)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    fv3uv2earthens
+!   prgmmr: wu                      2017-06-15
+!
+! abstract: project fv3 UV to earth UV and interpolate to the center of the
+! cells
+!
+! program history log:
+!   
+!
+!   input argument list:
+!    u,v - fv3 winds on the cell boundaries
+!    nx,ny - dimensions
+!
+!   output argument list:
+!    u_out,v_out - output earth wind components at center of the cell
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block  
+
+  use kinds, only: r_kind,i_kind
+  use constants, only: half
+  implicit none
+
+  integer(i_kind), intent(in   ) :: nxen,nyen                 ! fv3 tile x- and y-dimensions
+  real(r_kind),intent(in   ) :: u(nxen,nyen+1),v(nxen+1,nyen)
+  real(r_kind),intent(  out) :: u_out(nxen,nyen),v_out(nxen,nyen)
+  integer(i_kind) i,j
+
+  do j=1,nyen
+     do i=1,nxen
+        u_out(i,j)=half *((u(i,j)*sangvens(i,j)-v(i,j)*sanguens(i,j))/(canguens(i,j)*sangvens(i,j)-sanguens(i,j)*cangvens(i,j)) &
+                       +(u(i,j+1)*sangvens(i+1,j)-v(i+1,j)*sanguens(i,j+1))/(canguens(i,j+1)*sangvens(i+1,j)-sanguens(i,j+1)*cangvens(i+1,j)))
+        v_out(i,j)=half *((u(i,j)*cangvens(i,j)-v(i,j)*canguens(i,j))/(sanguens(i,j)*cangvens(i,j)-canguens(i,j)*sangvens(i,j)) &
+                       +(u(i,j+1)*cangvens(i+1,j)-v(i+1,j)*canguens(i,j+1))/(sanguens(i,j+1)*cangvens(i+1,j)-canguens(i,j+1)*sangvens(i+1,j)))
+     end do
+  end do
+  return
+end subroutine fv3uv2earthens
+
 subroutine fv3_h_to_ll(b_in,a,nb,mb,na,ma,rev_flg)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -752,6 +1222,85 @@ subroutine fv3_h_to_ll(b_in,a,nb,mb,na,ma,rev_flg)
   endif
   return
 end subroutine fv3_h_to_ll
+
+subroutine fv3_h_to_ll_ens(b_in,a,nb,mb,na,ma,rev_flg)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    fv3_h_to_ll
+!   prgmmr: wu                      2017-05-30
+!
+! abstract: interpolate from rotated fv3 grid to A grid. 
+!     Interpolation choices 1)bilinear both ways 
+!                           2)inverse-distance weighting average
+!     reverse E-W and N-S directions & reverse i,j for output array a(nlat,nlon)
+!
+! program history log:
+!   
+!
+!   input argument list:
+!    mb,nb - fv3 dimensions
+!    ma,na - a dimensions
+!    b     - input variable b
+!    xb,yb - b array x and y coordinates
+!    xa,ya - a array coordinates (xa in xb units, ya in yb units)
+!
+!   output argument list:
+!    a     - output interpolated array
+!
+! attributes:
+!   language: f90
+!   machine:
+!
+!$$$ end documentation block  
+  use constants, only: zero,one
+  implicit none
+
+  integer(i_kind),intent(in   ) :: mb,nb,ma,na
+  real(r_kind)   ,intent(in   ) :: b_in(nb,mb)
+  logical        ,intent(in   ) :: rev_flg
+  real(r_kind)   ,intent(  out) :: a(ma,na)
+
+  integer(i_kind) i,j,ir,jr,mbp,nbp
+  real(r_kind)    b(nb,mb)
+
+  mbp=mb+1
+  nbp=nb+1
+  bilinear=.false.
+  if(rev_flg) then
+!!!!!!!!! reverse E-W and N-S
+     do j=1,mb
+        jr=mbp-j
+        do i=1,nb
+           ir=nbp-i
+           b(ir,jr)=b_in(i,j)
+        end do
+     end do
+  else
+     b(:,:)=b_in(:,:)
+  endif
+!!!!!!!!! interpolate to A grid & reverse ij for array a(lat,lon)
+  if(bilinear)then ! bilinear interpolation
+     do j=1,ma
+        do i=1,na
+           a(j,i)=fv3dx1ens(i,j)*(fv3dy1ens(i,j)*b(fv3ixens(i,j),fv3jyens(i,j)) &
+           +fv3dyens(i,j)*b(fv3ixens(i,j),fv3jypens(i,j))) &
+           +fv3dxens(i,j)*(fv3dy1ens(i,j)*b(fv3ixpens(i,j),fv3jyens(i,j)) &
+           +fv3dyens(i,j)*b(fv3ixpens(i,j),fv3jypens(i,j)))
+        end do
+     end do
+  else  ! inverse-distance weighting average 
+     do j=1,ma
+        do i=1,na
+           a(j,i)=fv3dxens(i,j)*b(fv3ixens(i,j),fv3jyens(i,j)) &
+              +fv3dyens(i,j)*b(fv3ixens(i,j),fv3jypens(i,j)) &
+              +fv3dx1ens(i,j)*b(fv3ixpens(i,j),fv3jyens(i,j)) &
+              +fv3dy1ens(i,j)*b(fv3ixpens(i,j),fv3jypens(i,j))
+        end do
+     end do
+  endif
+
+  return
+end subroutine fv3_h_to_ll_ens
 
 subroutine fv3_ll_to_h(a,b,nxa,nya,nxb,nyb,rev_flg)
 !$$$  subprogram documentation block

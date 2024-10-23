@@ -32,12 +32,13 @@ module gridinfo
 
   ! Define associated modules
 
-  use constants, only: rearth_equator, omega, pi, deg2rad, zero, rad2deg,    &
+  use constants, only: rearth_equator, omega, pi, deg2rad, zero, one, rad2deg, &
                        rearth,max_varname_length
   use kinds,     only: i_kind, r_kind, r_single, i_long, r_double
   use params,    only: datapath, nlevs, nlons, nlats,           &
                        arw, nmm
-  use mpisetup
+  use mpisetup, only: nproc, mpi_integer, mpi_real4,mpi_status
+  use mpimod, only: mpi_comm_world
   use netcdf_io
 
   implicit none
@@ -63,6 +64,7 @@ module gridinfo
   real(r_single),      dimension(:,:), allocatable, public     :: gridloc
   real(r_single),      dimension(:),   allocatable, public     :: lonsgrd
   real(r_single),      dimension(:),   allocatable, public     :: latsgrd
+  real(r_single),      dimension(:),   allocatable, public     :: taper_vert
   real(r_single),                                   public     :: ptop
   integer(i_long),                                  public     :: npts
   integer(i_kind),                                  public     :: nlevs_pres
@@ -77,6 +79,8 @@ module gridinfo
   ! supported variable names in anavinfo
   character(len=max_varname_length),public, dimension(19) :: vars3d_supported = (/'u   ', 'v   ', 'tv  ', 'q   ', 'w   ', 'cw  ', 'ph  ', 'ql  ', 'qr  ', 'qs  ', 'qg  ', 'qi  ', 'qni ', 'qnr ', 'qnc ', 'dbz ', 'oz  ', 'tsen', 'prse' /)
   character(len=max_varname_length),public, dimension(2)  :: vars2d_supported = (/ 'ps ', 'sst' /)
+  character(len=max_varname_length),public, dimension(8)  :: vars2d_landonly = (/'', '', '', '', '', '', '', '' /)
+
 
 contains
 
@@ -209,7 +213,9 @@ contains
     ! Allocate memory for global arrays
     if(.not. allocated(lonsgrd)) allocate(lonsgrd(npts))
     if(.not. allocated(latsgrd)) allocate(latsgrd(npts))
+    if(.not. allocated(taper_vert)) allocate(taper_vert(nlevs))
     if(.not. allocated(logp))    allocate(logp(npts,nlevs_pres))
+    taper_vert = one
 
     !======================================================================
     ! Begin: Ingest all grid variables required for EnKF routines and
@@ -846,6 +852,7 @@ contains
   subroutine gridinfo_cleanup()
     if (allocated(lonsgrd))       deallocate(lonsgrd)
     if (allocated(latsgrd))       deallocate(latsgrd)
+    if (allocated(taper_vert))    deallocate(taper_vert)
     if (allocated(logp))          deallocate(logp)
     if (allocated(gridloc))       deallocate(gridloc)
   end subroutine gridinfo_cleanup

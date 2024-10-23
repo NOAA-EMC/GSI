@@ -113,7 +113,7 @@ subroutine update_guess(sval,sbias)
   use mpimod, only: mype
   use constants, only: zero,one,fv,max_varname_length,qmin,qcmin,tgmin,&
                        r100,one_tenth,tiny_r_kind
-  use jfunc, only: iout_iter,bcoption,tsensible,clip_supersaturation,superfact
+  use jfunc, only: iout_iter,bcoption,tsensible,clip_supersaturation,superfact,hofx_2m_sfcfile
   use gridmod, only: lat2,lon2,nsig,&
        regional,twodvar_regional,regional_ozone,&
        l_reg_update_hydro_delz
@@ -287,7 +287,11 @@ subroutine update_guess(sval,sbias)
                     ! since we don't know which comes first in met-guess, we
                     ! must postpone updating tv after all other met-guess fields
            endif
-           icloud=getindex(cloud,guess(ic))
+           if( allocated(cloud) )then
+              icloud=getindex(cloud,guess(ic))
+           else
+              icloud=-999
+           end if
            if ( .not. l_use_dbz_directDA ) then ! original code
               if(icloud>0) then
                  ptr3dges = max(ptr3dges+ptr3dinc,zero)
@@ -454,7 +458,7 @@ subroutine update_guess(sval,sbias)
         endif
         call  gsd_update_soil_tq(tinc_1st,is_t,qinc_1st,is_q,it)
      endif  ! l_gsd_soilTQ_nudge
-     if (i_use_2mt4b > 0 .and. is_t>0) then
+     if ( (i_use_2mt4b > 0.or. hofx_2m_sfcfile) .and. is_t>0) then
         do j=1,lon2
            do i=1,lat2
               tinc_1st(i,j)=p_tv(i,j,1)
@@ -462,7 +466,7 @@ subroutine update_guess(sval,sbias)
         end do
         call  gsd_update_t2m(tinc_1st,it)
      endif ! l_gsd_t2m_adjust
-     if (i_use_2mq4b > 0 .and. is_q>0) then
+     if ( (i_use_2mq4b > 0.or. hofx_2m_sfcfile) .and. is_q>0) then
         do j=1,lon2
            do i=1,lat2
               qinc_1st(i,j)=p_q(i,j,1)

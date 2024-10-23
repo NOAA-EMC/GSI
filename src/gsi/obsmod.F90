@@ -160,6 +160,8 @@ module obsmod
 !   2021-11-16 Zhao      - add option l_obsprvdiag (if true) to trigger the output of
 !                          observation provider and sub-provider information into
 !                          obsdiags files (used for AutoObsQC)
+!   2023-07-10  Y. Wang, D. Dowell - add variables for flash extent density
+!   2023-10-10  H. Wang (GSL) - add variables for flash extent density EnVar DA
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -186,6 +188,13 @@ module obsmod
 !   def write_diag   - namelist logical array to compute/write (=true) diag files
 !   def diag_radardbz- namelist logical to compute/write (=true) radar
 !                                          reflectiivty diag files
+!   def diag_fed     - namelist logical to compute/write (=true) flash extent density diag files
+!   def innov_use_model_fed - namelist logical. True: use (the FEB in background to calculate innovation
+!                                               False: calculate innvation use
+!                                               the obs operator in GSI  
+!   def if_model_fed - namelist logical. True: Read in FED from background
+!                                              including from ensemble.  
+!   def r_hgt_fed    - height of fed observations
 !   def reduce_diag  - namelist logical to produce reduced radiance diagnostic files
 !   def use_limit    - parameter set equal to -1 if diag files produced or 0 if not diag files or reduce_diag
 !   def obs_setup    - prefix for files passing pe relative obs data to setup routines
@@ -434,9 +443,10 @@ module obsmod
   public :: ran01dom,dval_use
   public :: iout_pcp,iout_rad,iadate,iadatemn,write_diag,reduce_diag,oberrflg,bflag,ndat,dthin,dmesh,l_do_adjoint
   public :: diag_radardbz
+  public :: diag_fed
   public :: lsaveobsens
-  public ::                  iout_cldch, mype_cldch
-  public ::          nprof_gps,time_offset,ianldate,tcp_box
+  public :: iout_cldch, mype_cldch
+  public :: nprof_gps,time_offset,ianldate,tcp_box
   public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,tcp_posmatch,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
   public :: lobsdiagsave,lobsdiag_forenkf,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
@@ -470,12 +480,13 @@ module obsmod
   ! ==== DBZ DA ===
   public :: ntilt_radarfiles
   public :: whichradar
-  public :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, l2rwthin 
+  public :: vr_dealisingopt, if_vterminal, if_model_dbz, if_vrobs_raw, if_use_w_vr, l2rwthin
+  public :: inflate_dbz_obserr
 
   public :: doradaroneob,oneoblat,oneoblon
   public :: oneobddiff,oneobvalue,oneobheight,oneobradid
-  public :: ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,zmesh_dbz,rmesh_vr,zmesh_vr
-  public :: radar_no_thinning
+  public :: ens_hx_dbz_cut,static_gsi_nopcp_dbz,rmesh_dbz,zmesh_dbz,rmesh_vr,zmesh_vr,pmot_dbz
+  public :: radar_no_thinning,pmot_vr
   public :: mintiltvr,maxtiltvr,minobrangevr,maxobrangevr
   public :: mintiltdbz,maxtiltdbz,minobrangedbz,maxobrangedbz
   public :: debugmode
@@ -483,7 +494,14 @@ module obsmod
 
   public :: iout_dbz, mype_dbz
   ! --- DBZ DA ---
-  
+
+  ! ==== FED DA ===
+  public :: if_model_fed, innov_use_model_fed
+  public :: r_hgt_fed
+  public :: iout_fed, mype_fed  
+  public :: dofedoneob
+  ! --- FED DA ---
+
   public :: obsmod_init_instr_table
   public :: obsmod_final_instr_table
   public :: nobs_sub
@@ -572,7 +590,7 @@ module obsmod
 
   real(r_kind) perturb_fact,time_window_max,time_offset,time_window_rad
   real(r_kind),dimension(50):: dmesh
-
+  real(r_kind) r_hgt_fed
   integer(i_kind) nchan_total,ianldate
   integer(i_kind) ndat,ndat_types,ndat_times,nprof_gps
   integer(i_kind) lunobs_obs,nloz_v6,nloz_v8,nobskeep,nloz_omi
@@ -583,12 +601,12 @@ module obsmod
   integer(i_kind) iout_co,iout_gust,iout_vis,iout_pblh,iout_tcamt,iout_lcbas
   integer(i_kind) iout_cldch
   integer(i_kind) iout_wspd10m,iout_td2m,iout_mxtm,iout_mitm,iout_pmsl,iout_howv
-  integer(i_kind) iout_uwnd10m,iout_vwnd10m
+  integer(i_kind) iout_uwnd10m,iout_vwnd10m,iout_fed
   integer(i_kind) mype_t,mype_q,mype_uv,mype_ps,mype_pw, &
                   mype_rw,mype_dw,mype_gps,mype_sst, &
                   mype_tcp,mype_lag,mype_co,mype_gust,mype_vis,mype_pblh, &
                   mype_wspd10m,mype_td2m,mype_mxtm,mype_mitm,mype_pmsl,mype_howv,&
-                  mype_uwnd10m,mype_vwnd10m, mype_tcamt,mype_lcbas, mype_dbz
+                  mype_uwnd10m,mype_vwnd10m, mype_tcamt,mype_lcbas, mype_dbz, mype_fed
   integer(i_kind) mype_cldch
   integer(i_kind) iout_swcp, iout_lwcp
   integer(i_kind) mype_swcp, mype_lwcp
@@ -613,11 +631,12 @@ module obsmod
   real(r_kind) ,allocatable,dimension(:):: dval
   real(r_kind) ,allocatable,dimension(:):: time_window
 
-  integer(i_kind) ntilt_radarfiles,tcp_posmatch,tcp_box
+  integer(i_kind) ntilt_radarfiles,tcp_posmatch,tcp_box,pmot_dbz,pmot_vr
 
   logical ::  ta2tb
-  logical ::  doradaroneob
-  logical :: vr_dealisingopt, if_vterminal, if_model_dbz, inflate_obserr, if_vrobs_raw, l2rwthin
+  logical ::  doradaroneob,dofedoneob
+  logical :: vr_dealisingopt, if_vterminal, if_model_dbz,if_model_fed, innov_use_model_fed, if_vrobs_raw, if_use_w_vr, l2rwthin
+  logical :: inflate_dbz_obserr
   character(4) :: whichradar,oneobradid
   real(r_kind) :: oneoblat,oneoblon,oneobddiff,oneobvalue,oneobheight
   logical :: radar_no_thinning
@@ -638,6 +657,7 @@ module obsmod
   logical lobserver,l_do_adjoint, lobsdiag_forenkf
   logical,dimension(0:50):: write_diag
   logical diag_radardbz 
+  logical diag_fed
   logical reduce_diag
   logical offtime_data
   logical hilbert_curve
@@ -747,12 +767,17 @@ contains
     if_vterminal=.false.
     l2rwthin    =.false.  
     if_vrobs_raw=.false.
-    if_model_dbz=.true.
-    inflate_obserr=.false.
+    if_use_w_vr=.true.
+    if_model_dbz=.false.
+    if_model_fed=.false.
+    innov_use_model_fed=.false.
+    inflate_dbz_obserr=.false.
     whichradar="KKKK"
 
     oneobradid="KKKK"
     doradaroneob=.false.
+    r_hgt_fed=6500_r_kind
+    dofedoneob=.false.
     oneoblat=-999_r_kind
     oneoblon=-999_r_kind
     oneobddiff=-999_r_kind
@@ -763,6 +788,14 @@ contains
     static_gsi_nopcp_dbz=0.0_r_kind
     rmesh_dbz=2
     rmesh_vr=2
+!  pmot_dbz values of 0,1,2,3 will save different sets of obs output
+!      pmot_dbz - all obs - thin obs
+!      pmot_dbz - all obs
+!      pmot_dbz - use obs
+!      pmot_dbz - use obs + thin obs
+
+    pmot_dbz=0
+    pmot_vr=2
     zmesh_dbz=500.0_r_kind
     zmesh_vr=500.0_r_kind
     minobrangedbz=10000.0_r_kind
@@ -788,6 +821,7 @@ contains
     end do
     write_diag(1)=.true.
     diag_radardbz = .false.
+    diag_fed = .false.
     reduce_diag = .false.
     use_limit = -1
     lobsdiagsave=.false.
@@ -831,7 +865,7 @@ contains
     iout_tcp=214   ! synthetic tc-mslp
     iout_lag=215   ! lagrangian tracers
     iout_co=216    ! co tracers
-    iout_aero=217  ! aerosol product (aod)
+    iout_aero=217  ! aerosol product (aod) CURRENTLY NOT USED
     iout_gust=218  ! wind gust
     iout_vis=219   ! visibility
     iout_pblh=221  ! pbl height
@@ -852,6 +886,7 @@ contains
     iout_lwcp=236  ! liquid-water content path
     iout_light=237 ! lightning
     iout_dbz=238 ! radar reflectivity
+    iout_fed=239   ! flash extent density
 
     mype_ps = npe-1          ! surface pressure
     mype_t  = max(0,npe-2)   ! temperature
@@ -886,6 +921,7 @@ contains
     mype_lwcp=max(0,npe-31)  ! liquid-water content path
     mype_light=max(0,npe-32)! GOES/GLM lightning
     mype_dbz=max(0,npe-33)   ! radar reflectivity
+    mype_fed= max(0,npe-34)  ! flash extent density
 
 
 !   Initialize arrays used in namelist obs_input 
@@ -980,7 +1016,7 @@ contains
     return
   end subroutine init_obsmod_dflts
   
-  subroutine init_directories(mype)
+  subroutine init_directories(in_pe,num_pe)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    create sub-directories
@@ -1005,20 +1041,47 @@ contains
 !   machine:  ibm rs/6000 sp
 !
 !$$$ end documentation block
+#ifdef __INTEL_COMPILER
+    use IFPORT
+#endif
     implicit none
 
-    integer(i_kind),intent(in   ) :: mype
+    integer(i_kind),intent(in   ) :: in_pe
+    integer(i_kind),intent(in   ) :: num_pe
+    logical :: l_mkdir_stat, l_dir_exist
 
     character(len=144):: command
-    character(len=8):: pe_name
+    character(len=8):: pe_name, loc_pe_name
+    character(len=128):: loc_dirname
+    integer(i_kind) :: i, ierror
 
     if (lrun_subdirs) then
-       write(pe_name,'(i4.4)') mype
+       write(pe_name,'(i4.4)') in_pe
        dirname = 'dir.'//trim(pe_name)//'/'
-       command = 'mkdir -p -m 755 ' // trim(dirname)
-       call system(command)
+! Only create directories on one PE
+       if(in_pe == 0) then
+          do i = 0, num_pe
+             write(loc_pe_name,'(i4.4)') i
+             loc_dirname = 'dir.'//trim(loc_pe_name)
+#ifdef __INTEL_COMPILER
+             INQUIRE(directory=trim(loc_dirname), exist=l_dir_exist)
+             if (.not.l_dir_exist) then
+                l_mkdir_stat = MAKEDIRQQ(trim(loc_dirname))
+                if(.not.l_mkdir_stat) then
+                   ierror=GETLASTERRORQQ()
+                   write(6, *) "INIT_DIRECTORIES:  ***ERROR** Failed to create directory ", &
+                        trim(loc_dirname)," for PE ", loc_pe_name, ' ierror= ', ierror
+                   call stop2(678)
+                endif
+             endif
+#else
+             command = 'mkdir -p -m 755 ' // trim(loc_dirname)
+             call system(command)
+#endif
+          enddo
+       endif
     else
-       write(pe_name,100) mype
+       write(pe_name,100) in_pe
 100 format('pe',i4.4,'.')
        dirname= trim(pe_name)
     end if

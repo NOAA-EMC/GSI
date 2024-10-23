@@ -62,7 +62,7 @@ use GSI_BundleMod, only : GSI_Grid
 use GSI_BundleMod, only : GSI_GridCreate
 
 use mpeu_util, only: gettablesize
-use mpeu_util, only: gettable
+use mpeu_util, only: gettable,getindex
 
 implicit none
 
@@ -83,6 +83,8 @@ private
   public  svars
   public  levels
   public  ns2d,ns3d,nsdim
+  public  qgpresent,qspresent,qrpresent,qipresent,qlpresent
+  public  cldchpresent,lcbaspresent,howvpresent,wspd10mpresent,pblhpresent,vispresent,gustpresent
 
 ! State vector definition
 ! Could contain model state fields plus other fields required
@@ -101,6 +103,8 @@ character(len=max_varname_length),allocatable,dimension(:) :: svars3d
 character(len=max_varname_length),allocatable,dimension(:) :: svars2d
 integer(i_kind)                  ,allocatable,dimension(:) :: levels
 
+logical qgpresent,qspresent,qrpresent,qipresent,qlpresent
+logical cldchpresent,lcbaspresent,howvpresent,wspd10mpresent,pblhpresent,vispresent,gustpresent
 
 ! ----------------------------------------------------------------------
 INTERFACE PRT_STATE_NORMS
@@ -245,6 +249,18 @@ if (mype==0) then
     write(6,*) myname_,':  3D-STATE VARIABLES ', svars3d
     write(6,*) myname_,': ALL STATE VARIABLES ', svars
 end if
+qgpresent=getindex(svars3d,'qg')>0
+qspresent=getindex(svars3d,'qs')>0
+qrpresent=getindex(svars3d,'qr')>0
+qipresent=getindex(svars3d,'qi')>0
+qlpresent=getindex(svars3d,'ql')>0
+cldchpresent=getindex(svars2d,'cldch')>0
+lcbaspresent=getindex(svars2d,'lcbas')>0
+howvpresent=getindex(svars2d,'howv')>0
+wspd10mpresent=getindex(svars2d,'wspd10m')>0
+pblhpresent=getindex(svars2d,'pblh')>0
+vispresent=getindex(svars2d,'vis')>0
+gustpresent=getindex(svars2d,'gust')>0
 
 end subroutine init_anasv
 subroutine final_anasv
@@ -370,7 +386,7 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
 ! local variables
   real(r_kind),allocatable,dimension(:)   :: zloc,nloc
   real(r_kind),allocatable,dimension(:,:) :: zall,nall
-  integer(i_kind) :: i,ii
+  integer(i_kind) :: i
 
   pmin=zero
   pmax=zero
@@ -383,59 +399,32 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
   zloc=zero
 
 ! Independent part of vector
-! Sum
-  ii=0
+! Sum,Max,Min and number of points
+!$omp parallel do schedule(static,1) private(i)
   do i = 1,ns3d
-     ii=ii+1
      if(xst%r3(i)%mykind==r_single)then
-        zloc(ii)= sum_mask(xst%r3(i)%qr4,ihalo=1)
+        zloc(i)= sum_mask(xst%r3(i)%qr4,ihalo=1)
+        zloc(nvars+i)= minval(xst%r3(i)%qr4)
+        zloc(2*nvars+i)= maxval(xst%r3(i)%qr4)
      else
-        zloc(ii)= sum_mask(xst%r3(i)%q,ihalo=1)
+        zloc(i)= sum_mask(xst%r3(i)%q,ihalo=1)
+        zloc(nvars+i)= minval(xst%r3(i)%q)
+        zloc(2*nvars+i)= maxval(xst%r3(i)%q)
      endif
-     nloc(ii) = real((lat2-2)*(lon2-2)*levels(i), r_kind) ! dim of 3d fields
+     nloc(i) = real((lat2-2)*(lon2-2)*levels(i), r_kind) ! dim of 3d fields
   enddo
+!$omp parallel do schedule(static,1) private(i)
   do i = 1,ns2d
-     ii=ii+1
      if(xst%r2(i)%mykind==r_single)then
-        zloc(ii)= sum_mask(xst%r2(i)%qr4,ihalo=1)
+        zloc(ns3d+i)= sum_mask(xst%r2(i)%qr4,ihalo=1)
+        zloc(nvars+ns3d+i)= minval(xst%r2(i)%qr4)
+        zloc(2*nvars+ns3d+i)= maxval(xst%r2(i)%qr4)
      else
-        zloc(ii)= sum_mask(xst%r2(i)%q,ihalo=1)
+        zloc(ns3d+i)= sum_mask(xst%r2(i)%q,ihalo=1)
+        zloc(nvars+ns3d+i)= minval(xst%r2(i)%q)
+        zloc(2*nvars+ns3d+i)= maxval(xst%r2(i)%q)
      endif
-     nloc(ii) = real((lat2-2)*(lon2-2), r_kind)           ! dim of 2d fields
-  enddo
-! Min
-  do i = 1,ns3d
-     ii=ii+1
-     if(xst%r3(i)%mykind==r_single)then
-        zloc(ii)= minval(xst%r3(i)%qr4)
-     else
-        zloc(ii)= minval(xst%r3(i)%q)
-     endif
-  enddo
-  do i = 1,ns2d
-     ii=ii+1
-     if(xst%r2(i)%mykind==r_single)then
-        zloc(ii)= minval(xst%r2(i)%qr4)
-      else
-        zloc(ii)= minval(xst%r2(i)%q)
-     endif
-  enddo
-! Max
-  do i = 1,ns3d
-     ii=ii+1
-     if(xst%r3(i)%mykind==r_single)then
-        zloc(ii)= maxval(xst%r3(i)%qr4)
-     else
-        zloc(ii)= maxval(xst%r3(i)%q)
-     endif
-  enddo
-  do i = 1,ns2d
-     ii=ii+1
-     if(xst%r2(i)%mykind==r_single)then
-        zloc(ii)= maxval(xst%r2(i)%qr4)
-     else
-        zloc(ii)= maxval(xst%r2(i)%q)
-     endif
+     nloc(ns3d+i) = real((lat2-2)*(lon2-2), r_kind)           ! dim of 2d fields
   enddo
 
 ! Gather contributions
@@ -444,20 +433,12 @@ subroutine norms_vars(xst,pmin,pmax,psum,pnum)
   call mpi_allgather(nloc,size(nloc),mpi_rtype, &
                    & nall,size(nloc),mpi_rtype, mpi_comm_world,ierror)
 
-  ii=0
-  do i=1,ns3d
-     ii=ii+1
-     psum(ii)=SUM(zall(ii,:))
-     pnum(ii)=SUM(nall(ii,:))
-  enddo
-  do i=1,ns2d
-     ii=ii+1
-     psum(ii)=SUM(zall(ii,:))
-     pnum(ii)=SUM(nall(ii,:))
-  enddo
-  do ii=1,nvars
-     pmin(ii)=MINVAL(zall(  nvars+ii,:))
-     pmax(ii)=MAXVAL(zall(2*nvars+ii,:))
+!$omp parallel do schedule(static,1) private(i)
+  do i=1,nvars
+     psum(i)=SUM(zall(i,:))
+     pnum(i)=SUM(nall(i,:))
+     pmin(i)=MINVAL(zall(  nvars+i,:))
+     pmax(i)=MAXVAL(zall(2*nvars+i,:))
   enddo
 
 ! Release work space

@@ -134,6 +134,8 @@ module satthin
   use obsmod, only: time_window_max
   use constants, only: deg2rad,rearth_equator,zero,two,pi,half,one,&
        rad2deg,r1000
+  use chemmod, only: laeroana_fv3smoke
+
   implicit none
 
 ! set default to private
@@ -348,7 +350,7 @@ contains
   end subroutine makegvals
 
 
-  subroutine makegrids(rmesh,ithin,n_tbin)
+  subroutine makegrids(rmesh,ithin,n_tbin,itxmax_in)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    makegrids                            
@@ -384,7 +386,8 @@ contains
 
     real(r_kind)   ,intent(in   ) :: rmesh
     integer(i_kind),intent(in   ) :: ithin
-    integer(i_kind),intent(in   ), optional :: n_tbin 
+    integer(i_kind),intent(in   ), optional :: n_tbin
+    integer(i_kind),intent(in   ), optional :: itxmax_in
     real(r_kind),parameter:: r360 = 360.0_r_kind
     integer(i_kind) i,j
     integer(i_kind) mlonx,mlonj
@@ -400,7 +403,11 @@ contains
     itx_all=0
     if(abs(rmesh) <= one .or. ithin <= 0)then
       use_all=.true.
-      itxmax=1e9
+      if (present(itxmax_in)) then
+         itxmax = itxmax_in
+      else
+         itxmax = 1e7
+      endif
       allocate(icount(itxmax))
       allocate(score_crit(itxmax))
       do j=1,itxmax
@@ -612,9 +619,9 @@ contains
           jmax=nlat_sfc-2
           allocate(slatx(jmax),wlatx(jmax))
           call splat(idrt,jmax,slatx,wlatx)
-          dlon=two*pi/float(nlon_sfc)
+          dlon=two*pi/real(nlon_sfc,r_kind)
           do i=1,nlon_sfc
-             rlons_sfc(i)=float(i-1)*dlon
+             rlons_sfc(i)=real(i-1,r_kind)*dlon
           end do
           do i=1,(nlat_sfc-1)/2
              rlats_sfc(i+1)=-asin(slatx(i))
@@ -961,7 +968,10 @@ contains
     end if
     if (.not.lobserver) then
        if(allocated(veg_frac)) deallocate(veg_frac)
-       if(allocated(veg_type)) deallocate(veg_type)
+!       veg_type will be used in setuppm2_5.f90 for rrfs_sd PM2.5 DA
+       if(.not. laeroana_fv3smoke )then
+         if(allocated(veg_type)) deallocate(veg_type)
+       endif
        if(allocated(soil_type)) deallocate(soil_type)
        if(allocated(soil_moi)) deallocate(soil_moi)
        if(allocated(sfc_rough)) deallocate(sfc_rough)
