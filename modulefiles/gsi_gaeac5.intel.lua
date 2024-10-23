@@ -17,10 +17,6 @@ load(pathJoin("cmake", cmake_ver))
 load("gsi_common")
 load(pathJoin("prod_util", prod_util_ver))
 
-local MKLROOT="/opt/intel/oneapi/mkl/2022.0.2/"
-prepend_path("LD_LIBRARY_PATH",pathJoin(MKLROOT,"lib/intel64"))
-pushenv("MKLROOT", MKLROOT)
-
 pushenv("GSI_BINARY_SOURCE_DIR", "/gpfs/f5/ufs-ard/world-shared/GSI_data/fix/gsi/20240208")
 
 setenv("CC","cc")
@@ -29,4 +25,4 @@ setenv("CXX","CC")
 pushenv("CRAYPE_LINK_TYPE","dynamic")
 
 unload("cray-libsci")
-whatis("Description: GSI environment on Gaea with Intel Compilers")
+whatis("Description: GSI environment on GaeaC5 with Intel Compilers")
