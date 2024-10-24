@@ -36,8 +36,8 @@ elif [[ $MACHINE_ID = s4* ]] ; then
     fi
     module purge
 
-elif [[ $MACHINE_ID = wcoss2 ]]; then
-    # We are on WCOSS2
+elif [[ $MACHINE_ID = wcoss2 || $MACHINE_ID = acorn ]]; then
+    # We are on WCOSS2 (cactus, dogwood, or acorn)
     module reset
 
 elif [[ $MACHINE_ID = stampede* ]] ; then
