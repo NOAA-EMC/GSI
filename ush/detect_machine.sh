@@ -21,8 +21,11 @@ case $(hostname -f) in
   dlogin0[1-9].dogwood.wcoss2.ncep.noaa.gov) MACHINE_ID=wcoss2 ;; ### dogwood01-9
   dlogin10.dogwood.wcoss2.ncep.noaa.gov)     MACHINE_ID=wcoss2 ;; ### dogwood10
 
-  gaea5[1-8])          MACHINE_ID=gaea ;; ### gaea51-58
-  gaea5[1-8].ncrc.gov) MACHINE_ID=gaea ;; ### gaea51-58
+  gaea5[1-8])          MACHINE_ID=gaeac5 ;; ### gaea51-58
+  gaea5[1-8].ncrc.gov) MACHINE_ID=gaeac5 ;; ### gaea51-58
+
+  gaea6[1-8])          MACHINE_ID=gaeac6 ;; ### gaea61-68
+  gaea6[1-8].ncrc.gov) MACHINE_ID=gaeac6 ;; ### gaea61-68
 
   hfe0[1-9]) MACHINE_ID=hera ;; ### hera01-09
   hfe1[0-2]) MACHINE_ID=hera ;; ### hera10-12
@@ -61,7 +64,10 @@ if [[ "${MACHINE_ID}" != "UNKNOWN" ]]; then
 fi
 
 # Try searching based on paths since hostname may not match on compute nodes
-if [[ -d /lfs/h3 ]]; then
+if [[ -d /opt/spack-stack ]]; then
+  # We are in a container
+  MACHINE_ID=container
+elif [[ -d /lfs/h3 ]]; then
   # We are on NOAA Cactus or Dogwood
   MACHINE_ID=wcoss2
 elif [[ -d /lfs/h1 && ! -d /lfs/h3 ]]; then
@@ -81,9 +87,12 @@ elif [[ -d /work ]]; then
   else
     MACHINE_ID=orion
   fi
-elif [[ -d /gpfs && -d /ncrc ]]; then
-  # We are on GAEA.
-  MACHINE_ID=gaea
+elif [[ -d /gpfs/f5 ]]; then
+  # We are on GAEAC5.
+  MACHINE_ID=gaeac5
+elif [[ -d /gpfs/f6 ]]; then
+  # We are on GAEAC6.
+  MACHINE_ID=gaeac6
 elif [[ -d /data/prod ]]; then
   # We are on SSEC's S4
   MACHINE_ID=s4
