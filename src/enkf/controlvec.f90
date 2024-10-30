@@ -337,7 +337,7 @@ if (nproc <= ntasks_io-1) then
            else
               call writegriddata(0,0,cvars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin_mean,no_inflate_flag)
            end if
-        elseif (nc2d>0) then  ! always write sfc mean increment
+        elseif (nc2d>0) then  ! always write sfc mean increment for soil analysis
            no_vars3d=''
            call writeincrement(0,0,no_vars3d,cvars2d,nc3d,nc2d,clevels,ncdim,grdin_mean,no_inflate_flag)
         endif
