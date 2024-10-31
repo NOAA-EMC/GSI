@@ -620,6 +620,7 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
   use constants, only: zero_single
   use gridmod, only: twodvar_regional,tll2xy
   use ndfdgrids, only: valley_adjustment
+  use rapidrefresh_cldsurf_mod, only: l_rtma3d
 
   implicit none
 
@@ -908,7 +909,7 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
      endif
   end if
 
-  if (twodvar_regional) then
+  if (twodvar_regional .or. l_rtma3d) then
      call tll2xy(dlon,dlat,xob,yob,outside)
      if ((obstype=='t' .or. obstype=='q') .and. .not.outside) call valley_adjustment(xob,yob,usage_rj)
   endif
