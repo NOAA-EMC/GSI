@@ -49,8 +49,12 @@ elif [[ -d /work ]]; then # Orion or Hercules
   else
     export machine="Orion"
   fi
-elif [[ -d /lfs/h2 ]]; then # wcoss2
-  export machine="wcoss2"
+elif [[ -d /lfs/h2 ]]; then # wcoss2 or acorn
+  if [[ $(hostname -f) =~ "alogin" ]]; then
+    export machine="acorn"
+  else
+    export machine="wcoss2"
+  fi
 fi
 echo "Running Regression Tests on '$machine'";
 
@@ -75,7 +79,7 @@ case $machine in
     export check_resource="no"
     export accnt="bil-fire8"
   ;;
-  wcoss2)
+  wcoss2 | acorn)
       export local_or_default="${local_or_default:-/lfs/h2/emc/da/noscrub/$LOGNAME}"
       if [ -d $local_or_default ]; then
           export noscrub="$local_or_default/noscrub"
