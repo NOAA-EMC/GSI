@@ -24,28 +24,18 @@ case $machine in
            memnode=96
            numcore=40
     ;;
-<<<<<<< HEAD
-	gaeac5)
+    gaeac5)
 	   sub_cmd="sub_gaeac5"
            memnode=251
            numcore=128
     ;;
-	gaeac6)
+    gaeac6)
 	   sub_cmd="sub_gaeac6"
            memnode=384
            numcore=192
     ;;
-	wcoss2)
-	   sub_cmd="sub_wcoss2"
-=======
-    Gaea)
-           sub_cmd="sub_gaea"
-           memnode=251
-           numcore=128
-    ;;
     wcoss2)
            sub_cmd="sub_wcoss2"
->>>>>>> 487ab1a26f96ad386f08c8c5d61699732292a06b
            memnode=512
            numcore=128
     ;;
