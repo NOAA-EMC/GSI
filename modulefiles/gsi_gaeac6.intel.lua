@@ -1,11 +1,12 @@
 help([[
 ]])
 
-prepend_path("MODULEPATH", "/ncrc/proj/epic/spack-stack/spack-stack-1.6.0/envs/gsi-addon-dev/install/modulefiles/Core")
+--prepend_path("MODULEPATH", "/ncrc/proj/epic/spack-stack/spack-stack-1.6.0/envs/gsi-addon-dev/install/modulefiles/Core")
+prepend_path("MODULEPATH", "/ncrc/proj/epic/spack-stack/c6/spack-stack-1.6.0/envs/gsi-addon/install/modulefiles/Core")
 
 local stack_python_ver=os.getenv("stack_python_ver") or "3.11.6"
 local stack_intel_ver=os.getenv("stack_intel_ver") or "2023.2.0"
-local stack_cray_mpich_ver=os.getenv("stack_cray_mpich_ver") or "8.1.28"
+local stack_cray_mpich_ver=os.getenv("stack_cray_mpich_ver") or "8.1.29"
 local cmake_ver=os.getenv("cmake_ver") or "3.23.1"
 local prod_util_ver=os.getenv("prod_util_ver") or "2.1.1"
 
