@@ -158,6 +158,7 @@ sbatch=${sbatch:-sbatch}
 ofile=$DATA/subout$$
 >$ofile
 chmod 777 $ofile
+export FI_VERBS_PREFER_XRC=0
 $sbatch  $cfile >$ofile
 rc=$?
 cat $ofile
