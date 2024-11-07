@@ -145,8 +145,8 @@ case $regtest in
            topts[1]="0:15:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="10/4/"  ; ropts[2]="/1"
         elif [[ "$machine" = "gaeac5" ]]; then
-           topts[1]="0:15:00" ; popts[1]="64/1/"  ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="128/2/"  ; ropts[2]="/1"
+           topts[1]="0:15:00" ; popts[1]="32/2/"  ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="64/4/"  ; ropts[2]="/1"
         elif [[ "$machine" = "gaeac6" ]]; then
            topts[1]="0:15:00" ; popts[1]="64/1/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="128/2/"  ; ropts[2]="/1"
@@ -177,8 +177,8 @@ case $regtest in
            topts[1]="0:15:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="10/4/"  ; ropts[2]="/1"
         elif [[ "$machine" = "gaeac5" ]]; then
-           topts[1]="0:15:00" ; popts[1]="64/1/"  ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="128/2/"  ; ropts[2]="/1"
+           topts[1]="0:15:00" ; popts[1]="32/2/"  ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="64/4/"  ; ropts[2]="/1"
         elif [[ "$machine" = "gaeac6" ]]; then
            topts[1]="0:15:00" ; popts[1]="64/1/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="128/2/"  ; ropts[2]="/1"
@@ -276,8 +276,8 @@ case $regtest in
            topts[1]="0:10:00" ; popts[1]="12/3/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="12/5/" ; ropts[2]="/2"
         elif [[ "$machine" = "gaeac5" ]]; then
-           topts[1]="0:10:00" ; popts[1]="16/2/" ; ropts[1]="/1"
-           topts[2]="0:10:00" ; popts[2]="16/4/" ; ropts[2]="/2"
+           topts[1]="0:10:00" ; popts[1]="12/3/" ; ropts[1]="/1"
+           topts[2]="0:10:00" ; popts[2]="12/5/" ; ropts[2]="/2"
         elif [[ "$machine" = "gaeac6" ]]; then
            topts[1]="0:10:00" ; popts[1]="16/2/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="16/4/" ; ropts[2]="/2"
