@@ -68,6 +68,7 @@ case $machine in
 
     export check_resource="no"
     export accnt="ufs-ard"
+    export FI_VERBS_PREFER_XRC=0
   ;;
   gaeac6)
     export queue="normal"
