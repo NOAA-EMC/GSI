@@ -346,6 +346,7 @@ elif [[ "$machine" = "gaeac5" ]]; then
    export MPI_BUFS_PER_PROC=256
    export MPI_BUFS_PER_HOST=256
    export MPI_GROUP_MAX=256
+   export FI_VERBS_PREFER_XRC=0
    export APRUN="srun --export=ALL -n \$ntasks"
 elif [[ "$machine" = "gaeac6" ]]; then
    export OMP_STACKSIZE=1024M
