@@ -90,6 +90,7 @@ export write_spread_diag=${write_spread_diag:-".false."}
 export cnvw_option=${cnvw_option:-".false."}
 export netcdf_diag=${netcdf_diag:-".true."}
 export modelspace_vloc=${modelspace_vloc:-".true."} # if true, 'vlocal_eig.dat' is needed
+export taperanalperts=${taperanalperts:-".true."}
 export IAUFHRS_ENKF=${IAUFHRS_ENKF:-'3,6,9'}
 export DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"NO"}
 export INCREMENTS_TO_ZERO="'liq_wat_inc','icmr_inc','rwmr_inc','snmr_inc','grle_inc'"

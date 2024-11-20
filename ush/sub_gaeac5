@@ -88,8 +88,8 @@ output=${output:-$jobname.out}
 myuser=$LOGNAME
 myhost=$(hostname)
 
-if [ -d /gpfs/f5/epic/scratch/${USER}/$LOGNAME ]; then
-  DATA=/gpfs/f5/epic/scratch/${USER}/$LOGNAME/tmp
+if [ -d /gpfs/f5/ufs-ard/scratch/${USER}/$LOGNAME ]; then
+  DATA=/gpfs/f5/ufs-ard/scratch/${USER}/$LOGNAME/tmp
 fi
 DATA=${DATA:-$ptmp/tmp}
 
@@ -129,7 +129,7 @@ echo "" >>$cfile
 
 echo "module reset" >> $cfile
 echo "module use $modulefiles"                        >> $cfile
-echo "module load gsi_gaea.intel" >> $cfile
+echo "module load gsi_gaeac5.intel" >> $cfile
 echo "module list"                                           >> $cfile
 echo "" >>$cfile
 
