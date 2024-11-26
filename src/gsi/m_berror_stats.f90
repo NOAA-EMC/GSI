@@ -492,10 +492,8 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
 
    call berror_get_dims(msig,mlat)
    if ( bin_berror ) then
-     write(6,*)'call binary berror read'
      call bin_()
    else
-     write(6,*)'call netcdf berror read'
      call nc_(mype)
    endif
 
