@@ -232,6 +232,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
          kidsat=3
        else if(jsatid == 'metop-c')then
          kidsat=5
+       else if(jsatid == 'metop-sg-a1')then
+         kidsat=24
        else if(jsatid == 'm08')then
          kidsat = 55 
        else if(jsatid == 'm09')then
@@ -933,14 +935,14 @@ subroutine read_obs(ndata,mype)
           ditype(i) = 'wcp'
        else if( hirs   .or. sndr      .or.  seviri .or. abi .or.        &
                obstype == 'airs'      .or. obstype == 'amsua'     .or.  &
-               obstype == 'msu'       .or. obstype == 'iasi'      .or.  &
+               obstype == 'msu'       .or. obstype == 'iasi'      .or.  obstype == 'iasi-ng' .or. &
                obstype == 'amsub'     .or. obstype == 'mhs'       .or.  &
                obstype == 'hsb'       .or. obstype == 'goes_img'  .or.  &
                obstype == 'ahi'       .or. avhrr                  .or.  &
                amsre  .or. ssmis      .or. obstype == 'ssmi'      .or.  &
                obstype == 'ssu'       .or. obstype == 'atms'      .or.  &
                obstype == 'cris'      .or. obstype == 'cris-fsr'  .or.  &
-               obstype == 'amsr2'     .or. obstype == 'viirs-m'   .or.  &
+               obstype == 'amsr2'     .or. obstype == 'viirs-m'   .or.  obstype == 'metimage' .or. &
                obstype == 'gmi'       .or. obstype == 'saphir'   ) then
           ditype(i) = 'rad'
        else if (is_extOzone(dfile(i),obstype,dplat(i))) then
@@ -1026,6 +1028,8 @@ subroutine read_obs(ndata,mype)
                 parallel_read(i)= .true.
              else if(obstype == 'iasi')then
                 parallel_read(i)= .true.
+             else if(obstype == 'iasi-ng')then
+                parallel_read(i)= .true.
              else if(obstype == 'amsub')then
                 parallel_read(i)= .true.
              else if(obstype == 'mhs' )then
@@ -1046,6 +1050,8 @@ subroutine read_obs(ndata,mype)
              else if(avhrr)then
                 parallel_read(i)= .true.
              else if(obstype == 'viirs-m' )then
+                parallel_read(i)= .true.
+             else if(obstype == 'metimage' )then
                 parallel_read(i)= .true.
              else if(amsre)then
                 parallel_read(i)= .true.
@@ -1075,23 +1081,24 @@ subroutine read_obs(ndata,mype)
                   (obstype == 'amsua' .or. obstype == 'amsub' .or. & 
                    obstype == 'mhs'   .or. obstype == 'hirs3' .or. &
                    obstype == 'cris'  .or. obstype == 'cris-fsr' .or. &
-                   obstype == 'iasi'  .or. obstype == 'atms') .and. &
+                   obstype == 'iasi'  .or. obstype == 'iasi-ng'  .or. &
+                   obstype == 'atms') .and. &
                   (dplat(i) == 'n17' .or. dplat(i) == 'n18' .or. & 
                    dplat(i) == 'n19' .or. dplat(i) == 'npp' .or. &
                    dplat(i) == 'n20' .or. dplat(i) == 'n21' .or. &
                    dplat(i) == 'metop-a' .or. dplat(i) == 'metop-b' .or. &
-                   dplat(i) == 'metop-c') 
+                   dplat(i) == 'metop-c' .or. dplat(i) == 'metop-sg-a1') 
 ! direct broadcast from NESDIS/UW
           db_possible(i) = ditype(i) == 'rad'  .and.       & 
                   (obstype == 'amsua' .or.  obstype == 'amsub' .or.  & 
                    obstype == 'mhs' .or. obstype == 'atms' .or. &
                    obstype == 'cris' .or. obstype == 'cris-fsr' .or. &
-                   obstype == 'iasi') .and. &
+                   obstype == 'iasi' .or. obstype == 'iasi-ng') .and. &
                   (dplat(i) == 'n17' .or. dplat(i) == 'n18' .or. & 
                    dplat(i) == 'n19' .or. dplat(i) == 'npp' .or. &
                    dplat(i) == 'n20' .or. dplat(i) == 'n21' .or. &
                    dplat(i) == 'metop-a' .or. dplat(i) == 'metop-b' .or. &
-                   dplat(i) == 'metop-c') 
+                   dplat(i) == 'metop-c' .or. dplat(i) == 'metop-sg-a1')  
 
 !   Inquire data set to deterimine if input data available and size of dataset
           ii=ii+1
@@ -1759,6 +1766,14 @@ subroutine read_obs(ndata,mype)
                      mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),nobs_sub1(1,i), &
                      read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use)
                 string='READ_IASI'
+
+!            Process iasi-ng data
+             else if(obstype == 'iasi-ng')then
+                call read_iasing(mype,val_dat,ithin,isfcalc,rmesh,dplat(i),gstime,&
+                     infile,lunout,obstype,nread,npuse,nouse,twind,sis,&
+                     mype_root,mype_sub(mm1,i),npe_sub(i),mpi_comm_sub(i),nobs_sub1(1,i), &
+                     read_rec(i),read_ears_rec(i),read_db_rec(i),dval_use)
+                string='READ_IASI-NG'
 
 !            Process cris data
              else if(obstype == 'cris' .or. obstype =='cris-fsr' )then

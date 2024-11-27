@@ -1289,6 +1289,8 @@
        height=840._r_kind
     case('n20', 'n21', 'n22', 'n23')
        height=840._r_kind
+    case('metop-sg-a1', 'metop-sg-a2', 'metop-sg-a3') 
+       height=840._r_kind
     case default
        write(6,*) 'GET_SAT_HEIGHT: ERROR, unrecognized satellite id: ', trim(satid)
        valid=.false.

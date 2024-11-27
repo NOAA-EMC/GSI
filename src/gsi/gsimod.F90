@@ -94,7 +94,7 @@
       init_qcvars,vadfile,noiqc,c_varqc,gps_jacqc,qc_noirjaco3,qc_noirjaco3_pole,&
       buddycheck_t,buddydiag_save,njqc,vqc,nvqc,hub_norm,vadwnd_l2rw_qc, &
       pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres,cao_check, &
-      cris_cads, iasi_cads, airs_cads
+      cris_cads, iasi_cads, iasing_cads, airs_cads
   use qcmod, only: troflg,lat_c,nrand
   use cads, only: M__Sensor,N__Num_Bands,N__GradChkInterval,N__Band_Size,N__Bands,N__Window_Width, &
       N__Window_Bounds,R__BT_Threshold,R__Grad_Threshold,R__Window_Grad_Threshold, L__Do_Quick_Exit, &
@@ -1064,9 +1064,10 @@
 !
 !     Flags to use the new IR cloud detection routine.  Flag must be set to true to use the new routine.  The default
 !     (no flag or .false.) will use the default.
-!     airs_cads: use the clod and aerosool detection software for the AIRS instrument
-!     cris_cads: use the cloud and aerosol detection software for CrIS instruments
-!     iasi_cads: use the cloud and aerosol detection software for IASI instruments
+!     airs_cads  : use the cloud and aerosol detection software for AIRS instrument
+!     cris_cads  : use the cloud and aerosol detection software for CrIS instruments
+!     iasi_cads  : use the cloud and aerosol detection software for IASI instruments
+!     iasing_cads: use the cloud and aerosol detection software for IASI-NG instruments
 !     
   
   namelist/obsqc/dfact,dfact1,erradar_inflate,tdrerr_inflate,oberrflg,&
@@ -1078,7 +1079,7 @@
        q_doe_a_136,q_doe_a_137,q_doe_b_136,q_doe_b_137, &
        t_doe_a_136,t_doe_a_137,t_doe_b_136,t_doe_b_137, &
        uv_doe_a_236,uv_doe_a_237,uv_doe_a_213,uv_doe_b_236,uv_doe_b_237,uv_doe_b_213, &
-       vad_near_analtime,airs_cads,cris_cads,iasi_cads
+       vad_near_analtime,airs_cads,cris_cads,iasi_cads, iasing_cads
 
 ! OBS_INPUT (controls input data):
 !      dmesh(max(dthin))- thinning mesh for each group
@@ -2320,7 +2321,7 @@
      endif
      do i=1,ndat
         write(6,401)dfile(i),dtype(i),dplat(i),dsis(i),dval(i),dthin(i),dsfcalc(i),time_window(i)
- 401    format(1x,a20,1x,a10,1x,a11,1x,a20,1x,f10.2,1x,I3,1x,I3,1x,f10.2)
+ 401    format(1x,a20,1x,a10,1x,a12,1x,a20,1x,f10.2,1x,I3,1x,I3,1x,f10.2)
      end do
      write(6,superob_radar)
      write(6,lag_data)

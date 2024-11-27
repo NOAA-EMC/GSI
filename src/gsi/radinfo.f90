@@ -768,7 +768,8 @@ contains
        end select 
 
        if ( .not. diag_rad .and. iuse_rad(j) < 0 .and. iextra_det(j) < 0 .and. &
-          ( nusis(j)(1:4) == 'cris' .or. nusis(j)(1:4) == 'iasi' .or. nusis(j)(1:4) == 'airs')) cycle
+          ( nusis(j)(1:4) == 'cris' .or. nusis(j)(1:7) == 'iasi-ng' .or. nusis(j)(1:4) == 'iasi'  &
+            .or. nusis(j)(1:4) == 'airs')) cycle
 
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 2) air_rad(j)=zero
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 3) ang_rad(j)=zero
@@ -869,7 +870,7 @@ contains
 !            The second part of the if statement keeps from printing them.
              if ( .not. cfound ) then
                 if ((diag_rad .and. mype ==0) .or. &
-                   (.not. diag_rad .and. isis(1:4)/='airs' .and. isis(1:4) /= 'cris' .and. isis(1:4) /= 'iasi')) &
+                   (.not. diag_rad .and. isis(1:4)/='airs' .and. isis(1:4) /= 'cris' .and. isis(1:7) /= 'iasi-ng' .and. isis(1:4) /= 'iasi')) &
                    write(6,*) '***WARNING instrument/channel ',isis,ichan,'found in satbias_pc file but not found in satinfo'
              endif
 
@@ -1112,7 +1113,7 @@ contains
 !         The second part of the if statement keeps from printing them.
           if ( .not. cfound ) then
              if ((diag_rad .and. mype ==0) .or. &
-                (.not. diag_rad .and. isis(1:4)/='airs' .and. isis(1:4) /= 'cris' .and. isis(1:4) /= 'iasi')) &
+                (.not. diag_rad .and. isis(1:4)/='airs' .and. isis(1:4) /= 'cris' .and. isis(1:7) /= 'iasi-ng' .and. isis(1:4) /= 'iasi')) &
                 write(6,*) '***WARNING instrument/channel ',isis,ichan,'found in satbias_in file but not found in satinfo'
           endif
 

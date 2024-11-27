@@ -327,6 +327,7 @@ function dtype2index_(dtype) result(index_)
     case("hsb"    ); index_= iobOper_rad
         !
     case("iasi"   ); index_= iobOper_rad
+    case("iasi-ng"); index_= iobOper_rad
     case("cris"   ); index_= iobOper_rad
     case("cris-fsr"  ); index_= iobOper_rad
         !
@@ -357,6 +358,7 @@ function dtype2index_(dtype) result(index_)
         !
     case("avhrr_navy"); index_= iobOper_rad
     case("avhrr"  ); index_= iobOper_rad
+    case("metimage" ); index_= iobOper_rad
     case("viirs-m"  ); index_= iobOper_rad
 
   case("tcp"    ,"[tcpoper]"    ); index_= iobOper_tcp
