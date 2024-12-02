@@ -769,9 +769,7 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
              deallocate(corq2)
           endif
           cycle
-       else
-          call die(myname_," in cw, failed to find cvars3d bvars ", 99)          
-       endif
+      endif
       if (trim(cvars3d(nv))=='q') then
           n = getindex(cvars3d,'q')
           found3d(n)=.true.
