@@ -10,7 +10,6 @@ public :: nc_berror_vars_copy
 public :: nc_berror_vars
 public :: nc_berror_dims
 public :: nc_berror_read
-public :: nc_berror_write
 public :: nc_berror_getpointer
 
 type nc_berror_vars
@@ -60,8 +59,6 @@ interface nc_berror_dims; module procedure    &
   read_dims_ ; end interface
 interface nc_berror_read; module procedure    &
   read_berror_ ; end interface
-interface nc_berror_write; module procedure    &
-  write_berror_ ; end interface
 interface nc_berror_vars_init; module procedure    &
   init_berror_vars_ ; end interface
 interface nc_berror_vars_final; module procedure    &
@@ -185,15 +182,6 @@ subroutine read_berror_ (fname,bvars,rc, myid,root)
   call check_( nf90_open(fname, NF90_NOWRITE, ncid), rc, mype_, root_ )
   if(rc/=0) return
 
-! Read global attributes
-! call check_( nf90_inquire(ncid, ndims_, nvars_, ngatts_, unlimdimid_), rc, mype_, root_ )
-! call check_( nf90_inq_dimid(ncid, "lon", varid), rc, mype_, root_ )
-! call check_( nf90_inquire_dimension(ncid, varid, len=nlon_), rc, mype_, root_ )
-! call check_( nf90_inq_dimid(ncid, "lat", varid), rc, mype_, root_ )
-! call check_( nf90_inquire_dimension(ncid, varid, len=nlat_), rc, mype_, root_ )
-! call check_( nf90_inq_dimid(ncid, "lev", varid), rc, mype_, root_ )
-! call check_( nf90_inquire_dimension(ncid, varid, len=nlev_), rc, mype_, root_ )
-
 ! Read data to file
   allocate(data_in(1,nlat,1))
   do nv = 1, nv1d
@@ -289,203 +277,6 @@ subroutine read_berror_ (fname,bvars,rc, myid,root)
   return
 
 end subroutine read_berror_
-
-subroutine write_berror_ (fname,bvars,plevs,lats,lons,rc, myid,root)
-  implicit none
-  character(len=*), intent(in)    :: fname ! input filename
-  type(nc_berror_vars),intent(in)    :: bvars ! background error variables
-  real(4), intent(in) :: lats(:)           ! latitudes  per GSI: increase index from South to North Pole
-  real(4), intent(in) :: lons(:)           ! longitudea per GSI: increase index from East to West
-  real(4), intent(in) :: plevs(:)
-  integer, intent(out) :: rc
-  integer, intent(in), optional :: myid,root        ! accommodate MPI calling programs
-
-  character(len=*), parameter :: myname_ = myname//"::write_"
-  integer, parameter :: NDIMS = 3
-
-! When we create netCDF files, variables and dimensions, we get back
-! an ID for each one.
-  character(len=4) :: cindx
-  integer :: ncid, dimids(NDIMS)
-  integer :: x_dimid, y_dimid, z_dimid
-  integer :: lon_varid, lat_varid, lev_varid
-  integer :: ii,jj,nl,nv,nn,nlat,nlon,nlev
-  integer :: mype_,root_
-  integer, allocatable :: varid1d(:), varid2d(:), varid2dx(:), varidMLL(:)
-  logical :: verbose
-  
-! This is the data array we will write. It will just be filled with
-! a progression of integers for this example.
-  real(4), allocatable :: data_out(:,:,:)
-
-! Return code (status)
-  rc=0; mype_=0; root_=0
-  verbose=.true.
-  if(present(myid).and.present(root) )then
-    if(myid/=root) verbose=.false.
-    mype_ = myid
-    root_ = root
-  endif
-
-! Set dims
-  nlat=bvars%nlat
-  nlon=bvars%nlon
-  nlev=bvars%nsig
-
-! Always check the return code of every netCDF function call. In
-! this example program, wrapping netCDF calls with "call check()"
-! makes sure that any return which is not equal to nf90_noerr (0)
-! will print a netCDF error message and exit.
-
-! Create the netCDF file. The nf90_clobber parameter tells netCDF to
-! overwrite this file, if it already exists.
-  call check_( nf90_create(fname, NF90_CLOBBER, ncid), rc, mype_, root_ )
-  if(rc/=0) return
-
-! Define the dimensions. NetCDF will hand back an ID for each. 
-  call check_( nf90_def_dim(ncid, "lon", nlon, x_dimid), rc, mype_, root_ )
-  call check_( nf90_def_dim(ncid, "lat", nlat, y_dimid), rc, mype_, root_ )
-  call check_( nf90_def_dim(ncid, "lev", nlev, z_dimid), rc, mype_, root_ )
-
-  call check_( nf90_def_var(ncid, "lon", NF90_REAL, x_dimid, lon_varid), rc, mype_, root_ )
-  call check_( nf90_def_var(ncid, "lat", NF90_REAL, y_dimid, lat_varid), rc, mype_, root_ )
-  call check_( nf90_def_var(ncid, "lev", NF90_REAL, z_dimid, lev_varid), rc, mype_, root_ )
-
-  call check_( nf90_put_att(ncid, lon_varid, "units", "degress"), rc, mype_, root_ )
-  call check_( nf90_put_att(ncid, lat_varid, "units", "degress"), rc, mype_, root_ )
-  call check_( nf90_put_att(ncid, lev_varid, "units", "hPa"), rc, mype_, root_ )
-
-! The dimids array is used to pass the IDs of the dimensions of
-! the variables. Note that in fortran arrays are stored in
-! column-major format.
-  dimids =  (/ x_dimid, y_dimid, z_dimid /)
-
-! Define variables.
-  allocate(varid1d(nv1d))
-  do nv = 1, nv1d
-     call check_( nf90_def_var(ncid, trim(cvars1d(nv)), NF90_REAL, (/ y_dimid /), varid1d(nv)), rc, mype_, root_ )
-  enddo
-  allocate(varid2d(nv2d))
-  do nv = 1, nv2d
-     call check_( nf90_def_var(ncid, trim(cvars2d(nv)), NF90_REAL, (/ y_dimid, z_dimid /), varid2d(nv)), rc, mype_, root_ )
-  enddo
-  allocate(varidMLL(nlev*nvmll))
-  nn=0
-  do nv = 1, nvmll
-     do nl = 1, nlev
-        nn=nn+1
-        write(cindx,'(i4.4)') nl
-        call check_( nf90_def_var(ncid, trim(cvarsMLL(nv))//cindx, NF90_REAL, (/ y_dimid, z_dimid /), varidMLL(nn)), rc, &
-                     mype_, root_ )
-     enddo
-  enddo
-  allocate(varid2dx(nv2dx))
-  do nv = 1, nv2dx
-     call check_( nf90_def_var(ncid, trim(cvars2dx(nv)), NF90_REAL, (/ x_dimid, y_dimid /), varid2dx(nv)), rc, mype_, root_ )
-  enddo
-
-! End define mode. This tells netCDF we are done defining metadata.
-  call check_( nf90_enddef(ncid), rc, mype_, root_ )
-
-! Write coordinate variables data
-  call check_( nf90_put_var(ncid, lon_varid, lons ), rc, mype_, root_ )
-  call check_( nf90_put_var(ncid, lat_varid, lats ), rc, mype_, root_ )
-  call check_( nf90_put_var(ncid, lev_varid, plevs), rc, mype_, root_ )
-
-! Write data to file
-  allocate(data_out(1,nlat,1))
-  do nv = 1, nv1d
-     if(trim(cvars1d(nv))=="ps"  ) data_out(1,:,1) = bvars%psvar
-     if(trim(cvars1d(nv))=="hps" ) data_out(1,:,1) = bvars%pshln
-     call check_( nf90_put_var(ncid, varid1d(nv), data_out(1,:,1)), rc, mype_, root_)
-  enddo
-  deallocate(data_out)
-  allocate(data_out(1,nlat,nlev))
-  do nv = 1, nv2d
-     if(trim(cvars2d(nv))=="sf" ) data_out(1,:,:) = bvars%sfvar
-     if(trim(cvars2d(nv))=="hsf") data_out(1,:,:) = bvars%sfhln
-     if(trim(cvars2d(nv))=="vsf") data_out(1,:,:) = bvars%sfvln
-!
-     if(trim(cvars2d(nv))=="vp" ) data_out(1,:,:) = bvars%vpvar
-     if(trim(cvars2d(nv))=="hvp") data_out(1,:,:) = bvars%vphln
-     if(trim(cvars2d(nv))=="vvp") data_out(1,:,:) = bvars%vpvln
-!
-     if(trim(cvars2d(nv))=="t"  ) data_out(1,:,:) = bvars%tvar
-     if(trim(cvars2d(nv))=="ht" ) data_out(1,:,:) = bvars%thln
-     if(trim(cvars2d(nv))=="vt" ) data_out(1,:,:) = bvars%tvln
-!
-     if(trim(cvars2d(nv))=="q"  ) data_out(1,:,:) = bvars%qvar
-     if(trim(cvars2d(nv))=="hq" ) data_out(1,:,:) = bvars%qhln
-     if(trim(cvars2d(nv))=="vq" ) data_out(1,:,:) = bvars%qvln
-!
-     if(trim(cvars2d(nv))=="qi" ) data_out(1,:,:) = bvars%qivar
-     if(trim(cvars2d(nv))=="hqi") data_out(1,:,:) = bvars%qihln
-     if(trim(cvars2d(nv))=="vqi") data_out(1,:,:) = bvars%qivln
-!
-     if(trim(cvars2d(nv))=="ql" ) data_out(1,:,:) = bvars%qlvar
-     if(trim(cvars2d(nv))=="hql") data_out(1,:,:) = bvars%qlhln
-     if(trim(cvars2d(nv))=="vql") data_out(1,:,:) = bvars%qlvln
-!
-     if(trim(cvars2d(nv))=="qr" ) data_out(1,:,:) = bvars%qrvar
-     if(trim(cvars2d(nv))=="hqr") data_out(1,:,:) = bvars%qrhln
-     if(trim(cvars2d(nv))=="vqr") data_out(1,:,:) = bvars%qrvln
-!
-     if(trim(cvars2d(nv))=="nrh") data_out(1,:,:) = bvars%nrhvar
-     if(trim(cvars2d(nv))=="qs" ) data_out(1,:,:) = bvars%qsvar
-     if(trim(cvars2d(nv))=="hqs") data_out(1,:,:) = bvars%qshln
-     if(trim(cvars2d(nv))=="vqs") data_out(1,:,:) = bvars%qsvln
-!
-     if(trim(cvars2d(nv))=="cw" ) data_out(1,:,:) = bvars%cvar
-     if(trim(cvars2d(nv))=="hcw") data_out(1,:,:) = bvars%chln
-     if(trim(cvars2d(nv))=="vcw") data_out(1,:,:) = bvars%cvln
-!
-     if(trim(cvars2d(nv))=="oz" ) data_out(1,:,:) = bvars%ozvar
-     if(trim(cvars2d(nv))=="hoz") data_out(1,:,:) = bvars%ozhln
-     if(trim(cvars2d(nv))=="voz") data_out(1,:,:) = bvars%ozvln
-!
-     if(trim(cvars2d(nv))=="pscon") data_out(1,:,:) = bvars%pscon
-     if(trim(cvars2d(nv))=="vpcon") data_out(1,:,:) = bvars%vpcon
-!
-     call check_( nf90_put_var(ncid, varid2d(nv), data_out(1,:,:)), rc, mype_, root_ )
-  enddo
-
-! Choose to write out NLATxNLEVxNLEV vars as to facilitate visualization
-  nn=0
-  do nv = 1, nvmll
-     do nl = 1, nlev
-        nn = nn + 1
-        write(cindx,'(i4.4)') nl
-        if(trim(cvarsMLL(nv))=="tcon") data_out(1,:,:) = bvars%tcon(:,:,nl)
-        call check_( nf90_put_var(ncid, varidMLL(nn), data_out(1,:,:)), rc, mype_, root_ )
-     enddo
-  enddo
-  deallocate(data_out)
-
-! Write out lat/lon fields
-  allocate(data_out(nlon,nlat,1))
-  do nv = 1, nv2dx
-     if(trim(cvars2dx(nv))=="sst"     ) then
-        data_out(:,:,1) = transpose(bvars%varsst)
-     endif
-     if(trim(cvars2dx(nv))=="hsst" ) then 
-        data_out(:,:,1) = transpose(bvars%corlsst)
-     endif
-     call check_( nf90_put_var(ncid, varid2dx(nv), data_out(:,:,1)), rc, mype_, root_ )
-  enddo
-  deallocate(data_out)
-
-! Close file
-  call check_( nf90_close(ncid), rc, mype_, root_ )
-
-  deallocate(varidMLL)
-  deallocate(varid2d)
-  deallocate(varid1d)
-
-  if(verbose) print *,"*** Finish writing file: ", trim(fname)
-
-  return
-
-end subroutine write_berror_
 
 subroutine init_berror_vars_(vr,nlon,nlat,nsig)
 

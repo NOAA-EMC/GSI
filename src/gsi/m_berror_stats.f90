@@ -94,9 +94,6 @@ module m_berror_stats
 
    logical,save :: bin_berror=.false.
 
-!!   real(r_kind),allocatable,dimension(:,:):: varq
-!!   real(r_kind),allocatable,dimension(:,:):: varcw
-
 contains
 
 !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -109,13 +106,11 @@ contains
 !
 ! !INTERFACE:
 
-!!subroutine get_dims(mype,msig,mlat,mlon,lunit)
 subroutine get_dims(msig,mlat,mlon,lunit)
 
    use mpimod, only: mype
    implicit none
 
-!!   integer(i_kind)         ,intent(   in) :: mype  ! proc identifier
    integer(i_kind)         ,intent(  out) :: msig  ! dimension of levels
    integer(i_kind)         ,intent(  out) :: mlat  ! dimension of latitudes
    integer(i_kind),optional,intent(  out) :: mlon  ! dimension of longitudes
@@ -417,7 +412,6 @@ end subroutine read_bal
 ! !INTERFACE:
 
 subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwoption,mype,lunit)
-!!                  n_clouds_fwd,cloud_names_fwd,lunit)
 
    use kinds,  only : r_single,r_kind
    use gridmod,only : nlat,nlon,nsig
@@ -444,8 +438,6 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
 
 !  Optionals
    integer(i_kind),optional           ,intent(in   ) :: lunit ! an alternative unit
-!!   integer(i_kind), optional          ,intent(in   ) :: n_clouds_fwd 
-!!   character(len=*),optional          ,intent(in   ) :: cloud_names_fwd(:)
 
 ! !REVISION HISTORY:
 !       30Jul08 - Jing Guo <guo@gmao.gsfc.nasa.gov>
@@ -644,7 +636,6 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
                   do i=1,nlat
                      corq2x=corq2(i,k)
                      varq(i,k)=min(max(corq2x,0.00015_r_kind),one)
-!!                   varq_out(i,k) = varq(i,k)
                   enddo
                enddo
                do k=1,isig
@@ -845,7 +836,7 @@ subroutine setcoroz_(coroz,mype)
    if ( ierror/=0 ) return ! nothing to do
 
    ! sanity check
-   if ( mype==0 ) write(6,*) myname_,'(PREWGT): mype = ',mype
+   if ( mype==0 ) write(6,*) myname_,'(PREWGT): enter routine'
 
    mlat=size(coroz,1)
    msig=size(coroz,2)
@@ -871,7 +862,7 @@ subroutine setcoroz_(coroz,mype)
          enddo
       enddo
    enddo
-   work_oz(nsig+1,mm1)=float(lon1*lat1)
+   work_oz(nsig+1,mm1)=real(lon1*lat1,r_kind)
 
    call mpi_allreduce(work_oz,work_oz1,(nsig+1)*npe,mpi_rtype,mpi_sum,&
       mpi_comm_world,ierror)
@@ -944,13 +935,13 @@ subroutine sethwlloz_(hwlloz,mype)
    real(r_kind) :: fact
    real(r_kind) :: s2u
     
-   if ( mype==0 ) write(6,*) myname_,'(PREWGT): mype = ',mype
+   if ( mype==0 ) write(6,*) myname_,'(PREWGT): enter routine'
 
    s2u=(two*pi*rearth_equator)/nlon
    do k=1,nnnn1o
       k1=levs_id(k)
       if ( k1>0 ) then
-      if(mype==0) write(6,*) myname_,'(PREWGT): mype = ',mype, k1
+      if(mype==0) write(6,*) myname_,'(PREWGT): k1 = ',k1
          if ( k1<=nsig*3/4 ) then
            ! fact=1./hwl
            fact=r40000/(r400*nlon)
@@ -962,7 +953,7 @@ subroutine sethwlloz_(hwlloz,mype)
       endif
    enddo
 
-   if ( mype==0 ) write(6,*) myname_,'(PREWGT): mype = ',mype, 'finish sethwlloz_'
+   if ( mype==0 ) write(6,*) myname_,'(PREWGT): finish sethwlloz_'
 
    return
 end subroutine sethwlloz_
@@ -1055,7 +1046,7 @@ subroutine setcorchem_(cname,corchem,rc)
    rc=0
 
    ! sanity check
-   if ( mype==0 ) write(6,*) myname_,'(PREWGT): mype = ',mype
+   if ( mype==0 ) write(6,*) myname_,'(PREWGT): enter routine'
 
    ! Get information for how to use CO2
    iptr=-1
@@ -1096,7 +1087,7 @@ subroutine setcorchem_(cname,corchem,rc)
          enddo
       enddo
    enddo
-   work_chem(nsig+1,mm1)=float(lon1*lat1)
+   work_chem(nsig+1,mm1)=real(lon1*lat1,r_kind)
   
    call mpi_allreduce(work_chem,work_chem1,(nsig+1)*npe,mpi_rtype,mpi_sum,&
         mpi_comm_world,ierror)
