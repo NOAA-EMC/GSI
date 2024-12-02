@@ -705,17 +705,21 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
          n = getindex(cvars2d,'sst')
          found2d(n)=.true.
          call nc_berror_getpointer (cvars2d(nv),bvars,ptr2d,ier)
-         if(ier==0) corsst=ptr2d
+         if (ier/=0) call die(myname_," in cw, failed to find corsst ", 99)
+         corsst=ptr2d
          call nc_berror_getpointer ('h'//cvars2d(nv),bvars,ptr2d,ier)
-         if(ier==0) hsst=ptr2d
+         if(ier/=0) call die(myname_," in cw, failed to find hsst ", 99)
+         hsst=ptr2d
       endif
       if (trim(cvars2d(nv))=='ps') then
          n = getindex(cvars2d,'ps')
          found2d(n)=.true.
          call nc_berror_getpointer (cvars2d(nv),bvars,ptr1d,ier)
-         if(ier==0) corp(:,n)=ptr1d
+         if(ier/=0) call die(myname_," in cw, failed to find corp ", 99)
+         corp(:,n)=ptr1d
          call nc_berror_getpointer ('h'//cvars2d(nv),bvars,ptr1d,ier)
-         if(ier==0) hwllp(:,n)=ptr1d
+         if(ier/=0) call die(myname_," in cw, failed to find hwllp ", 99)
+         hwllp(:,n)=ptr1d
       endif
    enddo
    do nv=1,size(cvars3d)
@@ -725,9 +729,11 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
           found3d(n)=.true.
           corz(:,:,n)=ptr2d
           call nc_berror_getpointer ('h'//trim(cvars3d(nv)),bvars,ptr2d,ier)
-          if(ier==0) hwll(:,:,n)=ptr2d
+          if(ier/=0) call die(myname_," in cw, failed to find hwll ", 99)
+          hwll(:,:,n)=ptr2d
           call nc_berror_getpointer ('v'//trim(cvars3d(nv)),bvars,ptr2d,ier)
-          if(ier==0) vz(:,:,n)=transpose(ptr2d)
+          if(ier/=0) call die(myname_," in cw, failed to find vz ", 99)
+          vz(:,:,n)=transpose(ptr2d)
           if (trim(cvars3d(nv))=='cw' .and. cwoption==2) then
              allocate(corq2(bvars%nlat,bvars%nsig))
              call nc_berror_getpointer ('nrh',bvars,ptr2d,ier)
@@ -750,9 +756,6 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
              call nc_berror_getpointer ('nrh',bvars,ptr2d,ier)
              if (ier==0) then
                 corq2=ptr2d
-!               corq2=max(0.0_r_kind,corq2) ! hack 1
-!               corq2=min(1.0_r_kind,2*corq2) ! hack 2
-!               print *, 'DEBUG (berr): ', minval(corq2),maxval(corq2)
                 do k=1,bvars%nsig
                    do i=1,bvars%nlat
                       corq2x=corq2(i,k)
@@ -766,7 +769,9 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
              deallocate(corq2)
           endif
           cycle
-      endif
+       else
+          call die(myname_," in cw, failed to find cvars3d bvars ", 99)          
+       endif
       if (trim(cvars3d(nv))=='q') then
           n = getindex(cvars3d,'q')
           found3d(n)=.true.
