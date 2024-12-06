@@ -55,6 +55,7 @@ module m_berror_stats
    ! reconfigurable parameters, via NAMELIST/setup/
    public :: usenewgfsberror
    public :: berror_stats,inquire_berror    ! reconfigurable filename
+   public :: bin_berror
 
    ! interfaces to file berror_stats.
    public :: berror_get_dims ! get dimensions, jfunc::createj_func()
@@ -389,8 +390,14 @@ subroutine read_bal(agvin,bvin,wgvin,pputin,fut2ps,mype,lunit)
       call die(myname_," fut2ps not available in this form "//trim(berror_stats), 99)
    endif
    call nc_berror_read (berror_stats,bvars,ier, myid=myid,root=0)
-   if (nlat/=bvars%nlat .or. nsig/=bvars%nsig ) then
-      call die(myname_," inconsistent dims in "//trim(berror_stats), 99)
+   if ( mype == 0 ) then
+      if (nlat/=bvars%nlat .or. nsig/=bvars%nsig ) then
+         call die(myname_," inconsistent dims in "//trim(berror_stats), 99)
+      endif
+      write(6,*) myname_,'(PREBAL):  get balance variables', &
+           '"',trim(berror_stats),'".  ', &
+           'mype,nsigstat,nlatstat =', &
+           mype,bvars%nsig,bvars%nlat
    endif
    agvin = bvars%tcon
    bvin  = bvars%vpcon
@@ -694,8 +701,14 @@ subroutine read_wgt(corz,corp,hwll,hwllp,vz,corsst,hsst,varq,qoption,varcw,cwopt
    real(r_single), pointer :: ptr2d(:,:)
    integer :: nv 
    call nc_berror_read (berror_stats,bvars,ier, myid=myid,root=0)
-   if (nlat/=bvars%nlat .or. nlon/=bvars%nlon .or.  nsig/=bvars%nsig ) then
-      call die(myname_," inconsistent dims in "//trim(berror_stats), 99)
+   if ( mype==0 ) then
+      if (nlat/=bvars%nlat .or. nlon/=bvars%nlon .or.  nsig/=bvars%nsig ) then
+         call die(myname_," inconsistent dims in "//trim(berror_stats), 99)
+      endif
+      write(6,*) myname_,'(PREWGT):  read error amplitudes ', &
+           '"',trim(berror_stats),'".  ', &
+           'mype,nsigstat,nlatstat =', &
+           mype,bvars%nsig,bvars%nlat
    endif
    isig=bvars%nsig
 
@@ -1049,7 +1062,7 @@ subroutine setcorchem_(cname,corchem,rc)
    rc=0
 
    ! sanity check
-   if ( mype==0 ) write(6,*) myname_,'(PREWGT): enter routine'
+   if ( mype==0 ) write(6,*) myname_,'(PREWGT): mype = ',mype
 
    ! Get information for how to use CO2
    iptr=-1
@@ -1167,15 +1180,13 @@ end subroutine setcorchem_
       real(r_kind)    :: fact
       real(r_kind)    :: s2u
     
-      if (mype == 0) then
-         write(6,*) myname_, '(PREWGT): mype = ', mype
-      end if
+      if (mype == 0) write(6,*) myname_, '(PREWGT): mype = ',mype
 
       s2u = (two*pi*rearth_equator)/nlon
       do k = 1,nnnn1o
          k1 = levs_id(k)
          if (k1 > 0) then
-            if (mype == 0) write(6,*) myname_, '(PREWGT): mype = ', mype, k1
+!           if (mype == 0) write(6,*) myname_, '(PREWGT): mype = ', mype, k1
 !           make everything constant
 !           fact = real(k1,r_kind)**2._r_kind
             fact = 1._r_kind
@@ -1184,9 +1195,9 @@ end subroutine setcorchem_
          end if
       end do
 
-      if (mype == 0) then
-         write(6,*) myname_, '(PREWGT): mype = ', mype, 'finish sethwllchem_'
-      end if
+!     if (mype == 0) then
+!        write(6,*) myname_, '(PREWGT): mype = ', mype, 'finish sethwllchem_'
+!     end if
 
    end subroutine sethwllchem_
 end module m_berror_stats

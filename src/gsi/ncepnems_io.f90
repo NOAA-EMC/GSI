@@ -1813,6 +1813,7 @@ contains
    use m_nc_berror, only: nc_berror_vars
    use m_nc_berror, only: nc_berror_getpointer
    use m_nc_berror, only: nc_berror_vars_final
+   use m_berror_stats, only: bin_berror
    use mpimod, only: mype
    
    implicit none
@@ -1838,23 +1839,11 @@ contains
 
    character(len=256) :: berror_stats = "berror_stats"      ! filename
 
-   logical :: ncio
-   type(Dataset) :: dset
-   type(Dimension) :: londim,latdim,levdim
    integer(i_kind) :: nv,n
    type(nc_berror_vars) bvars
    real(r_single), pointer :: ptr2d(:,:)
 
-   dset = open_dataset(berror_stats,errcode=ier)
-   if (ier==0) then
-      ! this is a netcdf file
-      ncio = .true.
-   else
-      ! this is a binary file
-      ncio = .false.
-   endif
-   
-   if (ncio) then
+   if (.not.bin_berror) then
       call nc_berror_read (berror_stats,bvars,ier, myid=mype,root=0)
       if (nlat/=bvars%nlat .or. nlon/=bvars%nlon .or.  nsig/=bvars%nsig ) then
          call die(myname_," inconsistent dims in "//trim(berror_stats), 99)
@@ -1864,10 +1853,11 @@ contains
       !  RTodling: the following is bad since it wires all naming conventions ... to be revised
       do nv=1,size(cvars2d)
          if (trim(cvars2d(nv))=='sst') then
-!!         n = getindex(cvars2d,'sst')
-!!         found2d(n)=.true.
-!!         call nc_berror_getpointer (cvars2d(nv),bvars,ptr2d,ier)
-!!         if(ier==0) corsst=ptr2d
+!           Do not need corsst in this routine so comment out code. Only need hsst
+!           n = getindex(cvars2d,'sst')
+!           found2d(n)=.true.
+!           call nc_berror_getpointer (cvars2d(nv),bvars,ptr2d,ier)
+!           if(ier==0) corsst=ptr2d
             call nc_berror_getpointer ('h'//cvars2d(nv),bvars,ptr2d,ier)
             if(ier==0) hsst=ptr2d
          endif
