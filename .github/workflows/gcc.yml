@@ -9,9 +9,9 @@ defaults:
 
 env:
   cache_key: gcc
-  CC: gcc-10
-  FC: gfortran-10
-  CXX: g++-10
+  CC: gcc-12
+  FC: gfortran-12
+  CXX: g++-12
 
 # The jobs are split into:
 # 1. a dependency build step (setup), and
