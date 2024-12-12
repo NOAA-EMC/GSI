@@ -52,6 +52,7 @@ jobs:
           spack env activate gsi-env
           spack compiler find
           sudo apt install cmake
+          sudo apt install libblas-dev
           spack external find
           spack add mpich@3.4.2
           spack concretize
@@ -70,7 +71,7 @@ jobs:
 
       - name: cache-env
         id: cache-env
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             spack
