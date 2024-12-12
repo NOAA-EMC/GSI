@@ -72,6 +72,7 @@ jobs:
         run: |
           sudo mv /usr/local/ /usr_local_mv
           sudo apt-get install cmake
+          rm -rf spack
           git clone -c feature.manyFiles=true https://github.com/JCSDA/spack.git
           source spack/share/spack/setup-env.sh
           spack env create gsi-env gsi/ci/spack.yaml
