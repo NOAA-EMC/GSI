@@ -35,7 +35,8 @@ jobs:
           sudo rm -f /swapfile
           sudo apt clean
           DOCKER_IMGS=$(docker image ls -aq)
-          [[ ! -z "${DOCKER_IMGS}" ]] && docker rmi ${DOCKER_IMGS}
+          if [[ ! -z "${DOCKER_IMGS}" ]]; then docker rmi ${DOCKER_IMGS}; fi
+          df -h
 
       # Checkout the GSI to get the ci/spack.yaml file
       - name: checkout
