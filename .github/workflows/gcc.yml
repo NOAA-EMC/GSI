@@ -46,13 +46,13 @@ jobs:
         # if: steps.cache-env.outputs.cache-hit != 'true'
         run: |
           sudo apt-get install cmake
-          sudo apt-get install gcc-10 g++-10 gfortran-10
+          sudo apt-get install gcc-10 g++-10 gfortran-10 gcc-10-runtime gcc-10-locales \
+                               gcc-10-multilib g++-10-multilib gfortran-10-multilib
           git clone -c feature.manyFiles=true https://github.com/JCSDA/spack.git
           source spack/share/spack/setup-env.sh
           spack env create gsi-env gsi/ci/spack.yaml
           spack env activate gsi-env
           spack compiler find
-          sudo apt install cmake
           sudo apt install libblas-dev
           spack external find
           spack add mpich@3.4.2
