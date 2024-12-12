@@ -55,6 +55,7 @@ jobs:
           sudo apt install libblas-dev
           spack external find
           spack add mpich@3.4.2
+          spack add openblas
           spack concretize
           spack install -v --fail-fast --dirty
           spack clean -a
