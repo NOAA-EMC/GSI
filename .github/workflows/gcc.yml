@@ -48,6 +48,7 @@ jobs:
           sudo apt-get install cmake
           sudo apt-get install gcc-10 g++-10 gfortran-10 gcc-10-locales \
                                gcc-10-multilib g++-10-multilib gfortran-10-multilib
+          rm -rf spack
           git clone -c feature.manyFiles=true https://github.com/JCSDA/spack.git
           source spack/share/spack/setup-env.sh
           spack env create gsi-env gsi/ci/spack.yaml
