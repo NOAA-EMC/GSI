@@ -43,7 +43,7 @@ jobs:
 
       # Install dependencies using Spack
       - name: install-dependencies-with-spack
-        if: steps.cache-env.outputs.cache-hit != 'true'
+        # if: steps.cache-env.outputs.cache-hit != 'true'
         run: |
           sudo apt-get install cmake
           sudo apt-get install gcc-10 g++-10 gfortran-10 gcc-10-locales \
