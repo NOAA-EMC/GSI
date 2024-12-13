@@ -3,9 +3,9 @@ spack:
   packages:
     all:
       providers:
-        blas: openblas
-        lapack: openblas
-        mpi: mpich
+        blas: [openblas]
+        lapack: [openblas]
+        mpi: [mpich]
       compiler:
         - gcc@13
   specs:

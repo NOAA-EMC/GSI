@@ -3,7 +3,7 @@ spack:
   packages:
     all:
       providers:
-        mpi: intel-oneapi-mpi
+        mpi: [intel-oneapi-mpi]
       compiler:
         - intel
   specs:
