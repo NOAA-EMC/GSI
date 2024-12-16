@@ -20,6 +20,6 @@ load(pathJoin("prod_util", prod_util_ver))
 pushenv("CFLAGS", "-march=ivybridge")
 pushenv("FFLAGS", "-march=ivybridge")
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/data/prod/glopara/fix/gsi/20240208")
+pushenv("GSI_BINARY_SOURCE_DIR", "/data/prod/glopara/fix/gsi/20241022")
 
 whatis("Description: GSI environment on S4 with Intel Compilers")

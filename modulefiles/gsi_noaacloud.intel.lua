@@ -20,6 +20,6 @@ load(pathJoin("prod_util", prod_util_ver))
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/contrib/Wei.Huang/data/hack-orion/fix/gsi/20240208")
+pushenv("GSI_BINARY_SOURCE_DIR", "/contrib/Wei.Huang/data/hack-orion/fix/gsi/20241022")
 
 whatis("Description: GSI environment on NOAA Cloud with Intel Compilers")
