@@ -7,7 +7,7 @@ spack:
       compiler:
         - intel
   specs:
-  - netcdf-c@4.9.2 ^snappy@1.1.10
+  - netcdf-c@4.9.2 ~blosc
   - netcdf-fortran@4.6.1
   - bufr@11.7.0
   - bacio@2.4.1
