@@ -85,7 +85,7 @@ jobs:
 
   gsi:
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: install-intel
