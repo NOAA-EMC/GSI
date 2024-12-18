@@ -36,8 +36,10 @@ elif [[ -d /mnt/lfs4 || -d /jetmon || -d /mnt/lfs5 ]]; then # Jet
   export machine="Jet"
 elif [[ -d /discover ]]; then # NCCS Discover
   export machine="Discover"
-elif [[ -d /ncrc ]]; then # Gaea
-  export machine="Gaea"
+elif [[ -d /gpfs/f5 ]]; then # GaeaC5
+  export machine="gaeac5"
+elif [[ -d /gpfs/f6 ]]; then # GaeaC6
+  export machine="gaeac6"
 elif [[ -d /data/prod ]]; then # S4
   export machine="S4"
 elif [[ -d /work ]]; then # Orion or Hercules
@@ -47,13 +49,17 @@ elif [[ -d /work ]]; then # Orion or Hercules
   else
     export machine="Orion"
   fi
-elif [[ -d /lfs/h2 ]]; then # wcoss2
-  export machine="wcoss2"
+elif [[ -d /lfs/h2 ]]; then # wcoss2 or acorn
+  if [[ $(hostname -f) =~ "alogin" ]]; then
+    export machine="acorn"
+  else
+    export machine="wcoss2"
+  fi
 fi
 echo "Running Regression Tests on '$machine'";
 
 case $machine in
-  Gaea)
+  gaeac5)
     export queue="normal"
     export group="ufs-ard"
     export noscrub="/gpfs/f5/${group}/scratch/${USER}/$LOGNAME/gsi_tmp/noscrub"
@@ -63,7 +69,17 @@ case $machine in
     export check_resource="no"
     export accnt="ufs-ard"
   ;;
-  wcoss2)
+  gaeac6)
+    export queue="normal"
+    export group="bil-fire8"
+    export noscrub="/gpfs/f6/${group}/scratch/${USER}/${LOGNAME}/gsi_tmp/noscrub"
+    export ptmp="/gpfs/f6/${group}/scratch/${USER}/${LOGNAME}/gsi_tmp/ptmp"
+    export casesdir="/gpfs/f6/bil-fire8/world-shared/GSI_data/CASES/regtest"
+
+    export check_resource="no"
+    export accnt="bil-fire8"
+  ;;
+  wcoss2 | acorn)
       export local_or_default="${local_or_default:-/lfs/h2/emc/da/noscrub/$LOGNAME}"
       if [ -d $local_or_default ]; then
           export noscrub="$local_or_default/noscrub"

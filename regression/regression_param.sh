@@ -4,8 +4,8 @@ regtest=$1
 
 case $machine in
 
-	Hera)
-	   sub_cmd="sub_hera"
+    Hera)
+           sub_cmd="sub_hera"
            memnode=96
            numcore=40
     ;;
@@ -19,23 +19,33 @@ case $machine in
            memnode=512
            numcore=40
     ;;
-	Jet)
-	   sub_cmd="sub_jet"
+    Jet)
+           sub_cmd="sub_jet"
            memnode=96
            numcore=40
     ;;
-	Gaea)
-	   sub_cmd="sub_gaea"
+    gaeac5)
+	   sub_cmd="sub_gaeac5"
            memnode=251
            numcore=128
     ;;
-	wcoss2)
-	   sub_cmd="sub_wcoss2"
+    gaeac6)
+	   sub_cmd="sub_gaeac6"
+           memnode=384
+           numcore=192
+    ;;
+    wcoss2)
+           sub_cmd="sub_wcoss2"
            memnode=512
            numcore=128
     ;;
-	Discover)
-	   sub_cmd="sub_discover"
+    acorn)
+           sub_cmd="sub_acorn"
+           memnode=512
+           numcore=128
+    ;;
+    Discover)
+       sub_cmd="sub_discover"
     ;;
     *) # EXIT out for unresolved machine
         echo "unknown $machine"
@@ -68,10 +78,13 @@ case $regtest in
         elif [[ "$machine" = "Discover" ]]; then
            topts[1]="0:30:00" ; popts[1]="48/2"  ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="60/3"  ; ropts[2]="/2"
-        elif [[ "$machine" = "Gaea" ]]; then
+        elif [[ "$machine" = "gaeac5" ]]; then
            topts[1]="0:10:00" ; popts[1]="12/8/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="12/10/" ; ropts[2]="/2"
-        elif [[ "$machine" = "wcoss2" ]]; then
+        elif [[ "$machine" = "gaeac6" ]]; then
+           topts[1]="0:10:00" ; popts[1]="12/8/" ; ropts[1]="/1"
+           topts[2]="0:10:00" ; popts[2]="12/10/" ; ropts[2]="/2"
+        elif [[ "$machine" = "wcoss2" || "$machine" = "acorn" ]]; then
            topts[1]="0:10:00" ; popts[1]="12/8/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="12/10/" ; ropts[2]="/2"
         fi
@@ -90,18 +103,21 @@ case $regtest in
            topts[1]="0:05:00" ; popts[1]="40/3/"  ; ropts[1]="/1"
            topts[2]="0:05:00" ; popts[2]="40/5/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Orion" ]]; then
-           topts[1]="0:15:00" ; popts[1]="5/4/" ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="10/4/" ; ropts[2]="/2"
+           topts[1]="0:15:00" ; popts[1]="20/6/" ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="20/12/" ; ropts[2]="/2"
         elif [[ "$machine" = "Hercules" ]]; then
            topts[1]="0:05:00" ; popts[1]="40/3/" ; ropts[1]="/1"
            topts[2]="0:05:00" ; popts[2]="40/5/" ; ropts[2]="/2"
         elif [[ "$machine" = "Jet" ]]; then
-           topts[1]="0:15:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="10/4/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "Gaea" ]]; then
-           topts[1]="0:15:00" ; popts[1]="64/1/"  ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="128/2/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "wcoss2" ]]; then
+           topts[1]="0:15:00" ; popts[1]="40/3/"  ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="40/5/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "gaeac5" ]]; then
+           topts[1]="0:15:00" ; popts[1]="40/3/"  ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="40/5/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "gaeac6" ]]; then
+           topts[1]="0:15:00" ; popts[1]="40/3/"  ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="40/5/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "wcoss2" || "$machine" = "acorn" ]]; then
            topts[1]="0:15:00" ; popts[1]="64/1/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="128/2/" ; ropts[2]="/1"
         fi
@@ -128,10 +144,13 @@ case $regtest in
         elif [[ "$machine" = "Jet" ]]; then
            topts[1]="0:15:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="10/4/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "Gaea" ]]; then
+        elif [[ "$machine" = "gaeac5" ]]; then
+           topts[1]="0:15:00" ; popts[1]="32/2/"  ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="64/4/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "gaeac6" ]]; then
            topts[1]="0:15:00" ; popts[1]="64/1/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="128/2/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "wcoss2" ]]; then
+        elif [[ "$machine" = "wcoss2" || "$machine" = "acorn" ]]; then
            topts[1]="0:15:00" ; popts[1]="64/1/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="128/2/" ; ropts[2]="/1"
         fi
@@ -157,10 +176,13 @@ case $regtest in
         elif [[ "$machine" = "Jet" ]]; then
            topts[1]="0:15:00" ; popts[1]="5/4/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="10/4/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "Gaea" ]]; then
+        elif [[ "$machine" = "gaeac5" ]]; then
+           topts[1]="0:15:00" ; popts[1]="32/2/"  ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="64/4/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "gaeac6" ]]; then
            topts[1]="0:15:00" ; popts[1]="64/1/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="128/2/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "wcoss2" ]]; then
+        elif [[ "$machine" = "wcoss2" || "$machine" = "acorn" ]]; then
            topts[1]="0:15:00" ; popts[1]="64/1/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="128/2/" ; ropts[2]="/1"
         fi
@@ -187,10 +209,13 @@ case $regtest in
         elif [[ "$machine" = "Jet" ]]; then
            topts[1]="0:15:00" ; popts[1]="4/4/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="6/6/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "Gaea" ]]; then
-           topts[1]="0:15:00" ; popts[1]="28/1/"  ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="28/2/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "wcoss2" ]]; then
+        elif [[ "$machine" = "gaeac5" ]]; then
+           topts[1]="0:15:00" ; popts[1]="40/2/"  ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="40/4/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "gaeac6" ]]; then
+           topts[1]="0:15:00" ; popts[1]="64/1/"  ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="64/2/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "wcoss2" || "$machine" = "acorn" ]]; then
            topts[1]="0:15:00" ; popts[1]="64/1/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="64/2/" ; ropts[2]="/1"
         fi
@@ -217,10 +242,13 @@ case $regtest in
         elif [[ "$machine" = "Jet" ]]; then
            topts[1]="0:30:00" ; popts[1]="6/12/"  ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="8/12/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "Gaea" ]]; then
+        elif [[ "$machine" = "gaeac5" ]]; then
            topts[1]="0:30:00" ; popts[1]="14/8/"  ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="14/14/"  ; ropts[2]="/1"
-        elif [[ "$machine" = "wcoss2" ]]; then
+        elif [[ "$machine" = "gaeac6" ]]; then
+           topts[1]="0:30:00" ; popts[1]="14/8/"  ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="14/14/"  ; ropts[2]="/1"
+        elif [[ "$machine" = "wcoss2" || "$machine" = "acorn" ]]; then
            topts[1]="0:30:00" ; popts[1]="14/8/" ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="14/14/" ; ropts[2]="/2"
         fi
@@ -247,10 +275,13 @@ case $regtest in
         elif [[ "$machine" = "Jet" ]]; then
            topts[1]="0:10:00" ; popts[1]="12/3/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="12/5/" ; ropts[2]="/2"
-        elif [[ "$machine" = "Gaea" ]]; then
+        elif [[ "$machine" = "gaeac5" ]]; then
+           topts[1]="0:10:00" ; popts[1]="12/3/" ; ropts[1]="/1"
+           topts[2]="0:10:00" ; popts[2]="12/5/" ; ropts[2]="/2"
+        elif [[ "$machine" = "gaeac6" ]]; then
            topts[1]="0:10:00" ; popts[1]="16/2/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="16/4/" ; ropts[2]="/2"
-        elif [[ "$machine" = "wcoss2" ]]; then
+        elif [[ "$machine" = "wcoss2" || "$machine" = "acorn" ]]; then
            topts[1]="0:10:00" ; popts[1]="16/2/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="16/4/" ; ropts[2]="/2"
         fi
@@ -310,13 +341,20 @@ elif [[ "$machine" = "Jet" ]]; then
    export MPI_BUFS_PER_HOST=256
    export MPI_GROUP_MAX=256
    export APRUN="srun -n \$ntasks --cpus-per-task=\$threads"
-elif [[ "$machine" = "Gaea" ]]; then
+elif [[ "$machine" = "gaeac5" ]]; then
+   export OMP_STACKSIZE=1024M
+   export MPI_BUFS_PER_PROC=256
+   export MPI_BUFS_PER_HOST=256
+   export MPI_GROUP_MAX=256
+   export FI_VERBS_PREFER_XRC=0
+   export APRUN="srun --export=ALL -n \$ntasks"
+elif [[ "$machine" = "gaeac6" ]]; then
    export OMP_STACKSIZE=1024M
    export MPI_BUFS_PER_PROC=256
    export MPI_BUFS_PER_HOST=256
    export MPI_GROUP_MAX=256
    export APRUN="srun --export=ALL -n \$ntasks"
-elif [[ "$machine" = "wcoss2" ]]; then
+elif [[ "$machine" = "wcoss2" || "$machine" = "acorn" ]]; then
    export OMP_PLACES=cores
    export OMP_STACKSIZE=2G
    export FORT_BUFFERED=true

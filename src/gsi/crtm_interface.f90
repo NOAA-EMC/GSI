@@ -667,6 +667,25 @@ else if (channelinfo(1)%sensor_id(1:4) == 'cris' .AND. isis(1:4) == 'cris') then
    error_status = crtm_channelinfo_subset(channelinfo(1), &
         channel_subset = nuchan(subset_start:subset_end))
 
+! TODO The CRTM spectral coefficient files have the instrument name in the beginning of the file.  The current iasi-ng coefficient
+! TODO file contains '999' instead of the instrument name.  When the final coefficient file is built, it will have 'iasi-ng'.
+! TODO  else if (channelinfo(1)%sensor_id(1:7) == 'iasi-ng' .AND. isis(1:7) == 'iasi-ng') then
+! TODO when this file exists, use the above line.
+else if (channelinfo(1)%sensor_id(1:3) == '999' .AND. isis(1:7) == 'iasi-ng') then
+! TODO and remove the above line.
+   sensorindex = 1
+   subset_start = 0
+   subset_end = 0
+   do k=1, jpch_rad
+     if (isis == nusis(k)) then
+       if (subset_start == 0) subset_start = k
+       subset_end = k
+     endif
+   end do
+
+   error_status = crtm_channelinfo_subset(channelinfo(1), &
+        channel_subset = nuchan(subset_start:subset_end))
+
 else if (channelinfo(1)%sensor_id(1:4) == 'iasi' .AND. isis(1:4) == 'iasi') then
    sensorindex = 1
    subset_start = 0
@@ -1206,7 +1225,6 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind) ::   lai
 
   m1=mype+1
-  if (mype==0) write(6,*) myname_, ' imp_physics = ', imp_physics
   if (n_clouds_fwd_wk>0) hwp_guess=zero  
   hwp_total=zero  
   theta_700=zero
@@ -2715,15 +2733,17 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   real(r_kind), parameter :: reff_i_min =    2.5_r_kind     ! previous value was 10_r_kind
   real(r_kind), parameter :: reff_i_max = 250.0_r_kind      ! previous value was 150_r_kind
   real(r_kind), parameter:: mu_i = 0.0_r_kind
+  real(r_kind), parameter:: ni_min = 1.0e-6_r_kind          ! minimum number concentration (ccpp-physics)
 
   ! Parameters for  rain (Lin 1983)
   real(r_kind), parameter :: rho_r      =    1000.0_r_kind  ! [kg/m3 ]
-  real(r_kind), parameter :: reff_r_min =       50.0_r_kind  ! [micron] ! previous value was 0.0_r_kind
-  real(r_kind), parameter :: reff_r_max =   1000.0_r_kind  ! [micron] ! previous value was 10000.0_r_kind
+  real(r_kind), parameter :: reff_r_min =       50.0_r_kind ! [micron] ! previous value was 0.0_r_kind
+  real(r_kind), parameter :: reff_r_max =   1000.0_r_kind   ! [micron] ! previous value was 10000.0_r_kind
   real(r_kind), parameter:: mu_r = 0.0_r_kind
   ! Parameters for snow
   real(r_kind), parameter :: reff_s_min =       5.0_r_kind  ! [micron] ! previous value was 0.0_r_kind
-  real(r_kind), parameter :: reff_s_max =   5000.0_r_kind  ! [micron] ! previous value was 10000.0_r_kind
+  real(r_kind), parameter :: reff_s_max =   5000.0_r_kind   ! [micron] ! previous value was 10000.0_r_kind
+  real(r_kind), parameter:: nr_min = 1.0e-6_r_kind          ! minimum number concentration (ccpp-physics)
 
 !For snow moments conversions  (from Field et al. 2005)
   real(r_kind), dimension(10), parameter:: &
@@ -2769,10 +2789,10 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      reff_max = reff_i_max
      do k = 1, nsig
         qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
-        if (qx > qmin) then
+        if (qx > qmin .and. ni(k)>ni_min) then
            lam_i=exp(1.0_r_kind / 3.0_r_kind * log((am_i*ni(k) *gamma(mu_i + 3.0_r_kind + 1.0_r_kind))/(qx*gamma(mu_i+1.0_r_kind))))
-        reff(k) = 0.5_r_kind * (3.0_r_kind /lam_i)*1.0e6_r_kind
-        reff(k) = max(reff_min, min(reff_max, reff(k)))
+           reff(k) = 0.5_r_kind * (3.0_r_kind /lam_i)*1.0e6_r_kind
+           reff(k) = max(reff_min, min(reff_max, reff(k)))
         else
            reff(k) = zero
         endif
@@ -2784,7 +2804,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
      reff_max = reff_r_max
      do k = 1, nsig
         qx = qxmr(k) * rho_air(k)  ! convert mixing ratio (kg/kg) to water content (kg/m3)
-        if (qx > qmin) then
+        if (qx > qmin .and. nr(k)>nr_min) then
            lam_r=exp(1.0_r_kind / 3.0_r_kind * log ((am_r*nr(k) *gamma(mu_r + 3.0_r_kind + 1.0_r_kind))/(qx*gamma(mu_r + 1.0_r_kind))))
            reff(k) = 0.5_r_kind *(3.0_r_kind/lam_r)*1.0e6_r_kind
            reff(k) = max(reff_min, min(reff_max, reff(k)))

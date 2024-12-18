@@ -43,9 +43,12 @@ load(pathJoin("sfcio", sfcio_ver))
 load(pathJoin("nemsio", nemsio_ver))
 load(pathJoin("wrf_io", wrf_io_ver))
 load(pathJoin("ncio", ncio_ver))
-load(pathJoin("crtm", crtm_ver))
 load(pathJoin("ncdiag",ncdiag_ver))
+
+-- Lastly, load CRTM from the EMC location
+append_path("MODULEPATH", "/lfs/h1/emc/nceplibs/noscrub/hpc-stack/libs/hpc-stack/modulefiles/compiler/intel/19.1.3.304")
+load(pathJoin("crtm", crtm_ver))
 
 pushenv("GSI_BINARY_SOURCE_DIR", "/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/gsi/20241022")
 
-whatis("Description: GSI environment on WCOSS2")
+whatis("Description: GSI environment on WCOSS2 Acorn")

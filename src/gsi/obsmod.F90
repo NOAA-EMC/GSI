@@ -1186,7 +1186,7 @@ contains
        endif
 ! for cris, iasi, atms, regional analysis may want shorter time window
        if (index(dtype(ii),'cris') /= 0 .or. index(dtype(ii),'atms') /= 0 .or. &
-           index(dtype(ii),'iasi') /= 0 ) then
+           index(dtype(ii),'iasi') /= 0 .or. index(dtype(ii),'iasi-ng') /= 0) then
           if(time_window(ii)>time_window_rad) then
              time_window(ii) = time_window_rad
              if (mype==0) write(6,*) 'INIT_OBSMOD_VARS: reset time window for ',dtype(ii),&

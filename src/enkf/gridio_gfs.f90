@@ -4114,7 +4114,7 @@
      write(charnanal,'(i3.3)') nanal
      sfcbackgroundloop: do nb=1,nbackgrounds
 
-     if (nanal == 0 .and. write_ensmean) then
+     if (nanal == 0 ) then
         filenamein = trim(adjustl(datapath))//trim(adjustl(fgsfcfileprefixes(nb)))//"ensmean"
         filenameout = trim(adjustl(datapath))//trim(adjustl(incsfcfileprefixes(nb)))//"ensmean"
      else

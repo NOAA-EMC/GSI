@@ -547,7 +547,7 @@ subroutine print_ob_sens
            if(nob_sat(nchan) > 0) then
               rate_sat(nchan,1:3) = rate_sat(nchan,1:3) &
                    & / real(nob_sat(nchan),r_kind) * 100._r_kind
-              write(*,'(a20,i5,i7,3(1x,e12.5),3(1x,f7.2))') &
+              write(*,'(a20,1x,i5,i7,3(1x,e12.5),3(1x,f7.2))') &
                    & trim(adjustl(nusis(nchan))), &
                    & nuchan(nchan),nob_sat(nchan),sumsense_sat(nchan,1:3), &
                    & rate_sat(nchan,1:3)

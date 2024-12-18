@@ -1,7 +1,7 @@
 help([[
 ]])
 
-prepend_path("MODULEPATH", "/mnt/lfs4/HFIP/hfv3gfs/role.epic/spack-stack/spack-stack-1.6.0/envs/gsi-addon-dev-rocky8/install/modulefiles/Core")
+prepend_path("MODULEPATH", "/contrib/spack-stack/spack-stack-1.6.0/envs/gsi-addon-intel/install/modulefiles/Core")
 
 local python_ver=os.getenv("python_ver") or "3.11.6"
 local stack_intel_ver=os.getenv("stack_intel_ver") or "2021.5.0"
@@ -20,6 +20,6 @@ load(pathJoin("prod_util", prod_util_ver))
 pushenv("CFLAGS", "-axSSE4.2,AVX,CORE-AVX2")
 pushenv("FFLAGS", "-axSSE4.2,AVX,CORE-AVX2")
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/mnt/lfs4/HFIP/hfv3gfs/glopara/git/fv3gfs/fix/gsi/20240208")
+pushenv("GSI_BINARY_SOURCE_DIR", "/lfs5/HFIP/hfv3gfs/glopara/FIX/fix/gsi/20241022")
 
 whatis("Description: GSI environment on Jet with Intel Compilers")

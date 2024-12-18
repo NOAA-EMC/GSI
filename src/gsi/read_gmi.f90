@@ -346,7 +346,6 @@ subroutine read_gmi(mype,val_gmi,ithin,rmesh,jsatid,gstime,&
   next=0
   irec=0
   iobs=1
-  nrec=999999
 
   read_subset: do while(ireadmg(lnbufr,subset,idate)>=0) ! GMI scans
      irec=irec+1

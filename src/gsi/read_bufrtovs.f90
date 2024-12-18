@@ -490,7 +490,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   hdr2b ='SAZA SOZA BEARAZ SOLAZI'
   allocate(data_all(nele,itxmax),data1b8(nchanl),data1b4(nchanl),nrec(itxmax))
 
-
+  nrec = 999999
   next=0
   irec=0
 ! Big loop over standard data feed and possible ears/db data

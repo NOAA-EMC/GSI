@@ -1410,7 +1410,7 @@ subroutine deter_sfc_gmi(dlat_earth,dlon_earth,isflg)
      n_grid=int(40000 / grid_dist) + 1
      klatn = max(klat1 - n_grid, 1)
      klonn = klon1 - n_grid
-     if (klonn < 0)  klonn = nlon_sfc - klonn
+     if (klonn < 1)  klonn = nlon_sfc - klonn
      klatpn = min((klat1 + n_grid), nlat_sfc)
      klonpn = klon1 + n_grid
      if (klonpn > nlon_sfc)  klonpn = klonpn - nlon_sfc
