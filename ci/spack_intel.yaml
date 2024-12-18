@@ -7,7 +7,7 @@ spack:
       compiler:
         - intel
   specs:
-  - netcdf-c@4.9.2 ~blosc ^hdf5@1.14.2
+  - netcdf-c@4.9.2 ~blosc build_system=cmake ^hdf5@1.14.2
   - netcdf-fortran@4.6.1
   - bufr@11.7.0
   - bacio@2.4.1
