@@ -111,7 +111,7 @@ jobs:
       - name: build
         run: |
           sudo mv /usr/local/ /usr_local_mv
-          sudo apt-get install cmake libblas-dev
+          sudo apt-get install cmake libblas-dev liblapack-dev
           source spack/share/spack/setup-env.sh
           spack env activate gsi-env
           cd gsi
