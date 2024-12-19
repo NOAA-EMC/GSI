@@ -61,5 +61,3 @@ list(APPEND EnKF_SRC_FV3REG
 #Unused files
 #specmod_shtns.f90 -- This is a faster alternative to specmod.f90
 #specmod_splib.f90 -- This is a copy of specmod.f90
-#observer_nmmb.f90 -- This is soft-linked to observer_reg.f90
-#observer_wrf.f90  -- This is soft-linked to observer_reg.f90

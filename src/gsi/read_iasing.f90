@@ -424,7 +424,7 @@ subroutine read_iasing(mype,val_iasing,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Get the size of the channels and radiance (allchan) array
 ! This is a delayed replication. crchn_reps is the number of IASI-NG replications (channel and radiance)
-           call ufbint(lnbufr,crchn_reps,1,1,iret,'(I1CRSQ)')
+           call ufbint(lnbufr,crchn_reps,1,1,iret,'(RPSEQ001)')
            bufr_nchan = int(crchn_reps)
 
            bufr_size = size(temperature,1)
@@ -622,7 +622,7 @@ subroutine read_iasing(mype,val_iasing,ithin,isfcalc,rmesh,jsatid,gstime,&
            call checkob(one,crit1,itx,iuse)
            if(.not. iuse)cycle read_loop
 
-           call ufbseq(lnbufr,cscale,3,4,iret,'IAS1CBSQ')
+           call ufbseq(lnbufr,cscale,3,4,iret,'RPSEQ004')
            if(iret /= 4) then
               write(6,*) 'READ_IASI-NG  read scale error ',iret
               cycle read_loop
@@ -643,7 +643,7 @@ subroutine read_iasing(mype,val_iasing,ithin,isfcalc,rmesh,jsatid,gstime,&
            end do
 
 ! Read IASI-NG channel number(CHNM) and radiance (SCRA).
-           call ufbseq(lnbufr,allchan,2,bufr_nchan,iret,'I1CRSQ')
+           call ufbseq(lnbufr,allchan,2,bufr_nchan,iret,'RPSEQ001')
            jstart=1
            scalef=one
 
@@ -739,7 +739,7 @@ subroutine read_iasing(mype,val_iasing,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Only channels 18 and 19 are used.
 
            if ( iasing_cads ) then
-             call ufbseq(lnbufr,imager_info,123,7,iret,'IASICSSQ')
+             call ufbseq(lnbufr,imager_info,123,7,iret,'RPSEQ002')
              if (iret == 7 .and. imager_info(3,1) <= 100.0_r_kind .and. &
                   sum(imager_info(3,:)) > zero .and. imager_coeff ) then   ! if imager cluster info exists
                imager_mean = zero

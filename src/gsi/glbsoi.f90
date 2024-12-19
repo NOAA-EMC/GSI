@@ -161,7 +161,6 @@ subroutine glbsoi
   use m_prad, only: prad_updatePredx    ! was -- prad_bias()
   use m_obsdiags, only: obsdiags_write
   use gsi_io,only: verbose
-  use m_berror_stats,only: inquire_berror
 
   implicit none
 
@@ -257,8 +256,6 @@ subroutine glbsoi
         end if
      end if
   else
-     lunit=22
-     call inquire_berror(lunit,mype)
      call create_balance_vars
      if(anisotropic) then
         call create_anberror_vars(mype)

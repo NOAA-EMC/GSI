@@ -1805,8 +1805,17 @@ contains
 !
    use kinds,     only : i_kind,r_single,r_kind
    use gridmod,   only : nlat,nlon,nsig
-   use mpeu_util, only : check_iostat
-
+   use mpeu_util, only : check_iostat,die
+   use module_ncio, only: open_dataset, Dataset, Dimension, &
+        close_dataset, read_vardata, get_dim
+   use control_vectors,only: cvars2d
+   use m_nc_berror, only: nc_berror_read
+   use m_nc_berror, only: nc_berror_vars
+   use m_nc_berror, only: nc_berror_getpointer
+   use m_nc_berror, only: nc_berror_vars_final
+   use m_berror_stats, only: bin_berror
+   use mpimod, only: mype
+   
    implicit none
 
    integer(i_kind)                    , intent(in   ) :: cwoption
@@ -1830,72 +1839,98 @@ contains
 
    character(len=256) :: berror_stats = "berror_stats"      ! filename
 
-   ! Open background error statistics file
-   inerr = 22
-   open(inerr,file=berror_stats,form='unformatted',status='old',iostat=ier)
-   call check_iostat(ier,myname_,'open('//trim(berror_stats)//')')
+   integer(i_kind) :: nv,n
+   type(nc_berror_vars) bvars
+   real(r_single), pointer :: ptr2d(:,:)
 
-   ! Read header.  Ensure that vertical resolution is consistent
-   ! with that specified via the user namelist
-
-   rewind inerr
-   read(inerr,iostat=ier)nsigstat,nlatstat
-   call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (nsigstat,nlatstat)')
-
-   if ( nsigstat/=nsig .or. nlatstat/=nlat ) then
-      write(6,*)'PREBAL: **ERROR** resolution of berror_stats incompatiable with GSI'
-
-      write(6,*)'PREBAL:  berror nsigstat,nlatstat=', nsigstat,nlatstat, &
-         ' -vs- GSI nsig,nlat=',nsig,nlat
-      call stop2(101)
-   endif
-
-   write(6,*) myname_,'(read_hsst):  read error amplitudes ', &
-     '"',trim(berror_stats),'".  ', &
-     'nsigstat,nlatstat =',nsigstat,nlatstat
-
-   read(inerr,iostat=ier) agvin,bvin,wgvin
-   call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (agvin,bvin,wgvin)')
-
-   write(*,*) 'in read_hsst_, cwoption = ',cwoption
-
-   readloop: do
-      read(inerr,iostat=istat) var, isig
-      if ( istat/=0 ) exit
-      write(*,*) 'var, isig, istat : ',var, isig, istat
-      allocate(corzin(nlat,isig))
-      if ( var=='q' .or. var=='cw' ) allocate(corq2(nlat,isig))
-      allocate(hwllin(nlat,isig))
-      if ( isig>1 ) allocate(vscalesin(nlat,isig))
-      if ( var/='sst' ) then
-         if ( var=='q' .or. var=='Q' .or. (var=='cw' .and. cwoption==2) ) then
-            read(inerr,iostat=ier) corzin,corq2
-            call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (corzin,corq2)')
-         else
-            read(inerr,iostat=ier) corzin
-            call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (corzin)')
-         endif
-         read(inerr,iostat=ier) hwllin
-         call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (hwllin)')
-         if ( isig>1 ) then
-            read(inerr,iostat=ier) vscalesin
-            call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (vscalein)')
-         endif
-      else
-         read(inerr,iostat=ier) corsst
-         call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (corsst)')
-         read(inerr,iostat=ier) hsst
-         call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (hsst)')
+   if (.not.bin_berror) then
+      call nc_berror_read (berror_stats,bvars,ier, myid=mype,root=0)
+      if (nlat/=bvars%nlat .or. nlon/=bvars%nlon .or.  nsig/=bvars%nsig ) then
+         call die(myname_," inconsistent dims in "//trim(berror_stats), 99)
       endif
+      isig=bvars%nsig
 
+      !  RTodling: the following is bad since it wires all naming conventions ... to be revised
+      do nv=1,size(cvars2d)
+         if (trim(cvars2d(nv))=='sst') then
+!           Do not need corsst in this routine so comment out code. Only need hsst
+!           n = getindex(cvars2d,'sst')
+!           found2d(n)=.true.
+!           call nc_berror_getpointer (cvars2d(nv),bvars,ptr2d,ier)
+!           if(ier==0) corsst=ptr2d
+            call nc_berror_getpointer ('h'//cvars2d(nv),bvars,ptr2d,ier)
+            if(ier==0) hsst=ptr2d
+         endif
+      enddo
+      call nc_berror_vars_final(bvars)
+   else
+      
+      ! Open background error statistics file
+      inerr = 22
+      open(inerr,file=berror_stats,form='unformatted',status='old',iostat=ier)
+      call check_iostat(ier,myname_,'open('//trim(berror_stats)//')')
 
-      deallocate(corzin,hwllin)
-      if (isig>1) deallocate(vscalesin)
-      if ( var=='q' .or. var=='cw' ) deallocate(corq2)
+      ! Read header.  Ensure that vertical resolution is consistent
+      ! with that specified via the user namelist
 
-   enddo readloop
-   close(inerr)
+      rewind inerr
+      read(inerr,iostat=ier)nsigstat,nlatstat
+      call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (nsigstat,nlatstat)')
 
+      if ( nsigstat/=nsig .or. nlatstat/=nlat ) then
+         write(6,*)'PREBAL: **ERROR** resolution of berror_stats incompatiable with GSI'
+         
+         write(6,*)'PREBAL:  berror nsigstat,nlatstat=', nsigstat,nlatstat, &
+              ' -vs- GSI nsig,nlat=',nsig,nlat
+         call stop2(101)
+      endif
+      
+      write(6,*) myname_,'(read_hsst):  read error amplitudes ', &
+           '"',trim(berror_stats),'".  ', &
+           'nsigstat,nlatstat =',nsigstat,nlatstat
+      
+      read(inerr,iostat=ier) agvin,bvin,wgvin
+      call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (agvin,bvin,wgvin)')
+      
+      write(*,*) 'in read_hsst_, cwoption = ',cwoption
+      
+      readloop: do
+         read(inerr,iostat=istat) var, isig
+         if ( istat/=0 ) exit
+         write(*,*) 'var, isig, istat : ',var, isig, istat
+         allocate(corzin(nlat,isig))
+         if ( var=='q' .or. var=='cw' ) allocate(corq2(nlat,isig))
+         allocate(hwllin(nlat,isig))
+         if ( isig>1 ) allocate(vscalesin(nlat,isig))
+         if ( var/='sst' ) then
+            if ( var=='q' .or. var=='Q' .or. (var=='cw' .and. cwoption==2) ) then
+               read(inerr,iostat=ier) corzin,corq2
+               call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (corzin,corq2)')
+            else
+               read(inerr,iostat=ier) corzin
+               call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (corzin)')
+            endif
+            read(inerr,iostat=ier) hwllin
+            call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (hwllin)')
+            if ( isig>1 ) then
+               read(inerr,iostat=ier) vscalesin
+               call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (vscalein)')
+            endif
+         else
+            read(inerr,iostat=ier) corsst
+            call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (corsst)')
+            read(inerr,iostat=ier) hsst
+            call check_iostat(ier,myname_,'read('//trim(berror_stats)//') for (hsst)')
+         endif
+         
+         
+         deallocate(corzin,hwllin)
+         if (isig>1) deallocate(vscalesin)
+         if ( var=='q' .or. var=='cw' ) deallocate(corq2)
+         
+      enddo readloop
+      close(inerr)
+   endif
    return
   end subroutine read_hsst_
 

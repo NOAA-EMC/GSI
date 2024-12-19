@@ -18,7 +18,7 @@ load(pathJoin("cmake", cmake_ver))
 load("gsi_common")
 load(pathJoin("prod_util", prod_util_ver))
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/gpfs/f6/bil-fire8/world-shared/GSI_data/fix/gsi/20240208")
+pushenv("GSI_BINARY_SOURCE_DIR", "/gpfs/f6/bil-fire8/world-shared/GSI_data/fix/gsi/20241022")
 
 setenv("CC","cc")
 setenv("FC","ftn")
