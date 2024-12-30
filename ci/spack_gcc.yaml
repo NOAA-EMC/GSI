@@ -2,9 +2,12 @@
 spack:
   packages:
     all:
+      providers:
+        blas: [openblas]
+        lapack: [openblas]
+        mpi: [mpich]
       compiler:
-        - intel
-        - gcc@10:10
+        - gcc@13
   specs:
   - netcdf-c@4.9.2
   - netcdf-fortran@4.6.1
@@ -20,6 +23,8 @@ spack:
   - ncio@1.1.2
   - crtm@2.4.0.1
   - gsi-ncdiag@1.1.2
+  - mpich@3.4.2
+  - openblas@0.3.28
   view: true
   concretizer:
     unify: true

@@ -34,7 +34,9 @@ jobs:
           sudo swapoff -a
           sudo rm -f /swapfile
           sudo apt clean
-          docker rmi $(docker image ls -aq)
+          DOCKER_IMGS=$(docker image ls -aq)
+          if [[ ! -z "${DOCKER_IMGS}" ]]; then docker rmi ${DOCKER_IMGS}; fi
+          df -h
 
       # Checkout the GSI to get the ci/spack.yaml file
       - name: checkout
@@ -52,9 +54,10 @@ jobs:
             spack
             ~/.spack
             /opt/intel
-          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles('gsi/ci/spack.yaml') }}
+          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles('gsi/ci/spack.yaml') }}-1
 
       - name: install-intel-compilers
+        if: steps.cache-env.outputs.cache-hit != 'true'
         run: |
           wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
           sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
@@ -70,16 +73,15 @@ jobs:
         run: |
           sudo mv /usr/local/ /usr_local_mv
           sudo apt-get install cmake
+          rm -rf spack
           git clone -c feature.manyFiles=true https://github.com/JCSDA/spack.git
           source spack/share/spack/setup-env.sh
-          spack env create gsi-env gsi/ci/spack.yaml
+          spack env create gsi-env gsi/ci/spack_intel.yaml
           spack env activate gsi-env
           spack compiler find
-          sudo apt install cmake
           spack external find
-          spack add intel-oneapi-mpi
           spack concretize
-          spack install -v --fail-fast --dirty
+          spack install --fail-fast --dirty
           spack clean -a
 
   gsi:
@@ -108,6 +110,8 @@ jobs:
 
       - name: build
         run: |
+          sudo mv /usr/local/ /usr_local_mv
+          sudo apt-get install cmake libblas-dev liblapack-dev
           source spack/share/spack/setup-env.sh
           spack env activate gsi-env
           cd gsi
