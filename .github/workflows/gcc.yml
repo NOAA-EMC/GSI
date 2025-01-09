@@ -9,9 +9,9 @@ defaults:
 
 env:
   cache_key: gcc
-  CC: gcc-10
-  FC: gfortran-10
-  CXX: g++-10
+  CC: gcc-13
+  FC: gfortran-13
+  CXX: g++-13
 
 # The jobs are split into:
 # 1. a dependency build step (setup), and
@@ -34,7 +34,7 @@ jobs:
       # Cache spack, compiler and dependencies
       - name: cache-env
         id: cache-env
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             spack
@@ -43,19 +43,18 @@ jobs:
 
       # Install dependencies using Spack
       - name: install-dependencies-with-spack
-        if: steps.cache-env.outputs.cache-hit != 'true'
+        # if: steps.cache-env.outputs.cache-hit != 'true'
         run: |
           sudo apt-get install cmake
+          rm -rf spack
           git clone -c feature.manyFiles=true https://github.com/JCSDA/spack.git
           source spack/share/spack/setup-env.sh
-          spack env create gsi-env gsi/ci/spack.yaml
+          spack env create gsi-env gsi/ci/spack_gcc.yaml
           spack env activate gsi-env
           spack compiler find
-          sudo apt install cmake
           spack external find
-          spack add mpich@3.4.2
           spack concretize
-          spack install -v --fail-fast --dirty
+          spack install --fail-fast --dirty
           spack clean -a
 
   gsi:
@@ -70,7 +69,7 @@ jobs:
 
       - name: cache-env
         id: cache-env
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             spack
