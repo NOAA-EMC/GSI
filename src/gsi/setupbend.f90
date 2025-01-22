@@ -108,6 +108,9 @@ subroutine setupbend(obsLL,odiagLL, &
 !   2021-11-05  cucurull - update QCs and optimize/improve forward operator; bug fixes
 !   2022-01-28  cucurull - add Sentinel-6, PAZ
 !   2022-04-06  collard  - reintroduce Jacbian QC as an option (default off)
+!   2024-12-04  Li       - turn on MetOp data below 8 km
+!   2024-12-04  Li       - add GRACE-FO (803&804) data below 8 km
+!   2024-12-04  Li       - add new obs error model by Chris Riedel
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -168,7 +171,9 @@ subroutine setupbend(obsLL,odiagLL, &
   use m_gpsrhs, only: ratio_errors
   use m_gpsrhs, only: rdiagbuf,cdiagbuf
   use m_gpsrhs, only: qcfail
-  use m_gpsrhs, only: qcfail_loc,qcfail_high,qcfail_gross,qcfail_jac
+  use m_gpsrhs, only: qcfail_jac
+  use m_gpsrhs, only: qcfail_one,qcfail_two,qcfail_three,qcfail_five 
+  use m_gpsrhs, only: qcfail_six,qcfail_seven,qcfail_eight 
   use m_gpsrhs, only: data_ier,data_igps,data_ihgt
   use m_gpsrhs, only: gpsrhs_alloc
   use m_gpsrhs, only: gpsrhs_dealloc
@@ -196,6 +201,7 @@ subroutine setupbend(obsLL,odiagLL, &
 ! Declare local parameters
   real(r_kind),parameter::  r240 = 240.0_r_kind
   real(r_kind),parameter:: six = 6.0_r_kind
+  real(r_kind),parameter:: seven = 7.0_r_kind
   real(r_kind),parameter:: ten = 10.0_r_kind
   real(r_kind),parameter:: eight = 8.0_r_kind
   real(r_kind),parameter:: nine = 9.0_r_kind
@@ -228,7 +234,8 @@ subroutine setupbend(obsLL,odiagLL, &
   real(r_kind),dimension(4) :: w4,dw4,dw4_TL
   
   integer(i_kind) ier,ilon,ilat,ihgt,igps,itime,ikx,iuse, &
-                  iprof,ipctc,iroc,isatid,iptid,ilate,ilone,ioff,igeoid
+                  iprof,ipctc,iroc,isatid,iptid,ilate,ilone,ioff,igeoid, &
+                  ilsw,ilswflag
   integer(i_kind) i,j,k,kk,mreal,nreal,jj,ikxx,ibin
   integer(i_kind) mm1,nsig_up,ihob,istatus,nsigstart
   integer(i_kind) kprof,istat,k1,k2,nobs_out,top_layer_SR,bot_layer_SR,count_SR
@@ -301,6 +308,8 @@ subroutine setupbend(obsLL,odiagLL, &
 !268 => PlanetiQ GNOMES-B
 !269 => Spire Lemur 3U CubeSat
 !66 => Sentinel-6 
+!803=> GRACE C
+!804=> GRACE D
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -328,6 +337,8 @@ subroutine setupbend(obsLL,odiagLL, &
   ilone=14     ! index of earth relative longitude (degrees)
   ilate=15     ! index of earth relative latitude (degrees)
   igeoid=16    ! index of geoid undulation (a value per profile, m) 
+  ilsw=17      ! index of bending angle LSW 
+  ilswflag=18  ! index of LSW flag 
 
 ! Intialize variables
   nsig_up=nsig+nsig_ext ! extend nsig_ext levels above interface level nsig
@@ -345,7 +356,7 @@ subroutine setupbend(obsLL,odiagLL, &
   allocate(ddnj(grids_dim),grid_s(grids_dim),ref_rad_s(grids_dim)) 
 
 ! Allocate arrays for output to diagnostic file
-  mreal=22
+  mreal=25
   nreal=mreal
   if (lobsdiagsave) nreal=nreal+4*miter+1
   if (save_jacobian) then
@@ -397,9 +408,12 @@ subroutine setupbend(obsLL,odiagLL, &
      muse(:)=.false.
 
      qcfail=.false.
-     qcfail_loc=zero;qcfail_gross=zero
-     qcfail_high=zero
      qcfail_jac=zero
+
+     qcfail_one=zero;qcfail_two=zero
+     qcfail_three=zero;qcfail_five=zero
+     qcfail_six=zero;qcfail_seven=zero
+     qcfail_eight=zero
      toss_gps_sub=zero 
      dbend_loc=zero
 
@@ -550,7 +564,7 @@ subroutine setupbend(obsLL,odiagLL, &
         data(ier,i) = zero
         ratio_errors(i) = zero
         muse(i)=.false.
-        qcfail_loc(i)=one
+        qcfail_one(i) = one
      endif
 
 !    Increment obs counter along with low and high obs counters
@@ -582,6 +596,9 @@ subroutine setupbend(obsLL,odiagLL, &
      rdiagbuf(17,i)        = data(igps,i)       ! bending angle observation (radians)
      rdiagbuf(19,i)        = hob                ! model vertical grid (interface) if monotone grid
      rdiagbuf(22,i)        = 1.e+10_r_kind      ! spread (filled in by EnKF)
+     rdiagbuf(23,i)        = (data(ilsw,i)/data(igps,i))*100._r_kind ! Fractional LSW 
+     rdiagbuf(24,i)        = 0.0_r_kind         ! holder for STD4060 in hybrid error model 
+     rdiagbuf(25,i)        = data(ilswflag,i)   ! LSW flag 
 
      if(ratio_errors(i) > tiny_r_kind)  then ! obs inside model grid
 
@@ -639,7 +656,8 @@ subroutine setupbend(obsLL,odiagLL, &
             (data(isatid,i)==42) .or.(data(isatid,i)==3)  .or. &
             (data(isatid,i)==821).or.(data(isatid,i)==421).or. &
             (data(isatid,i)==440).or.(data(isatid,i)==43) .or. &
-            (data(isatid,i)==5).or.(data(isatid,i)==66)) then
+            (data(isatid,i)==5).or.(data(isatid,i)==66) .or. &
+            (data(isatid,i)==803).or.(data(isatid,i)==804))  then
                     
            if((data(ilate,i)> r40).or.(data(ilate,i)< -r40)) then
               if(alt>r12) then
@@ -754,6 +772,7 @@ subroutine setupbend(obsLL,odiagLL, &
               ddnj(j)=dot_product(dw4,nrefges(ihob-1:ihob+2,i))!derivative (dN/dx)_j                                                                      
               if(ddnj(j)>zero) then
                  qcfail(i)=.true.
+                 qcfail_eight(i) = one
                  data(ier,i) = zero
                  ratio_errors(i) = zero
                  muse(i)=.false.
@@ -802,6 +821,7 @@ subroutine setupbend(obsLL,odiagLL, &
          if(dbend > 0.05_r_kind) then
            data(ier,i) = zero
            ratio_errors(i) = zero
+           qcfail_five(i) = one
            qcfail(i)=.true.
            muse(i)=.false.
          endif
@@ -821,7 +841,7 @@ subroutine setupbend(obsLL,odiagLL, &
                    if (luse(i)) then
                       awork(4) = awork(4)+one
                    endif
-                   qcfail_gross(i)=one 
+                   qcfail_three(i) = one
                    data(ier,i) = zero
                    ratio_errors(i) = zero
                    muse(i)=.false.
@@ -871,6 +891,7 @@ subroutine setupbend(obsLL,odiagLL, &
  
                    if(abs(rdiagbuf(5,i)) > cutoff) then
                       qcfail(i)=.true.
+                      qcfail_six(i) = one
                       data(ier,i) = zero
                       ratio_errors(i) = zero
                       muse(i) = .false.
@@ -882,18 +903,19 @@ subroutine setupbend(obsLL,odiagLL, &
          if((alt > gpstop) .or. (commdat .and. (alt > commgpstop))) then
            data(ier,i) = zero
            ratio_errors(i) = zero
-           qcfail_high(i)=one
+           qcfail_two(i)=one
            muse(i)=.false.
          endif
 
-!       Remove MetOP/GRAS data below 8 km
-         if( (alt <= eight) .and. & 
-            ((data(isatid,i)==4).or.(data(isatid,i)==3).or.(data(isatid,i)==5))) then
-           qcfail(i)=.true.
-           data(ier,i) = zero
-           ratio_errors(i) = zero
-           muse(i)=.false.
-         endif
+!       Turn on MetOP/GRAS data below 8 km
+!         if( (alt <= eight) .and. & 
+!            ((data(isatid,i)==4).or.(data(isatid,i)==3).or.(data(isatid,i)==5))) then
+!           qcfail(i)=.true.
+!           qcfail_seven(i) = one
+!           data(ier,i) = zero
+!           ratio_errors(i) = zero
+!           muse(i)=.false.
+!         endif
 
        end if ! obs above super-refraction and shadow layers
      end if ! obs inside the vertical grid
@@ -911,7 +933,9 @@ subroutine setupbend(obsLL,odiagLL, &
 
      do i=1,nobs
 
-        if (qcfail(i)) then
+        if (qcfail(i) .or. qcfail_five(i) > zero .or. &
+            qcfail_six(i) > zero .or. qcfail_seven(i) > zero .or. &
+            qcfail_eight(i) > zero) then
            data(ier,i) = zero
            ratio_errors(i) = zero
            muse(i) = .false.
@@ -947,10 +971,14 @@ subroutine setupbend(obsLL,odiagLL, &
         ! flags for observations that failed qc checks
         ! zero = observation is good
  
-        if(qcfail_gross(i) == one)   rdiagbuf(10,i) = three
-        if(qcfail(i))                rdiagbuf(10,i) = four !modified in genstats due to toss_gps_sub
-        if(qcfail_loc(i) == one)     rdiagbuf(10,i) = one
-        if(qcfail_high(i) == one)    rdiagbuf(10,i) = two
+        if(qcfail(i))                 rdiagbuf(10,i) = four !modified in genstats due to toss_gps_sub
+        if(qcfail_one(i) == one)      rdiagbuf(10,i) = one
+        if(qcfail_two(i) == one)      rdiagbuf(10,i) = two
+        if(qcfail_three(i) == one)    rdiagbuf(10,i) = three
+        if(qcfail_five(i) == one)     rdiagbuf(10,i) = five
+        if(qcfail_six(i) == one)      rdiagbuf(10,i) = six
+        if(qcfail_seven(i) == one)    rdiagbuf(10,i) = seven
+        if(qcfail_eight(i) == one)    rdiagbuf(10,i) = eight
 
         if(muse(i)) then                    ! modified in genstats_gps due to toss_gps_sub
            rdiagbuf(12,i) = one             ! minimization usage flag (1=use, -1=not used)

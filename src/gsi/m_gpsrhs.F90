@@ -68,10 +68,15 @@ module m_gpsrhs
   public:: cdiagbuf
 
   public:: qcfail
-  public:: qcfail_loc
-  public:: qcfail_high
-  public:: qcfail_gross
   public:: qcfail_jac
+
+  public:: qcfail_one
+  public:: qcfail_two
+  public:: qcfail_three
+  public:: qcfail_five
+  public:: qcfail_six
+  public:: qcfail_seven
+  public:: qcfail_eight
 
   public:: data_ier
   public:: data_igps
@@ -117,10 +122,15 @@ module m_gpsrhs
     character(len=8), pointer, dimension(  :):: cdiagbuf => null()
 
     logical         , pointer, dimension(  :):: qcfail => null()
-    real(r_single  ), pointer, dimension(  :):: qcfail_loc  => null()
-    real(r_single  ), pointer, dimension(  :):: qcfail_high => null()
-    real(r_single  ), pointer, dimension(  :):: qcfail_gross=> null()
     real(r_single  ), pointer, dimension(  :):: qcfail_jac=> null()
+
+    real(r_single  ), pointer, dimension(  :):: qcfail_one  => null()
+    real(r_single  ), pointer, dimension(  :):: qcfail_two => null()
+    real(r_single  ), pointer, dimension(  :):: qcfail_three=> null()
+    real(r_single  ), pointer, dimension(  :):: qcfail_five=> null()
+    real(r_single  ), pointer, dimension(  :):: qcfail_six=> null()
+    real(r_single  ), pointer, dimension(  :):: qcfail_seven=> null()
+    real(r_single  ), pointer, dimension(  :):: qcfail_eight=> null()
 
     real(r_kind    ), pointer, dimension(  :):: data_ier  => null()
     real(r_kind    ), pointer, dimension(  :):: data_igps => null()
@@ -152,7 +162,10 @@ module m_gpsrhs
   character(len=8), pointer, dimension(  :), save:: cdiagbuf
 
   logical         , pointer, dimension(  :), save:: qcfail
-  real(r_single  ), pointer, dimension(  :), save:: qcfail_loc,qcfail_high,qcfail_gross,qcfail_jac
+  real(r_single  ), pointer, dimension(  :), save:: qcfail_jac
+
+  real(r_single  ), pointer, dimension(  :), save:: qcfail_one,qcfail_two,qcfail_three,qcfail_five
+  real(r_single  ), pointer, dimension(  :), save:: qcfail_six,qcfail_seven,qcfail_eight
 
   real(r_kind    ), pointer, dimension(  :), save:: data_ier
   real(r_kind    ), pointer, dimension(  :), save:: data_igps
@@ -264,16 +277,26 @@ _ENTRY_(myname_)
   b%cdiagbuf(  :)=""
 
   allocate(b%qcfail        (nobs))
-  allocate(b%qcfail_loc    (nobs))
-  allocate(b%qcfail_high   (nobs))
-  allocate(b%qcfail_gross  (nobs))
   allocate(b%qcfail_jac    (nobs))
 
+  allocate(b%qcfail_one    (nobs))
+  allocate(b%qcfail_two    (nobs))
+  allocate(b%qcfail_three  (nobs))
+  allocate(b%qcfail_five   (nobs))
+  allocate(b%qcfail_six    (nobs))
+  allocate(b%qcfail_seven  (nobs))
+  allocate(b%qcfail_eight  (nobs))
+
   b%qcfail=.false.
-  b%qcfail_loc    =zero
-  b%qcfail_high   =zero
-  b%qcfail_gross  =zero
   b%qcfail_jac    =zero
+
+  b%qcfail_one    =zero
+  b%qcfail_two    =zero
+  b%qcfail_three  =zero
+  b%qcfail_five   =zero
+  b%qcfail_six    =zero
+  b%qcfail_seven  =zero
+  b%qcfail_eight  =zero
 
   allocate(b%data_ier (nobs))
   allocate(b%data_igps(nobs))
@@ -347,10 +370,15 @@ _ENTRY_(myname_)
   deallocate(b%cdiagbuf)
 
   deallocate(b%qcfail        )
-  deallocate(b%qcfail_loc    )
-  deallocate(b%qcfail_high   )
-  deallocate(b%qcfail_gross  )
   deallocate(b%qcfail_jac    )
+
+  deallocate(b%qcfail_one    )
+  deallocate(b%qcfail_two    )
+  deallocate(b%qcfail_three  )
+  deallocate(b%qcfail_five   )
+  deallocate(b%qcfail_six    )
+  deallocate(b%qcfail_seven  )
+  deallocate(b%qcfail_eight  )
 
   deallocate(b%data_ier )
   deallocate(b%data_igps)
@@ -405,10 +433,15 @@ _ENTRY_(myname_)
   cdiagbuf      => b%cdiagbuf
 
   qcfail        => b%qcfail
-  qcfail_loc    => b%qcfail_loc
-  qcfail_high   => b%qcfail_high
-  qcfail_gross  => b%qcfail_gross
   qcfail_jac    => b%qcfail_jac
+
+  qcfail_one    => b%qcfail_one
+  qcfail_two    => b%qcfail_two
+  qcfail_three  => b%qcfail_three
+  qcfail_five   => b%qcfail_five
+  qcfail_six    => b%qcfail_six
+  qcfail_seven  => b%qcfail_seven
+  qcfail_eight  => b%qcfail_eight
 
   data_ier      => b%data_ier
   data_igps     => b%data_igps
@@ -442,8 +475,10 @@ _ENTRY_(myname_)
   nullify(rges,gp2gm,prsltmp_o,tges_o)
   nullify(error,error_adjst,ratio_errors)
   nullify(rdiagbuf,cdiagbuf)
-  nullify(qcfail,qcfail_loc,qcfail_gross,qcfail_jac)
-  nullify(qcfail_high)
+  nullify(qcfail,qcfail_jac)
+
+  nullify(qcfail_one,qcfail_two,qcfail_three,qcfail_five)
+  nullify(qcfail_six,qcfail_seven,qcfail_eight)
   nullify(data_ier,data_igps,data_ihgt)
 _EXIT_(myname_)
 end subroutine gpsrhs_unaliases
