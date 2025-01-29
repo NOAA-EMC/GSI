@@ -153,7 +153,7 @@ subroutine read_iasing(mype,val_iasing,ithin,isfcalc,rmesh,jsatid,gstime,&
   logical          :: outside,iuse,assim,valid
   logical          :: quiet,cloud_info
 
-  integer(i_kind)  :: ifov, ifor, istep, ipos, instr, iscn, ioff, sensorindex_iasing
+  integer(i_kind)  :: ifov, ifov2, ifor, istep, ipos, instr, iscn, ioff, sensorindex_iasing
   integer(i_kind)  :: i, j, l, iskip, ifovn, ksatid, kidsat, llll
   integer(i_kind)  :: nreal, isflg
   integer(i_kind)  :: itx, k, nele, itt, n
@@ -568,7 +568,12 @@ subroutine read_iasing(mype,val_iasing,ithin,isfcalc,rmesh,jsatid,gstime,&
 !         To determine the scan position:
           ifor = (ifov-1) / 16                     ! Determine field-of-regard 
           istep = ifov - ((ifor) * 16)             ! Determine field-of-view within field-of-regard
-          ipos = (ifor * 4) + mod(istep,4)         ! Determine position of field-of-view within scan line
+          ifov2 = mod(istep,4)                     ! Determine position of field-of-view within scan line
+          if ( ifov2 /= 0 ) then
+            ipos = (ifor * 4) + ifov2 
+          else
+            ipos = (ifor * 4) + 4
+          endif
 
 ! Remove data on edges
           if (.not. use_edges .and. &
