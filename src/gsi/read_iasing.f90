@@ -424,7 +424,7 @@ subroutine read_iasing(mype,val_iasing,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 ! Get the size of the channels and radiance (allchan) array
 ! This is a delayed replication. crchn_reps is the number of IASI-NG replications (channel and radiance)
-           call ufbint(lnbufr,crchn_reps,1,1,iret,'(RPSEQ001)')
+           call ufbint(lnbufr,crchn_reps,1,1,iret,'(I1CRSQ)')
            bufr_nchan = int(crchn_reps)
 
            bufr_size = size(temperature,1)
@@ -570,7 +570,7 @@ subroutine read_iasing(mype,val_iasing,ithin,isfcalc,rmesh,jsatid,gstime,&
           istep = ifov - ((ifor) * 16)             ! Determine field-of-view within field-of-regard
           ifov2 = mod(istep,4)                     ! Determine position of field-of-view within scan line
           if ( ifov2 /= 0 ) then
-            ipos = (ifor * 4) + ifov2 
+            ipos = (ifor * 4) + ifov2
           else
             ipos = (ifor * 4) + 4
           endif
@@ -627,7 +627,7 @@ subroutine read_iasing(mype,val_iasing,ithin,isfcalc,rmesh,jsatid,gstime,&
            call checkob(one,crit1,itx,iuse)
            if(.not. iuse)cycle read_loop
 
-           call ufbseq(lnbufr,cscale,3,4,iret,'RPSEQ004')
+           call ufbseq(lnbufr,cscale,3,4,iret,'IAS1CBSQ')
            if(iret /= 4) then
               write(6,*) 'READ_IASI-NG  read scale error ',iret
               cycle read_loop
@@ -648,7 +648,7 @@ subroutine read_iasing(mype,val_iasing,ithin,isfcalc,rmesh,jsatid,gstime,&
            end do
 
 ! Read IASI-NG channel number(CHNM) and radiance (SCRA).
-           call ufbseq(lnbufr,allchan,2,bufr_nchan,iret,'RPSEQ001')
+           call ufbseq(lnbufr,allchan,2,bufr_nchan,iret,'I1CRSQ')
            jstart=1
            scalef=one
 
@@ -744,7 +744,7 @@ subroutine read_iasing(mype,val_iasing,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Only channels 18 and 19 are used.
 
            if ( iasing_cads ) then
-             call ufbseq(lnbufr,imager_info,123,7,iret,'RPSEQ002')
+             call ufbseq(lnbufr,imager_info,123,7,iret,'IASICSSQ')
              if (iret == 7 .and. imager_info(3,1) <= 100.0_r_kind .and. &
                   sum(imager_info(3,:)) > zero .and. imager_coeff ) then   ! if imager cluster info exists
                imager_mean = zero
@@ -844,7 +844,7 @@ subroutine read_iasing(mype,val_iasing,ithin,isfcalc,rmesh,jsatid,gstime,&
            data_all(4,itx) = dlat                      ! grid relative latitude
            data_all(5,itx) = sat_zenang*deg2rad        ! satellite zenith angle (rad)
            data_all(6,itx) = allspot(11)               ! satellite azimuth angle (deg)
-           data_all(7,itx) = sat_zenang*deg2rad        ! look angle (rad)
+           data_all(7,itx) = sat_zenang*deg2rad        ! satellite zenith angle (rad)
            data_all(8,itx) = ifov                      ! fov number
            data_all(9,itx) = allspot(12)               ! solar zenith angle (deg)
            data_all(10,itx)= allspot(13)               ! solar azimuth angle (deg)
