@@ -100,7 +100,7 @@ contains
     character(len=120) :: filename_lakemask    ! lakemask.bin
     integer(i_kind)    :: iunit_lakemask
     logical            :: l_iunit_opened
-    character(len=200) :: perr_msg, derr_msg   ! error message used in perr and die
+    character(len=200) :: derr_msg   ! error message used in die
     character(len=24),parameter :: myname_ = 'convert_netcdf_mass_wrf'
     
     integer(i_kind) :: i,j,k
@@ -1059,12 +1059,11 @@ contains
              write(iunit)field2   !HOWV  (2D wave height)
              i_howv_3dda = 2               ! howv was found both in anavinfo and firstguess
           else
-             perr_msg='Warning: Error when get info in firstguess for var : '//trim(rmse_var)//    &
-                      ' ==> skipping analysis for this variable. ierr='
-             call perr(trim(adjustl(myname_)),trim(adjustl(perr_msg)),ierr)
              derr_msg='Warning: Error when get info in firstguess for var : '//trim(rmse_var)//    &
                       ' ==> Stop GSI analysis ...  ierr='
-!            call die(trim(adjustl(myname_)),trim(adjustl(derr_msg)),ierr)
+!            write(6,'(1x,A,A2,A,1x,I6)')trim(adjustl(myname_)),'::',trim(adjustl(derr_msg)),ierr
+!            call stop2(ierr)
+             call die(trim(adjustl(myname_)),trim(adjustl(derr_msg)),ierr)
              i_howv_3dda = 0               ! skipping analysis of this variable
           end if
 
@@ -1135,12 +1134,11 @@ contains
              write(iunit)field2   !GUST  (2D Wind Gust)
              i_gust_3dda = 2               ! gust was found both in anavinfo and firstguess
           else
-             perr_msg='Warning: Error when get info in firstguess for var : '//trim(rmse_var)//    &
-                      ' ==> skipping analysis for this variable. ierr='
-             call perr(trim(adjustl(myname_)),trim(adjustl(perr_msg)),ierr)
              derr_msg='Warning: Error when get info in firstguess for var : '//trim(rmse_var)//    &
                       ' ==> Stop GSI analysis ...  ierr='
-!            call die(trim(adjustl(myname_)),trim(adjustl(derr_msg)),ierr)
+!            write(6,'(1x,A,A2,A,1x,I6)')trim(adjustl(myname_)),'::',trim(adjustl(derr_msg)),ierr
+!            call stop2(ierr)
+             call die(trim(adjustl(myname_)),trim(adjustl(derr_msg)),ierr)
              i_gust_3dda = 0               ! skipping analysis of this variable
           end if
        endif  ! i_gust_3dda (reading 2D 10-m wind gust from netcdf-format background) 
