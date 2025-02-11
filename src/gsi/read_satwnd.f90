@@ -79,6 +79,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2022-01-20 Genkova  - added missing station_id for polar winds
 !   2022-01-20 Genkova  - added code for Meteosat and Himawari AMVs in new BUFR
 !   2022-12-10 Bi  - added code for CIMSS enhanced AMVs in new BUFR
+!   2025-02-10 Woollen - refactored to specify processing paths for satwind data via lookup table
 !   
 !
 !   input argument list:
@@ -1370,6 +1371,26 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 end subroutine read_satwnd
 !-------------------------------------------------------------------------------------------------------------------
+!$$$  subprogram documentation block
+!                
+!  subprogram: sattabin       initialize read satwnd processing parameter table
+!  programmer: woollen        date: 2025-02-10
+!
+! abstract:  The routine fills in a lookup table which defines the satellite wind data
+!            types which can be processed by read_satwnd and which processing path 
+!            is desired for that purpose. The table represents a function with three
+!            determinents, the BUFR subtype, the satellite id, and the computation method. 
+!            The function result has two resultants, being satellite wind conv type index 
+!            and the processing case index defining the processing block to execute for
+!            each satwind observation. These have previously been defined in the read_satwnd
+!            code, the lookup table merely simplifies identifying the parameters for each
+!            observation encountered.
+!
+!            The table can be updated by changing or adding to the satellite id data definitions 
+!            in the data specification section, and/or by changing or adding table elements
+!            which refer to either 1) individula convstat satwnd indexes assigned to each datatype, 
+!            or 2) case indexes referring to a block of code in the read_satwnd routine to be used
+!            when processing the particular datatype identified by the inputs to the table function.
 !-------------------------------------------------------------------------------------------------------------------
       subroutine sattabin(sattab)
 
