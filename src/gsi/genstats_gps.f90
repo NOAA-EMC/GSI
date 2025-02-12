@@ -281,7 +281,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   logical:: luse,muse,toss,save_jacobian
   integer(i_kind):: k,jsig,icnt,khgt,kprof,ikx,nn,j,nchar,nreal,mreal,ii,ioff
   real(r_kind):: pressure,arg,wgross,wgt,term,cg_gps,valqc,elev,satid,dtype,dobs
-  real(r_kind):: ress,val,ratio_errors,val2
+  real(r_kind):: ress,val,ratio_errors,ratio_errors_adjst,val2
   real(r_kind):: exp_arg,data_ikx,data_rinc,cg_term,rat_err2,elat
   real(r_kind):: wnotgross,data_ipg,data_ier,data_ib,factor,super_gps_up,rhgt
   real(r_kind),dimension(nsig,max(1,nprof_gps)):: super_gps_sub,super_gps
@@ -633,8 +633,10 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
            else
               factor = one / sqrt(max(super_gps(k-1,kprof),super_gps(k,kprof)))
            endif
+           ratio_errors_adjst = ratio_errors
            ratio_errors = ratio_errors * factor
            if(conv_diagsave .and. luse) then
+              if(gps_allptr%rdiag(15) >tiny_r_kind) gps_allptr%rdiag(15)=ratio_errors_adjst*data_ier
               if(gps_allptr%rdiag(16) >tiny_r_kind) gps_allptr%rdiag(16)=ratio_errors*data_ier
            endif
  
@@ -694,6 +696,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
                     if(conv_diagsave) then
                       gps_allptr%rdiag(10) = four
                       gps_allptr%rdiag(12) = -one
+                      gps_allptr%rdiag(15) = zero
                       gps_allptr%rdiag(16) = zero
                       if(lobsdiagsave) gps_allptr%rdiag(mreal+jiter) = -one
                     endif
@@ -743,6 +746,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
                  if(conv_diagsave) then
                     gps_allptr%rdiag(10) = four
                     gps_allptr%rdiag(12) = -one
+                    gps_allptr%rdiag(15) = -one
                     gps_allptr%rdiag(16) = zero
                     if(lobsdiagsave) gps_allptr%rdiag(mreal+jiter) = -one
                  endif

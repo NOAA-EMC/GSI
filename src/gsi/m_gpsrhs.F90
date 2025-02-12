@@ -76,7 +76,6 @@ module m_gpsrhs
   public:: qcfail_five
   public:: qcfail_six
   public:: qcfail_seven
-  public:: qcfail_eight
 
   public:: data_ier
   public:: data_igps
@@ -130,7 +129,6 @@ module m_gpsrhs
     real(r_single  ), pointer, dimension(  :):: qcfail_five=> null()
     real(r_single  ), pointer, dimension(  :):: qcfail_six=> null()
     real(r_single  ), pointer, dimension(  :):: qcfail_seven=> null()
-    real(r_single  ), pointer, dimension(  :):: qcfail_eight=> null()
 
     real(r_kind    ), pointer, dimension(  :):: data_ier  => null()
     real(r_kind    ), pointer, dimension(  :):: data_igps => null()
@@ -165,7 +163,7 @@ module m_gpsrhs
   real(r_single  ), pointer, dimension(  :), save:: qcfail_jac
 
   real(r_single  ), pointer, dimension(  :), save:: qcfail_one,qcfail_two,qcfail_three,qcfail_five
-  real(r_single  ), pointer, dimension(  :), save:: qcfail_six,qcfail_seven,qcfail_eight
+  real(r_single  ), pointer, dimension(  :), save:: qcfail_six,qcfail_seven
 
   real(r_kind    ), pointer, dimension(  :), save:: data_ier
   real(r_kind    ), pointer, dimension(  :), save:: data_igps
@@ -285,7 +283,6 @@ _ENTRY_(myname_)
   allocate(b%qcfail_five   (nobs))
   allocate(b%qcfail_six    (nobs))
   allocate(b%qcfail_seven  (nobs))
-  allocate(b%qcfail_eight  (nobs))
 
   b%qcfail=.false.
   b%qcfail_jac    =zero
@@ -296,7 +293,6 @@ _ENTRY_(myname_)
   b%qcfail_five   =zero
   b%qcfail_six    =zero
   b%qcfail_seven  =zero
-  b%qcfail_eight  =zero
 
   allocate(b%data_ier (nobs))
   allocate(b%data_igps(nobs))
@@ -378,7 +374,6 @@ _ENTRY_(myname_)
   deallocate(b%qcfail_five   )
   deallocate(b%qcfail_six    )
   deallocate(b%qcfail_seven  )
-  deallocate(b%qcfail_eight  )
 
   deallocate(b%data_ier )
   deallocate(b%data_igps)
@@ -441,7 +436,6 @@ _ENTRY_(myname_)
   qcfail_five   => b%qcfail_five
   qcfail_six    => b%qcfail_six
   qcfail_seven  => b%qcfail_seven
-  qcfail_eight  => b%qcfail_eight
 
   data_ier      => b%data_ier
   data_igps     => b%data_igps
@@ -478,7 +472,7 @@ _ENTRY_(myname_)
   nullify(qcfail,qcfail_jac)
 
   nullify(qcfail_one,qcfail_two,qcfail_three,qcfail_five)
-  nullify(qcfail_six,qcfail_seven,qcfail_eight)
+  nullify(qcfail_six,qcfail_seven)
   nullify(data_ier,data_igps,data_ihgt)
 _EXIT_(myname_)
 end subroutine gpsrhs_unaliases

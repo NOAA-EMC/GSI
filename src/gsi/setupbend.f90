@@ -108,8 +108,8 @@ subroutine setupbend(obsLL,odiagLL, &
 !   2021-11-05  cucurull - update QCs and optimize/improve forward operator; bug fixes
 !   2022-01-28  cucurull - add Sentinel-6, PAZ
 !   2022-04-06  collard  - reintroduce Jacbian QC as an option (default off)
-!   2024-12-04  Li       - turn on MetOp data below 8 km
-!   2024-12-04  Li       - add GRACE-FO (803&804) data below 8 km
+!   2024-12-04  Li       - remove the QC check for rejecting MetOp data <8 km
+!   2024-12-04  Li       - add GRACE-FO (803&804) data 
 !   2024-12-04  Li       - add new obs error model by Chris Riedel
 !
 !   input argument list:
@@ -173,7 +173,7 @@ subroutine setupbend(obsLL,odiagLL, &
   use m_gpsrhs, only: qcfail
   use m_gpsrhs, only: qcfail_jac
   use m_gpsrhs, only: qcfail_one,qcfail_two,qcfail_three,qcfail_five 
-  use m_gpsrhs, only: qcfail_six,qcfail_seven,qcfail_eight 
+  use m_gpsrhs, only: qcfail_six,qcfail_seven 
   use m_gpsrhs, only: data_ier,data_igps,data_ihgt
   use m_gpsrhs, only: gpsrhs_alloc
   use m_gpsrhs, only: gpsrhs_dealloc
@@ -226,7 +226,7 @@ subroutine setupbend(obsLL,odiagLL, &
   real(r_kind) termg,termr,termrg,hob,dbend,grad_mod
   real(r_kind) fact,pw,nrefges1,nrefges2,nrefges3,k4,delz
   real(r_kind) ratio,residual,obserror,obserrlm,cermaxuse,cerminuse,cgrossuse
-  real(r_kind) errinv_input,errinv_adjst,errinv_final,err_final,repe_gps
+  real(r_kind) errinv_input,errinv_adjst,errinv_final,err_final
 
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nsig):: dbenddn,dbenddxi
@@ -407,13 +407,22 @@ subroutine setupbend(obsLL,odiagLL, &
      data_igps(:)=data(igps,:)
      muse(:)=.false.
 
+     !qc flags
+     !qc = 1: beyond model top or bottom
+     !qc = 2: gpstop (55 km or 45 km for commercial data)
+     !qc = 3: gross check
+     !qc = 4: super refraction
+     !qc = 5: background bending angle > 0.05 rad
+     !qc = 6: statistic (cutoff) QC
+     !qc = 7: ddnj < 0
+     !qcfail_jac: jacobian check (currently not used)
      qcfail=.false.
      qcfail_jac=zero
+
 
      qcfail_one=zero;qcfail_two=zero
      qcfail_three=zero;qcfail_five=zero
      qcfail_six=zero;qcfail_seven=zero
-     qcfail_eight=zero
      toss_gps_sub=zero 
      dbend_loc=zero
 
@@ -647,73 +656,7 @@ subroutine setupbend(obsLL,odiagLL, &
        if (data(isatid,i)>=265 .and. data(isatid,i)<=269) commdat=.true.
        if (.not. qcfail(i)) then ! not SR
 
-!        Modify error to account for representativeness error. 
-         repe_gps=one
-
-!        UKMET-type processing
-         if((data(isatid,i)==41) .or.(data(isatid,i)==722).or. &
-            (data(isatid,i)==723).or.(data(isatid,i)==4)  .or. & 
-            (data(isatid,i)==42) .or.(data(isatid,i)==3)  .or. &
-            (data(isatid,i)==821).or.(data(isatid,i)==421).or. &
-            (data(isatid,i)==440).or.(data(isatid,i)==43) .or. &
-            (data(isatid,i)==5).or.(data(isatid,i)==66) .or. &
-            (data(isatid,i)==803).or.(data(isatid,i)==804))  then
-                    
-           if((data(ilate,i)> r40).or.(data(ilate,i)< -r40)) then
-              if(alt>r12) then
-                repe_gps=0.19032_r_kind+0.287535_r_kind*alt-0.00260813_r_kind*alt**2
-              else
-                repe_gps=-3.20978_r_kind+1.26964_r_kind*alt-0.0622538_r_kind*alt**2 
-              endif
-           else
-              if(alt>r18) then
-                repe_gps=-1.87788_r_kind+0.354718_r_kind*alt-0.00313189_r_kind*alt**2
-              else
-                repe_gps=-2.41024_r_kind+0.806594_r_kind*alt-0.027257_r_kind*alt**2
-              endif
-           endif
-         else 
-!        CDAAC-type processing
-           if (((data(isatid,i) > 749).and.(data(isatid,i) < 756)).or.commdat) then
-              if ((data(ilate,i)> r40).or.(data(ilate,i)< -r40)) then
-                if (alt <= 8.0_r_kind) then
-                  repe_gps=-1.0304261_r_kind+0.3203316_r_kind*alt+0.0141337_r_kind*alt**2
-                elseif (alt > 8.0_r_kind.and.alt <= r12) then
-                  repe_gps=2.1750271_r_kind+0.0431177_r_kind*alt-0.0008567_r_kind*alt**2
-                else
-                  repe_gps=-0.3447429_r_kind+0.2829981_r_kind*alt-0.0028545_r_kind*alt**2
-                endif
-              else
-                if (alt <= 4.0_r_kind) then
-                  repe_gps=0.7285212_r_kind-1.1138755_r_kind*alt+0.2311123_r_kind*alt**2
-                elseif (alt <= r18.and.alt > 4.0_r_kind) then
-                  repe_gps=-3.3878629_r_kind+0.8691249_r_kind*alt-0.0297196_r_kind*alt**2
-                else
-                  repe_gps=-2.3875749_r_kind+0.3667211_r_kind*alt-0.0037542_r_kind*alt**2
-                endif
-              endif
-           else
-              if((data(ilate,i)> r40).or.(data(ilate,i)< -r40)) then
-                 if(alt>r12) then
-                    repe_gps=-0.685627_r_kind+0.377174_r_kind*alt-0.00421934_r_kind*alt**2
-                 else
-                    repe_gps=-3.27737_r_kind+1.20003_r_kind*alt-0.0558024_r_kind*alt**2
-                 endif
-              else
-                 if(alt>r18) then
-                    repe_gps=-2.73867_r_kind+0.447663_r_kind*alt-0.00475603_r_kind*alt**2
-                 else
-                    repe_gps=-3.45303_r_kind+0.908216_r_kind*alt-0.0293331_r_kind*alt**2
-                 endif
-              endif
-           endif
-
-         endif
-
-         repe_gps=exp(repe_gps) ! one/modified error in (rad-1*1E3)
-         repe_gps= r1em3*(one/abs(repe_gps)) ! modified error in rad
-         if (commdat) repe_gps=commgpserrinf*repe_gps ! Inflate error for commercial data
-         ratio_errors(i) = data(ier,i)/abs(repe_gps)
+         ratio_errors(i) = data(ier,i)
   
          error(i)=one/data(ier,i) ! one/original error
          data(ier,i)=one/data(ier,i) ! one/original error
@@ -772,7 +715,7 @@ subroutine setupbend(obsLL,odiagLL, &
               ddnj(j)=dot_product(dw4,nrefges(ihob-1:ihob+2,i))!derivative (dN/dx)_j                                                                      
               if(ddnj(j)>zero) then
                  qcfail(i)=.true.
-                 qcfail_eight(i) = one
+                 qcfail_seven(i) = one
                  data(ier,i) = zero
                  ratio_errors(i) = zero
                  muse(i)=.false.
@@ -898,24 +841,14 @@ subroutine setupbend(obsLL,odiagLL, &
                    end if
                end if !gross qc check
             end if ! commdat < commgpstop
-         end if ! qc checks (only below 50km)
-!        Remove obs above 50 km  
+         end if ! alt < gpstop
+!        Remove obs above gpstop or commgpstop  
          if((alt > gpstop) .or. (commdat .and. (alt > commgpstop))) then
            data(ier,i) = zero
            ratio_errors(i) = zero
            qcfail_two(i)=one
            muse(i)=.false.
          endif
-
-!       Turn on MetOP/GRAS data below 8 km
-!         if( (alt <= eight) .and. & 
-!            ((data(isatid,i)==4).or.(data(isatid,i)==3).or.(data(isatid,i)==5))) then
-!           qcfail(i)=.true.
-!           qcfail_seven(i) = one
-!           data(ier,i) = zero
-!           ratio_errors(i) = zero
-!           muse(i)=.false.
-!         endif
 
        end if ! obs above super-refraction and shadow layers
      end if ! obs inside the vertical grid
@@ -934,8 +867,7 @@ subroutine setupbend(obsLL,odiagLL, &
      do i=1,nobs
 
         if (qcfail(i) .or. qcfail_five(i) > zero .or. &
-            qcfail_six(i) > zero .or. qcfail_seven(i) > zero .or. &
-            qcfail_eight(i) > zero) then
+            qcfail_six(i) > zero .or. qcfail_seven(i) > zero) then
            data(ier,i) = zero
            ratio_errors(i) = zero
            muse(i) = .false.
@@ -978,7 +910,6 @@ subroutine setupbend(obsLL,odiagLL, &
         if(qcfail_five(i) == one)     rdiagbuf(10,i) = five
         if(qcfail_six(i) == one)      rdiagbuf(10,i) = six
         if(qcfail_seven(i) == one)    rdiagbuf(10,i) = seven
-        if(qcfail_eight(i) == one)    rdiagbuf(10,i) = eight
 
         if(muse(i)) then                    ! modified in genstats_gps due to toss_gps_sub
            rdiagbuf(12,i) = one             ! minimization usage flag (1=use, -1=not used)
