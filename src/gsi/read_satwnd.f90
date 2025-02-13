@@ -362,8 +362,10 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         istype  = sattab(ysub,isaid,ihdr9,2)
 
         if (istype == -1) cycle loop_report ! unassigned itypes
-        if (itype  == -1) write(6,*) 'type mismatch', itype,istype
-        if (itype  == -1) cycle loop_report ! unassigned itypes    `
+        if (itype  == -1) then
+           write(6,*) 'type mismatch', itype,istype
+           cycle loop_report ! unassigned itypes 
+        endif
 
         istab(nmsg) = istype 
 

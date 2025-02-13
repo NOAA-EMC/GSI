@@ -1254,7 +1254,7 @@ contains
 ! !USES:
 
     use mpimod, only: mype
-    use constants, only: zero,one,r10000
+    use constants, only: r10000
     implicit none
 
     integer(i_kind),optional, intent(in) :: pe_out
