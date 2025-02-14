@@ -1358,8 +1358,6 @@ contains
   !                            - add CV transform option on hydrometer variables
   !   2022-03-15  Hu  change all th2 to t2m and convert 2m temperature 
   !                        from potentionl to senseible temperature
-  !   2025-01-28  zhao   - added code to read wave height (howv) & wind gust (gust) 
-  !                        from intermediate binary file for the analysis in WRF-ARW based 3DRTMA
   !
   !   input argument list:
   !     mype     - pe number

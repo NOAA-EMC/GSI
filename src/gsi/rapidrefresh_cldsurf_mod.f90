@@ -33,8 +33,6 @@ module rapidrefresh_cldsurf_mod
 !                         corp_howv:   to set the static background error of howv
 !                         hwllp_howv:  to set the de-correlation length scale
 !                         i_howv_3dda: control the analysis of howv in 3D analysis (if howv is in anavinfo)
-!   2025-01-28 zhao  -- added option i_howv_mask to control the screen off the wave height
-!                             over the land/lake area with land/lake mask
 ! 
 ! Subroutines Included:
 !   sub init_rapidrefresh_cldsurf  - initialize RR related variables to default values
@@ -188,13 +186,6 @@ module rapidrefresh_cldsurf_mod
 !                          = 3(similar to 2, but adjustment to Qr/Qs/Qnr only below maximum reflectivity level
 !                           and where the dbz_obs is missing);
 !
-!      NOTE:    for analysis of significant wave height (howv) and 10-m wind gust (gust),
-!               in hybrid envar run, the static BE is redueced by beta_s (<1.0),
-!               since there is no ensemble of howv currently yet, then no ensemble 
-!               contribution to the total BE of howv, so the total BE of howv is actually
-!               just the reduced static BE of howv. If to make the analysis of howv
-!               in hyrbid run is as similar as the analysis of howv in pure 3dvar run, 
-!               the static BE of howv used in hybrid run needs to be tuned (inflated actually).
 !      corp_howv      - namelist real, static BE of howv (standard error deviation)
 !      hwllp_howv     - namelist real, static BE de-correlation length scale of howv
 !      i_howv_3dda    - integer, control the analysis of howv in 3D analysis (either var or hybrid)

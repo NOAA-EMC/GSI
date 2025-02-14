@@ -1850,8 +1850,6 @@ contains
   !                        from sensible to potentionl temperature for writing
   !   2022-03-15  Hu  add a check to remove the negative moisture if rh>4%
   !                   for the lowest 3 model level
-  !   2025-01-28  zhao   - added code to write out analyses of wave height (howv) & wind gust (gust)
-  !                              into intermediate binart file for WRF_ARW 3DRTMA
   !
   !   input argument list:
   !     mype     - pe number
@@ -2119,13 +2117,13 @@ contains
        end if
        if ( laeroana_gocart ) then
           do iv = 1, n_gocart_var
-             i_chem(iv)=i_tt+(iv-1)*lm+1        ! ???? (tt is 3D field, should i_chem be i_tt + iv*lm ?)
+             i_chem(iv)=i_tt+(iv-1)*lm+1
           end do
        endif
   
        if ( wrf_pm2_5 ) then
           iv=1
-          i_chem(iv)=i_tt+(iv-1)*lm+1           ! ???? (tt is 3D field, should i_chem be i_tt + iv*lm ?)
+          i_chem(iv)=i_tt+(iv-1)*lm+1
        endif
        
     else

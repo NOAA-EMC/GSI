@@ -33,8 +33,6 @@ subroutine setuphowv(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
 !                       . Remove my_node with corrected typecast().
 !   2018-01-08  pondeca - addd option l_closeobs to use closest obs to analysis
 !                                     time in analysis
-!   2025-01-24  zhao    - add option l_obsprvdiag to control the dump-out of obs provider
-!                             info into obs diag file (for non-twodvar analysis)
 !
 !   input argument list:
 !     lunin    - unit from which to read observations

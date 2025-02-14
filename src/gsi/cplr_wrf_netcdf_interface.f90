@@ -47,8 +47,6 @@ contains
   !                            - add code for hydrometer variables needed for direct reflectivity DA
   !                            - add CV transform option on hydrometer variables for direct reflectivity DA
   !
-  !   2025-01-27  zhao   - added code for the input of wave height (howv) and wind gust (gust) fields from
-  !                              the WRF-ARW (RAP/HRRR based) analysis file (netcdf fortmat).
   !   input argument list:
   !
   !   output argument list:
@@ -1059,12 +1057,12 @@ contains
              write(iunit)field2   !HOWV  (2D wave height)
              i_howv_3dda = 2               ! howv was found both in anavinfo and firstguess
           else
+             i_howv_3dda = 0               ! skipping analysis of this variable
              derr_msg='Warning: Error when get info in firstguess for var : '//trim(rmse_var)//    &
                       ' ==> Stop GSI analysis ...  ierr='
 !            write(6,'(1x,A,A2,A,1x,I6)')trim(adjustl(myname_)),'::',trim(adjustl(derr_msg)),ierr
 !            call stop2(ierr)
              call die(trim(adjustl(myname_)),trim(adjustl(derr_msg)),ierr)
-             i_howv_3dda = 0               ! skipping analysis of this variable
           end if
 
 !         reading lakemask for screening off wave height over lake (and/or land) area
@@ -1134,12 +1132,12 @@ contains
              write(iunit)field2   !GUST  (2D Wind Gust)
              i_gust_3dda = 2               ! gust was found both in anavinfo and firstguess
           else
+             i_gust_3dda = 0               ! skipping analysis of this variable
              derr_msg='Warning: Error when get info in firstguess for var : '//trim(rmse_var)//    &
                       ' ==> Stop GSI analysis ...  ierr='
 !            write(6,'(1x,A,A2,A,1x,I6)')trim(adjustl(myname_)),'::',trim(adjustl(derr_msg)),ierr
 !            call stop2(ierr)
              call die(trim(adjustl(myname_)),trim(adjustl(derr_msg)),ierr)
-             i_gust_3dda = 0               ! skipping analysis of this variable
           end if
        endif  ! i_gust_3dda (reading 2D 10-m wind gust from netcdf-format background) 
 
@@ -2541,8 +2539,6 @@ contains
   !   2020-09-13 CAPS(C. Liu, L. Chen, and H. Li) 
   !                            - add code for hydrometer variables needed for direct reflectivity DA
   !                            - add CV transform option on hydrometer variables for direct reflectivity DA
-  !   2025-01-27  zhao   - added code for the output of wave height (howv) and wind gust (gust) fields to
-  !                              the WRF-ARW (RAP/HRRR based) analysis file (netcdf fortmat).
   !
   !   input argument list:
   !

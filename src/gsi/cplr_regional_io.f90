@@ -62,8 +62,6 @@ contains
   !   2005-05-24  pondeca - add 2dvar only surface analysis option
   !   2005-07-06  parrish - add variable update_pint
   !   2012-10-11  parrish - add byte_swap, which is set only on pe 0 and must be broadcast to all pes.
-  !   2025-01-29  zhao    - add i_howv_3dda/i_gust_3dda/i_howv_mask, which are set only on pe 0 and
-  !                             must be broadcast to all pes.
   !
   !   input argument list:
   !      mype - mpi task id

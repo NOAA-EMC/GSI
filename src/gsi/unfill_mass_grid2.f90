@@ -386,21 +386,15 @@ subroutine unfill_mass_grid2t_ldlkmask(gout,nx,ny,gin,landmask, &
                             lakemask,i_howv_mask)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    unfill_mass_grid2t        opposite of fill_mass_grid2
-!   prgmmr: parrish          org: np22                date: 2004-06-22
+! subprogram:    unfill_mass_grid2t_ldlkmask
+!   prgmmr: zhao             org: saic@ncep/emc       date: 2025-01-28
 !
-! abstract: This is the same as unfill_mass_grid2t and unfill_mass_grid2t_ldmk
-!           but screen off analysis increment over land and/or lake . 
+! abstract: This subroutine is based on subroutine unfill_mass_grid2t andi
+!           unfill_mass_grid2t_ldmk, but screen off analysis increment over
+!           land and/or lake area with land-mask and lake-mask. 
 !
 !
 ! program history log:
-!   2004-07-16  parrish
-!   2013-10-25  todling - reposition ltosi and others to commvars
-!   2014-03-12  Hu       Code for GSI analysis on grid larger than background grid: 
-!                        Here input grid is larger than output grid.
-!   2014-04-04  todling - reposition ltosi and others to commvars
-!   2015-01-15  Hu      - apply the land/sea mask here for soil adjustment
-!                          fields
 !   2025-01-28  zhao    - apply land and lake mask for howv (wave height) fields
 !
 !   input argument list:
