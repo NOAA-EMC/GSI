@@ -289,6 +289,8 @@ function dtype2index_(dtype) result(index_)
     case("omieff"   ); index_= iobOper_oz
     case("tomseff"  ); index_= iobOper_oz
     case("ompsnmeff"); index_= iobOper_oz
+    case("ompsnmnc" ); index_= iobOper_oz
+    case("ompsnpnc" ); index_= iobOper_oz
 
   case("o3l"    ,"[o3loper]"    ); index_= iobOper_o3l
     case("o3lev"    ); index_= iobOper_o3l
