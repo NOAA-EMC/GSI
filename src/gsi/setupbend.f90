@@ -108,6 +108,9 @@ subroutine setupbend(obsLL,odiagLL, &
 !   2021-11-05  cucurull - update QCs and optimize/improve forward operator; bug fixes
 !   2022-01-28  cucurull - add Sentinel-6, PAZ
 !   2022-04-06  collard  - reintroduce Jacbian QC as an option (default off)
+!   2024-12-04  Li       - remove the QC check for rejecting MetOp data <8 km
+!   2024-12-04  Li       - add GRACE-FO (803&804) data 
+!   2024-12-04  Li       - add new obs error model by Chris Riedel
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -168,7 +171,9 @@ subroutine setupbend(obsLL,odiagLL, &
   use m_gpsrhs, only: ratio_errors
   use m_gpsrhs, only: rdiagbuf,cdiagbuf
   use m_gpsrhs, only: qcfail
-  use m_gpsrhs, only: qcfail_loc,qcfail_high,qcfail_gross,qcfail_jac
+  use m_gpsrhs, only: qcfail_jac
+  use m_gpsrhs, only: qcfail_one,qcfail_two,qcfail_three,qcfail_five 
+  use m_gpsrhs, only: qcfail_six,qcfail_seven 
   use m_gpsrhs, only: data_ier,data_igps,data_ihgt
   use m_gpsrhs, only: gpsrhs_alloc
   use m_gpsrhs, only: gpsrhs_dealloc
@@ -196,6 +201,7 @@ subroutine setupbend(obsLL,odiagLL, &
 ! Declare local parameters
   real(r_kind),parameter::  r240 = 240.0_r_kind
   real(r_kind),parameter:: six = 6.0_r_kind
+  real(r_kind),parameter:: seven = 7.0_r_kind
   real(r_kind),parameter:: ten = 10.0_r_kind
   real(r_kind),parameter:: eight = 8.0_r_kind
   real(r_kind),parameter:: nine = 9.0_r_kind
@@ -220,7 +226,7 @@ subroutine setupbend(obsLL,odiagLL, &
   real(r_kind) termg,termr,termrg,hob,dbend,grad_mod
   real(r_kind) fact,pw,nrefges1,nrefges2,nrefges3,k4,delz
   real(r_kind) ratio,residual,obserror,obserrlm,cermaxuse,cerminuse,cgrossuse
-  real(r_kind) errinv_input,errinv_adjst,errinv_final,err_final,repe_gps
+  real(r_kind) errinv_input,errinv_adjst,errinv_final,err_final
 
   real(r_kind),dimension(nele,nobs):: data
   real(r_kind),dimension(nsig):: dbenddn,dbenddxi
@@ -228,7 +234,8 @@ subroutine setupbend(obsLL,odiagLL, &
   real(r_kind),dimension(4) :: w4,dw4,dw4_TL
   
   integer(i_kind) ier,ilon,ilat,ihgt,igps,itime,ikx,iuse, &
-                  iprof,ipctc,iroc,isatid,iptid,ilate,ilone,ioff,igeoid
+                  iprof,ipctc,iroc,isatid,iptid,ilate,ilone,ioff,igeoid, &
+                  ilsw,ilswflag
   integer(i_kind) i,j,k,kk,mreal,nreal,jj,ikxx,ibin
   integer(i_kind) mm1,nsig_up,ihob,istatus,nsigstart
   integer(i_kind) kprof,istat,k1,k2,nobs_out,top_layer_SR,bot_layer_SR,count_SR
@@ -301,6 +308,8 @@ subroutine setupbend(obsLL,odiagLL, &
 !268 => PlanetiQ GNOMES-B
 !269 => Spire Lemur 3U CubeSat
 !66 => Sentinel-6 
+!803=> GRACE C
+!804=> GRACE D
 
 ! Check to see if required guess fields are available
   call check_vars_(proceed)
@@ -328,6 +337,8 @@ subroutine setupbend(obsLL,odiagLL, &
   ilone=14     ! index of earth relative longitude (degrees)
   ilate=15     ! index of earth relative latitude (degrees)
   igeoid=16    ! index of geoid undulation (a value per profile, m) 
+  ilsw=17      ! index of bending angle LSW 
+  ilswflag=18  ! index of LSW flag 
 
 ! Intialize variables
   nsig_up=nsig+nsig_ext ! extend nsig_ext levels above interface level nsig
@@ -345,7 +356,7 @@ subroutine setupbend(obsLL,odiagLL, &
   allocate(ddnj(grids_dim),grid_s(grids_dim),ref_rad_s(grids_dim)) 
 
 ! Allocate arrays for output to diagnostic file
-  mreal=22
+  mreal=25
   nreal=mreal
   if (lobsdiagsave) nreal=nreal+4*miter+1
   if (save_jacobian) then
@@ -396,10 +407,22 @@ subroutine setupbend(obsLL,odiagLL, &
      data_igps(:)=data(igps,:)
      muse(:)=.false.
 
+     !qc flags
+     !qc = 1: beyond model top or bottom
+     !qc = 2: gpstop (55 km or 45 km for commercial data)
+     !qc = 3: gross check
+     !qc = 4: super refraction
+     !qc = 5: background bending angle > 0.05 rad
+     !qc = 6: statistic (cutoff) QC
+     !qc = 7: ddnj < 0
+     !qcfail_jac: jacobian check (currently not used)
      qcfail=.false.
-     qcfail_loc=zero;qcfail_gross=zero
-     qcfail_high=zero
      qcfail_jac=zero
+
+
+     qcfail_one=zero;qcfail_two=zero
+     qcfail_three=zero;qcfail_five=zero
+     qcfail_six=zero;qcfail_seven=zero
      toss_gps_sub=zero 
      dbend_loc=zero
 
@@ -550,7 +573,7 @@ subroutine setupbend(obsLL,odiagLL, &
         data(ier,i) = zero
         ratio_errors(i) = zero
         muse(i)=.false.
-        qcfail_loc(i)=one
+        qcfail_one(i) = one
      endif
 
 !    Increment obs counter along with low and high obs counters
@@ -582,6 +605,9 @@ subroutine setupbend(obsLL,odiagLL, &
      rdiagbuf(17,i)        = data(igps,i)       ! bending angle observation (radians)
      rdiagbuf(19,i)        = hob                ! model vertical grid (interface) if monotone grid
      rdiagbuf(22,i)        = 1.e+10_r_kind      ! spread (filled in by EnKF)
+     rdiagbuf(23,i)        = (data(ilsw,i)/data(igps,i))*100._r_kind ! Fractional LSW 
+     rdiagbuf(24,i)        = 0.0_r_kind         ! holder for STD4060 in hybrid error model 
+     rdiagbuf(25,i)        = data(ilswflag,i)   ! LSW flag 
 
      if(ratio_errors(i) > tiny_r_kind)  then ! obs inside model grid
 
@@ -630,72 +656,7 @@ subroutine setupbend(obsLL,odiagLL, &
        if (data(isatid,i)>=265 .and. data(isatid,i)<=269) commdat=.true.
        if (.not. qcfail(i)) then ! not SR
 
-!        Modify error to account for representativeness error. 
-         repe_gps=one
-
-!        UKMET-type processing
-         if((data(isatid,i)==41) .or.(data(isatid,i)==722).or. &
-            (data(isatid,i)==723).or.(data(isatid,i)==4)  .or. & 
-            (data(isatid,i)==42) .or.(data(isatid,i)==3)  .or. &
-            (data(isatid,i)==821).or.(data(isatid,i)==421).or. &
-            (data(isatid,i)==440).or.(data(isatid,i)==43) .or. &
-            (data(isatid,i)==5).or.(data(isatid,i)==66)) then
-                    
-           if((data(ilate,i)> r40).or.(data(ilate,i)< -r40)) then
-              if(alt>r12) then
-                repe_gps=0.19032_r_kind+0.287535_r_kind*alt-0.00260813_r_kind*alt**2
-              else
-                repe_gps=-3.20978_r_kind+1.26964_r_kind*alt-0.0622538_r_kind*alt**2 
-              endif
-           else
-              if(alt>r18) then
-                repe_gps=-1.87788_r_kind+0.354718_r_kind*alt-0.00313189_r_kind*alt**2
-              else
-                repe_gps=-2.41024_r_kind+0.806594_r_kind*alt-0.027257_r_kind*alt**2
-              endif
-           endif
-         else 
-!        CDAAC-type processing
-           if (((data(isatid,i) > 749).and.(data(isatid,i) < 756)).or.commdat) then
-              if ((data(ilate,i)> r40).or.(data(ilate,i)< -r40)) then
-                if (alt <= 8.0_r_kind) then
-                  repe_gps=-1.0304261_r_kind+0.3203316_r_kind*alt+0.0141337_r_kind*alt**2
-                elseif (alt > 8.0_r_kind.and.alt <= r12) then
-                  repe_gps=2.1750271_r_kind+0.0431177_r_kind*alt-0.0008567_r_kind*alt**2
-                else
-                  repe_gps=-0.3447429_r_kind+0.2829981_r_kind*alt-0.0028545_r_kind*alt**2
-                endif
-              else
-                if (alt <= 4.0_r_kind) then
-                  repe_gps=0.7285212_r_kind-1.1138755_r_kind*alt+0.2311123_r_kind*alt**2
-                elseif (alt <= r18.and.alt > 4.0_r_kind) then
-                  repe_gps=-3.3878629_r_kind+0.8691249_r_kind*alt-0.0297196_r_kind*alt**2
-                else
-                  repe_gps=-2.3875749_r_kind+0.3667211_r_kind*alt-0.0037542_r_kind*alt**2
-                endif
-              endif
-           else
-              if((data(ilate,i)> r40).or.(data(ilate,i)< -r40)) then
-                 if(alt>r12) then
-                    repe_gps=-0.685627_r_kind+0.377174_r_kind*alt-0.00421934_r_kind*alt**2
-                 else
-                    repe_gps=-3.27737_r_kind+1.20003_r_kind*alt-0.0558024_r_kind*alt**2
-                 endif
-              else
-                 if(alt>r18) then
-                    repe_gps=-2.73867_r_kind+0.447663_r_kind*alt-0.00475603_r_kind*alt**2
-                 else
-                    repe_gps=-3.45303_r_kind+0.908216_r_kind*alt-0.0293331_r_kind*alt**2
-                 endif
-              endif
-           endif
-
-         endif
-
-         repe_gps=exp(repe_gps) ! one/modified error in (rad-1*1E3)
-         repe_gps= r1em3*(one/abs(repe_gps)) ! modified error in rad
-         if (commdat) repe_gps=commgpserrinf*repe_gps ! Inflate error for commercial data
-         ratio_errors(i) = data(ier,i)/abs(repe_gps)
+         ratio_errors(i) = data(ier,i)
   
          error(i)=one/data(ier,i) ! one/original error
          data(ier,i)=one/data(ier,i) ! one/original error
@@ -754,6 +715,7 @@ subroutine setupbend(obsLL,odiagLL, &
               ddnj(j)=dot_product(dw4,nrefges(ihob-1:ihob+2,i))!derivative (dN/dx)_j                                                                      
               if(ddnj(j)>zero) then
                  qcfail(i)=.true.
+                 qcfail_seven(i) = one
                  data(ier,i) = zero
                  ratio_errors(i) = zero
                  muse(i)=.false.
@@ -802,6 +764,7 @@ subroutine setupbend(obsLL,odiagLL, &
          if(dbend > 0.05_r_kind) then
            data(ier,i) = zero
            ratio_errors(i) = zero
+           qcfail_five(i) = one
            qcfail(i)=.true.
            muse(i)=.false.
          endif
@@ -821,7 +784,7 @@ subroutine setupbend(obsLL,odiagLL, &
                    if (luse(i)) then
                       awork(4) = awork(4)+one
                    endif
-                   qcfail_gross(i)=one 
+                   qcfail_three(i) = one
                    data(ier,i) = zero
                    ratio_errors(i) = zero
                    muse(i)=.false.
@@ -871,27 +834,19 @@ subroutine setupbend(obsLL,odiagLL, &
  
                    if(abs(rdiagbuf(5,i)) > cutoff) then
                       qcfail(i)=.true.
+                      qcfail_six(i) = one
                       data(ier,i) = zero
                       ratio_errors(i) = zero
                       muse(i) = .false.
                    end if
                end if !gross qc check
             end if ! commdat < commgpstop
-         end if ! qc checks (only below 50km)
-!        Remove obs above 50 km  
+         end if ! alt < gpstop
+!        Remove obs above gpstop or commgpstop  
          if((alt > gpstop) .or. (commdat .and. (alt > commgpstop))) then
            data(ier,i) = zero
            ratio_errors(i) = zero
-           qcfail_high(i)=one
-           muse(i)=.false.
-         endif
-
-!       Remove MetOP/GRAS data below 8 km
-         if( (alt <= eight) .and. & 
-            ((data(isatid,i)==4).or.(data(isatid,i)==3).or.(data(isatid,i)==5))) then
-           qcfail(i)=.true.
-           data(ier,i) = zero
-           ratio_errors(i) = zero
+           qcfail_two(i)=one
            muse(i)=.false.
          endif
 
@@ -911,7 +866,8 @@ subroutine setupbend(obsLL,odiagLL, &
 
      do i=1,nobs
 
-        if (qcfail(i)) then
+        if (qcfail(i) .or. qcfail_five(i) > zero .or. &
+            qcfail_six(i) > zero .or. qcfail_seven(i) > zero) then
            data(ier,i) = zero
            ratio_errors(i) = zero
            muse(i) = .false.
@@ -947,10 +903,13 @@ subroutine setupbend(obsLL,odiagLL, &
         ! flags for observations that failed qc checks
         ! zero = observation is good
  
-        if(qcfail_gross(i) == one)   rdiagbuf(10,i) = three
-        if(qcfail(i))                rdiagbuf(10,i) = four !modified in genstats due to toss_gps_sub
-        if(qcfail_loc(i) == one)     rdiagbuf(10,i) = one
-        if(qcfail_high(i) == one)    rdiagbuf(10,i) = two
+        if(qcfail(i))                 rdiagbuf(10,i) = four !modified in genstats due to toss_gps_sub
+        if(qcfail_one(i) == one)      rdiagbuf(10,i) = one
+        if(qcfail_two(i) == one)      rdiagbuf(10,i) = two
+        if(qcfail_three(i) == one)    rdiagbuf(10,i) = three
+        if(qcfail_five(i) == one)     rdiagbuf(10,i) = five
+        if(qcfail_six(i) == one)      rdiagbuf(10,i) = six
+        if(qcfail_seven(i) == one)    rdiagbuf(10,i) = seven
 
         if(muse(i)) then                    ! modified in genstats_gps due to toss_gps_sub
            rdiagbuf(12,i) = one             ! minimization usage flag (1=use, -1=not used)

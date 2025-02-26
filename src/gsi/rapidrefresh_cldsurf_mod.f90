@@ -185,18 +185,18 @@ module rapidrefresh_cldsurf_mod
 !                          = 2(clean Qg as in 1, and adjustment to the retrieved Qr/Qs/Qnr throughout the whole profile)
 !                          = 3(similar to 2, but adjustment to Qr/Qs/Qnr only below maximum reflectivity level
 !                           and where the dbz_obs is missing);
+!
 !      corp_howv      - namelist real, static BE of howv (standard error deviation)
 !      hwllp_howv     - namelist real, static BE de-correlation length scale of howv
 !      i_howv_3dda    - integer, control the analysis of howv in 3D analysis (either var or hybrid)
 !                          = 0 (howv-off: default) : no analysis of howv in 3D analysis.
 !                          = 1 (howv-on) : if variable name "howv" is found in anavinfo,
 !                                          set it to be 1 to turn on analysis of howv;
-!                          note: in hybrid envar run, the static BE is redueced by beta_s (<1.0),
-!                                since there is no ensemble of howv currently yet, then no ensemble 
-!                                contribution to the total BE of howv, so the total BE of howv is actually
-!                                just the reduced static BE of howv. If to make the analysis of howv
-!                                in hyrbid run is as similar as the analysis of howv in pure 3dvar run, 
-!                                the static BE of howv used in hybrid run needs to be tuned (inflated actually).
+!     i_howv_mask     - integer, control the screen of wave height (howv) over the land and lake area
+!                                with the land mask and lake mask data
+!                          = 0 (default): do not screen off the howv data
+!                          = 1          : screen of the howv data over the land area only (with land mask)
+!                          = 2          : screen of the howv data over the land and lake area (with land mask and lake mask)
 !      corp_gust      - namelist real, static BE of gust (standard error deviation)
 !                          note: 1. initialised to be an arbitary negative value, in order to skip this 
 !                                   negative value, instead to use value (3.0 m/s) set in subroutine 
@@ -294,6 +294,7 @@ module rapidrefresh_cldsurf_mod
   public :: i_precip_vertical_check
   public :: corp_howv, hwllp_howv
   public :: i_howv_3dda
+  public :: i_howv_mask
   public :: corp_gust, hwllp_gust, oerr_gust
   public :: i_gust_3dda
 
@@ -356,6 +357,7 @@ module rapidrefresh_cldsurf_mod
   integer(i_kind)      i_precip_vertical_check
   real(r_kind)      :: corp_howv, hwllp_howv
   integer(i_kind)   :: i_howv_3dda
+  integer(i_kind)   :: i_howv_mask
   real(r_kind)      :: corp_gust, hwllp_gust, oerr_gust
   integer(i_kind)   :: i_gust_3dda
 
@@ -475,6 +477,7 @@ contains
     corp_howv           = 0.42_r_kind                 ! 0.42 meters (default)
     hwllp_howv          = 170000.0_r_kind             ! 170,000.0 meters (170km as default for 3DRTMA, 50km is used in 2DRTMA)
     i_howv_3dda         = 0                           ! no analysis of significant wave height (howv) in 3D analysis (default)
+    i_howv_mask         = 0                           ! do NOT mask significant wave height (howv) over the land/lake area (default)
     corp_gust           = -1.50_r_kind                ! initialised as negative & void to be skipped, in order to use
                                                       ! the value (3.0 m/s) set in sub berror_read_wgt_reg (as default).
                                                       ! If user-specified value is preferred, set it in session
