@@ -25,20 +25,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 !            domain
 !
 ! program history log:
-!  2011-12-06  Original version based on r16656 version of read_bufrtovs.  A. Collard
-!  2012-03-05  akella  - nst now controlled via coupler
-!  2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
-!  2013-12-20  eliu - change icw4crtm>0 to icw4crtm>10 (bug fix))
-!  2014-01-31  mkim - add iql4crtm and set qval= 0 for all-sky mw data assimilation
-!  2015-02-23  Rancic/Thomas - add thin4d to time window logical
-!  2015-08-20  zhu - add radmod for all-sky and aerosol usages in radiance assimilation
-!  2016-04-28  jung - added logic for RARS and direct broadcast from NESDIS/UW
-!  2016-10-20  collard - fix to allow monitoring and limited assimilation of spectra when key 
-!                         channels are missing.
-!  2016-10-25  zhu - add changes for assimilating radiances affected by non-precipitating clouds
-!  2018-02-05  collard - get orbit height from BUFR file
-!  2018-04-19  eliu - allow data selection for precipitation-affected data 
-!  2018-05-21  j.jin  - added time-thinning, to replace thin4d
+!  2024-12-01  Copied from read_atms.f90
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -286,6 +273,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 
 ! IFSCALC setup
 ! Jin. Replayce isfcalc by isfcalc_mws before calc_fov_crosstrk works for MWS data.
+! isfcalc_mw =  isfcalc  ! input
   isfcalc_mws = 0
   if (isfcalc_mws==1) then
      instr=20                    
@@ -425,7 +413,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
            idate5(4) = bfr1bhdr(6) !hour
            idate5(5) = bfr1bhdr(7) !minute
            call w3fs21(idate5,nmind)
-           if (idate5(1) > 2025) then 
+           if (idate5(1) >= 2025) then 
               t4dv= (real((nmind-iwinbgn),r_kind) + bfr1bhdr(8)*r60inv)*r60inv    ! add in seconds
               tdiff=t4dv+(iwinbgn-gstime)*r60inv
            else
@@ -434,6 +422,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
               t4dv = real((nmind-gstime),r_kind) + bfr1bhdr(8)*r60inv*r60inv   ! hours from gstime
               tdiff = t4dv - int(t4dv/twind, i_kind)*twind  ! makes |obstime - gstime | < twind
               t4dv = tdiff - (iwinbgn-gstime)*r60inv ! hours from the beginning of the analysis window
+              write(6,'(a,i5,4i3,2f10.3)') 'jjj read_mws, year mon day hour minute,t4dv, tdiff =', idate5(1:5),t4dv, tdiff
            endif
 
            if (l4dvar.or.l4densvar) then
@@ -455,13 +444,13 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 
            ifov = nint(bfr1bhdr(2))
            lza = bfr2bhdr(1)*deg2rad      ! local zenith angle
-           if(ifov <= 48)    lza=-lza
+           if(ifov <= 46)    lza=-lza
 
            panglr=(start+real(ifov-1,r_kind)*step)*deg2rad
            satellite_height=bfr1bhdr(13)
-!          Ensure orbit height is reasonable
+!          Ensure orbit height is reasonable, 830 km 
            if (satellite_height < 780000.0_r_kind .OR. &
-              satellite_height > 900000.0_r_kind) satellite_height = 824000.0_r_kind
+              satellite_height > 900000.0_r_kind) satellite_height = 830000.0_r_kind
            rato = one + satellite_height/rearth_equator
            lzaest = asin(rato*sin(panglr))
 
