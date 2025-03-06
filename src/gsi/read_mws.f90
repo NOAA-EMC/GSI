@@ -75,7 +75,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   use calc_fov_crosstrk, only : instrument_init, fov_cleanup, fov_check
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen
   use deter_sfc_mod, only: deter_sfc_fov,deter_sfc
-  use atms_spatial_average_mod, only : atms_spatial_average
+  use mws_spatial_average_mod, only : mws_spatial_average
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth,gsi_nstcoupler_deter
   use mpimod, only: npe
@@ -448,9 +448,9 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 
            panglr=(start+real(ifov-1,r_kind)*step)*deg2rad
            satellite_height=bfr1bhdr(13)
-!          Ensure orbit height is reasonable, 830 km 
+!          Ensure orbit height is reasonable, 835 km 
            if (satellite_height < 780000.0_r_kind .OR. &
-              satellite_height > 900000.0_r_kind) satellite_height = 830000.0_r_kind
+              satellite_height > 900000.0_r_kind) satellite_height = 835000.0_r_kind
            rato = one + satellite_height/rearth_equator
            lzaest = asin(rato*sin(panglr))
 
@@ -498,16 +498,15 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   ALLOCATE(Relative_Time_In_Seconds(Num_Obs))
   ALLOCATE(IScan(Num_Obs))
   Relative_Time_In_Seconds = 3600.0_r_kind*T4DV_Save(1:Num_Obs)
-!  CALL ATMS_Spatial_Average(Num_Obs, NChanl, IFOV_Save(1:Num_Obs), &
-!       Relative_Time_In_Seconds, BT_Save(1:nchanl,1:Num_Obs), IScan, IRet)
-! write(6,*) 'ATMS_Spatial_Average Called with IRet=',IRet
+  call mws_spatial_average(Num_Obs, NChanl, IFOV_Save(1:Num_Obs), &
+       Relative_Time_In_Seconds, BT_Save(1:nchanl,1:Num_Obs), IScan, IRet)
+  write(6,*) 'mws_spatial_average Called with IRet=',IRet
   DEALLOCATE(Relative_Time_In_Seconds)
   
-! IF (IRet /= 0) THEN
-!    write(6,*) 'Error Calling ATMS_Spatial_Average from READ_MWS'
-!    RETURN
-! END IF
-  write(6,*) 'No ATMS-alike spatial average for MWS in READ_MWS for now.'
+  IF (IRet /= 0) THEN
+     write(6,*) 'Error Calling mws_spatial_average from READ_MWS'
+     RETURN
+  END IF
 
 ! Complete Read_MWS thinning and QC steps
 

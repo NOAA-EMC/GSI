@@ -409,6 +409,7 @@ mpimod.F90
 mpl_allreduce.F90
 mpl_bcast.f90
 mrmsmod.f90
+mws_spatial_average_mod.f90
 native_endianness.f90
 ncepgfs_ghg.f90
 ncepgfs_io.f90

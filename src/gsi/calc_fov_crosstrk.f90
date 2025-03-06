@@ -1283,8 +1283,8 @@
        height=705._r_kind
     case('metop-a', 'metop-b', 'metop-c')
        height=817._r_kind
-    case('metop-sg-a1', 'metop-sg-b1')
-       height=830._r_kind
+    case('metop-sg-a1')
+       height=835._r_kind
     case('meghat')
        height=866._r_kind
     case('npp')
