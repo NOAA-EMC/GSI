@@ -448,6 +448,7 @@ module obsmod
   public :: lsaveobsens
   public :: iout_cldch, mype_cldch
   public :: nprof_gps,time_offset,ianldate,tcp_box
+  public :: nobs_gps
   public :: iout_oz,iout_co,dsis,ref_obs,obsfile_all,lobserver,tcp_posmatch,perturb_obs,ditype,dsfcalc,dplat
   public :: time_window,dval,dtype,dfile,dirname,obs_setup,oberror_tune,offtime_data
   public :: lobsdiagsave,lobsdiag_forenkf,blacklst,hilbert_curve,lobskeep,time_window_max,sfcmodel,ext_sonde
@@ -593,7 +594,7 @@ module obsmod
   real(r_kind),dimension(50):: dmesh
   real(r_kind) r_hgt_fed
   integer(i_kind) nchan_total,ianldate
-  integer(i_kind) ndat,ndat_types,ndat_times,nprof_gps
+  integer(i_kind) ndat,ndat_types,ndat_times,nprof_gps,nobs_gps
   integer(i_kind) lunobs_obs,nloz_v6,nloz_v8,nobskeep,nloz_omi
   integer(i_kind) nlco,use_limit
   integer(i_kind) iout_rad,iout_pcp,iout_t,iout_q,iout_uv, &
@@ -944,6 +945,7 @@ contains
                                ! precipitation rate observations
 
     nprof_gps = 0
+    nobs_gps = 0
 
     hilbert_curve=.false.
     neutral_stability_windfact_2dvar=.false.

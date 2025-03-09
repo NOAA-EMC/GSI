@@ -405,8 +405,9 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
                (said == 44) .or. (said == 5)  .or. (said == 41)  .or. &
                (said == 42) .or. (said == 43) .or. (said == 722) .or. & 
                (said == 723).or. (said == 265).or. (said == 266) .or. &
-               (said == 267).or. (said == 268).or. (said == 269)) then
-             lexist=.true. 
+               (said == 267).or. (said == 268).or. (said == 269) .or. &
+               (said == 803).or. (said == 804).or. (said == 66)) then
+               lexist=.true. 
              exit gpsloop 
            end if 
            nread = nread + 1
@@ -735,7 +736,8 @@ subroutine read_obs(ndata,mype)
     use obsmod, only: iadate,ndat,time_window,dplat,dsfcalc,dfile,dthin, &
            dtype,dval,dmesh,obsfile_all,ref_obs,nprof_gps,dsis,ditype,&
            perturb_obs,lobserver,lread_obs_save,obs_input_common, &
-           reduce_diag,nobs_sub,dval_use,hurricane_radar,l2rwthin 
+           reduce_diag,nobs_sub,dval_use,hurricane_radar,l2rwthin, &
+           nobs_gps 
     use gsi_nstcouplermod, only: nst_gsi
 !   use gsi_nstcouplermod, only: gsi_nstcoupler_set
     use hdraobmod, only: read_hdraob,nhdt,nhdq,nhduv,nhdps,hdtlist,hdqlist,hduvlist,hdpslist,nodet,nodeq,nodeuv,nodeps
@@ -801,6 +803,7 @@ subroutine read_obs(ndata,mype)
     character(20):: sis
     integer(i_kind) i,j,k,ii,nmind,lunout,isfcalc,ithinx,ithin,nread,npuse,nouse
     integer(i_kind) nprof_gps1,npem1,krsize,len4file,npemax,ilarge,nlarge,npestart
+    integer(i_kind) nobs_gps1
     integer(i_llong) :: lenbytes
     integer(i_kind):: npetot,npeextra,mmdat,nodata
     integer(i_kind):: iworld,iworld_group,next_mype,mm1,iix
@@ -847,6 +850,7 @@ subroutine read_obs(ndata,mype)
     end do
     npem1=npe-1
     nprof_gps1=0
+    nobs_gps1 = 0
 
     if(njqc) then
        call converr_ps_read(mype)
@@ -1932,6 +1936,7 @@ subroutine read_obs(ndata,mype)
           else if (ditype(i) == 'gps')then
              call read_gps(nread,npuse,nouse,infile,lunout,obstype,twind, &
                   nprof_gps1,sis,nobs_sub1(1,i))
+                  nobs_gps1 = nouse
              string='READ_GPS'
 
 !         Process aerosol data
@@ -2044,6 +2049,7 @@ subroutine read_obs(ndata,mype)
 
 !   Collect number of gps profiles (needed later for qc)
     call mpi_allreduce(nprof_gps1,nprof_gps,1,mpi_integer,mpi_sum,mpi_comm_world,ierror)
+    call mpi_allreduce(nobs_gps1,nobs_gps,1,mpi_integer,mpi_sum,mpi_comm_world,ierror)
     call mpi_allreduce(nobs_sub1,nobs_sub,npe*ndat,mpi_integer,mpi_sum,mpi_comm_world,& 
          ierror)
 

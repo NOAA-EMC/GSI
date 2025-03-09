@@ -1394,6 +1394,7 @@ contains
          aerotot_guess,init_aerotot_guess,wrf_pm2_5,aero_ratios
     use rapidrefresh_cldsurf_mod, only: l_hydrometeor_bkio,l_gsd_soiltq_nudge
     use rapidrefresh_cldsurf_mod, only: i_use_2mq4b,i_use_2mt4b
+    use rapidrefresh_cldsurf_mod, only: i_howv_3dda, i_gust_3dda
     use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten,create_cld_grids
     use gsi_bundlemod, only: GSI_BundleGetPointer
     use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
@@ -1446,6 +1447,7 @@ contains
     integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr,i_qni,i_qnc,i_w,i_dbz
     integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,kqni,kqnc,i_xlon,i_xlat,i_tt,ktt
     integer(i_kind) i_th2,i_q2,i_soilt1,ksmois,ktslb
+    integer(i_kind) i_howv, i_gust
     integer(i_kind) ier, istatus
     integer(i_kind) n_actual_clouds
     integer(i_kind) iv,n_gocart_var
@@ -1469,6 +1471,8 @@ contains
     real(r_kind), pointer :: ges_tv_it (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_q_it  (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_w_it  (:,:,:)=>NULL()
+    real(r_kind), pointer :: ges_howv_it (:,:)=>NULL()
+    real(r_kind), pointer :: ges_gust_it (:,:)=>NULL()
   
     real(r_kind), pointer :: ges_qc (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_qi (:,:,:)=>NULL()
@@ -1560,6 +1564,8 @@ contains
        if(l_gsd_soilTQ_nudge) num_mass_fields=num_mass_fields+2*(nsig_soil-1)+1
        if(i_use_2mt4b > 0 ) num_mass_fields=num_mass_fields + 2
        if(i_use_2mq4b > 0 .and. i_use_2mt4b <=0 ) num_mass_fields=num_mass_fields + 1
+       if( i_howv_3dda > 0 ) num_mass_fields = num_mass_fields + 1
+       if( i_gust_3dda > 0 ) num_mass_fields = num_mass_fields + 1
 
        if (laeroana_gocart .and. wrf_pm2_5 ) then
           if(mype==0) write(6,*)'laeroana_gocart canoot be both true'
@@ -1740,6 +1746,18 @@ contains
           write(identity(i),'("record ",i3,"--th2(",i2,")")')i,k
           jsig_skip(i)=0 ; igtype(i)=1
        endif
+  !  for wave height (howv is after tsk/q2/soilt1/th2, and before cloud hydrometers) 
+       if ( i_howv_3dda >0 ) then
+         i=i+1 ; i_howv=i                                                ! howv
+         write(identity(i),'("record ",i3,"--howv")')i
+         jsig_skip(i)=0 ; igtype(i)=1
+       end if
+  !  for wind gust (gust is after tsk/q2/soilt1/th2, and before cloud hydrometers) 
+       if ( i_gust_3dda >0 ) then
+         i=i+1 ; i_gust=i                                                ! gust
+         write(identity(i),'("record ",i3,"--gust")')i
+         jsig_skip(i)=0 ; igtype(i)=1
+       end if
   ! for cloud array
        if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
           i_qc=i+1
@@ -1944,6 +1962,14 @@ contains
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 't2m',ges_t2m_it, istatus );ier=ier+istatus
              if (ier/=0) call die(trim(myname),'cannot get pointers for t2m,ier =',ier)
           endif
+          if ( i_howv_3dda >0 ) then
+             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'howv',ges_howv_it,istatus );ier=ier+istatus
+             if (ier/=0) call die(trim(myname),'cannot get pointers for met-field: howv, ier =',ier)
+          end if
+          if ( i_gust_3dda >0 ) then
+             call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'gust',ges_gust_it,istatus );ier=ier+istatus
+             if (ier/=0) call die(trim(myname),'cannot get pointers for met-field: gust, ier =',ier)
+          end if
           if (l_gsd_soilTQ_nudge) then
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tskn',ges_tsk_it, istatus );ier=ier+istatus 
              call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'tsoil',ges_soilt1_it,istatus);ier=ier+istatus
@@ -2273,6 +2299,14 @@ contains
                    ges_q2_it(j,i)=real(all_loc(j,i,i_0+i_q2),r_kind)
                    ges_q2_it(j,i)=ges_q2_it(j,i)/(one+ges_q2_it(j,i))
                 endif
+  ! wave height (howv)
+                if ( i_howv_3dda >0 ) then
+                    ges_howv_it(j,i)  = real(all_loc(j,i,i_0+i_howv),r_kind)
+                end if
+  ! wind gust (gust)
+                if ( i_gust_3dda >0 ) then
+                    ges_gust_it(j,i)  = real(all_loc(j,i,i_0+i_gust),r_kind)
+                end if
   ! for cloud analysis
                 if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
                    soil_temp_cld(j,i,it)=soil_temp(j,i,it)
