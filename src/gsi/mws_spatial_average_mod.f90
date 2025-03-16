@@ -13,7 +13,7 @@ Module mws_spatial_average_mod
 ! 
 
   use kinds, only: r_kind,r_double,i_kind
-  use ATMS_Spatial_Average_Mod, only: MODIFY_BEAMWIDTH 
+  use ATMS_Spatial_Average_Mod, only: MODIFY_BEAMWIDTH_atms
   implicit none     
 
 
@@ -170,7 +170,7 @@ CONTAINS
        ! (otherwise bt_inout just keeps the same value):
        do i=1,nchannels
           if (channelnumber(i) == ichan) then
-             CALL MODIFY_BEAMWIDTH ( nxmax_mws,nymax_mws, max_fov, max_scan, bt_image(:,:,ichan), &
+             CALL MODIFY_BEAMWIDTH_atms ( nxmax_mws,nymax_mws, max_fov, max_scan, bt_image(:,:,ichan), &
                   sampling_dist, beamwidth(i), newwidth(i), &
                   cutoff(i), nxaverage(i), nyaverage(i), &
                   qc_dist(i), MinBT(Ichan), MaxBT(IChan), IOS)

@@ -16,7 +16,7 @@ Module ATMS_Spatial_Average_Mod
   use kinds, only: r_kind,r_double,i_kind
 
   implicit none     
-  public :: MODIFY_BEAMWIDTH
+  public :: MODIFY_BEAMWIDTH_atms
 
 
 ! Declare module level parameters
@@ -171,7 +171,7 @@ CONTAINS
        ! (otherwise bt_inout just keeps the same value):
        do i=1,nchannels
           if (channelnumber(i) == ichan) then
-             CALL MODIFY_BEAMWIDTH ( nxmax_atms, nymax_atms, max_fov, max_scan, bt_image(:,:,ichan), &
+             CALL MODIFY_BEAMWIDTH_atms ( nxmax_atms, nymax_atms, max_fov, max_scan, bt_image(:,:,ichan), &
                   sampling_dist, beamwidth(i), newwidth(i), &
                   cutoff(i), nxaverage(i), nyaverage(i), &
                   qc_dist(i), MinBT(Ichan), MaxBT(IChan), IOS)
@@ -204,7 +204,7 @@ END Subroutine ATMS_Spatial_Average
 
 
 
-SUBROUTINE MODIFY_BEAMWIDTH (nxmax, nymax, nx, ny, image, sampling_dist,& 
+SUBROUTINE MODIFY_BEAMWIDTH_atms (nxmax, nymax, nx, ny, image, sampling_dist,& 
      beamwidth, newwidth, mtfcutoff, nxaverage, nyaverage, qc_dist, &
      Minval, MaxVal, Error)
      
@@ -513,7 +513,7 @@ SUBROUTINE MODIFY_BEAMWIDTH (nxmax, nymax, nx, ny, image, sampling_dist,&
      DEALLOCATE(gooddata_map)
 
      RETURN
-   END SUBROUTINE MODIFY_BEAMWIDTH
+   END SUBROUTINE MODIFY_BEAMWIDTH_atms
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
