@@ -936,9 +936,9 @@ subroutine normal_new_factorization_rf_x
   if(grd_loc%kend_loc < grd_loc%kbegin_loc) return
 
   if(vvlocal)then
-    kl=grd_loc%kend_alloc+1-grd_loc%kbegin_loc
+     kl=grd_loc%kend_alloc+1-grd_loc%kbegin_loc
   else
-    kl=1
+     kl=1
   endif
 
 ! The Optimization depends on each rank on a node having the same sized xnorm_new array.
