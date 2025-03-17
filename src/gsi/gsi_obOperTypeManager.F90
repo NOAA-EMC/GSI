@@ -301,7 +301,7 @@ function dtype2index_(dtype) result(index_)
     case("ompslp"   ); index_= iobOper_o3l
     case("ompslpuv" ); index_= iobOper_o3l
     case("ompslpvis"); index_= iobOper_o3l
-    case("ompslpnc" ); index_= iobOper_o3l     
+    case("ompslpnc" ); index_= iobOper_o3l
 
   case("gpsbend","[gpsbendoper]"); index_= iobOper_gpsbend
     case("gps_bnd"); index_= iobOper_gpsbend
@@ -362,6 +362,7 @@ function dtype2index_(dtype) result(index_)
     case("avhrr"  ); index_= iobOper_rad
     case("metimage" ); index_= iobOper_rad
     case("viirs-m"  ); index_= iobOper_rad
+    case("mws"  ); index_= iobOper_rad
 
   case("tcp"    ,"[tcpoper]"    ); index_= iobOper_tcp
 

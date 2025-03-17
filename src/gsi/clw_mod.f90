@@ -44,7 +44,7 @@ contains
 
 
  subroutine calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms, &   
-          amsr2,gmi,saphir,tsavg5,sfc_speed,zasat,clw,tpwc,gwp,kraintype,ierrret)
+          mws,amsr2,gmi,saphir,tsavg5,sfc_speed,zasat,clw,tpwc,gwp,kraintype,ierrret)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:   calc_clw    estimates cloud liquid water for micro. QC
@@ -108,6 +108,7 @@ contains
   real(r_kind),dimension(nchanl)    ,intent(in   ) :: tb_obs,tsim
   integer(i_kind),dimension(nchanl) ,intent(in   ) :: ich
   logical                           ,intent(in   ) :: no85GHz,amsre,ssmi,ssmis,amsua,atms,amsr2,gmi,saphir
+  logical                           ,intent(in   ) :: mws
   real(r_kind)                      ,intent(in   ) :: tsavg5,sfc_speed,zasat
   real(r_kind)                      ,intent(  out) :: clw,tpwc,gwp
   integer(i_kind)                   ,intent(  out) :: kraintype,ierrret
@@ -122,7 +123,7 @@ contains
   real(r_kind) tbcx1,tbcx2
 
 
-  if (amsua .or. atms) then
+  if (amsua .or. atms .or. mws) then
 
      clw = zero
     ! We want to reject sea ice points that may be frozen.  The sea freezes

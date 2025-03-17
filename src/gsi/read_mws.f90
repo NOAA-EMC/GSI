@@ -448,9 +448,9 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 
            panglr=(start+real(ifov-1,r_kind)*step)*deg2rad
            satellite_height=bfr1bhdr(13)
-!          Ensure orbit height is reasonable, 835 km 
+!          Ensure orbit height is reasonable, 840 km 
            if (satellite_height < 780000.0_r_kind .OR. &
-              satellite_height > 900000.0_r_kind) satellite_height = 835000.0_r_kind
+              satellite_height > 900000.0_r_kind) satellite_height = 840000.0_r_kind
            rato = one + satellite_height/rearth_equator
            lzaest = asin(rato*sin(panglr))
 
