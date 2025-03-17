@@ -25,7 +25,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 !            domain
 !
 ! program history log:
-!  2024-12-01  Copied from read_atms.f90
+!  2024-12-01  Modified from read_atms.f90
 !
 !   input argument list:
 !     mype     - mpi task id
@@ -104,7 +104,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 ! Declare local parameters
 
   character(8),parameter:: fov_flag="crosstrk"
-  integer(i_kind),parameter:: n1bhdr=13
+  integer(i_kind),parameter:: n1bhdr=14
   integer(i_kind),parameter:: n2bhdr=4
   integer(i_kind),parameter:: maxobs = 800000
   integer(i_kind),parameter:: max_chanl = 24
@@ -126,7 +126,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) i,j,k,ntest,iob,llll
   integer(i_kind) iret,idate,nchanl,n,idomsfc(1)
   integer(i_kind) ich1,ich2,ich9,ich16,ich17,ich18
-  integer(i_kind) kidsat,maxinfo
+  integer(i_kind) kidsat,maxinfo,eu_mws_id
   integer(i_kind) nmind,itx,nreal,nele,itt,num_obs
   integer(i_kind) iskip,ichan2,ichan1,ichan16,ichan17
   integer(i_kind) lnbufr,ksatid,isflg,ichan3,ich3,ich4,ich6
@@ -248,6 +248,8 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
      write(6,*) 'READ_MWS: Unrecognized value for jsatid '//jsatid//': RETURNING'
      return
   end if
+! ESA/EUMETSAT Radiometer MWS (Microwave Sounder)
+  eu_mws_id = 233
 
   radedge_min = 0
   radedge_max = 1000
@@ -361,7 +363,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
      if(ierr /= 0) cycle ears_db_loop
 
      call openbf(lnbufr,'IN',lnbufr)
-     hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH HMSL'
+     hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH HMSL SIID'
      hdr2b ='SAZA SOZA BEARAZ SOLAZI'
    
 !    Loop to read bufr file
@@ -387,10 +389,11 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 
            call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
 
-!          Extract satellite id.  If not the one we want, read next record
+!          Extract satellite id and instrument id.  If not the one we want, read next record
            rsat=bfr1bhdr(1) 
            ksatid=nint(bfr1bhdr(1))
            if(ksatid /= kidsat) cycle read_subset
+           if(nint(bfr1bhdr(14)) /= eu_mws_id) cycle read_subset
 
 !          Extract observation location and other required information
            if(abs(bfr1bhdr(11)) <= 90._r_kind .and. abs(bfr1bhdr(12)) <= r360)then
@@ -417,12 +420,11 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
               t4dv= (real((nmind-iwinbgn),r_kind) + bfr1bhdr(8)*r60inv)*r60inv    ! add in seconds
               tdiff=t4dv+(iwinbgn-gstime)*r60inv
            else
-              !jjj for sample data with date before 01/01/2025
+              !J.Jin, for sample data with date before 01/01/2025
               ! Make date and time within the analysis window for mws sample observations.
               t4dv = real((nmind-gstime),r_kind) + bfr1bhdr(8)*r60inv*r60inv   ! hours from gstime
               tdiff = t4dv - int(t4dv/twind, i_kind)*twind  ! makes |obstime - gstime | < twind
               t4dv = tdiff - (iwinbgn-gstime)*r60inv ! hours from the beginning of the analysis window
-              write(6,'(a,i5,4i3,2f10.3)') 'jjj read_mws, year mon day hour minute,t4dv, tdiff =', idate5(1:5),t4dv, tdiff
            endif
 
            if (l4dvar.or.l4densvar) then
