@@ -289,6 +289,7 @@ SATINFO=${fixgsi}/global_satinfo.txt
 OZINFO=${fixgsi}/global_ozinfo.txt
 PCPINFO=${fixgsi}/global_pcpinfo.txt
 ATMS_BEAMWIDTH=${fixgsi}/atms_beamwidth.txt
+MWS_BEAMWIDTH=${fixgsi}/mws_beamwidth.txt
 
 # Fixed fields
 cp ${ANAVINFO} anavinfo
@@ -299,6 +300,7 @@ cp $OZINFO     ozinfo
 cp $PCPINFO    pcpinfo
 cp $OBERROR    errtable
 cp $ATMS_BEAMWIDTH atms_beamwidth.txt
+cp $MWS_BEAMWIDTH mws_beamwidth.txt
 cp ${HYBENSINFO} hybens_info
 
 cp ${obspath_tmp}/gsd_sfcobs_provider.txt gsd_sfcobs_provider.txt
