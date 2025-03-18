@@ -127,6 +127,7 @@ insituinfo=$fixgsi/global_insituinfo.txt
 errtable=$fixgsi/prepobs_errtable.global
 aeroinfo=$fixgsi/global_aeroinfo.txt
 atmsbeaminfo=$fixgsi/atms_beamwidth.txt
+mwsbeaminfo=$fixgsi/mws_beamwidth.txt
 cloudyinfo=$fixgsi/cloudy_radiance_info.txt
 cris_clddet=$fixgsi/CRIS_CLDDET.NL
 iasi_clddet=$fixgsi/IASI_CLDDET.NL
@@ -170,6 +171,7 @@ $ncp $insituinfo ./insituinfo
 $ncp $errtable ./errtable
 $ncp $aeroinfo ./aeroinfo
 $ncp $atmsbeaminfo ./atms_beamwidth.txt
+$ncp $mwsbeaminfo ./mws_beamwidth.txt
 $ncp $cloudyinfo   ./cloudy_radiance_info.txt
 $ncp $cris_clddet ./CRIS_CLDDET.NL
 $ncp $iasi_clddet ./IASI_CLDDET.NL
@@ -268,6 +270,7 @@ $nln $datobs/${prefix_obs}.esatms.${suffix}        ./atmsbufrears
 # Do not process
 ## $nln $datobs/${prefix_obs}.amsre.${suffix}      ./amsrebufr
 ## $nln $datobs/${prefix_obs}.amsr2.tm00.bufr_d    ./amsr2bufr
+## $nln $datobs/${prefix_obs}.mws.${suffix}        ./mwsbufr
 
 # Copy bias correction, atmospheric and surface files
 $nln $datanl/${prefix_ges}.abias                      ./satbias_in

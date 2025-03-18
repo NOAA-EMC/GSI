@@ -187,6 +187,7 @@ OBS_INPUT::
    ompsnpbufr     ompsnp      n21         ompsnp_n21          0.0     0     0
    ompstcbufr     ompstc8     n21         ompstc8_n21         0.0     2     0
    gomebufr       gome        metop-c     gome_metop-c        0.0     2     0
+   mwsbufr        mws         metop-sg-a1 mws_metop-sg-a1     0.0     1     0
 ::
   &SUPEROB_RADAR
    $SUPERRAD   
