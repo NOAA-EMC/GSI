@@ -164,7 +164,7 @@ subroutine setupref(obsLL,odiagLL,lunin,mype,awork,nele,nobs,toss_gps_sub,is,ini
   use m_gpsrhs, only: ratio_errors,dpresl
   use m_gpsrhs, only: rdiagbuf,cdiagbuf
   use m_gpsrhs, only: qcfail
-  use m_gpsrhs, only: qcfail_loc,qcfail_high,qcfail_gross
+  use m_gpsrhs, only: qcfail_one,qcfail_two,qcfail_three
   use m_gpsrhs, only: data_ier,data_igps,data_ihgt
   use m_gpsrhs, only: gpsrhs_alloc
   use m_gpsrhs, only: gpsrhs_dealloc
@@ -341,9 +341,9 @@ subroutine setupref(obsLL,odiagLL,lunin,mype,awork,nele,nobs,toss_gps_sub,is,ini
      ! these statements should moved into gpsrhs_alloc(), but
      ! left unchanged for verification purposes.
      qcfail=.false.
-     qcfail_loc=zero
-     qcfail_gross=zero
-     qcfail_high=zero 
+     qcfail_one=zero
+     qcfail_three=zero
+     qcfail_two=zero 
 
      muse(:)=.false.
 
@@ -494,7 +494,7 @@ subroutine setupref(obsLL,odiagLL,lunin,mype,awork,nele,nobs,toss_gps_sub,is,ini
            data(ier,i) = zero
            ratio_errors(i) = zero
            muse(i)=.false.
-           qcfail_loc(i)=one
+           qcfail_one(i)=one
         endif
 
 !       Increment obs counter along with low and high obs counters
@@ -565,7 +565,7 @@ subroutine setupref(obsLL,odiagLL,lunin,mype,awork,nele,nobs,toss_gps_sub,is,ini
                  if (luse(i)) then
                     awork(4) = awork(4)+one
                  endif
-                 qcfail_gross(i)=one
+                 qcfail_three(i)=one
                  data(ier,i) = zero
                  ratio_errors(i) = zero
                  muse(i)=.false.
@@ -613,7 +613,7 @@ subroutine setupref(obsLL,odiagLL,lunin,mype,awork,nele,nobs,toss_gps_sub,is,ini
            if(alt > gpstop) then
               data(ier,i) = zero
               ratio_errors(i) = zero
-              qcfail_high(i)=one 
+              qcfail_two(i)=one 
               muse(i)=.false.
            endif
 
@@ -690,13 +690,13 @@ subroutine setupref(obsLL,odiagLL,lunin,mype,awork,nele,nobs,toss_gps_sub,is,ini
         if(r1em3*rdiagbuf(7,i) <= 3.0_r_kind) then ! check for SR-likely conditions below 3 km
             kprof = data(iprof,i)
             jprof = data(iprof,i+1)
-            if( kprof == jprof .and. .not. qcfail(i) .and. qcfail_loc(i) == zero .and. qcfail_loc(i+1) == zero .and. qcfail_gross(i) == zero)then
+            if( kprof == jprof .and. .not. qcfail(i) .and. qcfail_one(i) == zero .and. qcfail_one(i+1) == zero .and. qcfail_three(i) == zero)then
                 grad_mod=1000.0_r_kind*&
                                ((rdiagbuf(17,i+1)*(one-rdiagbuf(5,i+1)))-(rdiagbuf(17,i)*(one-rdiagbuf(5,i))))/(rdiagbuf(7,i+1)-rdiagbuf(7,i))
                 grad_obs=1000.0_r_kind*(rdiagbuf(17,i+1)-rdiagbuf(17,i))/(rdiagbuf(7,i+1)-rdiagbuf(7,i))
                 if ((abs(grad_mod)>= half*crit_grad) .or. (abs(grad_obs)>=half*crit_grad)) then
                    qcfail(i)  = .true.
-                   if( qcfail_gross(i+1) == zero .and. .not. qcfail(i+1)) then
+                   if( qcfail_three(i+1) == zero .and. .not. qcfail(i+1)) then
                        qcfail(i+1)= .true.
                    end if
                 end if
@@ -707,7 +707,7 @@ subroutine setupref(obsLL,odiagLL,lunin,mype,awork,nele,nobs,toss_gps_sub,is,ini
            kprof = data(iprof,i)
            do j=1,nobs
               jprof = data(iprof,j)
-              if( kprof == jprof .and. .not. qcfail(j) .and. qcfail_loc(j) == zero .and. qcfail_gross(j) == zero)then
+              if( kprof == jprof .and. .not. qcfail(j) .and. qcfail_one(j) == zero .and. qcfail_three(j) == zero)then
 
 !             Remove data below
                  if(r1em3*rdiagbuf(7,j) < r1em3*rdiagbuf(7,i))then
@@ -780,10 +780,10 @@ subroutine setupref(obsLL,odiagLL,lunin,mype,awork,nele,nobs,toss_gps_sub,is,ini
         ! flags for observations that failed qc checks
         ! zero = observation is good
 
-        if(qcfail_gross(i) == one)   rdiagbuf(10,i) = three
+        if(qcfail_three(i) == one)   rdiagbuf(10,i) = three
         if(qcfail(i))                rdiagbuf(10,i) = four !modified in genstats due to toss_gps_sub
-        if(qcfail_loc(i) == one)     rdiagbuf(10,i) = one
-        if(qcfail_high(i) == one)    rdiagbuf(10,i) = two
+        if(qcfail_one(i) == one)     rdiagbuf(10,i) = one
+        if(qcfail_two(i) == one)     rdiagbuf(10,i) = two
 
         if(muse(i)) then            ! modified in genstats_gps due to toss_gps_sub
            rdiagbuf(12,i) = one     ! minimization usage flag (1=use, -1=not used)

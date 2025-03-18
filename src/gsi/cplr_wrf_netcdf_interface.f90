@@ -66,11 +66,14 @@ contains
     use gsi_4dvar, only: nhr_assimilation
     use rapidrefresh_cldsurf_mod, only: l_hydrometeor_bkio,l_gsd_soilTQ_nudge
     use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_use_2mq4b
+    use rapidrefresh_cldsurf_mod, only: i_howv_3dda, i_gust_3dda
+    use rapidrefresh_cldsurf_mod, only: i_howv_mask
     use gsi_metguess_mod, only: gsi_metguess_get
     use chemmod, only: laeroana_gocart, ppmv_conv,wrf_pm2_5
     use gsi_chemguess_mod, only: gsi_chemguess_get
     use gridmod, only: wrf_mass_hybridcord
     use netcdf_mod, only: nc_check
+    use mpeu_util, only: die, perr
 
     use wrf_vars_mod, only : w_exist, dbz_exist
     use constants, only: zero
@@ -91,6 +94,12 @@ contains
     integer(i_kind)            :: dh1
     
     integer(i_kind) :: iunit
+
+    character(len=120) :: filename_lakemask    ! lakemask.bin
+    integer(i_kind)    :: iunit_lakemask
+    logical            :: l_iunit_opened
+    character(len=200) :: derr_msg   ! error message used in die
+    character(len=24),parameter :: myname_ = 'convert_netcdf_mass_wrf'
     
     integer(i_kind) :: i,j,k
     integer(i_kind) :: ndim1
@@ -1021,6 +1030,116 @@ contains
           if(print_verbose)write(6,*)' max,min TH2=',maxval(field2),minval(field2)
           write(iunit)field2   !TH2
        endif
+
+!      Reading Significant Wave Height (HOWV) in firstguess
+       if(i_howv_3dda >= 1) then                   ! if howv is found in anavinfo
+          rmse_var='HOWV'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+               start_index,end_index, WrfType, ierr    )
+          if(print_verbose)then
+             write(6,*)' rmse_var=',trim(rmse_var)
+             write(6,*)' ordering=',ordering
+             write(6,*)' WrfType,ierr=',WrfType,ierr
+             write(6,*)' ndim1=',ndim1
+             write(6,*)' staggering=',staggering
+             write(6,*)' start_index=',start_index
+             write(6,*)' end_index=',end_index
+          end if
+          if(ierr == 0) then
+             call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+                  field2,WRF_REAL,0,0,0,ordering,           &
+                  staggering, dimnames ,               &
+                  start_index,end_index,               & !dom
+                  start_index,end_index,               & !mem
+                  start_index,end_index,               & !pat
+                  ierr                                 )
+             if(print_verbose)write(6,*)' max,min ',trim(adjustl(rmse_var)),'=',maxval(field2),minval(field2)
+             write(iunit)field2   !HOWV  (2D wave height)
+             i_howv_3dda = 2               ! howv was found both in anavinfo and firstguess
+          else
+             i_howv_3dda = 0               ! skipping analysis of this variable
+             derr_msg='Warning: Error when get info in firstguess for var : '//trim(rmse_var)//    &
+                      ' ==> Stop GSI analysis ...  ierr='
+!            write(6,'(1x,A,A2,A,1x,I6)')trim(adjustl(myname_)),'::',trim(adjustl(derr_msg)),ierr
+!            call stop2(ierr)
+             call die(trim(adjustl(myname_)),trim(adjustl(derr_msg)),ierr)
+          end if
+
+!         reading lakemask for screening off wave height over lake (and/or land) area
+          if(i_howv_mask .eq. 2) then
+             rmse_var='LAKEMASK'                            ! see the code for rmse_var='XLAND'
+             call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+                  start_index,end_index, WrfType, ierr    )
+             if(ierr .eq. 0) then
+                if(print_verbose)then
+                   write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+                   write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+                   write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+                   write(6,*)' start_index = ',start_index,' end_index = ',end_index
+                end if
+                call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+                     field2,WRF_REAL,0,0,0,ordering,           &
+                     staggering, dimnames ,               &
+                     start_index,end_index,               & !dom
+                     start_index,end_index,               & !mem
+                     start_index,end_index,               & !pat
+                     ierr                                 )
+                if(print_verbose)then
+                   write(6,*)' max,min lakemask=',maxval(field2),minval(field2)
+                   write(6,*)' lakemask(1,1),lakemask(nlon,1)=',field2(1,1),field2(nlon_regional,1)
+                   write(6,*)' lakemask(1,nlat),lakemask(nlon,nlat)=', &
+                     field2(1,nlat_regional),field2(nlon_regional,nlat_regional)
+                end if
+!               dumping out lakemask into an temporary binary file 
+!               (which would be used for howv mask when updating the analysis of howv)
+                filename_lakemask="lakemask.bin"; iunit_lakemask=115; l_iunit_opened=.true.
+                inquire(unit=iunit_lakemask, opened=l_iunit_opened)
+                if(l_iunit_opened) iunit_lakemask=iunit_lakemask+5000
+                if(print_verbose) write(6,*)' I/O unit for writing lakemask: ', iunit_lakemask
+                open(iunit_lakemask,file=trim(adjustl(filename_lakemask)),form='unformatted')
+                write(iunit_lakemask)field2   !LAKEMASK   (1=lake, 0=water)
+                close(iunit_lakemask)
+             else
+                write(6,'(1x,A)')' No LAKEMASK data in firstguess data. No lakemask is used for HOWV mask. reset i_howv_mask=1'
+                i_howv_mask=1                              ! i_howv_mask is changed on pe 0, so it must be broadcast to all PEs.
+             endif  ! if error in reading lakemask
+          endif   ! i_howv_mask = 2
+       endif  ! i_howv_3dda (reading 2D wave height from netcdf-format background) 
+
+!      Reading 10-m Wind Gust (GUST) in firstguess
+       if(i_gust_3dda >= 1) then                   ! if gust is found in anavinfo
+          rmse_var='GUST'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+               start_index,end_index, WrfType, ierr    )
+          if(print_verbose)then
+             write(6,*)' rmse_var=',trim(rmse_var)
+             write(6,*)' ordering=',ordering
+             write(6,*)' WrfType,ierr=',WrfType,ierr
+             write(6,*)' ndim1=',ndim1
+             write(6,*)' staggering=',staggering
+             write(6,*)' start_index=',start_index
+             write(6,*)' end_index=',end_index
+          end if
+          if(ierr == 0) then
+             call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+                  field2,WRF_REAL,0,0,0,ordering,           &
+                  staggering, dimnames ,               &
+                  start_index,end_index,               & !dom
+                  start_index,end_index,               & !mem
+                  start_index,end_index,               & !pat
+                  ierr                                 )
+             if(print_verbose)write(6,*)'convert_netcdf_mass_wrf:: max,min ',trim(adjustl(rmse_var)),'=',maxval(field2),minval(field2)
+             write(iunit)field2   !GUST  (2D Wind Gust)
+             i_gust_3dda = 2               ! gust was found both in anavinfo and firstguess
+          else
+             i_gust_3dda = 0               ! skipping analysis of this variable
+             derr_msg='Warning: Error when get info in firstguess for var : '//trim(rmse_var)//    &
+                      ' ==> Stop GSI analysis ...  ierr='
+!            write(6,'(1x,A,A2,A,1x,I6)')trim(adjustl(myname_)),'::',trim(adjustl(derr_msg)),ierr
+!            call stop2(ierr)
+             call die(trim(adjustl(myname_)),trim(adjustl(derr_msg)),ierr)
+          end if
+       endif  ! i_gust_3dda (reading 2D 10-m wind gust from netcdf-format background) 
 
        if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
           rmse_var='QCLOUD'
@@ -2437,6 +2556,7 @@ contains
     use constants, only: h300,tiny_single
     use rapidrefresh_cldsurf_mod, only: l_hydrometeor_bkio,l_gsd_soilTQ_nudge
     use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
+    use rapidrefresh_cldsurf_mod, only: i_howv_3dda, i_gust_3dda
     use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
     use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_use_2mq4b
     use gsi_bundlemod, only: GSI_BundleGetPointer
@@ -3002,6 +3122,61 @@ contains
             ierr                                 )
     endif
  
+!   writing analysis of significantg wave height (howv) into firstguess (analysis) file
+    if(i_howv_3dda==2) then
+       read(iunit)   field2   !HOWV (wave height)
+       rmse_var='HOWV'
+       if(print_verbose)write(6,'(1x,4A,2(1x,F15.7))')                          &
+                        trim(adjustl(myname_)),'::max,min ',trim(rmse_var),'=', &
+                        maxval(field2),minval(field2)
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index1, WrfType, ierr    )
+       if(print_verbose)then
+          write(6,*)' rmse_var=',trim(rmse_var)
+          write(6,*)' ordering=',ordering
+          write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+          write(6,*)' ndim1=',ndim1
+          write(6,*)' staggering=',staggering
+          write(6,*)' start_index=',start_index
+          write(6,*)' end_index1=',end_index1
+       end if
+       call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field2,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index1,               & !dom
+            start_index,end_index1,               & !mem
+            start_index,end_index1,               & !pat
+            ierr                                 )
+    endif  ! i_howv_3dda (wave height)
+ 
+!   writing analysis of 10-m wind gust (gust) into firstguess (analysis) file
+    if(i_gust_3dda==2) then
+       read(iunit)   field2   !GUST (wind gust)
+       rmse_var='GUST'
+       if(print_verbose)write(6,'(1x,4A,2(1x,F15.7))')                          &
+                        trim(adjustl(myname_)),'::max,min ',trim(rmse_var),'=', &
+                        maxval(field2),minval(field2)
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index1, WrfType, ierr    )
+       if(print_verbose)then
+          write(6,*)' rmse_var=',trim(rmse_var)
+          write(6,*)' ordering=',ordering
+          write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+          write(6,*)' ndim1=',ndim1
+          write(6,*)' staggering=',staggering
+          write(6,*)' start_index=',start_index
+          write(6,*)' end_index1=',end_index1
+       end if
+       call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field2,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index1,               & !dom
+            start_index,end_index1,               & !mem
+            start_index,end_index1,               & !pat
+            ierr                                 )
+    endif  ! i_howv_3dda (wave height)
+
+
     if (l_hydrometeor_bkio .and. n_actual_clouds>0) then
       do k=1,nsig_regional
          read(iunit)((field3(i,j,k),i=1,nlon_regional),j=1,nlat_regional)   !  Qc

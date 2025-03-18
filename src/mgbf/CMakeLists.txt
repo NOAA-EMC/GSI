@@ -30,6 +30,8 @@ endif()
 if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
   add_definitions(-DNDEBUG)
 endif()
+# Find MPI Package
+find_package(MPI REQUIRED)
 
 list(APPEND MGBF_SRC
 kinds.f90
@@ -63,6 +65,8 @@ add_library(${PROJECT_NAME}::mgbf ALIAS mgbf)
 set_target_properties(mgbf PROPERTIES Fortran_MODULE_DIRECTORY "${module_dir}")
 target_include_directories(mgbf PUBLIC $<BUILD_INTERFACE:${module_dir}>
                                            $<INSTALL_INTERFACE:include/mgbf>)
+target_link_libraries(mgbf  PUBLIC MPI::MPI_Fortran)
+
 
 install(DIRECTORY ${module_dir} DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
 

@@ -79,6 +79,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2022-01-20 Genkova  - added missing station_id for polar winds
 !   2022-01-20 Genkova  - added code for Meteosat and Himawari AMVs in new BUFR
 !   2022-12-10 Bi  - added code for CIMSS enhanced AMVs in new BUFR
+!   2025-02-10 Woollen - refactored to specify processing paths for satwind data via lookup table
 !   
 !
 !   input argument list:
@@ -161,7 +162,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 ! Declare local variables
   logical outside,inflate_error
-  logical luse,ithinp,do_qc
+  logical luse,ithinp
   logical,allocatable,dimension(:,:):: lmsg     ! set true when convinfo entry id found in a message
 
   character(70) obstr_v1, obstr_v2,hdrtr_v1,hdrtr_v2
@@ -170,6 +171,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! character(20) derdwtr,heightr
   character(8) c_prvstg,c_sprvstg
   character(8) c_station_id,stationid
+  character(2) swcm(7)/'IR','VI','CT','DL','D5','D6','D7'/
   
   integer(i_kind) mxtb,nmsgmax,qcret
   integer(i_kind) ireadmg,ireadsb,iuse
@@ -179,7 +181,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   integer(i_kind) kk,klon1,klat1,klonp1,klatp1
   integer(i_kind) nmind,lunin,idate,ilat,ilon,iret,k
   integer(i_kind) nreal,ithin,iout,ii
-  integer(i_kind) itype,iosub,ixsub,isubsub,iobsub,itypey,ierr,ihdr9
+  integer(i_kind) itype,iosub,ixsub,isubsub,itypey,ierr,ihdr9
+  integer(i_kind) isaid,ysub,sattab(100,1000,7,2)
   integer(i_kind) qm
   integer(i_kind) nlevp         ! vertical level for thinning
   integer(i_kind) pflag
@@ -212,6 +215,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_kind) crit1,timedif,xmesh,pmesh,ptime
   real(r_kind),dimension(nsig):: presl
   
+  real(r_double) zangl 
   real(r_double),dimension(13):: hdrdat
   real(r_double),dimension(4):: obsdat
   real(r_double),dimension(2) :: hdrdat_test,hdrdat_005099
@@ -244,7 +248,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   equivalence(r_sprvstg(1,1),c_sprvstg)
   equivalence(rstation_id,c_station_id)
 
-  data hdrtr_v1 /'SAID CLAT CLON YEAR MNTH DAYS HOUR MINU SWCM SAZA OGCE SCCF SWQM'/ ! OGCE replaces GCLONG, OGCE exists in old and new BUFR
+  data hdrtr_v1 /'SAID CLAT  CLON  YEAR MNTH DAYS HOUR MINU SWCM SAZA OGCE SCCF SWQM'/ ! OGCE replaces GCLONG, OGCE exists in old and new BUFR
   data hdrtr_v2 /'SAID CLATH CLONH YEAR MNTH DAYS HOUR MINU SWCM SAZA OGCE SCCF SWQM'/ ! OGCE replaces GCLONG, OGCE exists in old and new BUFR
                                                                      ! SWQM doesn't exist in the new BUFR, so qm is initialized to '2' manually
 
@@ -262,6 +266,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
 ! Return when SATWND are coming from prepbufr file
   if(use_prepb_satwnd) return
+
+  call sattabin(sattab)
 
 ! read observation error table
 
@@ -322,9 +328,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   call datelen(10)
   
   msg_report: do while (ireadmg(lunin,subset,idate) == 0)
-!    if(trim(subset) == 'NC005012') cycle msg_report 
-
-     istype=0
+     
 !    Time offset
      if(nmsg == 0) call time_4dvar(idate,toff)
      nmsg=nmsg+1
@@ -332,78 +336,11 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         write(6,*)'READ_SATWND: messages exceed maximum ',nmsgmax
         call stop2(49)
      endif
-     if(trim(subset) == 'NC005064' .or. trim(subset) == 'NC005065' .or. &
-        trim(subset) == 'NC005066') then
-!   EUMETSAT satellite IDS
-       istype=1
-     else if(trim(subset) == 'NC005067' .or. trim(subset) == 'NC005068' .or.&
-             trim(subset) == 'NC005069') then               ! read new EUM BURF
-!   EUMETSAT new BUFR satellite IDS
-       istype=2
-     else if(trim(subset) == 'NC005041' .or. trim(subset) == 'NC005042' .or. &
-             trim(subset) == 'NC005043') then
-!   JMA satellite IDS
-       istype=3
-     else if(trim(subset) == 'NC005044' .or. trim(subset) == 'NC005045' .or. &
-             trim(subset) == 'NC005046') then
-!   JMA satellite IDS
-       istype=4
 
-     else if(trim(subset) == 'NC005047' .or. trim(subset) == 'NC005048' .or.&
-             trim(subset) == 'NC005049') then                ! read new Him-8 BURF
-!   new HIM-8 BUFR
-       istype=5
-     else if(trim(subset) == 'NC005001' .or. trim(subset) == 'NC005002' .or. &
-             trim(subset) == 'NC005003' ) then
-!   NESDIS BUFR
-       istype=6
-     else if(trim(subset) == 'NC005010' .or. trim(subset) == 'NC005011' .or. &
-             trim(subset) == 'NC005012' ) then
-!   NESDIS BUFR
-       istype=7
-     else if(trim(subset) == 'NC005070' .or. trim(subset) == 'NC005071'  ) then
-!   NASA AQUA and Terra winds
-       istype=8
-     else if( trim(subset) == 'NC005080') then
-!   EUMETSAT and NOAA polar winds
-       istype=9
-     else if( trim(subset) == 'NC005081') then
-!   EUMETSAT polar winds
-       istype=10
-     else if( trim(subset) == 'NC005019') then
-!   GOES shortwave winds
-       istype=11
-     else if( trim(subset) == 'NC005072') then
-!   LEOGEO (LeoGeo) winds
-       istype=12
-     else if( trim(subset) == 'NC005090') then
-!   VIIRS winds
-       istype=13
-     else if(trim(subset) == 'NC005091') then
-!   VIIRS N-20 with new sequence
-       istype=14
-     else if(trim(subset) == 'NC005030')  then
-!   GOES-R IR LW winds
-       istype=15
-     else if(trim(subset) == 'NC005039')  then
-!   GOES-R IR SW winds
-       istype=16
-     else if(trim(subset) == 'NC005032')  then
-!   GOES-R VIS winds
-       istype=17
-     else if(trim(subset) == 'NC005034')  then
-!   GOES-R WV cloud top
-       istype=18
-     else if(trim(subset) == 'NC005031')  then
-!   GOES-R WV clear sky/deep layer
-       istype=19
-     else if(trim(subset) == 'NC005099')  then
-       istype=20
-     else
-!      write(6,*) ' subset not found ',trim(subset),nmsg
-     end if
-     istab(nmsg)=istype
+     read(subset,'(5x,i3.3)') ysub
+
      loop_report: do while (ireadsb(lunin) == 0)
+
         ntb = ntb+1
         nrep(nmsg)=nrep(nmsg)+1
         maxobs=maxobs+1
@@ -413,206 +350,24 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
         endif
             
         call ufbint(lunin,hdrdat,13,1,iret,hdrtr_v1) 
+        if(hdrdat(9)>=10.d10) call ufbint(lunin,hdrdat(9),1,1,iret,'CMCM')
           ! SWQM doesn't exist for GOES-R/new BUFR/ hence hdrdat(13)=MISSING.
           ! qm=2, instead of using hdrdat(13)(2015-07-16, Genkova)
 
-        iobsub=0
-        itype=-1
-        iobsub=int(hdrdat(1))
+        isaid=nint(hdrdat(1))
         ihdr9=nint(hdrdat(9))
+        if(ihdr9<1.or.ihdr9>7) cycle loop_report 
 
-        if(istype == 1) then
-           if( hdrdat(1) <r80 .and. hdrdat(1) >= r50) then   !the range of EUMETSAT satellite IDS
-              if(ihdr9 == 1)  then                           ! IR winds
-                 itype=253
-              else if(ihdr9 == 2) then                       ! visible winds
-                 itype=243
-              else if(ihdr9 == 3) then                       ! WV cloud top
-                 itype=254
-              else if(ihdr9 >= 4) then                       ! WV deep layer, monitored
-                 itype=254
-              endif
-           endif
+        itype   = sattab(ysub,isaid,ihdr9,1)
+        istype  = sattab(ysub,isaid,ihdr9,2)
 
-        else if(istype == 2) then               ! read new EUM BURF
-           if( hdrdat(1) <r80 .and. hdrdat(1) >= r50) then   !the range of EUMETSAT satellite IDS
-              if(ihdr9 == 1)  then                           ! IR winds
-                 itype=253
-              else if(ihdr9 == 2) then                       ! visible winds
-                 itype=243
-              else if(ihdr9 == 3) then                       ! WV cloud top
-                 itype=254
-              else if(ihdr9 >= 4) then                       ! WV deep layer, monitored 
-                 itype=254
-              endif
-           endif
-
-        else if(istype == 3) then
-           if( hdrdat(1) >=r100 .and. hdrdat(1) <=r199 ) then   ! the range of JMA satellite IDS
-              if(ihdr9 == 1)  then                              ! IR winds
-                 itype=252
-              else if(ihdr9 == 2) then                          ! visible winds
-                 itype=242
-              else if(ihdr9 == 3) then                          ! WV cloud top
-                 itype=250
-              else if(ihdr9 >= 4) then                          ! WV deep layer,monitored
-                 itype=250
-              endif
-           endif
-
-        else if(istype == 4) then
-           if( hdrdat(1) >=r100 .and. hdrdat(1) <=r199 ) then   ! the range of JMA satellite IDS
-              if(ihdr9 == 1)  then                              ! IR winds
-                 itype=252
-              else if(ihdr9 == 2) then                          ! visible winds
-                 itype=242
-              else if(ihdr9 == 3) then                          ! WV cloud top
-                 itype=250
-              else if(ihdr9 >= 4) then                          ! WV deep layer,monitored
-                 itype=250
-              endif
-           endif
-
-        else if(istype == 5) then                ! read new Him-8 BURF
-           if( hdrdat(1) >=r100 .and. hdrdat(1) <=r199 ) then   ! the range of JMA satellite IDS
-              if(ihdr9 == 1)  then                              ! IR winds
-                 itype=252
-              else if(ihdr9 == 2) then                          ! visible winds
-                 itype=242
-              else if(ihdr9 == 3) then                          ! WV cloud top
-                 itype=250
-              else if(ihdr9 >= 4) then                          ! WV deep layer, monitored 
-                 itype=250
-              endif
-           endif
-
-        else if(istype == 6) then
-           if( hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then  ! the range of NESDIS satellite IDS
-              if(ihdr9 == 1)  then                            ! IR winds
-                 if(hdrdat(12) <50000000000000.0_r_kind) then
-                    itype=245
-                 else
-                    itype=240                                  ! short wave IR winds
-                 endif
-              else if(ihdr9 == 2 ) then                        ! visible winds
-                 itype=251
-              else if(ihdr9 == 3 ) then                        ! WV cloud top
-                 itype=246
-              else if(ihdr9 >= 4 ) then                        ! WV deep layer,monitored
-                 itype=247
-              endif
-           endif
-
-        else if(istype == 7) then
-           if( hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then  ! the range of NESDIS satellite IDS  
-              if(ihdr9 == 1)  then                            ! IR winds
-                 if(hdrdat(12) <50000000000000.0_r_kind) then
-                    itype=245
-                 else
-                    itype=240                                  ! short wave IR winds
-                 endif
-              else if(ihdr9 == 2 ) then                        ! visible winds
-                 itype=251
-              else if(ihdr9 == 3 ) then                        ! WV cloud top
-                 itype=246
-              else if(ihdr9 >= 4 ) then                        ! WV deep layer,monitored
-                 itype=247
-              endif
-           endif
-
-        else if(istype == 8) then
-           if( hdrdat(1) >=r700 .and. hdrdat(1) <= r799 ) then    ! the range of NASA Terra and Aqua satellite IDs
-              if(ihdr9 == 1)  then                            ! IR winds
-                 itype=257
-              else if(ihdr9 == 3) then                        ! WV cloud top
-                 itype=258
-              else if(ihdr9 >= 4) then                        ! WV deep layer
-                 itype=259
-              endif
-           endif
-        else if(istype == 9) then                    
-           if( hdrdat(1) <10.0_r_kind .or. (hdrdat(1) >= 200.0_r_kind .and. &
-               hdrdat(1) <=223.0_r_kind) ) then      ! the range of EUMETSAT and NOAA polar orbit satellite IDs  
-              if(ihdr9 == 1)  then                            ! IR winds
-                 itype=244
-              else
-                 write(6,*) 'READ_SATWND: wrong derived method value'
-              endif
-           endif
-        else if(istype == 10) then
-           if( hdrdat(1) <10.0_r_kind ) then        ! the range of EUMETSAT polar orbit satellite IDs new BUFR 
-              if(ihdr9 == 1)  then                            ! IR winds
-                 itype=244
-              else
-                 write(6,*) 'READ_SATWND: wrong derived method value'
-              endif
-           endif
-
-        else if(istype == 11) then                   ! GOES shortwave winds
-           if(hdrdat(1) >=r250 .and. hdrdat(1) <=r299 ) then   ! The range of NESDIS satellite IDS
-              if(ihdr9 == 1)  then                            ! short wave IR winds
-                 itype=240
-              endif
-           endif
-        else if(istype == 12) then                   ! LEOGEO (LeoGeo) winds
-           if(hdrdat(1) == 854 ) then                               ! LeoGeo satellite ID
-              if(ihdr9 == 1)  then                            ! LEOGEO IRwinds
-                 itype=255
-              endif
-           endif
-        else if(istype == 13) then                   ! VIIRS winds 
-           if(hdrdat(1) >=r200 .and. hdrdat(1) <=r250 ) then   ! The range of satellite IDS
-              if(ihdr9 == 1)  then                            ! VIIRS IR winds
-                 itype=260
-              endif
-           endif
-        else if(istype == 14) then  ! VIIRS N-20 with new sequence
-! Commented out, because we need clarification for SWCM/ihdr9 from Yi Song
-! NOTE: Once it is confirmed that SWCM values are sensible, apply this logic and
-! replace lines 685-702
-        !       if(ihdr9 == 1)  then                            ! VIIRS IR
-        !       winds
-        !          itype=260
-        !       endif
-!Temporary solution replacing the commented code above
-           itype=260
-
-
-        !GOES-R section of the 'if' statement over 'subsets' 
-! Commented out, because we need clarification for SWCM/ihdr9 from Yi Song
-! NOTE: Once it is confirmed that SWCM values are sensible, apply this logic and replace lines 685-702
-!                 if(ihdr9 == 1)  then
-!                    if(hdrdat(12) <50000000000000.0_r_kind) then
-!                     itype=245                                      ! GOES-R IR(LW) winds
-!                    else
-!                     itype=240                                      ! GOES-R IR(SW) winds
-!                    endif
-!                 else if(ihdr9 == 2 ) then
-!                    itype=251                                       !  GOES-R VIS    winds
-!                 else if(ihdr9 == 3 ) then
-!                    itype=246                                       !  GOES-R CT WV  winds
-!                 else if(ihdr9 >= 4 ) then 
-!                    itype=247                                       !  GOES-R CS WV  winds
-!                 endif
-
-!Temporary solution replacing the commented code above
-        else if(istype == 15)  then                 ! IR LW winds
-           itype=245
-        else if(istype == 16)  then            ! IR SW winds
-           itype=240                                      
-        else if(istype == 17)  then            ! VIS winds
-           itype=251
-        else if(istype == 18)  then            ! WV cloud top
-           itype=246
-        else if(istype == 19)  then            ! WV clear sky/deep layer
-           itype=247
-        else if(istype == 20)  then
-           itype=241
-        else ! wind is not recognised and itype is not assigned
-           cycle loop_report
+        if (istype == -1) cycle loop_report ! unassigned itypes
+        if (itype  == -1) then
+           write(6,*) 'type mismatch', itype,istype
+           cycle loop_report ! unassigned itypes 
         endif
 
-        if ( itype == -1 ) cycle loop_report ! unassigned itype
+        istab(nmsg) = istype 
 
 !  Match ob to proper convinfo type
         ncsave=0
@@ -620,14 +375,14 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            nc=ntxall(ncx)
            if (itype /= ictype(nc)) cycle matchloop
 !  Find convtype which match ob type and subtype
-           if(icsubtype(nc) == iobsub) then
+           if(icsubtype(nc) == isaid) then
               ncsave=nc
               exit matchloop
            else
 !  Find convtype which match ob type and subtype group (isubtype == ?*)
 !       where ? specifies the group and icsubtype = ?0)
               ixsub=icsubtype(nc)/10
-              iosub=iobsub/10
+              iosub=isaid/10
               isubsub=icsubtype(nc)-ixsub*10
               if(ixsub == iosub .and. isubsub == 0) then
                  ncsave=nc
@@ -716,7 +471,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      save_all=.false.
      if(pmot /= 2 .and. pmot /= 0) save_all=.true.
 
-     ! Open and read the file once for each satwnd type   
+     ! Open and read the file again for each satwnd type   
      call closbf(lunin)
      open(lunin,file=trim(infile),form='unformatted')
      call openbf(lunin,'IN',lunin)
@@ -727,12 +482,11 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
      loop_msg:  do while(IREADMG(lunin,subset,idate) == 0)
         nmsg = nmsg+1
         istype = istab(nmsg)
-        if(.not.lmsg(nmsg,nx) .or. istype == 3 .or. istype == 6) then    
-!     currently istypes 3 and 6 not used.  If adding needs to be deleted from above line
-!     as well as below.
+        if(.not.lmsg(nmsg,nx)) then    
            ntb=ntb+nrep(nmsg)
            cycle loop_msg ! no useable reports this mesage, skip ahead report count
         end if
+
         loop_readsb: do while(ireadsb(lunin) == 0)
            ntb = ntb+1
            nc = tab(ntb,1)
@@ -764,6 +518,9 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               call ufbint(lunin,hdrdat,13,1,iret,hdrtr_v1) 
               call ufbint(lunin,obsdat,4,1,iret,obstr_v1)
            endif
+
+           ! test for BUFR version using CMCM for wind computation method
+           if(hdrdat(9)>=10.d10) call ufbint(lunin,hdrdat(9),1,1,iret,'CMCM')
 
            ! reject data with missing pressure or wind
            ppb=obsdat(2)
@@ -799,47 +556,37 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            if( hdrdat(3) <zero) hdrdat(3) = hdrdat(3) + r360
            if( hdrdat(3) == r360) hdrdat(3) = hdrdat(3) - r360
            if( hdrdat(3) > r360) cycle loop_readsb 
+
            qm=2
-           iobsub=int(hdrdat(1))
-           ihdr9=nint(hdrdat(9))
-           write(stationid,'(i3)') iobsub
+           zangl=hdrdat(10)
+           isaid=nint(hdrdat(01))
+           ihdr9=nint(hdrdat(09))
+           write(stationid,'(i3.3)') isaid  
+           if(ihdr9<1.or.ihdr9>7) cycle loop_readsb
 
            ! counter for satwnd types
            !if(itype>=240.and.itype<=279) icnt(itype)=icnt(itype)+1             
 
-           ! test for QCSTR or MANDATORY QC - if not skip over the extra blocks
+           ! collect any qc data ahead of time to use it !
            call ufbrep(lunin,qcdat,3,12,qcret,qcstr)
-           do_qc = subset(1:7)=='NC00503'.and.nint(hdrdat(1))>=270
-           do_qc = do_qc.or.subset(1:7)=='NC00501'
-           do_qc = do_qc.or.subset=='NC005081'.or.subset=='NC005091'
-           do_qc = do_qc.or.qcret>0            
-           
-           ! assign types and get quality info: start
 
-           if(.not.do_qc) then 
-              continue
-           else if(istype == 1) then
-              if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
+!------------------------------------------------------------------------------------------
+           select case (istype) ! special treatment for each istype        
+!------------------------------------------------------------------------------------------
+
+           case(0) ! quality block for new EUMETSAT BUFR
+
               c_prvstg='EUMETSAT'
-              if(ihdr9 == 1)  then                     ! IR winds
-!                itype=253
-                 c_station_id='IR'//stationid
-                 c_sprvstg='IR'
-              else if(ihdr9 == 2) then                 ! visible winds
-!                itype=243
-                 c_station_id='VI'//stationid
-                 c_sprvstg='VI'
-              else if(ihdr9 == 3) then                 ! WV cloud top, try to assimilate
-!                itype=254                                
-                 c_station_id='WV'//stationid
-                 c_sprvstg='WV'
-              else if(ihdr9 >= 4) then                 ! WV deep layer,monitoring
-!                itype=254
-                 qm=9                                  !  quality mark as 9, means the observation error needed to be set
-                 c_station_id='WV'//stationid
-                 c_sprvstg='WV'
-              endif
-!  get quality information
+              c_station_id=swcm(ihdr9)//stationid
+              c_sprvstg=swcm(ihdr9)
+
+           case(1) ! quality block for new EUMETSAT BUFR
+
+              if(zangl >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
+              c_prvstg='EUMETSAT'
+              c_station_id=swcm(ihdr9)//stationid
+              c_sprvstg=swcm(ihdr9)
+
               do j=4,9
                  if( qify <r105 .and. qifn <r105 .and. ee <r105) exit
                  if(qcdat(2,j) < r10000 .and. qcdat(3,j) <r10000) then
@@ -852,32 +599,18 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     endif
                  endif
               enddo
-              if(qifn <85.0_r_kind )  then    !  qifn, QI without forecast
-                 qm=15
-              endif
-! Extra block for new EUMETSAT BUFR: Start
-           else if(istype == 2)then                              ! new EUM BUFR
-              if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
+              if(qifn <85.0_r_kind ) qm=15    !  qifn, QI without forecast
+
+           case(2) ! Extra block for new EUMETSAT BUFR: Start
+
+              if(zangl >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
               c_prvstg='EUMETSAT'
-              if(ihdr9 == 1)  then                            ! IR winds
-!                itype=253
-                 c_station_id='IR'//stationid
-                 c_sprvstg='IR'
-              else if(ihdr9 == 2) then                        ! visible winds
-!                itype=243
-                 c_station_id='VI'//stationid
-                 c_sprvstg='VI'
-              else if(ihdr9 == 3) then                        ! WV cloud top, try to assimilate
-!                itype=254
-                 c_station_id='WV'//stationid
-                 c_sprvstg='WV'
-              else if(ihdr9 >= 4) then                        ! WV deep layer,monitoring
-!                itype=254
-                 qm=9                                     !  quality mark as 9, means the observation error needed to be set
-                 c_station_id='WV'//stationid
-                 c_sprvstg='WV'
-              endif
-!  get quality information THIS SECTION NEEDS TO BE TESTED!!!
+              c_station_id=swcm(ihdr9)//stationid
+              c_sprvstg=swcm(ihdr9)
+              
+              if(ihdr9>=4) qm =9
+
+              !  get quality information THIS SECTION NEEDS TO BE TESTED!!!
               call ufbint(lunin,rep_array,1,1,iret, '{AMVIVR}')
               irep_array = max(1,int(rep_array))
               allocate( amvivr(2,irep_array))
@@ -887,32 +620,21 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               call ufbseq(lunin,amvqic,2,4,iret, 'AMVQIC') ! AMVQIC:: GNAPS PCCF
               qifn = amvqic(2,2)  ! QI w/ fcst does not exist in this BUFR
               ee = amvqic(2,4) ! NOTE: GOES-R's ee is in [m/s]
-              if(qifn <85.0_r_kind )  then    !  qifn, QI without forecast
-                 qm=15
-              endif
-! Extra block for new EUMETSAT BUFR: End
-           else if(istype == 4) then   ! JMA
-              if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
+              if(qifn <85.0_r_kind ) qm=15    !  qifn, QI without forecast
+
+           case(3) 
+
               c_prvstg='JMA'
-              if(ihdr9 == 1)  then                            ! IR winds
-!                itype=252
-                 c_station_id='IR'//stationid
-                 c_sprvstg='IR'
-              else if(ihdr9 == 2) then                        ! visible winds
-!                itype=242
-                 c_station_id='VI'//stationid
-                 c_sprvstg='VI'
-              else if(ihdr9 == 3) then                        ! WV cloud top 
-!                itype=250
-                 c_station_id='WV'//stationid
-                 c_sprvstg='WV'
-              else if(ihdr9 >= 4) then                        ! WV deep layer,as monitoring
-!                itype=250
-                 qm=9
-                 c_station_id='WV'//stationid
-                 c_sprvstg='WV'
-              endif
-! get quality information
+              c_station_id=swcm(ihdr9)//stationid
+              c_sprvstg=swcm(ihdr9)
+
+           case(4) 
+
+              if(zangl >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
+              c_prvstg='JMA'
+              c_station_id=swcm(ihdr9)//stationid
+              c_sprvstg=swcm(ihdr9)
+
               do j=4,9
                  if( qify <=r105 .and. qifn <r105 .and. ee <r105) exit
                  if(qcdat(2,j) <= r10000 .and. qcdat(3,j) <r10000) then
@@ -925,33 +647,17 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     endif
                  endif
               enddo
-                 
-              if(qifn <85.0_r_kind )  then     ! qifn: QI value without forecast 
-                 qm=15
-              endif
-! Extra block for new JMA BUFR: Start
-           else if(istype == 5)then                              ! new JMA BUFR
-              if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
+              if(qifn <85.0_r_kind ) qm=15     ! qifn: QI value without forecast 
+
+           case(5) 
+
+              if(zangl >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
               c_prvstg='JMA'
-              if(ihdr9 == 1)  then                        ! IR winds
-!                itype=252
-                 c_station_id='IR'//stationid
-                 c_sprvstg='IR'
-              else if(ihdr9 == 2) then                    ! visible winds
-!                itype=242
-                 c_station_id='VI'//stationid
-                 c_sprvstg='VI'
-              else if(ihdr9 == 3) then                    ! WV cloud top
-!                itype=250
-                 c_station_id='WV'//stationid
-                 c_sprvstg='WV'
-              else if(ihdr9 >= 4) then                    ! WV deep layer,monitoring
-!                itype=250
-                 qm=9                                     !  quality mark as 9, means the observation error needed to be set
-                 c_station_id='WV'//stationid
-                 c_sprvstg='WV'
-              endif
-!  get quality information THIS SECTION NEEDS TO BE TESTED!!!
+              c_station_id=swcm(ihdr9)//stationid
+              c_sprvstg=swcm(ihdr9)
+
+              if(ihdr9>=4) qm=9
+
               call ufbint(lunin,rep_array,1,1,iret, '{AMVIVR}')
               irep_array = max(1,int(rep_array))
               allocate( amvivr(2,irep_array))
@@ -961,37 +667,23 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               call ufbseq(lunin,amvqic,2,4,iret, 'AMVQIC') ! AMVQIC:: GNAPS PCCF
               qifn = amvqic(2,2)  ! QI w/ fcst does not exist in this BUFR
               ee = amvqic(2,4) ! NOTE: GOES-R's ee is in [m/s]
-              if(qifn <85.0_r_kind )  then    !  qifn, QI without forecast
-                 qm=15
-              endif
-! Extra block for new JMA BUFR: End
-           else if(istype == 7)then  ! NESDIS GOES 
-              if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
-              c_prvstg='NESDIS'
-              if(ihdr9 == 1)  then                                  ! IR winds
-                 if(hdrdat(12) <50000000000000.0_r_kind) then       ! for channel 4
-!                   itype=245
-                    c_station_id='IR'//stationid
-                    c_sprvstg='IR'
-                 else
-!                   itype=240                                       ! short wave winds
-                    c_station_id='IR'//stationid
-                    c_sprvstg='IR'
-                 endif
-              else if(ihdr9 == 2) then                              ! visible winds
-!                itype=251
-                 c_station_id='VI'//stationid
-                 c_sprvstg='VI'
-              else if(ihdr9 == 3) then                              ! WV cloud top
-!                itype=246
-                 c_station_id='WV'//stationid
-                 c_sprvstg='WV'
-              else if(ihdr9 >= 4) then                              ! WV deep layer.mornitored set in convinfo file
-!                itype=247
-                 c_station_id='WV'//stationid
-                 c_sprvstg='WV'
-              endif
-! get quality information
+
+              if(qifn <85.0_r_kind ) qm=15    !  qifn, QI without forecast
+
+           case(6) 
+
+              !if(zangl >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
+              c_prvstg='NESDIS' 
+              c_station_id=swcm(ihdr9)//stationid
+              c_sprvstg=swcm(ihdr9)
+
+           case(7) 
+
+              if(zangl >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
+              c_prvstg='NESDIS' 
+              c_station_id=swcm(ihdr9)//stationid
+              c_sprvstg=swcm(ihdr9)
+
               do j=1,8
                  if( qify <=r105 .and. qifn <r105 .and. ee < r105) exit
                  if(qcdat(2,j) <= r10000 .and. qcdat(3,j) <r10000) then
@@ -1004,44 +696,44 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     endif
                  endif
               enddo
-!QI not applied to CAWV for now - may in the future
-              if(qifn <85.0_r_kind .and. itype /= 247)  then
-                 qm=15
-              endif
+
+              !QI not applied to CAWV for now - may in the future
+              if(qifn <85.0_r_kind .and. itype /= 247)  qm=15
+
               if(wrf_nmm_regional) then
-! Minimum speed requirement for CAWV of 8m/s for HWRF. 
-! Tighten QC for 247 winds by removing winds below 450hPa
+                 ! Minimum speed requirement for CAWV of 8m/s for HWRF. 
+                 ! Tighten QC for 247 winds by removing winds below 450hPa
                  if(itype == 247 .and. obsdat(4) < 8.0_r_kind .and. ppb > 450.0_r_kind) then
                     qm=15
-! Tighten QC for 240 winds by remove winds above 700hPa
+                 ! Tighten QC for 240 winds by remove winds above 700hPa
                  elseif(itype == 240 .and. ppb < 700.0_r_kind) then
                     qm=15
-! Tighten QC for 251 winds by remove winds above 750hPa
+                 ! Tighten QC for 251 winds by remove winds above 750hPa
                  elseif(itype == 251 .and. ppb < 750.0_r_kind) then
                     qm=15
                  endif
               else
-! Minimum speed requirement for CAWV of 10m/s
+                 ! Minimum speed requirement for CAWV of 10m/s
                  if(itype == 247 .and. obsdat(4) < 10.0_r_kind)  then
                     qm=15
                  endif
               endif
-           else if(istype == 8) then  ! MODIS  
-              c_prvstg='MODIS'
-              if(ihdr9 == 1)  then                                  ! IR winds
-!                itype=257
+
+           case(8) 
+
+              c_prvstg='MODIS' 
+
+              if(ihdr9 == 1)  then           
                  c_station_id='IR'//stationid
                  c_sprvstg='IR'
-              else if(ihdr9 == 3) then                      ! WV cloud top
-!                itype=258
+              else if(ihdr9 == 3) then                     
                  c_station_id='WV'//stationid
                  c_sprvstg='WVCLOP'
-              else if(ihdr9 >= 4) then                       ! WV deep layer
-!                itype=259 
+              else if(ihdr9 >= 4) then                    
                  c_station_id='WV'//stationid
                  c_sprvstg='WVDLAYER'
               endif
-!  get quality information
+
               do j=1,8
                  if( qify <=r105 .and. qifn <r105 .and. ee < r105) exit
                  if(qcdat(2,j) <= r10000 .and. qcdat(3,j) <r10000) then
@@ -1054,10 +746,11 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     endif
                  endif
               enddo
-           else if(istype == 9) then                   ! AVHRR 
+
+           case(9) 
+
               c_prvstg='AVHRR'
-!             itype=244
-! get quality information
+
               do j=1,6
                  if( qify <=r105 .and. qifn <r105 .and. ee <r105) exit
                  if(qcdat(2,j) <= r10000 .and. qcdat(3,j) <r10000 ) then
@@ -1070,16 +763,13 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     endif
                  endif
               enddo
-! Extra block for new Metop/AVHRR BUFR: Start
-           else if(istype == 10) then         ! Metop-B/C from EUMETSAT
-              c_prvstg='METOP'
-              if(ihdr9 == 1)  then                            ! IRwinds
-!                itype=244
-                 c_station_id='IR'//stationid
-                 c_sprvstg='IR'
-              else
-                 write(6,*) 'READ_SATWND: wrong derived method value'
-              endif
+
+           case(10)
+
+              c_prvstg='METOP' 
+              c_station_id=swcm(ihdr9)//stationid
+              c_sprvstg=swcm(ihdr9)
+
               call ufbint(lunin,rep_array,1,1,iret, '{AMVIVR}')
               irep_array = int(rep_array)
               allocate( amvivr(2,irep_array))
@@ -1089,16 +779,14 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               call ufbseq(lunin,amvqic,2,4,iret, 'AMVQIC') ! AMVQIC:: GNAPS PCCF
               qifn = amvqic(2,2)  ! QI w/ fcst does not exist in this BUFR
               ee = amvqic(2,4) ! NOTE: GOES-R's ee is in [m/s]
-! Extra block for new Metop/AVHRR BUFR: End
-           else if(istype == 11) then                   ! GOES shortwave winds 
-              if(hdrdat(10) >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
+
+           case(11)
+
+              if(zangl >68.0_r_kind) cycle loop_readsb   !   reject data zenith angle >68.0 degree 
               c_prvstg='NESDIS'
-              if(ihdr9 == 1)  then                            ! short wave IR winds
-!             itype=240
-                 c_station_id='IR'//stationid
-                 c_sprvstg='IR'
-              endif
-! get quality information
+              c_station_id=swcm(ihdr9)//stationid
+              c_sprvstg=swcm(ihdr9)
+
               do j=1,6
                  if( qify <=r105 .and. qifn <r105 .and. ee <r105) exit
                  if(qcdat(2,j) <= r10000 .and. qcdat(3,j) <r10000 ) then
@@ -1111,44 +799,23 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     endif
                  endif
               enddo
-! Tighten QC for 240 winds by removing winds above 700hPa
+              ! Tighten QC for 240 winds by removing winds above 700hPa
               if(wrf_nmm_regional) then
                  if(itype == 240 .and. ppb < 700.0_r_kind) qm=15
               endif
-           else if(istype == 12) then ! LEOGEO (LeoGeo)  winds
-              if(hdrdat(1) ==854 ) then              ! LEOGEO satellite ID
-                 c_prvstg='LEOGEO'
-                 if(ihdr9 == 1)  then                !LEOGEO IR winds
-!                   itype=255
-                    c_station_id='IR'//stationid
-                    c_sprvstg='IR'
-                 endif
-! get quality information
-                 !!! Rethink this strategy!!!
-                 qifn=qcdat(3,1)
-                 qify=qcdat(3,2)
-                 ee  =qcdat(3,3)
-                 !do j=1,6
-                    !if( qify <=r105 .and. qifn <r105 .and. ee <r105) exit
-                    !if(qcdat(2,j) <= r10000 .and. qcdat(3,j) <r10000 ) then
-                    !   if(qcdat(2,j) ==  one  .and. qifn >r105) then
-                    !      qifn=qcdat(3,j)
-                    !   else if(qcdat(2,j) ==  three .and. qify >r105) then
-                    !      qify=qcdat(3,j)
-                    !   else if( qcdat(2,j) == four .and. ee >r105) then
-                    !      ee=qcdat(3,j)
-                    !   endif
-                    !endif
-                    !enddo
-              endif
-           else if(istype == 13) then                   ! VIIRS IR winds 
+
+           case(12)
+
+              c_prvstg='LEOGEO'
+              c_station_id=swcm(ihdr9)//stationid
+              c_sprvstg=swcm(ihdr9)
+
+           case(13)
+
               c_prvstg='VIIRS'
-              if(ihdr9 == 1)  then                            ! VIIRS IR winds
-!                itype=260
-                 c_station_id='IR'//stationid
-                 c_sprvstg='IR'
-              endif
-! get quality information
+              c_station_id=swcm(ihdr9)//stationid
+              c_sprvstg=swcm(ihdr9)
+ 
               do j=1,6
                  if( qify <=r105 .and. qifn <r105 .and. ee <r105) exit
                  if(qcdat(2,j) <= r10000 .and. qcdat(3,j) <r10000 ) then
@@ -1161,30 +828,13 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     endif
                  endif
               enddo
-              if(qifn <85.0_r_kind )  then    !  qifn, QI without forecast
-                 qm=15
-              endif
-! Extra block for VIIRS NOAA-20: Start
-           else if(istype == 14) then
-              c_prvstg='VIIRS'                                  ! IR LW winds
-!             itype=260
-              c_station_id='IR'//stationid
-              c_sprvstg='IR'
-              !write(6,*)'itype= ',itype
+              if(qifn <85.0_r_kind ) qm=15    !  qifn, QI without forecast
 
-!              call ufbint(lunin,rep_array,1,1,iret, '{AMVAHA}')
-!              irep_array = int(rep_array)
-!              allocate( amvaha(4,irep_array))
-!              call ufbint(lunin,amvaha,4,irep_array,iret, 'EHAM PRLC TMDBST
-!              HOCT')
-!              deallocate( amvaha )
-!
-!              call ufbint(lunin,rep_array,1,1,iret, '{AMVIII}')
-!              irep_array = int(rep_array)
-!              allocate( amviii(12,irep_array))
-!              call ufbrep(lunin,amviii,12,irep_array,iret, 'LTDS SCLF SAID
-!              SIID CHNM SCCF ORBN SAZA BEARAZ EHAM PRLC TMDBST')
-!              deallocate( amviii )
+           case(14)
+
+              c_prvstg='VIIRS'
+              c_station_id=swcm(ihdr9)//stationid
+              c_sprvstg=swcm(ihdr9)
 
               call ufbint(lunin,rep_array,1,1,iret, '{AMVIVR}')
               irep_array = int(rep_array)
@@ -1193,24 +843,15 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               pct1 = amvivr(2,1)     ! use of pct1 (a new variable in the BUFR) is introduced by Nebuda/Genkova
               deallocate( amvivr )
 
-!              call ufbrep(lunin,rep_array,1,1,iret, '{AMVCLD}')
-!              irep_array = int(rep_array)
-!              allocate( amvcld(12,irep_array))
-!              ! MUCE --> MUNCEX within the new GOES16/17 and NOAA-20 VIIRS
-!              sequence (I.Genkova, J.Whiting)
-!              ! THIS CHANGE HAS NOT BEEN TESTED !!!
-!              !call ufbrep(lunin,amvcld,12,irep_array,iret, 'FOST CDTP MUCE
-!              VSAT TMDBST VSAT CDTP MUCE OECS CDTP HOCT COPT')
-!              call ufbrep(lunin,amvcld,12,irep_array,iret, 'FOST CDTP MUNCEX
-!              VSAT TMDBST VSAT CDTP MUNCEX OECS CDTP HOCT COPT')
-!              deallocate( amvcld )
-
               call ufbseq(lunin,amvqic,2,4,iret, 'AMVQIC') ! AMVQIC:: GNAPS PCCF
               qifn = amvqic(2,2)  ! QI w/ fcst does not exist in this BUFR
               ee = amvqic(2,4) ! NOTE: GOES-R's ee is in [m/s]
-! Extra block for VIIRS NOAA20: End
-! Extra block for GOES-R winds: Start
-           else if (istype >= 15 .and. istype <=20)then
+
+           case default
+
+           ! istypes 15-20 are handled differently
+
+           if (istype >= 15 .and. istype <=20)then
 
               c_prvstg='GOESR' 
               if(istype == 15)  then                 ! IR LW winds
@@ -1335,11 +976,11 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
               if (qm == 3 .or. qm ==7) woe=woe*r1_2
                  ! set strings for diagnostic output
 
-! Extra block for GOES-R winds: End
-           else ! wind is not recognised and itype is not assigned
-              write(6,*) 'read_satwnd: WIND IS NOT RECOGNIZED ',istype,itype
-              cycle loop_readsb             
-           endif
+           else
+              cycle loop_readsb ! no cases selected then skip this subset
+           endif 
+
+           end select
 
            ! assign types and get quality info : end
 
@@ -1429,7 +1070,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                     enddo
                     if (ncount ==1) then
                        write(6,*) 'READ_SATWND,WARNING cannot find subtype in the error table,&
-                                   itype,iobsub=',itypey,icsubtype(nc)
+                                   itype,isaid=',itypey,icsubtype(nc)
                        write(6,*) 'read error table at colomn subtype as 0,error table column=',ierr
                     endif
                  endif
@@ -1730,9 +1371,155 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 
   close(lunin)
 
-! End of routine
-  return
-
-
-
 end subroutine read_satwnd
+!-------------------------------------------------------------------------------------------------------------------
+!$$$  subprogram documentation block
+!                
+!  subprogram: sattabin       initialize read satwnd processing parameter table
+!  programmer: woollen        date: 2025-02-10
+!
+! abstract:  The routine fills in a lookup table which defines the satellite wind data
+!            types which can be processed by read_satwnd and which processing path 
+!            is desired for that purpose. The table represents a function with three
+!            determinents, the BUFR subtype, the satellite id, and the computation method. 
+!            The function result has two resultants, being satellite wind conv type index 
+!            and the processing case index defining the processing block to execute for
+!            each satwind observation. These have previously been defined in the read_satwnd
+!            code, the lookup table merely simplifies identifying the parameters for each
+!            observation encountered.
+!
+!            The table can be updated by changing or adding to the satellite id data definitions 
+!            in the data specification section, and/or by changing or adding table elements
+!            which refer to either 1) individula convstat satwnd indexes assigned to each datatype, 
+!            or 2) case indexes referring to a block of code in the read_satwnd routine to be used
+!            when processing the particular datatype identified by the inputs to the table function.
+!-------------------------------------------------------------------------------------------------------------------
+      subroutine sattabin(sattab)
+
+      integer sattab(100,1000,7,2)
+      integer goes(20)/731,732,733,734,735,250,251,252,253,254,255,256,257,258,259,270,271,272,273,000/
+      integer insa(20)/430,431,432,450,451,452,410,470,000,000,000,000,000,000,000,000,000,000,000,000/
+      integer hima(20)/153,154,150,151,152,171,172,173,174,000,000,000,000,000,000,000,000,000,000,000/
+      integer meto(20)/058,059,050,051,052,053,054,055,056,057,070,071,000,000,000,000,000,000,000,000/
+      integer modi(20)/783,784,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000/
+      integer lege(20)/854,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000/
+      integer avhr(20)/003,004,005,206,207,208,209,223,225,226,000,000,000,000,000,000,000,000,000,000/
+      integer viir(20)/224,225,226,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000/
+      integer i
+
+      sattab = -1
+
+      do i=1,20; if(goes(i)==0) cycle
+      sattab(001,goes(i),1,1)=245; sattab(001,goes(i),1,2)=06 ! MSG TYPE 005-001 NESDIS SATWIND, GOES LO-D IR(LW)(BINRY 
+      sattab(002,goes(i),2,1)=251; sattab(002,goes(i),2,2)=06 ! MSG TYPE 005-002 NESDIS SATWIND, GOES LO-D VIS (BINARY 
+      sattab(003,goes(i),3,1)=246; sattab(003,goes(i),3,2)=06 ! MSG TYPE 005-003 NESDIS SATWIND, GOES LO-D WV-IM(BINARY 
+      sattab(004,goes(i),4,1)=245; sattab(004,goes(i),4,2)=06 ! MSG TYPE 005-004 NESDIS SATWIND, GOES PTRIP (OLD BINARY 
+
+      sattab(005,goes(i),1,1)=245; sattab(005,goes(i),1,2)=06 ! MSG TYPE 005-005 NESDIS SATWIND, GOES HI-D IR(LW)(BINRY 
+      sattab(006,goes(i),3,1)=251; sattab(006,goes(i),3,2)=06 ! MSG TYPE 005-006 NESDIS SATWIND, GOES HI-D WV-IM(BINARY 
+      sattab(008,goes(i),2,1)=246; sattab(008,goes(i),2,2)=06 ! MSG TYPE 005-008 UW-CIMSS SATWIND, GOES VISIBLE (BINARY 
+      sattab(009,goes(i),4,1)=245; sattab(009,goes(i),4,2)=06 ! MSG TYPE 005-009 NESDIS SATWIND, GOES PTRIP (NEW BINARY 
+
+      sattab(010,goes(i),1,1)=245; sattab(010,goes(i),1,2)=07 ! MSG TYPE 005-010 NESDIS SATWIND, GOES HI-D IR(LW) (BUFR 
+      sattab(011,goes(i),3,1)=246; sattab(011,goes(i),3,2)=07 ! MSG TYPE 005-011 NESDIS SATWIND, GOES HI-D WV-IMG (BUFR 
+      sattab(012,goes(i),2,1)=251; sattab(012,goes(i),2,2)=07 ! MSG TYPE 005-012 NESDIS SATWIND, GOES HI-DENS VIS (BUFR 
+      sattab(013,goes(i),4,1)=245; sattab(013,goes(i),4,2)=07 ! MSG TYPE 005-013 NESDIS SATWIND, GOES PICT. TRIP (BUFR 
+
+      sattab(015,goes(i),1,1)=245; sattab(015,goes(i),1,2)=07 ! MSG TYPE 005-015 NESDIS SATWIND, GOES H-D IR (GTS-BUF 
+      sattab(016,goes(i),3,1)=246; sattab(016,goes(i),3,2)=07 ! MSG TYPE 005-016 NESDIS SATWIND, GOES H-D WV-I (GTS-BUF 
+      sattab(017,goes(i),2,1)=251; sattab(017,goes(i),2,2)=07 ! MSG TYPE 005-017 NESDIS SATWIND, GOES H-D VIS (GTS-BUF 
+      sattab(019,goes(i),1,1)=240; sattab(019,goes(i),1,2)=11 ! MSG TYPE 005-019 NESDIS SATWIND, GOES HI-D IR(SW) (BUFR 
+      enddo
+
+      do i=1,20; if(insa(i)==0) cycle
+      sattab(021,insa(i),1,1)=256; sattab(021,insa(i),1,2)=-1 ! MSG TYPE 005-021 INDIA SATWIND, INSAT IR CHANNEL 
+      sattab(022,insa(i),2,1)=256; sattab(022,insa(i),2,2)=-1 ! MSG TYPE 005-022 INDIA SATWIND, INSAT VIS CHANNEL 
+      sattab(023,insa(i),3,1)=256; sattab(023,insa(i),3,2)=-1 ! MSG TYPE 005-023 INDIA SATWIND, INSAT WV-IMG CHANNEL 
+      sattab(024,insa(i),1,1)=256; sattab(024,insa(i),1,2)=-1 ! MSG TYPE 005-024 INDIA SATWIND, INSAT IR CHN (BUFR) 
+      sattab(025,insa(i),2,1)=256; sattab(025,insa(i),2,2)=-1 ! MSG TYPE 005-025 INDIA SATWIND, INSAT VIS CHN(BUFR) 
+      sattab(026,insa(i),3,1)=256; sattab(026,insa(i),3,2)=-1 ! MSG TYPE 005-026 INDIA SATWIND, INSAT WV CHN (BUFR) 
+      enddo
+
+      do i=1,20; if(goes(i)==0) cycle
+      sattab(030,goes(i),1,1)=245; sattab(030,goes(i),1,2)=15 ! MSG TYPE 005-030 NESDIS SATWIND, GOES-16 IR(LW) (BUFR 
+      sattab(031,goes(i),4,1)=247; sattab(031,goes(i),4,2)=19 ! MSG TYPE 005-031 NESDIS SATWIND, GOES-16 WV-IMG/DL(BUFR 
+      sattab(031,goes(i),5,1)=247; sattab(031,goes(i),5,2)=19 ! MSG TYPE 005-031 NESDIS SATWIND, GOES-16 WV-IMG/DL(BUFR 
+      sattab(032,goes(i),2,1)=251; sattab(032,goes(i),2,2)=17 ! MSG TYPE 005-032 NESDIS SATWIND, GOES-16 VIS (BUFR 
+      sattab(034,goes(i),3,1)=246; sattab(034,goes(i),3,2)=18 ! MSG TYPE 005-034 NESDIS SATWIND, GOES-16 WV-IMG/CT(BUFR 
+      sattab(039,goes(i),1,1)=240; sattab(039,goes(i),1,2)=16 ! MSG TYPE 005-039 NESDIS SATWIND, GOES-16 IR(SW) (BUFR 
+      enddo
+
+      do i=1,20; if(hima(i)==0) cycle
+      sattab(041,hima(i),1,1)=252; sattab(041,hima(i),1,2)=03 ! MSG TYPE 005-041 JMA SATWIND, GMS/MTSAT IR CHANNEL 
+      sattab(042,hima(i),2,1)=242; sattab(042,hima(i),2,2)=03 ! MSG TYPE 005-042 JMA SATWIND, GMS/MTSAT VIS CHANNEL 
+      sattab(043,hima(i),3,1)=250; sattab(043,hima(i),3,2)=03 ! MSG TYPE 005-043 JMA SATWIND, GMS/MTSAT WV-IMG CHANNEL 
+      sattab(043,hima(i),4,1)=250; sattab(043,hima(i),4,2)=03 ! MSG TYPE 005-043 JMA SATWIND, GMS/MTSAT WV-IMG CHANNEL 
+      sattab(043,hima(i),5,1)=250; sattab(043,hima(i),5,2)=03 ! MSG TYPE 005-043 JMA SATWIND, GMS/MTSAT WV-IMG CHANNEL 
+      sattab(044,hima(i),1,1)=252; sattab(044,hima(i),1,2)=04 ! MSG TYPE 005-044 JMA SATWIND, HIMAWARI IR CHANNEL (BUFR 
+      sattab(045,hima(i),2,1)=242; sattab(045,hima(i),2,2)=04 ! MSG TYPE 005-045 JMA SATWIND, HIMAWARI VIS CHANNEL(BUFR 
+      sattab(046,hima(i),3,1)=250; sattab(046,hima(i),3,2)=04 ! MSG TYPE 005-046 JMA SATWIND, HIMAWARI WV-IMG CHN (BUFR 
+      sattab(046,hima(i),4,1)=250; sattab(046,hima(i),4,2)=04 ! MSG TYPE 005-046 JMA SATWIND, HIMAWARI WV-IMG CHN (BUFR 
+      sattab(046,hima(i),5,1)=250; sattab(046,hima(i),5,2)=04 ! MSG TYPE 005-046 JMA SATWIND, HIMAWARI WV-IMG CHN (BUFR 
+      sattab(047,hima(i),1,1)=253; sattab(047,hima(i),1,2)=05 ! MSG TYPE 005-047 JMA SATWIND, HIMAWARI IR (BUFR 310077) 
+      sattab(048,hima(i),2,1)=242; sattab(048,hima(i),2,2)=05 ! MSG TYPE 005-048 JMA SATWIND, HIMAWARI VIS (BUFR 310077 
+      sattab(049,hima(i),3,1)=250; sattab(049,hima(i),3,2)=05 ! MSG TYPE 005-049 JMA SATWIND, HIMAWARI WV (BUFR 310077) 
+      sattab(049,hima(i),4,1)=250; sattab(049,hima(i),4,2)=05 ! MSG TYPE 005-049 JMA SATWIND, HIMAWARI WV (BUFR 310077) 
+      sattab(049,hima(i),5,1)=250; sattab(049,hima(i),5,2)=05 ! MSG TYPE 005-049 JMA SATWIND, HIMAWARI WV (BUFR 310077) 
+      enddo
+
+
+      do i=1,20; if(goes(i)==0) cycle
+      sattab(052,goes(i),1,1)=245; sattab(052,goes(i),1,2)=15 ! MSG TYPE 005-052 NESDIS SATWIND, GOES-16 IR(LW) (BUFR 
+      sattab(053,goes(i),4,1)=247; sattab(053,goes(i),4,2)=19 ! MSG TYPE 005-053 NESDIS SATWIND, GOES-16 WV-IMG/DL(BUFR 
+      sattab(054,goes(i),2,1)=251; sattab(054,goes(i),2,2)=17 ! MSG TYPE 005-054 NESDIS SATWIND, GOES-16 VIS (BUFR 
+      sattab(055,goes(i),3,1)=246; sattab(055,goes(i),3,2)=18 ! MSG TYPE 005-055 NESDIS SATWIND, GOES-16 WV-IMG/CT(BUFR 
+      sattab(056,goes(i),1,1)=240; sattab(056,goes(i),1,2)=16 ! MSG TYPE 005-056 NESDIS SATWIND, GOES-16 IR(SW) (BUFR 
+      enddo
+
+      do i=1,20; if(meto(i)==0) cycle
+      sattab(061,meto(i),1,1)=253; sattab(061,meto(i),1,2)=00 ! MSG TYPE 005-061 EUMETSAT SATWIND, METEOSAT IR CHAN 
+      sattab(062,meto(i),2,1)=243; sattab(062,meto(i),2,2)=00 ! MSG TYPE 005-062 EUMETSAT SATWIND, METEOSAT VIS CHAN 
+      sattab(063,meto(i),3,1)=254; sattab(063,meto(i),3,2)=00 ! MSG TYPE 005-063 EUMETSAT SATWIND, METEOSAT WV-IMG CHN 
+      sattab(063,meto(i),4,1)=254; sattab(063,meto(i),4,2)=00 ! MSG TYPE 005-063 EUMETSAT SATWIND, METEOSAT WV-IMG CHN 
+      sattab(063,meto(i),5,1)=254; sattab(063,meto(i),5,2)=00 ! MSG TYPE 005-063 EUMETSAT SATWIND, METEOSAT WV-IMG CHN 
+      sattab(064,meto(i),1,1)=253; sattab(064,meto(i),1,2)=01 ! MSG TYPE 005-064 EUMETSAT SATWIND, METEOSAT IR CHN (BUF 
+      sattab(065,meto(i),2,1)=243; sattab(065,meto(i),2,2)=01 ! MSG TYPE 005-065 EUMETSAT SATWIND, METEOSAT VIS CHN(BUF 
+      sattab(066,meto(i),3,1)=254; sattab(066,meto(i),3,2)=01 ! MSG TYPE 005-066 EUMETSAT SATWIND, METEOSAT WV CHN (BUF 
+      sattab(066,meto(i),4,1)=254; sattab(066,meto(i),4,2)=01 ! MSG TYPE 005-066 EUMETSAT SATWIND, METEOSAT WV CHN (BUF 
+      sattab(066,meto(i),5,1)=254; sattab(066,meto(i),5,2)=01 ! MSG TYPE 005-066 EUMETSAT SATWIND, METEOSAT WV CHN (BUF 
+      sattab(067,meto(i),1,1)=253; sattab(067,meto(i),1,2)=02 ! MSG TYPE 005-067 EUMETSAT SATWIND, MTSAT IR (BUFR 31007 
+      sattab(068,meto(i),2,1)=243; sattab(068,meto(i),2,2)=02 ! MSG TYPE 005-068 EUMETSAT SATWIND, MTSAT VIS(BUFR 31007 
+      sattab(069,meto(i),3,1)=254; sattab(069,meto(i),3,2)=02 ! MSG TYPE 005-069 EUMETSAT SATWIND, MTSAT WV (BUFR 31007 
+      sattab(069,meto(i),4,1)=254; sattab(069,meto(i),4,2)=02 ! MSG TYPE 005-069 EUMETSAT SATWIND, MTSAT WV (BUFR 31007 
+      sattab(069,meto(i),5,1)=254; sattab(069,meto(i),5,2)=02 ! MSG TYPE 005-069 EUMETSAT SATWIND, MTSAT WV (BUFR 31007 
+      enddo
+
+      do i=1,20; if(modi(i)==0) cycle
+      sattab(070,modi(i),1,1)=257; sattab(070,modi(i),1,2)=08 ! MSG TYPE 005-070 MODIS SATWIND, AQUA/TERRA IR(LW) CHN 
+      sattab(071,modi(i),3,1)=258; sattab(071,modi(i),3,2)=08 ! MSG TYPE 005-071 MODIS SATWIND, AQUA/TERRA WV-IMG CHANN 
+      sattab(071,modi(i),4,1)=259; sattab(071,modi(i),4,2)=08 ! MSG TYPE 005-071 MODIS SATWIND, AQUA/TERRA WV-IMG CHANN 
+      sattab(071,modi(i),5,1)=259; sattab(071,modi(i),5,2)=08 ! MSG TYPE 005-071 MODIS SATWIND, AQUA/TERRA WV-IMG CHANN 
+      enddo
+
+      do i=1,20; if(lege(i)==0) cycle
+      sattab(072,lege(i),1,1)=255; sattab(072,lege(i),1,2)=12 ! MSG TYPE 005-072 SSEC/WISC LEO-GEO WINDS 
+      enddo
+
+      do i=1,20; if(avhr(i)==0) cycle
+      sattab(080,avhr(i),1,1)=244; sattab(080,avhr(i),1,2)=09 ! MSG TYPE 005-080 AVHRR SATWIND, NOAA/METOP IR(LW) CHN 
+      sattab(081,avhr(i),1,1)=244; sattab(081,avhr(i),1,2)=10 ! MSG TYPE 005-081 AVHRR SATWIND, NOAA/METOP IR(LW) CHN 
+      enddo
+
+      do i=1,20; if(viir(i)==0) cycle
+      sattab(090,viir(i),1,1)=260; sattab(090,viir(i),1,2)=13 ! MSG TYPE 005-090 VIIRS SATWIND, NPP IR(LW) CHANNEL 
+      sattab(091,viir(i),1,1)=260; sattab(091,viir(i),1,2)=14 ! MSG TYPE 005-091 VIIRS SATWIND, NPP IR(LW) CHANNEL 
+      enddo
+
+      do i=1,20
+      if(goes(i)/=0) sattab(099,goes(i),1,1)=241; sattab(099,goes(i),1,2)=20 ! MSG TYPE 005-099 CIMSS AMV TROPICAL CYCLONE WINDS 
+      if(hima(i)/=0) sattab(099,hima(i),1,1)=241; sattab(099,hima(i),1,2)=20 ! MSG TYPE 005-099 CIMSS AMV TROPICAL CYCLONE WINDS 
+      if(meto(i)/=0) sattab(099,meto(i),1,1)=241; sattab(099,meto(i),1,2)=20 ! MSG TYPE 005-099 CIMSS AMV TROPICAL CYCLONE WINDS 
+      if(viir(i)/=0) sattab(099,viir(i),1,1)=241; sattab(099,viir(i),1,2)=20 ! MSG TYPE 005-099 CIMSS AMV TROPICAL CYCLONE WINDS 
+      enddo
+
+      end subroutine

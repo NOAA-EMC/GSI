@@ -1167,7 +1167,7 @@ subroutine read_howv_stats(nlat,nlon,npar,arrout,mype)
       arrout(:,:,2)=50000.0_r_kind        ! values were specified by Manuel and Stelio for 2DRTMA
    else
       arrout(:,:,1) = corp_howv           ! 0.42_r_kind used in 3dvar (default) if not set in namelist
-      arrout(:,:,2) = hwllp_howv          ! 17000.0_r_kind used in 3dvar (default) if not set in namelist
+      arrout(:,:,2) = hwllp_howv          ! 170,000.0_r_kind used in 3dvar (default) if not set in namelist
    end if
 
    reclength=nlat*r_kind

@@ -184,7 +184,7 @@
                             cld_bld_coverage,cld_clr_coverage,&
                             i_cloud_q_innovation,i_ens_mean,DTsTmax,&
                             i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check, &
-                            corp_howv, hwllp_howv, corp_gust, hwllp_gust, oerr_gust
+                            corp_howv, hwllp_howv, corp_gust, hwllp_gust, oerr_gust, i_howv_mask
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
@@ -1605,6 +1605,10 @@
 !                           = 0.42 meters (default)
 !      hwllp_howv    - real, background error de-correlation length scale of howv 
 !                           = 170,000.0 meters (default 170 km)
+!      i_howv_mask   - integer, option to control the mask of the wave height (howv) over the land/lake area
+!                           = 0: do not mask (default)
+!                           = 1: mask the value over the land area only (using land mask data)
+!                           = 2: mask the value over the land & lake area (using land mask and lake mask data)
 !      corp_gust     - real, static background error of gust (stddev error)
 !      hwllp_gust    - real, background error de-correlation length scale of gust 
 !      oerr_gust     - real, observation error of gust
@@ -1629,7 +1633,7 @@
                                 cld_bld_coverage,cld_clr_coverage,&
                                 i_cloud_q_innovation,i_ens_mean,DTsTmax, &
                                 i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check, &
-                                corp_howv, hwllp_howv, corp_gust, hwllp_gust, oerr_gust
+                                corp_howv, hwllp_howv, corp_gust, hwllp_gust, oerr_gust, i_howv_mask
 
 ! chem(options for gsi chem analysis) :
 !     berror_chem       - .true. when background  for chemical species that require
