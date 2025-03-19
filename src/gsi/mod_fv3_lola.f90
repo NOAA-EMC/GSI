@@ -128,8 +128,12 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
   use gridmod,  only:grid_ratio_fv3_regional, region_lat,region_lon,nlat,nlon
   use gridmod,  only: region_dy,region_dx,region_dyi,region_dxi,coeffy,coeffx
   use gridmod,  only:init_general_transform,region_dy,region_dx 
-  use mpimod, only: mype
+  use mpimod, only: mype,mpi_rtype
   use egrid2agrid_mod, only: egrid2agrid_parm
+  use mpi
+  use crc32
+  use ifcore
+  use ifport
   implicit none
 
   real(r_kind),allocatable,dimension(:)::xbh_a,xa_a,xa_b
@@ -164,431 +168,641 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
   real(r_kind) d(4),ds
   integer(i_kind) kk,k
 
+  integer(i_kind) name_len,nodeID,nodeComm,nodeRank,RanksPerNode,ierr,npes,inunit
+  character(len=72) :: input
+  character(len=5) :: np,nlatc,nlonc
+  logical :: res,exists
+  character(len=MPI_MAX_PROCESSOR_NAME) :: nodeName
+  !real(kind=8) :: time_beg,time_end,walltime
+
 
   nord_e2a=4
   bilinear=.false.
 
+  call MPI_Comm_size(mpi_comm_world,npes,ierr)
+  call MPI_Get_processor_name(nodeName,name_len,ierr)
+  nodeID=digest(trim(nodeName))
+  !read(nodeName(4:9),*) nodeID ! Danger! This approach will not to work on platforms other than WCOSS2
+  call MPI_Comm_split(mpi_comm_world, nodeID, mype, nodeComm, ierr)
+  call MPI_Comm_rank(nodeComm,nodeRank,ierr)
+  call MPI_Comm_size(nodeComm,RanksPerNode,ierr)
+
+  ! Check for existing file
+  write(nlatc, '(i0)') nx; nlatc = adjustl(nlatc)
+  write(nlonc, '(i0)') ny; nlonc = adjustl(nlonc)
+  write(np, '(i0)') npes; np = adjustl(np)
+  input= 'anl_grid.'//trim(np)//'.'//trim(nlatc)//'.'//trim(nlonc)
+  inquire (file=trim(input), EXIST=exists)
+
+  if(nodeRank==0) then
+    if (exists) then
+      !write(6,'("generate_anl_grid: Reading from ana_grid ",I4,2A)') mype,' ',trim(input)
+      inunit=2000+mype
+      open(inunit,file=trim(input),form='unformatted',action='read')
+      read(inunit) nlat,nlon,nxa,nya
+      if (allocated(region_dx )) deallocate(region_dx )
+      if (allocated(region_dy )) deallocate(region_dy )
+      allocate( region_dx(nlat,nlon), region_dy(nlat,nlon))
+      allocate(region_dxi(nlat,nlon),region_dyi(nlat,nlon))
+      allocate(coeffx(nlat,nlon),coeffy(nlat,nlon))
+      if (allocated(region_lat)) deallocate(region_lat)
+      if (allocated(region_lon)) deallocate(region_lon)
+      allocate(region_lat(nlat,nlon),region_lon(nlat,nlon))
+      allocate(fv3dx(nxa,nya),fv3dx1(nxa,nya),fv3dy(nxa,nya),fv3dy1(nxa,nya) )
+      allocate(fv3ix(nxa,nya),fv3ixp(nxa,nya),fv3jy(nxa,nya),fv3jyp(nxa,nya) )
+      allocate( a3dx( ny, nx),a3dx1(ny,nx),a3dy(ny,nx),a3dy1(ny,nx) )
+      allocate( a3ix( ny, nx),a3ixp(ny,nx),a3jy(ny,nx),a3jyp(ny,nx) )
+      allocate(cangu( nx,ny+1),sangu(nx,ny+1),cangv(nx+1,ny),sangv(nx+1,ny) )
+
+      rewind(inunit)
+      !time_beg=MPI_Wtime()
+      read(inunit) nlat,nlon,nxa,nya,  &
+                   region_dx,region_dy,region_dxi,region_dyi,  &
+                   coeffx,coeffy,region_lat,region_lon,  &
+                   fv3dx,fv3dx1,fv3dy,fv3dy1,fv3ix,fv3ixp,fv3jy,fv3jyp, &
+                   a3dx,a3dx1,a3dy,a3dy1,a3ix,a3ixp,a3jy,a3jyp, &
+                   cangu,sangu,cangv,sangv
+      !time_end=MPI_Wtime()
+      !call MPI_Reduce(time_end-time_beg, walltime, 1, MPI_REAL8, MPI_MAX, 0, nodeComm, ierr)
+      !if(mype==0) write(6,'("Maximum Walltime to read anl_grid " f15.4)') walltime
+
+      close(inunit)
+    else
 
 !   create xc,yc,zc for the cell centers.
-  allocate(xc(nx,ny))
-  allocate(yc(nx,ny))
-  allocate(zc(nx,ny))
-  allocate(gclat(nx,ny))
-  allocate(gclon(nx,ny))
-  allocate(gcrlat(nx,ny))
-  allocate(gcrlon(nx,ny))
-  do j=1,ny
-     do i=1,nx
-        xc(i,j)=cos(grid_latt(i,j)*deg2rad)*cos(grid_lont(i,j)*deg2rad)
-        yc(i,j)=cos(grid_latt(i,j)*deg2rad)*sin(grid_lont(i,j)*deg2rad)
-        zc(i,j)=sin(grid_latt(i,j)*deg2rad)
-     enddo
-  enddo
+      allocate(xc(nx,ny))
+      allocate(yc(nx,ny))
+      allocate(zc(nx,ny))
+      allocate(gclat(nx,ny))
+      allocate(gclon(nx,ny))
+      allocate(gcrlat(nx,ny))
+      allocate(gcrlon(nx,ny))
+      !$omp parallel do default(none),private(j,i) &
+      !$omp shared(ny,nx,xc,grid_latt,grid_lont,deg2rad,yc,zc)
+      do j=1,ny
+       do i=1,nx
+          xc(i,j)=cos(grid_latt(i,j)*deg2rad)*cos(grid_lont(i,j)*deg2rad)
+          yc(i,j)=cos(grid_latt(i,j)*deg2rad)*sin(grid_lont(i,j)*deg2rad)
+          zc(i,j)=sin(grid_latt(i,j)*deg2rad)
+       enddo
+      enddo
+      !$omp end parallel do
 
 !  compute center as average x,y,z coordinates of corners of domain --
 
-  xcent=quarter*(xc(1,1)+xc(1,ny)+xc(nx,1)+xc(nx,ny))
-  ycent=quarter*(yc(1,1)+yc(1,ny)+yc(nx,1)+yc(nx,ny))
-  zcent=quarter*(zc(1,1)+zc(1,ny)+zc(nx,1)+zc(nx,ny))
+      xcent=quarter*(xc(1,1)+xc(1,ny)+xc(nx,1)+xc(nx,ny))
+      ycent=quarter*(yc(1,1)+yc(1,ny)+yc(nx,1)+yc(nx,ny))
+      zcent=quarter*(zc(1,1)+zc(1,ny)+zc(nx,1)+zc(nx,ny))
 
-  rnorm=one/sqrt(xcent**2+ycent**2+zcent**2)
-  xcent=rnorm*xcent
-  ycent=rnorm*ycent
-  zcent=rnorm*zcent
-  centlat=asin(zcent)*rad2deg
-  centlon=atan2(ycent,xcent)*rad2deg
+      rnorm=one/sqrt(xcent**2+ycent**2+zcent**2)
+      xcent=rnorm*xcent
+      ycent=rnorm*ycent
+      zcent=rnorm*zcent
+      centlat=asin(zcent)*rad2deg
+      centlon=atan2(ycent,xcent)*rad2deg
 
 !!  compute new lats, lons
-  call rotate2deg(grid_lont,grid_latt,gcrlon,gcrlat, &
-                  centlon,centlat,nx,ny)
+      call rotate2deg(grid_lont,grid_latt,gcrlon,gcrlat, &
+                      centlon,centlat,nx,ny)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!  compute analysis A-grid  lats, lons
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !--------------------------obtain analysis grid dimensions nxa,nya
-  nxa=1+nint((nx-one)/grid_ratio_fv3_regional)
-  nya=1+nint((ny-one)/grid_ratio_fv3_regional)
-  nlat=nya
-  nlon=nxa
-  if(mype==0) print *,'nlat,nlon=nya,nxa= ',nlat,nlon
+      nxa=1+nint((nx-one)/grid_ratio_fv3_regional)
+      nya=1+nint((ny-one)/grid_ratio_fv3_regional)
+      nlat=nya
+      nlon=nxa
+      if(mype==0) print *,'nlat,nlon=nya,nxa= ',nlat,nlon
 
 !--------------------------obtain analysis grid spacing
-  dlat=(maxval(gcrlat)-minval(gcrlat))/(ny-1)
-  dlon=(maxval(gcrlon)-minval(gcrlon))/(nx-1)
-  adlat=dlat*grid_ratio_fv3_regional
-  adlon=dlon*grid_ratio_fv3_regional
+      dlat=(maxval(gcrlat)-minval(gcrlat))/(ny-1)
+      dlon=(maxval(gcrlon)-minval(gcrlon))/(nx-1)
+      adlat=dlat*grid_ratio_fv3_regional
+      adlon=dlon*grid_ratio_fv3_regional
 
 !-------setup analysis A-grid; find center of the domain
-  nlonh=nlon/2
-  nlath=nlat/2
+      nlonh=nlon/2
+      nlath=nlat/2
 
-  if(nlonh*2==nlon)then
-     clon=adlon/two
-     cx=half
-  else
-     clon=adlon
-     cx=one
-  endif
+      if(nlonh*2==nlon)then
+        clon=adlon/two
+        cx=half
+      else
+        clon=adlon
+        cx=one
+      endif
 
-  if(nlath*2==nlat)then
-     clat=adlat/two
-     cy=half
-  else
-     clat=adlat
-     cy=one
-  endif
+      if(nlath*2==nlat)then
+        clat=adlat/two
+        cy=half
+      else
+        clat=adlat
+        cy=one
+      endif
 
 !
 !-----setup analysis A-grid from center of the domain
 !
-  allocate(rlat_in(nlat,nlon),rlon_in(nlat,nlon))
-  do j=1,nlon
-     alon=(j-nlonh)*adlon-clon
-     do i=1,nlat
-        rlon_in(i,j)=alon
-     enddo
-  enddo
+      allocate(rlat_in(nlat,nlon),rlon_in(nlat,nlon))
+      !$omp parallel do default(none),private(j,alon,i) &
+      !$omp shared(nlon,nlat,rlon_in,nlonh,adlon,clon)
+      do j=1,nlon
+         alon=(j-nlonh)*adlon-clon
+         do i=1,nlat
+            rlon_in(i,j)=alon
+         enddo
+      enddo
+      !$omp end parallel do
 
+      !$omp parallel do default(none),private(j,i) &
+      !$omp shared(nlon,nlat,rlat_in,nlath,adlat,clat)
+      do j=1,nlon
+         do i=1,nlat
+            rlat_in(i,j)=(i-nlath)*adlat-clat
+         enddo
+      enddo
+      !$omp end parallel do
 
-  do j=1,nlon
-     do i=1,nlat
-        rlat_in(i,j)=(i-nlath)*adlat-clat
-     enddo
-  enddo
+      if (allocated(region_dx )) deallocate(region_dx )
+      if (allocated(region_dy )) deallocate(region_dy )
+      allocate(region_dx(nlat,nlon),region_dy(nlat,nlon))
+      allocate(region_dxi(nlat,nlon),region_dyi(nlat,nlon))
+      allocate(coeffx(nlat,nlon),coeffy(nlat,nlon))
+      dyy=rearth*adlat*deg2rad
+      dyyi=one/dyy
+      dyyh=half/dyy
+      !$omp parallel do default(none),private(j,i) &
+      !$omp shared(nlon,nlat,dyy,dyyi,dyyh,region_dy,region_dyi,coeffy)
+      do j=1,nlon
+       do i=1,nlat
+          region_dy(i,j)=dyy
+          region_dyi(i,j)=dyyi
+          coeffy(i,j)=dyyh
+       enddo
+      enddo
+      !$omp end parallel do
 
-  if (allocated(region_dx )) deallocate(region_dx )
-  if (allocated(region_dy )) deallocate(region_dy )
-  allocate(region_dx(nlat,nlon),region_dy(nlat,nlon))
-  allocate(region_dxi(nlat,nlon),region_dyi(nlat,nlon))
-  allocate(coeffx(nlat,nlon),coeffy(nlat,nlon))
-  dyy=rearth*adlat*deg2rad
-  dyyi=one/dyy
-  dyyh=half/dyy
-  do j=1,nlon
-     do i=1,nlat
-        region_dy(i,j)=dyy
-        region_dyi(i,j)=dyyi
-        coeffy(i,j)=dyyh
-     enddo
-  enddo
-
-  do i=1,nlat
-     dxx=rearth*cos(rlat_in(i,1)*deg2rad)*adlon*deg2rad
-     dxxi=one/dxx
-     dxxh=half/dxx
-     do j=1,nlon
-        region_dx(i,j)=dxx
-        region_dxi(i,j)=dxxi
-        coeffx(i,j)=dxxh
-     enddo
-  enddo
+      !$omp parallel do default(none),private(j,i,dxx,dxxi,dxxh) &
+      !$omp shared(nlon,nlat,rearth,rlat_in,deg2rad,adlon,region_dx,region_dxi,coeffx)
+      do i=1,nlat
+       dxx=rearth*cos(rlat_in(i,1)*deg2rad)*adlon*deg2rad
+       dxxi=one/dxx
+       dxxh=half/dxx
+       do j=1,nlon
+          region_dx(i,j)=dxx
+          region_dxi(i,j)=dxxi
+          coeffx(i,j)=dxxh
+       enddo
+      enddo
+      !$omp end parallel do
 
 !
 !----------  setup  region_lat,region_lon in earth coord
 !
-  if (allocated(region_lat)) deallocate(region_lat)
-  if (allocated(region_lon)) deallocate(region_lon)
-  allocate(region_lat(nlat,nlon),region_lon(nlat,nlon))
-  allocate(glat_an(nlon,nlat),glon_an(nlon,nlat))
+      if (allocated(region_lat)) deallocate(region_lat)
+      if (allocated(region_lon)) deallocate(region_lon)
+      allocate(region_lat(nlat,nlon),region_lon(nlat,nlon))
+      allocate(glat_an(nlon,nlat),glon_an(nlon,nlat))
 
-  call unrotate2deg(region_lon,region_lat,rlon_in,rlat_in, &
+      call unrotate2deg(region_lon,region_lat,rlon_in,rlat_in, &
                     centlon,centlat,nlat,nlon)
 
-  region_lat=region_lat*deg2rad
-  region_lon=region_lon*deg2rad
+      region_lat=region_lat*deg2rad
+      region_lon=region_lon*deg2rad
+      !$omp parallel do default(none),private(j,i) &
+      !$omp shared(nlon,nlat,region_lat,region_lon,glat_an,glon_an)
+      do j=1,nlat
+       do i=1,nlon
+          glat_an(i,j)=region_lat(j,i)
+          glon_an(i,j)=region_lon(j,i)
+       enddo
+      enddo
+      !$omp end parallel do
 
-  do j=1,nlat
-     do i=1,nlon
-        glat_an(i,j)=region_lat(j,i)
-        glon_an(i,j)=region_lon(j,i)
-     enddo
-  enddo
-
-  call init_general_transform(glat_an,glon_an)
+      call init_general_transform(glat_an,glon_an)
  
-  deallocate(glat_an,glon_an)
+      deallocate(glat_an,glon_an)
 
 !--------------------compute all combinations of relative coordinates
 
-  allocate(xbh_a(nx),xbh_b(nx,ny),xa_a(nxa),xa_b(nxa))
-  allocate(ybh_a(ny),ybh_b(nx,ny),ya_a(nya),ya_b(nya))
+      allocate(xbh_a(nx),xbh_b(nx,ny),xa_a(nxa),xa_b(nxa))
+      allocate(ybh_a(ny),ybh_b(nx,ny),ya_a(nya),ya_b(nya))
 
-  nxh=nx/2
-  nyh=ny/2
+      nxh=nx/2
+      nyh=ny/2
 
 !!!!!! fv3 rotated grid; not equal spacing, non_orthogonal !!!!!!
-  do j=1,ny
-     jr=ny+1-j
-     do i=1,nx
-        ir=nx+1-i
-        xbh_b(ir,jr)=gcrlon(i,j)/dlon
-     end do
-  end do
-  do j=1,ny
-     jr=ny+1-j
-     do i=1,nx
-       ir=nx+1-i
-       ybh_b(ir,jr)=gcrlat(i,j)/dlat
-     end do
-  end do
+      !$omp parallel do default(none),private(j,jr,i,ir) &
+      !$omp shared(ny,nx,xbh_b,gcrlon,dlon)
+      do j=1,ny
+       jr=ny+1-j
+       do i=1,nx
+          ir=nx+1-i
+          xbh_b(ir,jr)=gcrlon(i,j)/dlon
+       end do
+      end do
+      !$omp end parallel do
+
+      !$omp parallel do default(none),private(j,jr,i,ir) &
+      !$omp shared(ny,nx,ybh_b,gcrlat,dlat)
+      do j=1,ny
+       jr=ny+1-j
+       do i=1,nx
+         ir=nx+1-i
+         ybh_b(ir,jr)=gcrlat(i,j)/dlat
+       end do
+      end do
+      !$omp end parallel do
 
 !!!!  define analysis A grid  !!!!!!!!!!!!!
-  do j=1,nxa
-     xa_a(j)=(real(j-nlonh,r_kind)-cx)*grid_ratio_fv3_regional
-  end do
-  do i=1,nya
-     ya_a(i)=(real(i-nlath,r_kind)-cy)*grid_ratio_fv3_regional
-  end do
+      do j=1,nxa
+       xa_a(j)=(real(j-nlonh,r_kind)-cx)*grid_ratio_fv3_regional
+      end do
+      do i=1,nya
+       ya_a(i)=(real(i-nlath,r_kind)-cy)*grid_ratio_fv3_regional
+      end do
 
 !!!!!compute fv3 to A grid interpolation parameters !!!!!!!!!
-  allocate  (   fv3dx(nxa,nya),fv3dx1(nxa,nya),fv3dy(nxa,nya),fv3dy1(nxa,nya) )
-  allocate  (   fv3ix(nxa,nya),fv3ixp(nxa,nya),fv3jy(nxa,nya),fv3jyp(nxa,nya) )
-  allocate(yy(ny))
+      allocate  (   fv3dx(nxa,nya),fv3dx1(nxa,nya),fv3dy(nxa,nya),fv3dy1(nxa,nya) )
+      allocate  (   fv3ix(nxa,nya),fv3ixp(nxa,nya),fv3jy(nxa,nya),fv3jyp(nxa,nya) )
+      allocate(yy(ny))
 
 ! iteration to find the fv3 grid cell
-  jb1=1
-  ib1=1
-  do j=1,nya
-     do i=1,nxa
-      do n=1,3 
-         gxa=xa_a(i)
-         if(gxa < xbh_b(1,jb1))then
-            gxa= 1
-         else if(gxa > xbh_b(nx,jb1))then
-            gxa= nx
-         else
-            call grdcrd1(gxa,xbh_b(1,jb1),nx,1)
-         endif
-         ib2=ib1
-         ib1=gxa
-         do jj=1,ny
-            yy(jj)=ybh_b(ib1,jj)
-         enddo
-         gya=ya_a(j)
-         if(gya < yy(1))then
-            gya= 1
-         else if(gya > yy(ny))then
-            gya= ny
-         else
-            call grdcrd1(gya,yy,ny,1)
-         endif
-         jb2=jb1
-         jb1=gya
-         if(ib1+1 > nx)then  !this block( 6 lines)  is copied from GSL gsi repository 
-            ib1=ib1-1
-         endif
-         if(jb1+1 > ny)then
-            jb1=jb1-1
-         endif
+      jb1=1
+      ib1=1
+      !$omp parallel do default(none),private(j,i,n,gxa,ib2,jj,yy,gya,jb2,d,kk,k,ds) &
+      !$omp shared(nya,nxa,xa_a,xbh_b,nx,ybh_b,ya_a,ny,fv3ix,fv3ixp,fv3jy,fv3jyp,fv3dy,fv3dy1,fv3dx,fv3dx1,bilinear) &
+      !$omp firstprivate(jb1,ib1)
+      do j=1,nya
+       do i=1,nxa
+        do n=1,3 
+           gxa=xa_a(i)
+           if(gxa < xbh_b(1,jb1))then
+              gxa= 1
+           else if(gxa > xbh_b(nx,jb1))then
+              gxa= nx
+           else
+              call grdcrd1(gxa,xbh_b(1,jb1),nx,1)
+           endif
+           ib2=ib1
+           ib1=gxa
+           do jj=1,ny
+              yy(jj)=ybh_b(ib1,jj)
+           enddo
+           gya=ya_a(j)
+           if(gya < yy(1))then
+              gya= 1
+           else if(gya > yy(ny))then
+              gya= ny
+           else
+              call grdcrd1(gya,yy,ny,1)
+           endif
+           jb2=jb1
+           jb1=gya
+             if(ib1+1 > nx)then  !this block( 6 lines)  is copied from GSL gsi repository 
+              ib1=ib1-1
+           endif
+           if(jb1+1 > ny)then
+              jb1=jb1-1
+           endif
 
 
-         if((ib1 == ib2) .and. (jb1 == jb2)) exit
-         if(n==3 ) then     
+           if((ib1 == ib2) .and. (jb1 == jb2)) exit
+           if(n==3 ) then     
 !!!!!!!   if not converge, find the nearest corner point
-            d(1)=(xa_a(i)-xbh_b(ib1,jb1))**2+(ya_a(j)-ybh_b(ib1,jb1))**2
-            d(2)=(xa_a(i)-xbh_b(ib1+1,jb1))**2+(ya_a(j)-ybh_b(ib1+1,jb1))**2
-            d(3)=(xa_a(i)-xbh_b(ib1,jb1+1))**2+(ya_a(j)-ybh_b(ib1,jb1+1))**2
-            d(4)=(xa_a(i)-xbh_b(ib1+1,jb1+1))**2+(ya_a(j)-ybh_b(ib1+1,jb1+1))**2
-            kk=1 
-            do k=2,4
-               if(d(k)<d(kk))kk=k
-            enddo
+              d(1)=(xa_a(i)-xbh_b(ib1,jb1))**2+(ya_a(j)-ybh_b(ib1,jb1))**2
+              d(2)=(xa_a(i)-xbh_b(ib1+1,jb1))**2+(ya_a(j)-ybh_b(ib1+1,jb1))**2
+              d(3)=(xa_a(i)-xbh_b(ib1,jb1+1))**2+(ya_a(j)-ybh_b(ib1,jb1+1))**2
+              d(4)=(xa_a(i)-xbh_b(ib1+1,jb1+1))**2+(ya_a(j)-ybh_b(ib1+1,jb1+1))**2
+              kk=1 
+              do k=2,4
+                 if(d(k)<d(kk))kk=k
+              enddo
 !!!!!!!!!!! Find the cell for interpolation
-            gxa=xa_a(i)
-            gya=ya_a(j)
-            if(kk==1)then
-               call grdcrd1(gxa,xbh_b(1,jb1),nx,1)
-               do jj=1,ny
-                  yy(jj)=ybh_b(ib1,jj)
-               enddo
-               call grdcrd1(gya,yy,ny,1)
-            else if(kk==2)then
-               call grdcrd1(gxa,xbh_b(1,jb1),nx,1)
-               do jj=1,ny
-                  yy(jj)=ybh_b(ib1+1,jj)
-               enddo
-               call grdcrd1(gya,yy,ny,1)
-            else if(kk==3)then
-               call grdcrd1(gxa,xbh_b(1,jb1+1),nx,1)
-               do jj=1,ny
-                  yy(jj)=ybh_b(ib1,jj)
-               enddo
-               call grdcrd1(gya,yy,ny,1)
-            else if(kk==4)then
-               call grdcrd1(gxa,xbh_b(1,jb1+1),nx,1)
-               do jj=1,ny
-                  yy(jj)=ybh_b(ib1+1,jj)
-               enddo
-               call grdcrd1(gya,yy,ny,1)
-            endif
-            exit
-         endif  !n=3   
-      enddo  ! n
+              gxa=xa_a(i)
+              gya=ya_a(j)
+              if(kk==1)then
+                 call grdcrd1(gxa,xbh_b(1,jb1),nx,1)
+                 do jj=1,ny
+                    yy(jj)=ybh_b(ib1,jj)
+                 enddo
+                 call grdcrd1(gya,yy,ny,1)
+              else if(kk==2)then
+                 call grdcrd1(gxa,xbh_b(1,jb1),nx,1)
+                 do jj=1,ny
+                    yy(jj)=ybh_b(ib1+1,jj)
+                 enddo
+                 call grdcrd1(gya,yy,ny,1)
+              else if(kk==3)then
+                 call grdcrd1(gxa,xbh_b(1,jb1+1),nx,1)
+                 do jj=1,ny
+                    yy(jj)=ybh_b(ib1,jj)
+                 enddo
+                 call grdcrd1(gya,yy,ny,1)
+              else if(kk==4)then
+                 call grdcrd1(gxa,xbh_b(1,jb1+1),nx,1)
+                 do jj=1,ny
+                    yy(jj)=ybh_b(ib1+1,jj)
+                 enddo
+                 call grdcrd1(gya,yy,ny,1)
+              endif
+              exit
+           endif  !n=3   
+        enddo  ! n
 
-      fv3ix(i,j)=int(gxa)
-      fv3ix(i,j)=min(max(1,fv3ix(i,j)),nx)
-      fv3ixp(i,j)=min(nx,fv3ix(i,j)+1)
-      fv3jy(i,j)=int(gya)
-      fv3jy(i,j)=min(max(1,fv3jy(i,j)),ny)
-      fv3jyp(i,j)=min(ny,fv3jy(i,j)+1)
+        fv3ix(i,j)=int(gxa)
+        fv3ix(i,j)=min(max(1,fv3ix(i,j)),nx)
+        fv3ixp(i,j)=min(nx,fv3ix(i,j)+1)
+        fv3jy(i,j)=int(gya)
+        fv3jy(i,j)=min(max(1,fv3jy(i,j)),ny)
+        fv3jyp(i,j)=min(ny,fv3jy(i,j)+1)
 
-      if(bilinear)then
-         fv3dy(i,j)=max(zero,min(one,gya-fv3jy(i,j)))
-         fv3dy1(i,j)=one-fv3dy(i,j)
-         fv3dx(i,j)=max(zero,min(one,gxa-fv3ix(i,j)))
-         fv3dx1(i,j)=one-fv3dx(i,j)
-      else ! inverse-distance weighting average 
-         ib1=fv3ix(i,j)
-         ib2=fv3ixp(i,j)
-         jb1=fv3jy(i,j)
-         jb2=fv3jyp(i,j)
-         if(xa_a(i)==xbh_b(ib1,jb1) .and. ya_a(j)==ybh_b(ib1,jb1))then
-            fv3dy(i,j)=zero
-            fv3dy1(i,j)=zero
-            fv3dx(i,j)=one
-            fv3dx1(i,j)=zero
-         else if(xa_a(i)==xbh_b(ib2,jb1) .and. ya_a(j)==ybh_b(ib2,jb1))then
-            fv3dy(i,j)=zero
-            fv3dy1(i,j)=zero
-            fv3dx(i,j)=zero
-            fv3dx1(i,j)=one
-         else if(xa_a(i)==xbh_b(ib1,jb2) .and. ya_a(j)==ybh_b(ib1,jb2))then
-            fv3dy(i,j)=one 
-            fv3dy1(i,j)=zero
-            fv3dx(i,j)=zero
-            fv3dx1(i,j)=zero
-         else if(xa_a(i)==xbh_b(ib2,jb2) .and. ya_a(j)==ybh_b(ib2,jb2))then
-            fv3dy(i,j)=zero
-            fv3dy1(i,j)=one 
-            fv3dx(i,j)=zero
-            fv3dx1(i,j)=zero
-         else 
-            d(1)=one/((xa_a(i)-xbh_b(ib1,jb1))**2+(ya_a(j)-ybh_b(ib1,jb1))**2)
-            d(2)=one/((xa_a(i)-xbh_b(ib2,jb1))**2+(ya_a(j)-ybh_b(ib2,jb1))**2)
-            d(3)=one/((xa_a(i)-xbh_b(ib1,jb2))**2+(ya_a(j)-ybh_b(ib1,jb2))**2)
-            d(4)=one/((xa_a(i)-xbh_b(ib2,jb2))**2+(ya_a(j)-ybh_b(ib2,jb2))**2)
-            ds=one/(d(1)+d(2)+d(3)+d(4))
-            fv3dy(i,j)=d(3)*ds
-            fv3dy1(i,j)=d(4)*ds
-            fv3dx(i,j)=d(1)*ds
-            fv3dx1(i,j)=d(2)*ds
-         endif
-      endif !bilinear
+        if(bilinear)then
+           fv3dy(i,j)=max(zero,min(one,gya-fv3jy(i,j)))
+           fv3dy1(i,j)=one-fv3dy(i,j)
+           fv3dx(i,j)=max(zero,min(one,gxa-fv3ix(i,j)))
+           fv3dx1(i,j)=one-fv3dx(i,j)
+        else ! inverse-distance weighting average 
+           ib1=fv3ix(i,j)
+           ib2=fv3ixp(i,j)
+           jb1=fv3jy(i,j)
+           jb2=fv3jyp(i,j)
+           if(xa_a(i)==xbh_b(ib1,jb1) .and. ya_a(j)==ybh_b(ib1,jb1))then
+              fv3dy(i,j)=zero
+              fv3dy1(i,j)=zero
+              fv3dx(i,j)=one
+              fv3dx1(i,j)=zero
+           else if(xa_a(i)==xbh_b(ib2,jb1) .and. ya_a(j)==ybh_b(ib2,jb1))then
+              fv3dy(i,j)=zero
+              fv3dy1(i,j)=zero
+              fv3dx(i,j)=zero
+              fv3dx1(i,j)=one
+           else if(xa_a(i)==xbh_b(ib1,jb2) .and. ya_a(j)==ybh_b(ib1,jb2))then
+              fv3dy(i,j)=one 
+              fv3dy1(i,j)=zero
+              fv3dx(i,j)=zero
+              fv3dx1(i,j)=zero
+           else if(xa_a(i)==xbh_b(ib2,jb2) .and. ya_a(j)==ybh_b(ib2,jb2))then
+              fv3dy(i,j)=zero
+              fv3dy1(i,j)=one 
+              fv3dx(i,j)=zero
+              fv3dx1(i,j)=zero
+           else 
+              d(1)=one/((xa_a(i)-xbh_b(ib1,jb1))**2+(ya_a(j)-ybh_b(ib1,jb1))**2)
+              d(2)=one/((xa_a(i)-xbh_b(ib2,jb1))**2+(ya_a(j)-ybh_b(ib2,jb1))**2)
+              d(3)=one/((xa_a(i)-xbh_b(ib1,jb2))**2+(ya_a(j)-ybh_b(ib1,jb2))**2)
+              d(4)=one/((xa_a(i)-xbh_b(ib2,jb2))**2+(ya_a(j)-ybh_b(ib2,jb2))**2)
+              ds=one/(d(1)+d(2)+d(3)+d(4))
+              fv3dy(i,j)=d(3)*ds
+              fv3dy1(i,j)=d(4)*ds
+              fv3dx(i,j)=d(1)*ds
+              fv3dx1(i,j)=d(2)*ds
+           endif
+        endif !bilinear
 
-     end do ! i
-  end do ! j
+       end do ! i
+      end do ! j
+      !$omp end parallel do
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1111
 !!!!!compute A to fv3 grid interpolation parameters !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1111
-  allocate  (   a3dx(ny,nx),a3dx1(ny,nx),a3dy(ny,nx),a3dy1(ny,nx) )
-  allocate  (   a3ix(ny,nx),a3ixp(ny,nx),a3jy(ny,nx),a3jyp(ny,nx) )
-  do i=1,nx
-     do j=1,ny
-        gxa=xbh_b(i,j)
-        if(gxa < xa_a(1))then
-           gxa= 1
-        else if(gxa > xa_a(nxa))then
-           gxa= nxa
-        else
-           call grdcrd1(gxa,xa_a,nxa,1)
-        endif
-        a3ix(j,i)=int(gxa)
-        a3ix(j,i)=min(max(1,a3ix(j,i)),nxa)
-        a3dx(j,i)=max(zero,min(one,gxa-a3ix(j,i)))
-        a3dx1(j,i)=one-a3dx(j,i)
-        a3ixp(j,i)=min(nxa,a3ix(j,i)+1)
-     end do
-  end do
+      allocate  (   a3dx(ny,nx),a3dx1(ny,nx),a3dy(ny,nx),a3dy1(ny,nx) )
+      allocate  (   a3ix(ny,nx),a3ixp(ny,nx),a3jy(ny,nx),a3jyp(ny,nx) )
+      !$omp parallel do default(none),private(j,i,gxa) &
+      !$omp shared(ny,nx,xbh_b,xa_a,nxa,a3ix,a3dx,a3dx1,a3ixp)
+      do i=1,nx
+       do j=1,ny
+          gxa=xbh_b(i,j)
+          if(gxa < xa_a(1))then
+             gxa= 1
+          else if(gxa > xa_a(nxa))then
+             gxa= nxa
+          else
+             call grdcrd1(gxa,xa_a,nxa,1)
+          endif
+          a3ix(j,i)=int(gxa)
+          a3ix(j,i)=min(max(1,a3ix(j,i)),nxa)
+          a3dx(j,i)=max(zero,min(one,gxa-a3ix(j,i)))
+          a3dx1(j,i)=one-a3dx(j,i)
+          a3ixp(j,i)=min(nxa,a3ix(j,i)+1)
+       end do
+      end do
+      !$omp end parallel do
 
-  do i=1,nx
-    do j=1,ny
-        gya=ybh_b(i,j)
-        if(gya < ya_a(1))then
-           gya= 1
-        else if(gya > ya_a(nya))then
-           gya= nya
-        else
-           call grdcrd1(gya,ya_a,nya,1)
-        endif
-        a3jy(j,i)=int(gya)
-        a3jy(j,i)=min(max(1,a3jy(j,i)),nya)
-        a3dy(j,i)=max(zero,min(one,gya-a3jy(j,i)))
-        a3dy1(j,i)=one-a3dy(j,i)
-        a3jyp(j,i)=min(nya,a3jy(j,i)+1)
-     end do
-  end do
+      !$omp parallel do default(none),private(j,i,gya) &
+      !$omp shared(ny,nx,ybh_b,ya_a,nya,a3jy,a3dy,a3dy1,a3jyp)
+      do i=1,nx
+       do j=1,ny
+          gya=ybh_b(i,j)
+          if(gya < ya_a(1))then
+             gya= 1
+          else if(gya > ya_a(nya))then
+             gya= nya
+          else
+             call grdcrd1(gya,ya_a,nya,1)
+          endif
+          a3jy(j,i)=int(gya)
+          a3jy(j,i)=min(max(1,a3jy(j,i)),nya)
+          a3dy(j,i)=max(zero,min(one,gya-a3jy(j,i)))
+          a3dy1(j,i)=one-a3dy(j,i)
+          a3jyp(j,i)=min(nya,a3jy(j,i)+1)
+       end do
+      end do
+      !$omp end parallel do
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! find coefficients for wind conversion btw FV3 & earth
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  allocate  (   cangu(nx,ny+1),sangu(nx,ny+1),cangv(nx+1,ny),sangv(nx+1,ny) )
+      allocate  (   cangu(nx,ny+1),sangu(nx,ny+1),cangv(nx+1,ny),sangv(nx+1,ny) )
 
 !   1.  compute x,y,z at cell cornor from grid_lon, grid_lat
-
-  do j=1,ny+1
-     do i=1,nx+1
-        x(i,j)=cos(grid_lat(i,j)*deg2rad)*cos(grid_lon(i,j)*deg2rad)
-        y(i,j)=cos(grid_lat(i,j)*deg2rad)*sin(grid_lon(i,j)*deg2rad)
-        z(i,j)=sin(grid_lat(i,j)*deg2rad)
-     enddo
-  enddo
+      !$omp parallel do default(none),private(j,i) &
+      !$omp shared(ny,nx,grid_lat,grid_lon,deg2rad,x,y,z)
+      do j=1,ny+1
+       do i=1,nx+1
+          x(i,j)=cos(grid_lat(i,j)*deg2rad)*cos(grid_lon(i,j)*deg2rad)
+          y(i,j)=cos(grid_lat(i,j)*deg2rad)*sin(grid_lon(i,j)*deg2rad)
+          z(i,j)=sin(grid_lat(i,j)*deg2rad)
+       enddo
+      enddo
+      !$omp end parallel do
 
 !  2   find angles to E-W and N-S for U edges
-  sq180=180._r_kind**2 
-  do j=1,ny+1
-     do i=1,nx
-!      center lat/lon of the edge 
-        rlat=half*(grid_lat(i,j)+grid_lat(i+1,j))
-        diff=(grid_lon(i,j)-grid_lon(i+1,j))**2
-        if(diff < sq180)then
-           rlon=half*(grid_lon(i,j)+grid_lon(i+1,j))
-        else
-           rlon=half*(grid_lon(i,j)+grid_lon(i+1,j)-360._r_kind)
-        endif
+      sq180=180._r_kind**2
+      !$omp parallel do default(none),private(j,i,rlat,diff,rlon,xr,yr,zr,xu,yu,zu,uval,ewval,nsval) &
+      !$omp shared(ny,nx,grid_lat,grid_lon,sq180,deg2rad,x,y,z,cangu,sangu)
+      do j=1,ny+1
+       do i=1,nx
+!        center lat/lon of the edge 
+          rlat=half*(grid_lat(i,j)+grid_lat(i+1,j))
+          diff=(grid_lon(i,j)-grid_lon(i+1,j))**2
+          if(diff < sq180)then
+             rlon=half*(grid_lon(i,j)+grid_lon(i+1,j))
+          else
+             rlon=half*(grid_lon(i,j)+grid_lon(i+1,j)-360._r_kind)
+          endif
 !    vector to center of the edge
-        xr=cos(rlat*deg2rad)*cos(rlon*deg2rad)
-        yr=cos(rlat*deg2rad)*sin(rlon*deg2rad)
-        zr=sin(rlat*deg2rad)
+          xr=cos(rlat*deg2rad)*cos(rlon*deg2rad)
+          yr=cos(rlat*deg2rad)*sin(rlon*deg2rad)
+          zr=sin(rlat*deg2rad)
 !     vector of the edge
-        xu= x(i+1,j)-x(i,j)
-        yu= y(i+1,j)-y(i,j)
-        zu= z(i+1,j)-z(i,j)
+          xu= x(i+1,j)-x(i,j)
+          yu= y(i+1,j)-y(i,j)
+          zu= z(i+1,j)-z(i,j)
 !    find angle with cross product
-        uval=sqrt((xu**2+yu**2+zu**2))
-        ewval=sqrt((xr**2+yr**2))
-        nsval=sqrt((xr*zr)**2+(zr*yr)**2+(xr*xr+yr*yr)**2)
-        cangu(i,j)=(-yr*xu+xr*yu)/ewval/uval
-        sangu(i,j)=(-xr*zr*xu-zr*yr*yu+(xr*xr+yr*yr)*zu) / nsval/uval
-     enddo
-  enddo
+          uval=sqrt((xu**2+yu**2+zu**2))
+          ewval=sqrt((xr**2+yr**2))
+          nsval=sqrt((xr*zr)**2+(zr*yr)**2+(xr*xr+yr*yr)**2)
+          cangu(i,j)=(-yr*xu+xr*yu)/ewval/uval
+          sangu(i,j)=(-xr*zr*xu-zr*yr*yu+(xr*xr+yr*yr)*zu) / nsval/uval
+       enddo
+      enddo
+      !$omp end parallel do
  
 !  3   find angles to E-W and N-S for V edges
-  do j=1,ny
-     do i=1,nx+1
-        rlat=half*(grid_lat(i,j)+grid_lat(i,j+1))
-        diff=(grid_lon(i,j)-grid_lon(i,j+1))**2
-        if(diff < sq180)then
-           rlon=half*(grid_lon(i,j)+grid_lon(i,j+1))
-        else
-           rlon=half*(grid_lon(i,j)+grid_lon(i,j+1)-360._r_kind)
-        endif
-        xr=cos(rlat*deg2rad)*cos(rlon*deg2rad)
-        yr=cos(rlat*deg2rad)*sin(rlon*deg2rad)
-        zr=sin(rlat*deg2rad)
-        xv= x(i,j+1)-x(i,j)
-        yv= y(i,j+1)-y(i,j)
-        zv= z(i,j+1)-z(i,j)
-        vval=sqrt((xv**2+yv**2+zv**2))
-        ewval=sqrt((xr**2+yr**2))
-        nsval=sqrt((xr*zr)**2+(zr*yr)**2+(xr*xr+yr*yr)**2)
-        cangv(i,j)=(-yr*xv+xr*yv)/ewval/vval
-        sangv(i,j)=(-xr*zr*xv-zr*yr*yv+(xr*xr+yr*yr)*zv) / nsval/vval
-     enddo
-  enddo
-  deallocate( xc,yc,zc,gclat,gclon,gcrlat,gcrlon)
-  deallocate(rlat_in,rlon_in)
+      !$omp parallel do default(none),private(j,i,rlat,diff,rlon,xr,yr,zr,xv,yv,zv,vval,ewval,nsval) &
+      !$omp shared(ny,nx,grid_lat,grid_lon,sq180,deg2rad,x,y,z,cangv,sangv)
+      do j=1,ny
+       do i=1,nx+1
+          rlat=half*(grid_lat(i,j)+grid_lat(i,j+1))
+          diff=(grid_lon(i,j)-grid_lon(i,j+1))**2
+          if(diff < sq180)then
+             rlon=half*(grid_lon(i,j)+grid_lon(i,j+1))
+          else
+             rlon=half*(grid_lon(i,j)+grid_lon(i,j+1)-360._r_kind)
+          endif
+          xr=cos(rlat*deg2rad)*cos(rlon*deg2rad)
+          yr=cos(rlat*deg2rad)*sin(rlon*deg2rad)
+          zr=sin(rlat*deg2rad)
+          xv= x(i,j+1)-x(i,j)
+          yv= y(i,j+1)-y(i,j)
+          zv= z(i,j+1)-z(i,j)
+          vval=sqrt((xv**2+yv**2+zv**2))
+          ewval=sqrt((xr**2+yr**2))
+          nsval=sqrt((xr*zr)**2+(zr*yr)**2+(xr*xr+yr*yr)**2)
+          cangv(i,j)=(-yr*xv+xr*yv)/ewval/vval
+          sangv(i,j)=(-xr*zr*xv-zr*yr*yv+(xr*xr+yr*yr)*zv) / nsval/vval
+       enddo
+      enddo
+      !$omp end parallel do
+      deallocate( xc,yc,zc,gclat,gclon,gcrlat,gcrlon)
+      deallocate(rlat_in,rlon_in)
+      ! File didnt exist so we computed the data.  Now save it for subsequent runs.
+      if(mype==0) then
+        inunit=2000+mype
+        open(inunit,file=trim(input),form='unformatted',action='write')
+        write(inunit) nlat,nlon,nxa,nya,  &
+                      region_dx,region_dy,region_dxi,region_dyi,  &
+                      coeffx,coeffy,region_lat,region_lon,  &
+                      fv3dx,fv3dx1,fv3dy,fv3dy1,fv3ix,fv3ixp,fv3jy,fv3jyp, &
+                      a3dx,a3dx1,a3dy,a3dy1,a3ix,a3ixp,a3jy,a3jyp, &
+                      cangu,sangu,cangv,sangv
+        !call flush(inunit)
+        !res = COMMITQQ(inunit)
+        close(inunit)
+        !write(6,'("generate_anl_grid: Wrote ana_grid ",I4,A)') mype, trim(input)
+      endif
+    endif ! file exists
+  endif ! nodeRank==0
+
+  call MPI_Bcast( nxa,1,mpi_integer,0,nodeComm,ierr)
+  call MPI_Bcast( nya,1,mpi_integer,0,nodeComm,ierr)
+  call MPI_Bcast(nlat,1,mpi_integer,0,nodeComm,ierr)
+  call MPI_Bcast(nlon,1,mpi_integer,0,nodeComm,ierr)
+  if(nodeRank/=0) then
+    if (allocated(region_dx )) deallocate(region_dx )
+    if (allocated(region_dy )) deallocate(region_dy )
+    allocate( region_dx(nlat,nlon), region_dy(nlat,nlon))
+    allocate(region_dxi(nlat,nlon),region_dyi(nlat,nlon))
+    allocate(coeffx(nlat,nlon),coeffy(nlat,nlon))
+    if (allocated(region_lat)) deallocate(region_lat)
+    if (allocated(region_lon)) deallocate(region_lon)
+    allocate(region_lat(nlat,nlon),region_lon(nlat,nlon))
+    allocate(fv3dx(nxa,nya),fv3dx1(nxa,nya),fv3dy(nxa,nya),fv3dy1(nxa,nya) )
+    allocate(fv3ix(nxa,nya),fv3ixp(nxa,nya),fv3jy(nxa,nya),fv3jyp(nxa,nya) )
+    allocate( a3dx( ny, nx),a3dx1(ny,nx),a3dy(ny,nx),a3dy1(ny,nx) )
+    allocate( a3ix( ny, nx),a3ixp(ny,nx),a3jy(ny,nx),a3jyp(ny,nx) )
+    allocate(cangu( nx,ny+1),sangu(nx,ny+1),cangv(nx+1,ny),sangv(nx+1,ny) )
+  endif
+
+
+! Broadcast arrays to the other ranks on the same node
+  !time_beg=MPI_Wtime()
+  call MPI_Bcast( region_dx,nlat*nlon,mpi_rtype,0,nodeComm,ierr)
+  call MPI_Bcast( region_dy,nlat*nlon,mpi_rtype,0,nodeComm,ierr)
+  call MPI_Bcast(region_dxi,nlat*nlon,mpi_rtype,0,nodeComm,ierr)
+  call MPI_Bcast(region_dyi,nlat*nlon,mpi_rtype,0,nodeComm,ierr)
+  call MPI_Bcast(    coeffx,nlat*nlon,mpi_rtype,0,nodeComm,ierr)
+  call MPI_Bcast(    coeffy,nlat*nlon,mpi_rtype,0,nodeComm,ierr)
+
+  call MPI_Bcast(region_lat,nlat*nlon,mpi_rtype,0,nodeComm,ierr)
+  call MPI_Bcast(region_lon,nlat*nlon,mpi_rtype,0,nodeComm,ierr)
+  !walltime=MPI_Wtime()-time_beg
+
+  if (exists) then
+    ! All ranks need to call init_general_transform eventually
+    allocate(glat_an(nlon,nlat),glon_an(nlon,nlat))
+    !$omp parallel do default(none),private(j,i) &
+    !$omp shared(nlon,nlat,region_lat,region_lon,glat_an,glon_an)
+    do j=1,nlat
+      do i=1,nlon
+        glat_an(i,j)=region_lat(j,i)
+        glon_an(i,j)=region_lon(j,i)
+      enddo
+    enddo
+    call init_general_transform(glat_an,glon_an)
+    deallocate(glat_an,glon_an)
+  else
+    if(nodeRank/=0) then
+      ! nodeRank==0 ranks already called init_general_transform
+      ! above so just call from remaining ranks
+      allocate(glat_an(nlon,nlat),glon_an(nlon,nlat))
+      !$omp parallel do default(none),private(j,i) &
+      !$omp shared(nlon,nlat,region_lat,region_lon,glat_an,glon_an)
+      do j=1,nlat
+        do i=1,nlon
+          glat_an(i,j)=region_lat(j,i)
+          glon_an(i,j)=region_lon(j,i)
+        enddo
+      enddo
+      call init_general_transform(glat_an,glon_an)
+      deallocate(glat_an,glon_an)
+    endif
+  endif
+
+  !time_beg=MPI_Wtime()
+  call MPI_Bcast(fv3dx ,nxa*nya,mpi_rtype,0,nodeComm,ierr)
+  call MPI_Bcast(fv3dx1,nxa*nya,mpi_rtype,0,nodeComm,ierr)
+  call MPI_Bcast(fv3dy ,nxa*nya,mpi_rtype,0,nodeComm,ierr)
+  call MPI_Bcast(fv3dy1,nxa*nya,mpi_rtype,0,nodeComm,ierr)
+
+  call MPI_Bcast(fv3ix ,nxa*nya,mpi_integer,0,nodeComm,ierr)
+  call MPI_Bcast(fv3ixp,nxa*nya,mpi_integer,0,nodeComm,ierr)
+  call MPI_Bcast(fv3jy ,nxa*nya,mpi_integer,0,nodeComm,ierr)
+  call MPI_Bcast(fv3jyp,nxa*nya,mpi_integer,0,nodeComm,ierr)
+
+  call MPI_Bcast(a3dx  ,nx*ny  ,mpi_rtype,0,nodeComm,ierr)
+  call MPI_Bcast(a3dx1 ,nx*ny  ,mpi_rtype,0,nodeComm,ierr)
+  call MPI_Bcast(a3dy  ,nx*ny  ,mpi_rtype,0,nodeComm,ierr)
+  call MPI_Bcast(a3dy1 ,nx*ny  ,mpi_rtype,0,nodeComm,ierr)
+
+  call MPI_Bcast(a3ix  ,nx*ny  ,mpi_integer,0,nodeComm,ierr)
+  call MPI_Bcast(a3ixp ,nx*ny  ,mpi_integer,0,nodeComm,ierr)
+  call MPI_Bcast(a3jy  ,nx*ny  ,mpi_integer,0,nodeComm,ierr)
+  call MPI_Bcast(a3jyp ,nx*ny  ,mpi_integer,0,nodeComm,ierr)
+
+  call MPI_Bcast(cangu ,nx*(ny+1),mpi_rtype,0,nodeComm,ierr)
+  call MPI_Bcast(sangu ,nx*(ny+1),mpi_rtype,0,nodeComm,ierr)
+  call MPI_Bcast(cangv ,(nx+1)*ny,mpi_rtype,0,nodeComm,ierr)
+  call MPI_Bcast(sangv ,(nx+1)*ny,mpi_rtype,0,nodeComm,ierr)
+  !time_end=MPI_Wtime()
+  !call MPI_Reduce(walltime+(time_end-time_beg), walltime, 1, MPI_REAL8, MPI_MAX, 0, MPI_COMM_WORLD, ierr)
+  !if(mype==0) write(6,'("Maximum Walltime to Bcast anl_grid " f15.4)') walltime
+
+  call MPI_Comm_free(nodeComm,ierr)
 end subroutine generate_anl_grid
 
 subroutine definecoef_regular_grids(nxen,nyen,grid_lon,grid_lont,grid_lat,grid_latt)
@@ -667,6 +881,8 @@ subroutine definecoef_regular_grids(nxen,nyen,grid_lon,grid_lont,grid_lat,grid_l
   allocate(gclon(nxen,nyen))
   allocate(gcrlat(nxen,nyen))
   allocate(gcrlon(nxen,nyen))
+  !$omp parallel do default(none),private(j,i) &
+  !$omp shared(nyen,nxen,xc,grid_latt,grid_lont,deg2rad,yc,zc)
   do j=1,nyen
      do i=1,nxen
         xc(i,j)=cos(grid_latt(i,j)*deg2rad)*cos(grid_lont(i,j)*deg2rad)
@@ -724,6 +940,8 @@ subroutine definecoef_regular_grids(nxen,nyen,grid_lon,grid_lont,grid_lat,grid_l
 
 
 !!!!!! fv3 rotated grid; not equal spacing, non_orthogonal !!!!!!
+  !$omp parallel do default(none),private(j,jr,i,ir) &
+  !$omp shared(nyen,nxen,xbh_b,gcrlon,dlon)
   do j=1,nyen
      jr=nyen+1-j
      do i=1,nxen
@@ -731,6 +949,8 @@ subroutine definecoef_regular_grids(nxen,nyen,grid_lon,grid_lont,grid_lat,grid_l
         xbh_b(ir,jr)=gcrlon(i,j)/dlon
      end do
   end do
+  !$omp parallel do default(none),private(j,jr,i,ir) &
+  !$omp shared(nyen,nxen,ybh_b,gcrlat,dlat)
   do j=1,nyen
      jr=nyen+1-j
      do i=1,nxen
@@ -757,6 +977,9 @@ subroutine definecoef_regular_grids(nxen,nyen,grid_lon,grid_lont,grid_lat,grid_l
 ! iteration to find the fv3 grid cell
   jb1=1
   ib1=1
+  !$omp parallel do default(none),private(j,i,n,gxa,ib2,jj,yy,gya,jb2,d,kk,k,ds) &
+  !$omp shared(nye,nxe,xa_a,xbh_b,nxen,ybh_b,ya_a,nyen,fv3ixens,fv3ixpens,fv3jyens,fv3jypens,fv3dyens,fv3dy1ens,fv3dxens,fv3dx1ens,bilinear) &
+  !$omp firstprivate(jb1,ib1)
   do j=1,nye
      do i=1,nxe
       do n=1,3
@@ -892,6 +1115,8 @@ subroutine definecoef_regular_grids(nxen,nyen,grid_lon,grid_lont,grid_lat,grid_l
   allocate (a3dxens(nyen,nxen),a3dx1ens(nyen,nxen),a3dyens(nyen,nxen),a3dy1ens(nyen,nxen))
   allocate (a3ixens(nyen,nxen),a3ixpens(nyen,nxen),a3jyens(nyen,nxen),a3jypens(nyen,nxen))
 
+  !$omp parallel do default(none),private(j,i,gxa) &
+  !$omp shared(nyen,nxen,xbh_b,xa_a,nxe,a3ixens,a3dxens,a3dx1ens,a3ixpens)
   do i=1,nxen
      do j=1,nyen
         gxa=xbh_b(i,j)
@@ -910,6 +1135,8 @@ subroutine definecoef_regular_grids(nxen,nyen,grid_lon,grid_lont,grid_lat,grid_l
      end do
   end do
 
+  !$omp parallel do default(none),private(j,i,gya) &
+  !$omp shared(nyen,nxen,ybh_b,ya_a,nye,a3jyens,a3dyens,a3dy1ens,a3jypens)
   do i=1,nxen
     do j=1,nyen
         gya=ybh_b(i,j)
@@ -935,7 +1162,8 @@ subroutine definecoef_regular_grids(nxen,nyen,grid_lon,grid_lont,grid_lat,grid_l
   allocate (canguens(nxen,nyen+1),sanguens(nxen,nyen+1),cangvens(nxen+1,nyen),sangvens(nxen+1,nyen))
 
 !   1.  compute x,y,z at cell cornor from grid_lon, grid_lat
-
+  !$omp parallel do default(none),private(j,i) &
+  !$omp shared(nyen,nxen,grid_lat,grid_lon,deg2rad,x,y,z)
   do j=1,nyen+1
      do i=1,nxen+1
         x(i,j)=cos(grid_lat(i,j)*deg2rad)*cos(grid_lon(i,j)*deg2rad)
@@ -947,6 +1175,8 @@ subroutine definecoef_regular_grids(nxen,nyen,grid_lon,grid_lont,grid_lat,grid_l
 !  2   find angles to E-W and N-S for U edges
 
   sq180=180._r_kind**2
+  !$omp parallel do default(none),private(j,i,rlat,diff,rlon,xr,yr,zr,xu,yu,zu,uval,ewval,nsval) &
+  !$omp shared(nyen,nxen,grid_lat,grid_lon,sq180,deg2rad,x,y,z,canguens,sanguens)
   do j=1,nyen+1
      do i=1,nxen
 !      center lat/lon of the edge 
@@ -975,6 +1205,8 @@ subroutine definecoef_regular_grids(nxen,nyen,grid_lon,grid_lont,grid_lat,grid_l
   enddo
 
 !  3   find angles to E-W and N-S for V edges
+  !$omp parallel do default(none),private(j,i,rlat,diff,rlon,xr,yr,zr,xv,yv,zv,vval,ewval,nsval) &
+  !$omp shared(nyen,nxen,grid_lat,grid_lon,sq180,deg2rad,x,y,z,cangvens,sangvens)
   do j=1,nyen
      do i=1,nxen+1
         rlat=half*(grid_lat(i,j)+grid_lat(i,j+1))
@@ -1093,6 +1325,8 @@ subroutine fv3uv2earth(u,v,nx,ny,u_out,v_out)
   real(r_kind),intent(  out) :: u_out(nx,ny),v_out(nx,ny)
   integer(i_kind) i,j
 
+  !$omp parallel do default(none), private(j,i), &
+  !$omp shared(ny,nx,u,sangv,v,sangu,cangu,cangv,u_out,v_out)
   do j=1,ny
      do i=1,nx
         u_out(i,j)=half *( (u(i,j)*sangv(i,j)-v(i,j)*sangu(i,j))/(cangu(i,j)*sangv(i,j)-sangu(i,j)*cangv(i,j)) &
@@ -1194,6 +1428,8 @@ subroutine fv3_h_to_ll(b_in,a,nb,mb,na,ma,rev_flg)
   nbp=nb+1
   if(rev_flg) then
 !!!!!!!!! reverse E-W and N-S
+     !$omp parallel do default(none), private(j,jr,i,ir), &
+     !$omp shared(mb,mbp,nb,nbp,b_in,b)
      do j=1,mb
         jr=mbp-j
         do i=1,nb
@@ -1206,13 +1442,17 @@ subroutine fv3_h_to_ll(b_in,a,nb,mb,na,ma,rev_flg)
   endif
 !!!!!!!!! interpolate to A grid & reverse ij for array a(lat,lon)
   if(bilinear)then ! bilinear interpolation
+     !$omp parallel do default(none), private(j,i), &
+     !$omp shared(ma,na,b,a,fv3dx1,fv3dy1,fv3ix,fv3jy,fv3dy,fv3jyp,fv3dx,fv3ixp)
      do j=1,ma
         do i=1,na
            a(j,i)=fv3dx1(i,j)*(fv3dy1(i,j)*b(fv3ix (i,j),fv3jy(i,j))+fv3dy(i,j)*b(fv3ix (i,j),fv3jyp(i,j))) &
               +fv3dx (i,j)*(fv3dy1(i,j)*b(fv3ixp(i,j),fv3jy(i,j))+fv3dy(i,j)*b(fv3ixp(i,j),fv3jyp(i,j)))
         end do
      end do
-  else  ! inverse-distance weighting average 
+  else  ! inverse-distance weighting average
+     !$omp parallel do default(none), private(j,i), &
+     !$omp shared(ma,na,b,a,fv3dx,fv3ix,fv3jy,fv3dy,fv3jyp,fv3dx1,fv3ixp,fv3dy1)
      do j=1,ma
         do i=1,na
            a(j,i)=fv3dx(i,j)*b(fv3ix (i,j),fv3jy(i,j))+fv3dy(i,j)*b(fv3ix (i,j),fv3jyp(i,j)) &
@@ -1351,7 +1591,7 @@ subroutine fv3_ll_to_h(a,b,nxa,nya,nxb,nyb,rev_flg)
         do j=1,nxb
            jr=nxbp-j
            b(jr+ijr)=a3dy1(i,j)*(a3dx1(i,j)*a(a3jy (i,j),a3ix(i,j))+a3dx(i,j)*a(a3jy (i,j),a3ixp(i,j))) &
-             +a3dy (i,j)*(a3dx1(i,j)*a(a3jyp(i,j),a3ix(i,j))+a3dx(i,j)*a(a3jyp(i,j),a3ixp(i,j)))
+                    +a3dy (i,j)*(a3dx1(i,j)*a(a3jyp(i,j),a3ix(i,j))+a3dx(i,j)*a(a3jyp(i,j),a3ixp(i,j)))
         end do
      end do
   else
@@ -1360,7 +1600,7 @@ subroutine fv3_ll_to_h(a,b,nxa,nya,nxb,nyb,rev_flg)
         ijr=(i-1)*nxb
         do j=1,nxb
            b(j+ijr)=a3dy1(i,j)*(a3dx1(i,j)*a(a3jy (i,j),a3ix(i,j))+a3dx(i,j)*a(a3jy (i,j),a3ixp(i,j))) &
-             +a3dy (i,j)*(a3dx1(i,j)*a(a3jyp(i,j),a3ix(i,j))+a3dx(i,j)*a(a3jyp(i,j),a3ixp(i,j)))
+                   +a3dy (i,j)*(a3dx1(i,j)*a(a3jyp(i,j),a3ix(i,j))+a3dx(i,j)*a(a3jyp(i,j),a3ixp(i,j)))
         end do
      end do
   endif
@@ -1418,7 +1658,8 @@ subroutine rotate2deg(rlon_in,rlat_in,rlon_out,rlat_out,rlon0,rlat0,nx,ny)
 
   real(r_kind) x,y,z, xt,yt,zt, xtt,ytt,ztt
   integer(i_kind) i,j
-
+  !$omp parallel do default(none),private(j,i,x,y,z,xt,yt,zt,xtt,ytt,ztt) &
+  !$omp shared(ny,nx,rlat_in,rlon_in,deg2rad,rlon0,rlat0,rlat_out,rlon_out,rad2deg)
   do j=1,ny
      do i=1,nx
 !   1.  compute x,y,z from rlon_in, rlat_in
@@ -1475,6 +1716,8 @@ subroutine unrotate2deg(rlon_in,rlat_in,rlon_out,rlat_out,rlon0,rlat0,nx,ny)
 
   real(r_kind) x,y,z, xt,yt,zt, xtt,ytt,ztt
   integer(i_kind) i,j
+  !$omp parallel do default(none),private(j,i,x,y,z,xt,yt,zt,xtt,ytt,ztt) &
+  !$omp shared(ny,nx,rlat_in,rlon_in,deg2rad,rlat0,rlon0,rlat_out,rlon_out,rad2deg)
   do j=1,ny
      do i=1,nx
         xtt=cos(rlat_out(i,j)*deg2rad)*cos(rlon_out(i,j)*deg2rad)

@@ -45,7 +45,7 @@ subroutine setup_linhx(rlat, rlon, time, ix, delx, ixp, delxp, iy, dely,  &
   use params, only: nstatefields, nlons, nlats, nlevs, nhr_state, fhr_assim
   use gridinfo, only: npts, latsgrd, lonsgrd
   use statevec, only: nsdim
-  use constants, only: zero,one,pi
+  use constants, only: izero,zero,one,pi
   use mpisetup
   implicit none
 
@@ -54,6 +54,18 @@ subroutine setup_linhx(rlat, rlon, time, ix, delx, ixp, delxp, iy, dely,  &
   real(r_single)                                   ,intent(in   ) :: time         ! observation time relative to middle of window
   integer(i_kind), intent(out) :: ix, iy, it, ixp, iyp, itp
   real(r_kind), intent(out) :: delx, dely, delxp, delyp, delt, deltp
+  ix=izero
+  iy=izero
+  it=izero
+  ixp=izero
+  iyp=izero
+  itp=izero
+  delx=zero
+  dely=zero
+  delxp=zero
+  delyp=zero
+  delt=zero
+  deltp=zero
    write(6,*)'this is a dummy subroutine, running this means something wrong ,stop'
    call stop2(555)
 
@@ -110,6 +122,7 @@ subroutine calc_linhx(hx, dens, dhx_dx, hxpert, hx_ens, &
   type(raggedarr)                                  ,intent(inout) :: hxpert       ! interpolated background
   real(r_single)                                   ,intent(  out) :: hx_ens       ! H (x_ens)
   integer(i_kind) i,j
+  hx_ens=zero
    write(6,*)'this is a dummy subroutine, running this means something wrong ,stop'
    call stop2(555)
 
@@ -145,6 +158,7 @@ subroutine calc_linhx_modens(hx, dhx_dx, hxpert, hx_ens, vscale)
 !$$$
   use kinds, only: r_kind,i_kind,r_single
   use sparsearr, only: sparr, raggedarr
+  use constants, only: zero
   use mpisetup
   implicit none
 
@@ -155,6 +169,7 @@ subroutine calc_linhx_modens(hx, dhx_dx, hxpert, hx_ens, vscale)
   real(r_single)                                   ,intent(  out) :: hx_ens(neigv)! H (x_ens)
   real(r_double),dimension(neigv,nlevs+1)          ,intent(in   ) :: vscale       ! vertical scaling (for modulated ens)
   integer(i_kind) i
+  hx_ens=zero
   write(6,*)'this is a dummy subroutine, running this means something wrong ,stop'
    call stop2(555)
 

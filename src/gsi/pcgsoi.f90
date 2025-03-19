@@ -159,6 +159,7 @@ subroutine pcgsoi()
   use berror, only: vprecond
   use stpjomod, only: stpjo_setup
   use intradmod, only: setrad
+  use mpi, only : MPI_Wtime, MPI_Comm_World, MPI_REAL8, MPI_MAX, MPI_SUCCESS
   
 
   implicit none
@@ -191,6 +192,8 @@ subroutine pcgsoi()
   integer(i_kind) :: iortho
   logical :: print_verbose,ortho,diag_print
   logical :: lanlerr,read_success
+  real(kind=8) :: time_beg,time_end,walltime
+  integer(i_kind) :: ierr
 
 ! Step size diagnostic strings
   data step /'good', 'SMALL'/
@@ -638,7 +641,14 @@ subroutine pcgsoi()
 ! Write output analysis files
   if(.not.l4dvar) call prt_guess('analysis')
   call prt_state_norms(sval(1),'increment')
-  if (twodvar_regional .or. jiter == miter) call write_all(-1)
+  if (twodvar_regional .or. jiter == miter) then
+    time_beg=MPI_Wtime()
+    call write_all(-1)
+    time_end=MPI_Wtime()
+    call MPI_Reduce(time_end-time_beg, walltime, 1, MPI_REAL8, MPI_MAX, 0, MPI_COMM_WORLD, ierr)
+    if(ierr /= MPI_SUCCESS) print*,'MPI_Reduce ',ierr
+    if(mype==0) write(6,'("Maximum Walltime for write_all" f15.4)') walltime
+  endif
 
 ! Overwrite guess with increment (4d-var only, for now)
   if (iwrtinc>0) then

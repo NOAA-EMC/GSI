@@ -1,5 +1,6 @@
 list(APPEND GSI_SRC_C
 blockIO.c
+crc32_c.c
 )
 
 # Class files for WRF interfaces
@@ -264,6 +265,7 @@ guess_grids.F90
 half_nmm_grid2.f90
 hdraobmod.f90
 hilbert_curve.f90
+crc32.F90
 hybrid_ensemble_isotropic.F90
 hybrid_ensemble_parameters.f90
 inc2guess.f90

@@ -9,7 +9,9 @@ local cmake_ver= os.getenv("cmake_ver") or "3.20.2"
 local python_ver=os.getenv("python_ver") or "3.8.6"
 local prod_util_ver=os.getenv("prod_util_ver") or "2.0.10"
 
-local netcdf_ver=os.getenv("netcdf_ver") or "4.7.4"
+local zlib_ver=os.getenv("zlib_ver") or "1.2.11"
+local hdf5_ver=os.getenv("hdf5_ver") or "1.14.0"
+local netcdf_ver=os.getenv("netcdf_ver") or "4.9.2"
 local bufr_ver=os.getenv("bufr_ver") or "11.7.0"
 local bacio_ver=os.getenv("bacio_ver") or "2.4.1"
 local w3emc_ver=os.getenv("w3emc_ver") or "2.9.2"
@@ -32,6 +34,8 @@ load(pathJoin("python", python_ver))
 
 load(pathJoin("prod_util", prod_util_ver))
 
+load(pathJoin("zlib", zlib_ver))
+load(pathJoin("hdf5", hdf5_ver))
 load(pathJoin("netcdf", netcdf_ver))
 load(pathJoin("bufr", bufr_ver))
 load(pathJoin("bacio", bacio_ver))
