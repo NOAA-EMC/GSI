@@ -213,12 +213,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
               write(6,*)'***read_obs_check analysis and data file date differ, but use anyway'
             else
                write(6,*)'***read_obs_check*** ',&
-                 'incompatable analysis and observation date/time ',trim(filename),' ', trim(dtype)
-               if (trim(dtype) == 'mws' .and. idate < 2025010100_i_kind) then
-                 write(6,*) '***Continue since this is a test to a sample of mws data in ',trim(filename) 
-               else
-                 lexist=.false.
-               endif
+                 'incompatable analysis and observation date/time',trim(filename),trim(dtype)
+               lexist=.false.
             end if
             write(6,*)'Analysis start  :',iadatebgn
             write(6,*)'Analysis end    :',iadateend

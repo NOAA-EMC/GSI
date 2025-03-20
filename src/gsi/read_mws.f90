@@ -416,17 +416,8 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
            idate5(4) = bfr1bhdr(6) !hour
            idate5(5) = bfr1bhdr(7) !minute
            call w3fs21(idate5,nmind)
-           if (idate5(1) >= 2025) then 
-              t4dv= (real((nmind-iwinbgn),r_kind) + bfr1bhdr(8)*r60inv)*r60inv    ! add in seconds
-              tdiff=t4dv+(iwinbgn-gstime)*r60inv
-           else
-              !J.Jin, for sample data with date before 01/01/2025
-              ! Make date and time within the analysis window for mws sample observations.
-              t4dv = real((nmind-gstime),r_kind) + bfr1bhdr(8)*r60inv*r60inv   ! hours from gstime
-              tdiff = t4dv - int(t4dv/twind, i_kind)*twind  ! makes |obstime - gstime | < twind
-              t4dv = tdiff - (iwinbgn-gstime)*r60inv ! hours from the beginning of the analysis window
-           endif
-
+           t4dv= (real((nmind-iwinbgn),r_kind) + bfr1bhdr(8)*r60inv)*r60inv    ! add in seconds
+           tdiff=t4dv+(iwinbgn-gstime)*r60inv
            if (l4dvar.or.l4densvar) then
               if (t4dv<minus_one_minute .OR. t4dv>winlen+one_minute) &
                   cycle read_loop
