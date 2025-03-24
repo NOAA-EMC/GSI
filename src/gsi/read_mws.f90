@@ -182,7 +182,6 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   real(r_kind)    :: ptime,timeinflat,crit0
   integer(i_kind) :: ithin_time,n_tbin
   integer(i_kind),pointer :: it_mesh => null()
-  integer(i_kind) :: isfcalc_mws
 !**************************************************************************
 ! Initialize variables
 
@@ -274,10 +273,8 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   nrec=999999
 
 ! IFSCALC setup
-! Jin. Replayce isfcalc by isfcalc_mws before calc_fov_crosstrk works for MWS data.
-! isfcalc_mw =  isfcalc  ! input
-  isfcalc_mws = 0
-  if (isfcalc_mws==1) then
+  isfcalc = 0
+  if (isfcalc==1) then
      instr=20                    
      ichan=17                    ! pick a surface sens. channel
      expansion=2.9_r_kind        ! use almost three for microwave sensors.
@@ -304,7 +301,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   if (.not.assim) val_tovs=zero
 
 ! Initialize variables for use by FOV-based surface code.
-  if (isfcalc_mws == 1) then
+  if (isfcalc == 1) then
      call instrument_init(instr,jsatid,expansion,valid)
      if (.not. valid) then
        if (assim) then
@@ -319,7 +316,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   endif
 
 ! This eventually needs to be spit between MHS and AMSU-A like channels
-  if (isfcalc_mws==1) then
+  if (isfcalc==1) then
 !   if (amsub.or.mhs)then
 !     rlndsea(4) = max(rlndsea(0),rlndsea(1),rlndsea(2),rlndsea(3))
 !   else
@@ -437,7 +434,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 
            ifov = nint(bfr1bhdr(2))
            lza = bfr2bhdr(1)*deg2rad      ! local zenith angle
-           if(ifov <= 46)    lza=-lza
+           if(ifov <= nadir)    lza=-lza
 
            panglr=(start+real(ifov-1,r_kind)*step)*deg2rad
            satellite_height=bfr1bhdr(13)
@@ -607,7 +604,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 !    FOV-based surface code requires fov number.  if out-of-range, then
 !    skip this ob.
 
-     if (isfcalc_mws == 1) then
+     if (isfcalc == 1) then
         call fov_check(ifov,instr,ichan,valid)
         if (.not. valid) cycle ObsLoop
 
@@ -803,7 +800,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   call destroygrids
 
 ! Deallocate FOV surface code arrays and nullify pointers.
-  if (isfcalc_mws == 1) call fov_cleanup
+  if (isfcalc == 1) call fov_cleanup
 
   if(diagnostic_reg.and.ntest>0) write(6,*)'READ_MWS:  ',&
      'mype,ntest,disterrmax=',mype,ntest,disterrmax
