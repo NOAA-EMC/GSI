@@ -1038,6 +1038,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 !                      use n_clouds_fwd_wk,n_aerosols_fwd_wk,cld_sea_only_wk, cld_sea_only_wk,cw_cv,etc
 !   2019-03-22  Wei/Martin - added VIIRS AOD obs in addition to MODIS AOD obs
 !   2020-05-24  H.Wang  - add interface (subroutine set_crtm_aerosol_fv3_cmaq_regional) for regional FV3-CMAQ. 
+!   2025-01-11  j.jin   - correct tcwv.
 !
 !   input argument list:
 !     obstype      - type of observations for which to get profile
@@ -1161,7 +1162,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   integer(i_kind):: iqs,iozs,icfs
   integer(i_kind):: inis,inrs   
   integer(i_kind):: error_status_clr
-  integer(i_kind):: idx700,dprs,dprs_min  
+  integer(i_kind):: idx700
   integer(i_kind),dimension(8)::obs_time,anal_time
   integer(i_kind),dimension(msig) :: klevel
 ! ****************************** 
@@ -1170,6 +1171,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 ! ******************************
   integer(i_kind):: lai_type
 
+  real(r_kind):: dprs,dprs_min  
   real(r_kind):: wind10,wind10_direction,windratio,windangle 
   real(r_kind):: w00,w01,w10,w11,kgkg_kgm2,f10,panglr,dx,dy
   real(r_kind):: delx,dely,delx1,dely1,dtsig,dtsigp,dtsfc,dtsfcp,dtaer,dtaerp
@@ -2151,7 +2153,7 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
               end do
  
               if (cloud_cont(k,1) >= 1.0e-6_r_kind) clw_guess = clw_guess +  cloud_cont(k,1)        
-              if (present(tcwv)) tcwv = tcwv + (atmosphere(1)%absorber(k,1)*0.001_r_kind)*c6(k)
+              if (present(tcwv)) tcwv = tcwv + q(kk2)*c6(k)
               do ii=1,n_clouds_fwd_wk
                  if (cloud_cont(k,ii) >= 1.0e-6_r_kind) hwp_guess(ii) = hwp_guess(ii) +  cloud_cont(k,ii)        
               enddo
