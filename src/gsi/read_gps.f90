@@ -340,7 +340,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
         allocate(array_lsw(levs),array_fraclsw(levs),array_impact(levs), &
                  sorted_lsw(levs),sorted_fraclsw(levs),sorted_impact(levs), &
                  indices(levs),lsw_flag(levs),sorted_lswflag(levs))
-        lsw_flag(:) = 0.0__kind
+        lsw_flag(:) = 0.0_r_kind
         sorted_lswflag(:) = 0.0_r_kind
         do k=1, levs
            do i=1,nreps_this_ROSEQ2(k)
