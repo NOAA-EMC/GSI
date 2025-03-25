@@ -123,7 +123,6 @@ contains
   real(r_kind) tbcx1,tbcx2
 
 
-  ierrret = 1
   if (amsua .or. atms .or. mws) then
 
      clw = zero
