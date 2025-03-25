@@ -340,7 +340,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
         allocate(array_lsw(levs),array_fraclsw(levs),array_impact(levs), &
                  sorted_lsw(levs),sorted_fraclsw(levs),sorted_impact(levs), &
                  indices(levs),lsw_flag(levs),sorted_lswflag(levs))
-        lsw_flag(:) = 0.0_r_kind
+        lsw_flag(:) = 0.0__kind
         sorted_lswflag(:) = 0.0_r_kind
         do k=1, levs
            do i=1,nreps_this_ROSEQ2(k)
@@ -350,7 +350,11 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
               freq=data1b(m,k)
               array_impact(k)=(data1b(m+1,k) -  roc)/1000._r_kind      ! impactparameter (m)
               array_lsw(k) = data1b(m+4,k)  ! RMSE in bending angle (rad)
-              array_fraclsw(k) = (data1b(m+4,k)/data1b(m+2,k))*100._r_kind
+              if (data1b(m+2,k) > zero) then
+                array_fraclsw(k) = (data1b(m+4,k)/data1b(m+2,k))*100._r_kind
+              else
+                array_fraclsw(k) = 40._r_kind
+              endif
            enddo
         enddo
         !
