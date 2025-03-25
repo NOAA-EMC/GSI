@@ -81,6 +81,7 @@ contains
 !     ssmis     - flag for ssmis data
 !     amsre     - flag for amsre data
 !     atms      - flag for atms data
+!     mws       - flag for mws data
 !     amsr2     - flag for amsr2 data
 !     gmi       - flag for gmi data
 !     saphir    - flag for saphir data
