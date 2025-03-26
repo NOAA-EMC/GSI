@@ -2180,6 +2180,25 @@ subroutine ndfdgrid_info
      elonv8=225.000000_r_kind
      alatan8=60.000000_r_kind
 
+  elseif (trim(cgrid) == 'conus_rtma3d') then   ! for 3DRTMA in CONUS domain 
+                                                ! (same as hrrr grid described above)
+     nx=1799
+     ny=1059
+     alat18=21.138123_r_kind
+     elon18=237.280472_r_kind
+     da8=3000.000000_r_kind
+     elonv8=262.500000_r_kind
+     alatan8=38.500000_r_kind
+
+  elseif (trim(cgrid) == 'alaska_rtma3d') then  ! for 3DRTMA in Alaska domain
+     nx=1299
+     ny=919
+     alat18=41.612949_r_kind
+     elon18=185.117126_r_kind
+     da8=3000.000000_r_kind
+     elonv8=225.000000_r_kind
+     alatan8=60.000000_r_kind
+ 
   else
      print*,'in ndfdgrid_info: unknown grid ',cgrid,'...aborting'
      call abort
