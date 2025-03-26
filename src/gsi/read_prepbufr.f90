@@ -148,6 +148,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !
 !   2020-05-04  wu      - no rotate_wind for fv3_regional
 !   2020-09-05  CAPS(C. Tong) - add flag for new vadwind obs to assimilate around the analysis time only
+!   2022-04-16  pondeca - add bias correction multiplicative factor windbiasfact
 !   2023-03-23  draper  - add code for processing T2m and q2m for global system
 !   2023-07-30  zhao    - added code to extract obs of significant wave height (howvob) from bufr record 
 !                         in prepbufr file for 3D analysis
@@ -206,7 +207,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use gsi_4dvar, only: l4dvar,l4densvar,time_4dvar,winlen,thin4d
   use convthin, only: make3grids,map3grids_m,del3grids,use_all
   use convthin_time, only: make3grids_tm,map3grids_m_tm,del3grids_tm,use_all_tm
-  use qcmod, only: errormod,errormod_aircraft,noiqc,newvad,njqc
+  use qcmod, only: errormod,errormod_aircraft,noiqc,newvad,njqc,sfcwndob_biasc
   use qcmod, only: pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres
   use qcmod, only: nrand
   use nltransf, only: nltransf_forward
@@ -214,6 +215,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use blacklist, only : blkstns,blkkx,ibcnt
   use sfcobsqc,only: init_rjlists,get_usagerj,get_gustqm,destroy_rjlists
   use sfcobsqc,only: init_gsd_sfcuselist,apply_gsd_sfcuselist,destroy_gsd_sfcuselist                       
+  use sfcobsqc,only: init_sfcuselist,apply_sfcuselist,destroy_sfcuselist
+  use sfcobsqc,only: get_wbias_afactor
   use windht,only: init_windht_lists,readin_windht_list,destroy_windht_lists,find_wind_height
   use hilbertcurve,only: init_hilbertcurve, accum_hilbertcurve, &
                          apply_hilbertcurve,destroy_hilbertcurve
@@ -330,7 +333,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind) idummy1,idummy2,glret,lindx !glret>0 means GLERL code exists.Others are dummy variables
   real(r_kind) time,timex,time_drift,timeobs,toff,t4dv,zeps
   real(r_kind) qtflg,tdry,rmesh,ediff,usage,ediff_ps,ediff_q,ediff_t,ediff_uv,ediff_pw
-  real(r_kind) u0,v0,uob,vob,dx,dy,dx1,dy1,w00,w10,w01,w11
+  real(r_kind) u0,v0,uob,vob,rgustob,dx,dy,dx1,dy1,w00,w10,w01,w11
   real(r_kind) qoe,qobcon,pwoe,pwmerr,dlnpob,ppb,poe,gustoe,visoe,qmaxerr
   real(r_kind) toe,woe,errout,oelev,dlat,dlon,sstoe,dlat_earth,dlon_earth
   real(r_kind) tdoe,mxtmoe,mitmoe,pmoe,howvoe,cldchoe
@@ -356,6 +359,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind) :: tempvis,visout
   real(r_kind) :: tempcldch,cldchout
   real(r_kind) :: windsensht
+  real(r_kind) :: windbiasfact
 
   real(r_double) rstation_id,qcmark_huge
   real(r_double) vtcd,glcd !virtual temp program code and GLERL program code
@@ -496,7 +500,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      iqm = 10
      iuse = 12
   else if(uvob) then 
-     nreal=26
+     nreal=27
      iqm = 12
      iuse = 14
   else if(spdob) then
@@ -524,7 +528,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      iqm = 11
      iuse = 13
   else if(gustob) then
-     nreal=21
+     nreal=22
      iqm = 11
      iuse = 12
   else if(visob) then
@@ -889,6 +893,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   call init_rjlists
   call init_aircraft_rjlists
   if(i_gsdsfc_uselist==1) call init_gsd_sfcuselist
+  if(i_gsdsfc_uselist==2) call init_sfcuselist
 
   if (lhilbert) call init_hilbertcurve(maxobs)
 
@@ -1823,8 +1828,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  qm=sstq
               else if(gustob) then
                  gustqm=0
-                 if (kx==188 .or. kx==288 .or. kx==195 .or. kx==295 ) &
-                 call get_gustqm(kx,c_station_id,c_prvstg,c_sprvstg,gustqm)
+                 if (i_gsdsfc_uselist==0) then
+                   !if (kx==188 .or. kx==288 .or. kx==195 .or. kx==295 ) &
+                    call get_gustqm(kx,c_station_id,c_prvstg,c_sprvstg,gustqm)
+                 endif
                  if ( l_rtma3d ) gustqm = 0  ! skipping get_gustqm for 3drtma run (missing list file)
                  qm=gustqm
               else if(visob) then
@@ -2044,11 +2051,19 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  usage=100._r_kind
               end if
 
+              windbiasfact=one
+
               if (sfctype) then 
                  if (i_gsdsfc_uselist==1 ) then
                     if (kx==188 .or. kx==195 .or. kx==288.or.kx==295)  &
                     call apply_gsd_sfcuselist(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
                                             usage)
+                 elseif (i_gsdsfc_uselist==2 ) then
+                    if (kx==188 .or. kx==195 .or. kx==288.or.kx==295) then
+                       call apply_sfcuselist(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
+                                               dlon_earth,dlat_earth,usage)
+                       if (gustob .and. usage>=r6) gustqm=r10
+                    endif
                  else
                     call get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
                                             dlon_earth,dlat_earth,idate,t4dv-toff,      &
@@ -2058,6 +2073,11 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (twodvar_regional)  then
                     if ( kx==288.or.kx==295 .or. (gustob .and. (kx==188.or.kx==195)) )  then
                        call find_wind_height(c_prvstg,c_sprvstg,windsensht,kcount)
+                    endif
+                 endif
+                 if (sfcwndob_biasc) then
+                    if ( kx==288.or.kx==295 .or. (gustob .and. (kx==188.or.kx==195)) )  then
+                       call get_wbias_afactor(kx,obstype,c_station_id,c_prvstg,c_sprvstg,windbiasfact)
                     endif
                  endif
                  if(i_gsdqc==2) then  ! filter bad 2-m dew point and  0 mesonet wind obs
@@ -2312,6 +2332,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     end if
                  endif
 
+                 if (sfcwndob_biasc) then
+                    if (kx==288.or.kx==295)  then
+                        uob=uob*windbiasfact
+                        vob=vob*windbiasfact
+                    endif 
+                 endif
 
                  cdata_all(1,iout)=woe                     ! wind error
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
@@ -2341,9 +2367,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(24,iout)=obsdat(10,k)           ! cat
                  cdata_all(25,iout)=var_jb(5,k)            ! non linear qc parameter
                  cdata_all(26,iout)=one                    ! hilbert curve weight, modified later 
+                 cdata_all(27,iout)=windbiasfact           ! bias correction factor
                  if(perturb_obs)then
-                    cdata_all(27,iout)=ran01dom()*perturb_fact ! u perturbation
-                    cdata_all(28,iout)=ran01dom()*perturb_fact ! v perturbation
+                    cdata_all(28,iout)=ran01dom()*perturb_fact ! u perturbation
+                    cdata_all(29,iout)=ran01dom()*perturb_fact ! v perturbation
                  endif
  
               else if(spdob) then 
@@ -2576,14 +2603,23 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                       selev=zero
                    end if
 
+                   uob=obsdat(5,k)
+                   vob=obsdat(6,k)
+                   rgustob=obsdat(8,k)
+
                    if ((kx==188).or.(kx==288) .or.(kx==195) .or.(kx==295)) then
 !                     gustoe=2.5
                       gustoe=1.0
                       if ( l_rtma3d .and. oerr_gust > 0.0_r_kind ) gustoe = oerr_gust
-                      windcorr=abs(obsdat(5,k))<1.0 .and. abs(obsdat(6,k))<1.0 .and. obsdat(8,k)>10.0
+                      if (sfcwndob_biasc) then
+                         uob=uob*windbiasfact
+                         vob=vob*windbiasfact
+                         rgustob=rgustob*windbiasfact
+                      endif
+                      windcorr=abs(uob)<1.0 .and. abs(vob)<1.0 .and. rgustob>10.0
                       if (windcorr) gustoe=gustoe*1.5_r_kind
 
-                      if (abs(obsdat(8,k)-sqrt(obsdat(5,k)**2+obsdat(6,k)**2))<1.5) then
+                      if (abs(rgustob-sqrt(uob**2+vob**2))<1.5) then
                          gustoe=gustoe*1.5_r_kind
                       end if
                    end if
@@ -2595,7 +2631,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(3,iout)=dlat                    ! grid relative latitude
                  cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
                  cdata_all(5,iout)=oelev                   ! observation height
-                 cdata_all(6,iout)=obsdat(8,k)             ! wind gusts obs
+                 cdata_all(6,iout)=rgustob                 ! wind gusts obs
                  cdata_all(7,iout)=rstation_id             ! station id
                  cdata_all(8,iout)=t4dv                    ! time
                  cdata_all(9,iout)=nc                      ! type
@@ -2612,6 +2648,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(19,iout)=selev                  ! station elevation (m)
                  cdata_all(20,iout)=r_prvstg(1,1)          ! provider name
                  cdata_all(21,iout)=r_sprvstg(1,1)         ! subprovider name
+                 cdata_all(22,iout)=windbiasfact           ! bias correction factor
 
 !             Visibility
               else if(visob) then
@@ -3302,6 +3339,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   call destroy_rjlists
   call destroy_aircraft_rjlists
   if(i_gsdsfc_uselist==1) call destroy_gsd_sfcuselist
+  if(i_gsdsfc_uselist==2) call destroy_sfcuselist
   if (lhilbert) call destroy_hilbertcurve
   if (twodvar_regional) then
      call destroy_ndfdgrid

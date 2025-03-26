@@ -123,6 +123,8 @@ module rapidrefresh_cldsurf_mod
 !                          rejection list
 !                         =0 . EMC method (default)
 !                         =1 . GSD method
+!                         =2 . expansion of GSD method to include provider/subprovider
+!                              based criteria and diurnal accept lists
 !      i_lightpcp        - options for how to deal with light precipitation
 !                         =0 . don't add light precipitation (default)
 !                         =1 . add light precipitation in warm section

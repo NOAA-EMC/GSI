@@ -223,6 +223,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !                         information in diagonostic file, which is used
 !                         in offline observation quality control program (AutoObsQC) 
 !                         for 3D-RTMA (if l_obsprvdiag is true).
+!   2022-04-16  pondeca - write bias correction multiplicative factor for mesonet winds, windbiasfact, to diagnostic file
 !
 ! REMARKS:
 !   language: f90
@@ -294,6 +295,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   integer(i_kind) izz,iprvd,isprvd
   integer(i_kind) idomsfc,isfcr,iskint,iff10
   integer(i_kind) ibb,ikk,ihil,idddd
+  integer(i_kind) ibiascor
 
   integer(i_kind) num_bad_ikx,iprev_station
 
@@ -384,8 +386,9 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   icat=24     ! index of data level category
   ijb=25      ! index of non linear qc parameter
   ihil=26     ! index of  hilbert curve weight
-  iptrbu=27   ! index of u perturbation
-  iptrbv=28   ! index of v perturbation
+  ibiascor=27 ! index of multiplicative factor for ob bias correction
+  iptrbu=28   ! index of u perturbation
+  iptrbv=29   ! index of v perturbation
 
   mm1=mype+1
   scale=one
@@ -405,7 +408,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
      nreal=ioff0
      if (lobsdiagsave) nreal=nreal+7*miter+2
      if (twodvar_regional .or. l_obsprvdiag) then
-       nreal=nreal+2                           ! account for idomsfc,izz
+       nreal=nreal+3                           ! account for idomsfc,izz
        allocate(cprvstg(nobs),csprvstg(nobs))  ! obs provider info
      endif
      if (save_jacobian) then
@@ -1757,6 +1760,8 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            cprvstg(ii)         = c_prvstg        ! provider name
            r_sprvstg           = data(isprvd,i)
            csprvstg(ii)        = c_sprvstg       ! subprovider name
+           ioff = ioff + 1
+           rdiagbuf(ioff,ii) = data(ibiascor,i)  !bias correction a-factor
         endif
 
         if (save_jacobian) then
@@ -1854,6 +1859,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
               call nc_diag_metadata("Provider_Name",     c_prvstg                     )
               r_sprvstg           = data(isprvd,i)
               call nc_diag_metadata("Subprovider_Name",  c_sprvstg                    )
+              call nc_diag_metadata("bias_correction_a_factor", sngl(data(ibiascor,i))   )
            endif
            if (save_jacobian) then
               call nc_diag_data2d("u_Observation_Operator_Jacobian_stind", dhx_dx_u%st_ind)

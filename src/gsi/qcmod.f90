@@ -79,6 +79,8 @@ module qcmod
 !   2019-09-29  X.Su   - add troflg and lat_c for hilbert curve tunning
 !   2019-04-19  eliu    - add QC flag for cold-air outbreak 
 !   2021-04-29  Jung/Collard - Fix numerics for emissivity check
+!   2022-04-15  pondeca - add "logical sfcwndob_biasc" for surface wind bias correction
+!                         based on a modified Kalman-Bucy filter
 !
 ! subroutines included:
 !   sub init_qcvars
@@ -206,6 +208,7 @@ module qcmod
   public :: lat_c
   public :: nrand 
   public :: airs_cads, cris_cads, iasi_cads, iasing_cads
+  public :: sfcwndob_biasc
 
   logical nlnqc_iter,njqc,vqc,nvqc,hub_norm
   logical noiqc
@@ -222,6 +225,7 @@ module qcmod
   logical troflg
   logical cao_check
   logical airs_cads, cris_cads, iasi_cads, iasing_cads
+  logical sfcwndob_biasc
 
   character(10):: vadfile
   integer(i_kind) npres_print
@@ -450,6 +454,7 @@ contains
                            !  obs run through the buddy check
 
     vadwnd_l2rw_qc=.true.  ! When false, DO NOT run the vadwnd qc on level 2 radial wind obs.
+    sfcwndob_biasc=.false. ! When false, do not apply the bias-correction scheme for surface winds
     pvis=one
     pcldch=one
     scale_cv=one
