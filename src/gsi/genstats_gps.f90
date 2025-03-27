@@ -348,10 +348,14 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
       gps_allptr => gps_allptr%llpoint
     end do
   END DO
-  allocate(collect_hght(nobs), source=holder_hght(1:ind))
-  allocate(collect_gps(nobs), source=holder_gps(1:ind))
-  allocate(collect_qc(nobs), source=holder_qc(1:ind))
-  allocate(collect_prof(nobs), source=holder_prof(1:ind))
+
+  !write(6,*) "CHECK nobs: ",nobs
+  if (nobs > 0) then
+    allocate(collect_hght(nobs), source=holder_hght(1:ind))
+    allocate(collect_gps(nobs), source=holder_gps(1:ind))
+    allocate(collect_qc(nobs), source=holder_qc(1:ind))
+    allocate(collect_prof(nobs), source=holder_prof(1:ind))
+  endif
 
   if (mype == 0) allocate(revcounts(total_size),array_hght(nobs_gps),array_gps(nobs_gps), &
                           array_qc(nobs_gps),array_prof(nobs_gps))
@@ -410,7 +414,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   endif
  call mpi_bcast(STD4060,nprof_gps,mpi_rtype,0,mpi_comm_world,ierror)
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  deallocate(collect_hght,collect_gps,collect_qc,collect_prof)
+  if (nobs > 0) deallocate(collect_hght,collect_gps,collect_qc,collect_prof)
   if (mype == 0)  deallocate(revcounts,displs,array_hght,array_gps, &
                              array_qc,array_prof)
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
