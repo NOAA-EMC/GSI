@@ -6,20 +6,20 @@ prepend_path("MODULEPATH", "/apps/modules/modulefiles")
 
 local stack_intel_ver=os.getenv("stack_intel_ver") or "2021.10.0"
 local stack_impi_ver=os.getenv("stack_impi_ver") or "2021.10.0"
-local cmake_ver=os.getenv("cmake_ver") or "3.23.1"
 
 load("gnu")
 load(pathJoin("stack-intel", stack_intel_ver))
 load(pathJoin("stack-intel-oneapi-mpi", stack_impi_ver))
 unload("gnu")
 
+load("gsi_common")
+
+local cmake_ver=os.getenv("cmake_ver") or "3.23.1"
 local python_ver=os.getenv("python_ver") or "3.11.6"
 local prod_util_ver=os.getenv("prod_util_ver") or "2.1.1"
 
-load(pathJoin("python", python_ver))
 load(pathJoin("cmake", cmake_ver))
-
-load("gsi_common")
+load(pathJoin("python", python_ver))
 load(pathJoin("prod_util", prod_util_ver))
 
 pushenv("CFLAGS", "-xHOST")
