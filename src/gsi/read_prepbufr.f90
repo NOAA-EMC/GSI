@@ -897,14 +897,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   if (lhilbert) call init_hilbertcurve(maxobs)
 
-  if (twodvar_regional) then
+  if (twodvar_regional .or. l_rtma3d) then
      call init_ndfdgrid
      call init_windht_lists !load wind sensor height provider lists
-  endif
-
-!  set up data for usage of valley map in 3DRTMA run
-  if (l_rtma3d) then
-     call init_ndfdgrid
   endif
 
 ! loop over convinfo file entries; operate on matches
