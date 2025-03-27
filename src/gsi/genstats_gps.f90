@@ -330,7 +330,6 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   call mpi_comm_size(mpi_comm_world,total_size,ierror)
   nobs = 0
-  ind = 1
   holder_hght(:) = 0.0_r_kind;holder_gps(:) = 0.0_r_kind
   holder_qc(:) = 0.0_r_kind;holder_prof(:) = 0.0_r_kind
   DO ii=1,nobs_bins
@@ -338,23 +337,22 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
     do while (associated(gps_allptr))
       luse = gps_allptr%luse
       if (luse) then
-       holder_hght(ind) = gps_allptr%rdiag(7)
-       holder_gps(ind) = gps_allptr%rdiag(17)
-       holder_qc(ind) = gps_allptr%rdiag(10)
-       holder_prof(ind) = gps_allptr%rdiag(2)
        nobs = nobs + 1
-       ind = ind + 1
+       holder_hght(nobs) = gps_allptr%rdiag(7)
+       holder_gps(nobs) = gps_allptr%rdiag(17)
+       holder_qc(nobs) = gps_allptr%rdiag(10)
+       holder_prof(nobs) = gps_allptr%rdiag(2)
       endif
       gps_allptr => gps_allptr%llpoint
     end do
   END DO
 
-  !write(6,*) "CHECK nobs: ",nobs
+  write(6,*) "CHECK nobs: ",nobs
   if (nobs > 0) then
-    allocate(collect_hght(nobs), source=holder_hght(1:ind))
-    allocate(collect_gps(nobs), source=holder_gps(1:ind))
-    allocate(collect_qc(nobs), source=holder_qc(1:ind))
-    allocate(collect_prof(nobs), source=holder_prof(1:ind))
+    allocate(collect_hght(nobs), source=holder_hght(1:nobs))
+    allocate(collect_gps(nobs), source=holder_gps(1:nobs))
+    allocate(collect_qc(nobs), source=holder_qc(1:nobs))
+    allocate(collect_prof(nobs), source=holder_prof(1:nobs))
   endif
 
   if (mype == 0) allocate(revcounts(total_size),array_hght(nobs_gps),array_gps(nobs_gps), &
