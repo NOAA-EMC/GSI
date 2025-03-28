@@ -347,20 +347,27 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
     end do
   END DO
 
-  write(6,*) "CHECK nobs: ",nobs
-  if (nobs > 0) then
-    allocate(collect_hght(nobs), source=holder_hght(1:nobs))
-    allocate(collect_gps(nobs), source=holder_gps(1:nobs))
-    allocate(collect_qc(nobs), source=holder_qc(1:nobs))
-    allocate(collect_prof(nobs), source=holder_prof(1:nobs))
-  endif
+  allocate(collect_hght(max(1,nobs)), source=zero)
+  allocate(collect_gps(max(1,nobs)), source=zero)
+  allocate(collect_qc(max(1,nobs)), source=zero)
+  allocate(collect_prof(max(1,nobs)), source=zero)
 
-  if (mype == 0) allocate(revcounts(total_size),array_hght(nobs_gps),array_gps(nobs_gps), &
-                          array_qc(nobs_gps),array_prof(nobs_gps))
+  if (nobs > 0) then
+     do ii=1,nobs
+        collect_hght(ii) = holder_hght(ii)
+        collect_gps(ii)  = holder_gps(ii)
+        collect_qc(ii)   = holder_qc(ii)
+        collect_prof(ii) = holder_prof(ii)
+     end do
+  endif
+  
+  allocate(revcounts(total_size),array_hght(nobs_gps),array_gps(nobs_gps), &
+       array_qc(nobs_gps),array_prof(nobs_gps))
+       
   call mpi_gather(nobs,1,mpi_integer, &
                   revcounts,1,mpi_integer,0,mpi_comm_world,ierror)
+  allocate(displs(total_size))
   if (mype == 0) then
-    allocate(displs(total_size))
     displs(1) = 0
     do ii=2,total_size
       displs(ii) = displs(ii-1) + revcounts(ii-1)
@@ -412,9 +419,8 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   endif
  call mpi_bcast(STD4060,nprof_gps,mpi_rtype,0,mpi_comm_world,ierror)
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  if (nobs > 0) deallocate(collect_hght,collect_gps,collect_qc,collect_prof)
-  if (mype == 0)  deallocate(revcounts,displs,array_hght,array_gps, &
-                             array_qc,array_prof)
+ deallocate(collect_hght,collect_gps,collect_qc,collect_prof)
+ deallocate(revcounts,displs,array_hght,array_gps,array_qc,array_prof)
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! compute error
  DO ii=1,nobs_bins
