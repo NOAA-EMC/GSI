@@ -71,6 +71,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surftobs,l_sfcobserror_ramp_t
   use rapidrefresh_cldsurf_mod, only: l_pbl_pseudo_surfobst, pblh_ration,pps_press_incr
   use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_sfct_gross,l_closeobs,i_coastline    
+  use rapidrefresh_cldsurf_mod, only: l_rtma3d
 
   use aircraftinfo, only: npredt,predt,aircraft_t_bc_pof,aircraft_t_bc, &
        aircraft_t_bc_ext,ostats_t,rstats_t,upd_pred_t
@@ -230,6 +231,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !                   is sensible instead of potentionl temperature
 !   2023-03-21 Draper added option to interpolate screen-level T from model 2m output.
 !              (hofx_2m_sfcfile)
+!   2024-10-31  zhao    - added code to use valley-map data for 3DRTMA (l_rtma3d = .TRUE.)
 !
 ! !REMARKS:
 !   language: f90
@@ -946,7 +948,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         qcgross=cgross(ikx)
      endif
 
-     if (twodvar_regional) then
+     if (twodvar_regional .or. l_rtma3d) then
 
         ! Gross error relaxation for when buddycheck_t==.true.
         if (buddycheck_t) then 
