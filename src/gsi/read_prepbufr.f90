@@ -2075,7 +2075,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                                             obsdat(5,k),obsdat(6,k),usage)
                  endif
 
-                 if (l_rtma3d .and. (i_gsdsfc_uselist==1.or.i_gsdsfc_uselist==2)) then
+                 if ((l_rtma3d .or. twodvar_regional) .and. (i_gsdsfc_uselist==1.or.i_gsdsfc_uselist==2)) then
                     call tll2xy(dlon_earth,dlat_earth,x_obs,y_obs,outside_obs)
                     if ((trim(obstype)=='t' .or. trim(obstype)=='q') .and. .not.outside_obs) then
                        call valley_adjustment(x_obs,y_obs,usage)

@@ -533,7 +533,6 @@ subroutine apply_sfcuselist(kx,obstype,c_station_id_in,c_prvstg_in,c_sprvstg_in,
 !$$$ end documentation block
 
   use gridmod, only: twodvar_regional,tll2xy
-  use ndfdgrids, only: valley_adjustment
   implicit none
 
   integer(i_kind),intent(in   ) :: kx
@@ -684,10 +683,6 @@ subroutine apply_sfcuselist(kx,obstype,c_station_id_in,c_prvstg_in,c_sprvstg_in,
      enddo
   end if
 
-  if (twodvar_regional) then
-     call tll2xy(dlon,dlat,xob,yob,outside)
-     if ((obstype=='t' .or. obstype=='q') .and. .not.outside) call valley_adjustment(xob,yob,usage_rj)
-  endif
 !
   kx_save=kx
   obstype_save=obstype
