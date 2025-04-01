@@ -218,6 +218,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use hilbertcurve,only: init_hilbertcurve, accum_hilbertcurve, &
                          apply_hilbertcurve,destroy_hilbertcurve
   use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
+  use ndfdgrids,only: valley_adjustment
   use jfunc, only: tsensible, hofx_2m_sfcfile
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
@@ -397,6 +398,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   integer(i_kind),dimension(1,255):: tqm4q
   real(r_kind),dimension(1,255):: tvflg4q
   real(r_double),dimension(1,255):: tobs4q
+
+! Using valley map for 3DRTMA
+  logical      :: outside_obs
+  real(r_kind) :: x_obs, y_obs
 
 !  equivalence to handle character names
   equivalence(r_prvstg(1,1),c_prvstg) 
@@ -892,7 +897,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   if (lhilbert) call init_hilbertcurve(maxobs)
 
-  if (twodvar_regional) then
+  if (twodvar_regional .or. l_rtma3d) then
      call init_ndfdgrid
      call init_windht_lists !load wind sensor height provider lists
   endif
@@ -2049,6 +2054,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     if (kx==188 .or. kx==195 .or. kx==288.or.kx==295)  &
                     call apply_gsd_sfcuselist(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
                                             usage)
+                    if (l_rtma3d) then
+                       call tll2xy(dlon_earth,dlat_earth,x_obs,y_obs,outside_obs)
+                       if ((trim(obstype)=='t' .or. trim(obstype)=='q') .and. .not.outside_obs) then
+                          call valley_adjustment(x_obs,y_obs,usage)
+                       end if
+                    end if
                  else
                     call get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
                                             dlon_earth,dlat_earth,idate,t4dv-toff,      &

@@ -114,6 +114,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !   2023-03-09 Draper added option to interpolate screen-level q from model 2m output.
 !              (hofx_2m_sfcfile)
 !   2024-01-11 zhao     - added tdry/tvflg in obs diagnostic files for (2D/3D)RTMA
+!   2024-10-31 zhao     - added code to use valley-map data for 3DRTMA (l_rtma3d = .TRUE.)
 !
 !
 !   input argument list:
@@ -755,7 +756,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         qcgross=cgross(ikx)
      endif
 
-     if (twodvar_regional) then
+     if (twodvar_regional .or. l_rtma3d) then
         if ( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) == 0.25_r_kind) &
                qcgross=r3p5*qcgross
      endif
