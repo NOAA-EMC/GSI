@@ -195,14 +195,14 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) :: ithin_time,n_tbin
   integer(i_kind),pointer :: it_mesh => null()
   real(kind=8) :: time_beg,time_end,tb1,tb2,tb3,te1,te2,te3,walltime
-  integer(kind=4) :: good,bin,Obindx
+  integer(kind=4) :: good,bin,Obindx,maxPerBin
   integer,allocatable,dimension(:)   :: binCount
   integer,allocatable,dimension(:,:) :: binObs
   time_beg=MPI_Wtime()
 
 !**************************************************************************
 ! Initialize variables
-  write(6,'("read_atms: Enter ithin is " I8)') ithin
+  !write(6,'("read_atms: Enter ithin is " I8)') ithin
 
   maxinfo=31
   lnbufr = 15
@@ -534,7 +534,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   END IF
 
   allocate(binCount(itxmax))
-  allocate(binObs(500,itxmax))
 
 ! First scan to determine which obs fall into which bins
   tb2=MPI_Wtime()
@@ -590,12 +589,72 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !    Map obs to thinning grid
      call binit(dlat_earth*deg2rad,dlon_earth*deg2rad,itx2,it_mesh)
      binCount(itx2) = binCount(itx2)+1
-     binObs(binCount(itx2),itx2) = iob
   end do ObsLoop
+
+  maxPerBin=maxval(binCount)
+  write(6,'("read_atms: max number of obs in any bin " I10)') maxPerBin
+  write(6,'("read_atms: number of bins with any obs " I10)') count(mask=binCount>0)
+
+  allocate(binObs(maxPerBin,itxmax))
+  binObs(:,:)=0
+  binCount(:)=0
+
+  ObsLoop2: do iob=1,num_obs
+
+     t4dv       => t4dv_save(iob)
+     dlon_earth => dlon_earth_save(iob)
+     dlat_earth => dlat_earth_save(iob)
+     it_mesh    => it_mesh_save(iob)
+     ifov       => ifov_save(iob)
+
+!    Regional case
+     if(regional)then
+        call tll2xy(dlon_earth*deg2rad,dlat_earth*deg2rad,dlon,dlat,outside)
+        if(diagnostic_reg) then
+           call txy2ll(dlon,dlat,dlon00,dlat00)
+           ntest=ntest+1
+           cdist=sin(dlat_earth*deg2rad)*sin(dlat00)+cos(dlat_earth*deg2rad)*cos(dlat00)* &
+                (sin(dlon_earth*deg2rad)*sin(dlon00)+cos(dlon_earth*deg2rad)*cos(dlon00))
+           cdist=max(-one,min(cdist,one))
+           disterr=acos(cdist)*rad2deg
+           disterrmax=max(disterrmax,disterr)
+        end if
+!       Check to see if in domain
+        if(outside) cycle ObsLoop2
+     endif
+
+!    Check time window
+     if (l4dvar.or.l4densvar) then
+        if (t4dv<zero .OR. t4dv>winlen) cycle ObsLoop2
+     else
+        tdiff=t4dv+(iwinbgn-gstime)*r60inv
+        if(abs(tdiff) > twind) cycle ObsLoop2
+     endif
+!
+!    Check FOV and scan-edge usage
+     if (.not. use_edges .and. (ifov < radedge_min .OR. ifov > radedge_max )) &
+          cycle ObsLoop2
+
+     if (maxscan < 96) then
+       ! For ATMS when using the old style satang files,
+       ! we shift the FOV number down by three as we can only use
+       ! 90 of the 96 positions right now because of the scan bias limitation.
+       ifovmod=ifov-3
+       ! Check that ifov is not out of range of cbias dimension
+       if (ifovmod < 1 .OR. ifovmod > 90) cycle ObsLoop2
+     else
+       ! This line is for consistency with previous treatment
+       if (ifov < 4 .OR. ifov > 93) cycle ObsLoop2
+       ifovmod=ifov
+     endif
+
+!    Map obs to thinning grid
+     call binit(dlat_earth*deg2rad,dlon_earth*deg2rad,itx2,it_mesh)
+     binCount(itx2) = binCount(itx2)+1
+     binObs(binCount(itx2),itx2) = iob
+  end do ObsLoop2
   te2=MPI_Wtime()
   write(6,'("Walltime for read_atms: OBS loop " I10,f15.4)') num_obs, te2-tb2
-  write(6,'("read_atms: max number of obs in any bin " I10)') maxval(binCount)
-  write(6,'("read_atms: number of bins with any obs " I10)') count(mask=binCount>0)
 
 ! Second scan to determine which observation in a given bin is best to use
   good=0
@@ -623,7 +682,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
     if(binCount(bin) == 0) cycle BinLoop
      score=9.99e10_r_kind
 
-     ObsLoop2: do Obindx = 1,binCount(bin)
+     ObsLoop3: do Obindx = 1,binCount(bin)
 
        iob        = binObs(Obindx,bin)
        rsat       => rsat_save(iob)
@@ -663,7 +722,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
        ! DSK: We already know which bin (itx) this observation resides in so no need to recalculate.
        ! Could inline this map2tgrid2 call if I had local access to istart_val,glat,mlat,glon and mlon from satthin.
        call map2tgrid2(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,score,it_mesh)
-       if(.not. iuse) cycle ObsLoop2
+       if(.not. iuse) cycle ObsLoop3
 
        if (maxscan < 96) then
          ! For ATMS when using the old style satang files, 
@@ -671,10 +730,10 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
          ! 90 of the 96 positions right now because of the scan bias limitation.
          ifovmod=ifov-3
          ! Check that ifov is not out of range of cbias dimension
-         !if (ifovmod < 1 .OR. ifovmod > 90) cycle ObsLoop2
+         !if (ifovmod < 1 .OR. ifovmod > 90) cycle ObsLoop3
        else
          ! This line is for consistency with previous treatment
-         !if (ifov < 4 .OR. ifov > 93) cycle ObsLoop2
+         !if (ifov < 4 .OR. ifov > 93) cycle ObsLoop3
          ifovmod=ifov
        endif
 
@@ -693,7 +752,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
                  j == ich16 .or. j == ich17)) critical_channels_missing = .true.
           endif
        end do
-       if (iskip >= nchanl) cycle ObsLoop2
+       if (iskip >= nchanl) cycle ObsLoop3
 
 !    Determine surface properties based on 
 !    sst and land/sea/ice mask   
@@ -717,7 +776,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
        if (isfcalc == 1) then
           call fov_check(ifov,instr,ichan,valid)
-          if (.not. valid) cycle ObsLoop2
+          if (.not. valid) cycle ObsLoop3
 
 !         When isfcalc is one, calculate surface fields based on size/shape of fov.
 !         Otherwise, use bilinear method.
@@ -732,8 +791,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
        crit1 = crit1 + rlndsea(isflg) + 10._r_kind*real(iskip,r_kind) + 0.01_r_kind * abs(zz)
        !call checkob(dist1,crit1,itx,iuse)
-       !if(.not. iuse)cycle ObsLoop2
-       if(crit1*dist1 > score) cycle ObsLoop2
+       !if(.not. iuse)cycle ObsLoop3
+       if(crit1*dist1 > score) cycle ObsLoop3
 
        if (critical_channels_missing) then
          pred=1.0e8_r_kind
@@ -791,11 +850,11 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !      Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
        crit1 = crit1+pred 
        !call finalcheck(dist1,crit1,itx,iuse)
-       !if(.not. iuse)cycle ObsLoop2
+       !if(.not. iuse)cycle ObsLoop3
        if(crit1*dist1 < score)then
           score = crit1*dist1
        else
-          cycle ObsLoop2
+          cycle ObsLoop3
        end if
      
 !      interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
@@ -863,7 +922,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
        end do
        nrec(bin)=iob
        good=good+1
-     enddo ObsLoop2
+     enddo ObsLoop3
      score_crit(bin) = score
   end do BinLoop
   te2=MPI_Wtime()
