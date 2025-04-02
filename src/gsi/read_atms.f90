@@ -659,7 +659,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 ! Second scan to determine which observation in a given bin is best to use
   good=0
   tb2=MPI_Wtime()
-  !$omp parallel do default(none), num_threads(8), schedule(dynamic,12), &
+  !$omp parallel do default(none), schedule(dynamic,12), &
   !$omp& firstprivate(ich1,ich2,ich3,ich16,ich17), &
   !$omp& private(bin,score,Obindx,iob,rsat,t4dv,dlon_earth,dlat_earth,crit1,it_mesh,ifov,lza, &
   !$omp&   satazi,solzen,solazi,bt_in,dlat_earth_deg,dlon_earth_deg, &
