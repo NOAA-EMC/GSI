@@ -25,11 +25,10 @@ subroutine combine_radobs(mype_sub,mype_root,&
 !     data_all - observation data array
 !     data_crit- array containing observation "best scores"
 !     nread    - task specific number of obesrvations read from data file
-!     ndata    - task specific number of observations keep for assimilation
 !
 !   output argument list:
 !     nread    - total number of observations read from data file (mype_root)
-!     ndata    - total number of observations keep for assimilation (mype_root)
+!     ndata    - total number of observation profiles kept for assimilation in the thinning box (mype_root)
 !     data_all - merged observation data array (mype_root)
 !     data_crit- merged array containing observation "best scores" (mype_root)
 !     
@@ -42,6 +41,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use mpimod, only: ierror,mpi_rtype,mpi_itype,mpi_sum,mpi_min
+  use, intrinsic :: ieee_arithmetic
   implicit none
 
 ! Declare passed variables
@@ -50,7 +50,8 @@ subroutine combine_radobs(mype_sub,mype_root,&
   integer(i_kind)                    ,intent(in   ) :: npe_sub,itxmax
   integer(i_kind)                    ,intent(in   ) :: nele
   integer(i_kind)                    ,intent(in   ) :: mpi_comm_sub
-  integer(i_kind)                    ,intent(inout) :: nread,ndata
+  integer(i_kind)                    ,intent(inout) :: nread
+  integer(i_kind)                    ,intent(  out) :: ndata
   integer(i_kind),dimension(itxmax)  ,intent(in   ) :: nrec
   real(r_kind),dimension(itxmax)     ,intent(inout) :: data_crit
   real(r_kind),dimension(nele,itxmax),intent(inout) :: data_all
@@ -62,6 +63,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
   real(r_kind),allocatable,dimension(:):: data_crit_min
   real(r_kind),allocatable,dimension(:,:):: data_all_in
   integer(i_kind),allocatable,dimension(:):: icrit_min,icrit,nloc
+  integer(i_kind):: i,j
 
   ndata=0
   if(npe_sub > 1)then
@@ -74,7 +76,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
 
      nread=0
      if (mype_sub==mype_root) nread = ncounts1
-     if (ncounts1 == 0)return
+     if (ncounts1 <= 0)return
 
 !    Allocate arrays to hold data
 
@@ -83,7 +85,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
 !    is only needed on task mype_root
      call mpi_allreduce(data_crit,data_crit_min,itxmax,mpi_rtype,mpi_min,mpi_comm_sub,ierror)
 
-     allocate(nloc(min(ncounts1,itxmax)),icrit(min(ncounts1,itxmax)))
+     allocate(nloc(itxmax),icrit(itxmax))
      icrit=1e9
      ndata=0
      ndata1=0
@@ -116,6 +118,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
      end if
      deallocate(icrit)
      allocate(data_all_in(nele,ndata))
+     data_all_in=zero
 !$omp parallel do private(kk,k,l)
      do kk=1,ndata
         k=nloc(kk)
@@ -131,6 +134,14 @@ subroutine combine_radobs(mype_sub,mype_root,&
         
      end do
      deallocate(nloc)
+     
+     do j = 1, ndata
+       do i = 1, nele
+           if (.not. ieee_is_finite(data_all_in(i,j))) then
+                       write(6,*) " data_all_in(", i, ",", j, ") is NaN or Inf. Value =", data_all_in(i,j)
+                end if
+                                end do
+                                end do
 
 !    get all data on process mype_root
 !    data_all(:,:) = zero
