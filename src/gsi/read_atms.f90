@@ -95,6 +95,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
   implicit none
 
+  external:: stop2,openbf,ireadmg,ireadsb,ufbint,w3fs21,ufbrep,closbf,grdcrd1,combine_radobs,count_obs
+
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
   character(len=20),intent(in  ) :: sis
@@ -534,6 +536,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   END IF
 
   allocate(binCount(itxmax))
+  binCount(:)=0
 
 ! First scan to determine which obs fall into which bins
   tb2=MPI_Wtime()
