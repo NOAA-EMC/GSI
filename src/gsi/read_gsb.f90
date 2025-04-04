@@ -1,0 +1,452 @@
+subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,&
+     prsl_full,nobs,nrec_start)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:  read_gsb                read obs from gsb GSB bufr file
+!   prgmmr: ######          org: np22                date: 2025-03-29
+!
+! abstract: This routine reads Windborne global sounding platform (GSB)
+!           in a bufr file format. Specific observation types read by this
+!           routine include pressure, temperature, winds (components or
+!           speed), and moisture.
+!
+! program history log:
+!   2024-12-10: Collard: Original code based on test code written by
+!               Michael Mueller that read from read_prepbufr
+!   input argument list:
+!     infile   - unit from which to read BUFR data
+!     obstype  - observation type to process
+!     lunout   - unit to which to write data for further processing
+!     prsl_full- 3d pressure on full domain grid
+!     nrec_start - number of subsets without useful information
+!
+!   output argument list:
+!     nread    - number of type "obstype" observations read
+!     nodata    - number of individual "obstype" observations read
+!     ndata    - number of type "obstype" observations retained for further processing
+!     gstime   - analysis time in minutes from reference date
+!     twindin  - input group time window (hours)
+!     sis      - satellite/instrument/sensor indicator
+!     nobs     - array of observations on each subdomain for each processor
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_single,r_kind,r_double,i_kind
+  use constants, only: zero,one,deg2rad,rad2deg,r60inv
+  use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,aircraft_t_bc_ext
+  use convinfo, only: nconvtype, ioctype, icuse, ictype, icsubtype, ithin_conv
+  use gridmod, only: nlon,nlat,nsig,rlats,rlons,regional,diagnostic_reg, tll2xy,txy2ll
+  use gsi_4dvar, only: time_4dvar, iwinbgn, l4dvar,l4densvar,winlen
+  use gsi_io, only: verbose
+  use mpimod, only: npe
+  use obsmod, only: bmiss,perturb_obs,perturb_fact,ran01dom
+  implicit none
+
+! Declare passed variables
+  character(len=*)                      ,intent(in   ) :: infile,obstype
+  character(len=20)                     ,intent(in   ) :: sis
+  integer(i_kind)                       ,intent(in   ) :: lunout,nrec_start
+  integer(i_kind)                       ,intent(inout) :: nread,ndata,nodata
+  integer(i_kind),dimension(npe)        ,intent(inout) :: nobs
+  real(r_kind)                          ,intent(in   ) :: gstime
+  real(r_kind)                          ,intent(in   ) :: twindin
+  real(r_kind),dimension(nlat,nlon,nsig),intent(in   ) :: prsl_full
+
+! Declare local parameters
+  real(r_kind),parameter:: one_minute = 0.01666667_r_kind
+  real(r_kind),parameter:: minus_one_minute=-0.01666667_r_kind
+  real(r_kind),parameter:: r90  = 90.0_r_kind
+  real(r_kind),parameter:: r360 = 360.0_r_kind
+
+! Declare local variables
+  character(8) c_station_id
+  character(8) :: subset
+  character(80) :: hdstr, obstr
+
+  integer(i_kind) :: ireadsb,ireadmg, ithin
+  integer(i_kind) :: lunin, nc, ncsave
+  integer(i_kind) :: nmsgmax, mxtb, maxobs, nmsg
+  integer(i_kind) :: i, k, kx, nreal, ntread, ntmatch 
+  integer(i_kind) :: iobsub
+  integer(i_kind) :: ncount_ps, ncount_q, ncount_t, ncount_uv
+  integer(i_kind) :: irec, iret, ncx, levs, iout, ntest
+  integer(i_kind) :: idate, nmind, ilat, ilon, nchanl
+  integer(i_kind),dimension(5):: idate5
+  integer(i_kind),dimension(nconvtype)::ntxall
+  integer(i_kind),dimension(nconvtype+1)::ntx
+  integer(i_kind),allocatable,dimension(:,:):: tab
+  integer(i_kind),allocatable,dimension(:):: nrep
+
+  logical :: tob,qob,uvob
+  logical :: outside      
+  logical :: print_verbose
+  
+  real(r_kind) :: dlon, dlat, dlat_earth_deg, dlon_earth_deg, dlat_earth, dlon_earth
+  real(r_kind) :: rlon00, rlat00, cdist, disterr, disterrmax, dlnpob
+  real(r_kind) :: toff, t4dv, tdiff
+  real(r_kind) :: uwind, vwind
+  real(r_kind),allocatable,dimension(:,:):: cdata_all   !,cdata_out
+  real(r_double) rstation_id
+  real(r_double),dimension(8,255):: var_jb
+  real(r_double),dimension(11,1):: hdr
+  real(r_double),dimension(7,1):: obsdat
+
+!  equivalence to handle character names
+  !equivalence(r_prvstg(1,1),c_prvstg)
+  !equivalence(r_sprvstg(1,1),c_sprvstg)
+  !equivalence(rstation_id,c_station_id)
+  !equivalence(rstation_id,sidchr)
+
+! data statements
+  data hdstr  /'YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH WGOSIDS WGOSISID WGOSISNM'/
+  data obstr  /'PRLC HGHT TMDB REHU SPFH WDIR WSPD' /
+  !data levstr  /'PRLC'/   !!!!! Check
+
+  data lunin / 13 /
+
+! Initialize variables
+
+  print_verbose=.true.   ! Temporary
+  if(verbose) print_verbose=.true.
+  ilon = 2
+  ilat = 3
+  nchanl = 0
+
+  if (print_verbose) write(6,*) 'Entering READ_GSB, obstype =',obstype 
+  tob = obstype == 't'
+  uvob = obstype == 'uv'
+  qob = obstype == 'q'
+  if(tob)then
+     nreal=25
+  else if(uvob) then
+     nreal=26
+  else if(qob) then
+     nreal=26
+  else
+     write(6,*) ' illegal obs type in READ_GSB ',obstype
+     call stop2(94)
+  end if
+
+  if (tob .AND. (aircraft_t_bc_pof .or. aircraft_t_bc .or.aircraft_t_bc_ext)) nreal = nreal +3
+  if(perturb_obs .and. (tob .or. qob))nreal=nreal+1
+  if(perturb_obs .and. uvob )nreal=nreal+2
+
+  if(tob)then
+    kx = 301
+  else if(uvob) then
+    kx = 401
+  else if(qob) then
+    kx = 301
+  end if
+!------------------------------------------------------------------------
+  ntread=1
+  ntmatch=0
+  ntx(ntread)=0
+  ntxall=0
+  var_jb=zero
+  do nc=1,nconvtype
+     if(trim(ioctype(nc)) == trim(obstype))then
+       ntmatch=ntmatch+1
+       ntxall(ntmatch)=nc
+     end if
+     if(trim(ioctype(nc)) == trim(obstype) .and. abs(icuse(nc)) <= 1)then
+       ithin=ithin_conv(nc)
+       if(ithin > 0 .and. ithin <5)then
+         ntread=ntread+1
+         ntx(ntread)=nc
+       end if
+     end if
+  end do
+  if(ntmatch == 0)then
+     write(6,*) ' no matching obstype found in obsinfo ',obstype
+     return
+  end if
+
+!! get message and subset counts
+
+  call getcount_bufr(infile,nmsgmax,mxtb)
+  allocate(tab(mxtb,3),nrep(nmsgmax))
+
+  maxobs=0
+  tab=0
+  nmsg=0
+  nrep=0
+  ndata = 0
+
+  irec = 0
+  ncount_ps=0;ncount_q=0;ncount_t=0;ncount_uv=0
+
+! Open, then read date from bufr data
+  open(lunin,file=trim(infile),form='unformatted')
+  call openbf(lunin,'IN',lunin)
+  call datelen(10)
+
+
+  msg_report: do while (ireadmg(lunin,subset,idate) == 0)
+     irec = irec + 1
+     if(irec < nrec_start) cycle msg_report
+!    Time offset
+     if(nmsg == 0) call time_4dvar(idate,toff)
+     nmsg=nmsg+1
+     if (nmsg>nmsgmax) then
+        write(6,*)'READ_GSB: messages exceed maximum ',nmsgmax
+        call stop2(50)
+     endif
+     loop_report: do while (ireadsb(lunin) == 0)
+        ndata = ndata+1
+        nrep(nmsg)=nrep(nmsg)+1
+        if (ndata>mxtb) then
+           write(6,*)'READ_GSB: reports exceed maximum ',mxtb
+           call stop2(50)
+        endif
+
+!       Extract type information
+        call ufbint(lunin,hdr,11,1,iret,hdstr)
+        iobsub = 0
+!  Match ob to proper convinfo type
+        ncsave=1 ! tst
+        matchloop:do ncx=1,ntmatch
+           nc=ntxall(ncx)
+           if (kx /= ictype(nc))cycle
+
+!  Find convtype which match ob type and subtype
+           if(icsubtype(nc) == iobsub) then
+              ncsave=nc
+              exit matchloop
+           else
+             cycle
+           end if
+        end do matchloop
+        maxobs = maxobs + 1
+
+     end do loop_report
+  enddo msg_report
+
+  if (nmsg==0) then
+     call closbf(lunin)
+     close(lunin)
+     if(print_verbose)write(6,*)'READ_GSB: no messages/reports '
+     return
+  end if
+  if(print_verbose)write(6,*)'READ_GSB: messages/reports = ',nmsg,'/',ndata,' ntread = ',ntread
+
+
+  if(tob .and. print_verbose) write(6,*)'READ_GSB: time offset is ',toff,' hours.'
+
+  call closbf(lunin)
+  close(lunin)  
+  
+  !------------------------------------------------------------------------
+
+  open(lunin,file=infile,form='unformatted')
+  call openbf(lunin,'IN',lunin)
+  call datelen(10)
+
+!  Big loop over bufr file    
+  allocate(cdata_all(nreal,maxobs))
+
+  nmsg = 0
+  disterrmax=-9999.0_r_kind
+  irec = 0
+  iout = 0
+  loop_msg: do while (ireadmg(lunin,subset,idate)== 0)
+     irec = irec + 1
+     if(irec < nrec_start) cycle loop_msg
+
+     nmsg = nmsg+1
+
+     loop_readsb: do while(ireadsb(lunin) == 0)
+     !  Extract type, date, and location information
+       call ufbint(lunin,hdr,11,1,iret,hdstr) ! YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH WGOSIDS WGOSISID WGOSISNM WGOSLID
+       if(abs(hdr(7,1))>r90 .or. abs(hdr(8,1))>r360) cycle loop_readsb
+       dlon_earth_deg=hdr(8,1)
+       dlat_earth_deg=hdr(7,1)
+       if (dlon_earth_deg == r360) dlon_earth_deg = dlon_earth_deg-r360
+       if (dlon_earth_deg < zero) dlon_earth_deg = dlon_earth_deg+r360
+       dlon_earth=dlon_earth_deg*deg2rad
+       dlat_earth=dlat_earth_deg*deg2rad
+
+       if(regional)then
+         call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)    ! convert to rotated coordinate
+         if(diagnostic_reg) then
+           call txy2ll(dlon,dlat,rlon00,rlat00)
+           ntest=ntest+1
+           cdist=sin(dlat_earth)*sin(rlat00)+cos(dlat_earth)*cos(rlat00)* &
+                     (sin(dlon_earth)*sin(rlon00)+cos(dlon_earth)*cos(rlon00))
+           cdist=max(-one,min(cdist,one))
+           disterr=acos(cdist)*rad2deg
+           disterrmax=max(disterrmax,disterr)
+         end if
+         if(outside) cycle loop_readsb   ! check to see if outside regional domain
+       else
+         dlat = dlat_earth
+         dlon = dlon_earth
+         call grdcrd1(dlat,rlats,nlat,1)
+         call grdcrd1(dlon,rlons,nlon,1)
+       endif
+
+!  Extract date information.  If time outside window, skip this obs
+      idate5(1) = hdr(1,1) !year
+      idate5(2) = hdr(2,1) !month
+      idate5(3) = hdr(3,1) !day
+      idate5(4) = hdr(4,1) !hour
+      idate5(5) = hdr(5,1) !minute
+      call w3fs21(idate5,nmind)
+      t4dv= (real((nmind-iwinbgn),r_kind) + hdr(6,1)*r60inv)*r60inv    ! add in seconds
+      tdiff=t4dv+(iwinbgn-gstime)*r60inv
+ 
+      if (l4dvar.or.l4densvar) then
+         if (t4dv<minus_one_minute .OR. t4dv>winlen+one_minute) &
+             cycle loop_readsb
+      else
+         if(abs(tdiff) > twindin+one_minute) cycle loop_readsb
+      endif
+
+!Set station ID
+      !rstation_id=hdr(12)  ! should be wigos id
+
+      call ufbint(lunin,obsdat,7,1,levs,obstr)  ! PRLC HGHT TMDB REHU SPFH WDIR WSPD
+      dlnpob=log(obsdat(1,1)/1000_r_kind)
+! Read in the data
+     if (tob .AND. abs(obsdat(3,1)-225.0_r_kind) < 125.0_r_kind .AND. &
+         obsdat(1,1) > zero .AND. obsdat(1,1) < 1.4e5_r_kind) then
+             iout = iout + 1
+             cdata_all(1,iout)=bmiss                   ! temperature error
+             cdata_all(2,iout)=dlon                    ! grid relative longitude
+             cdata_all(3,iout)=dlat                    ! grid relative latitude
+             cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
+             cdata_all(5,iout)=obsdat(3,1)             ! temperature ob.
+             !cdata_all(6,iout)=rstation_id             ! station id
+             cdata_all(6,iout)=bmiss                   ! station id
+             cdata_all(7,iout)=t4dv                    ! time
+             cdata_all(8,iout)=nc                      ! type
+             cdata_all(9,iout)=zero                    ! qtflg (virtual temperature flag)
+             cdata_all(10,iout)=bmiss                  ! quality mark
+             cdata_all(11,iout)=bmiss                  ! original obs error
+             cdata_all(12,iout)=bmiss                  ! usage parameter
+             cdata_all(13,iout)=bmiss                  ! dominate surface type
+             cdata_all(14,iout)=bmiss                  ! skin temperature
+             cdata_all(15,iout)=bmiss                  ! 10 meter wind factor
+             cdata_all(16,iout)=bmiss                  ! surface roughness
+             cdata_all(17,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
+             cdata_all(18,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+             cdata_all(19,iout)=bmiss                  ! station elevation (m)
+             cdata_all(20,iout)=obsdat(2,1)            ! observation height (m)
+             cdata_all(21,iout)=bmiss                  ! terrain height at ob location
+             cdata_all(22,iout)=bmiss                  ! provider name
+             cdata_all(23,iout)=bmiss                  ! subprovider name
+             cdata_all(24,iout)=bmiss                  ! cat
+             cdata_all(25,iout)=bmiss                  ! non linear qc for T
+             if (aircraft_t_bc_pof .or. aircraft_t_bc .or.aircraft_t_bc_ext) then  ! These are obviously not used but are here to
+                                                                                   ! keep the array sizes consistent
+                cdata_all(26,iout)=zero     ! phase of flight
+                cdata_all(27,iout)=zero     ! vertical velocity
+                cdata_all(28,iout)=bmiss                 ! index of temperature bias
+             end if
+             if(perturb_obs)cdata_all(nreal,iout)=ran01dom()*perturb_fact ! t perturbation
+ 
+     end if 
+
+     if (qob .AND. abs(obsdat(5,1)) < 0.1_r_kind .AND. &
+         obsdat(1,1) > zero .AND. obsdat(1,1) < 1.4e5_r_kind) then
+             iout = iout + 1
+             cdata_all(1,iout)=bmiss                   ! specific humidity error
+             cdata_all(2,iout)=dlon                    ! grid relative longitude
+             cdata_all(3,iout)=dlat                    ! grid relative latitude
+             cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
+             cdata_all(5,iout)=obsdat(5,1)             ! specific humidity ob.
+             !cdata_all(6,iout)=rstation_id            ! station id
+             cdata_all(6,iout)=bmiss                   ! station id
+             cdata_all(7,iout)=t4dv                    ! time
+             cdata_all(8,iout)=nc                      ! type
+             cdata_all(9,iout)=zero                    ! q max error
+             cdata_all(10,iout)= bmiss                 ! dry temperature (obs is tv? No, depending on tvflg)
+             cdata_all(11,iout)= bmiss                 ! quality mark
+             cdata_all(12,iout)= bmiss                 ! original obs error
+             cdata_all(13,iout)= bmiss                 ! usage parameter
+             cdata_all(14,iout)= bmiss                 ! dominate surface type
+             cdata_all(15,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
+             cdata_all(16,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+             cdata_all(17,iout)=bmiss                  ! station elevation (m)
+             cdata_all(18,iout)=obsdat(2,1)            ! observation height (m)
+             cdata_all(19,iout)=bmiss                  ! terrain height at ob location
+             !cdata_all(20,iout)=r_prvstg(1,1)          ! provider name
+             !cdata_all(21,iout)=r_sprvstg(1,1)         ! subprovider name
+             cdata_all(20,iout)= bmiss                 ! provider name
+             cdata_all(21,iout)= bmiss                 ! subprovider name
+             cdata_all(22,iout)= bmiss                 ! cat
+             cdata_all(23,iout)= bmiss                 ! non linear qc b parameter
+             cdata_all(24,iout)=bmiss                  ! cat
+             if(perturb_obs)cdata_all(24,iout)=ran01dom()*perturb_fact ! q perturbation
+             cdata_all(25,iout)=bmiss                  ! non linear qc for T
+             cdata_all(26,iout)=bmiss                  ! Dummy                
+
+     end if 
+
+     if (uvob .AND. abs(obsdat(6,1)-180.0_r_kind) <= 180.0_r_kind .AND. abs(obsdat(7,1)) < 200.0_r_kind .AND. &
+         obsdat(1,1) > zero .AND. obsdat(1,1) < 1.4e5_r_kind) then
+
+             uwind = obsdat(7,1) * sin(obsdat(6,1)*deg2rad) 
+             vwind = obsdat(7,1) * cos(obsdat(6,1)*deg2rad) 
+             iout = iout + 1
+             cdata_all(1,iout)=bmiss                   ! wind error
+             cdata_all(2,iout)=dlon                    ! grid relative longitude
+             cdata_all(3,iout)=dlat                    ! grid relative latitude
+             cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
+             cdata_all(5,iout)=obsdat(2,1)            ! observation height (m)
+             cdata_all(6,iout)=uwind                   ! u-wind ob.
+             cdata_all(7,iout)=vwind                   ! v-wind ob.
+             !cdata_all(6,iout)=rstation_id             ! station id
+             cdata_all(8,iout)=bmiss                   ! station id
+             cdata_all(9,iout)=t4dv                    ! time
+             cdata_all(10,iout)=nc                     ! type
+             cdata_all(11,iout)=bmiss                  ! station elevation (m)
+             cdata_all(12,iout)=bmiss                  ! quality mark
+             cdata_all(13,iout)=bmiss                  ! original obs error
+             cdata_all(14,iout)=bmiss                  ! usage parameter
+             cdata_all(15,iout)=bmiss                  ! dominate surface type
+             cdata_all(16,iout)=bmiss                  ! skin wind
+             cdata_all(17,iout)=bmiss                  ! 10 meter wind factor
+             cdata_all(18,iout)=bmiss                  ! surface roughness
+             cdata_all(19,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
+             cdata_all(20,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
+             cdata_all(21,iout)=bmiss                  ! terrain height at ob location
+             cdata_all(22,iout)=bmiss                  ! provider name
+             cdata_all(23,iout)=bmiss                  ! subprovider name
+             cdata_all(24,iout)=bmiss                  ! cat
+             cdata_all(25,iout)=bmiss                  ! non linear qc for T
+             cdata_all(26,iout)=bmiss                  ! Dummy                
+             if(perturb_obs)then
+                cdata_all(27,iout)=ran01dom()*perturb_fact ! u perturbation
+                cdata_all(28,iout)=ran01dom()*perturb_fact ! v perturbation
+             endif
+
+        !xxxwrite(*,*) 'Ob=',iout
+        !xxxwrite(*,*) 'Cdata=',cdata_all(:,iout)
+ 
+     end if 
+    end do loop_readsb  
+    end do loop_msg   
+     call closbf(lunin)
+     close(lunin)
+
+
+     nread = iout
+     ndata = nread
+     if(uvob)then
+        nodata=2*ndata
+     else
+        nodata=ndata
+     end if
+     call count_obs(ndata,nreal,ilat,ilon,cdata_all,nobs)
+
+     write(lunout) obstype,sis,nreal,nchanl,ilat,ilon,ndata
+     write(lunout) ((cdata_all(k,i),k=1,nreal),i=1,ndata)
+
+  if(print_verbose)write(6,*)'READ_GSB:  closbf(',lunin,'), number of obs=',iout
+    
+    deallocate(cdata_all)
+end subroutine read_gsb

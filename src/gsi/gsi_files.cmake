@@ -496,6 +496,7 @@ read_goesimg.f90
 read_goesimgr_skycover.f90
 read_goesndr.f90
 read_gps.f90
+read_gsb.f90
 read_guess.F90
 read_iasi.f90
 read_iasing.f90
