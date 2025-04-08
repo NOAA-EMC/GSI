@@ -76,7 +76,7 @@ contains
 
      integer(i_kind):: ier
 
-     allocate(etabl(300,33,6))
+     allocate(etabl(500,33,6))
 
      etabl=1.e9_r_kind
       
