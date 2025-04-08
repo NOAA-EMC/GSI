@@ -99,6 +99,7 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use rapidrefresh_cldsurf_mod, only: l_closeobs
+  use rapidrefresh_cldsurf_mod, only: l_rtma3d
   use aux2dvarflds, only: rtma_comp_fact10
 
   implicit none
@@ -148,6 +149,7 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   integer(i_kind) l,mm1
   integer(i_kind) itype
   integer(i_kind) idomsfc,iskint,iff10,isfcr
+  integer(i_kind) i_factw
 
   logical msonetob
   
@@ -269,6 +271,7 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
      ii=0
      nchar=1
      ioff0=22
+     if ( l_rtma3d ) ioff0 = ioff0 + 2   ! saving orig. factw-related info in diag files
      nreal=ioff0
      if (lobsdiagsave) nreal=nreal+4*miter+1
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
@@ -348,7 +351,7 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
      dpres=dpres-(dstn+fact*(zsges-dstn))
      drpx=0.003*abs(dstn-zsges)*(one-fact)
      
-     if (.not. twodvar_regional) then
+     if (.not. (twodvar_regional .or. l_rtma3d)) then
         call tintrp2a1(geop_hgtl,zges,dlat,dlon,dtime,hrdifsig,&
              nsig,mype,nfldsig)
 !       For observation reported with geometric height above sea level,
@@ -395,33 +398,40 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
 
      if (zob > zges(1)) then
         factw=one
+        i_factw = 1
      else
         factw = data(iff10,i)
+        i_factw = 10
         if(sfcmod_gfs .or. sfcmod_mm5) then
            sfcr = data(isfcr,i)
            skint = data(iskint,i)
            call comp_fact10(dlat,dlon,dtime,skint,sfcr,isli,mype,factw)
+           i_factw = 5
         end if
 
         if (zob <= ten) then
            if(zob < ten)then
-              if (msonetob .and. twodvar_regional .and. use_similarity_2dvar) then
+              if (msonetob .and. (twodvar_regional .or. l_rtma3d) .and. use_similarity_2dvar) then
                  if (neutral_stability_windfact_2dvar) then
                     sfcr = data(isfcr,i)
                     factw=log(max(sfcr,zob)/sfcr)/log(ten/sfcr)
+                    i_factw = 3
                  else
                     sfcr = data(isfcr,i)
                     skint = data(iskint,i)
                     call rtma_comp_fact10(dlat,dlon,dtime,zob,skint,sfcr,isli,mype,factw)
+                    i_factw = 4
                  endif
               else
                  term = max(zob,zero)/ten
                  factw = term*factw
+                 i_factw = 2
               endif
            end if
         else
            term = (zges(1)-zob)/(zges(1)-ten)
            factw = one-term+factw*term
+           i_factw = 11
         end if
        gustges=factw*gustges
     endif
@@ -429,8 +439,8 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
 !   Compute observation pressure (only used for diagnostics)
 !   Get guess surface pressure and mid layer pressure
 !   at observation location.
-!   For 2dvar, just read in from prepbufr file
-    if (twodvar_regional) then
+!   For 2dvar or 3d-rtma, just read in from prepbufr file
+    if (twodvar_regional .or. l_rtma3d) then
        presw = ten*exp(data(ipres,i)) !note that data(ipres,i) = dpres
     else
        call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
@@ -789,6 +799,12 @@ contains
 
         rdiagbuf(21,ii) = data(idomsfc,i)    ! dominate surface type
         rdiagbuf(22,ii) = zsges              ! model terrain at ob location
+
+        if ( l_rtma3d ) then
+           rdiagbuf(23,ii) = data(iff10,i)   ! factw original value in data(iff10,i)
+           rdiagbuf(24,ii) = i_factw         ! integer to mark the way how factw is computerd
+        end if
+
         r_prvstg        = data(iprvd,i)
         cprvstg(ii)     = c_prvstg           ! provider name
         r_sprvstg       = data(isprvd,i)
@@ -857,6 +873,15 @@ contains
            call nc_diag_metadata("Provider_Name",     c_prvstg                     )    
            r_sprvstg           = data(isprvd,i)
            call nc_diag_metadata("Subprovider_Name",  c_sprvstg                    )
+
+           if ( twodvar_regional ) then
+              call nc_diag_metadata("Wind_Reduction_Factor_at_10m", factw          )
+           end if
+           if ( l_rtma3d ) then
+              call nc_diag_metadata("Wind_Reduction_Factor_at_10m", factw          )
+              call nc_diag_metadata("Wind_Reduction_Factor_at_10m_Orig", data(iff10,i) )
+              call nc_diag_metadata("10mWindFactor_AdjIndex", sngl(i_factw)        )
+           end if
 
            if (lobsdiagsave) then
               do jj=1,miter

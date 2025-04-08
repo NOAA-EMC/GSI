@@ -1394,7 +1394,7 @@ contains
          aerotot_guess,init_aerotot_guess,wrf_pm2_5,aero_ratios
     use rapidrefresh_cldsurf_mod, only: l_hydrometeor_bkio,l_gsd_soiltq_nudge
     use rapidrefresh_cldsurf_mod, only: i_use_2mq4b,i_use_2mt4b
-    use rapidrefresh_cldsurf_mod, only: i_howv_3dda, i_gust_3dda
+    use rapidrefresh_cldsurf_mod, only: i_howv_3dda, i_gust_3dda, i_sfcrough_fgs
     use wrf_mass_guess_mod, only: soil_temp_cld,isli_cld,ges_xlon,ges_xlat,ges_tten,create_cld_grids
     use gsi_bundlemod, only: GSI_BundleGetPointer
     use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
@@ -1447,7 +1447,7 @@ contains
     integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr,i_qni,i_qnc,i_w,i_dbz
     integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,kqni,kqnc,i_xlon,i_xlat,i_tt,ktt
     integer(i_kind) i_th2,i_q2,i_soilt1,ksmois,ktslb
-    integer(i_kind) i_howv, i_gust
+    integer(i_kind) i_howv, i_gust, i_rough
     integer(i_kind) ier, istatus
     integer(i_kind) n_actual_clouds
     integer(i_kind) iv,n_gocart_var
@@ -1566,6 +1566,7 @@ contains
        if(i_use_2mq4b > 0 .and. i_use_2mt4b <=0 ) num_mass_fields=num_mass_fields + 1
        if( i_howv_3dda > 0 ) num_mass_fields = num_mass_fields + 1
        if( i_gust_3dda > 0 ) num_mass_fields = num_mass_fields + 1
+       if( i_sfcrough_fgs > 0 ) num_mass_fields = num_mass_fields + 1
 
        if (laeroana_gocart .and. wrf_pm2_5 ) then
           if(mype==0) write(6,*)'laeroana_gocart canoot be both true'
@@ -1756,6 +1757,12 @@ contains
        if ( i_gust_3dda >0 ) then
          i=i+1 ; i_gust=i                                                ! gust
          write(identity(i),'("record ",i3,"--gust")')i
+         jsig_skip(i)=0 ; igtype(i)=1
+       end if
+  !  for surface roughness (sfcrough is after tsk/q2/soilt1/th2, and before cloud hydrometers) 
+       if ( i_sfcrough_fgs >0 ) then
+         i=i+1 ; i_rough=i                                               ! roughtness
+         write(identity(i),'("record ",i3,"--rough")')i
          jsig_skip(i)=0 ; igtype(i)=1
        end if
   ! for cloud array
@@ -2283,7 +2290,12 @@ contains
                 psfc_this=(psfc_this_dry-pt_ll)*q_integral(j,i)+pt_ll+q_integralc4h(j,i)
                 ges_ps_it(j,i)=one_tenth*psfc_this   ! convert from mb to cb
                 sno(j,i,it)=real(all_loc(j,i,i_0+i_sno),r_kind)
-                sfc_rough(j,i,it)=rough_default
+  ! surface roughness (ZNT)
+                if ( i_sfcrough_fgs >0 ) then
+                    sfc_rough(j,i,it) = real(all_loc(j,i,i_0+i_rough),r_kind)
+                else
+                    sfc_rough(j,i,it) = rough_default
+                end if
                 if(i_use_2mt4b > 0 ) then
                    ges_t2m_it(j,i)=real(all_loc(j,i,i_0+i_th2),r_kind)
   ! convert from potential to sensible temperature
