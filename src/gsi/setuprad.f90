@@ -1101,7 +1101,7 @@ contains
                        varinv(1:8)=zero
                        id_qc(1:8) = ifail_cao_qc
                        varinv(17:24)=zero
-                       id_qc(16) = ifail_cao_qc
+                       id_qc(17:24) = ifail_cao_qc
                     else
                        varinv(1:nchanl)=zero
                        id_qc(1:nchanl) = ifail_cao_qc
@@ -1751,9 +1751,9 @@ contains
                  if(id_qc(18) == igood_qc)id_qc(18)=ifail_interchan_qc
               else if (mws) then
                  varinv(17:19)=zero
-                 if(id_qc(16) == igood_qc)id_qc(16)=ifail_interchan_qc
                  if(id_qc(17) == igood_qc)id_qc(17)=ifail_interchan_qc
                  if(id_qc(18) == igood_qc)id_qc(18)=ifail_interchan_qc
+                 if(id_qc(19) == igood_qc)id_qc(19)=ifail_interchan_qc
               end if
            end if
 
