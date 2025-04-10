@@ -439,8 +439,8 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
 !   Compute observation pressure (only used for diagnostics)
 !   Get guess surface pressure and mid layer pressure
 !   at observation location.
-!   For 2dvar or 3d-rtma, just read in from prepbufr file
-    if (twodvar_regional .or. l_rtma3d) then
+!   For 2dvar, just read in from prepbufr file
+    if (twodvar_regional) then
        presw = ten*exp(data(ipres,i)) !note that data(ipres,i) = dpres
     else
        call tintrp2a11(ges_ps,psges,dlat,dlon,dtime,hrdifsig,&
@@ -800,11 +800,6 @@ contains
         rdiagbuf(21,ii) = data(idomsfc,i)    ! dominate surface type
         rdiagbuf(22,ii) = zsges              ! model terrain at ob location
 
-        if ( l_rtma3d ) then
-           rdiagbuf(23,ii) = data(iff10,i)   ! factw original value in data(iff10,i)
-           rdiagbuf(24,ii) = i_factw         ! integer to mark the way how factw is computerd
-        end if
-
         r_prvstg        = data(iprvd,i)
         cprvstg(ii)     = c_prvstg           ! provider name
         r_sprvstg       = data(isprvd,i)
@@ -880,7 +875,7 @@ contains
            if ( l_rtma3d ) then
               call nc_diag_metadata("Wind_Reduction_Factor_at_10m", factw          )
               call nc_diag_metadata("Wind_Reduction_Factor_at_10m_Orig", data(iff10,i) )
-              call nc_diag_metadata("10mWindFactor_AdjIndex", sngl(i_factw)        )
+              call nc_diag_metadata("Wind_Reduction_Factor_at_10m_AdjustmentIndex", i_factw        )
            end if
 
            if (lobsdiagsave) then

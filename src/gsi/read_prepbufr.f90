@@ -452,7 +452,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   integer:: icase,klev,ikkk,tkk
   real:: diffhgt,diffuu,diffvv
-  integer,dimension(3)::kcount
+  integer,dimension(5)::kcount
 
   real(r_double),dimension(3,1500):: fcstdat
   logical print_verbose
@@ -3326,7 +3326,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   if(print_verbose)write(6,*)'READ_PREPBUFR:  closbf(',lunin,')'
   if ((twodvar_regional .or. l_rtma3d) .and. (uvob .or. gustob .or. spdob))  then
-    write(6,*) 'kcount values from find wind height = ',kcount
+    write(6,'(1x,A,1x,A,5(1x,I9))') 'read_prepbufr:: for obstype=',            &
+      trim(adjustl(obstype)), ': kcount values from find wind height = ',kcount
   end if
 
 
