@@ -92,7 +92,7 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
   real(r_kind) :: dlon, dlat, dlat_earth_deg, dlon_earth_deg, dlat_earth, dlon_earth
   real(r_kind) :: rlon00, rlat00, cdist, disterr, disterrmax, dlnpob
   real(r_kind) :: toff, t4dv, tdiff
-  real(r_kind) :: uwind, vwind, ppb
+  real(r_kind) :: uwind, vwind, ppb, usage
   real(r_kind) :: obserr, var_jb, del, ediff
   real(r_kind) :: terrmin=half
   real(r_kind) :: werrmin=one
@@ -173,6 +173,8 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
      write(6,*) ' no matching obstype found in obsinfo ',obstype
      return
   end if
+!!
+
 
 !! get message and subset counts
 
@@ -193,7 +195,7 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
   call openbf(lunin,'IN',lunin)
   call datelen(10)
 
-
+  usage = 100.0_r_kind
   msg_report: do while (ireadmg(lunin,subset,idate) == 0)
      irec = irec + 1
      if(irec < nrec_start) cycle msg_report
@@ -224,6 +226,7 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
 !  Find convtype which match ob type and subtype
            if(icsubtype(nc) == iobsub) then
               ncsave=nc
+              if (icuse(nc) >= 1) usage = zero
               exit matchloop
            else
              cycle
@@ -355,9 +358,9 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
          cdata_all(7,iout)=t4dv                    ! time
          cdata_all(8,iout)=nc                      ! type
          cdata_all(9,iout)=zero                    ! qtflg (virtual temperature flag)
-         cdata_all(10,iout)=bmiss                  ! quality mark
+         cdata_all(10,iout)=zero                   ! quality mark
          cdata_all(11,iout)=obserr                 ! original obs error
-         cdata_all(12,iout)=bmiss                  ! usage parameter
+         cdata_all(12,iout)=usage                  ! usage parameter
          cdata_all(13,iout)=bmiss                  ! dominate surface type
          cdata_all(14,iout)=bmiss                  ! skin temperature
          cdata_all(15,iout)=bmiss                  ! 10 meter wind factor
@@ -416,9 +419,9 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
          cdata_all(8,iout)=nc                      ! type
          cdata_all(9,iout)=zero                    ! q max error
          cdata_all(10,iout)= bmiss                 ! dry temperature (obs is tv? No, depending on tvflg)
-         cdata_all(11,iout)= bmiss                 ! quality mark
+         cdata_all(11,iout)= zero                  ! quality mark
          cdata_all(12,iout)= obserr                ! original obs error
-         cdata_all(13,iout)= bmiss                 ! usage parameter
+         cdata_all(13,iout)= usage                 ! usage parameter
          cdata_all(14,iout)= bmiss                 ! dominate surface type
          cdata_all(15,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
          cdata_all(16,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
@@ -477,9 +480,9 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
          cdata_all(9,iout)=t4dv                    ! time
          cdata_all(10,iout)=nc                     ! type
          cdata_all(11,iout)=bmiss                  ! station elevation (m)
-         cdata_all(12,iout)=bmiss                  ! quality mark
+         cdata_all(12,iout)=zero                   ! quality mark
          cdata_all(13,iout)=obserr                 ! original obs error
-         cdata_all(14,iout)=bmiss                  ! usage parameter
+         cdata_all(14,iout)=usage                  ! usage parameter
          cdata_all(15,iout)=bmiss                  ! dominate surface type
          cdata_all(16,iout)=bmiss                  ! skin wind
          cdata_all(17,iout)=bmiss                  ! 10 meter wind factor
