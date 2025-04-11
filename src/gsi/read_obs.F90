@@ -1565,6 +1565,7 @@ subroutine read_obs(ndata,mype)
                 else if (index(infile,'wbbufr') /=0)then
                   call read_gsb(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                        prsl_full,nobs_sub1(1,i),read_rec(i))
+                  string='READ_GSB'
                 else
                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                      prsl_full,nobs_sub1(1,i),read_rec(i))
