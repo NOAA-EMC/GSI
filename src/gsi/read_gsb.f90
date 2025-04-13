@@ -42,7 +42,8 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
   use convb_q,only: btabl_q
   use convb_t,only: btabl_t
   !use convb_uv,only: btabl_uv
-  use gridmod, only: nlon,nlat,nsig,rlats,rlons,regional,diagnostic_reg, tll2xy,txy2ll
+  use gridmod, only: nlon,nlat,nsig,rlats,rlons,regional,fv3_regional,diagnostic_reg,& 
+                     rotate_wind_ll2xy,rotate_wind_xy2ll,tll2xy,txy2ll
   use gsi_4dvar, only: time_4dvar, iwinbgn, l4dvar,l4densvar,winlen
   use gsi_io, only: verbose
   use mpimod, only: npe
@@ -65,6 +66,7 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
   real(r_kind),parameter:: r90  = 90.0_r_kind
   real(r_kind),parameter:: r360 = 360.0_r_kind
   real(r_kind),parameter:: r2000 = 2000.0_r_kind
+  real(r_kind),parameter:: emerr= 0.2_r_kind
 
 ! Declare local variables
   character(8) c_station_id
@@ -77,7 +79,7 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
   integer(i_kind) :: i, k, kl, kx, k1, k2, nreal, ntread, ntmatch 
   integer(i_kind) :: iobsub, ierr=zero
   integer(i_kind) :: ncount_ps, ncount_q, ncount_t, ncount_uv
-  integer(i_kind) :: irec, iret, ncx, levs, iout, ntest
+  integer(i_kind) :: irec, iret, ncx, levs, iout, ntest, nvtest
   integer(i_kind) :: idate, nmind, ilat, ilon, nchanl
   integer(i_kind),dimension(5):: idate5
   integer(i_kind),dimension(nconvtype)::ntxall
@@ -90,26 +92,26 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
   logical :: print_verbose
   
   real(r_kind) :: dlon, dlat, dlat_earth_deg, dlon_earth_deg, dlat_earth, dlon_earth
-  real(r_kind) :: rlon00, rlat00, cdist, disterr, disterrmax, dlnpob
+  real(r_kind) :: rlon00, rlat00, cdist, disterr, disterrmax, vdisterrmax, sterrmax, dlnpob
   real(r_kind) :: toff, t4dv, tdiff
-  real(r_kind) :: uwind, vwind, ppb, usage
+  real(r_kind) :: uwind, vwind, u0, v0, u00, v00, ppb, usage
   real(r_kind) :: obserr, var_jb, del, ediff
   real(r_kind) :: terrmin=half
   real(r_kind) :: werrmin=one
   real(r_kind) :: qerrmin=0.05_r_kind
   real(r_kind),allocatable,dimension(:,:):: cdata_all   !,cdata_out
   real(r_double) :: rstation_id
-  real(r_double),dimension(11,1):: hdr
+  real(r_double),dimension(9,1):: hdr
   real(r_double),dimension(7,1):: obsdat
 
 !  equivalence to handle character names
   !equivalence(r_prvstg(1,1),c_prvstg)
   !equivalence(r_sprvstg(1,1),c_sprvstg)
-  !equivalence(rstation_id,c_station_id)
+  equivalence(rstation_id,c_station_id)
   !equivalence(rstation_id,sidchr)
 
 ! data statements
-  data hdstr  /'YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH WGOSIDS WGOSISID WGOSISNM'/
+  data hdstr  /'YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH LSTN'/
   data obstr  /'PRLC HGHT TMDB REHU SPFH WDIR WSPD' /
   !data levstr  /'PRLC'/   !!!!! Check
 
@@ -215,7 +217,7 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
         endif
 
 !       Extract type information
-        call ufbint(lunin,hdr,11,1,iret,hdstr)
+        call ufbint(lunin,hdr,9,1,iret,hdstr)
         iobsub = 0
 !  Match ob to proper convinfo type
         ncsave=1 ! tst
@@ -272,7 +274,7 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
 
      loop_readsb: do while(ireadsb(lunin) == 0)
      !  Extract type, date, and location information
-       call ufbint(lunin,hdr,11,1,iret,hdstr) ! YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH WGOSIDS WGOSISID WGOSISNM WGOSLID
+       call ufbint(lunin,hdr,9,1,iret,hdstr) ! YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH LSTN
        if(abs(hdr(7,1))>r90 .or. abs(hdr(8,1))>r360) cycle loop_readsb
        dlon_earth_deg=hdr(8,1)
        dlat_earth_deg=hdr(7,1)
@@ -318,7 +320,8 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
       endif
 
 !Set station ID
-      !rstation_id=hdr(12)  ! should be wigos id
+
+      rstation_id=hdr(9,1)  
 
       call ufbint(lunin,obsdat,7,1,levs,obstr)  ! PRLC HGHT TMDB REHU SPFH WDIR WSPD
       dlnpob=log(obsdat(1,1)/1000_r_kind)
@@ -353,8 +356,8 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
          cdata_all(3,iout)=dlat                    ! grid relative latitude
          cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
          cdata_all(5,iout)=obsdat(3,1)             ! temperature ob.
-         !cdata_all(6,iout)=rstation_id             ! station id
-         cdata_all(6,iout)=bmiss                   ! station id
+         cdata_all(6,iout)=rstation_id             ! station id
+         !cdata_all(6,iout)=bmiss                   ! station id
          cdata_all(7,iout)=t4dv                    ! time
          cdata_all(8,iout)=nc                      ! type
          cdata_all(9,iout)=zero                    ! qtflg (virtual temperature flag)
@@ -413,11 +416,11 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
          cdata_all(3,iout)=dlat                    ! grid relative latitude
          cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
          cdata_all(5,iout)=obsdat(5,1)             ! specific humidity ob.
-         !cdata_all(6,iout)=rstation_id            ! station id
-         cdata_all(6,iout)=bmiss                   ! station id
+         cdata_all(6,iout)=rstation_id            ! station id
+         !cdata_all(6,iout)=bmiss                   ! station id
          cdata_all(7,iout)=t4dv                    ! time
          cdata_all(8,iout)=nc                      ! type
-         cdata_all(9,iout)=zero                    ! q max error
+         cdata_all(9,iout)=emerr                   ! q max error
          cdata_all(10,iout)= bmiss                 ! dry temperature (obs is tv? No, depending on tvflg)
          cdata_all(11,iout)= zero                  ! quality mark
          cdata_all(12,iout)= obserr                ! original obs error
@@ -465,8 +468,21 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
          obserr=max(obserr,werrmin)
 
          ! Write to output array
-         uwind = obsdat(7,1) * sin(obsdat(6,1)*deg2rad) 
-         vwind = obsdat(7,1) * cos(obsdat(6,1)*deg2rad) 
+         uwind = -obsdat(7,1) * sin(obsdat(6,1)*deg2rad) 
+         vwind = -obsdat(7,1) * cos(obsdat(6,1)*deg2rad)
+
+         if(regional .and. .not. fv3_regional)then
+                 u0 = uwind
+                 v0 = vwind
+                 call rotate_wind_ll2xy(u0,v0,uwind,vwind,dlon_earth,dlon,dlat)
+                 if(diagnostic_reg) then
+                    call rotate_wind_xy2ll(uwind,vwind,u00,v00,dlon_earth,dlon,dlat)
+                    nvtest      = nvtest+1
+                    disterr     = sqrt((uwind-u00)**2+(vwind-v00)**2)
+                    vdisterrmax = max(vdisterrmax,disterr)
+                 end if
+         endif
+
          iout = iout + 1
          cdata_all(1,iout)=obserr                  ! wind error
          cdata_all(2,iout)=dlon                    ! grid relative longitude
@@ -475,8 +491,8 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
          cdata_all(5,iout)=obsdat(2,1)            ! observation height (m)
          cdata_all(6,iout)=uwind                   ! u-wind ob.
          cdata_all(7,iout)=vwind                   ! v-wind ob.
-         !cdata_all(6,iout)=rstation_id             ! station id
-         cdata_all(8,iout)=bmiss                   ! station id
+         cdata_all(8,iout)=rstation_id             ! station id
+         !cdata_all(8,iout)=bmiss                   ! station id
          cdata_all(9,iout)=t4dv                    ! time
          cdata_all(10,iout)=nc                     ! type
          cdata_all(11,iout)=bmiss                  ! station elevation (m)
