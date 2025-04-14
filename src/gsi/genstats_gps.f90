@@ -330,7 +330,6 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   call mpi_comm_size(mpi_comm_world,total_size,ierror)
   nobs = 0
-  ind = 1
   holder_hght(:) = 0.0_r_kind;holder_gps(:) = 0.0_r_kind
   holder_qc(:) = 0.0_r_kind;holder_prof(:) = 0.0_r_kind
   DO ii=1,nobs_bins
@@ -338,27 +337,37 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
     do while (associated(gps_allptr))
       luse = gps_allptr%luse
       if (luse) then
-       holder_hght(ind) = gps_allptr%rdiag(7)
-       holder_gps(ind) = gps_allptr%rdiag(17)
-       holder_qc(ind) = gps_allptr%rdiag(10)
-       holder_prof(ind) = gps_allptr%rdiag(2)
        nobs = nobs + 1
-       ind = ind + 1
+       holder_hght(nobs) = gps_allptr%rdiag(7)
+       holder_gps(nobs) = gps_allptr%rdiag(17)
+       holder_qc(nobs) = gps_allptr%rdiag(10)
+       holder_prof(nobs) = gps_allptr%rdiag(2)
       endif
       gps_allptr => gps_allptr%llpoint
     end do
   END DO
-  allocate(collect_hght(nobs), source=holder_hght(1:ind))
-  allocate(collect_gps(nobs), source=holder_gps(1:ind))
-  allocate(collect_qc(nobs), source=holder_qc(1:ind))
-  allocate(collect_prof(nobs), source=holder_prof(1:ind))
 
-  if (mype == 0) allocate(revcounts(total_size),array_hght(nobs_gps),array_gps(nobs_gps), &
-                          array_qc(nobs_gps),array_prof(nobs_gps))
+  allocate(collect_hght(max(1,nobs)), source=zero)
+  allocate(collect_gps(max(1,nobs)), source=zero)
+  allocate(collect_qc(max(1,nobs)), source=zero)
+  allocate(collect_prof(max(1,nobs)), source=zero)
+
+  if (nobs > 0) then
+     do ii=1,nobs
+        collect_hght(ii) = holder_hght(ii)
+        collect_gps(ii)  = holder_gps(ii)
+        collect_qc(ii)   = holder_qc(ii)
+        collect_prof(ii) = holder_prof(ii)
+     end do
+  endif
+  
+  allocate(revcounts(total_size),array_hght(nobs_gps),array_gps(nobs_gps), &
+       array_qc(nobs_gps),array_prof(nobs_gps))
+       
   call mpi_gather(nobs,1,mpi_integer, &
                   revcounts,1,mpi_integer,0,mpi_comm_world,ierror)
+  allocate(displs(total_size))
   if (mype == 0) then
-    allocate(displs(total_size))
     displs(1) = 0
     do ii=2,total_size
       displs(ii) = displs(ii-1) + revcounts(ii-1)
@@ -410,9 +419,8 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   endif
  call mpi_bcast(STD4060,nprof_gps,mpi_rtype,0,mpi_comm_world,ierror)
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  deallocate(collect_hght,collect_gps,collect_qc,collect_prof)
-  if (mype == 0)  deallocate(revcounts,displs,array_hght,array_gps, &
-                             array_qc,array_prof)
+ deallocate(collect_hght,collect_gps,collect_qc,collect_prof)
+ deallocate(revcounts,displs,array_hght,array_gps,array_qc,array_prof)
  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! compute error
  DO ii=1,nobs_bins

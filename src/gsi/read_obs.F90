@@ -1345,7 +1345,7 @@ subroutine read_obs(ndata,mype)
     use_sfc_any=.false.
     loop: do ii=1,mmdat
        i=npe_order(ii)
-       if(ditype(i) == 'rad' .or. ditype(i) == 'sst')then
+       if(ditype(i) == 'rad' .or. dtype(i) == 'sst')then
           mype_io_sfc=mype_root_sub(i)
           use_sfc_any=.true.
           exit loop
