@@ -381,7 +381,7 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
                                                                                ! keep the array sizes consistent
             cdata_all(26,iout)=zero     ! phase of flight
             cdata_all(27,iout)=zero     ! vertical velocity
-            cdata_all(28,iout)=bmiss                 ! index of temperature bias
+            cdata_all(28,iout)=zero     ! index of temperature bias
          end if
          if(perturb_obs)cdata_all(nreal,iout)=ran01dom()*perturb_fact ! t perturbation
  
