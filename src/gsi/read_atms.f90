@@ -91,7 +91,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   use gsi_nstcouplermod, only: gsi_nstcoupler_skindepth,gsi_nstcoupler_deter
   use mpimod, only: npe
   use radiance_mod, only: rad_obs_type
-  use mpi, only : MPI_Wtime,MPI_COMM_WORLD
+  !use mpi, only : MPI_Wtime,MPI_COMM_WORLD
 
   implicit none
 
@@ -197,10 +197,10 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) :: ithin_time,n_tbin
   integer(i_kind),pointer :: it_mesh => null()
   real(kind=8) :: time_beg,time_end,tb1,tb2,tb3,te1,te2,te3,walltime
-  integer(kind=4) :: good,bin,Obindx,maxPerBin
-  integer,allocatable,dimension(:)   :: binCount
-  integer,allocatable,dimension(:,:) :: binObs
-  time_beg=MPI_Wtime()
+  integer(kind=4) :: good,bin,bin2,Obindx,maxPerBin,numBinsWithObs
+  integer(kind=4),allocatable,dimension(:)   :: binCount,binsWithObs,hash
+  integer(kind=4),allocatable,dimension(:,:) :: binObs
+  !time_beg=MPI_Wtime()
 
 !**************************************************************************
 ! Initialize variables
@@ -370,7 +370,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   iob=1
 ! Big loop over standard data feed and possible rars/db data
 ! llll=1 normal feed, llll=2 RARS/EARS data, llll=3 DB/UW data
-  tb1=MPI_Wtime()
+  !tb1=MPI_Wtime()
   ears_db_loop: do llll= 1, 3
 
      if(llll == 1)then
@@ -386,7 +386,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
 !    Reopen unit to satellite bufr file
      open(lnbufr,file=trim(infile2),form='unformatted',status = 'old', &
-         iostat = ierr)
+         action='read', iostat = ierr)
      if(ierr /= 0) cycle ears_db_loop
 
      call openbf(lnbufr,'IN',lnbufr)
@@ -508,8 +508,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      call closbf(lnbufr)
      close(lnbufr)
   end do ears_db_loop
-  te1=MPI_Wtime()
-  write(6,'("Walltime for read_atms: EARS loop " f15.4)') te1-tb1
+  !te1=MPI_Wtime()
+  !write(6,'("Walltime for read_atms: EARS loop " f15.4)') te1-tb1
   deallocate(data1b8)
 
   num_obs = iob-1
@@ -539,7 +539,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   binCount(:)=0
 
 ! First scan to determine which obs fall into which bins
-  tb2=MPI_Wtime()
+  !tb2=MPI_Wtime()
   ObsLoop: do iob=1,num_obs
 
      t4dv       => t4dv_save(iob)
@@ -595,10 +595,22 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   end do ObsLoop
 
   maxPerBin=maxval(binCount)
-  write(6,'("read_atms: max number of obs in any bin " I10)') maxPerBin
-  write(6,'("read_atms: number of bins with any obs " I10)') count(mask=binCount>0)
+  numBinsWithObs = count(mask=binCount>0)
+  ! Find the indices of positive elements
+  allocate(binsWithObs(numBinsWithObs))
+  binsWithObs = pack( (/ (i, i=1,size(binCount)) /), binCount > 0)
 
-  allocate(binObs(maxPerBin,itxmax))
+  allocate(hash(itxmax))
+  hash=0
+  do bin = 1,numBinsWithObs
+    !write(6,'("read_atms: Pack " 2I10)') bin,binsWithObs(bin)
+    hash(binsWithObs(bin)) = bin
+  enddo
+
+  write(6,'("read_atms: max number of obs in any bin " I10)') maxPerBin
+  write(6,'("read_atms: number of bins with any obs " I10)') numBinsWithObs
+
+  allocate(binObs(maxPerBin,numBinsWithObs))
   binObs(:,:)=0
   binCount(:)=0
 
@@ -654,38 +666,40 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !    Map obs to thinning grid
      call binit(dlat_earth*deg2rad,dlon_earth*deg2rad,itx2,it_mesh)
      binCount(itx2) = binCount(itx2)+1
-     binObs(binCount(itx2),itx2) = iob
+     !binObs(binCount(itx2),findloc(binsWithObs,itx2,dim=1)) = iob
+     binObs(binCount(itx2),hash(itx2)) = iob
   end do ObsLoop2
-  te2=MPI_Wtime()
-  write(6,'("Walltime for read_atms: OBS loop " I10,f15.4)') num_obs, te2-tb2
+  deallocate(hash)
+  !te2=MPI_Wtime()
+  !write(6,'("Walltime for read_atms: OBS loop " I10,f15.4)') num_obs, te2-tb2
 
 ! Second scan to determine which observation in a given bin is best to use
   good=0
-  tb2=MPI_Wtime()
+  !tb2=MPI_Wtime()
   !$omp parallel do default(none), schedule(dynamic,12), &
   !$omp& firstprivate(ich1,ich2,ich3,ich16,ich17), &
-  !$omp& private(bin,score,Obindx,iob,rsat,t4dv,dlon_earth,dlat_earth,crit1,it_mesh,ifov,lza, &
+  !$omp& private(bin,score,bin2,Obindx,iob,rsat,t4dv,dlon_earth,dlat_earth,crit1,it_mesh,ifov,lza, &
   !$omp&   satazi,solzen,solazi,bt_in,dlat_earth_deg,dlon_earth_deg, &
   !$omp&   dlon,dlat,outside,dlon00,dlat00,cdist, &
   !$omp&   disterr,disterrmax,tdiff,iuse,itt,itx,dist1, &
   !$omp&   ifovmod,iskip,critical_channels_missing,j,valid,isflg,idomsfc, &
   !$omp&   sfcpct,sty,vty,vfr,stp,sm,ff10,sfcr,zz,sn,ts,tsavg,pred,ch1,ch2,i, &
   !$omp&   ch3,ch16,cosza,qval,d0,tt,tref,dtw,dtc,tz_tr,panglr) &
-  !$omp& shared(itxmax,binCount,binObs,deg2rad,rad2deg,rlats,rlons,nlat,nlon,iwinbgn,gstime,r60inv,ithin,sis, &
+  !$omp& shared(numBinsWithObs,binCount,binObs,deg2rad,rad2deg,rlats,rlons,nlat,nlon,iwinbgn,gstime,r60inv,ithin,sis, &
   !$omp&   instr,ichan,expansion,ichan1,ichan2,ichan3,ichan16,ichan17,nadir,zob, &
   !$omp&   val_tovs,num_obs,rsat_save,t4dv_save,dlon_earth_save,dlat_earth_save, &
   !$omp&   crit1_save,it_mesh_save,ifov_save,lza_save,satazi_save,solzen_save, &
   !$omp&   solazi_save,bt_save,regional,diagnostic_reg,l4dvar,l4densvar, &
   !$omp&   winlen,twind,use_edges,radedge_min,radedge_max,maxscan,nchanl, &
   !$omp&   isfcalc,rlndsea,adp_anglebc,newpc4pred,radmod,d1,d2,maxinfo, &
-  !$omp&   ang_rad,cbias,air_rad,nst_gsi,start,step,data_all,dval_use,nrec,nreal,score_crit) &
+  !$omp&   ang_rad,cbias,air_rad,nst_gsi,start,step,data_all,dval_use,nrec,nreal,score_crit,binsWithObs) &
   !$omp& reduction(+:ntest,nread,good)
-  BinLoop: do bin = 1,itxmax
+  BinLoop: do bin = 1,numBinsWithObs
 
-    if(binCount(bin) == 0) cycle BinLoop
      score=9.99e10_r_kind
+     bin2 = binsWithObs(bin)
 
-     ObsLoop3: do Obindx = 1,binCount(bin)
+     ObsLoop3: do Obindx = 1,binCount(bin2)
 
        iob        = binObs(Obindx,bin)
        rsat       => rsat_save(iob)
@@ -876,64 +890,67 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 
 !      Load selected observation into data array
               
-       data_all(1 ,bin)= rsat                      ! satellite ID
-       data_all(2 ,bin)= t4dv                      ! time
-       data_all(3 ,bin)= dlon                      ! grid relative longitude
-       data_all(4 ,bin)= dlat                      ! grid relative latitude
-       data_all(5 ,bin)= lza                       ! local zenith angle
-       data_all(6 ,bin)= satazi                    ! local azimuth angle
-       data_all(7 ,bin)= panglr                    ! look angle
-       data_all(8 ,bin)= ifovmod                   ! scan position
-       data_all(9 ,bin)= solzen                    ! solar zenith angle
-       data_all(10,bin)= solazi                    ! solar azimuth angle
-       data_all(11,bin) = sfcpct(0)                ! sea percentage of
-       data_all(12,bin) = sfcpct(1)                ! land percentage
-       data_all(13,bin) = sfcpct(2)                ! sea ice percentage
-       data_all(14,bin) = sfcpct(3)                ! snow percentage
-       data_all(15,bin)= ts(0)                     ! ocean skin temperature
-       data_all(16,bin)= ts(1)                     ! land skin temperature
-       data_all(17,bin)= ts(2)                     ! ice skin temperature
-       data_all(18,bin)= ts(3)                     ! snow skin temperature
-       data_all(19,bin)= tsavg                     ! average skin temperature
-       data_all(20,bin)= vty                       ! vegetation type
-       data_all(21,bin)= vfr                       ! vegetation fraction
-       data_all(22,bin)= sty                       ! soil type
-       data_all(23,bin)= stp                       ! soil temperature
-       data_all(24,bin)= sm                        ! soil moisture
-       data_all(25,bin)= sn                        ! snow depth
-       data_all(26,bin)= zz                        ! surface height
-       data_all(27,bin)= idomsfc(1) + 0.001_r_kind ! dominate surface type
-       data_all(28,bin)= sfcr                      ! surface roughness
-       data_all(29,bin)= ff10                      ! ten meter wind factor
-       data_all(30,bin) = dlon_earth_deg           ! earth relative longitude (deg)
-       data_all(31,bin) = dlat_earth_deg           ! earth relative latitude (deg)
+       data_all(1 ,bin2)= rsat                      ! satellite ID
+       data_all(2 ,bin2)= t4dv                      ! time
+       data_all(3 ,bin2)= dlon                      ! grid relative longitude
+       data_all(4 ,bin2)= dlat                      ! grid relative latitude
+       data_all(5 ,bin2)= lza                       ! local zenith angle
+       data_all(6 ,bin2)= satazi                    ! local azimuth angle
+       data_all(7 ,bin2)= panglr                    ! look angle
+       data_all(8 ,bin2)= ifovmod                   ! scan position
+       data_all(9 ,bin2)= solzen                    ! solar zenith angle
+       data_all(10,bin2)= solazi                    ! solar azimuth angle
+       data_all(11,bin2) = sfcpct(0)                ! sea percentage of
+       data_all(12,bin2) = sfcpct(1)                ! land percentage
+       data_all(13,bin2) = sfcpct(2)                ! sea ice percentage
+       data_all(14,bin2) = sfcpct(3)                ! snow percentage
+       data_all(15,bin2)= ts(0)                     ! ocean skin temperature
+       data_all(16,bin2)= ts(1)                     ! land skin temperature
+       data_all(17,bin2)= ts(2)                     ! ice skin temperature
+       data_all(18,bin2)= ts(3)                     ! snow skin temperature
+       data_all(19,bin2)= tsavg                     ! average skin temperature
+       data_all(20,bin2)= vty                       ! vegetation type
+       data_all(21,bin2)= vfr                       ! vegetation fraction
+       data_all(22,bin2)= sty                       ! soil type
+       data_all(23,bin2)= stp                       ! soil temperature
+       data_all(24,bin2)= sm                        ! soil moisture
+       data_all(25,bin2)= sn                        ! snow depth
+       data_all(26,bin2)= zz                        ! surface height
+       data_all(27,bin2)= idomsfc(1) + 0.001_r_kind ! dominate surface type
+       data_all(28,bin2)= sfcr                      ! surface roughness
+       data_all(29,bin2)= ff10                      ! ten meter wind factor
+       data_all(30,bin2) = dlon_earth_deg           ! earth relative longitude (deg)
+       data_all(31,bin2) = dlat_earth_deg           ! earth relative latitude (deg)
      
        if(dval_use) then
-          data_all(32,bin)= val_tovs
-          data_all(33,bin)= itt
+          data_all(32,bin2)= val_tovs
+          data_all(33,bin2)= itt
        end if
      
        if(nst_gsi>0) then
-          data_all(maxinfo+1,bin) = tref            ! foundation temperature
-          data_all(maxinfo+2,bin) = dtw             ! dt_warm at zob
-          data_all(maxinfo+3,bin) = dtc             ! dt_cool at zob
-          data_all(maxinfo+4,bin) = tz_tr           ! d(Tz)/d(Tr)
+          data_all(maxinfo+1,bin2) = tref            ! foundation temperature
+          data_all(maxinfo+2,bin2) = dtw             ! dt_warm at zob
+          data_all(maxinfo+3,bin2) = dtc             ! dt_cool at zob
+          data_all(maxinfo+4,bin2) = tz_tr           ! d(Tz)/d(Tr)
        endif
 
        do i=1,nchanl
-          data_all(i+nreal,bin)=bt_in(i)
+          data_all(i+nreal,bin2)=bt_in(i)
        end do
-       nrec(bin)=iob
+       nrec(bin2)=iob
        good=good+1
      enddo ObsLoop3
-     score_crit(bin) = score
+     score_crit(bin2) = score
   end do BinLoop
-  te2=MPI_Wtime()
+  !$omp end parallel do
+  !te2=MPI_Wtime()
 
-  write(6,'("Walltime for read_atms: bin loop " 2I10,f15.4)') num_obs, good, te2-tb2
+  !write(6,'("Walltime for read_atms: bin loop " f15.4)')  te2-tb2
+  write(6,'("read_atms: Number of obs considered and accepted " 2I10)') num_obs, good
   !write(6,'("read_atms: data_all checksum " f25.14)') sum(data_all(1:31,:))
   deallocate(binCount)
   deallocate(binObs)
+  deallocate(binsWithObs)
 
 
   DEALLOCATE(iscan)
@@ -987,8 +1004,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   if(diagnostic_reg.and.ntest>0) write(6,*)'READ_ATMS:  ',&
      'mype,ntest,disterrmax=',mype,ntest,disterrmax
 
-  time_end=MPI_Wtime()
-  write(6,'("Walltime for read_atms " f15.4)') time_end-time_beg
+  !time_end=MPI_Wtime()
+  !write(6,'("Walltime for read_atms " f15.4)') time_end-time_beg
 
 ! End of routine
   return
