@@ -184,6 +184,7 @@ subroutine setupbend(obsLL,odiagLL, &
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use sparsearr, only: sparr2, new, size, writearray
+  use mpi, only : MPI_Wtime
   implicit none
 
 ! Declare passed variables
@@ -273,6 +274,9 @@ subroutine setupbend(obsLL,odiagLL, &
 
   type(obsLList),pointer,dimension(:):: gpshead
   logical:: commdat
+  real(kind=8) :: time_beg,time_end,tb1,tb2,tb3,te1,te2,te3,walltime
+  time_beg=MPI_Wtime()
+
   gpshead => obsLL(:)
 
   save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
@@ -442,9 +446,33 @@ subroutine setupbend(obsLL,odiagLL, &
   k4=n_c-n_a
 
 ! A loop over all obs.
+  tb1=MPI_Wtime()
   call dtime_setup()
-  loopoverobs1: &
-  do i=1,nobs ! loop over obs 
+
+  !$omp parallel do default(none), schedule(dynamic,8), &
+  !$omp& firstprivate(itime,iuse,jiter,ilate,ilat,ilon,iroc,igeoid,ihgt,ikxx, &
+  !$omp&   nsig,n_a,n_b,k4,ier,isatid,iptid,igps,iprof,gpstop,commgpstop, &
+  !$omp&   deg2rad,mype,ilone,ilsw,ilswflag,nsig_up,grids_dim,rsig_up,ds, &
+  !$omp&   eccentricity,tiny_r_kind), &
+  !$omp& private(i,dtime,obs_check,in_curbin,in_anybin,sin2,dlat,dlon, &
+  !$omp&   rocprof,unprof,ikx,prsltmp,tges,qges,hges,zsges,termg,termr, &
+  !$omp&   termrg,qc_layer_SR,count_SR,top_layer_SR,bot_layer_SR,k,zges, &
+  !$omp&   qmean,tmean,fact,pw,pressure,nrefges1,nrefges2,nrefges3, &
+  !$omp&   irefges,ref_rad,qges_o,alt,grad_mod, &
+  !$omp&   hob,satellite_id,transmitter_id, &
+  !$omp&   kprof,dpressure,ihob,k1,k2,delz,trefges,qrefges, &
+  !$omp&   commdat,d_ref_rad,q_w,ref_rad_s,hob_s,w4,dw4,ddnj,kk,ref_rad_out, &
+  !$omp&   dbend,j,ddbend,cgrossuse,cermaxuse,cerminuse,obserror, &
+  !$omp&   obserrlm,residual,ratio,cutoff,cutoff1,cutoff2,cutoff3,cutoff4, &
+  !$omp&   cutoff12,cutoff23,cutoff34), &
+  !$omp& shared(nobs,data,muse,tpdpres,ges_lnprsi,hrdifsig,nfldsig, &
+  !$omp&   prsltmp_o,nrefges,grav,gp2gm,rges,tges_o,eps,luse,ictype, &
+  !$omp&   n_q,n_p,n_t,fv,nsigstart,ges_tv,ges_q,geop_hgti,ges_z, &
+  !$omp&   error,error_adjst,rsig,ratio_errors,qcfail_one,cdiagbuf, &
+  !$omp&   rdiagbuf,qcfail,xj,dbend_loc,qcfail_three,cgross,time_offset,nsig_ext, &
+  !$omp&   cermax,cermin,qcfail_seven,qcfail_five,qcfail_six,qcfail_two,grid_s), &
+  !$omp& reduction(+:nobs_out,awork), reduction(max:toss_gps_sub,hob_s_top)
+  loopoverobs1: do i=1,nobs ! loop over obs
      dtime=data(itime,i)
      obs_check=.false. 
 
@@ -463,16 +491,11 @@ subroutine setupbend(obsLL,odiagLL, &
 
 !    Interpolate log(pres),temperature,specific humidity, 
 !    corrected geopotential heights and topography to obs location
-     call tintrp2a1(ges_lnprsi,prsltmp,dlat,dlon,dtime,hrdifsig,&
-          nsig+1,mype,nfldsig)
-     call tintrp2a1(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
-          nsig,mype,nfldsig)
-     call tintrp2a1(ges_q,qges,dlat,dlon,dtime,hrdifsig,&
-          nsig,mype,nfldsig)
-     call tintrp2a1(geop_hgti,hges,dlat,dlon,dtime,hrdifsig,&
-          nsig+1,mype,nfldsig)
-     call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
-          mype,nfldsig)
+     call tintrp2a1(ges_lnprsi,prsltmp,dlat,dlon,dtime,hrdifsig,nsig+1,mype,nfldsig)
+     call tintrp2a1(    ges_tv,   tges,dlat,dlon,dtime,hrdifsig,nsig,mype,nfldsig)
+     call tintrp2a1(     ges_q,   qges,dlat,dlon,dtime,hrdifsig,nsig,mype,nfldsig)
+     call tintrp2a1( geop_hgti,   hges,dlat,dlon,dtime,hrdifsig,nsig+1,mype,nfldsig)
+     call tintrp2a11(    ges_z,  zsges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
 
      prsltmp_o(1:nsig,i)=prsltmp(1:nsig) ! needed in minimization
 
@@ -498,7 +521,7 @@ subroutine setupbend(obsLL,odiagLL, &
      top_layer_SR=0
      bot_layer_SR=0
 
-!$omp parallel do  schedule(dynamic,1) private(k,qmean,tmean,fact,pw,pressure,nrefges1,nrefges2,nrefges3)
+     !!dir$ ivdep
      do k=1,nsig 
         zges(k) = (termr*hges(k)) / (termrg-hges(k))  ! eq (23) at interface (topo corrected)
         gp2gm(k,i)= termr/(termrg-hges(k))+((termr*hges(k))/(termrg-hges(k))**2)
@@ -585,9 +608,11 @@ subroutine setupbend(obsLL,odiagLL, &
 
 !    Save some diagnostic information
 !    occultation identification
-     satellite_id         = data(isatid,i) ! receiver occ id
-     transmitter_id       = data(iptid,i)  ! transmitter occ id
-     write(cdiagbuf(i),'(2(i4.4))') satellite_id,transmitter_id
+     !satellite_id         = data(isatid,i) ! receiver occ id
+     !transmitter_id       = data(iptid,i)  ! transmitter occ id
+     !!$omp critical
+     !write(cdiagbuf(i),'(2(i4.4))') satellite_id,transmitter_id
+     !!$omp end critical
 
      rdiagbuf(:,i)         = zero
 
@@ -854,6 +879,10 @@ subroutine setupbend(obsLL,odiagLL, &
      end if ! obs inside the vertical grid
 
   end do loopoverobs1 ! end of loop over observations
+  !$omp end parallel do
+  te1=MPI_Wtime()
+  write(6,'("Walltime for setupbend: First obs loop " f15.4)') te1-tb1
+  write(6,'("setupbend: Number of obs considered and accepted " 2I10)') nobs, count(mask=muse/=.false.)
 
   if (nobs_out>=1) then
      write(6,*)'WARNING GPSRO:',nobs_out,'obs outside integration grid. Increase nsig_ext to',&
@@ -889,6 +918,7 @@ subroutine setupbend(obsLL,odiagLL, &
   endif ! (last_pass)
 
 ! Loop to load arrays used in statistics output
+  tb1=MPI_Wtime()
   call dtime_setup()
   do i=1,nobs
      dtime=data(itime,i)
@@ -999,6 +1029,9 @@ subroutine setupbend(obsLL,odiagLL, &
         gps_alltail(ibin)%head%type     = data(ikxx,i)
         gps_alltail(ibin)%head%luse     = luse(i) ! logical
         gps_alltail(ibin)%head%muse     = muse(i) ! logical
+        satellite_id         = data(isatid,i) ! receiver occ id
+        transmitter_id       = data(iptid,i)  ! transmitter occ id
+        write(cdiagbuf(i),'(2(i4.4))') satellite_id,transmitter_id
         gps_alltail(ibin)%head%cdiag    = cdiagbuf(i)
 
 !       Fill obs diagnostics structure
@@ -1228,6 +1261,8 @@ subroutine setupbend(obsLL,odiagLL, &
         gps_alltail(ibin)%head%muse     = muse(i) ! logical
      endif ! (last_pass)
   end do ! i=1,nobs
+  te1=MPI_Wtime()
+  write(6,'("Walltime for setupbend: Second obs loop " f15.4)') te1-tb1
   deallocate(ddnj,grid_s,ref_rad_s)
   ! Release memory of local guess arrays
   call final_vars_
@@ -1239,6 +1274,9 @@ subroutine setupbend(obsLL,odiagLL, &
 
   call gpsrhs_unaliases(is)
   if(last_pass) call gpsrhs_dealloc(is)
+
+  time_end=MPI_Wtime()
+  write(6,'("Walltime for setupbend: Total " f15.4)') time_end-time_beg
 
   return
   contains
