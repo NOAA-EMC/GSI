@@ -41,7 +41,8 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
   use converr,only: etabl
   use convb_q,only: btabl_q
   use convb_t,only: btabl_t
-  !use convb_uv,only: btabl_uv
+  use convb_uv,only: btabl_uv
+  use deter_sfc_mod, only: deter_sfc2
   use gridmod, only: nlon,nlat,nsig,rlats,rlons,regional,fv3_regional,diagnostic_reg,& 
                      rotate_wind_ll2xy,rotate_wind_xy2ll,tll2xy,txy2ll
   use gsi_4dvar, only: time_4dvar, iwinbgn, l4dvar,l4densvar,winlen
@@ -80,7 +81,7 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
   integer(i_kind) :: iobsub, ierr=zero
   integer(i_kind) :: ncount_ps, ncount_q, ncount_t, ncount_uv
   integer(i_kind) :: irec, iret, ncx, levs, iout, ntest, nvtest
-  integer(i_kind) :: idate, nmind, ilat, ilon, nchanl
+  integer(i_kind) :: idate, nmind, ilat, ilon, nchanl, idomsfc
   integer(i_kind),dimension(5):: idate5
   integer(i_kind),dimension(nconvtype)::ntxall
   integer(i_kind),dimension(nconvtype+1)::ntx
@@ -96,6 +97,8 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
   real(r_kind) :: toff, t4dv, tdiff
   real(r_kind) :: uwind, vwind, u0, v0, u00, v00, ppb, usage
   real(r_kind) :: obserr, var_jb, del, ediff
+  real(r_kind) :: tsavg,ff10,sfcr,zz
+  real(r_kind) :: qjbmin,tjbmin,wjbmin
   real(r_kind) :: terrmin=half
   real(r_kind) :: werrmin=one
   real(r_kind) :: qerrmin=0.05_r_kind
@@ -124,6 +127,9 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
   ilon = 2
   ilat = 3
   nchanl = 0
+  qjbmin = zero
+  tjbmin = zero
+  wjbmin = zero
 
   if (print_verbose) write(6,*) 'Entering READ_GSB, obstype =',obstype 
   tob = obstype == 't'
@@ -319,9 +325,11 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
          if(abs(tdiff) > twindin+one_minute) cycle loop_readsb
       endif
 
-!Set station ID
-
+      !Set station ID
       rstation_id=hdr(9,1)  
+
+      ! Set surface type
+      call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr,zz)
 
       call ufbint(lunin,obsdat,7,1,levs,obstr)  ! PRLC HGHT TMDB REHU SPFH WDIR WSPD
       dlnpob=log(obsdat(1,1)/1000_r_kind)
@@ -348,7 +356,11 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
          ! Temperature error
          obserr=(one-del)*etabl(kx,k1,2)+del*etabl(kx,k2,2)
          obserr=max(obserr,terrmin)
-
+         ! Varjb
+         var_jb=(one-del)*btabl_t(kx,k1,2)+del*btabl_t(kx,k2,2)
+         var_jb=max(var_jb,tjbmin) 
+         if (var_jb >=10.0_r_kind) var_jb=zero
+                                                                    
          ! Write to output array
          iout = iout + 1
          cdata_all(1,iout)=obserr                  ! temperature error
@@ -364,19 +376,19 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
          cdata_all(10,iout)=zero                   ! quality mark
          cdata_all(11,iout)=obserr                 ! original obs error
          cdata_all(12,iout)=usage                  ! usage parameter
-         cdata_all(13,iout)=bmiss                  ! dominate surface type
-         cdata_all(14,iout)=bmiss                  ! skin temperature
-         cdata_all(15,iout)=bmiss                  ! 10 meter wind factor
-         cdata_all(16,iout)=bmiss                  ! surface roughness
+         cdata_all(13,iout)=idomsfc                ! dominate surface type
+         cdata_all(14,iout)=tsavg                  ! skin temperature
+         cdata_all(15,iout)=ff10                   ! 10 meter wind factor
+         cdata_all(16,iout)=sfcr                   ! surface roughness
          cdata_all(17,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
          cdata_all(18,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
          cdata_all(19,iout)=bmiss                  ! station elevation (m)
          cdata_all(20,iout)=obsdat(2,1)            ! observation height (m)
-         cdata_all(21,iout)=bmiss                  ! terrain height at ob location
+         cdata_all(21,iout)=zz                     ! terrain height at ob location
          cdata_all(22,iout)=bmiss                  ! provider name
          cdata_all(23,iout)=bmiss                  ! subprovider name
          cdata_all(24,iout)=bmiss                  ! cat
-         cdata_all(25,iout)=bmiss                  ! non linear qc for T
+         cdata_all(25,iout)=var_jb                 ! non linear qc for T
          if (aircraft_t_bc_pof .or. aircraft_t_bc .or.aircraft_t_bc_ext) then  ! These are obviously not used but are here to
                                                                                ! keep the array sizes consistent
             cdata_all(26,iout)=zero     ! phase of flight
@@ -409,7 +421,12 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
          ! Spc Hum error
          obserr=(one-del)*etabl(kx,k1,3)+del*etabl(kx,k2,3)
          obserr=max(obserr,qerrmin)
+         ! Varjb
+         var_jb=(one-del)*btabl_q(kx,k1,2)+del*btabl_q(kx,k2,2)
+         var_jb=max(var_jb,qjbmin) 
+         if (var_jb >=10.0_r_kind) var_jb=zero
 
+         ! Write to output array
          iout = iout + 1
          cdata_all(1,iout)=obserr                  ! specific humidity error
          cdata_all(2,iout)=dlon                    ! grid relative longitude
@@ -425,20 +442,20 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
          cdata_all(11,iout)= zero                  ! quality mark
          cdata_all(12,iout)= obserr                ! original obs error
          cdata_all(13,iout)= usage                 ! usage parameter
-         cdata_all(14,iout)= bmiss                 ! dominate surface type
+         cdata_all(14,iout)= idomsfc               ! dominate surface type
          cdata_all(15,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
          cdata_all(16,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
          cdata_all(17,iout)=bmiss                  ! station elevation (m)
          cdata_all(18,iout)=obsdat(2,1)            ! observation height (m)
-         cdata_all(19,iout)=bmiss                  ! terrain height at ob location
-         !cdata_all(20,iout)=r_prvstg(1,1)          ! provider name
-         !cdata_all(21,iout)=r_sprvstg(1,1)         ! subprovider name
+         cdata_all(19,iout)=zz                     ! terrain height at ob location
+         !cdata_all(20,iout)=r_prvstg(1,1)         ! provider name
+         !cdata_all(21,iout)=r_sprvstg(1,1)        ! subprovider name
          cdata_all(20,iout)= bmiss                 ! provider name
          cdata_all(21,iout)= bmiss                 ! subprovider name
          cdata_all(22,iout)= bmiss                 ! cat
          cdata_all(23,iout)= bmiss                 ! non linear qc b parameter
          cdata_all(24,iout)=bmiss                  ! cat
-         cdata_all(25,iout)=bmiss                  ! non linear qc for T
+         cdata_all(25,iout)=var_jb                 ! non linear qc for T
          cdata_all(26,iout)=bmiss                  ! Dummy                
          if(perturb_obs)cdata_all(nreal,iout)=ran01dom()*perturb_fact ! q perturbation
 
@@ -466,6 +483,10 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
          ! Wind error
          obserr=(one-del)*etabl(kx,k1,4)+del*etabl(kx,k2,4)
          obserr=max(obserr,werrmin)
+         ! Varjb
+         var_jb=(one-del)*btabl_uv(kx,k1,2)+del*btabl_uv(kx,k2,2)
+         var_jb=max(var_jb,wjbmin) 
+         if (var_jb >=10.0_r_kind) var_jb=zero
 
          ! Write to output array
          uwind = -obsdat(7,1) * sin(obsdat(6,1)*deg2rad) 
@@ -499,18 +520,18 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
          cdata_all(12,iout)=zero                   ! quality mark
          cdata_all(13,iout)=obserr                 ! original obs error
          cdata_all(14,iout)=usage                  ! usage parameter
-         cdata_all(15,iout)=bmiss                  ! dominate surface type
-         cdata_all(16,iout)=bmiss                  ! skin wind
-         cdata_all(17,iout)=bmiss                  ! 10 meter wind factor
-         cdata_all(18,iout)=bmiss                  ! surface roughness
+         cdata_all(15,iout)=idomsfc                ! dominate surface type
+         cdata_all(16,iout)=tsavg                  ! skin temperature
+         cdata_all(17,iout)=ff10                   ! 10 meter wind factor
+         cdata_all(18,iout)=sfcr                   ! surface roughness
          cdata_all(19,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
          cdata_all(20,iout)=dlat_earth_deg         ! earth relative latitude (degrees)
-         cdata_all(21,iout)=bmiss                  ! terrain height at ob location
+         cdata_all(21,iout)=zz                     ! terrain height at ob location
          cdata_all(22,iout)=bmiss                  ! provider name
          cdata_all(23,iout)=bmiss                  ! subprovider name
          cdata_all(24,iout)=bmiss                  ! cat
-         cdata_all(25,iout)=bmiss                  ! non linear qc for T
-         cdata_all(26,iout)=bmiss                  ! Dummy                
+         cdata_all(25,iout)=var_jb                 ! non linear qc for uv
+         cdata_all(26,iout)=one                    ! hilbert curve weight, modified later
          if(perturb_obs)then
             cdata_all(27,iout)=ran01dom()*perturb_fact ! u perturbation
             cdata_all(28,iout)=ran01dom()*perturb_fact ! v perturbation
