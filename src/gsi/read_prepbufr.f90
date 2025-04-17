@@ -2066,8 +2066,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                                             obsdat(5,k),obsdat(6,k),usage)
                  endif
                  !retrieve wind sensor height
-                 if (twodvar_regional .or. l_rtma3d)  then
+                 if (twodvar_regional)  then
                     if ( kx==288.or.kx==295 .or. (gustob .and. (kx==188.or.kx==195)) )  then
+                       call find_wind_height(c_prvstg,c_sprvstg,windsensht,kcount)
+                    endif
+                 endif
+                 !retrieve wind sensor height for mesonet gustob only when running 3DRTMA
+                 if (l_rtma3d)  then
+                    if ( gustob .and. (kx==188.or.kx==195) )  then
                        call find_wind_height(c_prvstg,c_sprvstg,windsensht,kcount)
                     endif
                  endif
@@ -3325,9 +3331,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      'nvtest,vdisterrmax=',ntest,vdisterrmax
 
   if(print_verbose)write(6,*)'READ_PREPBUFR:  closbf(',lunin,')'
-  if ((twodvar_regional .or. l_rtma3d) .and. (uvob .or. gustob .or. spdob))  then
-    write(6,'(1x,A,1x,A,5(1x,I9))') 'read_prepbufr:: for obstype=',            &
-      trim(adjustl(obstype)), ': kcount values from find wind height = ',kcount
+  if (twodvar_regional .and. (uvob .or. gustob .or. spdob))  then
+    write(6,*) 'kcount values from find wind height = ',kcount
+  end if
+  if ( l_rtma3d  .and. gustob )  then
+     write(6,'(1x,A,1x,A,A,5(1x,I9))') 'read_prepbufr:: for obstype=',            &
+       trim(adjustl(obstype)), ': kcount values from find wind height = ',kcount
   end if
 
 
