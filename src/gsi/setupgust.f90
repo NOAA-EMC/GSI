@@ -753,7 +753,7 @@ contains
          call stop2(999)
      endif
 
-     if ( l_rtma3d .and. use_similarity_2dvar .and. neutral_stability_windfact_2dvar ) then
+     if ( l_rtma3d .and. use_similarity_2dvar .and. (.not. neutral_stability_windfact_2dvar) ) then
 !    get u ...
         varname='u'
         call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
@@ -875,7 +875,7 @@ contains
            ges_pres2(:,:,ifld)=ges_prsl(:,:,2,ifld)
         end do
 !    get height ...   ==> geop_hgtl from module guess_grids ==> zges
-     end if  !if (l_rtma3d.and.use_similarity_2dvar.and.neutral_stability_windfact_2dvar)
+     end if  !if (l_rtma3d.and.use_similarity_2dvar.and. (.not.neutral_stability_windfact_2dvar))
   else
      write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
                  nfldsig,size(gsi_metguess_bundle)
