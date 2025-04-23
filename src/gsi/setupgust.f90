@@ -149,7 +149,6 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   integer(i_kind) l,mm1
   integer(i_kind) itype
   integer(i_kind) idomsfc,iskint,iff10,isfcr
-  integer(i_kind) i_factw
 
   logical msonetob
   
@@ -419,15 +418,12 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
 
      if (zob > zges(1)) then
         factw=one
-        i_factw = 1
      else
         factw = data(iff10,i)
-        i_factw = 10
         if(sfcmod_gfs .or. sfcmod_mm5) then
            sfcr = data(isfcr,i)
            skint = data(iskint,i)
            call comp_fact10(dlat,dlon,dtime,skint,sfcr,isli,mype,factw)
-           i_factw = 5
         end if
 
         if (zob <= ten) then
@@ -436,7 +432,6 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
                  if (neutral_stability_windfact_2dvar) then
                     sfcr = data(isfcr,i)
                     factw=log(max(sfcr,zob)/sfcr)/log(ten/sfcr)
-                    i_factw = 3
                  else
                     sfcr = data(isfcr,i)
                     skint = data(iskint,i)
@@ -445,18 +440,15 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
                     else if(l_rtma3d) then
                        call rtma3d_comp_fact10_(dlat,dlon,dtime,zob,skint,sfcr,isli,mype,factw)
                     end if
-                    i_factw = 4
                  endif
               else
                  term = max(zob,zero)/ten
                  factw = term*factw
-                 i_factw = 2
               endif
            end if
         else
            term = (zges(1)-zob)/(zges(1)-ten)
            factw = one-term+factw*term
-           i_factw = 11
         end if
        gustges=factw*gustges
     endif
@@ -1019,15 +1011,8 @@ contains
            r_sprvstg           = data(isprvd,i)
            call nc_diag_metadata("Subprovider_Name",  c_sprvstg                    )
 
-           if ( twodvar_regional ) then
+           if ( twodvar_regional .or. l_rtma3d ) then
               call nc_diag_metadata("Wind_Reduction_Factor_at_10m", factw          )
-           end if
-           if ( l_rtma3d ) then
-              call nc_diag_metadata("Wind_Reduction_Factor_at_10m", factw          )
-              call nc_diag_metadata("Wind_Reduction_Factor_at_10m_Orig", data(iff10,i) )
-              call nc_diag_metadata("Wind_Reduction_Factor_at_10m_AdjustmentIndex", i_factw        )
-              call nc_diag_metadata("zob_used_setupgust",   zob                    )
-              call nc_diag_metadata("zges1_used_setupgust", zges(1)                )
            end if
 
            if (lobsdiagsave) then

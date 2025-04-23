@@ -101,12 +101,6 @@ contains
        ncount=n-1
        print*, "Number of provider/subprovider combinations:",ncount
        close(meso_unit)
-
-!      print out the list
-!      do n = 1, ncount
-!         write(6,'(1x,A,2X,A16,2X,F5.2,2x,I3.3)')'readin_windht_list::prov+subrpov height:',provlist(n), heightlist(n), n
-!      end do
-
     endif
 
   end subroutine readin_windht_list
