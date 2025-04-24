@@ -137,11 +137,13 @@ module jfunc
   public :: varq
   public :: cnvw_option
   public :: hofx_2m_sfcfile
+  public :: ignore_2mQM
 
   logical first,last,switch_on_derivatives,tendsflag,print_diag_pcg,tsensible,diag_precon
   logical clip_supersaturation,R_option
   logical pseudo_q2,limitqobs
   logical hofx_2m_sfcfile
+  logical ignore_2mQM
   logical cnvw_option
   integer(i_kind) iout_iter,miter,iguess,nclen,qoption,cwoption
   integer(i_kind) jiter,jiterstart,jiterend,iter
@@ -253,6 +255,9 @@ contains
 
 !   option to calculate hofx for T2m and q2m by interpolating from 2m vars in sfc file
     hofx_2m_sfcfile=.false.
+
+!   option to ignore qm=9 in prepbufr file for T2m and q2m
+    ignore_2mQM=.false.
 
     return
   end subroutine init_jfunc

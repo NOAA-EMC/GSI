@@ -107,7 +107,7 @@
      factv,factl,factp,factg,factw10m,facthowv,factcldch,niter,niter_no_qc,biascor,&
      init_jfunc,qoption,cwoption,switch_on_derivatives,tendsflag,jiterstart,jiterend,R_option,&
      bcoption,diurnalbc,print_diag_pcg,tsensible,diag_precon,step_start,pseudo_q2,&
-     clip_supersaturation,cnvw_option,hofx_2m_sfcfile
+     clip_supersaturation,cnvw_option,hofx_2m_sfcfile, ignore_2mQM
   use state_vectors, only: init_anasv,final_anasv
   use control_vectors, only: init_anacv,final_anacv,nrf,nvars,nrf_3d,cvars3d,cvars2d,&
      nrf_var,lcalc_gfdl_cfrac,incvars_to_zero,incvars_zero_strat,incvars_efold 
@@ -1087,9 +1087,16 @@
 !      time_window_rad  - upper limit on time window for certain radiance input data
 !      ext_sonde        - logical for extended forward model on sonde data
 !      l_foreaft_thin -   separate TDR fore/aft scan for thinning
+!      hofx_2m_sfcfile  - Calculate h(x) for q2m and T2m from 
+!                         same fields in sfc_data.tile files
+!                         (for use in global 2m DA) 
+!      ignore_2mQM      - ignore quality mark of 9 (no obs errors)
+!                         for T2m and q2m in prepbufr file, and
+!                         insert hard-coded obs errors (for reanalysis,
+!                         allows use of archived prepbufr files)
 
   namelist/obs_input/dmesh,time_window_max,time_window_rad, &
-       ext_sonde,l_foreaft_thin,hofx_2m_sfcfile
+       ext_sonde,l_foreaft_thin,hofx_2m_sfcfile, ignore_2mQM
 
 ! SINGLEOB_TEST (one observation test case setup):
 !      maginnov   - magnitude of innovation for one ob
@@ -2310,6 +2317,8 @@
      write(6,strongopts)
      write(6,obsqc)
      write(6,*)'EXT_SONDE on type 120 =',ext_sonde
+     write(6,*)'hofx_2m_sfcfile =', hofx_2m_sfcfile
+     write(6,*)'ignore_2mQM =', ignore_2mQM
      ngroup=0
      do i=1,ndat
         dthin(i) = max(dthin(i),0)

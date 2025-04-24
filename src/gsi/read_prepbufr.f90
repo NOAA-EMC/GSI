@@ -219,7 +219,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                          apply_hilbertcurve,destroy_hilbertcurve
   use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
   use ndfdgrids,only: valley_adjustment
-  use jfunc, only: tsensible, hofx_2m_sfcfile
+  use jfunc, only: tsensible, hofx_2m_sfcfile, ignore_2mQM
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_deter
@@ -1685,9 +1685,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               pmq(k)=nint(qcmark(8,k))
            end do
 
-!          187, 181, and 183 are the screen-level obs over land
-!          note: don't need the hofx_2m_sfcfile if set usage in convinfo, and qm updated in the input file
-           global_2m_land = ( (kx==187 .or. kx==181 .or. kx==183) .and. hofx_2m_sfcfile )
+!          187 and 181, are the screen-level obs over land
+           global_2m_land = ( (kx==187 .or. kx==181) .and. hofx_2m_sfcfile )
 
 !          If temperature ob, extract information regarding virtual
 !          versus sensible temperature
@@ -2012,21 +2011,17 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             Over-ride QM=9 and hard-wire errors for land obs and hofx_sfc_file option
 !             Can be deleted once prepbufr processing updated.
-              if ( global_2m_land ) then
+              if ( global_2m_land .and. ignore_2mQM ) then
                 if (tob .and. qm==9 ) then
-                     pqm(k)=2 ! otherwise, type 183 will be discarded.
                      qm=2
                      tqm(k)=2
-                     if (kx==187) obserr(3,k)=2.0_r_double
-                     if (kx==181) obserr(3,k)=2.0_r_double
-                     if (kx==183) obserr(3,k)=2.0_r_double
+                     obserr(3,k)=2.0_r_double
                 endif
                 if (qob .and. qm == 9 ) then 
-                     qm = 2
+                     qm=2
+                     qqm(k) = 2
                      ! qob err specified as fraction of qsat, multiplied by 10.
-                     if (kx==187) obserr(2,k)=1.0_r_double
-                     if (kx==181) obserr(2,k)=1.0_r_double
-                     if (kx==183) obserr(2,k)=1.0_r_double
+                     obserr(2,k)=1.0_r_double
                 endif
               endif
 !             Set usage variable              
