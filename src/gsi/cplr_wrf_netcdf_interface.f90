@@ -67,7 +67,7 @@ contains
     use rapidrefresh_cldsurf_mod, only: l_hydrometeor_bkio,l_gsd_soilTQ_nudge
     use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_use_2mq4b
     use rapidrefresh_cldsurf_mod, only: i_howv_3dda, i_gust_3dda
-    use rapidrefresh_cldsurf_mod, only: i_howv_mask
+    use rapidrefresh_cldsurf_mod, only: i_howv_mask, i_sfcrough_fgs
     use gsi_metguess_mod, only: gsi_metguess_get
     use chemmod, only: laeroana_gocart, ppmv_conv,wrf_pm2_5
     use gsi_chemguess_mod, only: gsi_chemguess_get
@@ -1140,6 +1140,35 @@ contains
              call die(trim(adjustl(myname_)),trim(adjustl(derr_msg)),ierr)
           end if
        endif  ! i_gust_3dda (reading 2D 10-m wind gust from netcdf-format background) 
+
+!      Reading Surface Roughness (ZNT) in firstguess (it is dumped in sigf file after gust and before cloud variables.)
+       if ( i_sfcrough_fgs >= 1 ) then
+          rmse_var='ZNT'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+               start_index,end_index, WrfType, ierr    )
+          if(print_verbose)then
+             write(6,*)' rmse_var = ',trim(rmse_var),' ndim1=',ndim1
+             write(6,*)' WrfType = ',WrfType,' WRF_REAL=',WRF_REAL,'ierr  = ',ierr   !DEDE
+             write(6,*)' ordering = ',trim(ordering),' staggering = ',trim(staggering)
+             write(6,*)' start_index = ',start_index,' end_index = ',end_index
+          end if
+          if(ierr == 0) then
+             call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+                  field2,WRF_REAL,0,0,0,ordering,           &
+                  staggering, dimnames ,               &
+                  start_index,end_index,               & !dom
+                  start_index,end_index,               & !mem
+                  start_index,end_index,               & !pat
+                  ierr                                 )
+             if(print_verbose)write(6,*)'convert_netcdf_mass_wrf:: max,min ZNT(sfc_rough)=',maxval(field2),minval(field2)
+             write(iunit)field2   !ZNT  (Surface Roughness Length)
+             i_sfcrough_fgs = 1
+          else
+             i_sfcrough_fgs = 0
+             write(6,'(1x,A,1x,I4)') &
+               'convert_netcdf_mass_wrf:: ZNT (sfc_roughness) is NOT in firstguess. Re-set i_sfcrough_fgs=',i_sfcrough_fgs
+          end if
+       end if ! i_sfcrough_fgs (reading surface roughness from netcdf-format background)
 
        if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
           rmse_var='QCLOUD'
@@ -2556,7 +2585,7 @@ contains
     use constants, only: h300,tiny_single
     use rapidrefresh_cldsurf_mod, only: l_hydrometeor_bkio,l_gsd_soilTQ_nudge
     use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
-    use rapidrefresh_cldsurf_mod, only: i_howv_3dda, i_gust_3dda
+    use rapidrefresh_cldsurf_mod, only: i_howv_3dda, i_gust_3dda, i_sfcrough_fgs
     use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
     use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_use_2mq4b
     use gsi_bundlemod, only: GSI_BundleGetPointer
@@ -3174,8 +3203,14 @@ contains
             start_index,end_index1,               & !mem
             start_index,end_index1,               & !pat
             ierr                                 )
-    endif  ! i_howv_3dda (wave height)
+    endif  ! i_gust_3dda (wind gust)
 
+!   Reading surface roughtness from binary siganl (only when i_sfcrough_fgs = 1),
+!    and no need to write it to netcdf analysis file, since it is not updated.
+    if ( i_sfcrough_fgs == 1 ) then
+       read(iunit)   field2   !ZNT (surface roughness)
+       if(print_verbose)write(6,*)'update_netcdf_mass_wrf:: max,min ZNT(sfc_rough)=',maxval(field2),minval(field2)
+    end if ! i_sfcrough_fgs (surface roughness)
 
     if (l_hydrometeor_bkio .and. n_actual_clouds>0) then
       do k=1,nsig_regional

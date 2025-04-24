@@ -221,6 +221,10 @@ module rapidrefresh_cldsurf_mod
 !                          = 0 (gust-off: default) : no analysis of gust in 3D analysis.
 !                          = 1 (gust-on) : if variable name "gust" is found in anavinfo,
 !                                          set it to be 1 to turn on analysis of gust;
+!      i_sfcrough_fgs - integer, namelist option to control the read-in and usage of surface roughness in firstguess
+!                          = 0 : do not read surface roughness from firstguess,
+!                                and use the default value instead (default)
+!                          = 1 : read surface roughness from firstguess and use it in analysis
 !
 ! attributes:
 !   language: f90
@@ -297,6 +301,7 @@ module rapidrefresh_cldsurf_mod
   public :: i_howv_mask
   public :: corp_gust, hwllp_gust, oerr_gust
   public :: i_gust_3dda
+  public :: i_sfcrough_fgs
 
   logical l_hydrometeor_bkio
   real(r_kind)  dfi_radar_latent_heat_time_period
@@ -360,6 +365,7 @@ module rapidrefresh_cldsurf_mod
   integer(i_kind)   :: i_howv_mask
   real(r_kind)      :: corp_gust, hwllp_gust, oerr_gust
   integer(i_kind)   :: i_gust_3dda
+  integer(i_kind)   :: i_sfcrough_fgs
 
 contains
 
@@ -494,6 +500,8 @@ contains
                                                       ! "rapidrefresh_cldsurf" of GSI namelist file
 
     i_gust_3dda         = 0                           ! no analysis of wind gust (gust) in 3D analysis (default)
+
+    i_sfcrough_fgs      = 0                           ! do not read surface roughness from firstguess (default)
 
 !-- searching for specific variable in state variable list (reading from anavinfo)
     do i2=1,ns2d

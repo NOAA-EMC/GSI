@@ -452,7 +452,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   integer:: icase,klev,ikkk,tkk
   real:: diffhgt,diffuu,diffvv
-  integer,dimension(3)::kcount
+  integer,dimension(5)::kcount
 
   real(r_double),dimension(3,1500):: fcstdat
   logical print_verbose
@@ -2066,6 +2066,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                        call find_wind_height(c_prvstg,c_sprvstg,windsensht,kcount)
                     endif
                  endif
+                 !retrieve wind sensor height for mesonet gustob only when running 3DRTMA
+                 if (l_rtma3d)  then
+                    if ( gustob .and. (kx==188.or.kx==195) )  then
+                       call find_wind_height(c_prvstg,c_sprvstg,windsensht,kcount)
+                    endif
+                 endif
                  if(i_gsdqc==2) then  ! filter bad 2-m dew point and  0 mesonet wind obs
                     if (kx==288.or.kx==295) then ! for mesonet wind
                        if(abs(obsdat(5,k))<0.01_r_kind .and. abs(obsdat(6,k))<0.01_r_kind) usage=115._r_kind
@@ -2572,7 +2578,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                    if ((kx==280).or.(kx==180)) oelev=r20+selev
                    if ((kx==299).or.(kx==199)) oelev=r20+selev
                    if ((kx==282).or.(kx==182)) oelev=r20+selev
-                   if (((kx==295).or.(kx==288).or.(kx==195).or.(kx==188)).and.twodvar_regional) then
+                   if (((kx==295).or.(kx==288).or.(kx==195).or.(kx==188)).and.(twodvar_regional.or.l_rtma3d)) then
                       !account for mesonet wind sensor height
                       oelev=windsensht+selev
                    end if
@@ -3309,7 +3315,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   call destroy_aircraft_rjlists
   if(i_gsdsfc_uselist==1) call destroy_gsd_sfcuselist
   if (lhilbert) call destroy_hilbertcurve
-  if (twodvar_regional) then
+  if (twodvar_regional .or. l_rtma3d) then
      call destroy_ndfdgrid
      call destroy_windht_lists
   endif
@@ -3322,6 +3328,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   if(print_verbose)write(6,*)'READ_PREPBUFR:  closbf(',lunin,')'
   if (twodvar_regional .and. (uvob .or. gustob .or. spdob))  then
     write(6,*) 'kcount values from find wind height = ',kcount
+  end if
+  if ( l_rtma3d  .and. gustob )  then
+     write(6,'(1x,A,1x,A,A,5(1x,I9))') 'read_prepbufr:: for obstype=',            &
+       trim(adjustl(obstype)), ': kcount values from find wind height = ',kcount
   end if
 
 

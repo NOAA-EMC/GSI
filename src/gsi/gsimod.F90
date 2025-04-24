@@ -184,7 +184,8 @@
                             cld_bld_coverage,cld_clr_coverage,&
                             i_cloud_q_innovation,i_ens_mean,DTsTmax,&
                             i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check, &
-                            corp_howv, hwllp_howv, corp_gust, hwllp_gust, oerr_gust, i_howv_mask
+                            corp_howv, hwllp_howv, corp_gust, hwllp_gust, oerr_gust, i_howv_mask, &
+                            i_sfcrough_fgs
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
@@ -1619,6 +1620,10 @@
 !      corp_gust     - real, static background error of gust (stddev error)
 !      hwllp_gust    - real, background error de-correlation length scale of gust 
 !      oerr_gust     - real, observation error of gust
+!      i_sfcrough_fgs - integer, option to control the read-in of surface roughness from firstguess
+!                           = 0 : do not read surface roughness from firstguess,
+!                                 and use the default value instead (default)
+!                           = 1 : read surface roughness from firstguess and use it in analysis
 !
   namelist/rapidrefresh_cldsurf/dfi_radar_latent_heat_time_period, &
                                 metar_impact_radius,metar_impact_radius_lowcloud, &
@@ -1640,7 +1645,8 @@
                                 cld_bld_coverage,cld_clr_coverage,&
                                 i_cloud_q_innovation,i_ens_mean,DTsTmax, &
                                 i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check, &
-                                corp_howv, hwllp_howv, corp_gust, hwllp_gust, oerr_gust, i_howv_mask
+                                corp_howv, hwllp_howv, corp_gust, hwllp_gust, oerr_gust, i_howv_mask, &
+                                i_sfcrough_fgs
 
 ! chem(options for gsi chem analysis) :
 !     berror_chem       - .true. when background  for chemical species that require
