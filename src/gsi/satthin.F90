@@ -478,7 +478,6 @@ contains
        icount(j) = .true.
        score_crit(j) = 9.99e10_r_kind
     end do
-    write(6,'("makegrids: use_all and itxmax set to " L,I8)') use_all,itxmax
 
     return
   end subroutine makegrids
