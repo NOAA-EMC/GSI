@@ -524,7 +524,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        if(l_pbl_pseudo_surfobst) allocate(cprvstgp(nobs*3),csprvstgp(nobs*3))  ! provider of pseudo obs 
      endif
      if ( l_rtma3d .and. l_gsd_terrain_match_surftobs ) then
-        nreal = nreal + 3          ! to save the reported obs info (tob, lnpob, stnelev)
+        nreal = nreal + 4          ! to save the reported obs info (tob, lnpob, stnelev and change-marker)
      end if
      if (save_jacobian) then
        nnz   = 2                   ! number of non-zero elements in dH(x)/dx profile
@@ -1705,6 +1705,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        rdiagbuf(idia,ii) = prest_kept        ! original reported log of pressure (cb)
        idia = idia + 1
        rdiagbuf(idia,ii) = data_kept(3,i)    ! original reported station elevation
+       idia = idia + 1
+       rdiagbuf(idia,ii) = data_kept(5,i)    ! marker if obs info is changed (0:no; 1: changed)
     end if
 
     if (save_jacobian) then
@@ -1796,6 +1798,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        rdiagbufp(idia,iip) = -9999._r_single ! original reported log of pressure (cb)
        idia = idia + 1
        rdiagbufp(idia,iip) = -9999._r_single ! original reported station elevation
+       idia = idia + 1
+       rdiagbufp(idia,iip) = -9999._r_single ! marker whether obs info is changed or not
     end if
 !----
 
