@@ -1877,7 +1877,7 @@ contains
     use rapidrefresh_cldsurf_mod, only: l_hydrometeor_bkio,l_gsd_soilTQ_nudge,&
          i_use_2mq4b,i_use_2mt4b
     use rapidrefresh_cldsurf_mod, only: i_howv_3dda, i_gust_3dda
-    use rapidrefresh_cldsurf_mod, only: i_howv_mask
+    use rapidrefresh_cldsurf_mod, only: i_howv_mask, i_sfcrough_fgs
     
     use chemmod, only: laeroana_gocart,wrf_pm2_5
     use gsi_bundlemod, only: GSI_BundleGetPointer
@@ -2970,6 +2970,15 @@ contains
        end if     !endif mype==0
 
     end if ! i_gust_3dda > 0
+
+  ! ZNT: surface roughness (no updating to it)
+    if ( i_sfcrough_fgs > 0 ) then
+       if(mype == 0) then
+  !         This is surface roughness
+          read(lendian_in)temp1
+          write(lendian_out)temp1
+       end if
+    end if
 
   !
   ! for saving cloud analysis results

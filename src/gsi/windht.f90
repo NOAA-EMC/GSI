@@ -149,7 +149,7 @@ contains
 
     character(len=8),intent(in)::cprov,csubprov
     real(r_kind),intent(out)::finalheight
-    integer,dimension(3),intent(inout)::kcount
+    integer,dimension(5),intent(inout)::kcount
 
     !local vars
     integer(i_kind)::i
@@ -193,12 +193,14 @@ contains
     do i=1,nmax
        if (i>numprovs) then
           finalheight=r10
+          kcount(4) = kcount(4) + 1
           return
        else
           tmpprov=provlist(i)(1:8)
           tmpsubprov=provlist(i)(9:16)
           if (cprov==tmpprov.and.((tmpsubprov==csubprov).or.(tmpsubprov==allprov))) then
              finalheight=heightlist(i)
+             kcount(5) = kcount(5) + 1
              return
           endif
        endif
