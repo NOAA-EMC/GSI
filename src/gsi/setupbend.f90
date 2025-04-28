@@ -449,7 +449,7 @@ subroutine setupbend(obsLL,odiagLL, &
   tb1=MPI_Wtime()
   call dtime_setup()
 
-  !$omp parallel do default(none), schedule(dynamic,8), &
+  !$omp parallel do default(none), schedule(dynamic,1), &
   !$omp& firstprivate(itime,iuse,jiter,ilate,ilat,ilon,iroc,igeoid,ihgt,ikxx, &
   !$omp&   nsig,n_a,n_b,k4,ier,isatid,iptid,igps,iprof,gpstop,commgpstop, &
   !$omp&   deg2rad,mype,ilone,ilsw,ilswflag,nsig_up,grids_dim,rsig_up,ds, &
