@@ -369,7 +369,7 @@ contains
   type(sparr2) :: dhx_dx
   logical avhrr,avhrr_navy,viirs,lextra,ssu,iasi,iasing,cris,seviri,atms
   logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,amsr2,gmi,saphir
-  logical mws
+  logical :: mws
   logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
   logical sea,mixed,land,ice,snow,toss,l_may_be_passive,eff_area
   logical microwave, microwave_low
@@ -806,6 +806,7 @@ contains
      if(in_curbin) then
 
         id_qc = igood_qc
+        varinv = zero
         if(luse(n))aivals(1,is) = aivals(1,is) + one
 
 !       Extract lon and lat.
@@ -1054,7 +1055,7 @@ contains
         cldeff_fg=zero  
         if(microwave .and. sea) then 
            if(radmod%lcloud_fwd .and. (amsua .or. atms .or. mws)) then
-              call ret_amsua(tb_obs,nchanl,tsavg5,zasat,clw_obs,ierrret,scat)
+              call ret_amsua(tb_obs,nchanl,tsavg5,zasat,clw_obs,ierrret,scat=scat)
               scatp=scat 
            else
               call calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms, &
@@ -1674,7 +1675,7 @@ contains
                     else
                        errf(i) = min(three*errf(i),10.0_r_kind)
                     endif
-                 else if(radmod%rtype == 'mws' .and. (i <= 6 .or. i>=17) ) then
+                 else if(radmod%rtype == 'mws' .and. (i <= 7 .or. i>=17) ) then
                     if (radmod%lprecip) then
                        errf(i) = min(2.5_r_kind*errf(i),10.0_r_kind)
                     else
@@ -1682,8 +1683,8 @@ contains
                     endif
                  else if(radmod%rtype == 'gmi') then
                     errf(i) = min(2.0_r_kind*errf(i),ermax_rad(m))
-                 else if (radmod%rtype/='amsua' .and. radmod%rtype/='atms' .and. radmod%rtype/='mws' .and. &
-                         radmod%rtype/='gmi' .and. radmod%lcloud4crtm(i)>=0) then
+                 else if (radmod%rtype/='amsua' .and. radmod%rtype/='atms' .and. radmod%rtype/='gmi' .and. &
+                         radmod%rtype/='mws' .and. radmod%lcloud4crtm(i)>=0) then
                     errf(i) = three*errf(i)    
                  else 
                     errf(i) = min(three*errf(i),ermax_rad(m))
