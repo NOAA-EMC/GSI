@@ -1093,7 +1093,8 @@ subroutine write_satobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, x_
   integer(i_kind) iunit,iunit2,iflag,nobs, nobsdiag,n,nsat,ipe,i,jpchstart
   logical fexist,init_pass
 
-  character(len=10):: satid,sentype
+  character(len=10):: sentype
+  character(len=11):: satid
   character(len=20):: sensat
 
   integer(i_kind):: jiter,nchanl,npred,ianldate,ireal,ipchan,iextra,jextra

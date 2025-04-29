@@ -121,7 +121,7 @@ subroutine read_satmar (nread, ndata, nodata,                                 &
    character(len=20),dimension(nosat) :: namesat
    character(len=20) :: sis
    character(len=20) :: subset
-   character(len=11), parameter :: myname='read_satmar '
+   character(len=11), parameter :: myname='read_satmar'
 !  logical
    logical outside, luse
    logical lhilbert

@@ -123,6 +123,11 @@ contains
 ! Declare local variables
   real(r_kind) tbcx1,tbcx2
 
+  clw = zero
+  tpwc = zero
+  gwp = zero
+  kraintype = 0
+  ierrret = 0
 
   if (amsua .or. atms .or. mws) then
 
@@ -1995,8 +2000,10 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)
      if (tb890 > zero) then
         scat=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*tb_obs(1))*tb_obs(1)  &
              +0.454_r_kind*tb_obs(2)-tb890
+        scat=max(zero,scat)
+     else
+        scat=zero
      endif
-     scat=max(zero,scat)
   end if
 
 end subroutine ret_amsua
