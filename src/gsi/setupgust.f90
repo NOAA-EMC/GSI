@@ -62,7 +62,7 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   use mpeu_util, only: die,perr
   use kinds, only: r_kind,r_single,r_double,i_kind
 
-  use guess_grids, only: hrdifsig,nfldsig,ges_lnprsl, &
+  use guess_grids, only: hrdifsig,nfldsig,ges_lnprsl, ges_prsl, &
                geop_hgtl,sfcmod_gfs,sfcmod_mm5,comp_fact10     
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obs_diags
@@ -99,6 +99,7 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use rapidrefresh_cldsurf_mod, only: l_closeobs
+  use rapidrefresh_cldsurf_mod, only: l_rtma3d
   use aux2dvarflds, only: rtma_comp_fact10
 
   implicit none
@@ -174,6 +175,18 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   real(r_kind),allocatable,dimension(:,:,:) :: ges_ps
   real(r_kind),allocatable,dimension(:,:,:) :: ges_z
   real(r_kind),allocatable,dimension(:,:,:) :: ges_gust
+
+! arrays used in calcuation of factw in 3DRTMA run
+  real(r_kind),allocatable,dimension(:,:,:) :: ges_pres1
+  real(r_kind),allocatable,dimension(:,:,:) :: ges_pres2
+  real(r_kind),allocatable,dimension(:,:,:) :: ges_tv1
+  real(r_kind),allocatable,dimension(:,:,:) :: ges_tv2
+  real(r_kind),allocatable,dimension(:,:,:) :: ges_q1
+  real(r_kind),allocatable,dimension(:,:,:) :: ges_q2
+  real(r_kind),allocatable,dimension(:,:,:) :: ges_u1
+  real(r_kind),allocatable,dimension(:,:,:) :: ges_v1
+! real(r_kind),allocatable,dimension(:,:,:) :: ges_hgt1
+
   type(obsLList),pointer,dimension(:):: gusthead
   gusthead => obsLL(:)
 
@@ -348,6 +361,16 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
      dpres=dpres-(dstn+fact*(zsges-dstn))
      drpx=0.003*abs(dstn-zsges)*(one-fact)
      
+!    Note: caclculating geometric height (zges) at model layer
+!          mid-points at the observation location.
+!          But, for 2DRTMA, only use the height at the mid-point of
+!          bottom layer, and set the height zges(1) = 10 meters.
+!          Then in 2DRTMA run, there might be two potential issues:
+!      (1) array zges(1:nsig) is undefined except for zges(1)=10,
+!          this could cause potential problem in call grdcrd1,
+!          e.g., line 400 & line 483;
+!      (2) zges(1)=10 might cause erro of "devided by zero" in line
+!          441;   
      if (.not. twodvar_regional) then
         call tintrp2a1(geop_hgtl,zges,dlat,dlon,dtime,hrdifsig,&
              nsig,mype,nfldsig)
@@ -405,14 +428,18 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
 
         if (zob <= ten) then
            if(zob < ten)then
-              if (msonetob .and. twodvar_regional .and. use_similarity_2dvar) then
+              if (msonetob .and. (twodvar_regional .or. l_rtma3d) .and. use_similarity_2dvar) then
                  if (neutral_stability_windfact_2dvar) then
                     sfcr = data(isfcr,i)
                     factw=log(max(sfcr,zob)/sfcr)/log(ten/sfcr)
                  else
                     sfcr = data(isfcr,i)
                     skint = data(iskint,i)
-                    call rtma_comp_fact10(dlat,dlon,dtime,zob,skint,sfcr,isli,mype,factw)
+                    if(twodvar_regional) then
+                       call rtma_comp_fact10(dlat,dlon,dtime,zob,skint,sfcr,isli,mype,factw)
+                    else if(l_rtma3d) then
+                       call rtma3d_comp_fact10_(dlat,dlon,dtime,zob,skint,sfcr,isli,mype,factw)
+                    end if
                  endif
               else
                  term = max(zob,zero)/ten
@@ -656,8 +683,10 @@ contains
   subroutine init_vars_
 
   real(r_kind),dimension(:,:  ),pointer:: rank2=>NULL()
+  real(r_kind),dimension(:,:,:),pointer:: rank3=>NULL()
   character(len=5) :: varname
   integer(i_kind) ifld, istatus
+  integer(i_kind) n1, n2, n3
 
 ! If require guess vars available, extract from bundle ...
   if(size(gsi_metguess_bundle)==nfldsig) then
@@ -679,7 +708,7 @@ contains
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
      endif
-!    get ps ...
+!    get ps ...        (unit: cb)
      varname='ps'
      call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank2,istatus)
      if (istatus==0) then
@@ -715,6 +744,130 @@ contains
          write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
          call stop2(999)
      endif
+
+     if ( l_rtma3d .and. use_similarity_2dvar .and. (.not. neutral_stability_windfact_2dvar) ) then
+!    get u ...
+        varname='u'
+        call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+        if (istatus==0) then
+            if(allocated(ges_u1))then
+               write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+               call stop2(999)
+            endif
+!           allocate(ges_u(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+            n1=size(rank3,1)
+            n2=size(rank3,2)
+            n3=size(rank3,3)
+            allocate(ges_u1(n1,n2,nfldsig))
+!           ges_u(:,:,:,1)=rank3
+            ges_u1(:,:,1)=rank3(:,:,1)
+            do ifld=2,nfldsig
+               call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+!              ges_u(:,:,:,ifld)=rank3
+               ges_u1(:,:,ifld)=rank3(:,:,1)
+            enddo
+!           deallocate(ges_u)
+        else
+            write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+            call stop2(999)
+        endif
+!    get v ...
+        varname='v'
+        call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+        if (istatus==0) then
+            if(allocated(ges_v1))then
+               write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+               call stop2(999)
+            endif
+!           allocate(ges_v(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+            n1=size(rank3,1)
+            n2=size(rank3,2)
+            n3=size(rank3,3)
+            allocate(ges_v1(n1,n2,nfldsig))
+!           ges_v(:,:,:,1)=rank3
+            ges_v1(:,:,1)=rank3(:,:,1)
+            do ifld=2,nfldsig
+               call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+!              ges_v(:,:,:,ifld)=rank3
+               ges_v1(:,:,ifld)=rank3(:,:,1)
+            enddo
+!           deallocate(ges_v)
+        else
+            write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+            call stop2(999)
+        endif
+!    get tv ...
+        varname='tv'
+        call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+        if (istatus==0) then
+            if(allocated(ges_tv1) .or. allocated(ges_tv2))then
+               write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+               call stop2(999)
+            endif
+!           allocate(ges_tv(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+            n1=size(rank3,1)
+            n2=size(rank3,2)
+            n3=size(rank3,3)
+            allocate(ges_tv1(n1,n2,nfldsig))
+            allocate(ges_tv2(n1,n2,nfldsig))
+!           ges_tv(:,:,:,1)=rank3
+            ges_tv1(:,:,1)=rank3(:,:,1)
+            ges_tv2(:,:,1)=rank3(:,:,2)
+            do ifld=2,nfldsig
+               call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+!              ges_tv(:,:,:,ifld)=rank3
+               ges_tv1(:,:,ifld)=rank3(:,:,1)
+               ges_tv2(:,:,ifld)=rank3(:,:,2)
+            enddo
+!           deallocate(ges_tv)
+        else
+            write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+            call stop2(999)
+        endif
+!    get q ...
+        varname='q'
+        call gsi_bundlegetpointer(gsi_metguess_bundle(1),trim(varname),rank3,istatus)
+        if (istatus==0) then
+            if(allocated(ges_q1) .or. allocated(ges_q2))then
+               write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+               call stop2(999)
+            endif
+!           allocate(ges_q(size(rank3,1),size(rank3,2),size(rank3,3),nfldsig))
+            n1=size(rank3,1)
+            n2=size(rank3,2)
+            n3=size(rank3,3)
+            allocate(ges_q1(n1,n2,nfldsig))
+            allocate(ges_q2(n1,n2,nfldsig))
+!           ges_q(:,:,:,1)=rank3
+            ges_q1(:,:,1)=rank3(:,:,1)
+            ges_q2(:,:,1)=rank3(:,:,2)
+            do ifld=2,nfldsig
+               call gsi_bundlegetpointer(gsi_metguess_bundle(ifld),trim(varname),rank3,istatus)
+!              ges_q(:,:,:,ifld)=rank3
+               ges_q1(:,:,ifld)=rank3(:,:,1)
+               ges_q2(:,:,ifld)=rank3(:,:,2)
+            enddo
+!           deallocate(ges_q)
+        else
+            write(6,*) trim(myname),': ', trim(varname), ' not found in met bundle, ier= ',istatus
+            call stop2(999)
+        endif
+!    get pressure ... ==> ges_prsl from module guess_grids (unit: cb)
+        varname='pres'
+        n1=size(ges_prsl,1)
+        n2=size(ges_prsl,2)
+        if(allocated(ges_pres1) .or. allocated(ges_pres2))then
+           write(6,*) trim(myname), ': ', trim(varname), ' already incorrectly alloc '
+           call stop2(999)
+        endif
+        allocate(ges_pres1(n1,n2,nfldsig))
+        allocate(ges_pres2(n1,n2,nfldsig))
+        do ifld=1,nfldsig
+           ges_pres1(:,:,ifld)=ges_prsl(:,:,1,ifld)
+           ges_pres2(:,:,ifld)=ges_prsl(:,:,2,ifld)
+        end do
+!    get height ...   ==> geop_hgtl from module guess_grids ==> zges
+     end if  !if (l_rtma3d.and.use_similarity_2dvar.and. (.not.neutral_stability_windfact_2dvar))
   else
      write(6,*) trim(myname), ': inconsistent vector sizes (nfldsig,size(metguess_bundle) ',&
                  nfldsig,size(gsi_metguess_bundle)
@@ -858,6 +1011,10 @@ contains
            r_sprvstg           = data(isprvd,i)
            call nc_diag_metadata("Subprovider_Name",  c_sprvstg                    )
 
+           if ( twodvar_regional .or. l_rtma3d ) then
+              call nc_diag_metadata("Wind_Reduction_Factor_at_10m", factw          )
+           end if
+
            if (lobsdiagsave) then
               do jj=1,miter
                  if (odiag%muse(jj)) then
@@ -879,7 +1036,126 @@ contains
     if(allocated(ges_z   )) deallocate(ges_z   )
     if(allocated(ges_ps  )) deallocate(ges_ps  )
     if(allocated(ges_gust)) deallocate(ges_gust)
+    if(allocated(ges_tv1 )) deallocate(ges_pres1 )
+    if(allocated(ges_tv2 )) deallocate(ges_pres2 )
+    if(allocated(ges_tv1 )) deallocate(ges_tv1 )
+    if(allocated(ges_tv2 )) deallocate(ges_tv2 )
+    if(allocated(ges_q1  )) deallocate(ges_q1  )
+    if(allocated(ges_q2  )) deallocate(ges_q2  )
+    if(allocated(ges_u1  )) deallocate(ges_u1  )
+    if(allocated(ges_v1  )) deallocate(ges_v1  )
   end subroutine final_vars_
+
+!=============================================================================!
+  subroutine rtma3d_comp_fact10_(dlat_i,dlon_i,dtime_i,zob_i,skint_i,sfcrough_i, &
+                                 islimsk_i,mype_i,factw_o)
+!-----------------------------------------------------------------------------!
+! !ROUTINE:  rtma3d_comp_fact10 --- Compute the factw with similarity theory
+! !REVISION HISTORY:
+!   2025-04-16  zhao - code initial
+!                      To be in consistency with rtma, this subroutine is mainly based
+!                      on subroutine rtma_comp_fact10 developed by Xiaoyan Zhang & Manuel Pondeca.
+!-----------------------------------------------------------------------------!
+!
+! !USES:
+
+  use guess_grids, only: nfldsig,hrdifsig
+  use constants, only: zero,one,r100,fv
+  implicit none
+  
+! Declare passed variables
+  real(r_kind)   , intent(in   )  :: dlat_i,dlon_i,dtime_i,skint_i,sfcrough_i,zob_i
+  integer(i_kind), intent(in   )  :: mype_i,islimsk_i
+  real(r_kind)   , intent(  out)  :: factw_o
+
+
+! Declare local parameters
+  real(r_kind),     parameter     :: r0_001     = 0.001_r_kind
+  character(len=*), parameter     :: myname='rtma3d_comput_fact10'
+
+! Declare external calls for code analysis
+  external:: intrp2a11,tintrp2a11
+  external:: SFC_WTQ_FWD
+
+! Declare local variables
+  integer(i_kind) islimsk2
+
+! for similarity theory
+  integer(i_kind) :: regime
+  logical iqtflg
+  real(r_kind) :: psfcges,tgges,roges
+  real(r_kind) :: tv1,tv2
+  real(r_kind) :: pres1,pres2,qq1,qq2,uu1,vv1,hgt1
+  real(r_kind) :: u10ges,v10ges,t2ges,q2ges
+
+  iqtflg=.true.  !.true. means output is virtual temperature
+
+  islimsk2=islimsk_i
+  if(islimsk2 > 2)islimsk2=islimsk2-3
+
+  call tintrp2a11(ges_ps, psfcges,dlat_i,dlon_i,dtime_i,hrdifsig,&
+                  mype_i,nfldsig)
+  call tintrp2a11(ges_pres1,pres1,dlat_i,dlon_i,dtime_i,hrdifsig,&
+                  mype_i,nfldsig)
+  call tintrp2a11(ges_pres2,pres2,dlat_i,dlon_i,dtime_i,hrdifsig,&
+                  mype_i,nfldsig)
+  call tintrp2a11(ges_tv1,    tv1,dlat_i,dlon_i,dtime_i,hrdifsig,&
+                  mype_i,nfldsig)
+  call tintrp2a11(ges_tv2,    tv2,dlat_i,dlon_i,dtime_i,hrdifsig,&
+                  mype_i,nfldsig)
+  call tintrp2a11(ges_q1,     qq1,dlat_i,dlon_i,dtime_i,hrdifsig,&
+                  mype_i,nfldsig)
+  call tintrp2a11(ges_q2,     qq2,dlat_i,dlon_i,dtime_i,hrdifsig,&
+                  mype_i,nfldsig)
+  call tintrp2a11(ges_u1,     uu1,dlat_i,dlon_i,dtime_i,hrdifsig,&
+                  mype_i,nfldsig)
+  call tintrp2a11(ges_v1,     vv1,dlat_i,dlon_i,dtime_i,hrdifsig,&
+                  mype_i,nfldsig)
+! call tintrp2a11(geop_hgtl(:,:,1,:),  hgt1,dlat_i,dlon_i,dtime_i,hrdifsig,&
+!                 mype_i,nfldsig)
+  hgt1 = zges(1)   ! <== subroutine setupgust
+
+  !overwrite hgt1. Assume local height of model's first half-sigma level
+  !                to be zob, that is, the ob height
+  hgt1=zob_i
+
+  tgges=skint_i
+
+  !convert input pressure variables from Pa to cb (already in unit of cb, no need to convert).
+! psfcges = r0_001*psfcges
+! pres1   = r0_001*pres1
+! pres2   = r0_001*pres2
+
+  !convert sensible temperature to virtual temperature (tv1,tv2 are virtual temp already)
+! tv1=tmp1*((one+fv*qq1))
+! tv2=tmp2*((one+fv*qq2))
+  !!!tgges=tgges*((one+fv*qq1)) !no need for virtual temp conversion
+
+  if (hgt1 <= sfcrough_i) then 
+     factw_o = zero
+  else
+
+     islimsk2=islimsk_i
+     if(islimsk2 > 2)islimsk2=islimsk2-3
+
+     !unit change: originally m --> cm
+     roges=sfcrough_i*r100
+
+     call SFC_WTQ_FWD (psfcges, tgges,&
+          pres1, tv1, qq1, uu1, vv1,  &
+          pres2, tv2, qq2, hgt1, roges, islimsk2, & !why is "comp_fact10" using islimsk instead of islimsk2?
+          !output variables
+          factw_o, u10ges, v10ges, t2ges, q2ges, regime, iqtflg)
+       
+          if (factw_o > zero) factw_o = one/factw_o !you need this in the 2dvar application
+                                                    !since the goal is to reduce the
+                                                    !downscaled background 10-m wind
+                                                    !to the zob elevation
+  endif
+
+  return
+
+  end subroutine rtma3d_comp_fact10_
 
 end subroutine setupgust
 end module gust_setup

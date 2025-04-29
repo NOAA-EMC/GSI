@@ -89,7 +89,7 @@ contains
       use wrf_params_mod, only: update_pint,cold_start
       use gsi_io, only: verbose
       use rapidrefresh_cldsurf_mod, only: i_howv_3dda, i_gust_3dda
-      use rapidrefresh_cldsurf_mod, only: i_howv_mask
+      use rapidrefresh_cldsurf_mod, only: i_howv_mask, i_sfcrough_fgs
 
       implicit none
   
@@ -150,11 +150,12 @@ contains
          call mpi_bcast(i_howv_3dda, 1, mpi_itype, 0, mpi_comm_world, ierror)
          call mpi_bcast(i_gust_3dda, 1, mpi_itype, 0, mpi_comm_world, ierror)
          call mpi_bcast(i_howv_mask, 1, mpi_itype, 0, mpi_comm_world, ierror)
+         call mpi_bcast(i_sfcrough_fgs, 1, mpi_itype, 0, mpi_comm_world, ierror)
          if(print_verbose)write(6,*)' in convert_regional_guess, for wrf arw binary input, byte_swap=',byte_swap
          if (mype <= 1 .and. print_verbose) then
-            write(6,'(1x,A,3(2x,I4),2x,A6,I6.6,A2)')                                   &
-              ' in convert_regional_guess, i_howv_3dda i_gust_3dda i_howv_mask =',     &
-              i_howv_3dda,i_gust_3dda,i_howv_mask,'  (pe=',mype,').'
+            write(6,'(1x,A,4(2x,I4),2x,A6,I6.6,A2)')                                   &
+              ' in convert_regional_guess, i_howv_3dda i_gust_3dda i_howv_mask i_sfcrough_fgs=',     &
+              i_howv_3dda,i_gust_3dda,i_howv_mask,i_sfcrough_fgs,'  (pe=',mype,').'
          end if
   
       elseif (cmaq_regional) then
