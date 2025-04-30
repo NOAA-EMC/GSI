@@ -806,7 +806,6 @@ contains
      if(in_curbin) then
 
         id_qc = igood_qc
-!       varinv = zero
         if(luse(n))aivals(1,is) = aivals(1,is) + one
 
 !       Extract lon and lat.
