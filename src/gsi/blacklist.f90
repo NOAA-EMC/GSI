@@ -102,7 +102,7 @@ contains
 
     if (blacklist_initialized) return
     iblktbl = 19
-    open(iblktbl,file='blacklist',form='formatted')
+    open(iblktbl, file='blacklist', form='formatted', status='old')
     rewind iblktbl
     ibcnt = 0
     ilcnt = 0
