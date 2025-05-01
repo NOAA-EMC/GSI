@@ -2086,6 +2086,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  if (sfcwndob_biasc) then
                     if ( kx==288.or.kx==295 .or. (gustob .and. (kx==188.or.kx==195)) )  then
                        call get_wbias_afactor(kx,obstype,c_station_id,c_prvstg,c_sprvstg,windbiasfact)
+                    endif
+                 endif
                  !retrieve wind sensor height for mesonet gustob only when running 3DRTMA
                  if (l_rtma3d)  then
                     if ( gustob .and. (kx==188.or.kx==195) )  then
