@@ -314,6 +314,7 @@ end subroutine berror_read_bal_reg
       use radiance_mod, only: icloud_cv,n_clouds_fwd,cloud_names_fwd
       use chemmod, only: berror_fv3_cmaq_regional,berror_fv3_sd_regional
       use rapidrefresh_cldsurf_mod, only: corp_gust, hwllp_gust, l_rtma3d
+      use rapidrefresh_cldsurf_mod, only: corp_vis,  hwllp_vis
 
       implicit none
 
@@ -862,6 +863,28 @@ end subroutine berror_read_bal_reg
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
+        if ( l_rtma3d ) then  ! For 3drtma only: allowing to change the stddev and 
+                              ! de-correlation length of bkgd error of visibility:
+                              !   corp_vis : set in namelist(if <=0, using default value above (3.0)
+                              !   hwllp_vis: set in namelist(if <=0, using default value above (value of t)
+                              !   Be aware that they are in transformed analysis g-space, not physical space.
+           if ( corp_vis  .gt. 0.0_r_kind ) then
+              corp(1:mlat,   n) = corp_vis
+              if (mype==0) write(6,'(1x,A,A,I5.5,A,F8.3)') &
+                           myname_,"@pe=",mype," (3drtma) set b_error stddev of visibility = ",corp_vis
+           else
+              if (mype==0) write(6,'(1x,A,A,I5.5,A,F8.3)') &
+                           myname_,"@pe=",mype," (3drtma) set b_error stddev of visibility (default) = ",three
+           end if
+           if ( hwllp_vis .gt. 0.0_r_kind ) then
+              hwllp(0:mlat+1,n) = hwllp_vis
+              if (mype==0) write(6,'(1x,A,A,I5.5,A,F12.3)') &
+                           myname_,"@pe=",mype," (3drtma) set b_error de-corr length of visibility = ",hwllp_vis
+           else
+              if (mype==0) write(6,'(1x,A,A,I5.5,A)') &
+                           myname_,"@pe=",mype," (3drtma) set b_error de-corr length of visibility is same as length of t."
+           end if
+        end if
      else if (n==nrf2_pblh) then
         do i=1,mlat
            corp(i,n)=500.0_r_kind
