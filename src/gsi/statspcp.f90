@@ -226,7 +226,7 @@ subroutine statspcp(aivals,ndata)
         endif
         write(iout_pcp,1102) dtype(is),dplat(is),isum,icerr,&
              aivals(16,is),aivals(13,is),aivals(15,is),aivals(14,is),sdv
-1102    format(a10,1x,a10,1x,2(i6,1x),6(g17.10,1x))
+1102    format(a10,1x,a11,1x,2(i6,1x),6(g17.10,1x))
      else
         rpen(is)   = zero
         qcpen(is)  = zero
