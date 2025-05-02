@@ -260,6 +260,10 @@ sed -i "s/hh/${HH}/"     coupler.res
   obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.sevcsr.tm00.bufr_d
   obs_files_target[${obs_number}]=sevcsr
 
+  obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.mws.tm00.bufr_d
+  obs_files_target[${obs_number}]=mwsbufr
+
 obs_number=${#obs_files_source[@]}
 for (( i=0; i<${obs_number}; i++ ));
 do
