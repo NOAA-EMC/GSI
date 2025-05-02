@@ -314,6 +314,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
          kidsat=271
        else if(jsatid == 'g18' .or. jsatid == 'g18_prep')then
          kidsat=272
+       else if(jsatid == 'g19' .or. jsatid == 'g19_prep')then
+         kidsat=273
        else if(jsatid == 'himawari8')then
          kidsat=173
        else if(jsatid == 'himawari9')then
@@ -1345,7 +1347,7 @@ subroutine read_obs(ndata,mype)
     use_sfc_any=.false.
     loop: do ii=1,mmdat
        i=npe_order(ii)
-       if(ditype(i) == 'rad' .or. ditype(i) == 'sst')then
+       if(ditype(i) == 'rad' .or. dtype(i) == 'sst')then
           mype_io_sfc=mype_root_sub(i)
           use_sfc_any=.true.
           exit loop

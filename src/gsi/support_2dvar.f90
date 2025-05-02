@@ -2144,14 +2144,14 @@ subroutine ndfdgrid_info
      elonv8=210.000000_r_kind
      alatan8=60.000000_r_kind
 
-  elseif (trim(cgrid) == 'hrrr') then
+  elseif (trim(cgrid) == 'hrrr' .or. trim(cgrid) == 'rtma3d') then        ! for 3DRTMA in CONUS domain
      nx=1799
      ny=1059
-     alat18=21.138_r_kind
-     elon18=237.280_r_kind
-     da8=3000.000_r_kind
-     elonv8=262.500_r_kind
-     alatan8=38.500_r_kind
+     alat18=21.138123_r_kind
+     elon18=237.280472_r_kind
+     da8=3000.000000_r_kind
+     elonv8=262.500000_r_kind
+     alatan8=38.500000_r_kind
 
   elseif (trim(cgrid) == 'cohresext') then
      nx=2145
@@ -2180,6 +2180,15 @@ subroutine ndfdgrid_info
      elonv8=225.000000_r_kind
      alatan8=60.000000_r_kind
 
+  elseif (trim(cgrid) == 'akhrrr' .or. trim(cgrid) == 'akrtma3d') then  ! for 3DRTMA in Alaska domain
+     nx=1299
+     ny=919
+     alat18=41.612949_r_kind
+     elon18=185.117126_r_kind
+     da8=3000.000000_r_kind
+     elonv8=225.000000_r_kind
+     alatan8=60.000000_r_kind
+ 
   else
      print*,'in ndfdgrid_info: unknown grid ',cgrid,'...aborting'
      call abort

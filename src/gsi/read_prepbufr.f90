@@ -218,7 +218,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use hilbertcurve,only: init_hilbertcurve, accum_hilbertcurve, &
                          apply_hilbertcurve,destroy_hilbertcurve
   use ndfdgrids,only: init_ndfdgrid,destroy_ndfdgrid,relocsfcob,adjust_error
-  use jfunc, only: tsensible, hofx_2m_sfcfile
+  use ndfdgrids,only: valley_adjustment
+  use jfunc, only: tsensible, hofx_2m_sfcfile, ignore_2mQM
   use deter_sfc_mod, only: deter_sfc_type,deter_sfc2
   use gsi_nstcouplermod, only: nst_gsi,nstinfo
   use gsi_nstcouplermod, only: gsi_nstcoupler_deter
@@ -398,6 +399,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),dimension(1,255):: tvflg4q
   real(r_double),dimension(1,255):: tobs4q
 
+! Using valley map for 3DRTMA
+  logical      :: outside_obs
+  real(r_kind) :: x_obs, y_obs
+
 !  equivalence to handle character names
   equivalence(r_prvstg(1,1),c_prvstg) 
   equivalence(r_sprvstg(1,1),c_sprvstg) 
@@ -447,7 +452,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   integer:: icase,klev,ikkk,tkk
   real:: diffhgt,diffuu,diffvv
-  integer,dimension(3)::kcount
+  integer,dimension(5)::kcount
 
   real(r_double),dimension(3,1500):: fcstdat
   logical print_verbose
@@ -892,7 +897,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
   if (lhilbert) call init_hilbertcurve(maxobs)
 
-  if (twodvar_regional) then
+  if (twodvar_regional .or. l_rtma3d) then
      call init_ndfdgrid
      call init_windht_lists !load wind sensor height provider lists
   endif
@@ -1680,9 +1685,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               pmq(k)=nint(qcmark(8,k))
            end do
 
-!          187, 181, and 183 are the screen-level obs over land
-!          note: don't need the hofx_2m_sfcfile if set usage in convinfo, and qm updated in the input file
-           global_2m_land = ( (kx==187 .or. kx==181 .or. kx==183) .and. hofx_2m_sfcfile )
+!          187 and 181, are the screen-level obs over land
+           global_2m_land = ( (kx==187 .or. kx==181) .and. hofx_2m_sfcfile )
 
 !          If temperature ob, extract information regarding virtual
 !          versus sensible temperature
@@ -2007,21 +2011,17 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 
 !             Over-ride QM=9 and hard-wire errors for land obs and hofx_sfc_file option
 !             Can be deleted once prepbufr processing updated.
-              if ( global_2m_land ) then
+              if ( global_2m_land .and. ignore_2mQM ) then
                 if (tob .and. qm==9 ) then
-                     pqm(k)=2 ! otherwise, type 183 will be discarded.
                      qm=2
                      tqm(k)=2
-                     if (kx==187) obserr(3,k)=2.0_r_double
-                     if (kx==181) obserr(3,k)=2.0_r_double
-                     if (kx==183) obserr(3,k)=2.0_r_double
+                     obserr(3,k)=2.0_r_double
                 endif
                 if (qob .and. qm == 9 ) then 
-                     qm = 2
+                     qm=2
+                     qqm(k) = 2
                      ! qob err specified as fraction of qsat, multiplied by 10.
-                     if (kx==187) obserr(2,k)=1.0_r_double
-                     if (kx==181) obserr(2,k)=1.0_r_double
-                     if (kx==183) obserr(2,k)=1.0_r_double
+                     obserr(2,k)=1.0_r_double
                 endif
               endif
 !             Set usage variable              
@@ -2049,6 +2049,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     if (kx==188 .or. kx==195 .or. kx==288.or.kx==295)  &
                     call apply_gsd_sfcuselist(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
                                             usage)
+                    if (l_rtma3d) then
+                       call tll2xy(dlon_earth,dlat_earth,x_obs,y_obs,outside_obs)
+                       if ((trim(obstype)=='t' .or. trim(obstype)=='q') .and. .not.outside_obs) then
+                          call valley_adjustment(x_obs,y_obs,usage)
+                       end if
+                    end if
                  else
                     call get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
                                             dlon_earth,dlat_earth,idate,t4dv-toff,      &
@@ -2057,6 +2063,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  !retrieve wind sensor height
                  if (twodvar_regional)  then
                     if ( kx==288.or.kx==295 .or. (gustob .and. (kx==188.or.kx==195)) )  then
+                       call find_wind_height(c_prvstg,c_sprvstg,windsensht,kcount)
+                    endif
+                 endif
+                 !retrieve wind sensor height for mesonet gustob only when running 3DRTMA
+                 if (l_rtma3d)  then
+                    if ( gustob .and. (kx==188.or.kx==195) )  then
                        call find_wind_height(c_prvstg,c_sprvstg,windsensht,kcount)
                     endif
                  endif
@@ -2566,7 +2578,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                    if ((kx==280).or.(kx==180)) oelev=r20+selev
                    if ((kx==299).or.(kx==199)) oelev=r20+selev
                    if ((kx==282).or.(kx==182)) oelev=r20+selev
-                   if (((kx==295).or.(kx==288).or.(kx==195).or.(kx==188)).and.twodvar_regional) then
+                   if (((kx==295).or.(kx==288).or.(kx==195).or.(kx==188)).and.(twodvar_regional.or.l_rtma3d)) then
                       !account for mesonet wind sensor height
                       oelev=windsensht+selev
                    end if
@@ -3303,7 +3315,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   call destroy_aircraft_rjlists
   if(i_gsdsfc_uselist==1) call destroy_gsd_sfcuselist
   if (lhilbert) call destroy_hilbertcurve
-  if (twodvar_regional) then
+  if (twodvar_regional .or. l_rtma3d) then
      call destroy_ndfdgrid
      call destroy_windht_lists
   endif
@@ -3316,6 +3328,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   if(print_verbose)write(6,*)'READ_PREPBUFR:  closbf(',lunin,')'
   if (twodvar_regional .and. (uvob .or. gustob .or. spdob))  then
     write(6,*) 'kcount values from find wind height = ',kcount
+  end if
+  if ( l_rtma3d  .and. gustob )  then
+     write(6,'(1x,A,1x,A,A,5(1x,I9))') 'read_prepbufr:: for obstype=',            &
+       trim(adjustl(obstype)), ': kcount values from find wind height = ',kcount
   end if
 
 

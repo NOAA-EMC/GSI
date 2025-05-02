@@ -71,6 +71,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use rapidrefresh_cldsurf_mod, only: l_gsd_terrain_match_surftobs,l_sfcobserror_ramp_t
   use rapidrefresh_cldsurf_mod, only: l_pbl_pseudo_surfobst, pblh_ration,pps_press_incr
   use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_sfct_gross,l_closeobs,i_coastline    
+  use rapidrefresh_cldsurf_mod, only: l_rtma3d
 
   use aircraftinfo, only: npredt,predt,aircraft_t_bc_pof,aircraft_t_bc, &
        aircraft_t_bc_ext,ostats_t,rstats_t,upd_pred_t
@@ -230,6 +231,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !                   is sensible instead of potentionl temperature
 !   2023-03-21 Draper added option to interpolate screen-level T from model 2m output.
 !              (hofx_2m_sfcfile)
+!   2024-10-31  zhao    - added code to use valley-map data for 3DRTMA (l_rtma3d = .TRUE.)
 !
 ! !REMARKS:
 !   language: f90
@@ -284,6 +286,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_kind),dimension(34) :: ptablt
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
   real(r_single),allocatable,dimension(:,:)::rdiagbufp
+  real(r_kind),  allocatable,dimension(:,:)::data_kept
 
 
   real(r_kind),dimension(nsig):: prsltmp2
@@ -296,6 +299,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   integer(i_kind) regime
   integer(i_kind) idomsfc,iskint,iff10,isfcr
   integer(i_kind) ibb,ikk,idddd
+  integer(i_kind) i_dat
 
   integer(i_kind),dimension(nobs):: buddyuse
 
@@ -373,7 +377,26 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
 !  call GSD terrain match for surface temperature observation
   if(l_gsd_terrain_match_surftobs) then
+     if ( l_rtma3d ) then               !keeping original reported info changed in gsd_terrain_match_surfTobs
+        if ( allocated(data_kept) ) deallocate(data_kept)
+        allocate(data_kept(5,nobs))
+        data_kept(:,:) = -9999.0_r_kind
+        data_kept(1,:) = data( 5,:)        !tob		: temperature obsevation (tv or tsen) (itob=5)
+        data_kept(2,:) = data( 4,:)        !dlnpob	: log of reported pressure (cb) (ipres=4)
+        data_kept(3,:) = data(19,:)        !stnelev	: station elevation (istnelv=19)
+        data_kept(4,:) = data( 1,:)        !toe		: obs error (ier=1)
+        data_kept(5,:) = 0.0_r_kind        !marker	: =0, if obs info is not changed in gsd_terrain_match_surfTobs
+     end if
      call gsd_terrain_match_surfTobs(mype,nele,nobs,data)
+     if ( l_rtma3d ) then               !checking if original reported info is changed in gsd_terrain_match_surfTobs
+        do i_dat=1,nobs
+           if ( abs(data_kept(1,i_dat)-data( 5,i_dat)) > tiny_r_kind .or.       &
+                abs(data_kept(2,i_dat)-data( 4,i_dat)) > tiny_r_kind .or.       &
+                abs(data_kept(3,i_dat)-data(19,i_dat)) > tiny_r_kind ) then
+              data_kept(5,:) = 1.0_r_kind  !marker	: =1, if obs info is changed in gsd_terrain_match_surfTobs
+           end if
+        end do
+     end if
   endif
 
 !    index information for data array (see reading routine)
@@ -500,6 +523,9 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        allocate(cprvstg(nobs),csprvstg(nobs))      ! provider/subprovider info
        if(l_pbl_pseudo_surfobst) allocate(cprvstgp(nobs*3),csprvstgp(nobs*3))  ! provider of pseudo obs 
      endif
+     if ( l_rtma3d .and. l_gsd_terrain_match_surftobs ) then
+        nreal = nreal + 4          ! to save the reported obs info (tob, lnpob, stnelev and change-marker)
+     end if
      if (save_jacobian) then
        nnz   = 2                   ! number of non-zero elements in dH(x)/dx profile
        nind   = 1
@@ -946,7 +972,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         qcgross=cgross(ikx)
      endif
 
-     if (twodvar_regional) then
+     if (twodvar_regional .or. l_rtma3d) then
 
         ! Gross error relaxation for when buddycheck_t==.true.
         if (buddycheck_t) then 
@@ -1380,6 +1406,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
     if(l_pbl_pseudo_surfobst) deallocate(cdiagbufp,rdiagbufp)
   end if
 
+  if ( allocated(data_kept) ) deallocate(data_kept)
+
 
 ! End of routine
 
@@ -1591,6 +1619,8 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   subroutine contents_binary_diag_(odiag)
     type(obs_diag),pointer,intent(in):: odiag
 
+    real(r_kind)                     :: prest_kept
+
     cdiagbuf(ii)    = station_id         ! station id
 
     rdiagbuf(1,ii)  = ictype(ikx)        ! observation type
@@ -1665,6 +1695,19 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        r_sprvstg           = data(isprvd,i)
        csprvstg(ii)        = c_sprvstg       ! subprovider name
     endif
+
+!   saving the original reported obs info changed in gsd_terrain_match_surfTobs
+    if ( l_rtma3d .and. l_gsd_terrain_match_surftobs ) then
+       idia = idia + 1
+       rdiagbuf(idia,ii) = data_kept(1,i)    ! original reported tob
+       idia = idia + 1
+       prest_kept = r10*exp(data_kept(2,i))  ! cb --> mb
+       rdiagbuf(idia,ii) = prest_kept        ! original reported log of pressure (cb)
+       idia = idia + 1
+       rdiagbuf(idia,ii) = data_kept(3,i)    ! original reported station elevation
+       idia = idia + 1
+       rdiagbuf(idia,ii) = data_kept(5,i)    ! marker if obs info is changed (0:no; 1: changed)
+    end if
 
     if (save_jacobian) then
        call writearray(dhx_dx, rdiagbuf(idia+1:nreal,ii))
@@ -1744,6 +1787,20 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !      r_sprvstg           = data(isprvd,i)
        csprvstgp(iip)        = '88888888'    !c_sprvstg       ! subprovider name
     endif
+
+!   saving the original reported obs info changed in gsd_terrain_match_surfTobs
+!   (pseudo obs does not call gsd_terrain_match_surfTobs, but because same "nreal"
+!    is used for both true obs and pseudo obs, save the "fake" info for pseudo obs)
+    if ( l_rtma3d .and. l_gsd_terrain_match_surftobs ) then
+       idia = idia + 1
+       rdiagbufp(idia,iip) = -9999._r_single ! original reported tob
+       idia = idia + 1
+       rdiagbufp(idia,iip) = -9999._r_single ! original reported log of pressure (cb)
+       idia = idia + 1
+       rdiagbufp(idia,iip) = -9999._r_single ! original reported station elevation
+       idia = idia + 1
+       rdiagbufp(idia,iip) = -9999._r_single ! marker whether obs info is changed or not
+    end if
 !----
 
      if (save_jacobian) then
@@ -1760,6 +1817,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   real(r_single),parameter::     missing = -9.99e9_r_single
 
   real(r_kind),dimension(miter) :: obsdiag_iuse
+  real(r_kind)                  :: prest_kept
 
     call nc_diag_metadata("Station_ID",              station_id             )
     call nc_diag_metadata("Observation_Class",       obsclass               )
@@ -1839,6 +1897,15 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        call nc_diag_metadata("Subprovider_Name",  c_sprvstg                    )
     endif
 
+!   saving the original reported obs info changed in gsd_terrain_match_surfTobs
+    if ( l_rtma3d .and. l_gsd_terrain_match_surftobs ) then
+       call nc_diag_metadata_to_single("Observation_reported",       data_kept(1,i) )
+       prest_kept = r10*exp(data_kept(2,i))          ! cb --> mb
+       call nc_diag_metadata_to_single("Pressure_reported",          prest_kept     )
+       call nc_diag_metadata_to_single("Station_Elevation_reported", data_kept(3,i) )
+       call nc_diag_metadata_to_single("ObsInfo_UnChanged_marker",   data_kept(5,i) )
+    end if
+
     if (save_jacobian) then
        call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)
        call nc_diag_data2d("Observation_Operator_Jacobian_endind", dhx_dx%end_ind)
@@ -1907,6 +1974,15 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
        call nc_diag_metadata("Subprovider_Name",  "88888888"                   )
     endif
 
+!   saving the original reported obs info changed in gsd_terrain_match_surfTobs
+!   (pseudo obs does not call gsd_terrain_match_surfTobs, but because same "nreal"
+!    is used for both true obs and pseudo obs, save the "fake" info for pseudo obs)
+    if ( l_rtma3d .and. l_gsd_terrain_match_surftobs ) then
+       call nc_diag_metadata("Observation_reported",       missing         )
+       call nc_diag_metadata("Pressure_reported",          missing         )
+       call nc_diag_metadata("Station_Elevation_reported", missing         )
+       call nc_diag_metadata("ObsInfo_UnChanged_marker",   missing         )
+    end if
 !----
     if (save_jacobian) then
        call nc_diag_data2d("Observation_Operator_Jacobian_stind", dhx_dx%st_ind)
