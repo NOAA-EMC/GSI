@@ -167,6 +167,8 @@ t1 = mpi_wtime()
 ! assume work load proportional to number of 'nearby' obs
 call estimate_work_enkf1(numobs) ! fill numobs array with number of obs per horiz point
 ! distribute the results of estimate_work to all processors.
+call mpi_barrier(mpi_comm_world,ierr)  !added, for debug mode, on wcoss2 ,otherwise, 
+                              !"  MPICH suspects a hang due to rendezvous message resource exhaustion."
 call mpi_allreduce(mpi_in_place,numobs,npts,mpi_integer,mpi_sum,mpi_comm_world,ierr)
 if (letkf_flag .and. nobsl_max > 0) then
   where(numobs > nobsl_max) numobs = nobsl_max
@@ -298,6 +300,7 @@ if (.not. letkf_flag .or. lupd_obspace_serial) then
    end if
    ! for serial enkf, create observation priors to be updated on each processor.
    allocate(anal_obchunk_prior(nanals,nobs_max))
+   anal_obchunk_prior=zero
    do nob1=1,numobsperproc(nproc+1)
       nob2 = indxproc_obs(nproc+1,nob1)
       anal_obchunk_prior(1:nanals,nob1) = anal_ob(1:nanals,nob2)
@@ -357,6 +360,7 @@ allocate(displs(0:numproc-1))
 allocate(rcounts(0:numproc-1))
 ! allocate array to hold pieces of state vector on each proc.
 allocate(anal_chunk(nanals,npts_max,ncdim,nbackgrounds))
+anal_chunk=zero
 if (nproc == 0) print *,'anal_chunk size = ',size(anal_chunk,kind=8)
 
 ! only IO tasks send any data.
