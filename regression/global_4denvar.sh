@@ -270,7 +270,7 @@ $nln $datobs/${prefix_obs}.esatms.${suffix}        ./atmsbufrears
 # Do not process
 ## $nln $datobs/${prefix_obs}.amsre.${suffix}      ./amsrebufr
 ## $nln $datobs/${prefix_obs}.amsr2.tm00.bufr_d    ./amsr2bufr
-## $nln $datobs/${prefix_obs}.mws.${suffix}        ./mwsbufr
+$nln $datobs/${prefix_obs}.mws.${suffix}        ./mwsbufr
 
 # Copy bias correction, atmospheric and surface files
 $nln $datanl/${prefix_ges}.abias                      ./satbias_in
