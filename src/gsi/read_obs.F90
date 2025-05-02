@@ -314,6 +314,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
          kidsat=271
        else if(jsatid == 'g18' .or. jsatid == 'g18_prep')then
          kidsat=272
+       else if(jsatid == 'g19' .or. jsatid == 'g19_prep')then
+         kidsat=273
        else if(jsatid == 'himawari8')then
          kidsat=173
        else if(jsatid == 'himawari9')then
