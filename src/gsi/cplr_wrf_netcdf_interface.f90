@@ -1197,8 +1197,8 @@ contains
 !            Apply threshold vis_thres to first guess of visibility
 !              put data in domain of [1.0, vis_threshold] to prepare for nonlinear transform
 !---------------------------------------------------------------------------
-             if(print_verbose)write(6,'(1x,A,A,2(1x,F12.5))')'convert_netcdf_mass_wrf:: max,min of original ', &
-                trim(adjustl(rmse_var)),'=',maxval(field2),minval(field2)
+             if(print_verbose)write(6,'(1x,3A,2(1x,F12.5))')'convert_netcdf_mass_wrf:: max,min of original ', &
+                trim(adjustl(rmse_var)),' = ',maxval(field2),minval(field2)
              do j=1,nlon_regional
                 do i=1,nlat_regional   
 !                    if (field2(j,i) <= 0.0_r_single) field2(j,i)=one_single
@@ -1206,8 +1206,8 @@ contains
                      field2(j,i) = max(min(field2(j,i), vis_thres), one_single)
                 enddo
              enddo
-             if(print_verbose)write(6,'(1x,A,A,2(1x,F12.5))')'convert_netcdf_mass_wrf:: max,min of adjusted  ', &
-                trim(adjustl(rmse_var)),'=',maxval(field2),minval(field2)
+             if(print_verbose)write(6,'(1x,3A,2(1x,F12.5))')'convert_netcdf_mass_wrf:: max,min of adjusted ', &
+                trim(adjustl(rmse_var)),' = ',maxval(field2),minval(field2)
              write(iunit)field2   !VIS   (2D Visibility)
              i_vis_3dda = 2               ! vis was found both in anavinfo and firstguess
           else
