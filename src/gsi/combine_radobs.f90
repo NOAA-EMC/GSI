@@ -41,7 +41,6 @@ subroutine combine_radobs(mype_sub,mype_root,&
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use mpimod, only: ierror,mpi_rtype,mpi_itype,mpi_sum,mpi_min
-  use, intrinsic :: ieee_arithmetic
   implicit none
 
 ! Declare passed variables
@@ -135,13 +134,6 @@ subroutine combine_radobs(mype_sub,mype_root,&
      end do
      deallocate(nloc)
      
-     do j = 1, ndata
-       do i = 1, nele
-           if (.not. ieee_is_finite(data_all_in(i,j))) then
-                       write(6,*) " data_all_in(", i, ",", j, ") is NaN or Inf. Value =", data_all_in(i,j)
-                end if
-                                end do
-                                end do
 
 !    get all data on process mype_root
 !    data_all(:,:) = zero
