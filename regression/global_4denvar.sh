@@ -266,11 +266,11 @@ $nln $datobs/${prefix_obs}.amubdb.${suffix}        ./amsubbufr_db
 $nln $datobs/${prefix_obs}.atms.${suffix}          ./atmsbufr
 $nln $datobs/${prefix_obs}.atmsdb.${suffix}        ./atmsbufr_db
 $nln $datobs/${prefix_obs}.esatms.${suffix}        ./atmsbufrears
+$nln $datobs/${prefix_obs}.mws.${suffix}           ./mwsbufr
 
 # Do not process
 ## $nln $datobs/${prefix_obs}.amsre.${suffix}      ./amsrebufr
 ## $nln $datobs/${prefix_obs}.amsr2.tm00.bufr_d    ./amsr2bufr
-$nln $datobs/${prefix_obs}.mws.${suffix}        ./mwsbufr
 
 # Copy bias correction, atmospheric and surface files
 $nln $datanl/${prefix_ges}.abias                      ./satbias_in
