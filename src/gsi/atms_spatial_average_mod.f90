@@ -16,6 +16,7 @@ Module ATMS_Spatial_Average_Mod
   use kinds, only: r_kind,r_double,i_kind
 
   implicit none     
+  public :: MODIFY_BEAMWIDTH_atms
 
 
 ! Declare module level parameters
@@ -37,6 +38,8 @@ CONTAINS
     integer(i_kind) ,intent(  out) :: Error_Status
 
     ! Declare local parameters
+    INTEGER(I_KIND), PARAMETER :: nxmax_atms=128  !Max number of spots per scan line
+    INTEGER(I_KIND), PARAMETER :: nymax_atms=8192 !Max number of lines. Allows 6hrs of ATMS.
     integer(i_kind), parameter :: atms1c_h_wmosatid=224
     integer(i_kind), parameter :: lninfile=15
     integer(i_kind), parameter :: max_fov=96
@@ -168,7 +171,7 @@ CONTAINS
        ! (otherwise bt_inout just keeps the same value):
        do i=1,nchannels
           if (channelnumber(i) == ichan) then
-             CALL MODIFY_BEAMWIDTH ( max_fov, max_scan, bt_image(:,:,ichan), &
+             CALL MODIFY_BEAMWIDTH_atms ( nxmax_atms, nymax_atms, max_fov, max_scan, bt_image(:,:,ichan), &
                   sampling_dist, beamwidth(i), newwidth(i), &
                   cutoff(i), nxaverage(i), nyaverage(i), &
                   qc_dist(i), MinBT(Ichan), MaxBT(IChan), IOS)
@@ -201,7 +204,7 @@ END Subroutine ATMS_Spatial_Average
 
 
 
-SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,& 
+SUBROUTINE MODIFY_BEAMWIDTH_atms (nxmax, nymax, nx, ny, image, sampling_dist,& 
      beamwidth, newwidth, mtfcutoff, nxaverage, nyaverage, qc_dist, &
      Minval, MaxVal, Error)
      
@@ -247,11 +250,9 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
 
 
       IMPLICIT NONE
-! Parameters
-      INTEGER(I_KIND), PARAMETER :: nxmax=128  !Max number of spots per scan line
-      INTEGER(I_KIND), PARAMETER :: nymax=8192 !Max number of lines. Allows 6hrs of ATMS.
-
 ! Arguments
+      INTEGER(I_KIND), INTENT(IN)  :: nxmax  !Max number of spots per scan line
+      INTEGER(I_KIND), INTENT(IN)  :: nymax  !Max number of lines. Allows 6hrs of ATMS or MWS
       INTEGER(I_KIND), INTENT(IN)  :: nx, ny         !Size of image
       REAL(R_KIND), INTENT(INOUT)  :: image(nx,ny)   !BT or radiance image
       REAL(R_KIND), INTENT(IN)     :: sampling_dist  !typically degrees
@@ -512,7 +513,7 @@ SUBROUTINE MODIFY_BEAMWIDTH ( nx, ny, image, sampling_dist,&
      DEALLOCATE(gooddata_map)
 
      RETURN
-   END SUBROUTINE MODIFY_BEAMWIDTH
+   END SUBROUTINE MODIFY_BEAMWIDTH_atms
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !

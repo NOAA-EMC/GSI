@@ -260,6 +260,10 @@ sed -i "s/hh/${HH}/"     coupler.res
   obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.sevcsr.tm00.bufr_d
   obs_files_target[${obs_number}]=sevcsr
 
+  obs_number=${#obs_files_source[@]}
+  obs_files_source[${obs_number}]=${obspath_tmp}/${obsfileprefix}.t${HH}z.mws.tm00.bufr_d
+  obs_files_target[${obs_number}]=mwsbufr
+
 obs_number=${#obs_files_source[@]}
 for (( i=0; i<${obs_number}; i++ ));
 do
@@ -289,6 +293,7 @@ SATINFO=${fixgsi}/global_satinfo.txt
 OZINFO=${fixgsi}/global_ozinfo.txt
 PCPINFO=${fixgsi}/global_pcpinfo.txt
 ATMS_BEAMWIDTH=${fixgsi}/atms_beamwidth.txt
+MWS_BEAMWIDTH=${fixgsi}/mws_beamwidth.txt
 
 # Fixed fields
 cp ${ANAVINFO} anavinfo
@@ -299,6 +304,7 @@ cp $OZINFO     ozinfo
 cp $PCPINFO    pcpinfo
 cp $OBERROR    errtable
 cp $ATMS_BEAMWIDTH atms_beamwidth.txt
+cp $MWS_BEAMWIDTH mws_beamwidth.txt
 cp ${HYBENSINFO} hybens_info
 
 cp ${obspath_tmp}/gsd_sfcobs_provider.txt gsd_sfcobs_provider.txt

@@ -64,7 +64,7 @@ subroutine get_num_ozobs_bin(obspath,datestring,num_obs_tot,num_obs_totdiag,id)
     integer(i_kind) :: nlevsoz  ! number of levels (layer amounts + total column) per obs   
     character(20) :: isis     ! sensor/instrument/satellite id
     character(10) :: obstype  !  type of ozone obs
-    character(10) :: dplat    ! sat sensor
+    character(len=11) :: dplat    ! sat sensor
     real(r_single), allocatable, dimension(:) :: err,grs,pob
     real(r_single),allocatable,dimension(:,:)::diagbuf
     real(r_single),allocatable,dimension(:,:,:)::rdiagbuf
@@ -304,7 +304,7 @@ subroutine get_ozobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, hx_me
   integer(i_kind) :: nlevsoz  ! number of levels (layer amounts + total column) per obs   
   character(20) :: isis,isis2        ! sensor/instrument/satellite id
   character(10) :: obstype,obstype2  !  type of ozone obs
-  character(10) :: dplat,dplat2      ! sat sensor
+  character(len=11) :: dplat,dplat2      ! sat sensor
   integer(i_kind) nob, nobdiag, n, ios, nsat, k
   integer(i_kind) iunit,jiter,ii,ireal,iint,irdim1,idate,ioff0
   integer(i_kind) iunit2,jiter2,ii2,ireal2,iint2,irdim12,idate2,ioff02,nlevsoz2
@@ -831,7 +831,7 @@ subroutine write_ozobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, x_f
   integer(i_kind) :: nlevsoz  ! number of levels (layer amounts + total column) per obs
   character(20) :: isis     ! sensor/instrument/satellite id
   character(10) :: obstype  !  type of ozone obs
-  character(10) :: dplat    ! sat sensor
+  character(len=11) :: dplat    ! sat sensor
   integer(i_kind) iunit,jiter,ii,ireal,iint,irdim1,idate,nob,nobdiag,n,ios,nsat,k,ipe,ioff0
   integer(i_kind) iunit2
 
