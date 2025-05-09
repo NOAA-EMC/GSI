@@ -1201,8 +1201,6 @@ contains
                 trim(adjustl(rmse_var)),' = ',maxval(field2),minval(field2)
              do j=1,nlon_regional
                 do i=1,nlat_regional   
-!                    if (field2(j,i) <= 0.0_r_single) field2(j,i)=one_single
-!                    if (field2(j,i) >= vis_thres   ) field2(j,i)=vis_thres
                      field2(j,i) = max(min(field2(j,i), vis_thres), one_single)
                 enddo
              enddo

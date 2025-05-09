@@ -2672,7 +2672,6 @@ contains
         end if
         do i=1,lon2
            do j=1,lat2
-  !            all_loc(j,i,i_vis)=ges_vis_it(j,i)
   !          applying inverse nonlinear transform to analysis of visibility 
   !            analysis "g-space" ==> physical space
                tempvis=ges_vis_it(j,i)

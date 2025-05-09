@@ -2337,7 +2337,6 @@ contains
                 end if
   ! visibility (vis)
                 if ( i_vis_3dda >0 ) then
-  !                 ges_vis_it(j,i)  = real(all_loc(j,i,i_0+i_vis),r_kind)
   !               Applying nonlinear transform to firstguess of visibility
   !                 physical space ==> analysis space, "g-space"
   !                 (firstguess had been pre-processed to be in [1.0, vis_thres])
