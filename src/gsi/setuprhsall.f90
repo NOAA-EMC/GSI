@@ -569,8 +569,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 ! Collect information for preconditioning
   if (newpc4pred) then
-     !call mpl_allreduce(jpch_rad,rpvals=ostats)
-     !call mpl_allreduce(npred,jpch_rad,rstats)
      call MPI_Allreduce(mpi_in_place, ostats, jpch_rad, mpi_rtype, mpi_sum, mpi_comm_world, ier)
      call MPI_Allreduce(mpi_in_place, rstats, npred*jpch_rad, mpi_real16, mpi_sum, mpi_comm_world, ier)
   end if
@@ -579,8 +577,6 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   if (aircraft_t_bc_pof .or. aircraft_t_bc) then
 !    call mpl_allreduce(npredt,max_tail,ostats_t)
 !    call mpl_allreduce(npredt,max_tail,rstats_t)
-     !call mpl_allreduce(npredt,ntail,ostats_t)
-     !call mpl_allreduce(npredt,ntail,rstats_t)
      call MPI_Allreduce(mpi_in_place, ostats_t, npredt*ntail, mpi_real16, mpi_sum, mpi_comm_world, ier)
      call MPI_Allreduce(mpi_in_place, rstats_t, npredt*ntail, mpi_real16, mpi_sum, mpi_comm_world, ier)
   end if

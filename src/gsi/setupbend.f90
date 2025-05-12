@@ -184,7 +184,6 @@ subroutine setupbend(obsLL,odiagLL, &
   use gsi_bundlemod, only : gsi_bundlegetpointer
   use gsi_metguess_mod, only : gsi_metguess_get,gsi_metguess_bundle
   use sparsearr, only: sparr2, new, size, writearray
-  use mpi, only : MPI_Wtime
   implicit none
 
 ! Declare passed variables
@@ -274,8 +273,6 @@ subroutine setupbend(obsLL,odiagLL, &
 
   type(obsLList),pointer,dimension(:):: gpshead
   logical:: commdat
-  real(kind=8) :: time_beg,time_end,tb1,tb2,tb3,te1,te2,te3,walltime
-  time_beg=MPI_Wtime()
 
   gpshead => obsLL(:)
 
@@ -446,7 +443,6 @@ subroutine setupbend(obsLL,odiagLL, &
   k4=n_c-n_a
 
 ! A loop over all obs.
-  tb1=MPI_Wtime()
   call dtime_setup()
 
   !$omp parallel do default(none), schedule(dynamic,1), &
@@ -880,8 +876,6 @@ subroutine setupbend(obsLL,odiagLL, &
 
   end do loopoverobs1 ! end of loop over observations
   !$omp end parallel do
-  te1=MPI_Wtime()
-  write(6,'("Walltime for setupbend: First obs loop " f15.4)') te1-tb1
   write(6,'("setupbend: Number of obs considered and accepted " 2I10)') nobs, count(mask=muse/=.false.)
 
   if (nobs_out>=1) then
@@ -918,7 +912,6 @@ subroutine setupbend(obsLL,odiagLL, &
   endif ! (last_pass)
 
 ! Loop to load arrays used in statistics output
-  tb1=MPI_Wtime()
   call dtime_setup()
   do i=1,nobs
      dtime=data(itime,i)
@@ -1261,8 +1254,6 @@ subroutine setupbend(obsLL,odiagLL, &
         gps_alltail(ibin)%head%muse     = muse(i) ! logical
      endif ! (last_pass)
   end do ! i=1,nobs
-  te1=MPI_Wtime()
-  write(6,'("Walltime for setupbend: Second obs loop " f15.4)') te1-tb1
   deallocate(ddnj,grid_s,ref_rad_s)
   ! Release memory of local guess arrays
   call final_vars_
@@ -1274,9 +1265,6 @@ subroutine setupbend(obsLL,odiagLL, &
 
   call gpsrhs_unaliases(is)
   if(last_pass) call gpsrhs_dealloc(is)
-
-  time_end=MPI_Wtime()
-  write(6,'("Walltime for setupbend: Total " f15.4)') time_end-time_beg
 
   return
   contains

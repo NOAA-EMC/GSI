@@ -171,7 +171,6 @@ contains
   use radinfo, only: predx      ! intent(inout)
   use gsi_4dvar, only: nobs_bins
   use berror, only: varprd      ! intent(in)
-  use mpl_allreducemod, only: mpl_allreduce
   use timermod, only: timer_ini,timer_fnl
   use constants, only : zero,one,zero_quad
   use mpi, only: mpi_in_place,mpi_real8,mpi_real16,mpi_sum,mpi_comm_world
@@ -262,8 +261,6 @@ contains
 
 
 ! Collect data from all processors
-  !call mpl_allreduce(jpassive,rpvals=iobs)
-  !call mpl_allreduce(npred,jpassive,b)
   call MPI_Allreduce(mpi_in_place, iobs,       jpassive, mpi_real8, mpi_sum, mpi_comm_world, ier)
   call MPI_Allreduce(mpi_in_place,    b, npred*jpassive, mpi_real16, mpi_sum, mpi_comm_world, ier)
 
@@ -279,7 +276,6 @@ contains
 
 !    Collect data from all processors for each channel
      Atmp(:,:) = A(:,:,n)
-     !call mpl_allreduce(npred,npred,Atmp)
      call MPI_Allreduce(mpi_in_place, Atmp, npred*npred, mpi_real16, mpi_sum, mpi_comm_world, ier)
 
 !    Solve linear system

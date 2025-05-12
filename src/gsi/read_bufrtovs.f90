@@ -153,7 +153,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use mpimod, only: npe
   use radiance_mod, only: rad_obs_type
   use gsi_io, only: verbose
-  !use mpi, only : MPI_Wtime
   implicit none
 
   external:: stop2,openbf,ireadmg,ireadsb,ufbint,w3fs21,ufbrep,closbf,grdcrd1,combine_radobs,count_obs
@@ -263,11 +262,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) :: spc_coeff_versions
   character(len=80) :: spc_filename
   type(ACCoeff_type),dimension(3) :: accoeff_sets
-  real(kind=8) :: time_beg,time_end,tb1,tb2,te1,te2
   integer(kind=4) :: good,bin,bin2,Obindx,maxPerBin,numBinsWithObs
   integer,allocatable,dimension(:)   :: binCount,binsWithObs,hash
   integer,allocatable,dimension(:,:) :: binObs
-  !time_beg=MPI_Wtime()
 
 !**************************************************************************
 ! Initialize variables
@@ -527,7 +524,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   ALLOCATE(bt_save(nchanl,maxobs))
   ALLOCATE(panglr_save(maxobs))
 
-  !data_all(:,:) = zero ! Only needed when calculating the checksum down below
   nrec = 999999
   next=0
   irec=0
@@ -535,7 +531,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   iob=1
 ! Big loop over standard data feed and possible ears/db data
 ! llll=1 is normal feed, llll=2 EARS/RARS data, llll=3 DB/UW data)
-  !tb1=MPI_Wtime()
   ears_db_loop: do llll= 1, 3
 
      if(llll == 1)then
@@ -835,8 +830,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      call closbf(lnbufr)
      close(lnbufr)
   end do ears_db_loop
-  !te1=MPI_Wtime()
-  !write(6,'("Walltime for read_bufrtovs: EARS loop " f15.4)') te1-tb1
   deallocate(data1b8)
   deallocate(data1b4)
 
@@ -851,7 +844,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   binCount(:)=0
 
 ! First scan to determine which obs fall into which bins
-  !tb2=MPI_Wtime()
   ObsLoop: do iob = 1, num_obs
 
      t4dv       => t4dv_save(iob)
@@ -865,7 +857,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         call tll2xy(dlon_earth*deg2rad,dlat_earth*deg2rad,dlon,dlat,outside)
         if(diagnostic_reg) then
            call txy2ll(dlon,dlat,dlon00,dlat00)
-           !ntest=ntest+1
            cdist=sin(dlat_earth*deg2rad)*sin(dlat00)+cos(dlat_earth*deg2rad)*cos(dlat00)* &
                 (sin(dlon_earth*deg2rad)*sin(dlon00)+cos(dlon_earth*deg2rad)*cos(dlon00))
            cdist=max(-one,min(cdist,one))
@@ -894,7 +885,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   allocate(hash(itxmax))
   hash=0
   do bin = 1,numBinsWithObs
-    !write(6,'("read_bufrtovs: Pack " 2I10)') bin,binsWithObs(bin)
     hash(binsWithObs(bin)) = bin
   enddo
 
@@ -919,7 +909,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         call tll2xy(dlon_earth*deg2rad,dlat_earth*deg2rad,dlon,dlat,outside)
         if(diagnostic_reg) then
            call txy2ll(dlon,dlat,dlon00,dlat00)
-           !ntest=ntest+1
            cdist=sin(dlat_earth*deg2rad)*sin(dlat00)+cos(dlat_earth*deg2rad)*cos(dlat00)* &
                 (sin(dlon_earth*deg2rad)*sin(dlon00)+cos(dlon_earth*deg2rad)*cos(dlon00))
            cdist=max(-one,min(cdist,one))
@@ -935,12 +924,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      binObs(binCount(itx2),hash(itx2)) = iob
   end do ObsLoop2
   deallocate(hash)
-  !te2=MPI_Wtime()
-  !write(6,'("Walltime for read_bufrtovs: OBS loop " I10,f15.4)') num_obs, te2-tb2
 
 ! Third scan to determine which observation in a given bin is best to use
   good=0
-  !tb2=MPI_Wtime()
   !$omp parallel do default(none), schedule(dynamic,8), &
   !$omp& firstprivate(ich1,ich2,ich3,ich4,ich6,ich8,ich15,ich16,ich17,r01), &
   !$omp& private(bin,score,bin2,Obindx,iob,rsat,t4dv,dlon_earth,dlat_earth,crit1,it_mesh,ifov,lza, &
@@ -1261,11 +1247,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      enddo ObsLoop3
      score_crit(bin2) = score
   end do BinLoop
-  !te2=MPI_Wtime()
 
   write(6,'("read_bufrtovs: Number of obs considered and accepted " 2I10)') num_obs, good
-  !write(6,'("Walltime for read_bufrtovs: bin loop " f15.4)') te2-tb2
-  !write(6,'("read_bufrtovs: data_all checksum " f25.14)') sum(data_all(1:31,:))
   deallocate(binCount)
   deallocate(binObs)
   deallocate(binsWithObs)
@@ -1320,9 +1303,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
   if(diagnostic_reg.and.ntest>0) write(6,*)'READ_BUFRTOVS:  ',&
      'mype,ntest,disterrmax=',mype,ntest,disterrmax
-
-  !time_end=MPI_Wtime()
-  !write(6,'("Walltime for read_bufrtovs " f15.4)') time_end-time_beg
 
 ! End of routine
   return

@@ -192,7 +192,6 @@ subroutine intall(sval,sbias,rval,rbias)
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: assignment(=)
   use guess_grids, only: ntguessig,nfldsig
-  use mpl_allreducemod, only: mpl_allreduce
   use mpi, only: mpi_in_place,mpi_real16,mpi_sum,mpi_comm_world
 
   implicit none
@@ -293,14 +292,12 @@ subroutine intall(sval,sbias,rval,rbias)
 
 !   Put reduces together to minimize wait time
 !   First, use MPI to get global mean increment
-    !call mpl_allreduce(2*nobs_bins,qpvals=mass)
     call MPI_Allreduce(mpi_in_place, mass, 2*nobs_bins, mpi_real16, mpi_sum, mpi_comm_world, ierr)
 
   end if
 
 ! Sum over all processors for bias correction terms
 
-  !call mpl_allreduce(nrclen,qpvals=qpred)
   call MPI_Allreduce(mpi_in_place, qpred, nrclen, mpi_real16, mpi_sum, mpi_comm_world, ierr)
 
 
