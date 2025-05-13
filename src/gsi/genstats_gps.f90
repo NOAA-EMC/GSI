@@ -305,7 +305,8 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   real(r_kind),allocatable,dimension(:) :: collect_hght,collect_gps,collect_qc, &
                                       collect_prof
   real(r_kind),dimension(max(1,nobs_gps)) :: holder_hght,holder_gps,holder_qc, &
-                                      holder_prof,STD4060
+                                      holder_prof
+  real(r_kind),dimension(max(1,nprof_gps)) :: STD4060
   real(r_kind),allocatable,dimension(:) :: profile_benda,profile_impact, &
                                            sorted_profile_benda,sorted_profile_impact
   real(r_kind) :: old_err,new_err,input_impact,input_std4060,input_FracLsw, &
