@@ -169,6 +169,7 @@ OBS_INPUT::
    mhsbufr        mhs         metop-c     mhs_metop-c         0.0     1     1
    iasibufr       iasi        metop-c     iasi_metop-c        0.0     1     1
    ompslpbufr     ompslp      npp         ompslp_npp          0.0     1     1
+   mwsbufr        mws         metop-sg-a1 mws_metop-sg-a1     0.0     1     0
 ::
   &SUPEROB_RADAR
    $SUPERRAD

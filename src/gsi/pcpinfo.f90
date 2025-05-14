@@ -400,7 +400,7 @@ contains
      if(allocated(gross_pcp)) deallocate(gross_pcp)
      if(allocated(b_pcp))     deallocate(b_pcp)
      if(allocated(pg_pcp))    deallocate(pg_pcp)
-     deallocate(xkt2d)
+     if(allocated(xkt2d))     deallocate(xkt2d)
      return
   end subroutine destroy_pcp_random
   

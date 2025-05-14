@@ -185,7 +185,7 @@
                             i_cloud_q_innovation,i_ens_mean,DTsTmax,&
                             i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check, &
                             corp_howv, hwllp_howv, corp_gust, hwllp_gust, oerr_gust, i_howv_mask, &
-                            i_sfcrough_fgs
+                            i_sfcrough_fgs, corp_vis, hwllp_vis
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
@@ -1624,6 +1624,10 @@
 !                           = 0 : do not read surface roughness from firstguess,
 !                                 and use the default value instead (default)
 !                           = 1 : read surface roughness from firstguess and use it in analysis
+!      corp_vis      - real, static background error of visibility (stddev error),
+!                            in transformed space, not physical space
+!      hwllp_vis     - real, background error de-correlation length scale of visibility
+!                            in transformed space, not physical space
 !
   namelist/rapidrefresh_cldsurf/dfi_radar_latent_heat_time_period, &
                                 metar_impact_radius,metar_impact_radius_lowcloud, &
@@ -1646,7 +1650,7 @@
                                 i_cloud_q_innovation,i_ens_mean,DTsTmax, &
                                 i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check, &
                                 corp_howv, hwllp_howv, corp_gust, hwllp_gust, oerr_gust, i_howv_mask, &
-                                i_sfcrough_fgs
+                                i_sfcrough_fgs, corp_vis, hwllp_vis
 
 ! chem(options for gsi chem analysis) :
 !     berror_chem       - .true. when background  for chemical species that require

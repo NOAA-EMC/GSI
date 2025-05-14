@@ -225,6 +225,30 @@ module rapidrefresh_cldsurf_mod
 !                          = 0 : do not read surface roughness from firstguess,
 !                                and use the default value instead (default)
 !                          = 1 : read surface roughness from firstguess and use it in analysis
+!      corp_vis       - namelist real, static BE of visibility (standard error deviation)
+!                          note: 1. initialised to be an arbitary negative value, in order to skip this 
+!                                   negative value, instead to use value (3.0) which is set in subroutine 
+!                                   berror_read_wgt_reg as default.
+!                                2. (3drtma only) if a user-specified value (e.g., 3.0) is preferred 
+!                                   for corp_vis, in GSI namelist session "rapidrefresh_cldsurf",
+!                                   set "corp_vis=3.0,"
+!                                3. Nonlinear transform is used in GSI for analysis of visibility, so 
+!                                   be careful with that this visibility backtround error is in 
+!                                   TRANSFORMED ANALYSIS G-SPACE, not in physical space; 
+!      hwllp_vis      - namelist real, static BE de-correlation length scale of visibility
+!                          note: 1. initialised to be an arbitary negative value, in order to skip this 
+!                                   negative value, instead to use value (same value for t) set in
+!                                   subroutine berror_read_wgt_reg as default
+!                                2. (3drtma only) if a user-specified value (e.g., 100 km) is preferred 
+!                                   for hwllp_vis, in GSI namelist session "rapidrefresh_cldsurf",
+!                                   set "hwllp_vis=100000.0,"
+!                                3. Nonlinear transform is used in GSI for analysis of visibility, so 
+!                                   be careful with that this visibility backtround error de-correlation 
+!                                   scale is also in TRANSFORMED ANALYSIS G-SPACE, not in physical space; 
+!      i_vis_3dda     - integer, control the analysis of visibility in 3D analysis (either var or hybrid)
+!                          = 0 (vis-off: default) : no analysis of visibility in 3D analysis.
+!                          = 1 (vis-on) : if variable name "vis" is found in anavinfo,
+!                                          set it to be 1 to turn on analysis of visibility;
 !
 ! attributes:
 !   language: f90
@@ -302,6 +326,8 @@ module rapidrefresh_cldsurf_mod
   public :: corp_gust, hwllp_gust, oerr_gust
   public :: i_gust_3dda
   public :: i_sfcrough_fgs
+  public :: corp_vis, hwllp_vis
+  public :: i_vis_3dda
 
   logical l_hydrometeor_bkio
   real(r_kind)  dfi_radar_latent_heat_time_period
@@ -366,6 +392,8 @@ module rapidrefresh_cldsurf_mod
   real(r_kind)      :: corp_gust, hwllp_gust, oerr_gust
   integer(i_kind)   :: i_gust_3dda
   integer(i_kind)   :: i_sfcrough_fgs
+  real(r_kind)      :: corp_vis, hwllp_vis
+  integer(i_kind)   :: i_vis_3dda
 
 contains
 
@@ -503,6 +531,18 @@ contains
 
     i_sfcrough_fgs      = 0                           ! do not read surface roughness from firstguess (default)
 
+    corp_vis            = -1.50_r_kind                ! initialised as negative & void to be skipped, in order to use
+                                                      ! the value (3.0) set in sub berror_read_wgt_reg (as default).
+                                                      ! If user-specified value is preferred, set it in session
+                                                      ! "rapidrefresh_cldsurf" of GSI namelist file
+
+    hwllp_vis           = -90000.0_r_kind             ! initialised as a value, in order to skip this negative value
+                                                      ! and to use the value (used for t) set in sub berror_read_wgt_reg.
+                                                      ! If user-specified value is preferred, set it in session
+                                                      ! "rapidrefresh_cldsurf" of GSI namelist file
+
+    i_vis_3dda          = 0                           ! no analysis of visibility (vis) in 3D analysis (default)
+
 !-- searching for specific variable in state variable list (reading from anavinfo)
     do i2=1,ns2d
       if ( trim(svars2d(i2))=='howv' .or. trim(svars2d(i2))=='HOWV'   ) then
@@ -515,6 +555,12 @@ contains
         i_gust_3dda = 1
         if ( mype == 0 ) then
           write(6,'(1x,A,1x,A8,1x,A,1x,I4)')"init_rapidrefresh_cldsurf: anavinfo svars2d (state variable): ",trim(adjustl(svars2d(i2))), " is found in anavinfo, set i_gust_3dda = ", i_gust_3dda
+        end if
+      end if
+      if ( trim(svars2d(i2))=='vis' .or. trim(svars2d(i2))=='VIS'   ) then
+        i_vis_3dda = 1
+        if ( mype == 0 ) then
+          write(6,'(1x,A,1x,A8,1x,A,1x,I4)')"init_rapidrefresh_cldsurf: anavinfo svars2d (state variable): ",trim(adjustl(svars2d(i2))), " is found in anavinfo, set i_vis_3dda = ", i_vis_3dda
         end if
       end if
     end do ! i2 : looping over 2-D anasv

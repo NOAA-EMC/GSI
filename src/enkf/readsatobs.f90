@@ -1061,7 +1061,7 @@ subroutine write_satobs_data(obspath, datestring, nobs_max, nobs_maxdiag, x_fit,
   integer(i_kind),   intent(in) :: nobs_max, nobs_maxdiag
   real(r_single),  dimension(nobs_max),     intent(in) :: x_fit, x_sprd
   integer(i_kind), dimension(nobs_maxdiag), intent(in) :: x_used
-  character(len=10), intent(in) :: id, id2, gesid2
+  character(len=*), intent(in) :: id, id2, gesid2
 
 
   if (netcdf_diag) then
@@ -1083,7 +1083,7 @@ subroutine write_satobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, x_
   integer(i_kind),   intent(in) :: nobs_max, nobs_maxdiag
   real(r_single),  dimension(nobs_max),     intent(in) :: x_fit, x_sprd
   integer(i_kind), dimension(nobs_maxdiag), intent(in) :: x_used
-  character(len=10), intent(in) :: id, id2, gesid2
+  character(len=*), intent(in) :: id, id2, gesid2
 
   character*500 obsfile,obsfile2
   character(len=4) pe_name
@@ -1093,7 +1093,8 @@ subroutine write_satobs_data_bin(obspath, datestring, nobs_max, nobs_maxdiag, x_
   integer(i_kind) iunit,iunit2,iflag,nobs, nobsdiag,n,nsat,ipe,i,jpchstart
   logical fexist,init_pass
 
-  character(len=10):: satid,sentype
+  character(len=10):: sentype
+  character(len=11):: satid
   character(len=20):: sensat
 
   integer(i_kind):: jiter,nchanl,npred,ianldate,ireal,ipchan,iextra,jextra
@@ -1272,7 +1273,7 @@ subroutine write_satobs_data_nc(obspath, datestring, nobs_max, nobs_maxdiag, &
   integer(i_kind),   intent(in) :: nobs_max, nobs_maxdiag
   real(r_single),  dimension(nobs_max),     intent(in) :: x_fit, x_sprd
   integer(i_kind), dimension(nobs_maxdiag), intent(in) :: x_used
-  character(len=10), intent(in) :: id, gesid
+  character(len=*), intent(in) :: id, gesid
 
   character*500 obsfile, obsfile2
   character(len=4) pe_name

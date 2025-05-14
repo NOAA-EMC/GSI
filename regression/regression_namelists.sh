@@ -188,6 +188,7 @@ OBS_INPUT::
    ompsnpbufr     ompsnp      n21         ompsnp_n21          0.0     0     0
    ompstcbufr     ompstc8     n21         ompstc8_n21         0.0     2     0
    gomebufr       gome        metop-c     gome_metop-c        0.0     2     0
+   mwsbufr        mws         metop-sg-a1 mws_metop-sg-a1     0.0     1     0
 ::
   &SUPEROB_RADAR
    $SUPERRAD   
@@ -472,6 +473,7 @@ OBS_INPUT::
    larcInGSI      larccld     null      larccld              1.0     0     0
    abibufr        abi         g18       abi_g18              0.0     2     0
    abibufr        abi         g19       abi_g19              0.0     2     0
+   mwsbufr        mws         metop-sg-a1 mws_metop-sg-a1    0.0     1     0
 ::
  &SUPEROB_RADAR
    del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000., l2superob_only=.false.,
@@ -1063,6 +1065,7 @@ export gsi_namelist="
    sattypes_rad(78)= 'atms_n21',      dsis(78)= 'atms_n21',
    sattypes_rad(79)= 'cris-fsr_n21',  dsis(79)= 'cris-fsr_n21',
    sattypes_rad(80)= 'abi_g19',       dsis(80)= 'abi_g19',
+   sattypes_rad(81)= 'mws_metop-sg-a1', dsis(81)= 'mws_metop-sg-a1',
   $SATOBS_ENKF
  /
  &ozobs_enkf

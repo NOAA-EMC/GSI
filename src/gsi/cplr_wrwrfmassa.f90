@@ -1876,7 +1876,7 @@ contains
     use gsi_io, only: verbose
     use rapidrefresh_cldsurf_mod, only: l_hydrometeor_bkio,l_gsd_soilTQ_nudge,&
          i_use_2mq4b,i_use_2mt4b
-    use rapidrefresh_cldsurf_mod, only: i_howv_3dda, i_gust_3dda
+    use rapidrefresh_cldsurf_mod, only: i_howv_3dda, i_gust_3dda, i_vis_3dda
     use rapidrefresh_cldsurf_mod, only: i_howv_mask, i_sfcrough_fgs
     
     use chemmod, only: laeroana_gocart,wrf_pm2_5
@@ -1891,6 +1891,8 @@ contains
     use directDA_radaruse_mod, only: l_use_dbz_directDA
     use directDA_radaruse_mod, only: init_mm_qnr
     use directDA_radaruse_mod, only: l_cvpnr, cvpnr_pval
+    use qcmod, only: pvis,scale_cv,vis_thres
+    use nltransf, only: nltransf_inverse 
 
     implicit none
   
@@ -1917,7 +1919,7 @@ contains
     integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr,i_qni,i_qnc
     integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,kqni,kqnc,i_tt,ktt,kw,kdbz
     integer(i_kind) i_sst,i_skt,i_th2,i_q2,i_soilt1,i_tslb,i_smois,ktslb,ksmois
-    integer(i_kind) i_howv, i_gust
+    integer(i_kind) i_howv, i_gust, i_vis
     integer(i_kind) :: iv, n_gocart_var,i_snowT_check
     integer(i_kind),allocatable :: i_chem(:), kchem(:)
     integer(i_kind) num_mass_fields,num_all_fields,num_all_pad,num_mass_fields_base
@@ -1931,6 +1933,7 @@ contains
     real(r_single) aeta10(nsig),eta10(nsig+1),aeta20(nsig),eta20(nsig+1)
     real(r_single) glon0(nlon_regional,nlat_regional),glat0(nlon_regional,nlat_regional)
     real(r_single) dx_mc0(nlon_regional,nlat_regional),dy_mc0(nlon_regional,nlat_regional)
+    real(r_kind)   tempvis,visout
 
 !--- used to read lakemask for screen off analysis over lake area (e.g., for wave height HOWV)
     character(len=20)   :: filename_lakemask    ! lakemask.bin
@@ -1944,6 +1947,7 @@ contains
     real(r_kind), pointer :: ges_q2(:,:)=>NULL()
     real(r_kind), pointer :: ges_howv_it(:,:)=>NULL()       ! wave height
     real(r_kind), pointer :: ges_gust_it(:,:)=>NULL()       ! wind gust
+    real(r_kind), pointer :: ges_vis_it( :,:)=>NULL()       ! visibility
     real(r_kind), pointer :: ges_soilt1(:,:)=>NULL()
     real(r_kind), pointer :: ges_tslb_it(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_smois_it(:,:,:)=>NULL()
@@ -2023,6 +2027,7 @@ contains
     if(i_use_2mt4b <= 0 .and. i_use_2mq4b > 0) num_mass_fields=num_mass_fields+1
     if(i_howv_3dda > 0) num_mass_fields = num_mass_fields + 1
     if(i_gust_3dda > 0) num_mass_fields = num_mass_fields + 1
+    if(i_vis_3dda > 0 ) num_mass_fields = num_mass_fields + 1
     if ( laeroana_gocart ) then
        call gsi_chemguess_get ( 'aerosols::3d', n_gocart_var, ier )
        if ( n_gocart_var > 0 ) then
@@ -2086,16 +2091,22 @@ contains
     else
        i_howv=i_q2
     end if
-!   gust is after howv, and before cloud hydrometers
+!   gust is after howv, and before vis(ibility)
     if ( i_gust_3dda > 0 ) then
        i_gust=i_howv+1
     else
        i_gust=i_howv
     end if
+!   vis(ibility) is after gust, and before cloud hydrometers
+    if ( i_vis_3dda > 0 ) then
+       i_vis=i_gust+1
+    else
+       i_vis=i_gust
+    end if
   
-  ! for hydrometeors
+  ! for hydrometeors (after q2/howv/gust/vis)
     if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
-       i_qc=i_gust+1
+       i_qc=i_vis+1
        i_qr=i_qc+lm
        i_qs=i_qr+lm
        i_qi=i_qs+lm
@@ -2129,13 +2140,13 @@ contains
     else
        if ( laeroana_gocart) then
           do iv = 1, n_gocart_var
-             i_chem(iv)=i_gust+(iv-1)*lm+1
+             i_chem(iv)=i_vis+(iv-1)*lm+1
           end do
        endif
   
        if ( wrf_pm2_5 ) then
           iv=1
-          i_chem(iv)=i_gust+(iv-1)*lm+1
+          i_chem(iv)=i_vis+(iv-1)*lm+1
        endif
   
   
@@ -2652,6 +2663,23 @@ contains
            end do
         end do
     end if
+  ! Visibility (vis)
+    if ( i_vis_3dda > 0 ) then
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'vis', ges_vis_it, istatus );ier=ier+istatus
+        if (ier/=0) then ! doesn't have to die - code can be generalized to bypass missing vars
+            write(6,*)'wrwrfmassa_netcdf_wrf: getpointer for visibility failed, cannot retrieve vis, ier =',ier
+            call stop2(999)
+        end if
+        do i=1,lon2
+           do j=1,lat2
+  !          applying inverse nonlinear transform to analysis of visibility 
+  !            analysis "g-space" ==> physical space
+               tempvis=ges_vis_it(j,i)
+               call nltransf_inverse(tempvis,visout,pvis,scale_cv) 
+               all_loc(j,i,i_vis)=max(min(visout,vis_thres),one)
+           end do
+        end do
+    end if
   
     if(mype == 0) then
   ! SM   This is landmask
@@ -2979,6 +3007,35 @@ contains
           write(lendian_out)temp1
        end if
     end if
+
+  ! update VIS (visibility): after gust
+    if ( i_vis_3dda > 0 ) then
+
+       if(mype == 0) read(lendian_in)temp1
+       if(mype == 0) write(6,*)' at 10.23 (vis: fgs) in wrwrfmassa,max,min(temp1)=', &
+                                           maxval(temp1),minval(temp1)
+       call strip(all_loc(:,:,i_vis),strp)
+       tempa=zero_single
+       call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+            tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+       if(mype == 0) then
+          write(6,*)' at 10.24 (vis: anl on analysis grid) in wrwrfmassa,max,min(tempa)=', &
+                            maxval(tempa),minval(tempa)
+          call fill_mass_grid2t(temp1,im,jm,tempb,2)
+          do i=1,iglobal
+             tempa(i)=tempa(i)-tempb(i)
+          end do
+          write(6,*)' at 10.25 (vis: inc on analysis grid) in wrwrfmassa,max,min(tempa)=', &
+                             maxval(tempa),minval(tempa)
+
+          call unfill_mass_grid2t(tempa,im,jm,temp1)
+          write(6,*)' at 10.26 (vis: anl on   model  grid) in wrwrfmassa,max,min(temp1)=', &
+                             maxval(temp1),minval(temp1)
+          write(lendian_out)temp1
+
+       end if     !endif mype==0
+
+    end if ! i_vis_3dda > 0
 
   !
   ! for saving cloud analysis results
