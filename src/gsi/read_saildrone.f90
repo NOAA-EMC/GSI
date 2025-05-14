@@ -471,7 +471,7 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
    
        end if 
   
-       if (qob .AND. abs(obsdat(3,1)) < 300.0_r_kind .AND. &    ! This is dewpoint.
+       if (qob .AND. abs(obsdat(3,1)) < 320.0_r_kind .AND. &    ! This is dewpoint.
            abs(obsdat(2,1)-225.0_r_kind) < 125.0_r_kind .AND. &
            obsdat(1,1) > zero .AND. obsdat(1,1) < 1.4e5_r_kind) then
   
