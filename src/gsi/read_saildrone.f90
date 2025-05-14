@@ -95,7 +95,9 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
   
   real(r_kind) :: dlon, dlat, dlat_earth_deg, dlon_earth_deg, dlat_earth, dlon_earth
   real(r_kind) :: rlon00, rlat00, cdist, disterr, disterrmax, vdisterrmax
-  real(r_kind) :: dlnpob, pob_cb, tdob, rhob_calc, es, dummy, qsat, rhob
+  real(r_kind) :: dlnpob, pob_cb, rhob_calc, es, dummy, qsat
+  real(r_kind) :: temperature_ob, dew_point_temperature_ob
+  real(r_kind) :: relative_humidity_ob, humidity_ob
   real(r_kind) :: toff, t4dv, tdiff
   real(r_kind) :: uwind, vwind, u0, v0, u00, v00, ppb, usage
   real(r_kind) :: obserr, var_jb, del, ediff
@@ -481,15 +483,15 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
            abs(obsdat(2,1)-225.0_r_kind) < 125.0_r_kind .AND. &
            obsdat(1,1) > zero .AND. obsdat(1,1) < 1.4e5_r_kind) then
   
-          !          Convert raw moisture data from dew point temperature to specific humidity
-          pob_cb = obsdat(1,1) * r0_001  ! convert [Pa] to [cb]
-          tdob =  obsdat(3,1)
-          tob = obsdat(2,1)
-          rhob_calc = exp((one-tob/tdob)*(hvap/rv)/tob) ! e.g. rh=0.98
-          call fpvsx_ad(tob,es,dummy,dummy,.false.)
-          qsat = eps*es/(pob_cb-omeps*es)
-          rhob = rhob_calc   ! calculate RH (%) since rhob is missing          
-          qob  = rhob*qsat
+           !          Convert raw moisture data from dew point temperature to specific humidity
+           pob_cb = obsdat(1,1) * r0_001  ! convert [Pa] to [cb]
+           dew_point_temperature_ob =  obsdat(3,1)
+           temperature_ob = obsdat(2,1)
+           rhob_calc = exp((one-temperature_ob/dew_point_temperature_ob)*(hvap/rv)/temperature_ob) ! e.g. rh=0.98
+           call fpvsx_ad(temperature_ob,es,dummy,dummy,.false.)
+           qsat = eps*es/(pob_cb-omeps*es)
+           relative_humidity_ob = rhob_calc   ! calculate RH (%) since rhob is missing          
+           humidity_ob  = relative_humidity_ob * qsat
    
            ! Assign obs error from error table
            ppb=obsdat(1,1)
@@ -525,7 +527,7 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
            cdata_all(2,iout)=dlon                    ! grid relative longitude
            cdata_all(3,iout)=dlat                    ! grid relative latitude
            cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
-           cdata_all(5,iout)=qob                     ! specific humidity ob.
+           cdata_all(5,iout)=humidity_ob             ! specific humidity ob.
            cdata_all(6,iout)=rstation_id             ! station id
            cdata_all(7,iout)=t4dv                    ! time
            cdata_all(8,iout)=nc                      ! type
