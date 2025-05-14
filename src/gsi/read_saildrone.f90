@@ -213,9 +213,6 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
   call openbf(lunin,'IN',lunin)
   call datelen(10)
 
-
-
-  write(*,*) 'READ_SAILDRONE: irec, nrec_start=',irec, nrec_start
   usage = 100.0_r_kind
   msg_report: do while (ireadmg(lunin,subset,idate) == 0)
      irec = irec + 1
@@ -223,7 +220,6 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
 !    Time offset
      if(nmsg == 0) call time_4dvar(idate,toff)
      nmsg=nmsg+1
-     write(*,*) 'SAILDRONE, nmsg =',nmsg
      if (nmsg>nmsgmax) then
         write(6,*)'READ_SAILDRONE: messages exceed maximum ',nmsgmax
         call stop2(50)
@@ -237,9 +233,7 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
         endif
 
 !       Extract type information
-        write(*,*) 'READ_SAILDRONE calling ufbint'
         call ufbint(lunin,hdr,8,1,iret,hdstr)
-        write(*,*) 'READ_SAILDRONE called ufbint'
         iobsub = 0
 !  Match ob to proper convinfo type
         ncsave=1 ! tst
@@ -297,7 +291,6 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
      loop_readsb: do while(ireadsb(lunin) == 0)
      !  Extract type, date, and location information
        call ufbint(lunin,hdr,8,1,iret,hdstr) ! YEAR MNTH DAYS HOUR MINU CLATH CLONH LSTN
-       write(*,*) 'READ_SSAILDRONE hdr=',hdr(:,1)
        if(abs(hdr(6,1))>r90 .or. abs(hdr(7,1))>r360) cycle loop_readsb
        dlon_earth_deg=hdr(7,1)
        dlat_earth_deg=hdr(6,1)
@@ -352,7 +345,6 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
        dlnpob=log(obsdat(1,1)/1000_r_kind)
 
 
-       write(*,*) 'READ_SAILDRONE, obsdat=',obsdat(:,1)
        ! Read in the data
        if (psob .AND. obsdat(1,1) > zero .AND. obsdat(1,1) < 1.4e5_r_kind) then
   
@@ -479,7 +471,7 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
    
        end if 
   
-       if (qob .AND. abs(obsdat(3,1)) < 0.1_r_kind .AND. &    ! This is actually dewpoint.  Need to fix.
+       if (qob .AND. abs(obsdat(3,1)) < 300.0_r_kind .AND. &    ! This is dewpoint.
            abs(obsdat(2,1)-225.0_r_kind) < 125.0_r_kind .AND. &
            obsdat(1,1) > zero .AND. obsdat(1,1) < 1.4e5_r_kind) then
   
@@ -492,7 +484,7 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
            qsat = eps*es/(pob_cb-omeps*es)
            relative_humidity_ob = rhob_calc   ! calculate RH (%) since rhob is missing          
            humidity_ob  = relative_humidity_ob * qsat
-   
+
            ! Assign obs error from error table
            ppb=obsdat(1,1)
            ppb=max(zero,min(ppb,r2000))
