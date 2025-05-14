@@ -517,6 +517,7 @@ read_radar_wind_ascii.f90
 read_radarref_mosaic.f90
 read_radarref_mosaic_directDA.f90
 read_rapidscat.f90
+read_saildrone.f90
 read_saphir.f90
 read_satmar.f90
 read_satwnd.f90
