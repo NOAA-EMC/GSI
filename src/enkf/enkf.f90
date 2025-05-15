@@ -778,7 +778,7 @@ do niter=1,numiter
       end do
      !$omp end parallel do
   endif
-  !$omp parallel do schedule(dynamic) private(nob)
+  !$omp parallel do schedule(dynamic) private(nob,meanval)
   do nob=1,nobs_max
      meanval=sum(anal_obchunk(1:nanals,nob),1)
      anal_obchunk(1:nanals,nob) = anal_obchunk(1:nanals,nob)-&
