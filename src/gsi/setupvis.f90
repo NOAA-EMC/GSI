@@ -677,9 +677,13 @@ subroutine setupvis(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diags
            call nc_diag_metadata("Errinv_Adjust",           errinv_adjst           )
            call nc_diag_metadata("Errinv_Final",            errinv_final           )
 
-           call nc_diag_metadata("Observation",                   data(ivis,i)     )
-           call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   ddiff            )
-           call nc_diag_metadata("Obs_Minus_Forecast_unadjusted", data(ivis,i)-visges )
+           call nc_diag_metadata("Observation_transformed",       data(ivis,i)     )
+           call nc_diag_metadata("Obs_Minus_Forecast_adjusted_transformed",   ddiff               )
+           call nc_diag_metadata("Obs_Minus_Forecast_unadjusted_transformed", data(ivis,i)-visges )
+
+           call nc_diag_metadata("Observation",                   visobout         )
+           call nc_diag_metadata("Obs_Minus_Forecast_adjusted",   visdiff          )
+
            call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i))
            call nc_diag_metadata("Model_Terrain",     data(izz,i))
            r_prvstg            = data(iprvd,i)

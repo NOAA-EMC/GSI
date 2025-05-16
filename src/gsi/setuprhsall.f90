@@ -139,7 +139,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use ozinfo, only: mype_oz,jpch_oz,ihave_oz
   use coinfo, only: mype_co,jpch_co,ihave_co
   use lightinfo, only: mype_light
-  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum
+  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum,mpi_real16
   use gridmod, only: twodvar_regional,wrf_mass_regional,nems_nmmb_regional
   use gridmod, only: cmaq_regional,fv3_regional
   use gsi_4dvar, only: nobs_bins,l4dvar
@@ -196,6 +196,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use mpeu_util, only: basename
 
   use directDA_radaruse_mod, only: l_use_dbz_directDA
+  use mpi, only: mpi_in_place
 
   implicit none
 
@@ -568,16 +569,16 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 ! Collect information for preconditioning
   if (newpc4pred) then
-     call mpl_allreduce(jpch_rad,rpvals=ostats)
-     call mpl_allreduce(npred,jpch_rad,rstats)
+     call MPI_Allreduce(mpi_in_place, ostats, jpch_rad, mpi_rtype, mpi_sum, mpi_comm_world, ier)
+     call MPI_Allreduce(mpi_in_place, rstats, npred*jpch_rad, mpi_real16, mpi_sum, mpi_comm_world, ier)
   end if
 
 ! Collect information for aircraft data
   if (aircraft_t_bc_pof .or. aircraft_t_bc) then
 !    call mpl_allreduce(npredt,max_tail,ostats_t)
 !    call mpl_allreduce(npredt,max_tail,rstats_t)
-     call mpl_allreduce(npredt,ntail,ostats_t)
-     call mpl_allreduce(npredt,ntail,rstats_t)
+     call MPI_Allreduce(mpi_in_place, ostats_t, npredt*ntail, mpi_real16, mpi_sum, mpi_comm_world, ier)
+     call MPI_Allreduce(mpi_in_place, rstats_t, npredt*ntail, mpi_real16, mpi_sum, mpi_comm_world, ier)
   end if
 
 ! Collect satellite and precip. statistics

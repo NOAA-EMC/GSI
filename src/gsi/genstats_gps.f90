@@ -260,7 +260,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   use jfunc, only: jiter,miter,jiterstart
   use gsi_4dvar, only: nobs_bins
   use convinfo, only: nconvtype
-  use m_gpsrhs, only: rdiagbuf 
+  use m_gpsrhs, only: rdiagbuf
   implicit none
 
 ! Declare passed variables
@@ -305,7 +305,8 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   real(r_kind),allocatable,dimension(:) :: collect_hght,collect_gps,collect_qc, &
                                       collect_prof
   real(r_kind),dimension(max(1,nobs_gps)) :: holder_hght,holder_gps,holder_qc, &
-                                      holder_prof,STD4060
+                                      holder_prof
+  real(r_kind),dimension(max(1,nprof_gps)) :: STD4060
   real(r_kind),allocatable,dimension(:) :: profile_benda,profile_impact, &
                                            sorted_profile_benda,sorted_profile_impact
   real(r_kind) :: old_err,new_err,input_impact,input_std4060,input_FracLsw, &
@@ -318,7 +319,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   integer(i_kind) :: nnz, nind,nobs,total_size,ind,prof_size
   type(gps_ob_type), pointer:: gpsptr
   type(gps_all_ob_type), pointer:: gps_allptr
-  
+
   save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
 
 !*******************************************************************************
@@ -394,6 +395,9 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   !!!!!! Compute STD4060 for hybrid error model
   if (mype == 0) then
     STD4060(:) = 0.0_r_kind
+    !$omp parallel do default(none), schedule(dynamic,1), &
+    !$omp& private(ii,prof_size,profile_benda,profile_impact,indices,sorted_profile_benda,sorted_profile_impact,k), &
+    !$omp& shared(nprof_gps,array_prof,array_hght,array_qc,array_gps,STD4060)
     do ii=1,nprof_gps
       prof_size = count(((array_prof(:) == ii).and.(array_hght(:)>=40.E3).and.(array_hght(:)<=60.E3).and.(array_qc/=6.0_r_kind)))
       if (prof_size <= 15) then

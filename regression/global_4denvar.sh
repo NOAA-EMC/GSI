@@ -127,6 +127,7 @@ insituinfo=$fixgsi/global_insituinfo.txt
 errtable=$fixgsi/prepobs_errtable.global
 aeroinfo=$fixgsi/global_aeroinfo.txt
 atmsbeaminfo=$fixgsi/atms_beamwidth.txt
+mwsbeaminfo=$fixgsi/mws_beamwidth.txt
 cloudyinfo=$fixgsi/cloudy_radiance_info.txt
 cris_clddet=$fixgsi/CRIS_CLDDET.NL
 iasi_clddet=$fixgsi/IASI_CLDDET.NL
@@ -170,6 +171,7 @@ $ncp $insituinfo ./insituinfo
 $ncp $errtable ./errtable
 $ncp $aeroinfo ./aeroinfo
 $ncp $atmsbeaminfo ./atms_beamwidth.txt
+$ncp $mwsbeaminfo ./mws_beamwidth.txt
 $ncp $cloudyinfo   ./cloudy_radiance_info.txt
 $ncp $cris_clddet ./CRIS_CLDDET.NL
 $ncp $iasi_clddet ./IASI_CLDDET.NL
@@ -264,6 +266,7 @@ $nln $datobs/${prefix_obs}.amubdb.${suffix}        ./amsubbufr_db
 $nln $datobs/${prefix_obs}.atms.${suffix}          ./atmsbufr
 $nln $datobs/${prefix_obs}.atmsdb.${suffix}        ./atmsbufr_db
 $nln $datobs/${prefix_obs}.esatms.${suffix}        ./atmsbufrears
+$nln $datobs/${prefix_obs}.mws.${suffix}           ./mwsbufr
 
 # Do not process
 ## $nln $datobs/${prefix_obs}.amsre.${suffix}      ./amsrebufr

@@ -130,8 +130,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !
 !$$$
   use kinds, only: r_kind,r_double,i_kind
-  use satthin, only: super_val,itxmax,makegrids,destroygrids,checkob, &
-      finalcheck,map2tgrid,score_crit
+  use satthin, only: super_val,itxmax,makegrids,destroygrids,score_crit,map2tgrid2,binit
   use satthin, only: radthin_time_info,tdiff2crit
   use obsmod, only: time_window_max, ta2tb
   use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad, &
@@ -155,6 +154,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   use radiance_mod, only: rad_obs_type
   use gsi_io, only: verbose
   implicit none
+
+  external:: stop2,openbf,ireadmg,ireadsb,ufbint,w3fs21,ufbrep,closbf,grdcrd1,combine_radobs,count_obs
 
 ! Declare passed variables
   character(len=*),intent(in   ) :: infile,obstype,jsatid
@@ -180,6 +181,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   ! change from 13 to 14 for sacv
   integer(i_kind),parameter:: n1bhdr=14
   integer(i_kind),parameter:: n2bhdr=4
+  integer(i_kind),parameter:: maxobs = 500000
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
   real(r_kind),parameter:: tbmax=550.0_r_kind
@@ -193,12 +195,12 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   character(len=80):: hdr1b,hdr2b
 
   integer(i_kind) ireadsb,ireadmg,irec,next,nrec_startx
-  integer(i_kind) i,j,k,ifov,ntest,llll
+  integer(i_kind) i,j,k,ntest,iob,llll
   integer(i_kind) sacv
   integer(i_kind) iret,idate,nchanl,n,idomsfc(1)
   integer(i_kind) ich1,ich2,ich8,ich15,ich16,ich17
   integer(i_kind) kidsat,instrument,maxinfo
-  integer(i_kind) nmind,itx,nreal,nele,itt,ninstruments
+  integer(i_kind) nmind,itx,nreal,nele,itt,ninstruments,num_obs,itx2
   integer(i_kind) iskip,ichan2,ichan1,ichan15
   integer(i_kind) lnbufr,ksatid,ichan8,isflg,ichan3,ich3,ich4,ich6
   integer(i_kind) ilat,ilon,ifovmod
@@ -206,6 +208,8 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) instr,ichan
   integer(i_kind) error_status,irecx,ierr
   integer(i_kind) radedge_min, radedge_max
+  integer(i_kind), POINTER :: ifov
+  integer(i_kind), TARGET :: ifov_save(maxobs)
   integer(i_kind),allocatable,dimension(:)::nrec
   character(len=20),dimension(1):: sensorlist
 
@@ -219,13 +223,27 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   real(r_kind) :: zob,tref,dtw,dtc,tz_tr
 
   real(r_kind) pred, pred_water, pred_not_water
-  real(r_kind) rsat,dlat,panglr,dlon,rato,sstime,tdiff,t4dv
-  real(r_kind) dlon_earth_deg,dlat_earth_deg,sat_aziang
-  real(r_kind) dlon_earth,dlat_earth,r01
-  real(r_kind) crit1,step,start,ch8flg,dist1
-  real(r_kind) terrain,lza,df2,tt,lzaest
+  real(r_kind) dlat,dlon,rato,tdiff,sstime
+  real(r_kind) dlon_earth_deg,dlat_earth_deg,r01
+  real(r_kind) step,start,ch8flg,dist1
+  real(r_kind) terrain,df2,tt,lzaest
   real(r_kind),dimension(0:4):: rlndsea
   real(r_kind),allocatable,dimension(:,:):: data_all
+  real(r_kind), POINTER :: bt_in(:), crit1,rsat, t4dv, solzen, solazi
+  real(r_kind), POINTER :: dlon_earth,dlat_earth,satazi,lza,panglr
+
+  integer(i_kind), ALLOCATABLE, TARGET :: it_mesh_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: rsat_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: t4dv_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: dlon_earth_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: dlat_earth_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: crit1_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: lza_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: satazi_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: solzen_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: solazi_save(:)
+  real(r_kind), ALLOCATABLE, TARGET :: bt_save(:,:)
+  real(r_kind), ALLOCATABLE, TARGET :: panglr_save(:)
 
   real(crtm_kind),allocatable,dimension(:):: data1b4
   real(r_double),allocatable,dimension(:):: data1b8
@@ -234,8 +252,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
   real(r_kind) disterr,disterrmax,cdist,dlon00,dlat00
 
-  real(r_kind)    :: ptime,timeinflat,crit0
-  integer(i_kind) :: ithin_time,n_tbin,it_mesh
+  real(r_kind)    :: ptime,timeinflat,crit0,score
+  integer(i_kind) :: ithin_time,n_tbin
+  integer(i_kind),pointer :: it_mesh => null()
   logical :: critical_channels_missing,quiet
   logical :: print_verbose
 
@@ -243,6 +262,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) :: spc_coeff_versions
   character(len=80) :: spc_filename
   type(ACCoeff_type),dimension(3) :: accoeff_sets
+  integer(kind=4) :: good,bin,bin2,Obindx,maxPerBin,numBinsWithObs
+  integer,allocatable,dimension(:)   :: binCount,binsWithObs,hash
+  integer,allocatable,dimension(:,:) :: binObs
 
 !**************************************************************************
 ! Initialize variables
@@ -489,10 +511,24 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH HOLS SACV'
   hdr2b ='SAZA SOZA BEARAZ SOLAZI'
   allocate(data_all(nele,itxmax),data1b8(nchanl),data1b4(nchanl),nrec(itxmax))
+  ALLOCATE(rsat_save(maxobs))
+  ALLOCATE(t4dv_save(maxobs))
+  ALLOCATE(dlon_earth_save(maxobs))
+  ALLOCATE(dlat_earth_save(maxobs))
+  ALLOCATE(crit1_save(maxobs))
+  ALLOCATE(it_mesh_save(maxobs))
+  ALLOCATE(lza_save(maxobs))
+  ALLOCATE(satazi_save(maxobs))
+  ALLOCATE(solzen_save(maxobs))
+  ALLOCATE(solazi_save(maxobs))
+  ALLOCATE(bt_save(nchanl,maxobs))
+  ALLOCATE(panglr_save(maxobs))
 
   nrec = 999999
   next=0
   irec=0
+  good=0
+  iob=1
 ! Big loop over standard data feed and possible ears/db data
 ! llll=1 is normal feed, llll=2 EARS/RARS data, llll=3 DB/UW data)
   ears_db_loop: do llll= 1, 3
@@ -583,14 +619,27 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 !    Loop to read bufr file
      irecx=0
-     read_subset: do while(ireadmg(lnbufr,subset,idate)>=0)
+     read_subset: do while(ireadmg(lnbufr,subset,idate)>=0 .and. iob < maxobs)
         irecx=irecx+1
         if(irecx < nrec_startx) cycle read_subset
         irec=irec+1
         next=next+1
         if(next == npe_sub)next=0
         if(next/=mype_sub)cycle read_subset
-        read_loop: do while (ireadsb(lnbufr)==0)
+        read_loop: do while (ireadsb(lnbufr)==0 .and. iob < maxobs)
+
+           rsat       => rsat_save(iob)
+           t4dv       => t4dv_save(iob)
+           dlon_earth => dlon_earth_save(iob)
+           dlat_earth => dlat_earth_save(iob)
+           crit1      => crit1_save(iob)
+           it_mesh    => it_mesh_save(iob)
+           ifov       => ifov_save(iob)
+           lza        => lza_save(iob)
+           satazi     => satazi_save(iob)
+           solzen     => solzen_save(iob)
+           solazi     => solazi_save(iob)
+           panglr     => panglr_save(iob)
 
 !          Read header record.  (llll=1 is normal feed, 2=EARS data, 3=DB data)
            call ufbint(lnbufr,bfr1bhdr,n1bhdr,1,iret,hdr1b)
@@ -623,34 +672,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            end if
            if(dlon_earth<zero)  dlon_earth = dlon_earth+r360
            if(dlon_earth>=r360) dlon_earth = dlon_earth-r360
-           dlat_earth_deg = dlat_earth
-           dlon_earth_deg = dlon_earth
-           dlat_earth = dlat_earth*deg2rad
-           dlon_earth = dlon_earth*deg2rad
-
-!          Regional case
-           if(regional)then
-              call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
-              if(diagnostic_reg) then
-                 call txy2ll(dlon,dlat,dlon00,dlat00)
-                 ntest=ntest+1
-                 cdist=sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
-                      (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00))
-                 cdist=max(-one,min(cdist,one))
-                 disterr=acos(cdist)*rad2deg
-                 disterrmax=max(disterrmax,disterr)
-              end if
-              
-!             Check to see if in domain
-              if(outside) cycle read_loop
-
-!          Global case
-           else
-              dlat=dlat_earth
-              dlon=dlon_earth
-              call grdcrd1(dlat,rlats,nlat,1)
-              call grdcrd1(dlon,rlons,nlon,1)
-           endif
 
 !          Extract date information.  If time outside window, skip this obs
            idate5(1) = bfr1bhdr(3) !year
@@ -676,8 +697,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
            if (llll >  1 ) crit0 = crit0 + r100 * real(llll,r_kind)
            timeinflat=two
            call tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
-           call map2tgrid(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,it_mesh=it_mesh)
-           if(.not. iuse)cycle read_loop
 
 !          Extract satellite antenna corrections version number
            if (llll > 1) then
@@ -723,12 +742,14 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
               cycle read_loop
            end if
 
-           sat_aziang=bfr2bhdr(3)
-           if (abs(sat_aziang) > r360) then
-              sat_aziang=zero
-!_RT              write(6,*) 'READ_BUFRTOVS: bad azimuth angle ',sat_aziang
-!_RT              cycle read_loop
+           satazi=bfr2bhdr(3)
+           if (abs(satazi) > r360) then
+              satazi=zero
+!_RT          write(6,*) 'READ_BUFRTOVS: bad azimuth angle ',satazi
+!_RT          cycle read_loop
            endif
+           solzen=bfr2bhdr(2)
+           solazi=bfr2bhdr(4)
 
 !          Read data record.  Increment data counter
 !          TMBR is actually the antenna temperature for most microwave sounders.
@@ -736,7 +757,6 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !          antenna temperature (remove_antcorr), to converting TMBR to
 !          brightness temperature (add_antcorr) and accepting TMBRST
 !
-
            if (ta2tb) then
 
               if (llll == 1) then
@@ -802,264 +822,451 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
            endif
 
-!          Transfer observed brightness temperature to work array.  If any
-!          temperature exceeds limits, reset observation to "bad" value
-           iskip=0 
-           critical_channels_missing = .false.
-           do j=1,nchanl
-              if (data1b8(j) < tbmin .or. data1b8(j) > tbmax) then
-                 iskip = iskip + 1
+           bt_save(1:nchanl,iob) = data1b8(1:nchanl)
+           iob=iob+1
 
-!                Flag profiles where key channels are bad  
-                 if(( msu  .and.  j == ich1) .or.                                 &
-                    (amsua .and. (j == ich1 .or. j == ich2 .or. j == ich3 .or.    &
-                                  j == ich4 .or. j == ich6 .or. j == ich15 )) .or.&
-                    (hirs  .and. (j == ich8 )) .or.                               &
-                    (amsub .and.  j == ich1) .or.                                 &
-                    (mhs   .and. (j == ich1 .or. j == ich2)) ) critical_channels_missing = .true.
-              endif
-           end do
-           if (iskip >= nchanl) cycle read_loop
-!          Map obs to thinning grid
-           crit1 = crit1 + 10._r_kind*real(iskip,r_kind)
-           call checkob(dist1,crit1,itx,iuse)
-           if(.not. iuse)cycle read_loop
-
-!          Determine surface properties based on 
-!          sst and land/sea/ice mask   
-!
-!          isflg    - surface flag
-!                     0 sea
-!                     1 land
-!                     2 sea ice
-!                     3 snow
-!                     4 mixed                       
-
-!          FOV-based surface code requires fov number.  if out-of-range, then
-!          skip this ob.
-
-           if (isfcalc == 1) then
-              call fov_check(ifov,instr,ichan,valid)
-              if (.not. valid) cycle read_loop
-
-!          When isfcalc is one, calculate surface fields based on size/shape of fov.
-!          Otherwise, use bilinear method.
-
-              call deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
-                 dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
-                 sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
-           else
-              call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg, &
-                 idomsfc(1),sfcpct,ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
-           endif
-
-
-           crit1 = crit1 + rlndsea(isflg) 
-           call checkob(dist1,crit1,itx,iuse)
-           if(.not. iuse)cycle read_loop
-
-
-           if (critical_channels_missing) then
-
-             pred=1.0e8_r_kind
-
-           else
-
-!             Set data quality predictor
-              if (msu) then
-                 if (newpc4pred) then
-                    ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
-                         predx(1,ichan1)*air_rad(ichan1)
-                 else
-                    ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
-                         r01*predx(1,ichan1)*air_rad(ichan1)
-                 end if
-                 ch1flg = tsavg-ch1
-                 if(isflg == 0)then
-                    pred = 100._r_kind-min(ch1flg,100.0_r_kind)
-                 else
-                    pred = abs(ch1flg)
-                 end if
-              else if (hirs) then
-                 if (newpc4pred) then
-                    ch8 = data1b8(ich8) -ang_rad(ichan8)*cbias(ifov,ichan8)- &
-                         predx(1,ichan8)*air_rad(ichan8)
-                 else
-                    ch8 = data1b8(ich8) -ang_rad(ichan8)*cbias(ifov,ichan8)- &
-                         r01*predx(1,ichan8)*air_rad(ichan8)
-                 end if
-                 ch8flg = tsavg-ch8
-                 pred   = 10.0_r_kind*max(zero,ch8flg)
-              else if (amsua) then
-!                Remove angle dependent pattern (not mean)
-                 if (adp_anglebc .and. newpc4pred) then
-                    ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1) 
-                    ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2) 
-                    ch15= data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)
-                 else
-                    ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)+ &
-                         air_rad(ichan1)*cbias(15,ichan1)
-                    ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)+ &
-                         air_rad(ichan2)*cbias(15,ichan2)   
-                    ch15= data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)
-                 end if
-                 if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
-                    cosza = cos(lza)
-                    d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza                                 
-                    qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
-                    if (radmod%lcloud_fwd) then
-                       ! no preference in selecting clouds/precipitation
-                       ! qval=zero 
-                       ! favor non-precipitating clouds                                                   
-                       qval=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*ch1)*ch1 +  &         
-                            0.454_r_kind*ch2-ch15   
-                       if (qval>=9.0_r_kind) then
-                          qval=1000.0_r_kind*qval
-                       else
-                          qval=zero
-                       end if
-                       if (radmod%lprecip) qval=zero  
-                       ! favor thinner clouds
-                       ! cosza = cos(lza)
-                       ! d0= 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
-                       ! qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
-                       ! if (qval>0.2_r_kind) then
-                       !    qval=1000.0_r_kind*qval
-                       ! else
-                       !    qval=zero
-                       ! end if
-                    end if
-                    pred  = max(zero,qval)*100.0_r_kind
-                 else
-                    if (adp_anglebc .and. newpc4pred) then
-                       ch3 = data1b8(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3) 
-                       ch15 = data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15) 
-                    else
-                       ch3  = data1b8(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3)+ &
-                            air_rad(ichan3)*cbias(15,ichan3)   
-                       ch15 = data1b8(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)+ &
-                            air_rad(ichan15)*cbias(15,ichan15)
-                    end if
-                    pred = abs(ch1-ch15)
-                    if(ch1-ch15 >= three) then
-                       df2  = 5.10_r_kind +0.78_r_kind*ch1-0.96_r_kind*ch3
-                       tt   = 168._r_kind-0.49_r_kind*ch15
-                       if(ch1 > 261._r_kind .or. ch1 >= tt .or. & 
-                            (ch15 <= 273._r_kind .and. df2 >= 0.6_r_kind))then
-                          pred = 100._r_kind
-                       end if
-                    end if
-                 endif
-                 
-!                 sval=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*ch1)*ch1 +  &
-!                 0.454_r_kind*ch2-ch15
-                 
-              else if (amsub .or. mhs) then
-                 if (newpc4pred) then
-                    ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
-                         predx(1,ichan1)*air_rad(ichan1)
-                    ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)- &
-                         predx(1,ichan2)*air_rad(ichan2)
-                 else
-                    ch1 = data1b8(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
-                         r01*predx(1,ichan1)*air_rad(ichan1)
-                    ch2 = data1b8(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)- &
-                         r01*predx(1,ichan2)*air_rad(ichan2)
-                 end if
-                 pred_water = zero
-                 if(sfcpct(0) > zero)then
-                    cosza = cos(lza)
-                    if(ch2 < h300)then 
-                       pred_water = (0.13_r_kind*(ch1+33.58_r_kind*log(h300-ch2)- &
-                            341.17_r_kind))*five
-                    else
-                       pred_water = 100._r_kind
-                    end if
-                 end if
-                 pred_not_water = 42.72_r_kind + 0.85_r_kind*ch1-ch2
-                 pred = (sfcpct(0)*pred_water) + ((one-sfcpct(0))*pred_not_water)
-                 pred = max(zero,pred)
-                 
-              endif
-              
-           end if
-
-!          Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
-           crit1 = crit1+pred 
-           call finalcheck(dist1,crit1,itx,iuse)
-           if(.not. iuse)cycle read_loop
-
-!          interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
-           if(nst_gsi>0) then
-              tref  = ts(0)
-              dtw   = zero
-              dtc   = zero
-              tz_tr = one
-              if(sfcpct(0)>zero) then
-                 call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
-              endif
-           endif
-
-
-!          Load selected observation into data array
-              
-           data_all(1 ,itx)= rsat                      ! satellite ID
-           data_all(2 ,itx)= t4dv                      ! time
-           data_all(3 ,itx)= dlon                      ! grid relative longitude
-           data_all(4 ,itx)= dlat                      ! grid relative latitude
-           data_all(5 ,itx)= lza                       ! local zenith angle
-           data_all(6 ,itx)= bfr2bhdr(3)               ! local azimuth angle
-           data_all(7 ,itx)= panglr                    ! look angle
-           data_all(8 ,itx)= ifov                      ! scan position
-           data_all(9 ,itx)= bfr2bhdr(2)               ! solar zenith angle
-           data_all(10,itx)= bfr2bhdr(4)               ! solar azimuth angle
-           data_all(11,itx) = sfcpct(0)                ! sea percentage of
-           data_all(12,itx) = sfcpct(1)                ! land percentage
-           data_all(13,itx) = sfcpct(2)                ! sea ice percentage
-           data_all(14,itx) = sfcpct(3)                ! snow percentage
-           data_all(15,itx)= ts(0)                     ! ocean skin temperature
-           data_all(16,itx)= ts(1)                     ! land skin temperature
-           data_all(17,itx)= ts(2)                     ! ice skin temperature
-           data_all(18,itx)= ts(3)                     ! snow skin temperature
-           data_all(19,itx)= tsavg                     ! average skin temperature
-           data_all(20,itx)= vty                       ! vegetation type
-           data_all(21,itx)= vfr                       ! vegetation fraction
-           data_all(22,itx)= sty                       ! soil type
-           data_all(23,itx)= stp                       ! soil temperature
-           data_all(24,itx)= sm                        ! soil moisture
-           data_all(25,itx)= sn                        ! snow depth
-           data_all(26,itx)= zz                        ! surface height
-           data_all(27,itx)= idomsfc(1) + 0.001_r_kind ! dominate surface type
-           data_all(28,itx)= sfcr                      ! surface roughness
-           data_all(29,itx)= ff10                      ! ten meter wind factor
-           data_all(30,itx) = dlon_earth_deg           ! earth relative longitude (deg)
-           data_all(31,itx) = dlat_earth_deg           ! earth relative latitude (deg)
-
-           if(dval_use) then
-              data_all(32,itx)= val_tovs
-              data_all(33,itx)= itt
-           end if
-
-           if(nst_gsi>0) then
-              data_all(maxinfo+1,itx) = tref            ! foundation temperature
-              data_all(maxinfo+2,itx) = dtw             ! dt_warm at zob
-              data_all(maxinfo+3,itx) = dtc             ! dt_cool at zob
-              data_all(maxinfo+4,itx) = tz_tr           ! d(Tz)/d(Tr)
-           endif
-
-           do i=1,nchanl
-              data_all(i+nreal,itx)=data1b8(i)
-           end do
-           nrec(itx)=irec
-
-!       End of bufr read loops
-        enddo read_loop
-     enddo read_subset
+        end do read_loop
+     end do read_subset
      call closbf(lnbufr)
      close(lnbufr)
-
   end do ears_db_loop
-  deallocate(data1b8,data1b4)
+  deallocate(data1b8)
+  deallocate(data1b4)
+
+  num_obs = iob-1
+
+  if (num_obs <= 0) then
+     write(6,*) 'READ_BUFRTOVS: No BUFRTOVS Data were read in'
+     return
+  end if
+
+  allocate(binCount(itxmax))
+  binCount(:)=0
+
+! First scan to determine which obs fall into which bins
+  ObsLoop: do iob = 1, num_obs
+
+     t4dv       => t4dv_save(iob)
+     dlon_earth => dlon_earth_save(iob)
+     dlat_earth => dlat_earth_save(iob)
+     it_mesh    => it_mesh_save(iob)
+     ifov       => ifov_save(iob)
+
+!    Regional case
+     if(regional)then
+        call tll2xy(dlon_earth*deg2rad,dlat_earth*deg2rad,dlon,dlat,outside)
+        if(diagnostic_reg) then
+           call txy2ll(dlon,dlat,dlon00,dlat00)
+           cdist=sin(dlat_earth*deg2rad)*sin(dlat00)+cos(dlat_earth*deg2rad)*cos(dlat00)* &
+                (sin(dlon_earth*deg2rad)*sin(dlon00)+cos(dlon_earth*deg2rad)*cos(dlon00))
+           cdist=max(-one,min(cdist,one))
+           disterr=acos(cdist)*rad2deg
+           disterrmax=max(disterrmax,disterr)
+        end if
+!       Check to see if in domain
+        if(outside) cycle ObsLoop
+     endif
+
+!    Map obs to thinning grid
+     call binit(dlat_earth*deg2rad,dlon_earth*deg2rad,itx2,it_mesh)
+     binCount(itx2) = binCount(itx2)+1
+  end do ObsLoop
+
+  maxPerBin = maxval(binCount)
+  numBinsWithObs = count(mask=binCount>0)
+
+  ! Find thinning bins with at least one observation
+  ! Packing those bins into a dense vector allows us to greatly reduce
+  ! memory useage for binObs
+  allocate(binsWithObs(numBinsWithObs))
+  binsWithObs = pack( (/ (i, i=1,size(binCount)) /), binCount > 0)
+
+  ! Map between physical bin index and Packed index
+  allocate(hash(itxmax))
+  hash=0
+  do bin = 1,numBinsWithObs
+    hash(binsWithObs(bin)) = bin
+  enddo
+
+  write(6,'("read_bufrtovs: max number of obs in any bin " I10)') maxPerBin
+  write(6,'("read_bufrtovs: number of bins with any obs " I10)') numBinsWithObs
+
+  allocate(binObs(maxPerBin,numBinsWithObs))
+  binObs(:,:)=0
+  binCount(:)=0
+
+! Second scan to fill binObs
+  ObsLoop2: do iob=1,num_obs
+
+     t4dv       => t4dv_save(iob)
+     dlon_earth => dlon_earth_save(iob)
+     dlat_earth => dlat_earth_save(iob)
+     it_mesh    => it_mesh_save(iob)
+     ifov       => ifov_save(iob)
+
+!    Regional case
+     if(regional)then
+        call tll2xy(dlon_earth*deg2rad,dlat_earth*deg2rad,dlon,dlat,outside)
+        if(diagnostic_reg) then
+           call txy2ll(dlon,dlat,dlon00,dlat00)
+           cdist=sin(dlat_earth*deg2rad)*sin(dlat00)+cos(dlat_earth*deg2rad)*cos(dlat00)* &
+                (sin(dlon_earth*deg2rad)*sin(dlon00)+cos(dlon_earth*deg2rad)*cos(dlon00))
+           cdist=max(-one,min(cdist,one))
+           disterr=acos(cdist)*rad2deg
+           disterrmax=max(disterrmax,disterr)
+        end if
+!       Check to see if in domain
+        if(outside) cycle ObsLoop2
+     endif
+!    Map obs to thinning grid
+     call binit(dlat_earth*deg2rad,dlon_earth*deg2rad,itx2,it_mesh)
+     binCount(itx2) = binCount(itx2)+1
+     binObs(binCount(itx2),hash(itx2)) = iob
+  end do ObsLoop2
+  deallocate(hash)
+
+! Third scan to determine which observation in a given bin is best to use
+  good=0
+  !$omp parallel do default(none), schedule(dynamic,8), &
+  !$omp& firstprivate(ich1,ich2,ich3,ich4,ich6,ich8,ich15,ich16,ich17,r01), &
+  !$omp& private(bin,score,bin2,Obindx,iob,rsat,t4dv,dlon_earth,dlat_earth,crit1,it_mesh,ifov,lza, &
+  !$omp&   satazi,solzen,solazi,bt_in,dlat_earth_deg,dlon_earth_deg, &
+  !$omp&   dlon,dlat,outside,dlon00,dlat00,cdist, &
+  !$omp&   disterr,disterrmax,iuse,itt,itx,dist1,pred_water,pred_not_water, &
+  !$omp&   iskip,critical_channels_missing,j,valid,isflg,idomsfc, &
+  !$omp&   sfcpct,sty,vty,vfr,stp,sm,ff10,sfcr,zz,sn,ts,tsavg,pred,ch1,ch2,i, &
+  !$omp&   ch3,cosza,qval,d0,tt,tref,dtw,dtc,tz_tr,panglr,ch1flg,ch8,ch8flg,ch15,df2) &
+  !$omp& shared(numBinsWithObs,binCount,binObs,deg2rad,rad2deg,rlats,rlons,nlat,nlon,ithin,sis, &
+  !$omp&   instr,ichan,expansion,ichan1,ichan2,ichan3,ichan8,ichan15,zob,msu,amsua,hirs,amsub,mhs, &
+  !$omp&   val_tovs,num_obs,rsat_save,t4dv_save,dlon_earth_save,dlat_earth_save, &
+  !$omp&   crit1_save,it_mesh_save,ifov_save,lza_save,satazi_save,solzen_save, &
+  !$omp&   solazi_save,bt_save,panglr_save,regional,diagnostic_reg,l4dvar,l4densvar, &
+  !$omp&   nchanl,predx,isfcalc,rlndsea,adp_anglebc,newpc4pred,radmod,d1,d2,maxinfo, &
+  !$omp&   ang_rad,cbias,air_rad,nst_gsi,data_all,dval_use,nrec,nreal,score_crit,binsWithObs) &
+  !$omp& reduction(+:ntest,good)
+  BinLoop: do bin = 1,numBinsWithObs
+
+     score=9.99e10_r_kind
+     bin2 = binsWithObs(bin)
+
+     ObsLoop3: do Obindx = 1,binCount(bin2)
+
+       iob        = binObs(Obindx,bin)
+       rsat       => rsat_save(iob)
+       t4dv       => t4dv_save(iob)
+       dlon_earth => dlon_earth_save(iob)
+       dlat_earth => dlat_earth_save(iob)
+       crit1      => crit1_save(iob)
+       it_mesh    => it_mesh_save(iob)
+       ifov       => ifov_save(iob)
+       lza        => lza_save(iob)
+       satazi     => satazi_save(iob)
+       solzen     => solzen_save(iob)
+       solazi     => solazi_save(iob)
+       bt_in      => bt_save(1:nchanl,iob)
+       panglr     => panglr_save(iob)
+
+       dlat_earth_deg = dlat_earth
+       dlon_earth_deg = dlon_earth
+       dlat_earth = dlat_earth*deg2rad
+       dlon_earth = dlon_earth*deg2rad
+
+!      Regional case
+       if(regional)then
+          call tll2xy(dlon_earth,dlat_earth,dlon,dlat,outside)
+          if(diagnostic_reg) then
+             call txy2ll(dlon,dlat,dlon00,dlat00)
+             ntest=ntest+1
+             cdist=sin(dlat_earth)*sin(dlat00)+cos(dlat_earth)*cos(dlat00)* &
+                  (sin(dlon_earth)*sin(dlon00)+cos(dlon_earth)*cos(dlon00))
+             cdist=max(-one,min(cdist,one))
+             disterr=acos(cdist)*rad2deg
+             disterrmax=max(disterrmax,disterr)
+          end if
+       endif
+
+!      Map obs to thinning grid
+       call map2tgrid2(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis,score,it_mesh)
+       if(.not. iuse) cycle ObsLoop3
+
+!      Transfer observed brightness temperature to work array.  If any
+!      temperature exceeds limits, reset observation to "bad" value
+       iskip=0
+       critical_channels_missing = .false.
+       do j=1,nchanl
+          if (bt_in(j) < tbmin .or. bt_in(j) > tbmax) then
+             iskip = iskip + 1
+
+!            Flag profiles where key channels are bad
+             if(( msu  .and.  j == ich1) .or.                                 &
+                (amsua .and. (j == ich1 .or. j == ich2 .or. j == ich3 .or.    &
+                              j == ich4 .or. j == ich6 .or. j == ich15 )) .or.&
+                (hirs  .and. (j == ich8 )) .or.                               &
+                (amsub .and.  j == ich1) .or.                                 &
+                (mhs   .and. (j == ich1 .or. j == ich2)) ) critical_channels_missing = .true.
+          endif
+       end do
+       if (iskip >= nchanl) cycle ObsLoop3
+
+       crit1 = crit1 + 10._r_kind*real(iskip,r_kind)
+       !call checkob(dist1,crit1,itx,iuse)
+       !if(.not. iuse)cycle ObsLoop3
+       if(crit1*dist1 > score) cycle ObsLoop3
+
+!      Global case
+       if(.not.regional) then
+          dlat=dlat_earth
+          dlon=dlon_earth
+          call grdcrd1(dlat,rlats,nlat,1)
+          call grdcrd1(dlon,rlons,nlon,1)
+       endif
+
+!      Determine surface properties based on
+!      sst and land/sea/ice mask
+!
+!      isflg    - surface flag
+!                 0 sea
+!                 1 land
+!                 2 sea ice
+!                 3 snow
+!                 4 mixed
+
+!      FOV-based surface code requires fov number.  if out-of-range, then
+!      skip this ob.
+
+       if (isfcalc == 1) then
+          call fov_check(ifov,instr,ichan,valid)
+          if (.not. valid) cycle ObsLoop3
+
+!         When isfcalc is one, calculate surface fields based on size/shape of fov.
+!         Otherwise, use bilinear method.
+
+          call deter_sfc_fov(fov_flag,ifov,instr,ichan,satazi,dlat_earth_deg,&
+               dlon_earth_deg,expansion,t4dv,isflg,idomsfc(1), &
+               sfcpct,vfr,sty,vty,stp,sm,ff10,sfcr,zz,sn,ts,tsavg)
+       else
+          call deter_sfc(dlat,dlon,dlat_earth,dlon_earth,t4dv,isflg, &
+               idomsfc(1),sfcpct,ts,tsavg,vty,vfr,sty,stp,sm,sn,zz,ff10,sfcr)
+       endif
+
+       crit1 = crit1 + rlndsea(isflg)
+       !call checkob(dist1,crit1,itx,iuse)
+       !if(.not. iuse)cycle ObsLoop3
+       if(crit1*dist1 > score) cycle ObsLoop3
+
+       if (critical_channels_missing) then
+          pred=1.0e8_r_kind
+       else
+
+!         Set data quality predictor
+          if (msu) then
+            if (newpc4pred) then
+              ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
+              predx(1,ichan1)*air_rad(ichan1)
+            else
+              ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
+              r01*predx(1,ichan1)*air_rad(ichan1)
+            end if
+            ch1flg = tsavg-ch1
+            if(isflg == 0)then
+              pred = 100._r_kind-min(ch1flg,100.0_r_kind)
+            else
+              pred = abs(ch1flg)
+            end if
+          else if (hirs) then
+            if (newpc4pred) then
+              ch8 = bt_in(ich8) -ang_rad(ichan8)*cbias(ifov,ichan8)- &
+              predx(1,ichan8)*air_rad(ichan8)
+            else
+              ch8 = bt_in(ich8) -ang_rad(ichan8)*cbias(ifov,ichan8)- &
+              r01*predx(1,ichan8)*air_rad(ichan8)
+            end if
+             ch8flg = tsavg-ch8
+             pred   = 10.0_r_kind*max(zero,ch8flg)
+          else if (amsua) then
+!           Remove angle dependent pattern (not mean)
+            if (adp_anglebc .and. newpc4pred) then
+              ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)
+              ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)
+              ch15= bt_in(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)
+            else
+              ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)+ &
+                    air_rad(ichan1)*cbias(15,ichan1)
+              ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)+ &
+                    air_rad(ichan2)*cbias(15,ichan2)
+              ch15= bt_in(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)
+            end if
+            if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
+              cosza = cos(lza)
+              d0    = 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
+              qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
+              if (radmod%lcloud_fwd) then
+                ! no preference in selecting clouds/precipitation
+                ! qval=zero
+                ! favor non-precipitating clouds
+                qval=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*ch1)*ch1 +  &
+                      0.454_r_kind*ch2-ch15
+                if (qval>=9.0_r_kind) then
+                  qval=1000.0_r_kind*qval
+                else
+                  qval=zero
+                end if
+                if (radmod%lprecip) qval=zero
+                ! favor thinner clouds
+                ! cosza = cos(lza)
+                ! d0= 8.24_r_kind - 2.622_r_kind*cosza + 1.846_r_kind*cosza*cosza
+                ! qval=cosza*(d0+d1*log(285.0_r_kind-ch1)+d2*log(285.0_r_kind-ch2))
+                ! if (qval>0.2_r_kind) then
+                !    qval=1000.0_r_kind*qval
+                ! else
+                !    qval=zero
+                ! end if
+              end if
+              pred  = max(zero,qval)*100.0_r_kind
+            else
+              if (adp_anglebc .and. newpc4pred) then
+                ch3 = bt_in(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3)
+                ch15 = bt_in(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)
+              else
+                ch3  = bt_in(ich3)-ang_rad(ichan3)*cbias(ifov,ichan3)+ &
+                       air_rad(ichan3)*cbias(15,ichan3)
+                ch15 = bt_in(ich15)-ang_rad(ichan15)*cbias(ifov,ichan15)+ &
+                       air_rad(ichan15)*cbias(15,ichan15)
+              end if
+              pred = abs(ch1-ch15)
+              if(ch1-ch15 >= three) then
+                df2  = 5.10_r_kind +0.78_r_kind*ch1-0.96_r_kind*ch3
+                tt   = 168._r_kind-0.49_r_kind*ch15
+                if(ch1 > 261._r_kind .or. ch1 >= tt .or. &
+                         (ch15 <= 273._r_kind .and. df2 >= 0.6_r_kind))then
+                  pred = 100._r_kind
+                end if
+              end if
+            endif
+!           sval=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*ch1)*ch1 +  &
+!           0.454_r_kind*ch2-ch15
+          else if (amsub .or. mhs) then
+            if (newpc4pred) then
+              ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
+                   predx(1,ichan1)*air_rad(ichan1)
+              ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)- &
+                   predx(1,ichan2)*air_rad(ichan2)
+            else
+              ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifov,ichan1)- &
+                   r01*predx(1,ichan1)*air_rad(ichan1)
+              ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifov,ichan2)- &
+                   r01*predx(1,ichan2)*air_rad(ichan2)
+            end if
+            pred_water = zero
+            if(sfcpct(0) > zero)then
+              cosza = cos(lza)
+              if(ch2 < h300)then 
+                pred_water = (0.13_r_kind*(ch1+33.58_r_kind*log(h300-ch2)- &
+                  341.17_r_kind))*five
+              else
+                pred_water = 100._r_kind
+              end if
+            end if
+            pred_not_water = 42.72_r_kind + 0.85_r_kind*ch1-ch2
+            pred = (sfcpct(0)*pred_water) + ((one-sfcpct(0))*pred_not_water)
+            pred = max(zero,pred)
+          endif
+       end if
+
+!      Compute "score" for observation.  All scores>=0.0.  Lowest score is "best"
+       crit1 = crit1+pred 
+       !call finalcheck(dist1,crit1,itx,iuse)
+       !if(.not. iuse)cycle ObsLoop3
+       if(crit1*dist1 < score)then
+          score = crit1*dist1
+       else
+          cycle ObsLoop3
+       end if
+
+!      interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
+       if(nst_gsi>0) then
+          tref  = ts(0)
+          dtw   = zero
+          dtc   = zero
+          tz_tr = one
+          if(sfcpct(0)>zero) then
+             call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
+          endif
+       endif
+
+  !    Load selected observation into data array
+       data_all(1 ,bin2)= rsat                      ! satellite ID
+       data_all(2 ,bin2)= t4dv                      ! time
+       data_all(3 ,bin2)= dlon                      ! grid relative longitude
+       data_all(4 ,bin2)= dlat                      ! grid relative latitude
+       data_all(5 ,bin2)= lza                       ! local zenith angle
+       data_all(6 ,bin2)= satazi                    ! local azimuth angle
+       data_all(7 ,bin2)= panglr                    ! look angle
+       data_all(8 ,bin2)= ifov                      ! scan position
+       data_all(9 ,bin2)= solzen                    ! solar zenith angle
+       data_all(10,bin2)= solazi                    ! solar azimuth angle
+       data_all(11,bin2) = sfcpct(0)                ! sea percentage of
+       data_all(12,bin2) = sfcpct(1)                ! land percentage
+       data_all(13,bin2) = sfcpct(2)                ! sea ice percentage
+       data_all(14,bin2) = sfcpct(3)                ! snow percentage
+       data_all(15,bin2)= ts(0)                     ! ocean skin temperature
+       data_all(16,bin2)= ts(1)                     ! land skin temperature
+       data_all(17,bin2)= ts(2)                     ! ice skin temperature
+       data_all(18,bin2)= ts(3)                     ! snow skin temperature
+       data_all(19,bin2)= tsavg                     ! average skin temperature
+       data_all(20,bin2)= vty                       ! vegetation type
+       data_all(21,bin2)= vfr                       ! vegetation fraction
+       data_all(22,bin2)= sty                       ! soil type
+       data_all(23,bin2)= stp                       ! soil temperature
+       data_all(24,bin2)= sm                        ! soil moisture
+       data_all(25,bin2)= sn                        ! snow depth
+       data_all(26,bin2)= zz                        ! surface height
+       data_all(27,bin2)= idomsfc(1) + 0.001_r_kind ! dominate surface type
+       data_all(28,bin2)= sfcr                      ! surface roughness
+       data_all(29,bin2)= ff10                      ! ten meter wind factor
+       data_all(30,bin2) = dlon_earth_deg           ! earth relative longitude (deg)
+       data_all(31,bin2) = dlat_earth_deg           ! earth relative latitude (deg)
+
+       if(dval_use) then
+          data_all(32,bin2)= val_tovs
+          data_all(33,bin2)= itt
+       end if
+
+       if(nst_gsi>0) then
+          data_all(maxinfo+1,bin2) = tref            ! foundation temperature
+          data_all(maxinfo+2,bin2) = dtw             ! dt_warm at zob
+          data_all(maxinfo+3,bin2) = dtc             ! dt_cool at zob
+          data_all(maxinfo+4,bin2) = tz_tr           ! d(Tz)/d(Tr)
+       endif
+
+       do i=1,nchanl
+          data_all(i+nreal,bin2)=bt_in(i)
+       end do
+       nrec(bin2)=iob
+       good=good+1
+     enddo ObsLoop3
+     score_crit(bin2) = score
+  end do BinLoop
+
+  write(6,'("read_bufrtovs: Number of obs considered and accepted " 2I10)') num_obs, good
+  deallocate(binCount)
+  deallocate(binObs)
+  deallocate(binsWithObs)
+
+
+! DEAllocate I/O arrays
+  DEALLOCATE(rsat_save)
+  DEALLOCATE(t4dv_save)
+  DEALLOCATE(dlon_earth_save)
+  DEALLOCATE(dlat_earth_save)
+  DEALLOCATE(crit1_save)
+  DEALLOCATE(it_mesh_save)
+  DEALLOCATE(lza_save)
+  DEALLOCATE(satazi_save)
+  DEALLOCATE(solzen_save)
+  DEALLOCATE(solazi_save)
+  DEALLOCATE(bt_save)
+  DEALLOCATE(panglr_save)
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
      nele,itxmax,nread,ndata,data_all,score_crit,nrec)
@@ -1090,7 +1297,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 
 ! Deallocate satthin arrays
   call destroygrids
- 
+
 ! Deallocate FOV surface code arrays and nullify pointers.
   if (isfcalc == 1) call fov_cleanup
 

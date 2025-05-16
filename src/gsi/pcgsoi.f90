@@ -159,6 +159,7 @@ subroutine pcgsoi()
   use berror, only: vprecond
   use stpjomod, only: stpjo_setup
   use intradmod, only: setrad
+  use mpi, only: mpi_in_place,mpi_real16,mpi_sum,mpi_comm_world
   
 
   implicit none
@@ -170,7 +171,7 @@ subroutine pcgsoi()
 ! Declare local variables  
   logical iout_6,restart,end_iter,llprt,llouter
   character(5) step(2)
-  integer(i_kind) i,istep,iobs,ii,nprt
+  integer(i_kind) i,istep,iobs,ii,nprt,ierr
   real(r_kind) stp,b,converge
   real(r_kind) gsave,small_step,aindex
   real(r_kind) gnormx,penx,penalty,penaltynew
@@ -355,7 +356,8 @@ subroutine pcgsoi()
            xdiff%values(i)=vprecond(i)*gradx%values(i)
         end do
         dprod(2) = qdot_prod_sub(xdiff,grady)
-        call mpl_allreduce(4,qpvals=dprod)
+        !call mpl_allreduce(4,qpvals=dprod)
+        call MPI_Allreduce(MPI_IN_PLACE, dprod, 4, MPI_REAL16, MPI_SUM, MPI_COMM_WORLD, ierr)
 !       Two dot products in dprod(3) and dprod(4) should be same, but are slightly
 !       different due to round off, so use average.
         gnorm(2)=dprod(2)-0.5_r_quad*(dprod(3)+dprod(4))
@@ -371,7 +373,8 @@ subroutine pcgsoi()
            xdiff%values(i)=vprecond(i)*gradx%values(i)
         end do
         dprod(2) = qdot_prod_sub(xdiff,grady)
-        call mpl_allreduce(2,qpvals=dprod)
+        !call mpl_allreduce(2,qpvals=dprod)
+        call MPI_Allreduce(MPI_IN_PLACE, dprod, 2, MPI_REAL16, MPI_SUM, MPI_COMM_WORLD, ierr)
         if(print_diag_pcg) call prt_control_norms(grady,'grady')
         gnorm(2)=dprod(2)
         gnorm(3)=dprod(2)

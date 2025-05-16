@@ -66,7 +66,7 @@ contains
     use gsi_4dvar, only: nhr_assimilation
     use rapidrefresh_cldsurf_mod, only: l_hydrometeor_bkio,l_gsd_soilTQ_nudge
     use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_use_2mq4b
-    use rapidrefresh_cldsurf_mod, only: i_howv_3dda, i_gust_3dda
+    use rapidrefresh_cldsurf_mod, only: i_howv_3dda, i_gust_3dda, i_vis_3dda
     use rapidrefresh_cldsurf_mod, only: i_howv_mask, i_sfcrough_fgs
     use gsi_metguess_mod, only: gsi_metguess_get
     use chemmod, only: laeroana_gocart, ppmv_conv,wrf_pm2_5
@@ -80,6 +80,7 @@ contains
     use obsmod, only   : if_model_dbz
     use gsi_io, only: verbose
     use directDA_radaruse_mod, only: l_use_dbz_directDA
+    use qcmod, only: vis_thres
   
     implicit none
   
@@ -1169,6 +1170,51 @@ contains
                'convert_netcdf_mass_wrf:: ZNT (sfc_roughness) is NOT in firstguess. Re-set i_sfcrough_fgs=',i_sfcrough_fgs
           end if
        end if ! i_sfcrough_fgs (reading surface roughness from netcdf-format background)
+
+!      Reading Visibility (VIS) in firstguess (it is dumped in sigf after TH2/HOWV/GUST/ZNT, and before cloud variables)
+       if(i_vis_3dda >= 1) then                   ! if vis is found in anavinfo
+          rmse_var='VIS'
+          call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+               start_index,end_index, WrfType, ierr    )
+          if(print_verbose)then
+             write(6,*)' rmse_var=',trim(rmse_var)
+             write(6,*)' ordering=',ordering
+             write(6,*)' WrfType,ierr=',WrfType,ierr
+             write(6,*)' ndim1=',ndim1
+             write(6,*)' staggering=',staggering
+             write(6,*)' start_index=',start_index
+             write(6,*)' end_index=',end_index
+          end if
+          if(ierr == 0) then
+             call ext_ncd_read_field(dh1,DateStr1,TRIM(rmse_var),              &
+                  field2,WRF_REAL,0,0,0,ordering,           &
+                  staggering, dimnames ,               &
+                  start_index,end_index,               & !dom
+                  start_index,end_index,               & !mem
+                  start_index,end_index,               & !pat
+                  ierr                                 )
+!---------------------------------------------------------------------------
+!            Apply threshold vis_thres to first guess of visibility
+!              put data in domain of [1.0, vis_threshold] to prepare for nonlinear transform
+!---------------------------------------------------------------------------
+             if(print_verbose)write(6,'(1x,3A,2(1x,F12.5))')'convert_netcdf_mass_wrf:: max,min of original ', &
+                trim(adjustl(rmse_var)),' = ',maxval(field2),minval(field2)
+             do j=1,nlon_regional
+                do i=1,nlat_regional   
+                     field2(j,i) = max(min(field2(j,i), vis_thres), one_single)
+                enddo
+             enddo
+             if(print_verbose)write(6,'(1x,3A,2(1x,F12.5))')'convert_netcdf_mass_wrf:: max,min of adjusted ', &
+                trim(adjustl(rmse_var)),' = ',maxval(field2),minval(field2)
+             write(iunit)field2   !VIS   (2D Visibility)
+             i_vis_3dda = 2               ! vis was found both in anavinfo and firstguess
+          else
+             i_vis_3dda = 0               ! skipping analysis of this variable
+             derr_msg='Warning: Error when get info in firstguess for var : '//trim(rmse_var)//    &
+                      ' ==> Stop GSI analysis ...  ierr='
+             call die(trim(adjustl(myname_)),trim(adjustl(derr_msg)),ierr)
+          end if
+       endif  ! i_vis_3dda (reading 2D visibility from netcdf-format background) 
 
        if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
           rmse_var='QCLOUD'
@@ -2586,6 +2632,7 @@ contains
     use rapidrefresh_cldsurf_mod, only: l_hydrometeor_bkio,l_gsd_soilTQ_nudge
     use rapidrefresh_cldsurf_mod, only: i_gsdcldanal_type
     use rapidrefresh_cldsurf_mod, only: i_howv_3dda, i_gust_3dda, i_sfcrough_fgs
+    use rapidrefresh_cldsurf_mod, only: i_vis_3dda
     use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
     use rapidrefresh_cldsurf_mod, only: i_use_2mt4b,i_use_2mq4b
     use gsi_bundlemod, only: GSI_BundleGetPointer
@@ -3211,6 +3258,34 @@ contains
        read(iunit)   field2   !ZNT (surface roughness)
        if(print_verbose)write(6,*)'update_netcdf_mass_wrf:: max,min ZNT(sfc_rough)=',maxval(field2),minval(field2)
     end if ! i_sfcrough_fgs (surface roughness)
+
+!   writing analysis of visibility (VIS) into firstguess (analysis) file
+!   (Note: in sigf file, visibility is after TH2/HOWV/GUST/ZNT, and before cloud variables.)
+    if(i_vis_3dda==2) then
+       read(iunit)   field2   !VIS (visibility)
+       rmse_var='VIS'
+       if(print_verbose)write(6,'(1x,4A,2(1x,F15.7))')                          &
+                        trim(adjustl(myname_)),'::max,min ',trim(rmse_var),'=', &
+                        maxval(field2),minval(field2)
+       call ext_ncd_get_var_info (dh1,trim(rmse_var),ndim1,ordering,staggering, &
+            start_index,end_index1, WrfType, ierr    )
+       if(print_verbose)then
+          write(6,*)' rmse_var=',trim(rmse_var)
+          write(6,*)' ordering=',ordering
+          write(6,*)' WrfType,WRF_REAL=',WrfType,WRF_REAL
+          write(6,*)' ndim1=',ndim1
+          write(6,*)' staggering=',staggering
+          write(6,*)' start_index=',start_index
+          write(6,*)' end_index1=',end_index1
+       end if
+       call ext_ncd_write_field(dh1,DateStr1,TRIM(rmse_var),              &
+            field2,WRF_REAL,0,0,0,ordering,           &
+            staggering, dimnames ,               &
+            start_index,end_index1,               & !dom
+            start_index,end_index1,               & !mem
+            start_index,end_index1,               & !pat
+            ierr                                 )
+    endif  ! i_vis_3dda (visibility)
 
     if (l_hydrometeor_bkio .and. n_actual_clouds>0) then
       do k=1,nsig_regional

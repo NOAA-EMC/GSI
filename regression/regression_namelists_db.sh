@@ -159,6 +159,9 @@ OBS_INPUT::
    ahibufr        ahi         himawari8   ahi_himawari8       0.0     1     0
    abibufr        abi         g16         abi_g16             0.0     1     0
    abibufr        abi         g17         abi_g17             0.0     1     0
+   ahibufr        ahi         himawari9   ahi_himawari9       0.0     1     0
+   abibufr        abi         g18         abi_g18             0.0     1     0
+   abibufr        abi         g19         abi_g19             0.0     1     0
    rapidscatbufr  uv          null        uv                  0.0     0     0
    ompsnpbufr     ompsnp      npp         ompsnp_npp          0.0     0     0
    ompstcbufr     ompstc8     npp         ompstc8_npp         0.0     2     0
@@ -166,6 +169,7 @@ OBS_INPUT::
    mhsbufr        mhs         metop-c     mhs_metop-c         0.0     1     1
    iasibufr       iasi        metop-c     iasi_metop-c        0.0     1     1
    ompslpbufr     ompslp      npp         ompslp_npp          0.0     1     1
+   mwsbufr        mws         metop-sg-a1 mws_metop-sg-a1     0.0     1     0
 ::
   &SUPEROB_RADAR
    $SUPERRAD
@@ -452,6 +456,7 @@ OBS_INPUT::
    lghtInGSI      lghtn       null      lghtn                1.0     0     0
    larcInGSI      larccld     null      larccld              1.0     0     0
    abibufr        abi         g18       abi_g18              0.0     2     0
+   abibufr        abi         g18       abi_g19              0.0     2     0
 ::
  &SUPEROB_RADAR
    del_azimuth=5.,del_elev=.25,del_range=5000.,del_time=.5,elev_angle_max=5.,minnum=50,range_max=100000., l2superob_only=.false.,
