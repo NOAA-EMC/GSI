@@ -192,7 +192,7 @@ subroutine intall(sval,sbias,rval,rbias)
   use gsi_bundlemod, only: gsi_bundle
   use gsi_bundlemod, only: assignment(=)
   use guess_grids, only: ntguessig,nfldsig
-  use mpi, only: mpi_in_place,mpi_real16,mpi_sum,mpi_comm_world
+  use mpl_allreducemod, only: mpl_allreduce
 
   implicit none
 
@@ -205,7 +205,7 @@ subroutine intall(sval,sbias,rval,rbias)
   real(r_quad),dimension(2*nobs_bins) :: mass
 
 ! Declare local variables
-  integer(i_kind) :: ibin,ii,it,i,ierr
+  integer(i_kind) :: ibin,ii,it,i
 
 !******************************************************************************
 ! Initialize timer
@@ -292,13 +292,13 @@ subroutine intall(sval,sbias,rval,rbias)
 
 !   Put reduces together to minimize wait time
 !   First, use MPI to get global mean increment
-    call MPI_Allreduce(mpi_in_place, mass, 2*nobs_bins, mpi_real16, mpi_sum, mpi_comm_world, ierr)
+    call mpl_allreduce(2*nobs_bins,qpvals=mass)
 
   end if
 
 ! Sum over all processors for bias correction terms
 
-  call MPI_Allreduce(mpi_in_place, qpred, nrclen, mpi_real16, mpi_sum, mpi_comm_world, ierr)
+  call mpl_allreduce(nrclen,qpvals=qpred)
 
 
 ! RHS for dry ps constraint: part 2
