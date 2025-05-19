@@ -154,6 +154,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2024-01-11  zhao    - added code to extract sensible temp (tdry) and tv flag
 !                         for moisture obs(qob) when running (2D/3D)RTMA
 !   2025-05-12  collard - Logic to reset ship surface pressure to SLP when height is zero.
+!   2025-05-19  collard - Saildrone subtype introduced in GSI (not in prepobs) kx=180,280 subtype=02
+!                         (copied from release/gfsda.v16)
 
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -791,6 +793,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
           else
             iobsub=01
           endif
+          ! Set saildrone to subtype 02
+          if (nint(hdr(3)) == 560) iobsub = 02
         endif
 ! Su suggested to keep both 289 and 290.  But trunk only keep 290
 !       if(kx == 289 .or. kx == 290) iobsub=hdr(2)
