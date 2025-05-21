@@ -87,7 +87,7 @@ subroutine gsd_terrain_match_surfTobs(mype,nreal,ndata,cdata_all)
      iqtflg=nint(cdata_all(9,iobsout)) == 0
 
 !here starts surface data correction   DEDE 28 April 2009
-     if(kx==181.or.kx==187.or.kx==188) then
+     if(kx==181.or.kx==187) then
         toe     = cdata_all(1,iobsout)
         dlon    = cdata_all(2,iobsout)
         dlat    = cdata_all(3,iobsout)

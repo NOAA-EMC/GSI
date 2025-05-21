@@ -1832,11 +1832,10 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  qm=sstq
               else if(gustob) then
                  gustqm=0
-                 if (i_gsdsfc_uselist==0) then
-                   !if (kx==188 .or. kx==288 .or. kx==195 .or. kx==295 ) &
+                 if ( i_gsdsfc_uselist/=1 .and. i_gsdsfc_uselist/=2 .and. .not.l_rtma3d)  then
+                    if (kx==188 .or. kx==288 .or. kx==195 .or. kx==295 ) &
                     call get_gustqm(kx,c_station_id,c_prvstg,c_sprvstg,gustqm)
                  endif
-                 if ( l_rtma3d ) gustqm = 0  ! skipping get_gustqm for 3drtma run (missing list file)
                  qm=gustqm
               else if(visob) then
                  visqm=0    ! need to fix this later
@@ -2062,7 +2061,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                     if (kx==188 .or. kx==195 .or. kx==288.or.kx==295) then
                        call apply_sfcuselist(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
                                                dlon_earth,dlat_earth,usage)
-                       if (gustob .and. usage>=r6) gustqm=r10
+                       if (gustob .and. usage>=r6) then ; gustqm=r10 ; qm=gustqm ; endif
                     endif
                  else
                     call get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
@@ -2070,7 +2069,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                                             obsdat(5,k),obsdat(6,k),usage)
                  endif
 
-                 if ((l_rtma3d .or. twodvar_regional) .and. (i_gsdsfc_uselist==1.or.i_gsdsfc_uselist==2)) then
+                 if ((l_rtma3d .or. twodvar_regional) .and. i_gsdsfc_uselist/=1) then
                     call tll2xy(dlon_earth,dlat_earth,x_obs,y_obs,outside_obs)
                     if ((trim(obstype)=='t' .or. trim(obstype)=='q') .and. .not.outside_obs) then
                        call valley_adjustment(x_obs,y_obs,usage)

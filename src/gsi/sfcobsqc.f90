@@ -988,7 +988,6 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
 
   use constants, only: zero_single
   use gridmod, only: twodvar_regional,tll2xy
-  use ndfdgrids, only: valley_adjustment
 
   implicit none
 
@@ -1235,9 +1234,7 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
             do m=1,nwbaccpts(ibin)
               ch8(1:8)=csta_windbin(m,ibin)(1:8)
               nlen=len_trim(ch8)
-              nlen2=0
-              do k=1,8 ; if (c_station_id(k:k)==cblank) exit ; nlen2=nlen2+1 ; enddo
-              if (nlen==nlen2 .and. c_station_id(1:nlen)==ch8(1:nlen)) then
+              if (c_station_id(1:nlen)==ch8(1:nlen)) then
                 usage_rj=usage_rj0
                 exit
               endif
@@ -1279,11 +1276,6 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
         enddo
      endif
   end if
-
-  if (twodvar_regional) then
-     call tll2xy(dlon,dlat,xob,yob,outside)
-     if ((obstype=='t' .or. obstype=='q') .and. .not.outside) call valley_adjustment(xob,yob,usage_rj)
-  endif
 end subroutine get_usagerj
 
 
