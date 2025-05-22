@@ -71,7 +71,6 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
   real(r_kind),parameter:: emerr= 0.2_r_kind
 
 ! Declare local variables
-  character(8) c_station_id
   character(8) :: subset
   character(80) :: hdstr, obstr
 
@@ -111,15 +110,8 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
   real(r_double),dimension(8,1):: hdr
   real(r_double),dimension(5,1):: obsdat
 
-!  equivalence to handle character names
-  !equivalence(r_prvstg(1,1),c_prvstg)
-  !equivalence(r_sprvstg(1,1),c_sprvstg)
-  equivalence(rstation_id,c_station_id)
-  !equivalence(rstation_id,sidchr)
-
 ! data statements
   data hdstr  /'YEAR MNTH DAYS HOUR MINU CLATH CLONH LSTN'/
-  !data obstr  /'PRLC HGHT TMDB REHU SPFH WDIR WSPD' /
   data obstr  /'PMSL TMDB TMDP WDIR WSPD'/ ! Saildrone does not have Pressure 
                                            ! (but PMSL) and only dew point for humidity
 

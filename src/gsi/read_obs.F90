@@ -1486,7 +1486,6 @@ subroutine read_obs(ndata,mype)
                          nobs_sub1(1,i),read_rec(i))
                     string='READ_SAILDRONE'
                 else
-                       write(*,*) 'Reading Prepbufr ',infile
                    call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                         prsl_full,nobs_sub1(1,i),read_rec(i))
                    string='READ_PREPBUFR'
