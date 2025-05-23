@@ -108,7 +108,6 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
 ! data statements
   data hdstr  /'YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH LSTN'/
   data obstr  /'PRLC HGHT TMDB REHU SPFH WDIR WSPD' /
-  !data levstr  /'PRLC'/   !!!!! Check
 
   data lunin / 13 /
 
