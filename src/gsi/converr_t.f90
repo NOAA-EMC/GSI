@@ -66,6 +66,7 @@ contains
 !                          Remove the original calculation to get error table
 !                          array index. ld=300 is sufficient for current conventional
 !                          observing systems.
+!   2025-4-17   collard -- Increase ld to 500
 !
 !   input argument list:
 !
@@ -78,7 +79,7 @@ contains
 !$$$ end documentation block
      use constants, only: half
      implicit none
-     integer(i_kind),    parameter :: ld=300  ! max number of convent. observing systems
+     integer(i_kind),    parameter :: ld=500  ! max number of convent. observing systems
      integer(i_kind),intent(in   ) :: mype
      integer(i_kind):: ier
 

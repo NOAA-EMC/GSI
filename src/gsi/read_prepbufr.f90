@@ -153,6 +153,9 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !                         in prepbufr file for 3D analysis
 !   2024-01-11  zhao    - added code to extract sensible temp (tdry) and tv flag
 !                         for moisture obs(qob) when running (2D/3D)RTMA
+!   2025-05-12  collard - Logic to reset ship surface pressure to SLP when height is zero.
+!   2025-05-19  collard - Saildrone subtype introduced in GSI (not in prepobs) kx=180,280 subtype=02
+!                         (copied from release/gfsda.v16)
 
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -177,7 +180,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   use kinds, only: r_single,r_kind,r_double,i_kind
   use constants, only: zero,one_tenth,one,deg2rad,fv,t0c,half,&
       three,four,rad2deg,tiny_r_kind,huge_r_kind,huge_i_kind,&
-      r60inv,r10,r100,r2000
+      r60inv,r10,r100,r1000,r2000
   use constants,only: rearth,stndrd_atmos_ps,rd,grav
   use gridmod, only: diagnostic_reg,regional,nlon,nlat,nsig,&
       tll2xy,txy2ll,rotate_wind_ll2xy,rotate_wind_xy2ll,&
@@ -790,6 +793,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
           else
             iobsub=01
           endif
+          ! Set saildrone to subtype 02
+          if (nint(hdr(3)) == 560) iobsub = 02
         endif
 ! Su suggested to keep both 289 and 290.  But trunk only keep 290
 !       if(kx == 289 .or. kx == 290) iobsub=hdr(2)
@@ -2244,14 +2249,19 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                        call accum_hilbertcurve(usage,c_station_id,c_prvstg,c_sprvstg, &
                        dlat_earth,dlon_earth,dlat,dlon,t4dv,toff,nc,kx,iout)
 
+!             If a ship pressure observation with a zero height, reset pressure to sea level pressure
+!             Meta Sienkiewicz has discovered that when measured pressure and sea-level pressure 
+!             disagree when the height is zero, it usually means the height is not being properly reported.
+              if (psob .and. kx==180 .and. abs(obsdat(4,k))<tiny_r_kind .and. &
+                      abs(obsdat(13,k)-r1000)<200_r_kind) plevs(k) = obsdat(13,k)*one_tenth
 
 !             Extract pressure level and quality marks
               dlnpob=log(plevs(k))  ! ln(pressure in cb)
 
- 
-               if(qm >= 8 .or. usage >= 100.0_r_kind)then
-                  rusage(iout)=.false.
-               end if
+              if(qm >= 8 .or. usage >= 100.0_r_kind)then
+                 rusage(iout)=.false.
+              end if
+              
 !             Temperature
               if(tob) then
                  ppb=obsdat(1,k)
@@ -2397,7 +2407,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !             Surface pressure 
               else if(psob) then
 
-                 poe=obserr(1,k)*one_tenth                  ! convert from mb to cb
+                 poe=obserr(1,k)*one_tenth                 ! convert from mb to cb
                  if (inflate_error) poe=poe*r1_2
                  cdata_all(1,iout)=poe                     ! surface pressure error (cb)
                  cdata_all(2,iout)=dlon                    ! grid relative longitude
