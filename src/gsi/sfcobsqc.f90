@@ -1298,26 +1298,28 @@ subroutine get_gustqm(kx,c_station_id,c_prvstg,c_sprvstg,gustqm)
   integer(i_kind) m
   character(8)  ch8
 
-  if (kx==188 .or. kx==288 .or. kx==195 .or. kx==295 ) gustqm=9
-  if (listexist) then
-     do m=1,nprov
-        if (cprovider(m)(1:7)=='allprvs' .or. &
-           (c_prvstg(1:8) == cprovider(m)(1:8) .and. (c_sprvstg(1:8) == cprovider(m)(9:16)  &
-                                               .or. cprovider(m)(9:16) == 'allsprvs')) ) then
-           gustqm=0
-           exit
-         endif
-     enddo
+  if (kx==188 .or. kx==288 .or. kx==195 .or. kx==295 ) then
+    gustqm=9
+    if (listexist) then
+       do m=1,nprov
+          if (cprovider(m)(1:7)=='allprvs' .or. &
+             (c_prvstg(1:8) == cprovider(m)(1:8) .and. (c_sprvstg(1:8) == cprovider(m)(9:16)  &
+                                                 .or. cprovider(m)(9:16) == 'allsprvs')) ) then
+             gustqm=0
+             exit
+           endif
+       enddo
+    endif
+    if (listexist2) then
+       do m=1,nsta_mesowind_use
+          if (c_station_id(1:5) == csta_winduse(m)(1:5)) then
+             gustqm=0
+             exit
+           endif
+       enddo
+    endif
   endif
-  if (listexist2) then
-     do m=1,nsta_mesowind_use
-        if (c_station_id(1:5) == csta_winduse(m)(1:5)) then
-           gustqm=0
-           exit
-         endif
-     enddo
-  endif
-
+  
   if(wlistexist ) then
      do m=1,nwrjs
         ch8(1:8)=w_rjlist(m)(1:8)
