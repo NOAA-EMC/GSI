@@ -1832,8 +1832,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  qm=sstq
               else if(gustob) then
                  gustqm=0
-                 if ( i_gsdsfc_uselist/=1 .and. i_gsdsfc_uselist/=2 .and. .not.l_rtma3d)  then
-                    if (kx==188 .or. kx==288 .or. kx==195 .or. kx==295 ) &
+                 if (i_gsdsfc_uselist/=2 ) &
                     call get_gustqm(kx,c_station_id,c_prvstg,c_sprvstg,gustqm)
                  endif
                  qm=gustqm
@@ -2069,7 +2068,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                                             obsdat(5,k),obsdat(6,k),usage)
                  endif
 
-                 if ((l_rtma3d .or. twodvar_regional) .and. i_gsdsfc_uselist/=1) then
+                 if (l_rtma3d .or. twodvar_regional) then
                     call tll2xy(dlon_earth,dlat_earth,x_obs,y_obs,outside_obs)
                     if ((trim(obstype)=='t' .or. trim(obstype)=='q') .and. .not.outside_obs) then
                        call valley_adjustment(x_obs,y_obs,usage)
