@@ -62,7 +62,6 @@ subroutine combine_radobs(mype_sub,mype_root,&
   real(r_kind),allocatable,dimension(:):: data_crit_min
   real(r_kind),allocatable,dimension(:,:):: data_all_in
   integer(i_kind),allocatable,dimension(:):: icrit_min,icrit,nloc
-  integer(i_kind):: i,j
 
   ndata=0
   if(npe_sub > 1)then

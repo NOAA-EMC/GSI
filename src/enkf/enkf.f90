@@ -192,7 +192,6 @@ integer(i_kind) nanal,nn,nnn,nobm,nsame,nn1,nn2,oz_ind,nlev,dbz_ind
 real(r_single),dimension(nlevs_pres):: taperv
 logical lastiter, kdgrid, kdobs
 real(r_single) :: meanval
-integer(i_kind):: j
 
 ! allocate temporary arrays.
 allocate(anal_obchunk(nanals,nobs_max))
