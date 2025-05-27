@@ -1833,8 +1833,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
               else if(gustob) then
                  gustqm=0
                  if (i_gsdsfc_uselist/=2 ) &
-                    call get_gustqm(kx,c_station_id,c_prvstg,c_sprvstg,gustqm)
-                 endif
+                 call get_gustqm(kx,c_station_id,c_prvstg,c_sprvstg,gustqm)
                  qm=gustqm
               else if(visob) then
                  visqm=0    ! need to fix this later
