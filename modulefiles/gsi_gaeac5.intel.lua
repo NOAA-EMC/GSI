@@ -17,7 +17,7 @@ load(pathJoin("cmake", cmake_ver))
 load("gsi_common")
 load(pathJoin("prod_util", prod_util_ver))
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/gpfs/f5/ufs-ard/world-shared/GSI_data/fix/gsi/20250529")
+pushenv("GSI_BINARY_SOURCE_DIR", "/gpfs/f5/nggps_emc/world-shared/role.glopara/fix/gsi/20250529")
 
 setenv("CC","cc")
 setenv("FC","ftn")
