@@ -761,8 +761,8 @@ if(r_kind == kind(1.d0)) then ! double precision
    call dsyevr('V','A','L',nanals,work3,nanals,vl,vu,1,nanals,-1.d0,o_nanals,evals,evecs, &
                nanals,isuppz,work1,lwork,iwork,liwork,ierr)
 ! use LAPACK dsyevd instead of dsyevr
-!!   evecs = work3
-!!   call dsyevd('V','L',nanals,evecs,nanals,evals,work1,lwork,iwork,liwork,ierr)
+   !evecs = work3
+   !call dsyevd('V','L',nanals,evecs,nanals,evals,work1,lwork,iwork,liwork,ierr)
 else ! single precision
    call sgemm('n','t',nanals,nanals,nobsl,1.e0,hxens,nanals, &
                hxens,nanals,0.e0,work3,nanals)
