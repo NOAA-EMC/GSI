@@ -20,6 +20,6 @@ load("gsi_common")
 load(pathJoin("prod_util", prod_util_ver))
 load(pathJoin("openblas", openblas_ver))
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/scratch1/NCEPDEV/global/glopara/fix/gsi/20241022")
+pushenv("GSI_BINARY_SOURCE_DIR", "/scratch1/NCEPDEV/global/glopara/fix/gsi/20250529")
 
 whatis("Description: GSI environment on Hera with GNU Compilers")

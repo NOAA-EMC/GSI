@@ -20,7 +20,7 @@ local sfcio_ver=os.getenv("sfcio_ver") or "1.4.1"
 local nemsio_ver=os.getenv("nemsio_ver") or "2.5.4"
 local wrf_io_ver=os.getenv("wrf_io_ver") or "1.2.0"
 local ncio_ver=os.getenv("ncio_ver") or "1.1.2"
-local crtm_ver=os.getenv("crtm_ver") or "2.4.0.1"
+local crtm_ver=os.getenv("crtm_ver") or "2.4.0.2"
 local ncdiag_ver=os.getenv("ncdiag_ver") or "1.1.1"
 
 load(pathJoin("PrgEnv-intel", PrgEnv_intel_ver))
@@ -49,6 +49,6 @@ load(pathJoin("ncdiag",ncdiag_ver))
 append_path("MODULEPATH", "/lfs/h1/emc/nceplibs/noscrub/hpc-stack/libs/hpc-stack/modulefiles/compiler/intel/19.1.3.304")
 load(pathJoin("crtm", crtm_ver))
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/gsi/20241022")
+pushenv("GSI_BINARY_SOURCE_DIR", "/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/gsi/20250529")
 
 whatis("Description: GSI environment on WCOSS2 Acorn")
