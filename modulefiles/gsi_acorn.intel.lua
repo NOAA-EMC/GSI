@@ -34,7 +34,7 @@ load(pathJoin("python", python_ver))
 load(pathJoin("prod_util", prod_util_ver))
 
 load(pathJoin("netcdf", netcdf_ver))
---load(pathJoin("bufr", bufr_ver))
+load(pathJoin("bufr", bufr_ver))
 load(pathJoin("bacio", bacio_ver))
 load(pathJoin("w3emc", w3emc_ver))
 load(pathJoin("sp", sp_ver))
@@ -49,13 +49,6 @@ load(pathJoin("ncdiag",ncdiag_ver))
 -- Lastly, load CRTM from the EMC location
 append_path("MODULEPATH", "/lfs/h1/emc/nceplibs/noscrub/hpc-stack/libs/hpc-stack/modulefiles/compiler/intel/19.1.3.304")
 load(pathJoin("crtm", crtm_ver))
-
--- bufr/12.1.0 is installed on Acorn, but no modulefile
-setenv("bufr_ROOT","/apps/ops/prod/libs/intel/19.1.3.304/bufr/12.1.0")
-setenv("bufr_VERSION","12.1.0")
-setenv("BUFR_INC4","/apps/ops/prod/libs/intel/19.1.3.304/bufr/12.1.0/include/bufr_4")
-setenv("BUFR_LIB4","/apps/ops/prod/libs/intel/19.1.3.304/bufr/12.1.0/lib64/libbufr_4.a")
-prepend_path("PATH","/apps/ops/prod/libs/intel/19.1.3.304/bufr/12.1.0/bin")
 
 pushenv("GSI_BINARY_SOURCE_DIR", "/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/gsi/20241022")
 
