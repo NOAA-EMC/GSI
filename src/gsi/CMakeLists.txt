@@ -30,7 +30,6 @@ option(OPENMP "Enable OpenMP Threading" OFF)
 option(ENABLE_MKL "Use MKL for LAPACK implementation (if available)" ON)
 option(USE_GSDCLOUD "Use GSD Cloud Analysis library" OFF)
 option(USE_MGBF "Use MGBF library" ON)
-option(USE_BUFR12 "Use BUFR12 library" OFF)
 
 set(GSI_VALID_MODES "GFS" "Regional")
 set(GSI_MODE "GFS" CACHE STRING "Choose the GSI Application.")
@@ -47,7 +46,6 @@ message(STATUS "GSI: ENABLE_MKL ............. ${ENABLE_MKL}")
 message(STATUS "GSI: USE_GSDCLOUD ........... ${USE_GSDCLOUD}")
 message(STATUS "GSI: USE_MGBF ............... ${USE_MGBF}")
 message(STATUS "GSI: GSI_MODE ............... ${GSI_MODE}")
-message(STATUS "GSI: USE_BUFR12 ............. ${USE_BUFR12}")
 
 # Dependencies
 if(ENABLE_MKL)
@@ -132,9 +130,6 @@ if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
 endif()
 if(USE_GSDCLOUD)
   list(APPEND GSI_Fortran_defs RR_CLOUDANALYSIS)
-endif()
-if(USE_BUFR12)
-  list(APPEND GSI_Fortran_defs BUFR12)
 endif()
 
 # Create a library of GSI C sources

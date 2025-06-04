@@ -21,7 +21,7 @@ module oneobmod
 !                       table. Added oneobmakebufr and invtllv subroutines to make
 !                       the radial wind superobs. Added nml options for a
 !                       "single radar" observation test (all obs from one
-!                       radar). 
+!                       radar).
 !   2016-12-14  lippi - added nml option learthrel_rw to not rotate the winds
 !                       from lat lon to xy.
 !
@@ -30,14 +30,14 @@ module oneobmod
 !   sub oneobmakebufr
 !   sub oneobmakerwsupob
 !   sub oneobo3lv
-!   sub invtllv   
+!   sub invtllv
 !
 ! variable definitions:
 !   def maginnov   - magnitude of innovation for one ob exp
 !   def magoberr   - magnitude of observational error for one ob exp
 !   def oblat      - observation latitude for one ob exp
 !   def oblon      - observation longitude for one ob exp
-!   def obhourset  - observation delta time from analysis time for 
+!   def obhourset  - observation delta time from analysis time for
 !                    one ob exp
 !   def obpres     - observation pressure (hPa) or one ob exp
 !   def obdattim   - observation date for one ob exp
@@ -141,7 +141,7 @@ contains
 ! program history log:
 !   2003-10-20  kleist
 !   2004-05-13  kleist  documentation
-!   2006-04-06  middlecoff - changed lumk from 52 to lendian_in so one-obs prepqc 
+!   2006-04-06  middlecoff - changed lumk from 52 to lendian_in so one-obs prepqc
 !                            file can be read as little endian
 !   2014-08-04  carley - modify for tcamt and howv obs
 !   2014-08-18  carley - added td2m, mxtm, mitm, pmsl, and wsdp10m
@@ -173,11 +173,7 @@ contains
     real(r_kind),dimension(1,1):: poe,qoe,toe,woe
     real(r_kind),dimension(1):: xob,yob,dhr
     real(r_kind),dimension(1,1):: pob
-#ifdef BUFR12    
     integer(i_kind) vtcd
-#else
-    real(r_double) vtcd
-#endif
     integer(i_kind) n,k,iret
     real(r_kind) hdr(10),obs(13,255),qms(10,255),err(10,255),cld2seq(2,1), &
                  cldseq(3,10),owave(1,255),maxtmint(2,255),cldceilh(1,255),&
@@ -234,7 +230,7 @@ contains
        subset='ADPSFC'
        typ(1)=87._r_kind
        cat(1,1)=zero
-       cld2seq(1,1)=25._r_kind !TOCC - total cloud amount (%)       
+       cld2seq(1,1)=25._r_kind !TOCC - total cloud amount (%)
     else if (oneob_type=='howv') then
        subset='SFCSHP'
        typ(1)=80._r_kind
@@ -332,7 +328,7 @@ contains
          call ufbint(lendian_in,owave,1,nlev,iret,owavestr)
        else if ( oneob_type=='mxtm' .or. oneob_type=='mitm') then
          call ufbint(lendian_in,maxtmint,2,nlev,iret,maxtmintstr)
-       end if                              
+       end if
        call writsb(lendian_in)
        hdr(1)=transfer(sid(n),hdr(1))
        hdr(2)=xob(n)
@@ -361,7 +357,7 @@ contains
        call writsb(lendian_in)
     enddo
     call closbf(lendian_in)
- 
+
     oneobmade=.true.
 
     return
@@ -372,8 +368,8 @@ contains
     use kinds, only: r_kind,i_kind
     use constants, only: zero,half,one,two,zero_quad,one_quad
 
-    implicit none    
-    
+    implicit none
+
     character(4) :: this_staid,isstn
 
     real(r_kind),parameter:: four_thirds = 4.0_r_kind / 3.0_r_kind
@@ -487,7 +483,7 @@ contains
     corrected_azimuth=anaz_rw
     corrected_tilt=anel_rw
     thishgt=range_rw
-     
+
 
     write(6,*) 'Single radial wind observation.'
     write(6,*) '*******************************************'
@@ -549,7 +545,7 @@ contains
     lumk = 22
     ilev = 1               ! ilev > 24 is passive
     isnd = 1
-    ppmv = one                ! dummy value 
+    ppmv = one                ! dummy value
 
 !    obdattim=2000010100
 
@@ -567,7 +563,7 @@ contains
 
     rsec = jldat(7)+jldat(8)*1.e-3_r_kind
 
-! open data file for output.  for oneobtype gsimain sets the dfile(1) 
+! open data file for output.  for oneobtype gsimain sets the dfile(1)
 ! to be prepqc
     open(unit=lumk,file='prepqc',form='formatted')
 
