@@ -517,7 +517,7 @@ subroutine sptranf_v(waved,wavez,gridun,gridus,gridvn,gridvs,idir)
 
 ! Declare local variables
   integer(i_kind) i,j,jj,ijn,ijs
-  integer(i_kind),dimension(2):: mp
+  integer(i_kind) :: mp
   real(8) wavedtmp(nc),waveztmp(nc)
   real(8),dimension(ncd2*2,2):: w
   real(8),dimension(2*(jcap+1),2):: wtop
