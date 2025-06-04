@@ -194,7 +194,7 @@ contains
     sp%je=(sp%jmax+1)/2
 
 ! Allocate dummy_w and dummy_g arrays for spffte (unused, but required by spffte)
-    allocate(dummy_w((sp%imax+2)/2,2), dummy_g(sp^imax,2))
+    allocate(dummy_w((sp%imax+2)/2,2), dummy_g(sp%imax,2))
     dummy_w=zero
     dummy_g=zero
 
@@ -255,7 +255,7 @@ contains
       allocate( sp%plntop(sp%jcap+1,sp%jb:sp%je) )
       do j=sp%jb,sp%je
         call splegend(sp%iromb,sp%jcap,sp%slat(j),sp%clat(j),sp%eps, &
-          sp%epstop,sp%pln(1,j),sp%plntop(1,j))
+          sp%epstop,sp%pln(1,j:j),sp%plntop(1,j:j))
       end do
     else
       sp%precalc_pln=.false.
@@ -309,8 +309,8 @@ contains
     enddo
 
     sp%lallocated=.true.
-    if allocated(dummy_w) deallocate(dummy_w)
-    if allocated(dummy_g) deallocate(dummy_g)
+    if(allocated(dummy_w)) deallocate(dummy_w)
+    if(allocated(dummy_g)) deallocate(dummy_g)
 
     return
   end subroutine general_init_spec_vars
