@@ -16,9 +16,9 @@ subroutine general_sptez_s(sp,wave,grid,idir)
 !           subprogram can be called from a multiprocessing environment.
 !
 !           This routine differs from splib routine sptez in that
-!              1) the calling list only contains the in/out arrays and 
+!              1) the calling list only contains the in/out arrays and
 !                 flag for the direction in which to transform
-!              2) it calls a version of sptranf that does not invoke 
+!              2) it calls a version of sptranf that does not invoke
 !                 initialization routines on each entry
 !              3) some generality built into the splib version is
 !                 removed in the code below
@@ -63,6 +63,7 @@ subroutine general_sptez_s(sp,wave,grid,idir)
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use general_specmod, only: spec_vars
+  use sp_mod, only: spffte,spsynth,spanaly,splegend
   implicit none
 
 ! Declare passed variables
@@ -142,9 +143,9 @@ subroutine general_sptranf_s(sp_a,wave,grid,idir)
 !
 ! subprograms called:
 !   sptranf1     sptranf spectral transform
-!   
-! remarks: 
-!   This routine assumes that splib routine sptranf0 has been 
+!
+! remarks:
+!   This routine assumes that splib routine sptranf0 has been
 !   previously called.  sptranf0 initializes arrays needed in
 !   the transforms.
 !
@@ -190,16 +191,16 @@ subroutine general_sptranf_s(sp_a,wave,grid,idir)
   end do
 
 ! Transform wave to grid
-!  ***NOTE***    
+!  ***NOTE***
 !     The FFT used in the transform below has been generalized to
-!     allow for projection of spectral coefficients onto double 
-!     the desired number of longitudinal grid points.  This 
-!     approach is needed when transforming high wavenumber spectral 
-!     coefficients to a coarser resoultion grid.  For example, using 
-!     splib to directly transform T878 spectral coefficients to an 
+!     allow for projection of spectral coefficients onto double
+!     the desired number of longitudinal grid points.  This
+!     approach is needed when transforming high wavenumber spectral
+!     coefficients to a coarser resoultion grid.  For example, using
+!     splib to directly transform T878 spectral coefficients to an
 !     1152 x 576 grid does not use Fourier modes above wavenumber 576.
-!     Joe Sela insightfully suggested doubling the number of points 
-!     in the FFT and using every other point in the output grid.   
+!     Joe Sela insightfully suggested doubling the number of points
+!     in the FFT and using every other point in the output grid.
 !     Mark Iredell coded up Joe's idea below.
 
   tmpafft(:)=sp_a%afft(:)
@@ -231,8 +232,8 @@ subroutine general_sptranf_s(sp_a,wave,grid,idir)
 !     high spectral representation fields to coarse physical space
 !     grids. The code below should not be used to transform coarse
 !     resolution grids to high spectral representation.   Since this
-!     functionality is not yet needed in the GSI, the prudent action 
-!     to take here is to print an ERROR message and terminate program 
+!     functionality is not yet needed in the GSI, the prudent action
+!     to take here is to print an ERROR message and terminate program
 !     execution if such a transform is requested.
 
   else
@@ -309,9 +310,9 @@ subroutine general_sptranf_s_b(sp_a,sp_b,wave,grid,idir)
 !
 ! subprograms called:
 !   sptranf1     sptranf spectral transform
-!   
-! remarks: 
-!   This routine assumes that splib routine sptranf0 has been 
+!
+! remarks:
+!   This routine assumes that splib routine sptranf0 has been
 !   previously called.  sptranf0 initializes arrays needed in
 !   the transforms.
 !
@@ -363,16 +364,16 @@ subroutine general_sptranf_s_b(sp_a,sp_b,wave,grid,idir)
   imaxp2=sp_b%imax+2
 
 ! Transform wave to grid
-!  ***NOTE***    
+!  ***NOTE***
 !     The FFT used in the transform below has been generalized to
-!     allow for projection of spectral coefficients onto double 
-!     the desired number of longitudinal grid points.  This 
-!     approach is needed when transforming high wavenumber spectral 
-!     coefficients to a coarser resoultion grid.  For example, using 
-!     splib to directly transform T878 spectral coefficients to an 
+!     allow for projection of spectral coefficients onto double
+!     the desired number of longitudinal grid points.  This
+!     approach is needed when transforming high wavenumber spectral
+!     coefficients to a coarser resoultion grid.  For example, using
+!     splib to directly transform T878 spectral coefficients to an
 !     1152 x 576 grid does not use Fourier modes above wavenumber 576.
-!     Joe Sela insightfully suggested doubling the number of points 
-!     in the FFT and using every other point in the output grid.   
+!     Joe Sela insightfully suggested doubling the number of points
+!     in the FFT and using every other point in the output grid.
 !     Mark Iredell coded up Joe's idea below.
 
   if(idir>0) then
@@ -428,8 +429,8 @@ subroutine general_sptranf_s_b(sp_a,sp_b,wave,grid,idir)
 !     high spectral representation fields to coarse physical space
 !     grids. The code below should not be used to transform coarse
 !     resolution grids to high spectral representation.   Since this
-!     functionality is not yet needed in the GSI, the prudent action 
-!     to take here is to print an ERROR message and terminate program 
+!     functionality is not yet needed in the GSI, the prudent action
+!     to take here is to print an ERROR message and terminate program
 !     execution if such a transform is requested.
 
   else
@@ -516,7 +517,7 @@ subroutine general_sptez_v(sp,waved,wavez,gridu,gridv,idir)
 !   1996-02-29  iredell
 !   2004-08-23  treadon - adapt splib routine sptezv for gsi use
 !   2007-04-25  errico  - replace use of duplicate arguments in sptranf_v
-!   2008-04-03  safford - rm unused vars 
+!   2008-04-03  safford - rm unused vars
 !   2010-02-18  parrish - copy to general_sptez_v, and pass specmod vars through
 !                          input variable sp of type(spec_vars)
 !
@@ -649,7 +650,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
 !   spdz2uv      compute winds from divergence and vorticity
 !   spuv2dz      compute divergence and vorticity from winds
 !
-! remarks: 
+! remarks:
 !   This routine assumes that splib routine sptranf0 has been
 !   previously called.  sptranf0 initializes arrays needed in
 !   the transforms.
@@ -945,7 +946,7 @@ subroutine general_sptranf_v_u(sp_a,sp_b,waved,wavez,gridu,gridv)
 !   spdz2uv      compute winds from divergence and vorticity
 !   spuv2dz      compute divergence and vorticity from winds
 !
-! remarks: 
+! remarks:
 !   This routine assumes that splib routine sptranf0 has been
 !   previously called.  sptranf0 initializes arrays needed in
 !   the transforms.
@@ -1145,7 +1146,7 @@ subroutine general_sptranf_v_v(sp_a,sp_b,waved,wavez,gridu,gridv)
 !   spdz2uv      compute winds from divergence and vorticity
 !   spuv2dz      compute divergence and vorticity from winds
 !
-! remarks: 
+! remarks:
 !   This routine assumes that splib routine sptranf0 has been
 !   previously called.  sptranf0 initializes arrays needed in
 !   the transforms.
@@ -1311,9 +1312,9 @@ subroutine general_sptez_s_b(sp_a,sp_b,wave,grid,idir)
 !           subprogram can be called from a multiprocessing environment.
 !
 !           This routine differs from splib routine sptez in that
-!              1) the calling list only contains the in/out arrays and 
+!              1) the calling list only contains the in/out arrays and
 !                 flag for the direction in which to transform
-!              2) it calls a version of sptranf that does not invoke 
+!              2) it calls a version of sptranf that does not invoke
 !                 initialization routines on each entry
 !              3) some generality built into the splib version is
 !                 removed in the code below
@@ -1415,7 +1416,7 @@ subroutine general_sptez_v_b(sp_a,sp_b,waved,wavez,gridu,gridv,idir,iuvflag)
 !   1996-02-29  iredell
 !   2004-08-23  treadon - adapt splib routine sptezv for gsi use
 !   2007-04-25  errico  - replace use of duplicate arguments in sptranf_v
-!   2008-04-03  safford - rm unused vars 
+!   2008-04-03  safford - rm unused vars
 !   2010-02-18  parrish - copy to general_sptez_v, and pass specmod vars through
 !                          input variable sp of type(spec_vars)
 !
@@ -1493,7 +1494,7 @@ subroutine general_sptez_v_b(sp_a,sp_b,waved,wavez,gridu,gridv,idir,iuvflag)
      if(iuvflag > 0)then
 !      Call spectral <--> grid transform u only (and polar v)
        call general_sptranf_v_u(sp_a,sp_b,waved,wavez,gridu,gridv)
-     else 
+     else
 !      Call spectral <--> grid transform v only (and polar u)
        call general_sptranf_v_v(sp_a,sp_b,waved,wavez,gridu,gridv)
      end if
