@@ -1147,6 +1147,7 @@ contains
 !$$$ end documentation block
     use kinds, only: i_kind,r_kind
     use clw_mod, only: ret_amsua
+    use clw_mod, only: retrieval_amsr2
     implicit none
 
     integer(i_kind)                   ,intent(in   ) :: nchanl
@@ -1160,19 +1161,30 @@ contains
 
     integer(i_kind) :: i
     real(r_kind),dimension(nchanl) :: cclr
+    integer(i_kind) ::  kraintype_guess_retrieval
 
     do i=1,nchanl
        cclr(i)=radmod%cclr(i)
     end do
+    if( trim(radmod%rtype) == 'amsr2') then
+       call retrieval_amsr2(tsim_bc,nchanl,clw_guess_retrieval,kraintype_guess_retrieval,ierrret)
+       clw_guess_retrieval = max(zero,clw_guess_retrieval)
+       do i=1,nchanl
+          if (radmod%lcloud4crtm(i)<0) cycle
+          if ( (clwp_amsua-cclr(i)) > zero  .or. (clw_guess_retrieval-cclr(i)) > zero ) then
+             cld_rbc_idx(i)=zero
+          endif
+       end do
+    else
+!      call ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret)
+       call ret_amsua(tsim_bc,nchanl,tsavg5,zasat,clw_guess_retrieval,ierrret) 
 
-!   call ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret)
-    call ret_amsua(tsim_bc,nchanl,tsavg5,zasat,clw_guess_retrieval,ierrret) 
-
-    do i=1,nchanl
-       if (radmod%lcloud4crtm(i)<0) cycle
-       if ((clwp_amsua-cclr(i))*(clw_guess_retrieval-cclr(i))<zero  &
-          .and. abs(clwp_amsua-clw_guess_retrieval)>=0.005_r_kind) cld_rbc_idx(i)=zero
-    end do
+       do i=1,nchanl
+          if (radmod%lcloud4crtm(i)<0) cycle
+          if ((clwp_amsua-cclr(i))*(clw_guess_retrieval-cclr(i))<zero  &
+             .and. abs(clwp_amsua-clw_guess_retrieval)>=0.005_r_kind) cld_rbc_idx(i)=zero
+       end do
+    endif
     return
 
   end subroutine radiance_ex_biascor_1

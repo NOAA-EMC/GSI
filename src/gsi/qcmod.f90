@@ -302,6 +302,12 @@ module qcmod
   integer(i_kind),parameter:: ifail_krain_amsr2_qc=50
 !  Reject due to sun glint in subroutine qc_amsr2
   integer(i_kind),parameter:: ifail_amsr2_glint_qc=51
+! Remove data poleward of 60 deg
+  integer(i_kind),parameter:: ifail_polar_qc=56
+! Remove data with very small or very large simulated column water vapor
+  integer(i_kind),parameter:: ifail_model_tpw_qc=58
+! Remove data with large surface wind speed
+  integer(i_kind),parameter:: ifail_sfc_speed=59
 
 ! QC_SAPHIR failures
 !  Reject due to krain type not equal to 0 in subroutine qc_saphir
@@ -1731,8 +1737,11 @@ subroutine qc_gmi(nchanl,sfchgt,luse,sea,cenlat, cenlon, &
 end subroutine qc_gmi
 
 subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
-     kraintype,clw,tsavg5,tbobs,solazi,solzen,amsr2,varinv,aivals,id_qc)
-!    kraintype,clw,tsavg5,tbobs,solazi,solzen,amsr2,varinv,aivals,id_qc,radmod) ! all-sky
+     kraintype,clw,tsavg5,tbobs,solazi,solzen,amsr2,varinv,aivals,id_qc, &
+     tzbgr,frac_sea, sgagl,    &
+     lcw4crtm, cenlat, sfc_speed,   &
+     tpwc_guess,clw_guess_retrieval)
+
 !$$$ subprogram documentation block
 !               .      .    .
 ! subprogram:  qc_amsr2     QC for amsr2 TBs
@@ -1762,8 +1771,17 @@ subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
 !     amsr2   - logical true if gmi is processed
 !     solazi  - solar azimuth angle
 !     solzen  - solar zenith angle
+!     sgagl   - sun glint angle
 !     tbobs   - brightness temperatures
 !     tsavg5  - skin temp
+!     tzbgr   - water temperature (Tz) of FOV
+!     frac_sea     - fraction of grid box covered with water
+!     lcw4crtm   - logical, QC for all-sky if it is true.
+!     cenlat     - Latitude
+!     sfc_speed  - surface wind speed.
+!     clw_guess  - model column ql, kg/m^2. It is zero if lcw4crtm=false.
+!     tpwc_guess  - model column column water vapor.
+!     clw_guess_retrieval  - retrieved clw from forecasted Tb.
 !
 ! output argument list:
 !     varinv  - observation weight (modified obs var error inverse)
@@ -1793,6 +1811,12 @@ subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
   real(r_kind)                     ,intent(in   ) :: solazi,solzen
   real(r_kind)   ,dimension(nchanl),intent(in   ) :: tbobs
   real(r_kind)                     ,intent(in   ) :: tsavg5
+  real(r_kind)                     ,intent(in   ) :: frac_sea,tzbgr,sgagl
+  real(r_kind)                     ,intent(in   ) :: cenlat, sfc_speed
+  logical                          ,intent(in   ) :: lcw4crtm
+  real(r_kind)                     ,intent(in   ), optional :: clw_guess_retrieval, &
+                                                               tpwc_guess
+
 
 ! Declare local variables
   integer(i_kind) :: l,i
@@ -1808,6 +1832,7 @@ subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
   real(r_kind),dimension(2)      :: rgr_coeff2_36h, rgr_coeff2_89h
   real(r_kind) :: c36h, c89h, d36h, d89h
   real(r_kind) :: em36h, em89h, em2_36h, em2_89h, diff_em_36h, diff_em_89h
+  real(r_kind) :: top_clw
 
 !------------------------------------------------------------------
 ! Set cloud qc criteria  (kg/m2) :  reject when clw>clwcutofx
@@ -1817,6 +1842,7 @@ subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
             0.050_r_kind, 0.050_r_kind, 0.050_r_kind, 0.050_r_kind, 0.050_r_kind, &
             0.050_r_kind, 0.050_r_kind, 0.050_r_kind, 0.050_r_kind /)
   endif
+  top_clw = 1.0_r_kind
 
 ! Loop over observations.
 
@@ -1825,7 +1851,7 @@ subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
 
 !    Over sea
   if(sea) then
-
+   if(.not. lcw4crtm) then
 !    rain qc
      if( kraintype /= 0 ) then
         efact=zero; vfact=zero
@@ -1884,9 +1910,9 @@ subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
     ang_b = ( (solazi*sin(ang)) + (solel*cos(ang)) )
     ang_ab = sqrt(ang_a**2 + ang_b**2)
 
-! only flag first 6 channels for sun glint    
+! only flag first 6 channels for sun glint
 !    do l=1,nchanl
-    do l=1,6             
+    do l=1,6
        if (ang_ab < 26.0_r_kind) then
          varinv(l)=zero
          if(luse) then
@@ -1894,14 +1920,14 @@ subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
                id_qc(l)=ifail_amsr2_glint_qc
             endif
          endif
-       endif 
+       endif
     enddo
-      
+
 !   Calculate emissivity and flag observations over thresholds
 !   Calculations for ch 3,4,5
     nch_emrgr = 14
     idxch_emrgr = (/1,2,3,4,5,6,7,8,9,10,11,12,13,14/)
- 
+
     ! Brightness temperatures used for training emissivity retrievals were
     ! simulated from ECMWF fields collocated with AMSR2 observations. The retrievals
     ! here use actual GMI brightness temperatures, so for best results, a
@@ -1974,6 +2000,78 @@ subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
           if (id_qc(i) == igood_qc) id_qc(i)=ifail_emiss_qc
        end do
     end if
+   end if  ! .not. lcw4crtm
+
+    if(abs(sgagl) < 20.0_r_kind) then
+       do i=1,nchanl
+          if(id_qc(i)== igood_qc) then
+             id_qc(i)  =ifail_sgagl_qc
+             varinv(i) = zero
+             if(luse) aivals(11) = aivals(11) + one
+          endif
+       enddo
+    else if (frac_sea < 0.99_r_kind ) then
+       do i=1,nchanl
+          if(id_qc(i)== igood_qc ) then
+             varinv(i)=zero
+             id_qc(i)=ifail_surface_qc
+             if(luse)  aivals(9) = aivals(9) + one
+          endif
+       end do
+    else
+       if (tzbgr < 275.0_r_kind) then
+          do i=1,nchanl
+             if(id_qc(i)== igood_qc ) then
+                varinv(i)=zero
+                id_qc(i)=ifail_emiss_qc
+                if(luse) aivals(13) = aivals(13) + one
+             endif
+          enddo
+       endif
+   endif
+   if (lcw4crtm) then
+       if (sfc_speed > 12.0_r_kind ) then
+          do i=1,nchanl
+             if(id_qc(i)== igood_qc ) then
+                varinv(i)=zero
+                id_qc(i)   = ifail_sfc_speed
+                if(luse) aivals(9) = aivals(9) + one
+             endif
+          end do
+       else if(abs(cenlat) > 60_r_kind) then
+          do i=1,nchanl
+             if(id_qc(i)== igood_qc ) then
+                varinv(i)=zero
+                id_qc(i)=ifail_polar_qc
+                if(luse) aivals(9) = aivals(9) + one
+             endif
+          enddo
+       endif
+        if( present(clw_guess_retrieval) ) then
+           ! remove thick couds in both model and observations
+           if( clw > top_clw .or. clw_guess_retrieval > top_clw .or. &
+               abs(clw-clw_guess_retrieval)>0.5_r_kind) then
+              do i=1,nchanl
+                 if( id_qc(i)== igood_qc ) then
+                    varinv(i)=zero
+                    id_qc(i)=ifail_cloud_qc
+                    if(luse) aivals(9) = aivals(9) + one
+                 endif
+              enddo
+           endif
+        endif
+        if( present(tpwc_guess) ) then
+           if( tpwc_guess < r10 ) then
+              do i=1,nchanl
+                 if( id_qc(i)== igood_qc ) then
+                    varinv(i)=zero
+                    id_qc(i)=ifail_model_tpw_qc
+                    if(luse) aivals(9) = aivals(9) + one
+                 endif
+              enddo
+           endif
+        endif
+   endif !lcw4crtm
 
 !    Use data not over over sea
   else  !land,sea ice,mixed
