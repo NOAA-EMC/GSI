@@ -1154,12 +1154,15 @@ subroutine inmi_ew_trans(uvm_ew,uvm_ewtrans)
   integer(i_kind) i,j,k
   real(r_kind),dimension(2,0:nlon/2,2)::halfwave
   real(r_kind),dimension(50000+4*sp_a%imax)::tmpafft
+  real(r_kind),dimension(nlon,2,3,nlatm_0:nlatm_1) :: tmp_uvm_ew  ! spffte outputs to this array, though we don't need it
+
+  tmp_uvm_ew = uvm_ew
 
 !$omp parallel do  schedule(dynamic,1) private(k,j,i,tmpafft,halfwave)
   do k=nlatm_0,nlatm_1
      tmpafft=sp_a%afft
      do j=1,3
-        call spffte(nlon,1+nlon/2,nlon,2,halfwave,uvm_ew(1,1,j,k),-1,tmpafft)
+        call spffte(nlon,1+nlon/2,nlon,2,halfwave,tmp_uvm_ew(1,1,j,k),-1,tmpafft)
         do i=0,sp_a%jcap
            uvm_ewtrans(1,i,1,j,k)=halfwave(1,i,1)
            uvm_ewtrans(2,i,1,j,k)=halfwave(2,i,1)
@@ -1205,6 +1208,9 @@ subroutine inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans)
   real(r_kind) fnlon,fnlon2
   real(r_kind),dimension(2,0:nlon/2,2)::halfwave
   real(r_kind),dimension(50000+4*sp_a%imax)::tmpafft
+  real(r_kind),dimension(nlon,2,3,nlatm_0:nlatm_1) :: tmp_uvm_ew  ! spffte outputs to this array, though we don't need it
+
+  tmp_uvm_ew = uvm_ew
 
   fnlon=real(nlon,r_kind)
   fnlon2=two*fnlon
@@ -1213,7 +1219,7 @@ subroutine inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans)
   do k=nlatm_0,nlatm_1
      tmpafft=sp_a%afft
      do j=1,3
-        call spffte(nlon,1+nlon/2,nlon,2,halfwave,uvm_ew(1,1,j,k),-1,tmpafft)
+        call spffte(nlon,1+nlon/2,nlon,2,halfwave,tmp_uvm_ew(1,1,j,k),-1,tmpafft)
         uvm_ewtrans(1,0,1,j,k)=halfwave(1,0,1)*fnlon
         uvm_ewtrans(2,0,1,j,k)=halfwave(2,0,1)*fnlon
         uvm_ewtrans(1,0,2,j,k)=halfwave(1,0,2)*fnlon
