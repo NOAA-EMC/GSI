@@ -1208,7 +1208,8 @@ subroutine inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans)
   real(r_kind) fnlon,fnlon2
   real(r_kind),dimension(2,0:nlon/2,2)::halfwave
   real(r_kind),dimension(50000+4*sp_a%imax)::tmpafft
-  real(r_kind),dimension(nlon,2,3,nlatm_0:nlatm_1) :: tmp_uvm_ew  ! spffte outputs to this array, though we don't need it
+  ! This will hold a copy of uvm_ew.  spffte will not modify it, but treats it as an "inout" variable.
+  real(r_kind),dimension(nlon,2,3,nlatm_0:nlatm_1) :: tmp_uvm_ew
 
   tmp_uvm_ew = uvm_ew
 
