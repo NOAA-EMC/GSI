@@ -40,7 +40,7 @@ elif [[ $MACHINE_ID = wcoss2 || $MACHINE_ID = acorn ]]; then
     # We are on WCOSS2 (cactus, dogwood, or acorn)
     module reset
 
-elif [[ $MACHINE_ID = gaea6 ]] ; then
+elif [[ $MACHINE_ID = gaeac6 ]] ; then
     # We are on GAEA C6.
     if ( ! eval module help > /dev/null 2>&1 ) ; then
         source /opt/cray/pe/lmod/lmod/init/bash
