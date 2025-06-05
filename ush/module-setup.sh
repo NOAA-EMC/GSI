@@ -47,20 +47,6 @@ elif [[ $MACHINE_ID = gaea6 ]] ; then
     fi
     module reset
 
-elif [[ $MACHINE_ID = expanse* ]]; then
-    # We are on SDSC Expanse
-    if ( ! eval module help > /dev/null 2>&1 ) ; then
-        source /etc/profile.d/modules.sh
-    fi
-    module purge
-    module load slurm/expanse/20.02.3
-
-elif [[ $MACHINE_ID = discover* ]]; then
-    # We are on NCCS discover
-    export SPACK_ROOT=/discover/nobackup/mapotts1/spack
-    export PATH=$PATH:$SPACK_ROOT/bin
-    . $SPACK_ROOT/share/spack/setup-env.sh
-
 elif [[ $MACHINE_ID = noaacloud* ]]; then
     # We are on NOAA Cloud
     module purge

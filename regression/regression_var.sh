@@ -37,16 +37,8 @@ if [[ -d /scratch3 ]]; then # Hera or Ursa
   else
     export machine="Hera"
   fi
-elif [[ -d /mnt/lfs4 || -d /jetmon || -d /mnt/lfs5 ]]; then # Jet
-  export machine="Jet"
-elif [[ -d /discover ]]; then # NCCS Discover
-  export machine="Discover"
-elif [[ -d /gpfs/f5 ]]; then # GaeaC5
-  export machine="gaeac5"
 elif [[ -d /gpfs/f6 ]]; then # GaeaC6
   export machine="gaeac6"
-elif [[ -d /data/prod ]]; then # S4
-  export machine="S4"
 elif [[ -d /work ]]; then # Orion or Hercules
   mount=$(findmnt -n -o SOURCE /home)
   if [[ ${mount} =~ "hercules" ]]; then
@@ -64,16 +56,6 @@ fi
 echo "Running Regression Tests on '$machine'";
 
 case $machine in
-  gaeac5)
-    export queue="normal"
-    export group="nggps_emc"
-    export noscrub="/gpfs/f5/${group}/scratch/${USER}/$LOGNAME/gsi_tmp/noscrub"
-    export ptmp="/gpfs/f5/${group}/scratch/${USER}/$LOGNAME/gsi_tmp/ptmp"
-    export casesdir="/gpfs/f5/ufs-ard/world-shared/GSI_data/CASES/regtest"
-
-    export check_resource="no"
-    export accnt="nggps_emc"
-  ;;
   gaeac6)
     export queue="normal"
     export group="ira-sti"
@@ -103,7 +85,7 @@ case $machine in
 
       export check_resource="no"
       export accnt="${accnt:-GFS-DEV}"
-  ;;      
+  ;;
   Orion | Hercules)
       export local_or_default="${local_or_default:-/work/noaa/da/$LOGNAME}"
       if [ -d $local_or_default ]; then
@@ -130,7 +112,7 @@ case $machine in
 
       export check_resource="no"
       export accnt="${accnt:-da-cpu}"
-  ;;      
+  ;;
   Hera)
 
     export local_or_default="${local_or_default:-/scratch1/NCEPDEV/da/$LOGNAME}"
@@ -187,39 +169,7 @@ case $machine in
     #  After completion of regression tests, will remove the regression test subdirecories
     export clean=".false."
   ;;
-  
-  Jet)
 
-    export noscrub=/lfs5/HFIP/emcda/$LOGNAME/noscrub
-    export ptmp=/lfs5/HFIP/emcda/$LOGNAME/ptmp
-    export casesdir="/lfs5/NESDIS/nesdis-rdo2/David.Huber/save/CASES/regtest"
-    export check_resource="no"
-    export accnt="hfv3gfs"
-
-    export group="global"
-    export queue="batch"
-    if [[ "$cmaketest" = "false" ]]; then
-      export basedir="/lfs5/NESDIS/nesdis-rdo2/$LOGNAME/save/git/gsi"
-    fi
-
-    #  On Jet, there are no scrubbers to remove old contents from stmp* directories.
-    #  After completion of regression tests, will remove the regression test subdirecories
-    export clean=".true."
-  ;;
-  Discover)
-    if [[ "$cmaketest" = "false" ]]; then
-        echo "Regression tests on Discover need to be run via ctest"
-        exit 1
-    fi
-    export ptmp=$basedir
-    export ptmp=$basedir
-    export noscrub=$basedir
-    export casesdir="/discover/nobackup/projects/gmao/obsdev/wrmccart/NCEP_regression/CASES"
-    export check_resource="no"
-    export accnt="g0613"
-    export queue="compute"
-    export clean=".false."
-  ;;
   *)
     echo "Regression tests are not setup on '$machine', ABORT!"
     exit 1
