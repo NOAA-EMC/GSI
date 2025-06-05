@@ -212,7 +212,7 @@ subroutine general_sptranf_s(sp_a,wave,grid,idir)
   if(idir>0) then
      do j=sp_a%jb,sp_a%je
         call spsynth(sp_a%iromb,sp_a%jcap,sp_a%imax,imaxp2,kw,kwtop,1, &
-            sp_a%clat(j),sp_a%pln(1,j:j),sp_a%plntop(1,j:j),a_mp,wave,wtop,f)
+            sp_a%clat(j),sp_a%pln(:,j),sp_a%plntop(:,j),a_mp,wave,wtop,f)
         call spffte(sp_a%imax,imaxp2/2,sp_a%imax,2,f,g,1,tmpafft)
 !       call sptranf1(sp_a%iromb,sp_a%jcap,sp_a%idrt,sp_a%imax,sp_a%jmax,j,j, &
 !           sp_a%eps,sp_a%epstop,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
@@ -251,7 +251,7 @@ subroutine general_sptranf_s(sp_a,wave,grid,idir)
            enddo
            call spffte(sp_a%imax,imaxp2/2,sp_a%imax,2,f,g,-1,tmpafft)
            call spanaly(sp_a%iromb,sp_a%jcap,sp_a%imax,imaxp2,kw,kwtop,1, &
-               sp_a%wlat(j),sp_a%clat(j),sp_a%pln(1,j:j),sp_a%plntop(1,j:j),a_mp,f,wave,wtop)  ! a_mp=0
+               sp_a%wlat(j),sp_a%clat(j),sp_a%pln(:,j),sp_a%plntop(:,j),a_mp,f,wave,wtop)
 !          call sptranf1(sp_a%iromb,sp_a%jcap,sp_a%idrt,sp_a%imax,sp_a%jmax,j,j, &
 !               sp_a%eps,sp_a%epstop,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
 !               tmpafft,sp_a%clat(j),sp_a%slat(j),sp_a%wlat(j), &
@@ -387,7 +387,7 @@ subroutine general_sptranf_s_b(sp_a,sp_b,wave,grid,idir)
         do j=sp_a%jb,sp_a%je
            tmpafft(:)=sp_b%afft(:)
            call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-            sp_a%clat(j),sp_b%pln(1,j:j),sp_b%plntop(1,j:j),a_mp,wave,wtop,f)
+            sp_a%clat(j),sp_b%pln(:,j),sp_b%plntop(:,j),a_mp,wave,wtop,f)
            call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 !          call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
 !              sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
@@ -457,7 +457,7 @@ subroutine general_sptranf_s_b(sp_a,sp_b,wave,grid,idir)
                  enddo
                  call spffte(sp_a%imax,imaxp2/2,sp_a%imax,2,f,g,-1,tmpafft)
                  call spanaly(sp_a%iromb,sp_a%jcap,sp_a%imax,imaxp2,kw,kwtop,1, &
-                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(1,j:j),sp_a%plntop(1,j:j),a_mp,f,wave,wtop)
+                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(:,j),sp_a%plntop(:,j),a_mp,f,wave,wtop)
 !                call sptranf1(sp_a%iromb,sp_a%jcap,sp_a%idrt,sp_a%imax,sp_a%jmax,j,j, &
 !                     sp_a%eps,sp_a%epstop,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
 !                     tmpafft,sp_a%clat(j),sp_a%slat(j),sp_a%wlat(j), &
@@ -479,7 +479,7 @@ subroutine general_sptranf_s_b(sp_a,sp_b,wave,grid,idir)
                       sp_a%epstop,tmppln,tmpplntop)
                  call spffte(sp_a%imax,imaxp2/2,sp_a%imax,2,f,g,-1,tmpafft)
                  call spanaly(sp_a%iromb,sp_a%jcap,sp_a%imax,imaxp2,kw,kwtop,1, &
-                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(1,j:j),sp_a%plntop(1,j:j),a_mp,f,wave,wtop)
+                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(:,j),sp_a%plntop(:,j),a_mp,f,wave,wtop)
 !                call sptranf1(sp_a%iromb,sp_a%jcap,sp_a%idrt,sp_a%imax,sp_a%jmax,j,j, &
 !                     sp_a%eps,sp_a%epstop,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
 !                     tmpafft,sp_a%clat(j),sp_a%slat(j),sp_a%wlat(j), &
@@ -733,7 +733,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
         do j=sp_a%jb,sp_a%je
            tmpafft(:)=sp_b%afft(:)
            call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-            sp_a%clat(j),sp_b%pln(1,j:j),sp_b%plntop(1,j:j),a_mp,w(1,1),wtop(1,1),f)
+            sp_a%clat(j),sp_b%pln(:,j),sp_b%plntop(:,j),a_mp,w(1,1),wtop(1,1),f)
            call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 !          call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
 !              sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
@@ -749,7 +749,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
               gridu(ijs+i)=g(ii,2)
            enddo
            call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-            sp_a%clat(j),sp_b%pln(1,j:j),sp_b%plntop(1,j:j),a_mp,w(1,2),wtop(1,2),f)
+            sp_a%clat(j),sp_b%pln(:,j),sp_b%plntop(:,j),a_mp,w(1,2),wtop(1,2),f)
            call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 !          call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
 !              sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
@@ -830,7 +830,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
                  enddo
                  call spffte(sp_a%imax,imaxp2/2,sp_a%imax,2,f,g,-1,tmpafft)
                  call spanaly(sp_a%iromb,sp_a%jcap,sp_a%imax,imaxp2,kw,kwtop,1, &
-                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(1,j:j),sp_a%plntop(1,j:j),a_mp,f, &
+                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(:,j),sp_a%plntop(:,j),a_mp,f, &
                      w(1,1),wtop(1,1))
 !                call sptranf1(sp_a%iromb,sp_a%jcap,sp_a%idrt,sp_a%imax,sp_a%jmax,j,j, &
 !                    sp_a%eps,sp_a%epstop,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
@@ -843,7 +843,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
                  enddo
                  call spffte(sp_a%imax,imaxp2/2,sp_a%imax,2,f,g,-1,tmpafft)
                  call spanaly(sp_a%iromb,sp_a%jcap,sp_a%imax,imaxp2,kw,kwtop,1, &
-                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(1,j:j),sp_a%plntop(1,j:j),a_mp,f, &
+                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(:,j),sp_a%plntop(:,j),a_mp,f, &
                      w(1,2),wtop(1,2))
 !                call sptranf1(sp_a%iromb,sp_a%jcap,sp_a%idrt,sp_a%imax,sp_a%jmax,j,j, &
 !                  sp_a%eps,sp_a%epstop,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
@@ -856,7 +856,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
            do j=sp_a%jb,sp_a%je
               if(sp_a%wlat(j)>zero) then
                  call splegend(sp_a%iromb,sp_a%jcap,sp_a%slat(j),sp_a%clat(j),sp_a%eps,&
-                   sp_a%epstop,sp_a%pln(1,1:1),sp_a%plntop(1,1:1))
+                   sp_a%epstop,sp_a%pln(:,1),sp_a%plntop(:,1))
                  jj   = j-sp_a%jb
                  ijn = jj*sp_a%jn
                  ijs = jj*sp_a%js + sp_a%ioffset
@@ -866,7 +866,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
                  enddo
                  call spffte(sp_a%imax,imaxp2/2,sp_a%imax,2,f,g,-1,tmpafft)
                  call spanaly(sp_a%iromb,sp_a%jcap,sp_a%imax,imaxp2,kw,kwtop,1, &
-                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(1,1:1),sp_a%plntop(1,1:1),a_mp,f, &
+                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(:,1),sp_a%plntop(:,1),a_mp,f, &
                      w(1,1),wtop(1,1))
 !                call sptranf1(sp_a%iromb,sp_a%jcap,sp_a%idrt,sp_a%imax,sp_a%jmax,j,j, &
 !                    sp_a%eps,sp_a%epstop,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
@@ -879,7 +879,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
                  enddo
                  call spffte(sp_a%imax,imaxp2/2,sp_a%imax,2,f,g,-1,tmpafft)
                  call spanaly(sp_a%iromb,sp_a%jcap,sp_a%imax,imaxp2,kw,kwtop,1, &
-                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(1,1:1),sp_a%plntop(1,1:1),a_mp,f, &
+                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(:,1),sp_a%plntop(:,1),a_mp,f, &
                      w(1,2),wtop(1,2))
 !                call sptranf1(sp_a%iromb,sp_a%jcap,sp_a%idrt,sp_a%imax,sp_a%jmax,j,j, &
 !                  sp_a%eps,sp_a%epstop,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
@@ -1029,7 +1029,7 @@ subroutine general_sptranf_v_u(sp_a,sp_b,waved,wavez,gridu,gridv)
         do j=sp_a%jb,sp_a%je
            tmpafft(:)=sp_b%afft(:)
            call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-            sp_a%clat(j),sp_b%pln(1,j:j),sp_b%plntop(1,j:j),a_mp,w(1,1),wtop(1,1),f)
+            sp_a%clat(j),sp_b%pln(:,j),sp_b%plntop(:,j),a_mp,w(1,1),wtop(1,1),f)
            call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 !          call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
 !              sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
@@ -1046,7 +1046,7 @@ subroutine general_sptranf_v_u(sp_a,sp_b,waved,wavez,gridu,gridv)
            enddo
            if(j == sp_a%jb)then
               call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-               sp_a%clat(j),sp_b%pln(1,j:j),sp_b%plntop(1,j:j),a_mp,w(1,2),wtop(1,2),f)
+               sp_a%clat(j),sp_b%pln(:,j),sp_b%plntop(:,j),a_mp,w(1,2),wtop(1,2),f)
               call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 
 !             call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
@@ -1235,7 +1235,7 @@ subroutine general_sptranf_v_v(sp_a,sp_b,waved,wavez,gridu,gridv)
            tmpafft(:)=sp_b%afft(:)
            if(j == sp_a%jb)then
               call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-                 sp_a%clat(j),sp_b%pln(1,j:j),sp_b%plntop(1,j:j),a_mp,w(1,1),wtop(1,1),f)
+                 sp_a%clat(j),sp_b%pln(:,j),sp_b%plntop(:,j),a_mp,w(1,1),wtop(1,1),f)
               call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 
 !             call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
@@ -1250,7 +1250,7 @@ subroutine general_sptranf_v_v(sp_a,sp_b,waved,wavez,gridu,gridv)
               enddo
            end if
            call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-            sp_a%clat(j),sp_b%pln(1,j:j),sp_b%plntop(1,j:j),a_mp,w(1,2),wtop(1,2),f)
+            sp_a%clat(j),sp_b%pln(:,j),sp_b%plntop(:,j),a_mp,w(1,2),wtop(1,2),f)
            call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 
 !          call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
