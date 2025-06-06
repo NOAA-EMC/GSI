@@ -9,7 +9,12 @@ local cmake_ver= os.getenv("cmake_ver") or "3.20.2"
 local python_ver=os.getenv("python_ver") or "3.8.6"
 local prod_util_ver=os.getenv("prod_util_ver") or "2.0.10"
 
+-- The netCDF-D library is dynamic and has bindings to HDF5 and pnetcdf.
+   -- Though these are not used by the GSI, they must be loaded to load netCDF-D
+local hdf5_ver=os.getenv("hdf5_ver") or "1.14.0"
+local pnetcdf_ver=os.getenv("pnetcdf_ver") or "1.12.2"
 local netcdf_ver=os.getenv("netcdf_ver") or "4.9.2"
+
 local bufr_ver=os.getenv("bufr_ver") or "12.1.0"
 local bacio_ver=os.getenv("bacio_ver") or "2.4.1"
 local w3emc_ver=os.getenv("w3emc_ver") or "2.9.2"
@@ -31,7 +36,10 @@ load(pathJoin("python", python_ver))
 
 load(pathJoin("prod_util", prod_util_ver))
 
+load(pathJoin("hdf5-D", hdf5_ver))
+load(pathJoin("pnetcdf-D", pnetcdf_ver))
 load(pathJoin("netcdf-D", netcdf_ver))
+
 load(pathJoin("bufr", bufr_ver))
 load(pathJoin("bacio", bacio_ver))
 load(pathJoin("w3emc", w3emc_ver))
@@ -49,7 +57,7 @@ load(pathJoin("sigio", sigio_ver))
 load(pathJoin("sfcio", sfcio_ver))
 load(pathJoin("nemsio", nemsio_ver))
 load(pathJoin("wrf_io", wrf_io_ver))
-load(pathJoin("ncio", ncio_ver))
+load(pathJoin("ncio-A", ncio_ver))
 load(pathJoin("crtm", crtm_ver))
 load(pathJoin("ncdiag-A",ncdiag_ver))
 
