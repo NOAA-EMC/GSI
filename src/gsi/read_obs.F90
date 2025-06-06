@@ -1477,6 +1477,14 @@ subroutine read_obs(ndata,mype)
                    call read_hdraob(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                         prsl_full,hgtl_full,nobs_sub1(1,i),read_rec(i))
                    string='READ_UPRAIR'
+                else if (index(infile,'wbbufr') /=0)then
+                        call read_gsb(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
+                         nobs_sub1(1,i),read_rec(i))
+                    string='READ_GSB'
+                else if (index(infile,'sdbufr') /=0)then
+                        call read_saildrone(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
+                         nobs_sub1(1,i),read_rec(i))
+                    string='READ_SAILDRONE'
                 else
                    call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                         prsl_full,nobs_sub1(1,i),read_rec(i))
@@ -1564,6 +1572,14 @@ subroutine read_obs(ndata,mype)
                   call read_fl_hdob(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
                        prsl_full,nobs_sub1(1,i))
                   string='READ_FL_HDOB'
+                else if (index(infile,'wbbufr') /=0)then
+                  call read_gsb(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
+                       nobs_sub1(1,i),read_rec(i))
+                  string='READ_GSB'
+                else if (index(infile,'sdbufr') /=0)then
+                  call read_saildrone(nread,npuse,nouse,infile,obstype,lunout,gstime,twind,sis,&
+                       nobs_sub1(1,i),read_rec(i))
+                    string='READ_SAILDRONE'
                 else
                   call read_prepbufr(nread,npuse,nouse,infile,obstype,lunout,twind,sis,&
                      prsl_full,nobs_sub1(1,i),read_rec(i))

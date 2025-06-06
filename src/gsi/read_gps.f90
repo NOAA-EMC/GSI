@@ -337,6 +337,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
         end if
 
 ! New LSW Check 
+        if (allocated(lsw_flag)) deallocate(lsw_flag)
         allocate(array_lsw(levs),array_fraclsw(levs),array_impact(levs), &
                  sorted_lsw(levs),sorted_fraclsw(levs),sorted_impact(levs), &
                  indices(levs),lsw_flag(levs),sorted_lswflag(levs))

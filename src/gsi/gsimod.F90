@@ -92,7 +92,7 @@
   use qcmod, only: dfact,dfact1,create_qcvars,destroy_qcvars,&
       erradar_inflate,tdrerr_inflate,use_poq7,qc_satwnds,&
       init_qcvars,vadfile,noiqc,c_varqc,gps_jacqc,qc_noirjaco3,qc_noirjaco3_pole,&
-      buddycheck_t,buddydiag_save,njqc,vqc,nvqc,hub_norm,vadwnd_l2rw_qc, &
+      buddycheck_t,buddydiag_save,njqc,vqc,nvqc,hub_norm,vadwnd_l2rw_qc,sfcwndob_biasc,&
       pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres,cao_check, &
       cris_cads, iasi_cads, iasing_cads, airs_cads
   use qcmod, only: troflg,lat_c,nrand
@@ -185,7 +185,7 @@
                             i_cloud_q_innovation,i_ens_mean,DTsTmax,&
                             i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check, &
                             corp_howv, hwllp_howv, corp_gust, hwllp_gust, oerr_gust, i_howv_mask, &
-                            i_sfcrough_fgs
+                            i_sfcrough_fgs, corp_vis, hwllp_vis
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
@@ -508,6 +508,8 @@
 !  01-07-2022 Hu        Add fv3_io_layout_y to let fv3lam interface read/write subdomain restart
 !                       files. The fv3_io_layout_y needs to match fv3lam model
 !                       option io_layout(2).
+!  2022-04-15  pondeca  add "logical sfcwndob_biasc" for surface wind bias  correction
+!                       based on a modified Kalman-Bucy filter
 !  05-24-2022 H.Wang    Add PM2.5 and AOD DA for regional FV3-CMAQ (RRFS-CMAQ).
 !                       GSI will perform aerosol analysis when 
 !                           1. laeroana_fv3cmaq =  .true.
@@ -1008,6 +1010,8 @@
 !     closest_obs- when true, choose the timely closest surface observation from
 !     multiple observations at a station.  Currently only applied to Ceiling
 !     height and visibility.
+!     sfcwndob_biasc - When true, apply a bias-correction scheme for surface winds
+!                      based on a modified Kalman-Bucy filter
 !     pvis   - power parameter in nonlinear transformation for vis 
 !     pcldch - power parameter in nonlinear transformation for cldch
 !     scale_cv - scaling constant in meter
@@ -1075,7 +1079,7 @@
        vadfile,noiqc,c_varqc,blacklst,use_poq7,hilbert_curve,tcp_refps,tcp_width,&
        tcp_ermin,tcp_ermax,gps_jacqc,qc_noirjaco3,qc_noirjaco3_pole,qc_satwnds,njqc,vqc,nvqc,hub_norm,troflg,lat_c,nrand,&
        aircraft_t_bc_pof,aircraft_t_bc,aircraft_t_bc_ext,biaspredt,upd_aircraft,cleanup_tail,&
-       hdist_aircraft,buddycheck_t,buddydiag_save,vadwnd_l2rw_qc,ompslp_mult_fact,  &
+       hdist_aircraft,buddycheck_t,buddydiag_save,vadwnd_l2rw_qc,ompslp_mult_fact,sfcwndob_biasc,&
        pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres,cld_det_dec2bin, &
        q_doe_a_136,q_doe_a_137,q_doe_b_136,q_doe_b_137, &
        t_doe_a_136,t_doe_a_137,t_doe_b_136,t_doe_b_137, &
@@ -1624,6 +1628,10 @@
 !                           = 0 : do not read surface roughness from firstguess,
 !                                 and use the default value instead (default)
 !                           = 1 : read surface roughness from firstguess and use it in analysis
+!      corp_vis      - real, static background error of visibility (stddev error),
+!                            in transformed space, not physical space
+!      hwllp_vis     - real, background error de-correlation length scale of visibility
+!                            in transformed space, not physical space
 !
   namelist/rapidrefresh_cldsurf/dfi_radar_latent_heat_time_period, &
                                 metar_impact_radius,metar_impact_radius_lowcloud, &
@@ -1646,7 +1654,7 @@
                                 i_cloud_q_innovation,i_ens_mean,DTsTmax, &
                                 i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check, &
                                 corp_howv, hwllp_howv, corp_gust, hwllp_gust, oerr_gust, i_howv_mask, &
-                                i_sfcrough_fgs
+                                i_sfcrough_fgs, corp_vis, hwllp_vis
 
 ! chem(options for gsi chem analysis) :
 !     berror_chem       - .true. when background  for chemical species that require

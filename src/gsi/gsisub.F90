@@ -173,7 +173,7 @@ subroutine gsisub(init_pass,last_pass)
 
 ! Compute random number for precipitation forward model.  
   if(init_pass) then
-     call create_pcp_random(iadate,mype)
+     !call create_pcp_random(iadate,mype)
      if(print_verbose)then
         call tell('gsisub','returned from create_pcp_random()')
      end if

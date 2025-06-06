@@ -43,6 +43,8 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
 !                         rather than assuming station height is 10 m AGL.
 !   2019-08-12  zhang/levine/pondeca -  add option to adjust 10-m background wind with the help of
 !                                       similarity in twodvar_regional applications
+!   2022-04-16  pondeca - write bias correction multiplicative factor for mesonet
+!                         winds, windbiasfact, to diagnostic file
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -149,6 +151,7 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   integer(i_kind) l,mm1
   integer(i_kind) itype
   integer(i_kind) idomsfc,iskint,iff10,isfcr
+  integer(i_kind) ibiascor
 
   logical msonetob
   
@@ -226,6 +229,7 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   istnelv=19  ! index of station elevation (m)
   iprvd=20    ! index of provider
   isprvd=21   ! index of subprovider
+  ibiascor=22 ! index of multiplicative factor for ob bias correction
 
   mm1=mype+1
   scale=one
@@ -281,7 +285,7 @@ subroutine setupgust(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
   if(conv_diagsave)then
      ii=0
      nchar=1
-     ioff0=22
+     ioff0=23
      nreal=ioff0
      if (lobsdiagsave) nreal=nreal+4*miter+1
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
@@ -942,6 +946,7 @@ contains
 
         rdiagbuf(21,ii) = data(idomsfc,i)    ! dominate surface type
         rdiagbuf(22,ii) = zsges              ! model terrain at ob location
+        rdiagbuf(23,ii) = data(ibiascor,i)   ! bias correction a-factor
         r_prvstg        = data(iprvd,i)
         cprvstg(ii)     = c_prvstg           ! provider name
         r_sprvstg       = data(isprvd,i)
@@ -1006,6 +1011,7 @@ contains
  
            call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i)              )
            call nc_diag_metadata("Model_Terrain",     zsges                        )
+           call nc_diag_metadata("bias_correction_a_factor", sngl(data(ibiascor,i)))
            r_prvstg            = data(iprvd,i)
            call nc_diag_metadata("Provider_Name",     c_prvstg                     )    
            r_sprvstg           = data(isprvd,i)

@@ -78,6 +78,8 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 !   2021-07-25 Genkova  - added code for Metop-B/C winds in new BUFR,NC005081  !
 !   2022-01-20 Genkova  - added missing station_id for polar winds
 !   2022-01-20 Genkova  - added code for Meteosat and Himawari AMVs in new BUFR
+!   2022-04-16  pondeca - write bias correction multiplicative factor, windbiasfact,
+!                         to diagnostic file. value is set to one.
 !   2022-12-10 Bi  - added code for CIMSS enhanced AMVs in new BUFR
 !   2025-02-10 Woollen - refactored to specify processing paths for satwind data via lookup table
 !   
@@ -213,6 +215,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! real(r_kind) ppb1,ppb2,uob1,vob1
   real(r_kind) tsavg,ff10,sfcr,sstime,gstime,zz
   real(r_kind) crit1,timedif,xmesh,pmesh,ptime
+  real(r_kind) windbiasfact
   real(r_kind),dimension(nsig):: presl
   
   real(r_double) zangl 
@@ -284,7 +287,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
 ! Set lower limits for observation errors
   werrmin=one
   nsattype=0
-  nreal=26
+  nreal=27
   if(perturb_obs ) nreal=nreal+2
   ntread=1
   ntmatch=0
@@ -1252,6 +1255,9 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
                  vdisterrmax=max(vdisterrmax,disterr)
               end if
            endif
+
+           windbiasfact=one
+
            cdata_all(1,iout)=woe                  ! wind error
            cdata_all(2,iout)=dlon                 ! grid relative longitude
            cdata_all(3,iout)=dlat                 ! grid relative latitude
@@ -1277,10 +1283,11 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            cdata_all(23,iout)=r_sprvstg(1,1)      ! subprovider name
            cdata_all(25,iout)=var_jb              ! non linear qc parameter
            cdata_all(26,iout)=one                 ! hilbert curve weight
+           cdata_all(27,iout)=windbiasfact        ! bias correction factor
 
            if(perturb_obs)then
-              cdata_all(27,iout)=ran01dom()*perturb_fact ! u perturbation
-              cdata_all(28,iout)=ran01dom()*perturb_fact ! v perturbation
+              cdata_all(28,iout)=ran01dom()*perturb_fact ! u perturbation
+              cdata_all(29,iout)=ran01dom()*perturb_fact ! v perturbation
            endif
 
 

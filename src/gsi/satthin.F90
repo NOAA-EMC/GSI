@@ -145,7 +145,7 @@ module satthin
   public :: makegrids
   public :: getsfc
   public :: get_hsst
-  public :: map2tgrid
+  public :: map2tgrid,map2tgrid2,binit
   public :: destroygrids
   public :: destroy_sfc
   public :: indexx
@@ -1085,6 +1085,179 @@ contains
 
     return
   end subroutine map2tgrid
+
+  subroutine map2tgrid2(dlat_earth,dlon_earth,dist1,crit1,itx,ithin,itt,iuse,sis, &
+                        score,it_mesh)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    map2tgrid
+!     prgmmr:    derber      org: np2                 date: 2006-05-03
+!
+! abstract:  This routine maps observations to the thinning grid.
+!
+! program history log:
+!   2006-05-03  derber (created from map2grids)
+!   2006-09-13  treadon - set itx=1 for the case use_all=.true.
+!   2013-01-26  parrish - change from grdcrd to grdcrd1 (to allow successful debug compile on WCOSS)
+!
+!   input argument list:
+!     dlat_earth - earth relative observation latitude (radians)
+!     dlon_earth - earth relative observation longitude (radians)
+!     crit1      - quality indicator for observation (smaller = better)
+!     ithin      - number of obs to retain per thinning grid box
+!     sis        - sensor/instrument/satellite
+!     it_mesh    - time meth id
+!
+!   output argument list:
+!     itx   - combined (i,j) index of observation on thinning grid
+!     itt   - superobs thinning counter
+!     iuse  - .true. if observation should be used
+!
+!
+! attributes:
+!   language: f90
+!   machine:  ibm rs/6000 sp
+!
+!$$$
+    use constants, only: one, half
+    !use omp_lib
+    implicit none
+
+    logical        ,intent(  out) :: iuse
+    integer(i_kind),intent(in   ) :: ithin
+    integer(i_kind),intent(  out) :: itt,itx
+    real(r_kind)   ,intent(in   ) :: dlat_earth,dlon_earth,score
+    real(r_kind)   ,intent(inout) :: crit1
+    real(r_kind)   ,intent(  out) :: dist1
+    character(20)  ,intent(in   ) :: sis
+    integer(i_kind),intent(in   ), optional :: it_mesh
+
+    integer(i_kind) ix,iy
+    real(r_kind) dlat1,dlon1,dx,dy,dxx,dyy
+
+
+!   If using all data (no thinning), simply return to calling routine
+    if(use_all .or. ithin <= 0)then
+       iuse=.true.
+       itt=1
+       dist1=one
+       if(itx_all < itxmax) then
+          itx_all=itx_all+1
+       else
+          iuse = .false.
+          write(6,*)'MAP2TGRID2:  ndata > maxobs when reading data for ',sis,itxmax
+       end if
+       itx=itx_all
+       return
+    end if
+
+!   Compute (i,j) indices of coarse mesh grid (grid number 1) which
+!   contains the current observation.
+    dlat1=dlat_earth
+    dlon1=dlon_earth
+
+    call grdcrd1(dlat1,glat,mlat,1)
+    iy=int(dlat1)
+    dy=dlat1-iy
+    iy=max(1,min(iy,mlat))
+
+    call grdcrd1(dlon1,glon(1,iy),mlon(iy),1)
+    ix=int(dlon1)
+    dx=dlon1-ix
+    ix=max(1,min(ix,mlon(iy)))
+
+    dxx=half-min(dx,one-dx)
+    dyy=half-min(dy,one-dy)
+    dist1=dxx*dxx+dyy*dyy+half
+    itx=hll(ix,iy)
+!   time mesh
+    if( present(it_mesh)  ) then
+       itx=itx+it_mesh*itxmax0
+    endif
+    itt=istart_val(ithin)+itx
+    if(ithin == 0) itt=0
+
+!   Increment obs counter on coarse mesh grid.  Also accumulate observation
+!   score and distance functions
+
+!   ratio=1.e9
+!   if ( dx > zero ) ratio=dy/dx
+!   dista=sin(two*atan(ratio))
+!   distb=sin(pi*dx)                !dista+distb is max at grid box center
+!   dist1=one - quarter*(dista + distb)  !dist1 is min at grid box center and
+                                    !ranges from 1 (at corners)to
+                                    !.5 (at center of box)
+    iuse=.true.
+    if(dist1*crit1 > score) iuse=.false.
+
+    return
+  end subroutine map2tgrid2
+
+  subroutine binit(dlat_earth,dlon_earth,itx,it_mesh)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    binit
+!     prgmmr:    derber      org: np2                 date: 2006-05-03
+!
+! abstract:  This routine maps observations to the thinning grid.
+!
+! program history log:
+!   2006-05-03  derber (created from map2grids)
+!
+!   input argument list:
+!     dlat_earth - earth relative observation latitude (radians)
+!     dlon_earth - earth relative observation longitude (radians)
+!     it_mesh    - time meth id
+!
+!   output argument list:
+!     itx   - combined (i,j) index of observation on thinning grid
+!$$$
+    implicit none
+
+    integer(i_kind),intent(  out) :: itx
+    real(r_kind)   ,intent(in   ) :: dlat_earth,dlon_earth
+    integer(i_kind),intent(in   ), optional :: it_mesh
+
+    integer(i_kind) ix,iy
+    real(r_kind) dlat1,dlon1
+
+
+!   If using all data (no thinning), simply return to calling routine
+!    if(use_all .or. ithin <= 0)then
+!       !iuse=.true.
+!       !itt=1
+!       !dist1=one
+!       if(itx_all < itxmax) then
+!          itx_all=itx_all+1
+!       else
+!          !iuse = .false.
+!          !write(6,*)'MAP2TGRID2:  ndata > maxobs when reading data for ',sis,itxmax
+!       end if
+!       itx=itx_all
+!       return
+!    end if
+
+!   Compute (i,j) indices of coarse mesh grid (grid number 1) which
+!   contains the current observation.
+    dlat1=dlat_earth
+    dlon1=dlon_earth
+
+    call grdcrd1(dlat1,glat,mlat,1)
+    iy=int(dlat1)
+    iy=max(1,min(iy,mlat))
+
+    call grdcrd1(dlon1,glon(1,iy),mlon(iy),1)
+    ix=int(dlon1)
+    ix=max(1,min(ix,mlon(iy)))
+
+    itx=hll(ix,iy)
+!   time mesh
+    if( present(it_mesh)  ) then
+       itx=itx+it_mesh*itxmax0
+    endif
+
+    return
+  end subroutine binit
 
   subroutine checkob(dist1,crit1,itx,iuse)
 !$$$  subprogram documentation block
