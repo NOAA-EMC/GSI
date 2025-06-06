@@ -30,8 +30,13 @@ else
 fi
 
 # Determine the machine
-if [[ -d /scratch1 ]]; then # Hera
-  export machine="Hera"
+if [[ -d /scratch3 ]]; then # Hera or Ursa
+  mount=$(findmnt -n -o SOURCE /home)
+  if [[ ${mount} =~ "ursa" ]]; then
+    export machine="Ursa"
+  else
+    export machine="Hera"
+  fi
 elif [[ -d /mnt/lfs4 || -d /jetmon || -d /mnt/lfs5 ]]; then # Jet
   export machine="Jet"
 elif [[ -d /discover ]]; then # NCCS Discover
@@ -61,23 +66,23 @@ echo "Running Regression Tests on '$machine'";
 case $machine in
   gaeac5)
     export queue="normal"
-    export group="ufs-ard"
+    export group="nggps_emc"
     export noscrub="/gpfs/f5/${group}/scratch/${USER}/$LOGNAME/gsi_tmp/noscrub"
     export ptmp="/gpfs/f5/${group}/scratch/${USER}/$LOGNAME/gsi_tmp/ptmp"
     export casesdir="/gpfs/f5/ufs-ard/world-shared/GSI_data/CASES/regtest"
 
     export check_resource="no"
-    export accnt="ufs-ard"
+    export accnt="nggps_emc"
   ;;
   gaeac6)
     export queue="normal"
-    export group="bil-fire8"
+    export group="ira-sti"
     export noscrub="/gpfs/f6/${group}/scratch/${USER}/${LOGNAME}/gsi_tmp/noscrub"
     export ptmp="/gpfs/f6/${group}/scratch/${USER}/${LOGNAME}/gsi_tmp/ptmp"
     export casesdir="/gpfs/f6/bil-fire8/world-shared/GSI_data/CASES/regtest"
 
     export check_resource="no"
-    export accnt="bil-fire8"
+    export accnt="ira-sti"
   ;;
   wcoss2 | acorn)
       export local_or_default="${local_or_default:-/lfs/h2/emc/da/noscrub/$LOGNAME}"
@@ -119,7 +124,7 @@ case $machine in
       if [[ "$cmaketest" = "false" ]]; then
          export basedir="/work/noaa/da/$LOGNAME/gsi"
       fi
-      export ptmp="${ptmp:-/work/noaa/stmp/$LOGNAME/$ptmpName}"
+      export ptmp="${ptmp:-/work/noaa/stmp/$LOGNAME/${machine}/$ptmpName}"
 
       export casesdir="/work/noaa/da/rtreadon/CASES/regtest"
 
@@ -154,13 +159,42 @@ case $machine in
     #  After completion of regression tests, will remove the regression test subdirecories
     export clean=".false."
   ;;
+  Ursa)
+
+    export local_or_default="${local_or_default:-/scratch3/NCEPDEV/da/$LOGNAME}"
+    if [ -d $local_or_default ]; then
+      export noscrub="$local_or_default/noscrub"
+    elif [ -d /scratch3/NCEPDEV/global/$LOGNAME ]; then
+      export noscrub="/scratch3/NCEPDEV/global/$LOGNAME/noscrub"
+     elif [ -d /scratch4/BMC/gsienkf/$LOGNAME ]; then
+      export noscrub="/scratch4/BMC/gsienkf/$LOGNAME"
+    fi
+
+    export group="${group:-global}"
+    export queue="${queue:-batch}"
+    if [[ "$cmaketest" = "false" ]]; then
+      export basedir="/scratch3/NCEPDEV/da/$LOGNAME/git/gsi"
+    fi
+
+    export ptmp="${ptmp:-/scratch3/NCEPDEV/stmp/$LOGNAME/$ptmpName}"
+
+    export casesdir="/scratch3/NCEPDEV/da/Russ.Treadon/CASES/regtest"
+
+    export check_resource="no"
+    export accnt="${accnt:-da-cpu}"
+
+    #  On Ursa, there are no scrubbers to remove old contents from stmp* directories.
+    #  After completion of regression tests, will remove the regression test subdirecories
+    export clean=".false."
+  ;;
+  
   Jet)
 
-    export noscrub=/lfs5/NESDIS/nesdis-rdo2/$LOGNAME/noscrub
-    export ptmp=/lfs5/NESDIS/nesdis-rdo2/$LOGNAME/ptmp
+    export noscrub=/lfs5/HFIP/emcda/$LOGNAME/noscrub
+    export ptmp=/lfs5/HFIP/emcda/$LOGNAME/ptmp
     export casesdir="/lfs5/NESDIS/nesdis-rdo2/David.Huber/save/CASES/regtest"
     export check_resource="no"
-    export accnt="nesdis-rdo2"
+    export accnt="hfv3gfs"
 
     export group="global"
     export queue="batch"

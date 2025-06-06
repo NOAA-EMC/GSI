@@ -119,32 +119,30 @@ echo ""                                                                         
 echo "#SBATCH --output=$output"                                                    >> $cfile
 echo "#SBATCH --job-name=$jobname"                                                 >> $cfile
 echo "#SBATCH --qos=$queue"                                                        >> $cfile
+echo "#SBATCH --partition=u1-compute"                                              >> $cfile
 echo "#SBATCH --time=$timew"                                                       >> $cfile
 echo "#SBATCH --nodes=$nodes --ntasks-per-node=$procs --exclusive"    >> $cfile
-#echo "#SBATCH -j oe"                                       >> $cfile
 echo "#SBATCH --account=$accnt"                                                    >> $cfile
-#cltorg echo "#SBATCH --mem=0"                                                             >> $cfile
-#echo "#SBATCH -V"                                          >> $cfile
-#echo "#PBS -d"                             >> $cfile
-#. $exec                                    >> $cfile
-#echo "/bin/sh -x $exec"                    >> $cfile
 
 echo "" >>$cfile
-echo "set -x"                               >> $cfile
+echo "set -x" >> $cfile
+echo " " >> $cfile
+echo "export OMP_NUM_THREADS=$threads"      >> $cfile
 echo "export ntasks=$(( $nodes * $procs ))" >> $cfile
 echo "export ppn=$procs"                    >> $cfile
 echo "export threads=$threads"              >> $cfile
-echo "export OMP_NUM_THREADS=$threads"      >> $cfile
 echo "" >>$cfile
 echo ". "$(awk '{ print $1, $2, $3, $4, $5, $6, $7, $8, $9 }' $regdir/regression_var.out)  >>$cfile
 echo "" >>$cfile
 
+echo "set +x" >> $cfile
 echo ". /apps/lmod/lmod/init/sh"                           >> $cfile
 echo "module purge"                                        >> $cfile
 echo "module use $modulefiles"                      >> $cfile
-echo "module load gsi_hera.intel" >> $cfile
+echo "module load gsi_ursa.intel" >> $cfile
 echo "module list"                                         >> $cfile
 echo "" >>$cfile
+echo "set -x" >> $cfile
 
 cat $exec >> $cfile
 if [[ $nosub = YES ]];then
@@ -212,6 +210,6 @@ if [[ -w $SUBLOG ]];then
   jobn=$(grep -i submitted $ofile|head -n1|cut -d\" -f2)
   date -u +"%Y%m%d%H%M%S : $subcmd : $jobn" >>$SUBLOG
 fi
-rm $cfile $ofile
+##rm $cfile $ofile
 [[ $MKDATA = YES ]] && rmdir $DATA
 exit $rc

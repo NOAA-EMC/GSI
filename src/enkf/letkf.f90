@@ -703,6 +703,7 @@ subroutine letkf_core(nobsl,hxens,hxens_orig,dep,&
 
 implicit none
 integer(i_kind), intent(in) :: nobsl,nanals,neigv
+integer(i_kind) :: o_nanals
 real(r_kind),dimension(nobsl),intent(in ) :: rdiaginv,rloc
 real(r_kind),dimension(nanals,nobsl),intent(inout)  :: hxens
 real(r_single),dimension(nanals/neigv,nobsl),intent(in)  :: hxens_orig
@@ -757,7 +758,7 @@ if(r_kind == kind(1.d0)) then ! double precision
                hxens,nanals,0.d0,work3,nanals)
    ! evecs contains eigenvectors of HZ^T HZ, or left singular vectors of HZ
    ! evals contains eigenvalues (singular values squared)
-   call dsyevr('V','A','L',nanals,work3,nanals,vl,vu,1,nanals,-1.d0,nanals,evals,evecs, &
+   call dsyevr('V','A','L',nanals,work3,nanals,vl,vu,1,nanals,-1.d0,o_nanals,evals,evecs, &
                nanals,isuppz,work1,lwork,iwork,liwork,ierr)
 ! use LAPACK dsyevd instead of dsyevr
    !evecs = work3
