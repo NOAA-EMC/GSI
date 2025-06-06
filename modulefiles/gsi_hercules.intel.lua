@@ -21,6 +21,8 @@ load("gsi_common")
 unload("intel-oneapi-mpi/2021.13.1")
 load("intel-oneapi-mpi/2021.7.1")
 
+load("tar/1.34")
+
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
 
