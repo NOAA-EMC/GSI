@@ -1911,7 +1911,6 @@ subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
     ang_ab = sqrt(ang_a**2 + ang_b**2)
 
 ! only flag first 6 channels for sun glint
-!    do l=1,nchanl
     do l=1,6
        if (ang_ab < 26.0_r_kind) then
          varinv(l)=zero
