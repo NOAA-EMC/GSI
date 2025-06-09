@@ -1323,8 +1323,8 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         rdiagbufp(21,iip) = 1e+10_r_single     ! spread (filled in by EnKF)
 
         if (l_rtma3d .or. twodvar_regional) then  ! in binary obsdiag for 2D/3DRTMA
-          rdiagbufp(22,ii) = data(itemp,i)    ! dry temperature associated to qob
-          rdiagbufp(23,ii) = data(iqt,  i)    ! tv flag (0: virtual temp; 1: sensible temp)
+          rdiagbufp(22,iip) = data(itemp,i)    ! dry temperature associated to qob
+          rdiagbufp(23,iip) = data(iqt,  i)    ! tv flag (0: virtual temp; 1: sensible temp)
         end if
 
         ioff=ioff0
