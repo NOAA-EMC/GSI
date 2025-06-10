@@ -24,8 +24,8 @@ subroutine read_amsr2(mype,val_amsr2,ithin,rmesh,jsatid,gstime,&
 !   2016-07-25  ejones   - made most allocatable arrays static
 !   2016-09-20  j. guo   - Refixed dlxx_earth_deg, for the new dlxx_earth_save(:).
 !   2017-01-03  todling  - treat save arrays as allocatable
-!   2018-10-11  j.jin    - Calculate solar zenith angle.
 !   2018-05-21  j.jin    - added time-thinning. Moved the checking of thin4d into satthin.F90.
+!   2025-06-10  j.jin    - Calculate solar zenith angle.
 ! 
 !
 ! input argument list:
@@ -145,7 +145,6 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   real(r_kind),allocatable        :: relative_time_in_seconds(:)
 
   real(r_kind) :: dlat_earth_deg, dlon_earth_deg
-  real(r_kind) :: dlat_earth_rad, dlon_earth_rad
   real(r_kind),pointer :: t4dv,dlon_earth,dlat_earth,crit1
   real(r_kind),pointer :: sat_zen_ang,sat_az_ang    
   real(r_kind),pointer :: sun_zen_ang,sun_az_ang
@@ -252,8 +251,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
 
   assim=.false.
   search: do i=1,jpch_rad
-     !if ((nusis(i)==sis) .and. (iuse_rad(i)>0)) then
-     if (nusis(i)==sis) then
+     if ((nusis(i)==sis) .and. (iuse_rad(i)>0)) then
         assim=.true.
         exit search
      endif
@@ -420,29 +418,16 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
         sun_zen_ang = gcomspot_d(3)     !solar azimuth angle
         sun_el_ang = gcomspot_d(4)       !solar elevation angle
 
-!    Check observational info 
+!       Check observational info 
 
         if( sun_el_ang < -180._r_kind .or. sun_el_ang > 180._r_kind )then
            write(6,*)'READ_AMSR2:  ### ERROR IN READING BUFR DATA:', &
               ' STRANGE OBS INFO(FOV,SOLAZI,SOEL):', ifov, sun_az_ang, sun_el_ang
            cycle read_loop       
         endif
-!!    make solar azimuth angles from -180 to 180 degrees
-!        if (sun_az_ang > 180.0_r_kind) then
-!           sun_az_ang=sun_az_ang-360.0_r_kind
-!        endif
-!
-!!    calculate solar zenith angle (used in QC for sun glint)
-!        sun_zen_ang = 90.0_r_kind - sun_el_ang
-!
-!!       check to make sure sun zenith is between 0 and 180
-!        if (sun_zen_ang < 0.0_r_kind) then
-!          sun_zen_ang=90.0_r_kind-sun_zen_ang
-!        endif
-!        sat_zen_ang = amsrspot_d(11)*deg2rad    ! satellite zenith/incidence angle(rad)
 
-!       j.jin. Oct 11, 2018.  The so called solar elevation angles in the source data are not 
-!       actual solar elevationa angles, which should be  90 - sun_zen_ang (deg).
+!       Calculate solar zenith angle 
+
         clath_sun_glint_calc = clath
         clonh_sun_glint_calc = clonh
         if(clonh_sun_glint_calc > 180._r_kind) clonh_sun_glint_calc = clonh_sun_glint_calc - 360.0_r_kind

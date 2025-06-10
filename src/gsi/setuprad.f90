@@ -1631,9 +1631,6 @@ contains
               radmod%lcloud_fwd, cenlat, sfc_speed,   &
               tpwc_guess=tcwv,clw_guess_retrieval=clw_guess_retrieval)
 
-!          call qc_amsr2(nchanl,zsges,luse(n),sea,kraintype,clw_obs,tsavg5, &
-!             tb_obs,sun_azimuth,sun_zenith,amsr2,varinv,aivals(1,is),id_qc)
-
 !  ---------- GMI  -------------------
 !       GMI Q C
 
