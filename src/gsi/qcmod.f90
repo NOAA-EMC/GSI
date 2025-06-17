@@ -302,6 +302,12 @@ module qcmod
   integer(i_kind),parameter:: ifail_krain_amsr2_qc=50
 !  Reject due to sun glint in subroutine qc_amsr2
   integer(i_kind),parameter:: ifail_amsr2_glint_qc=51
+! Remove data poleward of 60 deg
+  integer(i_kind),parameter:: ifail_polar_qc=56
+! Remove data with very small or very large simulated column water vapor
+  integer(i_kind),parameter:: ifail_model_tpw_qc=58
+! Remove data with large surface wind speed
+  integer(i_kind),parameter:: ifail_sfc_speed=59
 
 ! QC_SAPHIR failures
 !  Reject due to krain type not equal to 0 in subroutine qc_saphir
@@ -1731,8 +1737,11 @@ subroutine qc_gmi(nchanl,sfchgt,luse,sea,cenlat, cenlon, &
 end subroutine qc_gmi
 
 subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
-     kraintype,clw,tsavg5,tbobs,solazi,solzen,amsr2,varinv,aivals,id_qc)
-!    kraintype,clw,tsavg5,tbobs,solazi,solzen,amsr2,varinv,aivals,id_qc,radmod) ! all-sky
+     kraintype,clw,tsavg5,tbobs,solazi,solzen,amsr2,varinv,aivals,id_qc, &
+     tzbgr,frac_sea, sgagl,    &
+     lcw4crtm, cenlat, sfc_speed,   &
+     tpwc_guess,clw_guess_retrieval)
+
 !$$$ subprogram documentation block
 !               .      .    .
 ! subprogram:  qc_amsr2     QC for amsr2 TBs
@@ -1762,8 +1771,17 @@ subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
 !     amsr2   - logical true if gmi is processed
 !     solazi  - solar azimuth angle
 !     solzen  - solar zenith angle
+!     sgagl   - sun glint angle
 !     tbobs   - brightness temperatures
 !     tsavg5  - skin temp
+!     tzbgr   - water temperature (Tz) of FOV
+!     frac_sea     - fraction of grid box covered with water
+!     lcw4crtm   - logical, QC for all-sky if it is true.
+!     cenlat     - Latitude
+!     sfc_speed  - surface wind speed.
+!     clw_guess  - model column ql, kg/m^2. It is zero if lcw4crtm=false.
+!     tpwc_guess  - model column column water vapor.
+!     clw_guess_retrieval  - retrieved clw from forecasted Tb.
 !
 ! output argument list:
 !     varinv  - observation weight (modified obs var error inverse)
@@ -1793,6 +1811,12 @@ subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
   real(r_kind)                     ,intent(in   ) :: solazi,solzen
   real(r_kind)   ,dimension(nchanl),intent(in   ) :: tbobs
   real(r_kind)                     ,intent(in   ) :: tsavg5
+  real(r_kind)                     ,intent(in   ) :: frac_sea,tzbgr,sgagl
+  real(r_kind)                     ,intent(in   ) :: cenlat, sfc_speed
+  logical                          ,intent(in   ) :: lcw4crtm
+  real(r_kind)                     ,intent(in   ), optional :: clw_guess_retrieval, &
+                                                               tpwc_guess
+
 
 ! Declare local variables
   integer(i_kind) :: l,i
@@ -1808,6 +1832,7 @@ subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
   real(r_kind),dimension(2)      :: rgr_coeff2_36h, rgr_coeff2_89h
   real(r_kind) :: c36h, c89h, d36h, d89h
   real(r_kind) :: em36h, em89h, em2_36h, em2_89h, diff_em_36h, diff_em_89h
+  real(r_kind) :: top_clw
 
 !------------------------------------------------------------------
 ! Set cloud qc criteria  (kg/m2) :  reject when clw>clwcutofx
@@ -1817,6 +1842,7 @@ subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
             0.050_r_kind, 0.050_r_kind, 0.050_r_kind, 0.050_r_kind, 0.050_r_kind, &
             0.050_r_kind, 0.050_r_kind, 0.050_r_kind, 0.050_r_kind /)
   endif
+  top_clw = 1.0_r_kind
 
 ! Loop over observations.
 
@@ -1825,155 +1851,226 @@ subroutine qc_amsr2(nchanl,sfchgt,luse,sea, &
 
 !    Over sea
   if(sea) then
+    if(.not. lcw4crtm) then
+!     rain qc
+      if( kraintype /= 0 ) then
+         efact=zero; vfact=zero
+         if(luse) then
+            aivals(8) = aivals(8) + one
 
-!    rain qc
-     if( kraintype /= 0 ) then
-        efact=zero; vfact=zero
-        if(luse) then
-           aivals(8) = aivals(8) + one
+            do i=1,nchanl
+               varinv(i)=zero
+               if( id_qc(i)== igood_qc .and. kraintype/= 0) id_qc(i)=ifail_krain_amsr2_qc
+            end do
+         end if
 
-           do i=1,nchanl
-              varinv(i)=zero
-              if( id_qc(i)== igood_qc .and. kraintype/= 0) id_qc(i)=ifail_krain_amsr2_qc
-           end do
-        end if
+      else if(clw > zero)then
 
-     else if(clw > zero)then
+!       If dtb is larger than demissivity and dwmin contribution,
+!       it is assmued to be affected by  rain and cloud, tossing it out
+         do l=1,nchanl
 
-!      If dtb is larger than demissivity and dwmin contribution,
-!      it is assmued to be affected by  rain and cloud, tossing it out
-        do l=1,nchanl
+!           clw QC using ch-dependent threshold (clwch)
+            if( clw > clwcutofx(l) ) then
+               varinv(l)=zero
+               if(luse) then
+                  aivals(10) = aivals(10) + one
+                  if(id_qc(l)== igood_qc) then
+                     id_qc(l)=ifail_cloud_qc
+                     aivals(9)=aivals(9) + one
+                  end if
+               end if
+            end if
+         end do  !l_loop
+      end if
 
-!          clw QC using ch-dependent threshold (clwch)
-           if( clw > clwcutofx(l) ) then
-              varinv(l)=zero
-              if(luse) then
-                 aivals(10) = aivals(10) + one
-                 if(id_qc(l)== igood_qc) then
-                    id_qc(l)=ifail_cloud_qc
-                    aivals(9)=aivals(9) + one
-                 end if
-              end if
-           end if
-        end do  !l_loop
-     end if
+!  flag points where channel 1 tbs > 200K, these are probably cloud
 
-! flag points where channel 1 tbs > 200K, these are probably cloud
+      if( tbobs(1) > 200.0_r_kind ) then
+         do l=1,nchanl
+            varinv(l)=zero
+            if(luse) then
+               aivals(10) = aivals(10) + one
+               if(id_qc(l)== igood_qc) then
+                  id_qc(l)=ifail_cloud_qc
+                  aivals(9)=aivals(9) + one
+               end if
+            end if
+         end do
+      end if
 
-     if( tbobs(1) > 200.0_r_kind ) then
-        do l=1,nchanl
+
+!   calculate and flag sun glint
+      solel = 90.0_r_kind-solzen
+      solazi_rad = solazi*deg2rad
+      solel_rad = solel*deg2rad
+
+      ang = atan(solel_rad/solazi_rad)
+      ang_a = ( (solazi*cos(ang)) - (solel*sin(ang)) )
+      ang_b = ( (solazi*sin(ang)) + (solel*cos(ang)) )
+      ang_ab = sqrt(ang_a**2 + ang_b**2)
+
+!   only flag first 6 channels for sun glint
+      do l=1,6
+         if (ang_ab < 26.0_r_kind) then
            varinv(l)=zero
            if(luse) then
-              aivals(10) = aivals(10) + one
               if(id_qc(l)== igood_qc) then
-                 id_qc(l)=ifail_cloud_qc
-                 aivals(9)=aivals(9) + one
-              end if
-           end if
-        end do
-     end if
-
-
-! calculate and flag sun glint
-    solel = 90.0_r_kind-solzen
-    solazi_rad = solazi*deg2rad
-    solel_rad = solel*deg2rad
-
-    ang = atan(solel_rad/solazi_rad)
-    ang_a = ( (solazi*cos(ang)) - (solel*sin(ang)) )
-    ang_b = ( (solazi*sin(ang)) + (solel*cos(ang)) )
-    ang_ab = sqrt(ang_a**2 + ang_b**2)
-
-! only flag first 6 channels for sun glint    
-!    do l=1,nchanl
-    do l=1,6             
-       if (ang_ab < 26.0_r_kind) then
-         varinv(l)=zero
-         if(luse) then
-            if(id_qc(l)== igood_qc) then
-               id_qc(l)=ifail_amsr2_glint_qc
-            endif
+                 id_qc(l)=ifail_amsr2_glint_qc
+              endif
+           endif
          endif
-       endif 
-    enddo
-      
-!   Calculate emissivity and flag observations over thresholds
-!   Calculations for ch 3,4,5
-    nch_emrgr = 14
-    idxch_emrgr = (/1,2,3,4,5,6,7,8,9,10,11,12,13,14/)
- 
-    ! Brightness temperatures used for training emissivity retrievals were
-    ! simulated from ECMWF fields collocated with AMSR2 observations. The retrievals
-    ! here use actual GMI brightness temperatures, so for best results, a
-    ! "systematic bias" (i.e. an average difference between AMSR2 brightness
-    ! temperatures and those simulated from ECMWF fields) is removed from AMSR2
-    ! brightness temperatures prior to performing retrievals
+      enddo
 
-    ! systematic bias
-    sys_bias= (/ 0.4800_r_kind, 3.0737_r_kind, 0.7433_r_kind, 3.6430_r_kind,&
-                 3.5304_r_kind, 4.4270_r_kind, 5.1448_r_kind, 5.0785_r_kind,&
-                 4.9763_r_kind, 9.3215_r_kind, 2.5789_r_kind, 5.5274_r_kind,&
-                 0.6641_r_kind, 1.3674_r_kind /)
+!     Calculate emissivity and flag observations over thresholds
+!     Calculations for ch 3,4,5
+      nch_emrgr = 14
+      idxch_emrgr = (/1,2,3,4,5,6,7,8,9,10,11,12,13,14/)
 
-    ! brightness temperatures to use
-    tb_use(1)=(tbobs(1)-sys_bias(1)); tb_use(2)=(tbobs(2)-sys_bias(2)); tb_use(3)=(tbobs(3)-sys_bias(3))
-    tb_use(4)=(tbobs(4)-sys_bias(4)); tb_use(5)=(tbobs(5)-sys_bias(5)); tb_use(6)=(tbobs(6)-sys_bias(6))
-    tb_use(7)=(tbobs(7)-sys_bias(7)); tb_use(8)=(tbobs(8)-sys_bias(8)); tb_use(9)=(tbobs(9)-sys_bias(9))
-    tb_use(10)=(tbobs(10)-sys_bias(10)); tb_use(11)=(tbobs(11)-sys_bias(11)); tb_use(12)=(tbobs(12)-sys_bias(12))
-    tb_use(13)=(tbobs(13)-sys_bias(13)); tb_use(14)=(tbobs(14)-sys_bias(14))
+      ! Brightness temperatures used for training emissivity retrievals were
+      ! simulated from ECMWF fields collocated with AMSR2 observations. The retrievals
+      ! here use actual GMI brightness temperatures, so for best results, a
+      ! "systematic bias" (i.e. an average difference between AMSR2 brightness
+      ! temperatures and those simulated from ECMWF fields) is removed from AMSR2
+      ! brightness temperatures prior to performing retrievals
 
-    ! Set regression constants and coefficients
-    ! first set of constants and coefficients (using all channels)
-    c36h = 1.18467_r_kind
-    c89h = 1.73315_r_kind
+      ! systematic bias
+      sys_bias= (/ 0.4800_r_kind, 3.0737_r_kind, 0.7433_r_kind, 3.6430_r_kind,&
+                   3.5304_r_kind, 4.4270_r_kind, 5.1448_r_kind, 5.0785_r_kind,&
+                   4.9763_r_kind, 9.3215_r_kind, 2.5789_r_kind, 5.5274_r_kind,&
+                   0.6641_r_kind, 1.3674_r_kind /)
 
-    rgr_coeff_36h = (/ -0.00098_r_kind, 0.00145_r_kind, -0.00146_r_kind, 0.00055_r_kind, &
-                       -0.00232_r_kind, 0.00061_r_kind, 0.00160_r_kind, 0.00001_r_kind, &
-                       -0.00053_r_kind, -0.00019_r_kind, -0.00272_r_kind, 0.00104_r_kind, &
-                       -0.00026_r_kind, 0.00032_r_kind /)
-    rgr_coeff_89h = (/ -0.00141_r_kind, 0.00217_r_kind, -0.00214_r_kind, 0.00070_r_kind, &
-                       -0.00358_r_kind, 0.00110_r_kind, 0.00199_r_kind, 0.00002_r_kind, &
-                       -0.00131_r_kind, 0.00003_r_kind, -0.00318_r_kind, 0.00122_r_kind, &
-                       -0.00043_r_kind, 0.00047_r_kind /)
+      ! brightness temperatures to use
+      tb_use(1)=(tbobs(1)-sys_bias(1)); tb_use(2)=(tbobs(2)-sys_bias(2)); tb_use(3)=(tbobs(3)-sys_bias(3))
+      tb_use(4)=(tbobs(4)-sys_bias(4)); tb_use(5)=(tbobs(5)-sys_bias(5)); tb_use(6)=(tbobs(6)-sys_bias(6))
+      tb_use(7)=(tbobs(7)-sys_bias(7)); tb_use(8)=(tbobs(8)-sys_bias(8)); tb_use(9)=(tbobs(9)-sys_bias(9))
+      tb_use(10)=(tbobs(10)-sys_bias(10)); tb_use(11)=(tbobs(11)-sys_bias(11)); tb_use(12)=(tbobs(12)-sys_bias(12))
+      tb_use(13)=(tbobs(13)-sys_bias(13)); tb_use(14)=(tbobs(14)-sys_bias(14))
 
-    ! second set of constants and coefficients (single channel regression)
-    d36h = 1.08529_r_kind
-    d89h = 1.66380_r_kind
+      ! Set regression constants and coefficients
+      ! first set of constants and coefficients (using all channels)
+      c36h = 1.18467_r_kind
+      c89h = 1.73315_r_kind
 
-    rgr_coeff2_36h = (/ 0.00017_r_kind, -0.00269_r_kind /)
-    rgr_coeff2_89h = (/ 0.00017_r_kind, -0.00433_r_kind /)
+      rgr_coeff_36h = (/ -0.00098_r_kind, 0.00145_r_kind, -0.00146_r_kind, 0.00055_r_kind, &
+                         -0.00232_r_kind, 0.00061_r_kind, 0.00160_r_kind, 0.00001_r_kind, &
+                         -0.00053_r_kind, -0.00019_r_kind, -0.00272_r_kind, 0.00104_r_kind, &
+                         -0.00026_r_kind, 0.00032_r_kind /)
+      rgr_coeff_89h = (/ -0.00141_r_kind, 0.00217_r_kind, -0.00214_r_kind, 0.00070_r_kind, &
+                         -0.00358_r_kind, 0.00110_r_kind, 0.00199_r_kind, 0.00002_r_kind, &
+                         -0.00131_r_kind, 0.00003_r_kind, -0.00318_r_kind, 0.00122_r_kind, &
+                         -0.00043_r_kind, 0.00047_r_kind /)
 
-    ! perform regressions
-    ! first set
-    em36h = c36h
-    em89h = c89h
-    do i=1,nch_emrgr
-      idx=idxch_emrgr(i)
-      em36h=em36h+(tb_use(idx)*rgr_coeff_36h(i))    ! 36h multi-channel emiss
-      em89h=em89h+(tb_use(idx)*rgr_coeff_89h(i))    ! 89h multi-channel emiss
-    end do
+      ! second set of constants and coefficients (single channel regression)
+      d36h = 1.08529_r_kind
+      d89h = 1.66380_r_kind
 
-    ! second set, using tskin
-    ! 36h single-channel emiss
-    em2_36h = d36h + ( tb_use(12)*rgr_coeff2_36h(1) ) + ( rgr_coeff2_36h(2) * tsavg5 )
-    ! 36h single-channel emiss
-    em2_89h = d89h + ( tb_use(14)*rgr_coeff2_89h(1) ) + ( rgr_coeff2_89h(2) * tsavg5 )
+      rgr_coeff2_36h = (/ 0.00017_r_kind, -0.00269_r_kind /)
+      rgr_coeff2_89h = (/ 0.00017_r_kind, -0.00433_r_kind /)
 
-    ! calculate differences between emissivity regressions
-    ! single channel less multiple channel
-    diff_em_36h = em2_36h - em36h
-    diff_em_89h = em2_89h - em89h
+      ! perform regressions
+      ! first set
+      em36h = c36h
+      em89h = c89h
+      do i=1,nch_emrgr
+        idx=idxch_emrgr(i)
+        em36h=em36h+(tb_use(idx)*rgr_coeff_36h(i))    ! 36h multi-channel emiss
+        em89h=em89h+(tb_use(idx)*rgr_coeff_89h(i))    ! 89h multi-channel emiss
+      end do
 
-    ! check emissivity difference values against thresholds and assign flag if
-    ! needed
-!    if ( (diff_em_36h > 0.015_r_kind) .or. (diff_em_89h > 0.015_r_kind) ) then
-    if ( (diff_em_36h > 0.008_r_kind) .or. (diff_em_89h > 0.008_r_kind) .or. &
-         (diff_em_36h < -0.030_r_kind) .or. (diff_em_89h < -0.030_r_kind) ) then
-       do i=1,14
-          varinv(1:14)=zero
-          if (id_qc(i) == igood_qc) id_qc(i)=ifail_emiss_qc
+      ! second set, using tskin
+      ! 36h single-channel emiss
+      em2_36h = d36h + ( tb_use(12)*rgr_coeff2_36h(1) ) + ( rgr_coeff2_36h(2) * tsavg5 )
+      ! 36h single-channel emiss
+      em2_89h = d89h + ( tb_use(14)*rgr_coeff2_89h(1) ) + ( rgr_coeff2_89h(2) * tsavg5 )
+
+      ! calculate differences between emissivity regressions
+      ! single channel less multiple channel
+      diff_em_36h = em2_36h - em36h
+      diff_em_89h = em2_89h - em89h
+
+      ! check emissivity difference values against thresholds and assign flag if
+      ! needed
+!      if ( (diff_em_36h > 0.015_r_kind) .or. (diff_em_89h > 0.015_r_kind) ) then
+      if ( (diff_em_36h > 0.008_r_kind) .or. (diff_em_89h > 0.008_r_kind) .or. &
+           (diff_em_36h < -0.030_r_kind) .or. (diff_em_89h < -0.030_r_kind) ) then
+         do i=1,14
+            varinv(1:14)=zero
+            if (id_qc(i) == igood_qc) id_qc(i)=ifail_emiss_qc
+         end do
+      end if
+    end if  ! .not. lcw4crtm
+
+    if(abs(sgagl) < 20.0_r_kind) then
+       do i=1,nchanl
+          if(id_qc(i)== igood_qc) then
+             id_qc(i)  =ifail_sgagl_qc
+             varinv(i) = zero
+             if(luse) aivals(11) = aivals(11) + one
+          endif
+       enddo
+    else if (frac_sea < 0.99_r_kind ) then
+       do i=1,nchanl
+          if(id_qc(i)== igood_qc ) then
+             varinv(i)=zero
+             id_qc(i)=ifail_surface_qc
+             if(luse)  aivals(9) = aivals(9) + one
+          endif
        end do
-    end if
+    else
+       if (tzbgr < 275.0_r_kind) then
+          do i=1,nchanl
+             if(id_qc(i)== igood_qc ) then
+                varinv(i)=zero
+                id_qc(i)=ifail_emiss_qc
+                if(luse) aivals(13) = aivals(13) + one
+             endif
+          enddo
+       endif
+    endif
+    if (lcw4crtm) then
+       if (sfc_speed > 12.0_r_kind ) then
+          do i=1,nchanl
+             if(id_qc(i)== igood_qc ) then
+                varinv(i)=zero
+                id_qc(i)   = ifail_sfc_speed
+                if(luse) aivals(9) = aivals(9) + one
+             endif
+          end do
+       else if(abs(cenlat) > 60_r_kind) then
+          do i=1,nchanl
+             if(id_qc(i)== igood_qc ) then
+                varinv(i)=zero
+                id_qc(i)=ifail_polar_qc
+                if(luse) aivals(9) = aivals(9) + one
+             endif
+          enddo
+       endif
+       if( present(clw_guess_retrieval) ) then
+          ! remove thick couds in both model and observations
+          if( clw > top_clw .or. clw_guess_retrieval > top_clw .or. &
+              abs(clw-clw_guess_retrieval)>0.5_r_kind) then
+             do i=1,nchanl
+                if( id_qc(i)== igood_qc ) then
+                   varinv(i)=zero
+                   id_qc(i)=ifail_cloud_qc
+                   if(luse) aivals(9) = aivals(9) + one
+                endif
+             enddo
+          endif
+       endif
+       if( present(tpwc_guess) ) then
+          if( tpwc_guess < r10 ) then
+             do i=1,nchanl
+                if( id_qc(i)== igood_qc ) then
+                   varinv(i)=zero
+                   id_qc(i)=ifail_model_tpw_qc
+                   if(luse) aivals(9) = aivals(9) + one
+                endif
+             enddo
+          endif
+       endif
+    endif !lcw4crtm
 
 !    Use data not over over sea
   else  !land,sea ice,mixed
