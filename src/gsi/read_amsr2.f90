@@ -186,9 +186,6 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   real(r_double),dimension(4):: gcomspot_d
   real(r_double),dimension(13):: amsrspot_d               
   real(r_double),dimension(3,14):: amsrchan_d             
-  integer:: amsr2_nstep
-
-  integer,parameter:: npos_bin = 3
 
 ! ---- For sun zenith and glint angles  ----
   integer(i_kind):: doy,mday(12),mon,m,mlen(12)
