@@ -1149,7 +1149,6 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
 !    "chopped" into smaller pieces.
 
      if (sum(sfc_sum%count) == zero) then
-        close(9)
         subgrid_lengths_x = subgrid_lengths_x + 1
         subgrid_lengths_y = subgrid_lengths_y + 1
 !       print*,'NO GRID POINTS INSIDE FOV, CHOP MODEL BOX INTO FINER PIECES',subgrid_lengths_x,subgrid_lengths_y
