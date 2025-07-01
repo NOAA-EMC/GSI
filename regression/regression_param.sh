@@ -22,7 +22,7 @@ case $machine in
     Hercules)
            sub_cmd="sub_hercules"
            memnode=512
-           numcore=40
+           numcore=80
     ;;
     gaeac6)
            sub_cmd="sub_gaeac6"
@@ -63,10 +63,10 @@ case $regtest in
            topts[2]="0:10:00" ; popts[2]="48/3/" ; ropts[2]="/2"
         elif [[ "$machine" = "Orion" ]]; then
            topts[1]="0:20:00" ; popts[1]="12/8/" ; ropts[1]="/1"
-           topts[2]="0:20:00" ; popts[2]="12/12/" ; ropts[2]="/2"
+           topts[2]="0:20:00" ; popts[2]="12/10/" ; ropts[2]="/2"
         elif [[ "$machine" = "Hercules" ]]; then
            topts[1]="0:10:00" ; popts[1]="12/8/" ; ropts[1]="/1"
-           topts[2]="0:10:00" ; popts[2]="12/12/" ; ropts[2]="/2"
+           topts[2]="0:10:00" ; popts[2]="12/10/" ; ropts[2]="/2"
         elif [[ "$machine" = "gaeac6" ]]; then
            topts[1]="0:10:00" ; popts[1]="12/8/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="12/10/" ; ropts[2]="/2"
@@ -93,10 +93,10 @@ case $regtest in
            topts[2]="0:05:00" ; popts[2]="60/3/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Orion" ]]; then
            topts[1]="0:15:00" ; popts[1]="20/6/" ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="20/12/" ; ropts[2]="/2"
+           topts[2]="0:15:00" ; popts[2]="20/12/" ; ropts[2]="/1"
         elif [[ "$machine" = "Hercules" ]]; then
            topts[1]="0:05:00" ; popts[1]="40/3/" ; ropts[1]="/1"
-           topts[2]="0:05:00" ; popts[2]="40/5/" ; ropts[2]="/2"
+           topts[2]="0:05:00" ; popts[2]="40/6/" ; ropts[2]="/1"
         elif [[ "$machine" = "gaeac6" ]]; then
            topts[1]="0:15:00" ; popts[1]="40/3/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="40/5/"  ; ropts[2]="/1"
@@ -122,11 +122,11 @@ case $regtest in
            topts[1]="0:15:00" ; popts[1]="10/2/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="20/2/"  ; ropts[2]="/1"
         elif [[ "$machine" = "Orion" ]]; then
-           topts[1]="0:15:00" ; popts[1]="5/4/" ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="10/4/" ; ropts[2]="/2"
+           topts[1]="0:15:00" ; popts[1]="10/2/" ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="20/2/" ; ropts[2]="/1"
         elif [[ "$machine" = "Hercules" ]]; then
-           topts[1]="0:15:00" ; popts[1]="20/1/" ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="5/8/" ; ropts[2]="/2"
+           topts[1]="0:15:00" ; popts[1]="10/2/" ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="20/2/" ; ropts[2]="/1"
         elif [[ "$machine" = "gaeac6" ]]; then
            topts[1]="0:15:00" ; popts[1]="64/1/"  ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="128/2/"  ; ropts[2]="/1"
