@@ -16,9 +16,9 @@ subroutine general_sptez_s(sp,wave,grid,idir)
 !           subprogram can be called from a multiprocessing environment.
 !
 !           This routine differs from splib routine sptez in that
-!              1) the calling list only contains the in/out arrays and 
+!              1) the calling list only contains the in/out arrays and
 !                 flag for the direction in which to transform
-!              2) it calls a version of sptranf that does not invoke 
+!              2) it calls a version of sptranf that does not invoke
 !                 initialization routines on each entry
 !              3) some generality built into the splib version is
 !                 removed in the code below
@@ -142,9 +142,9 @@ subroutine general_sptranf_s(sp_a,wave,grid,idir)
 !
 ! subprograms called:
 !   sptranf1     sptranf spectral transform
-!   
-! remarks: 
-!   This routine assumes that splib routine sptranf0 has been 
+!
+! remarks:
+!   This routine assumes that splib routine sptranf0 has been
 !   previously called.  sptranf0 initializes arrays needed in
 !   the transforms.
 !
@@ -167,6 +167,7 @@ subroutine general_sptranf_s(sp_a,wave,grid,idir)
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use general_specmod, only: spec_vars
+  use sp_mod, only: spffte,spsynth,spanaly
   implicit none
 
 ! Declare passed variables
@@ -181,25 +182,27 @@ subroutine general_sptranf_s(sp_a,wave,grid,idir)
   real(r_kind),dimension(sp_a%imax,2):: g
   real(r_kind),dimension(sp_a%imax+2,2):: f
   real(r_kind),dimension(50000+4*sp_a%imax):: tmpafft
+  integer(i_kind), dimension(1) :: a_mp
 
 ! Initialize local variables
   mp=0
+  a_mp=0
 
   do i=1,2*(sp_a%jcap+1)
      wtop(i)=zero
   end do
 
 ! Transform wave to grid
-!  ***NOTE***    
+!  ***NOTE***
 !     The FFT used in the transform below has been generalized to
-!     allow for projection of spectral coefficients onto double 
-!     the desired number of longitudinal grid points.  This 
-!     approach is needed when transforming high wavenumber spectral 
-!     coefficients to a coarser resoultion grid.  For example, using 
-!     splib to directly transform T878 spectral coefficients to an 
+!     allow for projection of spectral coefficients onto double
+!     the desired number of longitudinal grid points.  This
+!     approach is needed when transforming high wavenumber spectral
+!     coefficients to a coarser resoultion grid.  For example, using
+!     splib to directly transform T878 spectral coefficients to an
 !     1152 x 576 grid does not use Fourier modes above wavenumber 576.
-!     Joe Sela insightfully suggested doubling the number of points 
-!     in the FFT and using every other point in the output grid.   
+!     Joe Sela insightfully suggested doubling the number of points
+!     in the FFT and using every other point in the output grid.
 !     Mark Iredell coded up Joe's idea below.
 
   tmpafft(:)=sp_a%afft(:)
@@ -209,7 +212,7 @@ subroutine general_sptranf_s(sp_a,wave,grid,idir)
   if(idir>0) then
      do j=sp_a%jb,sp_a%je
         call spsynth(sp_a%iromb,sp_a%jcap,sp_a%imax,imaxp2,kw,kwtop,1, &
-            sp_a%clat(j),sp_a%pln(1,j),sp_a%plntop(1,j),0,wave,wtop,f)
+            sp_a%clat(j),sp_a%pln(:,j),sp_a%plntop(:,j),a_mp,wave,wtop,f)
         call spffte(sp_a%imax,imaxp2/2,sp_a%imax,2,f,g,1,tmpafft)
 !       call sptranf1(sp_a%iromb,sp_a%jcap,sp_a%idrt,sp_a%imax,sp_a%jmax,j,j, &
 !           sp_a%eps,sp_a%epstop,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
@@ -231,8 +234,8 @@ subroutine general_sptranf_s(sp_a,wave,grid,idir)
 !     high spectral representation fields to coarse physical space
 !     grids. The code below should not be used to transform coarse
 !     resolution grids to high spectral representation.   Since this
-!     functionality is not yet needed in the GSI, the prudent action 
-!     to take here is to print an ERROR message and terminate program 
+!     functionality is not yet needed in the GSI, the prudent action
+!     to take here is to print an ERROR message and terminate program
 !     execution if such a transform is requested.
 
   else
@@ -248,7 +251,7 @@ subroutine general_sptranf_s(sp_a,wave,grid,idir)
            enddo
            call spffte(sp_a%imax,imaxp2/2,sp_a%imax,2,f,g,-1,tmpafft)
            call spanaly(sp_a%iromb,sp_a%jcap,sp_a%imax,imaxp2,kw,kwtop,1, &
-               sp_a%wlat(j),sp_a%clat(j),sp_a%pln(1,j),sp_a%plntop(1,j),0,f,wave,wtop)
+               sp_a%wlat(j),sp_a%clat(j),sp_a%pln(:,j),sp_a%plntop(:,j),a_mp,f,wave,wtop)
 !          call sptranf1(sp_a%iromb,sp_a%jcap,sp_a%idrt,sp_a%imax,sp_a%jmax,j,j, &
 !               sp_a%eps,sp_a%epstop,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
 !               tmpafft,sp_a%clat(j),sp_a%slat(j),sp_a%wlat(j), &
@@ -309,9 +312,9 @@ subroutine general_sptranf_s_b(sp_a,sp_b,wave,grid,idir)
 !
 ! subprograms called:
 !   sptranf1     sptranf spectral transform
-!   
-! remarks: 
-!   This routine assumes that splib routine sptranf0 has been 
+!
+! remarks:
+!   This routine assumes that splib routine sptranf0 has been
 !   previously called.  sptranf0 initializes arrays needed in
 !   the transforms.
 !
@@ -334,6 +337,7 @@ subroutine general_sptranf_s_b(sp_a,sp_b,wave,grid,idir)
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use general_specmod, only: spec_vars
+  use sp_mod, only: spffte,spsynth,spanaly,splegend
   implicit none
 
 ! Declare passed variables
@@ -345,6 +349,7 @@ subroutine general_sptranf_s_b(sp_a,sp_b,wave,grid,idir)
 
 ! Declare local variables
   integer(i_kind) i,j,ii,jj,ijn,ijs,mp,ifact,kw,kwtop,imaxp2
+  integer(i_kind), dimension(1) :: a_mp
   real(r_kind),dimension(2*(sp_b%jcap+1)):: wtop
   real(r_kind),dimension(sp_b%imax,2):: g
   real(r_kind),dimension(sp_b%imax+2,2):: f
@@ -354,6 +359,7 @@ subroutine general_sptranf_s_b(sp_a,sp_b,wave,grid,idir)
 
 ! Initialize local variables
   mp=0
+  a_mp=0
   ifact = sp_b%imax/sp_a%imax
   do i=1,2*(sp_b%jcap+1)
      wtop(i)=zero
@@ -363,16 +369,16 @@ subroutine general_sptranf_s_b(sp_a,sp_b,wave,grid,idir)
   imaxp2=sp_b%imax+2
 
 ! Transform wave to grid
-!  ***NOTE***    
+!  ***NOTE***
 !     The FFT used in the transform below has been generalized to
-!     allow for projection of spectral coefficients onto double 
-!     the desired number of longitudinal grid points.  This 
-!     approach is needed when transforming high wavenumber spectral 
-!     coefficients to a coarser resoultion grid.  For example, using 
-!     splib to directly transform T878 spectral coefficients to an 
+!     allow for projection of spectral coefficients onto double
+!     the desired number of longitudinal grid points.  This
+!     approach is needed when transforming high wavenumber spectral
+!     coefficients to a coarser resoultion grid.  For example, using
+!     splib to directly transform T878 spectral coefficients to an
 !     1152 x 576 grid does not use Fourier modes above wavenumber 576.
-!     Joe Sela insightfully suggested doubling the number of points 
-!     in the FFT and using every other point in the output grid.   
+!     Joe Sela insightfully suggested doubling the number of points
+!     in the FFT and using every other point in the output grid.
 !     Mark Iredell coded up Joe's idea below.
 
   if(idir>0) then
@@ -381,7 +387,7 @@ subroutine general_sptranf_s_b(sp_a,sp_b,wave,grid,idir)
         do j=sp_a%jb,sp_a%je
            tmpafft(:)=sp_b%afft(:)
            call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-            sp_a%clat(j),sp_b%pln(1,j),sp_b%plntop(1,j),0,wave,wtop,f)
+            sp_a%clat(j),sp_b%pln(:,j),sp_b%plntop(:,j),a_mp,wave,wtop,f)
            call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 !          call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
 !              sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
@@ -404,7 +410,7 @@ subroutine general_sptranf_s_b(sp_a,sp_b,wave,grid,idir)
            call splegend(sp_b%iromb,sp_b%jcap,sp_b%slat(j),sp_b%clat(j),sp_b%eps,&
                sp_b%epstop,tmppln,tmpplntop)
            call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-            sp_a%clat(j),tmppln,tmpplntop,0,wave,wtop,f)
+            sp_a%clat(j),tmppln,tmpplntop,a_mp,wave,wtop,f)
            call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 !          call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
 !              sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
@@ -428,8 +434,8 @@ subroutine general_sptranf_s_b(sp_a,sp_b,wave,grid,idir)
 !     high spectral representation fields to coarse physical space
 !     grids. The code below should not be used to transform coarse
 !     resolution grids to high spectral representation.   Since this
-!     functionality is not yet needed in the GSI, the prudent action 
-!     to take here is to print an ERROR message and terminate program 
+!     functionality is not yet needed in the GSI, the prudent action
+!     to take here is to print an ERROR message and terminate program
 !     execution if such a transform is requested.
 
   else
@@ -451,7 +457,7 @@ subroutine general_sptranf_s_b(sp_a,sp_b,wave,grid,idir)
                  enddo
                  call spffte(sp_a%imax,imaxp2/2,sp_a%imax,2,f,g,-1,tmpafft)
                  call spanaly(sp_a%iromb,sp_a%jcap,sp_a%imax,imaxp2,kw,kwtop,1, &
-                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(1,j),sp_a%plntop(1,j),0,f,wave,wtop)
+                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(:,j),sp_a%plntop(:,j),a_mp,f,wave,wtop)
 !                call sptranf1(sp_a%iromb,sp_a%jcap,sp_a%idrt,sp_a%imax,sp_a%jmax,j,j, &
 !                     sp_a%eps,sp_a%epstop,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
 !                     tmpafft,sp_a%clat(j),sp_a%slat(j),sp_a%wlat(j), &
@@ -473,7 +479,7 @@ subroutine general_sptranf_s_b(sp_a,sp_b,wave,grid,idir)
                       sp_a%epstop,tmppln,tmpplntop)
                  call spffte(sp_a%imax,imaxp2/2,sp_a%imax,2,f,g,-1,tmpafft)
                  call spanaly(sp_a%iromb,sp_a%jcap,sp_a%imax,imaxp2,kw,kwtop,1, &
-                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(1,j),sp_a%plntop(1,j),0,f,wave,wtop)
+                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(:,j),sp_a%plntop(:,j),a_mp,f,wave,wtop)
 !                call sptranf1(sp_a%iromb,sp_a%jcap,sp_a%idrt,sp_a%imax,sp_a%jmax,j,j, &
 !                     sp_a%eps,sp_a%epstop,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
 !                     tmpafft,sp_a%clat(j),sp_a%slat(j),sp_a%wlat(j), &
@@ -516,7 +522,7 @@ subroutine general_sptez_v(sp,waved,wavez,gridu,gridv,idir)
 !   1996-02-29  iredell
 !   2004-08-23  treadon - adapt splib routine sptezv for gsi use
 !   2007-04-25  errico  - replace use of duplicate arguments in sptranf_v
-!   2008-04-03  safford - rm unused vars 
+!   2008-04-03  safford - rm unused vars
 !   2010-02-18  parrish - copy to general_sptez_v, and pass specmod vars through
 !                          input variable sp of type(spec_vars)
 !
@@ -649,7 +655,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
 !   spdz2uv      compute winds from divergence and vorticity
 !   spuv2dz      compute divergence and vorticity from winds
 !
-! remarks: 
+! remarks:
 !   This routine assumes that splib routine sptranf0 has been
 !   previously called.  sptranf0 initializes arrays needed in
 !   the transforms.
@@ -673,6 +679,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use general_specmod, only: spec_vars
+  use sp_mod, only: spffte,spsynth,spanaly,splegend,spdz2uv,spuv2dz
   implicit none
 
 ! Declare passed variables
@@ -685,7 +692,8 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
 
 ! Declare local variables
   integer(i_kind) i,j,ii,jj,ijn,ijs,ifact,kw,kwtop,imaxp2
-  integer(i_kind),dimension(2):: mp
+  integer(i_kind) :: mp
+  integer(i_kind), dimension(1) :: a_mp
   real(r_kind),dimension(sp_b%ncd2*2,2):: w
   real(r_kind),dimension(2*(sp_b%jcap+1),2):: wtop
   real(r_kind),dimension(sp_b%imax,2):: g
@@ -697,6 +705,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
 
 ! Set parameters
   mp=1
+  a_mp=1
   ifact = sp_b%imax/sp_a%imax
   kw=(sp_b%jcap+1)*((sp_b%iromb+1)*sp_b%jcap+2)
   kwtop=2*(sp_b%jcap+1)
@@ -724,7 +733,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
         do j=sp_a%jb,sp_a%je
            tmpafft(:)=sp_b%afft(:)
            call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-            sp_a%clat(j),sp_b%pln(1,j),sp_b%plntop(1,j),mp,w(1,1),wtop(1,1),f)
+            sp_a%clat(j),sp_b%pln(:,j),sp_b%plntop(:,j),a_mp,w(1,1),wtop(1,1),f)
            call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 !          call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
 !              sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
@@ -740,7 +749,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
               gridu(ijs+i)=g(ii,2)
            enddo
            call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-            sp_a%clat(j),sp_b%pln(1,j),sp_b%plntop(1,j),mp,w(1,2),wtop(1,2),f)
+            sp_a%clat(j),sp_b%pln(:,j),sp_b%plntop(:,j),a_mp,w(1,2),wtop(1,2),f)
            call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 !          call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
 !              sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
@@ -760,7 +769,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
            call splegend(sp_b%iromb,sp_b%jcap,sp_b%slat(j),sp_b%clat(j),sp_b%eps,&
                sp_b%epstop,tmppln,tmpplntop)
            call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-            sp_a%clat(j),tmppln,tmpplntop,mp,w(1,1),wtop(1,1),f)
+            sp_a%clat(j),tmppln,tmpplntop,a_mp,w(1,1),wtop(1,1),f)
            call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 !          call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
 !              sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
@@ -776,7 +785,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
               gridu(ijs+i)=g(ii,2)
            enddo
            call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-            sp_a%clat(j),tmppln,tmpplntop,mp,w(1,2),wtop(1,2),f)
+            sp_a%clat(j),tmppln,tmpplntop,a_mp,w(1,2),wtop(1,2),f)
            call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 !          call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
 !              sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
@@ -821,7 +830,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
                  enddo
                  call spffte(sp_a%imax,imaxp2/2,sp_a%imax,2,f,g,-1,tmpafft)
                  call spanaly(sp_a%iromb,sp_a%jcap,sp_a%imax,imaxp2,kw,kwtop,1, &
-                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(1,j),sp_a%plntop(1,j),mp,f, &
+                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(:,j),sp_a%plntop(:,j),a_mp,f, &
                      w(1,1),wtop(1,1))
 !                call sptranf1(sp_a%iromb,sp_a%jcap,sp_a%idrt,sp_a%imax,sp_a%jmax,j,j, &
 !                    sp_a%eps,sp_a%epstop,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
@@ -834,7 +843,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
                  enddo
                  call spffte(sp_a%imax,imaxp2/2,sp_a%imax,2,f,g,-1,tmpafft)
                  call spanaly(sp_a%iromb,sp_a%jcap,sp_a%imax,imaxp2,kw,kwtop,1, &
-                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(1,j),sp_a%plntop(1,j),mp,f, &
+                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(:,j),sp_a%plntop(:,j),a_mp,f, &
                      w(1,2),wtop(1,2))
 !                call sptranf1(sp_a%iromb,sp_a%jcap,sp_a%idrt,sp_a%imax,sp_a%jmax,j,j, &
 !                  sp_a%eps,sp_a%epstop,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
@@ -847,7 +856,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
            do j=sp_a%jb,sp_a%je
               if(sp_a%wlat(j)>zero) then
                  call splegend(sp_a%iromb,sp_a%jcap,sp_a%slat(j),sp_a%clat(j),sp_a%eps,&
-                   sp_a%epstop,sp_a%pln(1,1),sp_a%plntop(1,1))
+                   sp_a%epstop,sp_a%pln(:,1),sp_a%plntop(:,1))
                  jj   = j-sp_a%jb
                  ijn = jj*sp_a%jn
                  ijs = jj*sp_a%js + sp_a%ioffset
@@ -857,7 +866,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
                  enddo
                  call spffte(sp_a%imax,imaxp2/2,sp_a%imax,2,f,g,-1,tmpafft)
                  call spanaly(sp_a%iromb,sp_a%jcap,sp_a%imax,imaxp2,kw,kwtop,1, &
-                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(1,1),sp_a%plntop(1,1),mp,f, &
+                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(:,1),sp_a%plntop(:,1),a_mp,f, &
                      w(1,1),wtop(1,1))
 !                call sptranf1(sp_a%iromb,sp_a%jcap,sp_a%idrt,sp_a%imax,sp_a%jmax,j,j, &
 !                    sp_a%eps,sp_a%epstop,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
@@ -870,7 +879,7 @@ subroutine general_sptranf_v(sp_a,sp_b,waved,wavez,gridu,gridv,idir)
                  enddo
                  call spffte(sp_a%imax,imaxp2/2,sp_a%imax,2,f,g,-1,tmpafft)
                  call spanaly(sp_a%iromb,sp_a%jcap,sp_a%imax,imaxp2,kw,kwtop,1, &
-                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(1,1),sp_a%plntop(1,1),mp,f, &
+                     sp_a%wlat(j),sp_a%clat(j),sp_a%pln(:,1),sp_a%plntop(:,1),a_mp,f, &
                      w(1,2),wtop(1,2))
 !                call sptranf1(sp_a%iromb,sp_a%jcap,sp_a%idrt,sp_a%imax,sp_a%jmax,j,j, &
 !                  sp_a%eps,sp_a%epstop,sp_a%enn1,sp_a%elonn1,sp_a%eon,sp_a%eontop, &
@@ -945,7 +954,7 @@ subroutine general_sptranf_v_u(sp_a,sp_b,waved,wavez,gridu,gridv)
 !   spdz2uv      compute winds from divergence and vorticity
 !   spuv2dz      compute divergence and vorticity from winds
 !
-! remarks: 
+! remarks:
 !   This routine assumes that splib routine sptranf0 has been
 !   previously called.  sptranf0 initializes arrays needed in
 !   the transforms.
@@ -969,6 +978,7 @@ subroutine general_sptranf_v_u(sp_a,sp_b,waved,wavez,gridu,gridv)
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use general_specmod, only: spec_vars
+  use sp_mod, only: spffte,spsynth,splegend,spdz2uv
   implicit none
 
 ! Declare passed variables
@@ -980,7 +990,8 @@ subroutine general_sptranf_v_u(sp_a,sp_b,waved,wavez,gridu,gridv)
 
 ! Declare local variables
   integer(i_kind) i,j,ii,jj,ijn,ijs,ifact,kw,kwtop,imaxp2
-  integer(i_kind),dimension(2):: mp
+  integer(i_kind) :: mp
+  integer(i_kind), dimension(1) :: a_mp
   real(r_kind),dimension(sp_b%ncd2*2,2):: w
   real(r_kind),dimension(2*(sp_b%jcap+1),2):: wtop
   real(r_kind),dimension(sp_b%imax,2):: g
@@ -991,6 +1002,7 @@ subroutine general_sptranf_v_u(sp_a,sp_b,waved,wavez,gridu,gridv)
 
 ! Set parameters
   mp=1
+  a_mp=1
   ifact = sp_b%imax/sp_a%imax
   kw=(sp_b%jcap+1)*((sp_b%iromb+1)*sp_b%jcap+2)
   kwtop=2*(sp_b%jcap+1)
@@ -1017,7 +1029,7 @@ subroutine general_sptranf_v_u(sp_a,sp_b,waved,wavez,gridu,gridv)
         do j=sp_a%jb,sp_a%je
            tmpafft(:)=sp_b%afft(:)
            call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-            sp_a%clat(j),sp_b%pln(1,j),sp_b%plntop(1,j),mp,w(1,1),wtop(1,1),f)
+            sp_a%clat(j),sp_b%pln(:,j),sp_b%plntop(:,j),a_mp,w(1,1),wtop(1,1),f)
            call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 !          call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
 !              sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
@@ -1034,7 +1046,7 @@ subroutine general_sptranf_v_u(sp_a,sp_b,waved,wavez,gridu,gridv)
            enddo
            if(j == sp_a%jb)then
               call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-               sp_a%clat(j),sp_b%pln(1,j),sp_b%plntop(1,j),mp,w(1,2),wtop(1,2),f)
+               sp_a%clat(j),sp_b%pln(:,j),sp_b%plntop(:,j),a_mp,w(1,2),wtop(1,2),f)
               call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 
 !             call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
@@ -1056,7 +1068,7 @@ subroutine general_sptranf_v_u(sp_a,sp_b,waved,wavez,gridu,gridv)
                sp_b%epstop,tmppln,tmpplntop)
            tmpafft(:)=sp_b%afft(:)
            call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-            sp_a%clat(j),tmppln,tmpplntop,mp,w(1,1),wtop(1,1),f)
+            sp_a%clat(j),tmppln,tmpplntop,a_mp,w(1,1),wtop(1,1),f)
            call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 !          call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
 !              sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
@@ -1073,7 +1085,7 @@ subroutine general_sptranf_v_u(sp_a,sp_b,waved,wavez,gridu,gridv)
            enddo
            if(j == sp_a%jb)then
               call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-               sp_a%clat(j),tmppln,tmpplntop,mp,w(1,2),wtop(1,2),f)
+               sp_a%clat(j),tmppln,tmpplntop,a_mp,w(1,2),wtop(1,2),f)
               call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 
 !             call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
@@ -1145,7 +1157,7 @@ subroutine general_sptranf_v_v(sp_a,sp_b,waved,wavez,gridu,gridv)
 !   spdz2uv      compute winds from divergence and vorticity
 !   spuv2dz      compute divergence and vorticity from winds
 !
-! remarks: 
+! remarks:
 !   This routine assumes that splib routine sptranf0 has been
 !   previously called.  sptranf0 initializes arrays needed in
 !   the transforms.
@@ -1169,6 +1181,7 @@ subroutine general_sptranf_v_v(sp_a,sp_b,waved,wavez,gridu,gridv)
   use kinds, only: r_kind,i_kind
   use constants, only: zero
   use general_specmod, only: spec_vars
+  use sp_mod, only: spffte,spsynth,splegend,spdz2uv
   implicit none
 
 ! Declare passed variables
@@ -1180,7 +1193,8 @@ subroutine general_sptranf_v_v(sp_a,sp_b,waved,wavez,gridu,gridv)
 
 ! Declare local variables
   integer(i_kind) i,j,ii,jj,ijn,ijs,ifact,kw,kwtop,imaxp2
-  integer(i_kind),dimension(2):: mp
+  integer(i_kind) :: mp
+  integer(i_kind), dimension(1) :: a_mp
   real(r_kind),dimension(sp_b%ncd2*2,2):: w
   real(r_kind),dimension(2*(sp_b%jcap+1),2):: wtop
   real(r_kind),dimension(sp_b%imax,2):: g
@@ -1191,6 +1205,7 @@ subroutine general_sptranf_v_v(sp_a,sp_b,waved,wavez,gridu,gridv)
 
 ! Set parameters
   mp=1
+  a_mp=1
   ifact = sp_b%imax/sp_a%imax
   kw=(sp_b%jcap+1)*((sp_b%iromb+1)*sp_b%jcap+2)
   kwtop=2*(sp_b%jcap+1)
@@ -1220,7 +1235,7 @@ subroutine general_sptranf_v_v(sp_a,sp_b,waved,wavez,gridu,gridv)
            tmpafft(:)=sp_b%afft(:)
            if(j == sp_a%jb)then
               call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-                 sp_a%clat(j),sp_b%pln(1,j),sp_b%plntop(1,j),mp,w(1,1),wtop(1,1),f)
+                 sp_a%clat(j),sp_b%pln(:,j),sp_b%plntop(:,j),a_mp,w(1,1),wtop(1,1),f)
               call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 
 !             call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
@@ -1235,7 +1250,7 @@ subroutine general_sptranf_v_v(sp_a,sp_b,waved,wavez,gridu,gridv)
               enddo
            end if
            call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-            sp_a%clat(j),sp_b%pln(1,j),sp_b%plntop(1,j),mp,w(1,2),wtop(1,2),f)
+            sp_a%clat(j),sp_b%pln(:,j),sp_b%plntop(:,j),a_mp,w(1,2),wtop(1,2),f)
            call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 
 !          call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
@@ -1260,7 +1275,7 @@ subroutine general_sptranf_v_v(sp_a,sp_b,waved,wavez,gridu,gridv)
            tmpafft(:)=sp_b%afft(:)
            if(j == sp_a%jb)then
              call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-              sp_a%clat(j),tmppln,tmpplntop,mp,w(1,1),wtop(1,1),f)
+              sp_a%clat(j),tmppln,tmpplntop,a_mp,w(1,1),wtop(1,1),f)
              call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 
 !            call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
@@ -1275,7 +1290,7 @@ subroutine general_sptranf_v_v(sp_a,sp_b,waved,wavez,gridu,gridv)
              enddo
            end if
            call spsynth(sp_b%iromb,sp_b%jcap,sp_b%imax,imaxp2,kw,kwtop,1, &
-            sp_a%clat(j),tmppln,tmpplntop,mp,w(1,2),wtop(1,2),f)
+            sp_a%clat(j),tmppln,tmpplntop,a_mp,w(1,2),wtop(1,2),f)
            call spffte(sp_b%imax,imaxp2/2,sp_b%imax,2,f,g,1,tmpafft)
 !          call sptranf1(sp_b%iromb,sp_b%jcap,sp_b%idrt,sp_b%imax,sp_a%jmax,j,j, &
 !              sp_b%eps,sp_b%epstop,sp_b%enn1,sp_b%elonn1,sp_b%eon,sp_b%eontop, &
@@ -1311,9 +1326,9 @@ subroutine general_sptez_s_b(sp_a,sp_b,wave,grid,idir)
 !           subprogram can be called from a multiprocessing environment.
 !
 !           This routine differs from splib routine sptez in that
-!              1) the calling list only contains the in/out arrays and 
+!              1) the calling list only contains the in/out arrays and
 !                 flag for the direction in which to transform
-!              2) it calls a version of sptranf that does not invoke 
+!              2) it calls a version of sptranf that does not invoke
 !                 initialization routines on each entry
 !              3) some generality built into the splib version is
 !                 removed in the code below
@@ -1415,7 +1430,7 @@ subroutine general_sptez_v_b(sp_a,sp_b,waved,wavez,gridu,gridv,idir,iuvflag)
 !   1996-02-29  iredell
 !   2004-08-23  treadon - adapt splib routine sptezv for gsi use
 !   2007-04-25  errico  - replace use of duplicate arguments in sptranf_v
-!   2008-04-03  safford - rm unused vars 
+!   2008-04-03  safford - rm unused vars
 !   2010-02-18  parrish - copy to general_sptez_v, and pass specmod vars through
 !                          input variable sp of type(spec_vars)
 !
@@ -1493,7 +1508,7 @@ subroutine general_sptez_v_b(sp_a,sp_b,waved,wavez,gridu,gridv,idir,iuvflag)
      if(iuvflag > 0)then
 !      Call spectral <--> grid transform u only (and polar v)
        call general_sptranf_v_u(sp_a,sp_b,waved,wavez,gridu,gridv)
-     else 
+     else
 !      Call spectral <--> grid transform v only (and polar u)
        call general_sptranf_v_v(sp_a,sp_b,waved,wavez,gridu,gridv)
      end if

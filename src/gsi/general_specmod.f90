@@ -7,16 +7,16 @@ module general_specmod
 ! abstract: copy of specmod, introducing structure variable spec_vars, so
 !             spectral code can be used for arbitrary resolutions.
 !
-! program history log:   
+! program history log:
 !   2003-11-24  treadon
 !   2004-04-28  d. kokron, updated SGI's fft to use scsl
 !   2004-05-18  kleist, documentation
-!   2004-08-27  treadon - add/initialize variables/arrays needed by 
-!                         splib routines for grid <---> spectral 
+!   2004-08-27  treadon - add/initialize variables/arrays needed by
+!                         splib routines for grid <---> spectral
 !                         transforms
 !   2007-04-26  yang    - based on idrt value xxxx descriptionxxx
 !   2010-02-18  parrish - copy specmod to general_specmod and add structure variable spec_vars.
-!                           remove all *_b variables, since now not necessary to have two 
+!                           remove all *_b variables, since now not necessary to have two
 !                           resolutions.  any number of resolutions can be now contained in
 !                           type(spec_vars) variables passed in through init_spec_vars.  also
 !                           remove init_spec, since not really necessary.
@@ -127,7 +127,7 @@ contains
 ! program history log:
 !   2003-11-24  treadon
 !   2004-05-18  kleist, new variables and documentation
-!   2004-08-27  treadon - add call to sptranf0 and associated arrays, 
+!   2004-08-27  treadon - add call to sptranf0 and associated arrays,
 !                         remove del21 and other unused arrays/variables
 !   2006-04-06  middlecoff - remove jc=ncpus() since not used
 !   2008-04-11  safford    - rm unused vars
@@ -137,7 +137,7 @@ contains
 !   2013-10-23  el akkraoui - initialize lats to zero (otherwise point is undefined)
 !
 !   input argument list:
-!     sp     - type(spec_vars) variable 
+!     sp     - type(spec_vars) variable
 !     jcap   - target resolution
 !     jcap_test - test resolution,  used to construct mask which will zero out coefs
 !                  with total wavenumber n in range jcap_test < n <= jcap
@@ -154,6 +154,7 @@ contains
 !
 !$$$
     use constants, only: zero,half,one,two,pi,three
+    use sp_mod, only: splat, spffte, spwget, splegend
     implicit none
 
 !   Declare passed variables
@@ -161,13 +162,15 @@ contains
     integer(i_kind) ,intent(in   ) :: jcap,jcap_test,nlat_a,nlon_a
     logical,optional,intent(in   ) :: eqspace
 
-!   Declare local variables    
+!   Declare local variables
     integer(i_kind) i,ii1,j,l,m,jhe,n
     integer(i_kind) :: ldafft
     real(r_kind) :: dlon_a,half_pi,two_pi
     real(r_kind),dimension(nlat_a-2) :: wlatx,slatx
     real(r_kind) :: epsi0(0:jcap)  ! epsilon factor for m=0
     real(r_kind) :: fnum, fden
+    real(r_kind), dimension(:, :), allocatable :: dummy_w
+    real(r_kind), dimension(:, :), allocatable :: dummy_g
 
 !   Set constants used in transforms for analysis grid
     sp%jcap=jcap
@@ -189,7 +192,6 @@ contains
     sp%kw=2*sp%ncd2
     sp%jb=1
     sp%je=(sp%jmax+1)/2
-
 
 
 !   Allocate and initialize fact arrays
@@ -229,11 +231,17 @@ contains
     ldafft=50000+4*sp%imax ! ldafft=256+imax would be sufficient at GMAO.
     allocate( sp%afft(ldafft))
     allocate( sp%clat(sp%jb:sp%je) )
-    allocate( sp%slat(sp%jb:sp%je) ) 
-    allocate( sp%wlat(sp%jb:sp%je) ) 
+    allocate( sp%slat(sp%jb:sp%je) )
+    allocate( sp%wlat(sp%jb:sp%je) )
     call spwget(sp%iromb,sp%jcap,sp%eps,sp%epstop,sp%enn1, &
           sp%elonn1,sp%eon,sp%eontop)
-    call spffte(sp%imax,(sp%imax+2)/2,sp%imax,2,0.,0.,0,sp%afft)
+! Allocate dummy_w and dummy_g arrays for spffte (unused, but required by spffte)
+    allocate(dummy_w((sp%imax+2)/2,2), dummy_g(sp%imax,2))
+    dummy_w=zero
+    dummy_g=zero
+    call spffte(sp%imax,(sp%imax+2)/2,sp%imax,2,dummy_w,dummy_g,0,sp%afft)
+    if(allocated(dummy_w)) deallocate(dummy_w)
+    if(allocated(dummy_g)) deallocate(dummy_g)
     call splat(sp%idrt,sp%jmax,slatx,wlatx)
     jhe=(sp%jmax+1)/2
     if(jhe > sp%jmax/2)wlatx(jhe)=wlatx(jhe)/2
@@ -248,14 +256,14 @@ contains
       allocate( sp%plntop(sp%jcap+1,sp%jb:sp%je) )
       do j=sp%jb,sp%je
         call splegend(sp%iromb,sp%jcap,sp%slat(j),sp%clat(j),sp%eps, &
-          sp%epstop,sp%pln(1,j),sp%plntop(1,j))
+          sp%epstop,sp%pln(:,j),sp%plntop(:,j))
       end do
     else
       sp%precalc_pln=.false.
       allocate( sp%pln(sp%ncd2,1) )
       allocate( sp%plntop(sp%jcap+1,1) )
     end if
-      
+
 !     obtain rlats and rlons
     half_pi=half*pi
     two_pi=two*pi
