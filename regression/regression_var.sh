@@ -61,7 +61,7 @@ case $machine in
     export group="ira-sti"
     export noscrub="/gpfs/f6/${group}/scratch/${USER}/${LOGNAME}/gsi_tmp/noscrub"
     export ptmp="/gpfs/f6/${group}/scratch/${USER}/${LOGNAME}/gsi_tmp/ptmp"
-    export casesdir="/gpfs/f6/bil-fire8/world-shared/GSI_data/CASES/regtest"
+    export casesdir="/gpfs/f6/ira-sti/world-shared/Russ.Treadon/CASES/regtest"
 
     export check_resource="no"
     export accnt="ira-sti"
