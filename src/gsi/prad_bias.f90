@@ -310,8 +310,10 @@ contains
         jj=(mm-1)*npred+ii
         AA(i,i) = AA(i,i)+one/varprd(jj)
      end do
-     if (all(abs(AA)<atiny)) cycle
-     if (all(abs(be)<atiny)) cycle
+     if (all(abs(AA)<atiny) .or. all(abs(be)<atiny)) then
+        deallocate(AA,be)
+        cycle
+     endif
      call linmm(AA,be,kpred,1,kpred,kpred)
 
 
