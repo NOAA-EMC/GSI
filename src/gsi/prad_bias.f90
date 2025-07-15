@@ -311,6 +311,7 @@ contains
         AA(i,i) = AA(i,i)+one/varprd(jj)
      end do
      if (all(abs(AA)<atiny) .or. all(abs(be)<atiny)) then
+        ! Deallocate before cycling to prevent re-allocation
         deallocate(AA,be)
         cycle
      endif
