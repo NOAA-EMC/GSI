@@ -4441,8 +4441,7 @@
   real(r_kind), allocatable, dimension(:) :: psges, delzb, values_1d
 
   ! soil / snow mask (not fixed)  mask from land-mask in bkg, mask_s from top soil layer moisture
-  integer(i_kind), dimension(nlons,nlats) :: mask, mask_s, mask_diff
-  integer(i_kind)                         :: mdiff_count
+  integer(i_kind), dimension(nlons,nlats) :: mask
 
   logical :: write_sfc_file, write_atm_file
   real(r_double)  :: t1,t2
@@ -5032,18 +5031,10 @@
       end do
       call nccheck_incr(nf90_put_var(ncid_out, latvarid, deglats, &
                            start = (/1/), count = (/nlats/)))
-      ! construct mask (1 - soil, 2 - snow, 0 - not snow) ?? 0 not land?
+                           
+      ! construct mask (1 - soil, 2 - snow, 0 - not land)
       ! note: same logic/threshold used in global_cycle to produce
       ! mask on model grid.
-      call read_vardata(dsfg, 'soilw1', values_2d, errcode=iret)
-      mask_s = 0
-      do j=1,nlats
-         do i = 1, nlons
-            if (values_2d(i,j) .LT. 1.0) then
-            mask_s(i,nlats-j+1) = 1
-            endif
-         enddo
-      end do
       call read_vardata(dsfg, 'land', values_2d, errcode=iret)  !sea-land-ice mask 0-sea, 1-land, 2-ice
       mask = 0
       do j=1,nlats
@@ -5057,7 +5048,6 @@
       do j=1,nlats
          do i = 1, nlons
             if (values_2d(i,j) .GT. 0.001) then
-            mask_s(i,nlats-j+1) = 2
             mask(i,nlats-j+1) = 2
             endif
          end do
@@ -5067,22 +5057,14 @@
       do j=1,nlats
          do i = 1, nlons
             if ((nint(values_2d(i,j)) .EQ. 0) .OR. (nint(values_2d(i,j)) .EQ. 15) .OR. (values_2d(i,j) .GT. 41)) then
-            mask_s(i,nlats-j+1) = 0
             mask(i,nlats-j+1) = 0
             endif
          end do
       end do
-
-      mask_diff = mask - mask_s
-      mdiff_count = count(abs(mask_diff) > 0)
-      if (mdiff_count > 0) then 
-          print*, "proc ", nproc, ": ", mdiff_count," differences between land mask in bkg files and that from soilw"
-          !call mpi_abort(mpi_comm_world, 10)
-      endif
       
       call nccheck_incr(nf90_put_var(ncid_out, maskvarid, mask, &
                         start = ncstart(1:2), count = nccount(1:2)))
-
+                        
       allocate(inc2d(nlons,nlats))
       allocate(inc2dout(nlons,nlats))
 
@@ -5160,7 +5142,7 @@
       do j=1,nlats
          do i = 1, nlons
             if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
-         enddo
+         end do
       end do
       call nccheck_incr(nf90_put_var(ncid_out, soilt4varid, sngl(inc2dout), &
                            start = ncstart(1:2), count = nccount(1:2)))
@@ -5170,8 +5152,11 @@
          call copyfromgrdin(grdin(:,levels(n3d)+slc1_ind,nb,ne),inc)
       endif
       inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+      inc2dout=0.
       do j=1,nlats
-         inc2dout(:,nlats-j+1) = inc2d(:,j)
+         do i = 1, nlons
+            if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+         end do
       end do
       call nccheck_incr(nf90_put_var(ncid_out, slc1varid, sngl(inc2dout), &
                            start = ncstart(1:2), count = nccount(1:2)))
@@ -5181,8 +5166,11 @@
          call copyfromgrdin(grdin(:,levels(n3d)+slc2_ind,nb,ne),inc)
       endif
       inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+      inc2dout=0.
       do j=1,nlats
-         inc2dout(:,nlats-j+1) = inc2d(:,j)
+         do i = 1, nlons
+            if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+         end do
       end do
       call nccheck_incr(nf90_put_var(ncid_out, slc2varid, sngl(inc2dout), &
                            start = ncstart(1:2), count = nccount(1:2)))
@@ -5192,8 +5180,11 @@
          call copyfromgrdin(grdin(:,levels(n3d)+slc3_ind,nb,ne),inc)
       endif
       inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+      inc2dout=0.
       do j=1,nlats
-         inc2dout(:,nlats-j+1) = inc2d(:,j)
+         do i = 1, nlons
+            if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+         end do
       end do
       call nccheck_incr(nf90_put_var(ncid_out, slc3varid, sngl(inc2dout), &
                            start = ncstart(1:2), count = nccount(1:2)))
@@ -5203,8 +5194,11 @@
          call copyfromgrdin(grdin(:,levels(n3d)+slc4_ind,nb,ne),inc)
       endif
       inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+      inc2dout=0.
       do j=1,nlats
-         inc2dout(:,nlats-j+1) = inc2d(:,j)
+         do i = 1, nlons
+            if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+         end do
       end do
       call nccheck_incr(nf90_put_var(ncid_out, slc4varid, sngl(inc2dout), &
                         start = ncstart(1:2), count = nccount(1:2)))
