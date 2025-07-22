@@ -4207,11 +4207,11 @@
             endif
          end do
       end do
-      !set vegtype 15 (land-ice), 0, and fill value to 0 
+      !set vegtype 15 (land-ice), and vegtype 0 (if exists) to 0 
       call read_vardata(dsfg, 'vtype', values_2d, errcode=iret)  !vegetation type in integer, missing/fill value 9.99e+20f
       do j=1,nlats
          do i = 1, nlons
-            if ((nint(values_2d(i,j)) .EQ. 0) .OR. (nint(values_2d(i,j)) .EQ. 15) .OR. (values_2d(i,j) .GT. 41)) then
+            if ((nint(values_2d(i,j)) .EQ. 0) .OR. (nint(values_2d(i,j)) .EQ. 15) ) then
             mask(i,nlats-j+1) = 0
             endif
          end do
@@ -5071,11 +5071,11 @@
             endif
          end do
       end do
-      !set vegtype 15 (land-ice), 0, and fill value to 0 
+      !set vegtype 15 (land-ice) and vegtype 0 (if exists) to 0 
       call read_vardata(dsfg, 'vtype', values_2d, errcode=iret)  !vegetation type in integer, missing/fill value 9.99e+20f
       do j=1,nlats
          do i = 1, nlons
-            if ((nint(values_2d(i,j)) .EQ. 0) .OR. (nint(values_2d(i,j)) .EQ. 15) .OR. (values_2d(i,j) .GT. 41)) then
+            if ((nint(values_2d(i,j)) .EQ. 0) .OR. (nint(values_2d(i,j)) .EQ. 15) ) then
             mask(i,nlats-j+1) = 0
             endif
          end do
