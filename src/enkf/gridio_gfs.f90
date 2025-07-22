@@ -5054,7 +5054,7 @@
                            
       ! construct mask (1 - soil; 2 - snow over land; and 0 - not soil)
       ! note: same logic/threshold used in global_cycle to produce
-      ! mask on model grid.
+      ! mask on model grid. Set land to 1.
       call read_vardata(dsfg, 'land', values_2d, errcode=iret)  !sea-land-ice mask 0-sea, 1-land, 2-ice
       mask = 0
       do j=1,nlats
@@ -5064,6 +5064,7 @@
             endif
          end do
       end do
+      ! set snow to 2
       call read_vardata(dsfg, 'weasd', values_2d, errcode=iret)
       do j=1,nlats
          do i = 1, nlons
@@ -5072,7 +5073,7 @@
             endif
          end do
       end do
-      !set vegtype 15 (land-ice) and vegtype 0 (if exists) to 0 
+      ! set non-soil (glacier and water) to 0 
       call read_vardata(dsfg, 'vtype', values_2d, errcode=iret)  !vegetation type in integer, missing/fill value 9.99e+20f
       do j=1,nlats
          do i = 1, nlons
