@@ -4187,7 +4187,7 @@
      call nccheck_incr(nf90_put_var(ncid_out, latvarid, deglats, &
                           start = (/1/), count = (/nlats/)))
 
-      ! construct mask (1 - soil, 2 - snow, 0 - not land)
+      ! construct mask (1 - soil; 2 - snow over land; and 0 - not soil)
       ! note: same logic/threshold used in global_cycle to produce
       ! mask on model grid.
       call read_vardata(dsfg, 'land', values_2d, errcode=iret)  !sea-land-ice mask 0-sea, 1-land, 2-ice
@@ -5051,7 +5051,7 @@
       call nccheck_incr(nf90_put_var(ncid_out, latvarid, deglats, &
                            start = (/1/), count = (/nlats/)))
                            
-      ! construct mask (1 - soil, 2 - snow, 0 - not land)
+      ! construct mask (1 - soil; 2 - snow over land; and 0 - not soil)
       ! note: same logic/threshold used in global_cycle to produce
       ! mask on model grid.
       call read_vardata(dsfg, 'land', values_2d, errcode=iret)  !sea-land-ice mask 0-sea, 1-land, 2-ice
