@@ -4255,7 +4255,7 @@
       inc2dout=0.
       do j=1,nlats
          do i = 1, nlons
-            if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
          enddo
       end do
       call nccheck_incr(nf90_put_var(ncid_out, soilt1varid, sngl(inc2dout), &
@@ -4269,7 +4269,7 @@
       inc2dout=0.
       do j=1,nlats
          do i = 1, nlons
-            if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
          enddo
       end do
       call nccheck_incr(nf90_put_var(ncid_out, soilt2varid, sngl(inc2dout), &
@@ -4283,7 +4283,7 @@
       inc2dout=0.
       do j=1,nlats
          do i = 1, nlons
-            if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
          enddo
       end do
       call nccheck_incr(nf90_put_var(ncid_out, soilt3varid, sngl(inc2dout), &
@@ -4297,7 +4297,7 @@
       inc2dout=0.
       do j=1,nlats
          do i = 1, nlons
-            if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
          end do
       end do
       call nccheck_incr(nf90_put_var(ncid_out, soilt4varid, sngl(inc2dout), &
@@ -5120,7 +5120,7 @@
       inc2dout=0.
       do j=1,nlats
          do i = 1, nlons
-            if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
          enddo
       end do
       call nccheck_incr(nf90_put_var(ncid_out, soilt1varid, sngl(inc2dout), &
@@ -5134,7 +5134,7 @@
       inc2dout=0.
       do j=1,nlats
          do i = 1, nlons
-            if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
          enddo
       end do
       call nccheck_incr(nf90_put_var(ncid_out, soilt2varid, sngl(inc2dout), &
@@ -5148,7 +5148,7 @@
       inc2dout=0.
       do j=1,nlats
          do i = 1, nlons
-            if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
          enddo
       end do
       call nccheck_incr(nf90_put_var(ncid_out, soilt3varid, sngl(inc2dout), &
@@ -5162,7 +5162,7 @@
       inc2dout=0.
       do j=1,nlats
          do i = 1, nlons
-            if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
          end do
       end do
       call nccheck_incr(nf90_put_var(ncid_out, soilt4varid, sngl(inc2dout), &
