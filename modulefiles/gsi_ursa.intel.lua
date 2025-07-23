@@ -17,6 +17,6 @@ load(pathJoin("cmake", cmake_ver))
 
 load("gsi_common")
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/scratch3/NCEPDEV/global/role.glopara/fix/gsi/20250430")
+pushenv("GSI_BINARY_SOURCE_DIR", "/scratch3/NCEPDEV/global/role.glopara/fix/gsi/20250529")
 
 whatis("Description: GSI environment on Ursa with Intel Compilers")

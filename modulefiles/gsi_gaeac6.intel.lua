@@ -15,7 +15,7 @@ load(pathJoin("cmake", cmake_ver))
 
 load("gsi_common")
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/gpfs/f6/bil-fire8/world-shared/GSI_data/fix/gsi/20241022")
+pushenv("GSI_BINARY_SOURCE_DIR", "/gpfs/f6/drsa-precip3/world-shared/role.glopara/fix/gsi/20250529")
 
 setenv("CC","cc")
 setenv("FC","ftn")

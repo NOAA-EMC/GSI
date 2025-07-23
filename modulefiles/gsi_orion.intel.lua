@@ -23,6 +23,6 @@ load("intel-oneapi-mpi/2021.7.1")
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/work2/noaa/global/role-global/fix/gsi/20241022")
+pushenv("GSI_BINARY_SOURCE_DIR", "/work2/noaa/global/role-global/fix/gsi/20250529")
 
 whatis("Description: GSI environment on Orion with Intel Compilers")

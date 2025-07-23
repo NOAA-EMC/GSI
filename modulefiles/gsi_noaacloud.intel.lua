@@ -25,6 +25,6 @@ load(pathJoin("prod_util", prod_util_ver))
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/contrib/global-workflow-shared-data/fix/gsi/20241022")
+pushenv("GSI_BINARY_SOURCE_DIR", "/contrib/global-workflow-shared-data/fix/gsi/20250529")
 
 whatis("Description: GSI environment on NOAA Cloud with Intel Compilers")
