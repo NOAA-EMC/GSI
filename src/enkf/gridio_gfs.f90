@@ -4187,157 +4187,177 @@
      call nccheck_incr(nf90_put_var(ncid_out, latvarid, deglats, &
                           start = (/1/), count = (/nlats/)))
 
-     ! construct mask (1 - soil, 2 - snow, 0 - not snow)
-     ! note: same logic/threshold used in global_cycle to produce
-     ! mask on model grid.
+      ! construct mask (1 - soil; 2 - snow over land; and 0 - not soil)
+      ! note: same logic/threshold used in global_cycle to produce
+      ! mask on model grid. Set land to 1
+      call read_vardata(dsfg, 'land', values_2d, errcode=iret)  !sea-land-ice mask 0-sea, 1-land, 2-ice
+      mask = 0
+      do j=1,nlats
+         do i = 1, nlons
+            if (nint(values_2d(i,j)) .EQ. 1) then
+            mask(i,nlats-j+1) = 1
+            endif
+         end do
+      end do
+      ! set snow to 2
+      call read_vardata(dsfg, 'weasd', values_2d, errcode=iret)
+      do j=1,nlats
+         do i = 1, nlons
+            if (values_2d(i,j) .GT. 0.001) then
+            mask(i,nlats-j+1) = 2
+            endif
+         end do
+      end do
+      ! set non-soil (glacier and water) to 0
+      call read_vardata(dsfg, 'vtype', values_2d, errcode=iret)  !vegetation type in integer, missing/fill value 9.99e+20f
+      do j=1,nlats
+         do i = 1, nlons
+            if ((nint(values_2d(i,j)) .EQ. 0) .OR. (nint(values_2d(i,j)) .EQ. 15) ) then
+            mask(i,nlats-j+1) = 0
+            endif
+         end do
+      end do
+      
+      call nccheck_incr(nf90_put_var(ncid_out, maskvarid, mask, &
+                        start = ncstart(1:2), count = nccount(1:2)))
+                        
+      allocate(inc2d(nlons,nlats))
+      allocate(inc2dout(nlons,nlats))                          
 
-     call read_vardata(dsfg, 'soill1', values_2d, errcode=iret)
-
-     mask = 0
-     do j=1,nlats
-       do i = 1, nlons
-           if (values_2d(i,j) .LT. 1.0) then
-           mask(i,nlats-j+1) = 1
-           endif
-       enddo
-     end do
-
-     call read_vardata(dsfg, 'weasd', values_2d, errcode=iret)
-     do j=1,nlats
-       do i = 1, nlons
-           if (values_2d(i,j) .GT. 0.001) then
-           mask(i,nlats-j+1) = 2
-           endif
-       enddo
-     end do
-     call nccheck_incr(nf90_put_var(ncid_out, maskvarid, mask, &
-                       start = ncstart(1:2), count = nccount(1:2)))
-
-     allocate(inc2d(nlons,nlats))
-     allocate(inc2dout(nlons,nlats))
-
-     ! tmp2m increment
-     inc(:) = zero
-     if (tmp2m_ind > 0) then
-       call copyfromgrdin(grdin(:,levels(n3d) + tmp2m_ind,nb,ne),inc)
-     endif
-     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
-     do j=1,nlats
-       inc2dout(:,nlats-j+1) = inc2d(:,j)
-     end do
-     call nccheck_incr(nf90_put_var(ncid_out, tmp2mvarid, sngl(inc2dout), &
-                         start = ncstart(1:2), count = nccount(1:2)))
-     ! spfh2m increment
-     inc(:) = zero
-     if (spfh2m_ind > 0) then
-       call copyfromgrdin(grdin(:,levels(n3d)+spfh2m_ind,nb,ne),inc)
-     endif
-     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
-     do j=1,nlats
-       inc2dout(:,nlats-j+1) = inc2d(:,j)
-     end do
-     call nccheck_incr(nf90_put_var(ncid_out, spfh2mvarid, sngl(inc2dout), &
-                         start = ncstart(1:2), count = nccount(1:2)))
-     ! soilt1 increment
-     inc(:) = zero
-     if (soilt1_ind > 0) then
-       call copyfromgrdin(grdin(:,levels(n3d)+soilt1_ind,nb,ne),inc)
-     endif
-     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
-     inc2dout=0.
-     do j=1,nlats
-       do i = 1, nlons
-           if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
-       enddo
-     end do
-     call nccheck_incr(nf90_put_var(ncid_out, soilt1varid, sngl(inc2dout), &
-                         start = ncstart(1:2), count = nccount(1:2)))
-     ! soilt2 increment
-     inc(:) = zero
-     if (soilt2_ind > 0) then
-       call copyfromgrdin(grdin(:,levels(n3d)+soilt2_ind,nb,ne),inc)
-     endif
-     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
-     inc2dout=0.
-     do j=1,nlats
-       do i = 1, nlons
-           if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
-       enddo
-     end do
-     call nccheck_incr(nf90_put_var(ncid_out, soilt2varid, sngl(inc2dout), &
-                         start = ncstart(1:2), count = nccount(1:2)))
-     ! soilt3 increment
-     inc(:) = zero
-     if (soilt3_ind > 0) then
-       call copyfromgrdin(grdin(:,levels(n3d)+soilt3_ind,nb,ne),inc)
-     endif
-     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
-     inc2dout=0.
-     do j=1,nlats
-       do i = 1, nlons
-           if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
-       enddo
-     end do
-     call nccheck_incr(nf90_put_var(ncid_out, soilt3varid, sngl(inc2dout), &
-                         start = ncstart(1:2), count = nccount(1:2)))
-     ! soilt4 increment
-     inc(:) = zero
-     if (soilt4_ind > 0) then
-       call copyfromgrdin(grdin(:,levels(n3d)+soilt4_ind,nb,ne),inc)
-     endif
-     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
-     inc2dout=0.
-     do j=1,nlats
-       do i = 1, nlons
-           if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
-       enddo
-     end do
-     call nccheck_incr(nf90_put_var(ncid_out, soilt4varid, sngl(inc2dout), &
-                         start = ncstart(1:2), count = nccount(1:2)))
-     ! slc1 increment
-     inc(:) = zero
-     if (slc1_ind > 0) then
-       call copyfromgrdin(grdin(:,levels(n3d)+slc1_ind,nb,ne),inc)
-     endif
-     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
-     do j=1,nlats
-       inc2dout(:,nlats-j+1) = inc2d(:,j)
-     end do
-     call nccheck_incr(nf90_put_var(ncid_out, slc1varid, sngl(inc2dout), &
-                         start = ncstart(1:2), count = nccount(1:2)))
-     ! slc2 increment
-     inc(:) = zero
-     if (slc2_ind > 0) then
-       call copyfromgrdin(grdin(:,levels(n3d)+slc2_ind,nb,ne),inc)
-     endif
-     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
-     do j=1,nlats
-       inc2dout(:,nlats-j+1) = inc2d(:,j)
-     end do
-     call nccheck_incr(nf90_put_var(ncid_out, slc2varid, sngl(inc2dout), &
-                         start = ncstart(1:2), count = nccount(1:2)))
-     ! slc3 increment
-     inc(:) = zero
-     if (slc3_ind > 0) then
-       call copyfromgrdin(grdin(:,levels(n3d)+slc3_ind,nb,ne),inc)
-     endif
-     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
-     do j=1,nlats
-       inc2dout(:,nlats-j+1) = inc2d(:,j)
-     end do
-     call nccheck_incr(nf90_put_var(ncid_out, slc3varid, sngl(inc2dout), &
-                         start = ncstart(1:2), count = nccount(1:2)))
-     ! slc4 increment
-     inc(:) = zero
-     if (slc4_ind > 0) then
-       call copyfromgrdin(grdin(:,levels(n3d)+slc4_ind,nb,ne),inc)
-     endif
-     inc2d(:,:) = reshape(inc,(/nlons,nlats/))
-     do j=1,nlats
-       inc2dout(:,nlats-j+1) = inc2d(:,j)
-     end do
-     call nccheck_incr(nf90_put_var(ncid_out, slc4varid, sngl(inc2dout), &
-                       start = ncstart(1:2), count = nccount(1:2)))
+      ! tmp2m increment
+      inc(:) = zero
+      if (tmp2m_ind > 0) then
+         call copyfromgrdin(grdin(:,levels(n3d) + tmp2m_ind,nb,ne),inc)
+      endif
+      inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+      do j=1,nlats
+         inc2dout(:,nlats-j+1) = inc2d(:,j)
+      end do
+      call nccheck_incr(nf90_put_var(ncid_out, tmp2mvarid, sngl(inc2dout), &
+                           start = ncstart(1:2), count = nccount(1:2)))
+      ! spfh2m increment
+      inc(:) = zero
+      if (spfh2m_ind > 0) then
+         call copyfromgrdin(grdin(:,levels(n3d)+spfh2m_ind,nb,ne),inc)
+      endif
+      inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+      do j=1,nlats
+         inc2dout(:,nlats-j+1) = inc2d(:,j)
+      end do
+      call nccheck_incr(nf90_put_var(ncid_out, spfh2mvarid, sngl(inc2dout), &
+                           start = ncstart(1:2), count = nccount(1:2)))
+      ! soilt1 increment
+      inc(:) = zero
+      if (soilt1_ind > 0) then
+         call copyfromgrdin(grdin(:,levels(n3d)+soilt1_ind,nb,ne),inc)
+      endif
+      inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+      inc2dout=0.
+      do j=1,nlats
+         do i = 1, nlons
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
+         enddo
+      end do
+      call nccheck_incr(nf90_put_var(ncid_out, soilt1varid, sngl(inc2dout), &
+                           start = ncstart(1:2), count = nccount(1:2)))
+      ! soilt2 increment
+      inc(:) = zero
+      if (soilt2_ind > 0) then
+         call copyfromgrdin(grdin(:,levels(n3d)+soilt2_ind,nb,ne),inc)
+      endif
+      inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+      inc2dout=0.
+      do j=1,nlats
+         do i = 1, nlons
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
+         enddo
+      end do
+      call nccheck_incr(nf90_put_var(ncid_out, soilt2varid, sngl(inc2dout), &
+                           start = ncstart(1:2), count = nccount(1:2)))
+      ! soilt3 increment
+      inc(:) = zero
+      if (soilt3_ind > 0) then
+         call copyfromgrdin(grdin(:,levels(n3d)+soilt3_ind,nb,ne),inc)
+      endif
+      inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+      inc2dout=0.
+      do j=1,nlats
+         do i = 1, nlons
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
+         enddo
+      end do
+      call nccheck_incr(nf90_put_var(ncid_out, soilt3varid, sngl(inc2dout), &
+                           start = ncstart(1:2), count = nccount(1:2)))
+      ! soilt4 increment
+      inc(:) = zero
+      if (soilt4_ind > 0) then
+         call copyfromgrdin(grdin(:,levels(n3d)+soilt4_ind,nb,ne),inc)
+      endif
+      inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+      inc2dout=0.
+      do j=1,nlats
+         do i = 1, nlons
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
+         end do
+      end do
+      call nccheck_incr(nf90_put_var(ncid_out, soilt4varid, sngl(inc2dout), &
+                           start = ncstart(1:2), count = nccount(1:2)))
+      ! slc1 increment
+      inc(:) = zero
+      if (slc1_ind > 0) then
+         call copyfromgrdin(grdin(:,levels(n3d)+slc1_ind,nb,ne),inc)
+      endif
+      inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+      inc2dout=0.
+      do j=1,nlats
+         do i = 1, nlons
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
+         end do
+      end do
+      call nccheck_incr(nf90_put_var(ncid_out, slc1varid, sngl(inc2dout), &
+                           start = ncstart(1:2), count = nccount(1:2)))
+      ! slc2 increment
+      inc(:) = zero
+      if (slc2_ind > 0) then
+         call copyfromgrdin(grdin(:,levels(n3d)+slc2_ind,nb,ne),inc)
+      endif
+      inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+      inc2dout=0.
+      do j=1,nlats
+         do i = 1, nlons
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
+         end do
+      end do
+      call nccheck_incr(nf90_put_var(ncid_out, slc2varid, sngl(inc2dout), &
+                           start = ncstart(1:2), count = nccount(1:2)))
+      ! slc3 increment
+      inc(:) = zero
+      if (slc3_ind > 0) then
+         call copyfromgrdin(grdin(:,levels(n3d)+slc3_ind,nb,ne),inc)
+      endif
+      inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+      inc2dout=0.
+      do j=1,nlats
+         do i = 1, nlons
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
+         end do
+      end do
+      call nccheck_incr(nf90_put_var(ncid_out, slc3varid, sngl(inc2dout), &
+                           start = ncstart(1:2), count = nccount(1:2)))
+      ! slc4 increment
+      inc(:) = zero
+      if (slc4_ind > 0) then
+         call copyfromgrdin(grdin(:,levels(n3d)+slc4_ind,nb,ne),inc)
+      endif
+      inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+      inc2dout=0.
+      do j=1,nlats
+         do i = 1, nlons
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
+         end do
+      end do
+      call nccheck_incr(nf90_put_var(ncid_out, slc4varid, sngl(inc2dout), &
+                        start = ncstart(1:2), count = nccount(1:2)))
 
      call close_dataset(dsfg,errcode=iret)
      if (iret/=0) then
@@ -4440,7 +4460,7 @@
   real(r_kind), allocatable, dimension(:,:) :: values_2d
   real(r_kind), allocatable, dimension(:) :: psges, delzb, values_1d
 
-  ! soil / snow mask (not fixed)
+  ! soil / snow mask 
   integer(i_kind), dimension(nlons,nlats) :: mask
 
   logical :: write_sfc_file, write_atm_file
@@ -5031,29 +5051,41 @@
       end do
       call nccheck_incr(nf90_put_var(ncid_out, latvarid, deglats, &
                            start = (/1/), count = (/nlats/)))
-      ! construct mask (1 - soil, 2 - snow, 0 - not snow)
+                           
+      ! construct mask (1 - soil; 2 - snow over land; and 0 - not soil)
       ! note: same logic/threshold used in global_cycle to produce
-      ! mask on model grid.
-      call read_vardata(dsfg, 'soill1', values_2d, errcode=iret)
+      ! mask on model grid. Set land to 1.
+      call read_vardata(dsfg, 'land', values_2d, errcode=iret)  !sea-land-ice mask 0-sea, 1-land, 2-ice
       mask = 0
       do j=1,nlats
          do i = 1, nlons
-            if (values_2d(i,j) .LT. 1.0) then
+            if (nint(values_2d(i,j)) .EQ. 1) then
             mask(i,nlats-j+1) = 1
             endif
-         enddo
+         end do
       end do
+      ! set snow to 2
       call read_vardata(dsfg, 'weasd', values_2d, errcode=iret)
       do j=1,nlats
          do i = 1, nlons
             if (values_2d(i,j) .GT. 0.001) then
             mask(i,nlats-j+1) = 2
             endif
-         enddo
+         end do
       end do
+      ! set non-soil (glacier and water) to 0 
+      call read_vardata(dsfg, 'vtype', values_2d, errcode=iret)  !vegetation type in integer, missing/fill value 9.99e+20f
+      do j=1,nlats
+         do i = 1, nlons
+            if ((nint(values_2d(i,j)) .EQ. 0) .OR. (nint(values_2d(i,j)) .EQ. 15) ) then
+            mask(i,nlats-j+1) = 0
+            endif
+         end do
+      end do
+      
       call nccheck_incr(nf90_put_var(ncid_out, maskvarid, mask, &
                         start = ncstart(1:2), count = nccount(1:2)))
-
+                        
       allocate(inc2d(nlons,nlats))
       allocate(inc2dout(nlons,nlats))
 
@@ -5088,7 +5120,7 @@
       inc2dout=0.
       do j=1,nlats
          do i = 1, nlons
-            if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
          enddo
       end do
       call nccheck_incr(nf90_put_var(ncid_out, soilt1varid, sngl(inc2dout), &
@@ -5102,7 +5134,7 @@
       inc2dout=0.
       do j=1,nlats
          do i = 1, nlons
-            if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
          enddo
       end do
       call nccheck_incr(nf90_put_var(ncid_out, soilt2varid, sngl(inc2dout), &
@@ -5116,7 +5148,7 @@
       inc2dout=0.
       do j=1,nlats
          do i = 1, nlons
-            if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
          enddo
       end do
       call nccheck_incr(nf90_put_var(ncid_out, soilt3varid, sngl(inc2dout), &
@@ -5130,8 +5162,8 @@
       inc2dout=0.
       do j=1,nlats
          do i = 1, nlons
-            if (mask(i,nlats-j+1) .NE. 0) inc2dout(i,nlats-j+1) = inc2d(i,j)
-         enddo
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
+         end do
       end do
       call nccheck_incr(nf90_put_var(ncid_out, soilt4varid, sngl(inc2dout), &
                            start = ncstart(1:2), count = nccount(1:2)))
@@ -5141,8 +5173,11 @@
          call copyfromgrdin(grdin(:,levels(n3d)+slc1_ind,nb,ne),inc)
       endif
       inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+      inc2dout=0.
       do j=1,nlats
-         inc2dout(:,nlats-j+1) = inc2d(:,j)
+         do i = 1, nlons
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
+         end do
       end do
       call nccheck_incr(nf90_put_var(ncid_out, slc1varid, sngl(inc2dout), &
                            start = ncstart(1:2), count = nccount(1:2)))
@@ -5152,8 +5187,11 @@
          call copyfromgrdin(grdin(:,levels(n3d)+slc2_ind,nb,ne),inc)
       endif
       inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+      inc2dout=0.
       do j=1,nlats
-         inc2dout(:,nlats-j+1) = inc2d(:,j)
+         do i = 1, nlons
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
+         end do
       end do
       call nccheck_incr(nf90_put_var(ncid_out, slc2varid, sngl(inc2dout), &
                            start = ncstart(1:2), count = nccount(1:2)))
@@ -5163,8 +5201,11 @@
          call copyfromgrdin(grdin(:,levels(n3d)+slc3_ind,nb,ne),inc)
       endif
       inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+      inc2dout=0.
       do j=1,nlats
-         inc2dout(:,nlats-j+1) = inc2d(:,j)
+         do i = 1, nlons
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
+         end do
       end do
       call nccheck_incr(nf90_put_var(ncid_out, slc3varid, sngl(inc2dout), &
                            start = ncstart(1:2), count = nccount(1:2)))
@@ -5174,8 +5215,11 @@
          call copyfromgrdin(grdin(:,levels(n3d)+slc4_ind,nb,ne),inc)
       endif
       inc2d(:,:) = reshape(inc,(/nlons,nlats/))
+      inc2dout=0.
       do j=1,nlats
-         inc2dout(:,nlats-j+1) = inc2d(:,j)
+         do i = 1, nlons
+            if (mask(i,nlats-j+1) .EQ. 1) inc2dout(i,nlats-j+1) = inc2d(i,j)
+         end do
       end do
       call nccheck_incr(nf90_put_var(ncid_out, slc4varid, sngl(inc2dout), &
                         start = ncstart(1:2), count = nccount(1:2)))
