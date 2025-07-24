@@ -34,7 +34,7 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
 !
 !$$$
   use kinds, only: r_single,r_kind,r_double,i_kind
-  use constants, only: zero,one,deg2rad,rad2deg,r60inv,tiny_r_kind,huge_r_kind, half
+  use constants, only: zero,one,one_tenth,deg2rad,rad2deg,r60inv,tiny_r_kind,huge_r_kind, half, r100
   use aircraftinfo, only: aircraft_t_bc,aircraft_t_bc_pof,aircraft_t_bc_ext
   use convinfo, only: nconvtype, ioctype, icuse, ictype, icsubtype, ithin_conv
   use converr,only: etabl
@@ -191,7 +191,7 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
   call openbf(lunin,'IN',lunin)
   call datelen(10)
 
-  usage = 100.0_r_kind
+  usage = r100
   msg_report: do while (ireadmg(lunin,subset,idate) == 0)
      irec = irec + 1
      if(irec < nrec_start) cycle msg_report
@@ -326,7 +326,7 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
           obsdat(1,1) > zero .AND. obsdat(1,1) < 1.4e5_r_kind) then
 
           ! Assign obs error from error table
-          ppb=obsdat(1,1)
+          ppb=obsdat(1,1)/r100
           ppb=max(zero,min(ppb,r2000))
           if(ppb>=etabl(kx,1,1)) k1=1
           do kl=1,32
@@ -395,7 +395,7 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
            obsdat(1,1) > zero .AND. obsdat(1,1) < 1.4e5_r_kind) then
            
            ! Assign obs error from error table
-           ppb=obsdat(1,1)
+           ppb=obsdat(1,1)/r100
            ppb=max(zero,min(ppb,r2000))
            if(ppb>=etabl(kx,1,1)) k1=1
            do kl=1,32
@@ -425,7 +425,7 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
 
            ! Write to output array
            iout = iout + 1
-           cdata_all(1,iout)=obserr                  ! specific humidity error
+           cdata_all(1,iout)=obserr*one_tenth        ! specific humidity error
            cdata_all(2,iout)=dlon                    ! grid relative longitude
            cdata_all(3,iout)=dlat                    ! grid relative latitude
            cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
@@ -436,7 +436,7 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
            cdata_all(9,iout)=emerr                   ! q max error
            cdata_all(10,iout)= bmiss                 ! dry temperature (obs is tv? No, depending on tvflg)
            cdata_all(11,iout)= zero                  ! quality mark
-           cdata_all(12,iout)= obserr                ! original obs error
+           cdata_all(12,iout)= obserr*one_tenth      ! original obs error
            cdata_all(13,iout)= usage                 ! usage parameter
            cdata_all(14,iout)= idomsfc               ! dominate surface type
            cdata_all(15,iout)=dlon_earth_deg         ! earth relative longitude (degrees)
@@ -459,7 +459,7 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
            obsdat(1,1) > zero .AND. obsdat(1,1) < 1.4e5_r_kind) then
 
            ! Assign obs error from error table
-           ppb=obsdat(1,1)
+           ppb=obsdat(1,1)/r100
            ppb=max(zero,min(ppb,r2000))
            if(ppb>=etabl(kx,1,1)) k1=1
            do kl=1,32
