@@ -2,6 +2,7 @@ help([[
 ]])
 
 prepend_path("MODULEPATH", "/apps/contrib/spack-stack/spack-stack-1.9.2/envs/ue-oneapi-2024.1.0/install/modulefiles/Core")
+prepend_path("MODULEPATH", "/apps/contrib/spack-stack/spack-stack-1.9.2/envs/ue-oneapi-2024.1.0/install/modulefiles/gcc/13.3.0")
 
 local stack_oneapi_ver=os.getenv("stack_oneapi_ver") or "2024.2.1"
 local stack_intel_oneapi_mpi_ver=os.getenv("stack_intel_oneapi_mpi_ver") or "2021.13"
@@ -22,8 +23,9 @@ load("intel-oneapi-mpi/2021.7.1")
 
 load("tar/1.34")
 
-pushenv("CFLAGS", "-xHOST")
-pushenv("FFLAGS", "-xHOST")
+setenv("CC","mpiicc")
+setenv("CXX","mpiicpc")
+setenv("FC","mpiifort")
 
 pushenv("GSI_BINARY_SOURCE_DIR", "/work2/noaa/global/role-global/fix/gsi/20250529")
 
