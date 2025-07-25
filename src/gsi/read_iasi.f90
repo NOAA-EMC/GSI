@@ -434,6 +434,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! The number of channels in obtained from the satinfo file being used.
   nele=nreal+satinfo_nchan
   allocate(data_all(nele,itxmax),nrec(itxmax))
+  data_all=zero
   allocate(temperature(1))   ! dependent on # of channels in the bufr file
   allocate(allchan(2,1))     ! actual values set after ireadsb
   allocate(bufr_chan_test(1))! actual values set after ireadsb
