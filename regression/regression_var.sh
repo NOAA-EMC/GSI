@@ -115,24 +115,24 @@ case $machine in
   ;;
   Hera)
 
-    export local_or_default="${local_or_default:-/scratch1/NCEPDEV/da/$LOGNAME}"
+    export local_or_default="${local_or_default:-/scratch3/NCEPDEV/da/$LOGNAME}"
     if [ -d $local_or_default ]; then
       export noscrub="$local_or_default/noscrub"
-    elif [ -d /scratch1/NCEPDEV/global/$LOGNAME ]; then
-      export noscrub="/scratch1/NCEPDEV/global/$LOGNAME/noscrub"
-     elif [ -d /scratch2/BMC/gsienkf/$LOGNAME ]; then
-      export noscrub="/scratch2/BMC/gsienkf/$LOGNAME"
+    elif [ -d /scratch3/NCEPDEV/global/$LOGNAME ]; then
+      export noscrub="/scratch3/NCEPDEV/global/$LOGNAME/noscrub"
+     elif [ -d /scratch4/BMC/gsienkf/$LOGNAME ]; then
+      export noscrub="/scratch4/BMC/gsienkf/$LOGNAME"
     fi
 
     export group="${group:-global}"
     export queue="${queue:-batch}"
     if [[ "$cmaketest" = "false" ]]; then
-      export basedir="/scratch1/NCEPDEV/da/$LOGNAME/git/gsi"
+      export basedir="/scratch3/NCEPDEV/da/$LOGNAME/git/gsi"
     fi
 
-    export ptmp="${ptmp:-/scratch1/NCEPDEV/stmp2/$LOGNAME/$ptmpName}"
+    export ptmp="${ptmp:-/scratch3/NCEPDEV/stmp/$LOGNAME/${machine}/$ptmpName}"
 
-    export casesdir="/scratch1/NCEPDEV/da/Russ.Treadon/CASES/regtest"
+    export casesdir="/scratch3/NCEPDEV/da/Russ.Treadon/CASES/regtest"
 
     export check_resource="no"
     export accnt="${accnt:-da-cpu}"
