@@ -157,6 +157,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !   2025-05-12  collard - Logic to reset ship surface pressure to SLP when height is zero.
 !   2025-05-19  collard - Saildrone subtype introduced in GSI (not in prepobs) kx=180,280 subtype=02
 !                         (copied from release/gfsda.v16)
+!   2025-08-25  martin  - comment out blacklist station prints
 
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -818,8 +819,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            stnid = transfer(hdr(4),stnid)
            do i = 1,ibcnt
               if( kx == blkkx(i) .and. stnid == blkstns(i) ) then
-                 write(6,*)'READ_PREPBUFR: blacklist station ',stnid, &
-                    'for obstype ',trim(obstype),' and kx=',kx
+                !write(6,*)'READ_PREPBUFR: blacklist station ',stnid, &
+                !    'for obstype ',trim(obstype),' and kx=',kx
                  cycle loop_report
               endif
            enddo
