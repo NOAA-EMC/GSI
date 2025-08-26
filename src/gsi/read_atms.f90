@@ -951,7 +951,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   end do BinLoop
   !$omp end parallel do
 
-  write(6,'("read_atms: itx_all " I10)') itx_all
   write(6,'("read_atms: Number of obs considered and accepted " 2I10)') num_obs, good
   deallocate(binCount)
   deallocate(binObs)
