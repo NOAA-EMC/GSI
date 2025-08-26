@@ -130,7 +130,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
 !
 !$$$
   use kinds, only: r_kind,r_double,i_kind
-  use satthin, only: super_val,itxmax,makegrids,destroygrids,score_crit,map2tgrid2,binit
+  use satthin, only: super_val,itxmax,makegrids,destroygrids,score_crit,map2tgrid2,binit,itx_all
   use satthin, only: radthin_time_info,tdiff2crit
   use obsmod, only: time_window_max, ta2tb
   use radinfo, only: iuse_rad,newchn,cbias,predx,nusis,jpch_rad,air_rad,ang_rad, &
@@ -843,8 +843,9 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   allocate(binCount(itxmax))
   binCount(:)=0
 
-! First scan to determine which obs fall into which bins
-  ObsLoop: do iob = 1, num_obs
+! First scan to count how many obs fall in each bin.  Will use this info to allocate the binObs array
+! Consider removing all the "cycles" as that code is repeated several times
+  ObsLoop: do iob=1,num_obs
 
      t4dv       => t4dv_save(iob)
      dlon_earth => dlon_earth_save(iob)
@@ -868,7 +869,7 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
      endif
 
 !    Map obs to thinning grid
-     call binit(dlat_earth*deg2rad,dlon_earth*deg2rad,itx2,it_mesh)
+     call binit(dlat_earth*deg2rad,dlon_earth*deg2rad,itx2,ithin,sis,it_mesh)
      binCount(itx2) = binCount(itx2)+1
   end do ObsLoop
 
@@ -895,7 +896,11 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
   binObs(:,:)=0
   binCount(:)=0
 
-! Second scan to fill binObs
+  ! Reset itx_all counter held in the satthin module
+  itx_all=0
+
+  ! Second scan to place obs within the bins that actually have obs (binObs).
+  ! This is a space saving measure since otherwise we would need to allocate a MUCH larger array
   ObsLoop2: do iob=1,num_obs
 
      t4dv       => t4dv_save(iob)
@@ -919,11 +924,15 @@ subroutine read_bufrtovs(mype,val_tovs,ithin,isfcalc,&
         if(outside) cycle ObsLoop2
      endif
 !    Map obs to thinning grid
-     call binit(dlat_earth*deg2rad,dlon_earth*deg2rad,itx2,it_mesh)
+     call binit(dlat_earth*deg2rad,dlon_earth*deg2rad,itx2,ithin,sis,it_mesh)
      binCount(itx2) = binCount(itx2)+1
      binObs(binCount(itx2),hash(itx2)) = iob
   end do ObsLoop2
   deallocate(hash)
+
+  ! Reset itx_all counter held in the satthin module.  Not an issue as of 2025, but would
+  ! start to be a problem when an observation file contains more than 1/3 of itxmax observations
+  itx_all=0
 
 ! Third scan to determine which observation in a given bin is best to use
   good=0
