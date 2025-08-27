@@ -49,6 +49,7 @@ module strong_fast_global_mod
   use constants, only: zero,one,two,rearth
   use mpimod, only: ierror,mpi_comm_world,mpi_integer4,mpi_rtype,mpi_sum,npe
   use mod_vtrans, only: speeds,nvmodes_keep,vtrans,vtrans_inv,vtrans_ad,vtrans_inv_ad
+  use sp_mod, only: spffte
   implicit none
 
 ! set default to private
@@ -79,7 +80,7 @@ module strong_fast_global_mod
   integer(i_kind),allocatable:: mode_list(:,:)
                                                    !  mode_list(1,j) = lat index for ew strip j
                                                    !  mode_list(2,j) = vert mode number for ew strip j
-                                                   !  mode_list(3,j) = pe of this lat/vert mode strip 
+                                                   !  mode_list(3,j) = pe of this lat/vert mode strip
   integer(i_kind),allocatable:: mmode_list(:,:)
                                                    !  mmode_list(1,j) = m1 (zonal wave number 1) for ns strip
                                                    !  mmode_list(2,j) = m2 (zonal wave number 2) for ns strip
@@ -179,7 +180,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
 !     bal_diagnostic - if true, then compute bal diagnostic, a measure of amplitude
 !                      of balanced gravity mode tendencies
 !     fullfield - if true, full field diagnostics
-!                 if false, incremental 
+!                 if false, incremental
 !     update   - if false, then do not update u,v,t,ps with balance increment
 !
 !   output argument list:
@@ -300,7 +301,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
                 deldivhat(2,n)=deldivhat(2,n)*del2inv
              end do
           end if
-             
+
           i=0
           do n=m,sp_a%jcap
              i=i+1
@@ -377,7 +378,7 @@ subroutine strong_bal_correction_fast_global(u_t,v_t,t_t,ps_t,mype,psi,chi,t,ps,
         do i=1,nvmodes_keep
            rmstend_all_uf=rmstend_all_uf+rmstend_uf(i)
            rmstend_all_g_uf=rmstend_all_g_uf+rmstend_g_uf(i)
-           diffi = rmstend_uf(i)-rmstend_g_uf(i) 
+           diffi = rmstend_uf(i)-rmstend_g_uf(i)
            diff1 = rmstend_uf(1)-rmstend_g_uf(1)
            if(abs(diffi)<tiny_r_kind.or.abs(diff1)<tiny_r_kind) then
              write(6,'(" mode,rmstend_uf,rmstend_g_uf,rat = ",i5,2e28.18)') &
@@ -533,7 +534,7 @@ subroutine strong_bal_correction_fast_global_ad(u_t,v_t,t_t,ps_t,mype,psi,chi,t,
         if(.not. uvflag) then
            do n=m,sp_a%jcap
               if(n >  0) then
-                 rn=real(n,r_kind) 
+                 rn=real(n,r_kind)
                  del2inv=-rearth**2/(rn*(rn+one))
               else
                  del2inv=zero
@@ -590,7 +591,7 @@ subroutine gather_rmstends0
 ! subprogram:    gather_rmstends0  get bal diagnostics
 !   prgmmr: parrish          org: np23                date: 2006-08-03
 !
-! abstract: compute bal diagnostics which give amplitude of 
+! abstract: compute bal diagnostics which give amplitude of
 !           gravity projection of energy norm of tendencies
 !
 ! program history log:
@@ -613,7 +614,7 @@ subroutine gather_rmstends0
 
   integer(i_kind),dimension(m_0:m_1):: indexloc
   integer(i_kind) i
-  
+
   allocate(mthis0(npe),ndisp(npe+1),indexglob((sp_a%jcap+1)*nvmodes_keep))
   do i=m_0,m_1
      indexloc(i)=i
@@ -636,7 +637,7 @@ subroutine gather_rmstends(rmstend_loc,rmstend)
 ! subprogram:    gather_rmstends  get bal diagnostics
 !   prgmmr: parrish          org: np23                date: 2006-08-03
 !
-! abstract: compute bal diagnostics which give amplitude of 
+! abstract: compute bal diagnostics which give amplitude of
 !           gravity projection of energy norm of tendencies
 !
 ! program history log:
@@ -663,7 +664,7 @@ subroutine gather_rmstends(rmstend_loc,rmstend)
 
   real(r_kind),dimension(2,(sp_a%jcap+1)*nvmodes_keep)::work
   integer(i_kind) i,ii,mode,mpi_string1
-  
+
   call mpi_type_contiguous(2,mpi_rtype,mpi_string1,ierror)
   call mpi_type_commit(mpi_string1,ierror)
   call mpi_allgatherv(rmstend_loc,mthis,mpi_string1, &
@@ -725,7 +726,7 @@ subroutine inmi_coupler_sd2ew0(mype)
         mode_list(3,nn)=-1
      end do
   end do
-  
+
   nlatm_0=-1
   nlatm_1=-2
   nn=0
@@ -855,7 +856,7 @@ subroutine inmi_coupler_sd2ew1(mype)
   call mpi_alltoallv(info_send_sd2ew,nsend_sd2ew,ndsend_sd2ew,mpi_string1, &
                      info_recv_sd2ew,nrecv_sd2ew,ndrecv_sd2ew,mpi_string1,mpi_comm_world,ierror)
   call mpi_type_free(mpi_string1,ierror)
-    
+
 end subroutine inmi_coupler_sd2ew1
 
 subroutine inmi_coupler_sd2ew(u_sd1,v_sd1,m_sd1,u_sd2,v_sd2,m_sd2,uvm_ew,mype)
@@ -922,7 +923,7 @@ subroutine inmi_coupler_sd2ew(u_sd1,v_sd1,m_sd1,u_sd2,v_sd2,m_sd2,uvm_ew,mype)
                      recvbuf,nrecv_sd2ew,ndrecv_sd2ew,mpi_string1,mpi_comm_world,ierror)
   call mpi_type_free(mpi_string1,ierror)
   deallocate(sendbuf)
-    
+
   do j=1,nallrecv_sd2ew
      ilon=info_recv_sd2ew(1,j)
      ilatm=info_recv_sd2ew(2,j)
@@ -934,7 +935,7 @@ subroutine inmi_coupler_sd2ew(u_sd1,v_sd1,m_sd1,u_sd2,v_sd2,m_sd2,uvm_ew,mype)
      uvm_ew(ilon,2,3,ilatm)=recvbuf(2,3,j)
   end do
   deallocate(recvbuf)
-    
+
 end subroutine inmi_coupler_sd2ew
 
 subroutine inmi_coupler_ew2sd1(mype)
@@ -1153,12 +1154,15 @@ subroutine inmi_ew_trans(uvm_ew,uvm_ewtrans)
   integer(i_kind) i,j,k
   real(r_kind),dimension(2,0:nlon/2,2)::halfwave
   real(r_kind),dimension(50000+4*sp_a%imax)::tmpafft
+  real(r_kind),dimension(nlon,2,3,nlatm_0:nlatm_1) :: tmp_uvm_ew  ! spffte outputs to this array, though we don't need it
+
+  tmp_uvm_ew = uvm_ew
 
 !$omp parallel do  schedule(dynamic,1) private(k,j,i,tmpafft,halfwave)
   do k=nlatm_0,nlatm_1
      tmpafft=sp_a%afft
      do j=1,3
-        call spffte(nlon,1+nlon/2,nlon,2,halfwave,uvm_ew(1,1,j,k),-1,tmpafft)
+        call spffte(nlon,1+nlon/2,nlon,2,halfwave,tmp_uvm_ew(1,1,j,k),-1,tmpafft)
         do i=0,sp_a%jcap
            uvm_ewtrans(1,i,1,j,k)=halfwave(1,i,1)
            uvm_ewtrans(2,i,1,j,k)=halfwave(2,i,1)
@@ -1204,6 +1208,10 @@ subroutine inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans)
   real(r_kind) fnlon,fnlon2
   real(r_kind),dimension(2,0:nlon/2,2)::halfwave
   real(r_kind),dimension(50000+4*sp_a%imax)::tmpafft
+  ! This will hold a copy of uvm_ew.  spffte will not modify it, but treats it as an "inout" variable.
+  real(r_kind),dimension(nlon,2,3,nlatm_0:nlatm_1) :: tmp_uvm_ew
+
+  tmp_uvm_ew = uvm_ew
 
   fnlon=real(nlon,r_kind)
   fnlon2=two*fnlon
@@ -1212,7 +1220,7 @@ subroutine inmi_ew_invtrans_ad(uvm_ew,uvm_ewtrans)
   do k=nlatm_0,nlatm_1
      tmpafft=sp_a%afft
      do j=1,3
-        call spffte(nlon,1+nlon/2,nlon,2,halfwave,uvm_ew(1,1,j,k),-1,tmpafft)
+        call spffte(nlon,1+nlon/2,nlon,2,halfwave,tmp_uvm_ew(1,1,j,k),-1,tmpafft)
         uvm_ewtrans(1,0,1,j,k)=halfwave(1,0,1)*fnlon
         uvm_ewtrans(2,0,1,j,k)=halfwave(2,0,1)*fnlon
         uvm_ewtrans(1,0,2,j,k)=halfwave(1,0,2)*fnlon
@@ -1383,7 +1391,7 @@ subroutine inmi_coupler_ew2ns0(mype)
 
 !   in laying out by zonal wave number/vertical mode, have two types of groupings:
 
-!   1.  jcap odd: 
+!   1.  jcap odd:
 
 !     group zonal wave numbers in pairs as follows:
 
@@ -1405,7 +1413,7 @@ subroutine inmi_coupler_ew2ns0(mype)
   if(mod(sp_a%jcap,2) /= 0) then
 
 !    case  jcap odd:
-   
+
      nn=0
      do k=1,nvmodes_keep
         nn=nn+1
@@ -1443,7 +1451,7 @@ subroutine inmi_coupler_ew2ns0(mype)
   else
 
 !    case  jcap even:
-   
+
      nn=0
      do k=1,nvmodes_keep
         nn=nn+1
@@ -1532,7 +1540,7 @@ subroutine inmi_coupler_ew2ns1(mype)
 
   allocate(nsend(npe),nrecv(npe),ndsend(npe+1),ndrecv(npe+1))
   nn=0
-                
+
   mmode2_list=0
   do j=1,(sp_a%jcap+1)*nvmodes_keep
      m1=mmode_list(1,j)
@@ -1870,12 +1878,12 @@ subroutine inmi_nsuvm2zdm(uvm_ns,zdm_hat)
            fp(2,2)=uvm_ns(3,2,jsouth,ipair,mm)*c1
 !           create plnloc
 
-   
+
            do n=m,sp_a%jcap
               plnloc(n)=sp_a%pln(ics+n,j)
            end do
            plnloc(sp_a%jcap+1)=sp_a%plntop(m+1,j)
- 
+
            f11u=fu(1,1)+fu(1,2)
            f21u=fu(2,1)+fu(2,2)
            f12u=fu(1,1)-fu(1,2)
@@ -2030,7 +2038,7 @@ subroutine inmi_nszdm2uvm_ad(uvm_ns,zdm_hat)
 
 !           create plnloc
 
-   
+
            do n=m,sp_a%jcap
               plnloc(n)=sp_a%pln(ics+n,j)
            end do
@@ -2178,7 +2186,7 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat)
               plnloc(n)=sp_a%pln(ics+n,j)
            end do
            plnloc(sp_a%jcap+1)=sp_a%plntop(m+1,j)
- 
+
 !          obtain f
 
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -2236,7 +2244,7 @@ subroutine inmi_nszdm2uvm(uvm_ns,zdm_hat)
 ! - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 !          scatter back to output pairs of lats
- 
+
            c1=one/sp_a%clat(j)
            uvm_ns(1,1,jnorth,ipair,mm)=fu(1,1)*c1
            uvm_ns(1,2,jnorth,ipair,mm)=fu(2,1)*c1
@@ -2436,7 +2444,7 @@ subroutine inmi_nspcm_hat2pcm(pcm_ns,pcm_hat)
            pcm_ns(3,2,jnorth,ipair,mm)=fm(2,1)
            pcm_ns(3,1,jsouth,ipair,mm)=fm(1,2)
            pcm_ns(3,2,jsouth,ipair,mm)=fm(2,2)
- 
+
         end do
 
 !  set pole values
@@ -2521,7 +2529,7 @@ subroutine inmi_nspcm_hat2pcm_ad(pcm_ns,pcm_hat)
      do ipair=1,2
         m=mmode_list(ipair,mm)
         ics=1+m*(2*sp_a%jcap+3-m)/2-m
- 
+
         do n=m,sp_a%jcap
            spcp(1,n)=zero
            spcp(2,n)=zero
@@ -2546,7 +2554,7 @@ subroutine inmi_nspcm_hat2pcm_ad(pcm_ns,pcm_hat)
         do j=sp_a%jb,sp_a%je
            jsouth=1+j
            jnorth=nlat-j
- 
+
 !          adjoint of scatter back to output pairs of lats
 
            fp(1,1)=pcm_ns_temp(1,1,jnorth)
@@ -2561,7 +2569,7 @@ subroutine inmi_nspcm_hat2pcm_ad(pcm_ns,pcm_hat)
            fm(2,1)=pcm_ns_temp(3,2,jnorth)
            fm(1,2)=pcm_ns_temp(3,1,jsouth)
            fm(2,2)=pcm_ns_temp(3,2,jsouth)
- 
+
 !           create plnloc
 
            do n=m,sp_a%jcap
@@ -2598,7 +2606,7 @@ subroutine inmi_nspcm_hat2pcm_ad(pcm_ns,pcm_hat)
               spcm(1,n)=spcm(1,n)+plnloc(n)*f12m
               spcm(2,n)=spcm(2,n)+plnloc(n)*f22m
            end do
- 
+
         end do
 
 !       adjoint of gather up spcp, spcc, spcm
@@ -2692,7 +2700,7 @@ subroutine inmi_nsuvm2zdm_ad(uvm_ns,zdm_hat)
         do j=sp_a%jb,sp_a%je
            jsouth=1+j
            jnorth=nlat-j
- 
+
 !           create plnloc
 
            do n=m,sp_a%jcap

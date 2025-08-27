@@ -277,6 +277,7 @@ contains
   use satthin, only: super_val1
   use constants, only: quarter,half,tiny_r_kind,zero,one,deg2rad,rad2deg,one_tenth, &
       two,three,cg_term,wgtlim,r100,r10,r0_01,r_missing
+  use constants, only: pi
   use jfunc, only: jiter,miter,jiterstart
   use sst_retrieval, only: setup_sst_retrieval,avhrr_sst_retrieval,&
       finish_sst_retrieval,spline_cub
@@ -1024,7 +1025,7 @@ contains
 !       uses total angle dependent bias correction for channels 1 and 2
            do i=1,nchanl
               mm=ich(i)
-              if (goessndr .or. goes_img .or. ahi .or. seviri .or. ssmi .or. ssmis .or. gmi .or. abi) then
+              if (goessndr .or. goes_img .or. ahi .or. seviri .or. ssmi .or. ssmis .or. gmi .or. abi .or. amsr2) then
                  pred(npred,i)=nadir*deg2rad
               else
                  pred(npred,i)=data_s(iscan_ang,n)
@@ -1619,9 +1620,16 @@ contains
   
            sun_azimuth=data_s(isazi_ang,n)
            sun_zenith=data_s(iszen_ang,n)
+           frac_sea=data_s(ifrac_sea,n)
+           bearaz=(data_s(isazi_ang,n)-data_s(ilazi_ang,n))*deg2rad + pi
+           sun_zenith=data_s(iszen_ang,n)*deg2rad
+           sgagl = acos( cos(sun_zenith)*cosza + sin(sun_zenith)*sin(zasat)*cos(bearaz))*rad2deg
 
-           call qc_amsr2(nchanl,zsges,luse(n),sea,kraintype,clw_obs,tsavg5, &
-              tb_obs,sun_azimuth,sun_zenith,amsr2,varinv,aivals(1,is),id_qc)
+           call qc_amsr2(nchanl,zsges,luse(n),sea, &
+              kraintype,clw_obs,tsavg5,tb_obs,sun_azimuth,sun_zenith,amsr2,varinv,aivals(1,is),id_qc, &
+              tzbgr,frac_sea, sgagl,    &
+              radmod%lcloud_fwd, cenlat, sfc_speed,   &
+              tpwc_guess=tcwv,clw_guess_retrieval=clw_guess_retrieval)
 
 !  ---------- GMI  -------------------
 !       GMI Q C
@@ -1679,6 +1687,12 @@ contains
                        errf(i) = min(2.5_r_kind*errf(i),10.0_r_kind)
                     else
                        errf(i) = min(three*errf(i),10.0_r_kind)
+                    endif
+                 else if(radmod%rtype == 'amsr2') then
+                    if( (i >=7 .and. i <=14) ) then
+                       errf(i) = min(two*errf(i),ermax_rad(m))
+                    else
+                       errf(i) = min(three*errf(i),ermax_rad(m))
                     endif
                  else if(radmod%rtype == 'gmi') then
                     errf(i) = min(2.0_r_kind*errf(i),ermax_rad(m))

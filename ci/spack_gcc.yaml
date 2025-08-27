@@ -11,13 +11,12 @@ spack:
   specs:
   - netcdf-c@4.9.2
   - netcdf-fortran@4.6.1
-  - bufr@11.7.0
+  - bufr@12.1.0
   - bacio@2.4.1
   - w3emc@2.10.0
-  - sp@2.5.0
-  - ip@4.3.0
-  - sigio@2.3.2
-  - sfcio@1.4.1
+  - ip@5.1.0
+  - sigio@2.3.3
+  - sfcio@1.4.2
   - nemsio@2.5.4
   - wrf-io@1.2.0
   - ncio@1.1.2
