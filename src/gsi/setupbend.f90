@@ -876,7 +876,7 @@ subroutine setupbend(obsLL,odiagLL, &
 
   end do loopoverobs1 ! end of loop over observations
   !$omp end parallel do
-  write(6,'("setupbend: Number of obs considered and accepted " 2I10)') nobs, count(mask=muse .neqv. .false.)
+  !write(6,'("setupbend: Number of obs considered and accepted " 2I10)') nobs, count(mask=muse .neqv. .false.)
 
   if (nobs_out>=1) then
      write(6,*)'WARNING GPSRO:',nobs_out,'obs outside integration grid. Increase nsig_ext to',&
