@@ -194,7 +194,7 @@ module qcmod
   public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc,njqc,vqc,nvqc,hub_norm
   public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate,gps_jacqc
   public :: pboto3,ptopo3,pbotq,ptopq,newvad,tdrerr_inflate
-  public :: igood_qc,ifail_crtm_qc,ifail_satinfo_qc,ifail_interchan_qc,&
+  public :: igood_qc,ifail_crtm_qc,ifail_crtm_nan,ifail_satinfo_qc,ifail_interchan_qc,&
             ifail_gross_qc,ifail_cloud_qc,ifail_outside_range,&
             ifail_scanedge_qc, ifail_emiss_qc, ifail_cao_qc
   public :: ifail_iland_det, ifail_isnow_det, ifail_iice_det, ifail_iwater_det,&
@@ -268,6 +268,8 @@ module qcmod
   integer(i_kind),parameter:: ifail_outside_range=11
 !  Reject due to cold-air outbreak area check  in setuprad
   integer(i_kind),parameter:: ifail_cao_qc=12
+!  Reject due to NaN in the CRTM calculation
+  integer(i_kind),parameter:: ifail_crtm_nan=13
 !  Failures specific to qc routine start at 50 and the numbers overlap
 !  QC_SSMI failures 
 !  Reject due to krain type not equal to 0 in subroutine qc_ssmi
