@@ -1003,6 +1003,12 @@ contains
 
         if (ANY(ieee_is_nan(tsim(1:nchanl)))) then
            write(*,*) 'WARNING: NaN found in CRTM coefficent output'
+           do i = 1, nchanl
+              if (ieee_is_nan(tsim(i))) then
+                  write(*,*) 'NaN for channel ', sc_index(i), ' at latitude = ', &
+                          cenlat,' longitude = ',cenlon
+              end if
+           end do
            id_qc(1:nchanl) = ifail_crtm_nan
            varinv(1:nchanl) = zero
         endif
