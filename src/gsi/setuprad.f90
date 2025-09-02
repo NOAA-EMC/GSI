@@ -1002,7 +1002,7 @@ contains
 ! Include a separate check for NaNs in CRTM calculations.  These are not always caught by other tests
 
         if (ANY(ieee_is_nan(tsim(1:nchanl)))) then
-           write(*,*) 'WARNING: NaN found in CRTM coefficent output'
+           write(*,*) 'WARNING: NaN found in CRTM simulated radiance output'
            do i = 1, nchanl
               if (ieee_is_nan(tsim(i))) then
                   write(*,*) 'NaN for channel ', sc_index(i), ' at latitude = ', &
