@@ -1006,7 +1006,7 @@ contains
            write(*,*) 'WARNING: NaN found in CRTM simulated radiance output'
            do i = 1, nchanl
               if (ieee_is_nan(tsim(i))) then
-                  write(*,*) 'NaN for channel ', sc_index(i), ' at latitude = ', &
+                  write(*,*) 'NaN for ',trim(isis),' channel ', sc_index(i), ' at latitude = ', &
                           cenlat,' longitude = ',cenlon
               end if
            end do
