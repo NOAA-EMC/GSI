@@ -901,7 +901,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      glcd=-999
   endif
 
-  if(print_verbose) write(6,'(1x,A,A,A,2(A,1x,I8))') 'read_prepbufr:',        &
+  if(print_verbose) write(6,'(1x,A,A,A,2(A,1x,F8.0))') 'read_prepbufr:',        &
      trim(adjustl(obstype)),':', '  vtcd= ',vtcd,'  glcd= ',glcd
   call init_rjlists
   call init_aircraft_rjlists
