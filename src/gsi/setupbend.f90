@@ -675,7 +675,7 @@ subroutine setupbend(obsLL,odiagLL, &
        rdiagbuf(18,i)  = trefges ! temperature at obs location (Kelvin) if monotone grid
        rdiagbuf(21,i)  = qrefges ! specific humidity at obs location (kg/kg) if monotone grid
        commdat=.false.
-       if (data(isatid,i)>=265 .and. data(isatid,i)<=269 .or. data(isatid,i)==768) commdat=.true.
+       if ( (data(isatid,i)>=265 .and. data(isatid,i)<=269) .or. (data(isatid,i)==768) ) commdat=.true.
        if (.not. qcfail(i)) then ! not SR
 
          ratio_errors(i) = data(ier,i)
