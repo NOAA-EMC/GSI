@@ -1142,6 +1142,8 @@ contains
        iuse=.true.
        itt=1
        dist1=one
+       ! This subroutine is called from within an OpenMP region so we need to ensure
+       ! the threads don't race on the itx_all counter 
        !$omp critical
        if(itx_all < itxmax) then
           itx_all=itx_all+1
