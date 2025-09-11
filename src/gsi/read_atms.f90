@@ -195,13 +195,12 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_kind)    :: ptime,timeinflat,crit0,score
   integer(i_kind) :: ithin_time,n_tbin
   integer(i_kind),pointer :: it_mesh => null()
-  integer(kind=4) :: good,bin,bin2,Obindx,maxPerBin,numBinsWithObs,numobs
-  integer(kind=4),allocatable,dimension(:)   :: binCount,binsWithObs,hash
-  integer(kind=4),allocatable,dimension(:,:) :: binObs
+  integer(i_kind) :: good,bin,bin2,Obindx,maxPerBin,numBinsWithObs
+  integer(i_kind),allocatable,dimension(:)   :: binCount,binsWithObs,hash
+  integer(i_kind),allocatable,dimension(:,:) :: binObs
 
 !**************************************************************************
 ! Initialize variables
-  !write(6,'("read_atms: Enter ithin is " I8)') ithin
 
   maxinfo=31
   lnbufr = 15
@@ -588,7 +587,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      binCount(itx2) = binCount(itx2)+1
   end do ObsLoop
 
-  !numobs=sum(binCount)
   maxPerBin=maxval(binCount)
   numBinsWithObs = count(mask=binCount>0)
 
@@ -605,8 +603,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
     hash(binsWithObs(bin)) = bin
   enddo
 
-  !write(6,'("read_atms: numobs passing first scan" I10)') numobs
-  !write(6,'("read_atms: itx_all " I10)') itx_all
   write(6,'("read_atms: max number of obs in any bin " I10)') maxPerBin
   write(6,'("read_atms: number of bins with any obs " I10)') numBinsWithObs
 
@@ -674,8 +670,6 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
      binObs(binCount(itx2),hash(itx2)) = iob
   end do ObsLoop2
   deallocate(hash)
-  !numobs=sum(binCount)
-  !write(6,'("read_atms: numobs passing second scan" I10)') numobs
 
   ! Reset itx_all counter held in the satthin module.  Not an issue as of 2025, but would
   ! start to be a problem when an observation file contains more than 1/3 of itxmax observations
