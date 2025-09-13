@@ -175,7 +175,7 @@ contains
     real(r_kind),dimension(1,1):: pob
     integer(i_kind) vtcd
     integer(i_kind) n,k,iret
-    real(r_kind) hdr(10),obs(13,255),qms(10,255),err(10,255),cld2seq(2,1), &
+    real(r_double) hdr(10),obs(13,255),qms(10,255),err(10,255),cld2seq(2,1), &
                  cldseq(3,10),owave(1,255),maxtmint(2,255),cldceilh(1,255),&
                  pcd(10,255)
     character(80):: hdrstr='SID XOB YOB DHR TYP'

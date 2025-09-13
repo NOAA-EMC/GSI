@@ -291,6 +291,7 @@ contains
   use crtm_interface, only: ilzen_ang2,iscan_ang2,iszen_ang2,isazi_ang2
   use clw_mod, only: calc_clw, ret_amsua, gmi_37pol_diff
   use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
+  use qcmod, only: ifail_crtm_nan  
   use qcmod, only: ifail_cao_qc,cao_check  
   use qcmod, only: ifail_iland_det, ifail_isnow_det, ifail_iice_det, ifail_iwater_det, ifail_imix_det, &
                    ifail_iomg_det, ifail_isst_det, ifail_itopo_det,ifail_iwndspeed_det
@@ -306,6 +307,8 @@ contains
   use sparsearr, only: sparr2, new, writearray, size, fullarray
   use radiance_mod, only: radiance_ex_obserr_gmi,radiance_ex_biascor_gmi
   use cads, only: cads_imager_calc
+
+  use, intrinsic :: ieee_arithmetic
 
   implicit none
 
@@ -994,6 +997,20 @@ contains
            varinv(1:nchanl) = val_obs
         else
            id_qc(1:nchanl) = ifail_crtm_qc
+           varinv(1:nchanl) = zero
+        endif
+
+! Include a separate check for NaNs in CRTM calculations.  These are not always caught by other tests
+
+        if (ANY(ieee_is_nan(tsim(1:nchanl)))) then
+           write(*,*) 'WARNING: NaN found in CRTM simulated radiance output'
+           do i = 1, nchanl
+              if (ieee_is_nan(tsim(i))) then
+                  write(*,*) 'NaN for ',trim(isis),' channel ', sc_index(i), ' at latitude = ', &
+                          cenlat,' longitude = ',cenlon
+              end if
+           end do
+           id_qc(1:nchanl) = ifail_crtm_nan
            varinv(1:nchanl) = zero
         endif
 
