@@ -24,5 +24,6 @@ pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
 
 pushenv("GSI_BINARY_SOURCE_DIR", "/scratch3/NCEPDEV/global/role.glopara/fix/gsi/20250529")
+setenv("CRTM_FIX", pathJoin("/scratch3/NCEPDEV/global/role.glopara/fix/crtm", "v" .. crtm_ver))
 
 whatis("Description: GSI environment on Hera with Intel Compilers")

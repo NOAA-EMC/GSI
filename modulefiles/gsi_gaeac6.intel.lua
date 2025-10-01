@@ -16,6 +16,7 @@ load(pathJoin("cmake", cmake_ver))
 load("gsi_common")
 
 pushenv("GSI_BINARY_SOURCE_DIR", "/gpfs/f6/drsa-precip3/world-shared/role.glopara/fix/gsi/20250529")
+setenv("CRTM_FIX", pathJoin("/gpfs/f6/drsa-precip3/world-shared/role.glopara/fix/crtm", "v" .. crtm_ver))
 
 setenv("CC","cc")
 setenv("FC","ftn")

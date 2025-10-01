@@ -18,5 +18,6 @@ load(pathJoin("cmake", cmake_ver))
 load("gsi_common")
 
 pushenv("GSI_BINARY_SOURCE_DIR", "/scratch3/NCEPDEV/global/role.glopara/fix/gsi/20250529")
+setenv("CRTM_FIX", pathJoin("/scratch3/NCEPDEV/global/role.glopara/fix/crtm", "v" .. crtm_ver))
 
 whatis("Description: GSI environment on Ursa with Intel Compilers")

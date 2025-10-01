@@ -30,5 +30,6 @@ setenv("CXX","mpiicpc")
 setenv("FC","mpiifort")
 
 pushenv("GSI_BINARY_SOURCE_DIR", "/work2/noaa/global/role-global/fix/gsi/20250529")
+setenv("CRTM_FIX", pathJoin("/work2/noaa/global/role-global/fix/crtm", "v" .. crtm_ver))
 
 whatis("Description: GSI environment on Hercules with Intel Compilers")
