@@ -22,7 +22,7 @@ local nemsio_ver=os.getenv("nemsio_ver") or "2.5.4"
 local wrf_io_ver=os.getenv("wrf_io_ver") or "1.2.0"
 local ncio_ver=os.getenv("ncio_ver") or "1.1.2"
 local crtm_ver=os.getenv("crtm_ver") or "2.4.0.2"
-local gsi_crtm_ver=os.getenv("gsi_crtm_ver") or "2.4.0.2"
+local crtm_fix_ver=os.getenv("crtm_fix_ver") or "2.4.0.2"
 local ncdiag_ver=os.getenv("ncdiag_ver") or "1.1.2"
 
 load(pathJoin("PrgEnv-intel", PrgEnv_intel_ver))
@@ -51,6 +51,6 @@ load(pathJoin("crtm", crtm_ver))
 load(pathJoin("ncdiag-A",ncdiag_ver))
 
 pushenv("GSI_BINARY_SOURCE_DIR", "/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/gsi/20250529")
-setenv("CRTM_FIX", pathJoin("/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/crtm", "v" .. gsi_crtm_ver))
+setenv("CRTM_FIX", pathJoin("/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/crtm", "v" .. crtm_fix_ver))
 
 whatis("Description: GSI environment on WCOSS2")
