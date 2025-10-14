@@ -81,7 +81,7 @@ case $machine in
       fi
       export ptmp="${ptmp:-/lfs/h2/emc/ptmp/$LOGNAME/$ptmpName}"
 
-      export casesdir="/lfs/h2/emc/da/noscrub/russ.treadon/CASES/regtest"
+      export casesdir="/lfs/h2/emc/global/noscrub/russ.treadon/CASES/regtest"
 
       export check_resource="no"
       export accnt="${accnt:-GFS-DEV}"

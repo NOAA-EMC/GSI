@@ -7,6 +7,7 @@ local stack_intel_ver=os.getenv("stack_intel_ver") or "2021.10.0"
 local stack_impi_ver=os.getenv("stack_impi_ver") or "2021.12.2"
 local cmake_ver=os.getenv("cmake_ver") or "3.27.9"
 local prod_util_ver=os.getenv("prod_util_ver") or "2.1.1"
+local crtm_fix_ver=os.getenv("crtm_fix_ver") or "2.4.0.2"
 
 load(pathJoin("stack-intel", stack_intel_ver))
 load(pathJoin("stack-intel-oneapi-mpi", stack_impi_ver))
