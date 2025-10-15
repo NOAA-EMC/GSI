@@ -6,12 +6,12 @@ module specmod
 !
 ! abstract: module containing spectral related variables
 !
-! program history log:   
+! program history log:
 !   2003-11-24  treadon
 !   2004-04-28  d. kokron, updated SGI's fft to use scsl
 !   2004-05-18  kleist, documentation
-!   2004-08-27  treadon - add/initialize variables/arrays needed by 
-!                         splib routines for grid <---> spectral 
+!   2004-08-27  treadon - add/initialize variables/arrays needed by
+!                         splib routines for grid <---> spectral
 !                         transforms
 !   2008-02-01  whitaker - modifications for use in ensemble kalman filter.
 !   2010-10-27  whitaker - made thread safe (can now be called within OMP parallel regions).
@@ -42,6 +42,7 @@ module specmod
 !
 !$$$
   use kinds, only: r_kind,i_kind
+  use sp_mod, only: sptranf1, spdz2uv, spuv2dz
   implicit none
 
   integer(i_kind) jcap
@@ -55,7 +56,7 @@ module specmod
   logical :: isinitialized=.false.
 
 contains
-  
+
   subroutine init_spec_vars(nlon,nlat,jcapin,idrtin)
 
 !   Declare passed variables
@@ -92,8 +93,8 @@ contains
     allocate( glats(jmax) )
     allocate( gwts(jmax) )
     allocate( clat(jb:je) )
-    allocate( slat(jb:je) ) 
-    allocate( wlat(jb:je) ) 
+    allocate( slat(jb:je) )
+    allocate( wlat(jb:je) )
     allocate( pln(ncd2,jb:je) )
     allocate( plntop(jcap+1,jb:je) )
 
@@ -105,7 +106,7 @@ contains
     gaulats = glats
     gauwts = gwts
     asin_gaulats=asin(gaulats)
-    
+
     isinitialized = .true.
 
   end subroutine init_spec_vars
@@ -133,9 +134,9 @@ subroutine sptez_s(wave,grid,idir)
 !           subprogram can be called from a multiprocessing environment.
 !
 !           This routine differs from splib routine sptez in that
-!              1) the calling list only contains the in/out arrays and 
+!              1) the calling list only contains the in/out arrays and
 !                 flag for the direction in which to transform
-!              2) it calls a version of sptranf that does not invoke 
+!              2) it calls a version of sptranf that does not invoke
 !                 initialization routines on each entry
 !              3) some generality built into the splib version is
 !                 removed in the code below
@@ -249,9 +250,9 @@ subroutine sptranf_s(wave,gridn,grids,idir)
 !
 ! subprograms called:
 !   sptranf1     sptranf spectral transform
-!   
-! remarks: 
-!   This routine assumes that splib routine sptranf0 has been 
+!
+! remarks:
+!   This routine assumes that splib routine sptranf0 has been
 !   previously called.  sptranf0 initializes arrays needed in
 !   the transforms.
 !
@@ -488,7 +489,7 @@ subroutine sptranf_v(waved,wavez,gridun,gridus,gridvn,gridvs,idir)
 !   spdz2uv      compute winds from divergence and vorticity
 !   spuv2dz      compute divergence and vorticity from winds
 !
-! remarks: 
+! remarks:
 !   This routine assumes that splib routine sptranf0 has been
 !   previously called.  sptranf0 initializes arrays needed in
 !   the transforms.
@@ -553,7 +554,7 @@ subroutine sptranf_v(waved,wavez,gridun,gridus,gridvn,gridvs,idir)
            gridus(ijs)=g(i,2,1)
            gridvn(ijn)=g(i,1,2)
            gridvs(ijs)=g(i,2,2)
-           
+
         enddo
      enddo
 

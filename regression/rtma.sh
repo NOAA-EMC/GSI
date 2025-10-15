@@ -22,6 +22,7 @@ tmpdir=$tmpdir/tmpreg_rtma/${exp}
 savdir=$savdir/outreg/rtma/${exp}
 
 # Specify GSI fixed field and data directories.
+#fixcrtm=${fixcrtm:-$CRTM_FIX} # possible future use
 
 #datobs=$datobs_rtma/$adate
 #datges=$datobs
@@ -36,10 +37,10 @@ ncp=/bin/cp
 # Given the analysis date, compute the date from which the
 # first guess comes.  Extract cycle and set prefix and suffix
 # for guess and observation data files
-gdate=`$ndate -12 $rtma_adate`
+gdate=`date +%Y%m%d%H -d "${rtma_adate:0:8} ${rtma_adate:8:2} - 12 hours"`
 cya=`echo $rtma_adate | cut -c9-10`
-cyg=`echo $gdate | cut -c9-10`
-cymd=`echo $gdate | cut -c1-8`
+cyg=`echo $rtma_adate | cut -c9-10`
+cymd=`echo $rtma_adate | cut -c1-8`
 echo " cymd $cymd "
 echo " cyg $cyg"
 cyc_mxtm=08
@@ -117,6 +118,7 @@ errtable=$fixgsi/rtma_errtable.r3dv
 convinfo=$fixgsi/rtma_convinfo.txt
 mesonetuselist=$fixgsi/rtma_mesonet_uselist.txt
 mesonet_stnuselist=$fixgsi/rtma_ruc2_wind-uselist-noMETAR.dat
+mesonet_stnuselist_for_vis=$fixgsi/rtma_mesonet_vis_uselist.txt
 wbinuselist=$fixgsi/rtma_wbinuselist
 slmask=$fixgsi/$endianness/rtma_conus_slmask.dat
 terrain=$fixgsi/$endianness/rtma_conus_terrain.dat
@@ -131,7 +133,6 @@ btable_ps=$fixgsi/urma2p5.nlqc_b_ps.njqc
 btable_t=$fixgsi/urma2p5.nlqc_b_t.njqc
 btable_q=$fixgsi/urma2p5.nlqc_b_q.njqc 
 btable_uv=$fixgsi/urma2p5.nlqc_b_uv.njqc 
-
 t_rejectlist=$fixgsi/rtma_t_rejectlist
 p_rejectlist=$fixgsi/rtma_p_rejectlist
 q_rejectlist=$fixgsi/rtma_q_rejectlist
@@ -140,6 +141,7 @@ t_day_rejectlist=$fixgsi/rtma_t_day_rejectlist
 t_night_rejectlist=$fixgsi/rtma_t_night_rejectlist
 q_day_rejectlist=$fixgsi/rtma_q_day_rejectlist
 q_night_rejectlist=$fixgsi/rtma_q_night_rejectlist
+provider_windheight=$fixgsi/urma2p5_provider_windheight
 
 if [[ "$endianness" = "Little_Endian" ]]; then
    random_flips=/scratch2/portfolios/NCEPDEV/meso/save/Manuel.Pondeca/folks/for_patrick/15Aug2012/hresext_rtma/fix.rtma/fixgsi_200609/normalization/random_flips_le
@@ -192,6 +194,7 @@ $ncp $convinfo           ./convinfo
 $ncp $errtable           ./errtable
 $ncp $mesonetuselist     ./mesonetuselist
 $ncp $mesonet_stnuselist ./mesonet_stnuselist
+$ncp $mesonet_stnuselist_for_vis ./mesonet_stnuselist_for_vis
 $ncp $wbinuselist        ./wbinuselist
 $ncp $slmask             ./rtma_slmask.dat
 $ncp $terrain            ./rtma_terrain.dat
@@ -218,6 +221,8 @@ $ncp $t_day_rejectlist   ./t_day_rejectlist
 $ncp $t_night_rejectlist ./t_night_rejectlist
 $ncp $q_day_rejectlist   ./q_day_rejectlist
 $ncp $q_night_rejectlist ./q_night_rejectlist
+
+$ncp $provider_windheight ./provider_windheight
 
 $ncp $random_flips        ./random_flips
 
@@ -273,10 +278,10 @@ $ncp ${rtma_obs}/urma.t${cya}z.goessky.bufr_d  ./goessky
 echo "NEW MAX/MIN DATA $rtma_obs/rtma.maxt/mintobs.dat "
 ls -lt  $rtma_obs/*tobs.dat
 echo "$rtma_obs/urma*tobs.dat"
-$ncp ${rtma_obs}/urma.20170312.mintobs.dat ./mitmdat
-$ncp ${rtma_obs}/urma.20170312.maxtobs.dat ./mxtmdat 
+$ncp ${rtma_obs}/urma.${cymd}.mintobs.dat ./mitmdat
+$ncp ${rtma_obs}/urma.${cymd}.maxtobs.dat ./mxtmdat 
 echo "observation data: satmar for howv "
-$ncp ${rtma_obs}/satmar ./satmar
+$ncp ${rtma_obs}/urma.t${cya}z.satmar.tm00.bufr_d ./satmar
 
 
 

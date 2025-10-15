@@ -1,7 +1,8 @@
 module smooth_mod
 
 use mpisetup
-use params, only:  ndim,nlons,nlats,smoothparm
+use params, only:  nlons,nlats,smoothparm
+use controlvec, only: ncdim
 use kinds, only: r_kind
 use gridinfo, only: npts
 
@@ -13,7 +14,7 @@ public :: smooth
 contains
 
 subroutine smooth(grids)
-real(r_single), intent(inout) :: grids(npts,ndim) ! there are ndim 2d grids.
+real(r_single), intent(inout) :: grids(npts,ncdim) ! there are ndim 2d grids.
 ! stub - not yet implemented.
 if (nproc .eq. 0) print *,'nmmb inflation smoothing not yet implemented!'
 end subroutine smooth

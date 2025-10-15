@@ -31,26 +31,34 @@ cd $tmpdir
 
 # Other required constants for regression testing
 maxtime=1200
-# Dew/Mist=26 GB/16 tasks per node
-##maxmem=$((1500000*1))
-# Vapor=110 GB/48 tasks per node
-##maxmem=$((2300000*1))
-# Cirrus=110 GB/32 tasks per node
-maxmem=$((3400000*1))
 
-# Copy stdout and sanl files 
+# Copy stdout and incr files 
 # from $savdir to $tmpdir
 list="$exp1 $exp2 $exp3"
-for exp in $list; do
-   $ncp $savdir/$exp/stdout ./stdout.$exp
-   nmem=20
-   imem=1
-   while [[ $imem -le $nmem ]]; do
-      member="_mem"`printf %03i $imem`
-      $ncp $savdir/$exp/sanl_${global_enkf_T62_adate}_fhr06$member $tmpdir/sanl$member.$exp
-      (( imem = $imem + 1 ))
+if [[ $(expr substr $exp1 1 4) = "rrfs" ]]; then
+   for exp in $list; do
+      $ncp $savdir/$exp/stdout ./stdout.$exp
+      nmem=5
+      imem=1
+      while [[ $imem -le $nmem ]]; do
+         member="_mem"`printf %03i $imem`
+         $ncp $savdir/$exp/fv3sar_tile1_mem${member}_dynvars $tmpdir/dynvars$member.$exp
+         $ncp $savdir/$exp/fv3sar_tile1_mem${member}_tracer $tmpdir/tracer$member.$exp
+         (( imem = $imem + 1 ))
+      done
    done
-done
+else
+   for exp in $list; do
+      $ncp $savdir/$exp/stdout ./stdout.$exp
+      nmem=10
+      imem=1
+      while [[ $imem -le $nmem ]]; do
+         member="_mem"`printf %03i $imem`
+         $ncp $savdir/$exp/incr_${global_adate}_fhr06$member $tmpdir/incr$member.$exp
+         (( imem = $imem + 1 ))
+      done
+   done
+fi
 
 # Grep out ensemble mean increment information, run time, and maximum resident memory from stdout file
 list="$exp1 $exp2 $exp3"
@@ -67,9 +75,6 @@ diff increment.$exp1.txt increment.$exp3.txt > increment.${exp1}-${exp3}.txt
 # Give location of additional output files for scalability testing
 exp1_scale=$2
 exp2_scale=$4
-
-#exp1_scale=$global_T62_updat_exp2
-#exp2_scale=$global_T62_contrl_exp2
 
 # Copy stdout for additional scalability testing
 list="$exp1_scale $exp2_scale"
@@ -134,8 +139,9 @@ fi
      timelogic=$( echo "$time1 > $maxtime" | bc )
      if [[ "$timelogic" = 1 ]]; then
        echo 'The runtime for '$exp1' is '$(awk '{ print $8 }' runtime.$exp1.txt)' seconds.  This has exceeded maximum allowable operational time of '$maxtime' seconds,'
-       echo 'resulting in failure of the regression test.'
+       echo 'resulting in Failure maxtime of the regression test.'
        echo
+       failed_test=1
      else
        echo 'The runtime for '$exp1' is '$(awk '{ print $8 }' runtime.$exp1.txt)' seconds and is within the maximum allowable operational time of '$maxtime' seconds,'
        echo 'continuing with regression test.'
@@ -151,8 +157,9 @@ fi
      timelogic=$( echo "$time1 > $timethresh" | bc )
      if [[ "$timelogic" = 1 ]]; then
        echo 'The runtime for '$exp1' is '$(awk '{ print $8 }' runtime.$exp1.txt)' seconds.  This has exceeded maximum allowable threshold time of '$timethresh' seconds,'
-       echo 'resulting in failure of the regression test.'
+       echo 'resulting in Failure timethresh of the regression test.'
        echo
+       failed_test=1
      else
        echo 'The runtime for '$exp1' is '$(awk '{ print $8 }' runtime.$exp1.txt)' seconds and is within the allowable threshold time of '$timethresh' seconds,'
        echo 'continuing with regression test.'
@@ -168,8 +175,9 @@ fi
      timelogic=$( echo "$time_scale1 > $timethresh2" | bc )
      if [[ "$timelogic" = 1 ]]; then
        echo 'The runtime for '$exp1_scale' is '$(awk '{ print $8 }' runtime.$exp1_scale.txt)' seconds.  This has exceeded maximum allowable threshold time of '$timethresh2' seconds,'
-       echo 'resulting in failure of the regression test.'
+       echo 'resulting in Failure timethresh2 of the regression test.'
        echo
+       failed_test=1
      else
        echo 'The runtime for '$exp1_scale' is '$(awk '{ print $8 }' runtime.$exp1_scale.txt)' seconds and is within the allowable threshold time of '$timethresh2' seconds,'
        echo 'continuing with regression test.'
@@ -181,19 +189,6 @@ fi
    # Next, maximum residence set size (both harware limitation and percent difference)
    # First, hardware limitation
 
-   {
-
-     if [[ $(awk '{ print $8 }' memory.$exp1.txt) -gt $maxmem ]]; then
-       echo 'The memory for '$exp1' is '$(awk '{ print $8 }' memory.$exp1.txt)' KBs.  This has exceeded maximum allowable hardware memory limit of '$maxmem' KBs,'
-       echo 'resulting in failure of the regression test.'
-       echo
-     else
-       echo 'The memory for '$exp1' is '$(awk '{ print $8 }' memory.$exp1.txt)' KBs and is within the maximum allowable hardware memory limit of '$maxmem' KBs,'
-       echo 'continuing with regression test.'
-       echo
-     fi
-
-   } >> $output
 
    # Next, maximum residence set size
 
@@ -201,8 +196,9 @@ fi
 
      if [[ $(awk '{ print $8 }' memory.$exp1.txt) -gt $memthresh ]]; then
        echo 'The memory for '$exp1' is '$(awk '{ print $8 }' memory.$exp1.txt)' KBs.  This has exceeded maximum allowable memory of '$memthresh' KBs,'
-       echo 'resulting in failure of the regression test.'
+       echo 'resulting in Failure memthresh of the regression test.'
        echo
+       failed_test=1
      else
        echo 'The memory for '$exp1' is '$(awk '{ print $8 }' memory.$exp1.txt)' KBs and is within the maximum allowable memory of '$memthresh' KBs,'
        echo 'continuing with regression test.'
@@ -222,32 +218,55 @@ if [[ $(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp2}.txt) = 0 ]
       echo
    else
       echo 'The results between the two runs are nonreproducible,'
-      echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses.'
-#     echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses with '$(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp2}.txt)' lines different.'
+#      echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses.'
+      echo 'thus the regression test has Failed mean anal for '${exp1}' and '${exp2}' analyses with '$(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp2}.txt)' lines different.'
       echo
-      exit 1
+      failed_test=1
+#      exit 1
    fi
 else
    echo 'The results between the two runs are nonreproducible,'
-   echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses.'
+#   echo 'thus the regression test has failed for '${exp1}' and '${exp2}' analyses.'
+   echo 'thus the regression test has Failed mean anal for '${exp1}' and '${exp2}' analyses with '$(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp2}.txt)' lines different.'
    echo
-   exit 1
+   failed_test=1
+#   exit 1
 fi
 
 } >> $output
 
 # Next, check reproducibility of results between exp1 and exp2
 
-if [[ `expr substr $exp1 1 4` = "rtma" ]]; then
+if [[ $(expr substr $exp1 1 4) = "rrfs" ]]; then
 
 {
 
-if cmp -s siganl.${exp1} siganl.${exp2}
-then
-   echo 'The results between the two runs ('${exp1}' and '${exp2}') are reproducible'
-   echo 'since the corresponding results are identical.'
-   echo
-fi
+nmem=5
+imem=1
+while [[ $imem -le $nmem ]]; do
+   member="_mem"`printf %03i $imem`
+   ncdump dynvars$member.${exp1} > dynvars$member.${exp1}.out
+   ncdump dynvars$member.${exp2} > dynvars$member.${exp2}.out
+   if [ ! diff dynvars$member.${exp1}.out dynvars$member.${exp2}.out ]; then
+       echo 'dynvars'$member'.'${exp1}' dynvars'$member'.'${exp2}' are NOT identical'
+       failed_test=1
+   else
+       rm -f dynvars$member.${exp1}.out dynvars$member.${exp2}.out
+       echo 'dynvars'$member'.'${exp1}' dynvars'$member'.'${exp2}' are identical'
+   fi
+   ncdump tracer$member.${exp1} > tracers$member.${exp1}.out
+   ncdump tracer$member.${exp2} > tracers$member.${exp2}.out
+   if [ ! diff tracers$member.${exp1}.out tracers$member.${exp2}.out ]; then
+       echo 'tracer'$member'.'${exp1}'  tracer'$member'.'${exp2}' are NOT identical'
+       failed_test=1
+   else
+       rm -f tracers$member.${exp1}.out tracers$member.${exp2}.out
+       echo 'tracer'$member'.'${exp1}'  tracer'$member'.'${exp2}' are identical'
+       q
+   fi
+   (( imem = $imem + 1 ))
+done
+echo
 
 } >> $output
 
@@ -277,17 +296,20 @@ fi
 } >> $output
    else
 {
-nmem=20
+nmem=10
 imem=1
 while [[ $imem -le $nmem ]]; do
    member="_mem"`printf %03i $imem`
-   if cmp -s sanl$member.${exp1} sanl$member.${exp2} 
-then
-   echo 'sanl'$member'.'${exp1}' sanl'$member'.'${exp2}' are identical'
-   echo
-fi
+   ncdump incr$member.${exp1} > incr$member.${exp1}.out
+   ncdump incr$member.${exp2} > incr$member.${exp2}.out
+   if [ ! diff incr$member.${exp1}.out incr$member.${exp2}.out ]; then
+       echo 'incr'$member'.'${exp1}' incr'$member'.'${exp2}' are NOT identical'
+   else
+       rm -f incr$member.${exp1}.out incr$member.${exp2}.out
+   fi
    (( imem = $imem + 1 ))
 done
+echo
 } >> $output
    fi
 fi
@@ -314,32 +336,54 @@ else
          echo
       else
          echo 'The results between the two runs are nonreproducible,'
-         echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses.'
-#        echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses with '$(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp3}.txt)' lines different.'
+#         echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses.'
+         echo 'thus the regression test has Failed mean anal for '${exp1}' and '${exp3}' analyses with '$(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp3}.txt)' lines different.'
          echo
-         exit 1
+         failed_test=1
+#         exit 1
       fi
    else
       echo 'The results between the two runs are nonreproducible,'
-      echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses.'
+#      echo 'thus the regression test has failed for '${exp1}' and '${exp3}' analyses.'
+         echo 'thus the regression test has Failed mean anal for '${exp1}' and '${exp3}' analyses with '$(grep -c 'ens. mean anal. increment' increment.${exp1}-${exp3}.txt)' lines different.'
       echo
-      exit 1
+      failed_test=1
+#      exit 1
    fi
 
 } >> $output
 
 # Next, check reproducibility of results between exp1 and exp3
 
-   if [[ `expr substr $exp1 1 4` = "rtma" ]]; then
+   if [[ $(expr substr $exp1 1 4) = "rrfs" ]]; then
 
 {
 
-      if cmp -s wrf_inout.${exp1} wrf_inout.${exp3}
-      then
-         echo 'The results between the two runs ('${exp1}' and '${exp3}') are reproducible'
-         echo 'since the corresponding results are identical.'
-         echo
-      fi
+	nmem=5
+        imem=1
+        while [[ $imem -le $nmem ]]; do
+           member="_mem"`printf %03i $imem`
+           ncdump dynvars$member.${exp1} > dynvars$member.${exp1}.out
+           ncdump dynvars$member.${exp3} > dynvars$member.${exp3}.out
+           if [ ! diff dynvars$member.${exp1}.out dynvars$member.${exp3}.out ]; then
+               echo 'dynvars'$member'.'${exp1}' dynvars'$member'.'${exp3}' are NOT identical'
+               failed_test=1
+           else
+               rm -f dynvars$member.${exp1}.out dynvars$member.${exp3}.out
+               echo 'dynvars'$member'.'${exp1}' dynvars'$member'.'${exp3}' are identical'
+           fi
+           ncdump tracer$member.${exp1} > tracers$member.${exp1}.out
+           ncdump tracer$member.${exp3} > tracers$member.${exp3}.out
+           if [ ! diff tracers$member.${exp1}.out tracers$member.${exp3}.out ]; then
+               echo 'tracer'$member'.'${exp1}'  tracer'$member'.'${exp3}' are NOT identical'
+               failed_test=1
+           else
+               rm -f tracers$member.${exp1}.out tracers$member.${exp3}.out
+               echo 'tracer'$member'.'${exp1}'  tracer'$member'.'${exp3}' are identical'
+           fi
+           (( imem = $imem + 1 ))
+        done
+        echo
 
 } >> $output
 
@@ -371,51 +415,47 @@ else
       else
 
 {
-   nmem=20
+   nmem=10
    imem=1
    while [[ $imem -le $nmem ]]; do
       member="_mem"`printf %03i $imem`
-      if cmp -s sanl$member.${exp1} sanl$member.${exp3}
-      then
-      echo 'sanl'$member'.'${exp1}' sanl'$member'.'${exp3}' are identical'
-      echo
+      ncdump incr$member.${exp1} > incr$member.${exp1}.out
+      ncdump incr$member.${exp3} > incr$member.${exp3}.out
+      if [ ! diff incr$member.${exp1}.out incr$member.${exp3}.out ]; then
+          echo 'incr'$member'.'${exp1}' incr'$member'.'${exp3}' are NOT identical'
+      else
+          rm -f incr$member.${exp1}.out incr$member.${exp3}.out
       fi
-   (( imem = $imem + 1 ))
+      (( imem = $imem + 1 ))
    done
-
+   echo
 } >> $output
       fi
    fi
 fi
-
-   # Finally, scalability
-
-   {
-
-   timelogic=$( echo "$scale1thresh >= $scale2" | bc )
-   if [[ "$timelogic" = 1 ]]; then
-      echo 'The case has passed the scalability regression test.'
-      echo 'The slope for the update ('$scale1thresh' seconds per node) is greater than or equal to that for the control ('$scale2' seconds per node).'
-   else
-      echo 'The case has failed the scalability test.'
-      echo 'The slope for the update ('$scale1thresh' seconds per node) is less than that for the control ('$scale2' seconds per node).'
-   fi
-
-   } >> $output
 
 # Copy select results to $savdir
 mkdir -p $vfydir
 
 $ncp $output                        $vfydir/
 
+# Final check for any failed tests
+count=$(grep -i "fail" $output |wc -l)
+if [ $count -gt 0 ]; then
+    (( failed_test = $failed_test + $count ))
+fi
+
+# Remove job log files is no failures detected
 cd $scripts
-rm -f ${exp1}.out
-rm -f ${exp2}.out
-rm -f ${exp3}.out
-rm -f ${exp2_scale}.out
+if [ $count -eq 0 ]; then
+    rm -f ${exp1}.out
+    rm -f ${exp2}.out
+    rm -f ${exp3}.out
+    rm -f ${exp2_scale}.out
+fi
 
 if [[ "$clean" = ".true." ]]; then
    rm -rf $savdir
 fi
 
-exit
+exit $failed_test

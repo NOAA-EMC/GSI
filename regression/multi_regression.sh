@@ -1,36 +1,23 @@
 #!/bin/sh --login
 
-regtests_all="global_T62
-              global_T62_ozonly
-              global_4dvar_T62
-              global_4denvar_T126
-              global_lanczos_T62
-              arw_netcdf
-              arw_binary
-              nmm_binary
-              nmm_netcdf
-              nmmb_nems_4denvar
-              hwrf_nmm_d2
-              hwrf_nmm_d3
+regtests_all="global_4denvar
+              rrfs_3denvar_rdasens
+              hafs_4denvar_glbens
+              hafs_3denvar_hybens
               rtma
-              global_enkf_T62"
+              global_enkf"
 
-regtests_debug="global_T62
-                global_4dvar_T62
-                global_4denvar_T126
-                global_lanczos_T62
-                arw_netcdf
-                arw_binary
-                nmm_binary
-                nmm_netcdf
-                nmmb_nems_4denvar
-                hwrf_nmm_d2
-                hwrf_nmm_d3"
+#              rrfs_enkf_conv   : comment out RRFS enkf case for now
+#                                 need to update EnKF code
+regtests_debug="global_4denvar
+                rrfs_3denvar_rdasens
+                hafs_4denvar_glbens
+                hafs_3denvar_hybens
+                rtma
+                global_enkf"
 
 # Choose which regression test to run; by default, run all
 regtests=${1:-$regtests_all}
-
-echo "`pwd`/regression_var.sh" > regression_var.out
 
 for regtest in $regtests; do
     rm -f ${regtest}.out

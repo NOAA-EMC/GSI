@@ -1,7 +1,0 @@
- &setup
-  tversion=4,
-  analysis_time = 2008051112,
-  dataPath = 'comGSI/releaseV33/release_V3.3_intel/util/data/radardata',
-  bkfile = 'comGSI/data/DTC/bkARW/wrfout_d01_2008-05-11_12:00:00',
- /
-
