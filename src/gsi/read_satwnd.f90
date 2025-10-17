@@ -1525,6 +1525,11 @@ end subroutine read_satwnd
       do i=1,20
          if(goes(i)/=0) then
             sattab(099,goes(i),1,1)=241; sattab(099,goes(i),1,2)=20 ! MSG TYPE 005-099 CIMSS AMV TROPICAL CYCLONE WINDS
+            sattab(099,goes(i),2,1)=241; sattab(099,goes(i),2,2)=20 ! MSG TYPE 005-099 CIMSS AMV TROPICAL CYCLONE WINDS
+            sattab(099,goes(i),3,1)=241; sattab(099,goes(i),3,2)=20 ! MSG TYPE 005-099 CIMSS AMV TROPICAL CYCLONE WINDS
+            sattab(099,goes(i),4,1)=241; sattab(099,goes(i),4,2)=20 ! MSG TYPE 005-099 CIMSS AMV TROPICAL CYCLONE WINDS
+            sattab(099,goes(i),5,1)=241; sattab(099,goes(i),5,2)=20 ! MSG TYPE 005-099 CIMSS AMV TROPICAL CYCLONE WINDS
+            sattab(099,goes(i),6,1)=241; sattab(099,goes(i),6,2)=20 ! MSG TYPE 005-099 CIMSS AMV TROPICAL CYCLONE WINDS
          endif
          if(hima(i)/=0) then
             sattab(099,hima(i),1,1)=241; sattab(099,hima(i),1,2)=20 ! MSG TYPE 005-099 CIMSS AMV TROPICAL CYCLONE WINDS
