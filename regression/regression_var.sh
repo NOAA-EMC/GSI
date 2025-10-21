@@ -180,7 +180,7 @@ case $machine in
     export noscrub="${noscrub:-/contrib/$USER/noscrub}"
     export group="${group:-$USER}"
     export queue="${queue:-batch}"
-    export ptmp="${ptmp:-/contrib/$USER/ptmp}"
+    export ptmp="${ptmp:-/lustre/$USER/ptmp}"
     export casesdir="${casesdir:-/bucket/GSI_RTs}"
     export partition="${partition:-process}"
     export check_resource="yes"
