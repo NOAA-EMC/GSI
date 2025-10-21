@@ -39,6 +39,11 @@ case $machine in
            memnode=512
            numcore=128
     ;;
+    noaacloud)
+	   sub_cmd="sub_noaacloud"
+	   memnode=96
+	   numcore=24
+    ;;
     *) # EXIT out for unresolved machine
         echo "unknown $machine"
         exit 1
@@ -73,6 +78,9 @@ case $regtest in
         elif [[ "$machine" = "wcoss2" || "$machine" = "acorn" ]]; then
            topts[1]="0:10:00" ; popts[1]="12/8/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="12/10/" ; ropts[2]="/2"
+	elif [[ "$machine" = "noaacloud" ]]; then
+           topts[1]="0:10:00" ; popts[1]="24/4/" ; ropts[1]="/1"
+           topts[2]="0:10:00" ; popts[2]="24/5/" ; ropts[2]="/2"
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -253,6 +261,9 @@ case $regtest in
         elif [[ "$machine" = "wcoss2" || "$machine" = "acorn" ]]; then
            topts[1]="0:10:00" ; popts[1]="16/2/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="16/4/" ; ropts[2]="/2"
+	elif [[ "$machine" = "noaacloud" ]]; then
+	   topts[1]="0:10:00" ; popts[1]="18/2/" ; ropts[1]="/1"
+	   topts[2]="0:10:00" ; popts[2]="20/3/" ; ropts[2]="/2"
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -319,4 +330,6 @@ elif [[ "$machine" = "wcoss2" || "$machine" = "acorn" ]]; then
    export FORT_BUFFERED=true
    export FI_OFI_RXM_SAR_LIMIT=3145728
    export APRUN="mpiexec -n \$ntasks -ppn \$ppn --cpu-bind core --depth \$threads"
+elif [[ "$machine" = "noaacloud" ]]; then
+   export APRUN="srun --mpi=pmi2 -n \$ntasks --cpus-per-task=\$threads"
 fi
