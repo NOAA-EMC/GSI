@@ -178,13 +178,13 @@ case $machine in
   noaacloud)
 
     export noscrub="${noscrub:-/contrib/$USER/noscrub}"
-    #export group="${group:-$USER}"
+    export group="${group:-$USER}"
     export queue="${queue:-batch}"
     export ptmp="${ptmp:-/lustre/$USER/ptmp}"
     export casesdir="${casesdir:-/bucket/GSI_RTs}"
     export partition="${partition:-compute}"
     export check_resource="no"
-    #export accnt="${accnt:-ca-epic}"
+    export accnt="${accnt:-}"
     export clean=".false."
   ;;
 

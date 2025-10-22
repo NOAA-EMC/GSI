@@ -112,7 +112,6 @@ cat << EOF >> $cfile
 #SBATCH --time=$timew
 #SBATCH --nodes=$nodes
 #SBATCH --ntasks-per-node=$procs
-#SBATCH --cpus-per-task=$threads
 #SBATCH --exclusive
 
 set -x
