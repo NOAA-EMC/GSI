@@ -2,6 +2,18 @@
 
 set -eux
 
+# checking if the first positional argument is specified to build a special system
+if [[ $# -ge 1 ]] ; then
+    DASYS_NAME="$1"
+    if [[ ${DASYS_NAME,,} == "3drtma" ||  ${DASYS_NAME,,} == "rtma3d" ]] ; then
+        BUILD_GSI4RTMA3D="Yes"
+        echo " ****** Building GSI for 3D-RTMA ****** "
+    else
+        unset BUILD_GSI4RTMA3D
+    fi
+fi
+unset DASYS_NAME
+
 # Get the root of the cloned GSI directory
 readonly DIR_ROOT=$(cd "$(dirname "$(readlink -f -n "${BASH_SOURCE[0]}" )" )/.." && pwd -P)
 
@@ -47,8 +59,19 @@ CMAKE_OPTS+=" -DGSI_MODE=$GSI_MODE -DENKF_MODE=${ENKF_MODE}"
 mkdir -p $BUILD_DIR && cd $BUILD_DIR
 
 # Configure, build, install
-cmake $CMAKE_OPTS $DIR_ROOT
-make -j ${BUILD_JOBS:-8} VERBOSE=${BUILD_VERBOSE:-}
-make install
+#     specifit options for 3DRTMA
+if [[ -v BUILD_GSI4RTMA3D && ${BUILD_GSI4RTMA3D} =~ [yYtT] ]] ; then
+    echo " ****** Building GSI with GSD Cloud Analysis for 3D-RTMA ****** "
+    BUILD_GSDCLOUD=${BUILD_GSDCLOUD:-"ON"}      # Build GSD Cloud Analysis library
+    USE_GSDCLOUD=${USE_GSDCLOUD:-"ON"}          # Build with GSD Cloud Analysis library
+    CMAKE_OPTS+=" -DBUILD_GSDCLOUD=${BUILD_GSDCLOUD} -DUSE_GSDCLOUD=${USE_GSDCLOUD}"
+    cmake $CMAKE_OPTS $DIR_ROOT 2>&1 | tee log.cmake
+    make -j ${BUILD_JOBS:-8} VERBOSE=${BUILD_VERBOSE:-1} 2>&1 | tee log.make
+    make install 2>&1 | tee log.install
+else
+    cmake $CMAKE_OPTS $DIR_ROOT
+    make -j ${BUILD_JOBS:-8} VERBOSE=${BUILD_VERBOSE:-}
+    make install
+fi
 
 exit
