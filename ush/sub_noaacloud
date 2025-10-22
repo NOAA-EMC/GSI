@@ -112,6 +112,7 @@ cat << EOF >> $cfile
 #SBATCH --time=$timew
 #SBATCH --nodes=$nodes
 #SBATCH --ntasks-per-node=$procs
+#SBATCH --cpus-per-task=$threads
 #SBATCH --exclusive
 
 set -x
@@ -149,6 +150,6 @@ if [[ -w $SUBLOG ]];then
   jobn=$(grep -i submitted $ofile|head -n1|cut -d\" -f2)
   date -u +"%Y%m%d%H%M%S : $subcmd : $jobn" >>$SUBLOG
 fi
-#rm $cfile $ofile
-#[[ $MKDATA = YES ]] && rmdir $DATA
+rm $cfile $ofile
+[[ $MKDATA = YES ]] && rmdir $DATA
 exit $rc
