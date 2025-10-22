@@ -92,7 +92,6 @@ DATA=${DATA:-$ptmp/tmp}
 
 mkdir -p $DATA
 
-#partition=${partition:-process}
 queue=${queue:-batch}
 timew=${timew:-01:20:00}
 task_node=${task_node:-$procs}
@@ -113,6 +112,7 @@ cat << EOF >> $cfile
 #SBATCH --nodes=$nodes
 #SBATCH --ntasks-per-node=$procs
 #SBATCH --exclusive
+#SBATCH --partition=$partition
 
 set -x
 export ntasks=$(( $nodes * $procs ))
