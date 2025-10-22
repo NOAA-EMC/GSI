@@ -10,6 +10,7 @@ local stack_intel_oneapi_mpi_ver=os.getenv("stack_intel_oneapi_mpi_ver") or "202
 local mkl_ver=os.getenv("mkl_ver") or "2024.2.1"
 local stack_python_ver=os.getenv("stack_python_ver") or "3.11.7"
 local cmake_ver=os.getenv("cmake_ver") or "3.27.9"
+local crtm_fix_ver=os.getenv("crtm_fix_ver") or "2.4.0.2"
 
 load(pathJoin("gnu", gcc_ver))
 load(pathJoin("stack-oneapi", stack_oneapi_ver))
@@ -24,5 +25,6 @@ pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
 
 pushenv("GSI_BINARY_SOURCE_DIR", "/contrib/global-workflow-shared-data/fix/gsi/20250529")
+setenv("CRTM_FIX", pathJoin("/contrib/global-workflow-shared-data/fix/crtm", "v" .. crtm_fix_ver))
 
 whatis("Description: GSI environment on NOAA Cloud with Intel Compilers")
