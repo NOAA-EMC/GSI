@@ -26,6 +26,10 @@ INSTALL_PREFIX=${INSTALL_PREFIX:-"${DIR_ROOT}/install"}
 GSI_MODE=${GSI_MODE:-"Regional"}  # By default build Regional GSI (for regression testing)
 ENKF_MODE=${ENKF_MODE:-"GFS"}     # By default build Global EnKF  (for regression testing)
 REGRESSION_TESTS=${REGRESSION_TESTS:-"YES"} # Build regression test suite
+if [[ -v BUILD_GSI4RTMA3D && ${BUILD_GSI4RTMA3D} =~ [yYtT] ]] ; then
+    BUILD_GSDCLOUD=${BUILD_GSDCLOUD:-"ON"}      # Build GSD Cloud Analysis library
+    USE_GSDCLOUD=${USE_GSDCLOUD:-"ON"}          # Build with GSD Cloud Analysis library
+fi
 
 #==============================================================================#
 
@@ -51,6 +55,11 @@ CMAKE_OPTS+=" -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX"
 # Configure for GSI and EnKF
 CMAKE_OPTS+=" -DGSI_MODE=$GSI_MODE -DENKF_MODE=${ENKF_MODE}"
 
+# Configure for building GSI with GSD Cloud Analysis
+if [[ -v BUILD_GSI4RTMA3D && ${BUILD_GSI4RTMA3D} =~ [yYtT] ]] ; then
+    CMAKE_OPTS+=" -DBUILD_GSDCLOUD=${BUILD_GSDCLOUD} -DUSE_GSDCLOUD=${USE_GSDCLOUD}"
+fi
+
 # Build regression test suite (on supported MACHINE_ID where CONTROLPATH exists)
 [[ ${REGRESSION_TESTS} =~ [yYtT] ]] && CMAKE_OPTS+=" -DBUILD_REG_TESTING=ON -DCONTROLPATH=${CONTROLPATH:-}"
 
@@ -62,9 +71,6 @@ mkdir -p $BUILD_DIR && cd $BUILD_DIR
 #     specifit options for 3DRTMA
 if [[ -v BUILD_GSI4RTMA3D && ${BUILD_GSI4RTMA3D} =~ [yYtT] ]] ; then
     echo " ****** Building GSI with GSD Cloud Analysis for 3D-RTMA ****** "
-    BUILD_GSDCLOUD=${BUILD_GSDCLOUD:-"ON"}      # Build GSD Cloud Analysis library
-    USE_GSDCLOUD=${USE_GSDCLOUD:-"ON"}          # Build with GSD Cloud Analysis library
-    CMAKE_OPTS+=" -DBUILD_GSDCLOUD=${BUILD_GSDCLOUD} -DUSE_GSDCLOUD=${USE_GSDCLOUD}"
     cmake $CMAKE_OPTS $DIR_ROOT 2>&1 | tee log.cmake
     make -j ${BUILD_JOBS:-8} VERBOSE=${BUILD_VERBOSE:-1} 2>&1 | tee log.make
     make install 2>&1 | tee log.install
