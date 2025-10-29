@@ -181,7 +181,7 @@ case $machine in
     export group="${group:-$USER}"
     export queue="${queue:-batch}"
     export ptmp="${ptmp:-/lustre/$USER/ptmp}"
-    export casesdir="${casesdir:-/bucket/GSI_RTs}"
+    export casesdir="${casesdir:-/lustre/GSI_RTs}"
     export partition="${partition:-compute}"
     export check_resource="no"
     export accnt="${accnt:-}"
