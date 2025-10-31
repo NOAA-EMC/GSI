@@ -26,10 +26,6 @@ INSTALL_PREFIX=${INSTALL_PREFIX:-"${DIR_ROOT}/install"}
 GSI_MODE=${GSI_MODE:-"Regional"}  # By default build Regional GSI (for regression testing)
 ENKF_MODE=${ENKF_MODE:-"GFS"}     # By default build Global EnKF  (for regression testing)
 REGRESSION_TESTS=${REGRESSION_TESTS:-"YES"} # Build regression test suite
-if [[ -v BUILD_GSI4RTMA3D && ${BUILD_GSI4RTMA3D} =~ [yYtT] ]] ; then
-    BUILD_GSDCLOUD=${BUILD_GSDCLOUD:-"ON"}      # Build GSD Cloud Analysis library
-    USE_GSDCLOUD=${USE_GSDCLOUD:-"ON"}          # Build with GSD Cloud Analysis library
-fi
 
 #==============================================================================#
 
@@ -57,6 +53,8 @@ CMAKE_OPTS+=" -DGSI_MODE=$GSI_MODE -DENKF_MODE=${ENKF_MODE}"
 
 # Configure for building GSI with GSD Cloud Analysis
 if [[ -v BUILD_GSI4RTMA3D && ${BUILD_GSI4RTMA3D} =~ [yYtT] ]] ; then
+    BUILD_GSDCLOUD=${BUILD_GSDCLOUD:-"ON"}      # Build GSD Cloud Analysis library
+    USE_GSDCLOUD=${USE_GSDCLOUD:-"ON"}          # Build with GSD Cloud Analysis library
     CMAKE_OPTS+=" -DBUILD_GSDCLOUD=${BUILD_GSDCLOUD} -DUSE_GSDCLOUD=${USE_GSDCLOUD}"
 fi
 
