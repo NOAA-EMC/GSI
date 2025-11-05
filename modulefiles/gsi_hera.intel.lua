@@ -24,7 +24,7 @@ load("impi/2022.1.2")
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/scratch3/NCEPDEV/global/role.glopara/fix/gsi/20250529")
+pushenv("GSI_BINARY_SOURCE_DIR", "/scratch3/NCEPDEV/global/role.glopara/fix/gsi/20251105")
 setenv("CRTM_FIX", pathJoin("/scratch3/NCEPDEV/global/role.glopara/fix/crtm", "v" .. crtm_fix_ver))
 
 whatis("Description: GSI environment on Hera with Intel Compilers")
