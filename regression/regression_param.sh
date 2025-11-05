@@ -79,8 +79,8 @@ case $regtest in
            topts[1]="0:10:00" ; popts[1]="12/8/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="12/10/" ; ropts[2]="/2"
 	elif [[ "$machine" = "noaacloud" ]]; then
-           topts[1]="0:10:00" ; popts[1]="36/1/" ; ropts[1]="/1"
-           topts[2]="0:10:00" ; popts[2]="24/2/" ; ropts[2]="/2"
+           topts[1]="0:10:00" ; popts[1]="48/2/" ; ropts[1]="/1"
+           topts[2]="0:10:00" ; popts[2]="24/5/" ; ropts[2]="/2"
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -263,7 +263,7 @@ case $regtest in
            topts[2]="0:10:00" ; popts[2]="16/4/" ; ropts[2]="/2"
 	elif [[ "$machine" = "noaacloud" ]]; then
 	   topts[1]="0:10:00" ; popts[1]="36/1/" ; ropts[1]="/1"
-	   topts[2]="0:10:00" ; popts[2]="48/1/" ; ropts[2]="/1"
+	   topts[2]="0:10:00" ; popts[2]="30/2/" ; ropts[2]="/1"
         fi
 
         if [ "$debug" = ".true." ] ; then
