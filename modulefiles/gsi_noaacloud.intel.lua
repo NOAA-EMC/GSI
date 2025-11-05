@@ -24,7 +24,7 @@ load("gsi_common")
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/contrib/global-workflow-shared-data/fix/gsi/20250529")
+pushenv("GSI_BINARY_SOURCE_DIR", "/contrib/global-workflow-shared-data/fix/gsi/20251105")
 setenv("CRTM_FIX", pathJoin("/contrib/global-workflow-shared-data/fix/crtm", "v" .. crtm_fix_ver))
 
 whatis("Description: GSI environment on NOAA Cloud with Intel Compilers")
