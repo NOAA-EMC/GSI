@@ -50,7 +50,7 @@ load(pathJoin("ncio-A", ncio_ver))
 load(pathJoin("crtm", crtm_ver))
 load(pathJoin("ncdiag-A",ncdiag_ver))
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/gsi/20250529")
+pushenv("GSI_BINARY_SOURCE_DIR", "/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/gsi/20251105")
 setenv("CRTM_FIX", pathJoin("/lfs/h2/emc/global/noscrub/emc.global/FIX/fix/crtm", "v" .. crtm_fix_ver))
 
 whatis("Description: GSI environment on WCOSS2")
