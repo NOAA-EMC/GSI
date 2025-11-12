@@ -14,8 +14,8 @@ Usage:  $0 [options] executable [args]
       -n                write command file to stdout rather than submitting it
       -o output         specify output file (default: jobname.out)
       -p procs[/nodes[/ppreq]
-                        number of MPI tasks and optional nodes or Bblocking and
-                        ppreq option (N or S) (defaults: serial, Bunlimited, S)
+                        number of MPI tasks and optional nodes or blocking and
+                        ppreq option (N or S) (defaults: serial, unlimited, S)
       -q queue[/qpreq]  queue name and optional requirement, e.g. dev/P
                         (defaults: 1 if serial or dev if parallel and none)
                         (queue 3 or 4 is dev or prod with twice tasks over ip)

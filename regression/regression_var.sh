@@ -208,12 +208,12 @@ export JCAP="62"
 
 # Case Study analysis dates
 if [[ "${machine}" == "noaacloud" ]]; then
-  # due to unavailable un-restricted versions of obs data 
+  # due to unavailable unrestricted versions of obs data 
   # for 2024022300 noaacloud uses its own global date
   export global_adate="2021122100"
 else
   export global_adate="2024022300"
-fi  
+fi
 export rtma_adate="2020022420"
 export rrfs_enkf_adate="2023061012"
 export rrfs_3denvar_rdasens_adate="2023061012"

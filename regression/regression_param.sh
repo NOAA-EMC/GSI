@@ -40,9 +40,9 @@ case $machine in
            numcore=128
     ;;
     noaacloud)
-	   sub_cmd="sub_noaacloud"
-	   memnode=192
-	   numcore=48
+           sub_cmd="sub_noaacloud"
+           memnode=192
+           numcore=48
     ;;
     *) # EXIT out for unresolved machine
         echo "unknown $machine"
@@ -78,7 +78,7 @@ case $regtest in
         elif [[ "$machine" = "wcoss2" || "$machine" = "acorn" ]]; then
            topts[1]="0:10:00" ; popts[1]="12/8/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="12/10/" ; ropts[2]="/2"
-	elif [[ "$machine" = "noaacloud" ]]; then
+        elif [[ "$machine" = "noaacloud" ]]; then
            topts[1]="0:10:00" ; popts[1]="48/2/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="24/5/" ; ropts[2]="/2"
         fi
@@ -261,9 +261,9 @@ case $regtest in
         elif [[ "$machine" = "wcoss2" || "$machine" = "acorn" ]]; then
            topts[1]="0:10:00" ; popts[1]="16/2/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="16/4/" ; ropts[2]="/2"
-	elif [[ "$machine" = "noaacloud" ]]; then
-	   topts[1]="0:10:00" ; popts[1]="36/1/" ; ropts[1]="/1"
-	   topts[2]="0:10:00" ; popts[2]="30/2/" ; ropts[2]="/1"
+        elif [[ "$machine" = "noaacloud" ]]; then
+           topts[1]="0:10:00" ; popts[1]="36/1/" ; ropts[1]="/1"
+           topts[2]="0:10:00" ; popts[2]="30/2/" ; ropts[2]="/1"
         fi
 
         if [ "$debug" = ".true." ] ; then
