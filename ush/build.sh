@@ -33,6 +33,7 @@ while getopts "c:hlv" opt; do
   case ${opt} in
     c)
       OPTS4CMAKE="${OPTARG}"
+      echo "User-specified additionl building options ==> ${OPTS4CMAKE}"
       ;;
     v)
       set -x
