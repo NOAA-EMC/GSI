@@ -17,9 +17,9 @@ usage() {
   echo "     Example: $0               # building GSI with default config (for most DA systems, e.g. GDAS, RRFS-DA, etc.)"
   echo "              $0 -c GSDCLOUD   # building GSI with GSD Cloud Analysis support (only for RAP/HRRR, 3DRTMA, not default)"
   echo "  -v build with verbose output and enable script-debugging by set -x"
-  echo "     DEFAULT: <none> (this option requires no argument)"
+  echo "     DEFAULT: <none>, flag option (no argument)"
   echo "  -l save the building log files under build directory"
-  echo "     DEFAULT: <none> (this option requires no argument)"
+  echo "     DEFAULT: <none>, flag option (no argument)"
   echo "  -h display this usage/help information and quit"
   echo 
   exit 1
@@ -42,7 +42,7 @@ while getopts "c:hlv" opt; do
     l)
       SAVELOG="Yes"
       ;;
-    h|\?|\:)
+    h|\?|:)
       usage
       ;;
   esac
