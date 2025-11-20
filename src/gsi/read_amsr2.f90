@@ -25,6 +25,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,rmesh,jsatid,gstime,&
 !   2016-09-20  j. guo   - Refixed dlxx_earth_deg, for the new dlxx_earth_save(:).
 !   2017-01-03  todling  - treat save arrays as allocatable
 !   2018-05-21  j.jin    - added time-thinning. Moved the checking of thin4d into satthin.F90.
+!   2025-06-10  j.jin    - Calculate solar zenith angle.
 ! 
 !
 ! input argument list:
@@ -62,6 +63,7 @@ subroutine read_amsr2(mype,val_amsr2,ithin,rmesh,jsatid,gstime,&
   use radinfo, only: iuse_rad,nusis,jpch_rad,amsr2_method 
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,rlats,rlons,&
       tll2xy
+  use constants, only: rearth
   use constants, only: deg2rad,zero,one,three,r60inv,two
   use gsi_4dvar, only: l4dvar, iwinbgn, winlen, l4densvar
   use calc_fov_conical, only: instrument_init
@@ -169,7 +171,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   integer(i_kind) :: nscan,iskip,kskip,kch  
   real(r_kind),parameter :: R90      =  90._r_kind
   real(r_kind),parameter :: R360     = 360._r_kind
-  real(r_kind),parameter :: tbmin    = 3._r_kind           
+  real(r_kind),parameter :: tbmin    = 50._r_kind           
   real(r_kind),parameter :: tbmax    = 340._r_kind         
 
   real(r_kind) :: clath, clonh, sun_el_ang, fovn         
@@ -185,6 +187,14 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   real(r_double),dimension(13):: amsrspot_d               
   real(r_double),dimension(3,14):: amsrchan_d             
 
+! ---- For sun zenith and glint angles  ----
+  integer(i_kind):: doy,mday(12),mon,m,mlen(12)
+  real(r_kind)   :: time_4_sun_glint_calc,clath_sun_glint_calc,clonh_sun_glint_calc
+  real(r_kind)   :: sun_zenith,sun_azimuth_ang
+  data  mlen/31,28,31,30,31,30, &
+             31,31,30,31,30,31/
+  real(r_kind)   :: sat_scan_ang,sat_altitude
+
   integer(i_kind) :: ireadsb, ireadmg 
   real(r_kind),parameter:: one_minute=0.01666667_r_kind
   real(r_kind),parameter:: minus_one_minute=-0.01666667_r_kind
@@ -198,6 +208,8 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
   call init_(kchanl,maxobs)
   do_noise_reduction = .true.
   if (amsr2_method == 0) do_noise_reduction = .false.
+! Orbit altitude  (m)
+  sat_altitude = 6.996e+5_r_kind
 
   ilon = 3
   ilat = 4
@@ -206,6 +218,11 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
      call gsi_nstcoupler_skindepth(obstype, zob)         ! get penetration depth (zob) for the obstype
   endif
 
+  m = 0
+  do mon=1,12 
+     mday(mon) = m 
+     m = m + mlen(mon) 
+  end do 
   ntest = 0
   nreal = maxinfo+nstinfo
   ndata = 0
@@ -300,7 +317,7 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
         
         ifov = nint(fovn)
         sat_az_ang = amsrspot_d(10)
-        sat_zen_ang = 55.0_r_kind*deg2rad
+        sat_zen_ang = amsrspot_d(11)*deg2rad    ! satellite zenith/incidence angle(rad)
 
 
 !       Check obs time
@@ -398,26 +415,28 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
         sun_zen_ang = gcomspot_d(3)     !solar azimuth angle
         sun_el_ang = gcomspot_d(4)       !solar elevation angle
 
-!    Check observational info 
+!       Check observational info 
 
         if( sun_el_ang < -180._r_kind .or. sun_el_ang > 180._r_kind )then
            write(6,*)'READ_AMSR2:  ### ERROR IN READING BUFR DATA:', &
               ' STRANGE OBS INFO(FOV,SOLAZI,SOEL):', ifov, sun_az_ang, sun_el_ang
            cycle read_loop       
         endif
-!    make solar azimuth angles from -180 to 180 degrees
-        if (sun_az_ang > 180.0_r_kind) then
-           sun_az_ang=sun_az_ang-360.0_r_kind
-        endif
 
-!    calculate solar zenith angle (used in QC for sun glint)
-        sun_zen_ang = 90.0_r_kind - sun_el_ang
+!       Calculate solar zenith angle 
 
-!       check to make sure sun zenith is between 0 and 180
-        if (sun_zen_ang < 0.0_r_kind) then
-          sun_zen_ang=90.0_r_kind-sun_zen_ang
-        endif
-        sat_zen_ang = amsrspot_d(11)*deg2rad    ! satellite zenith/incidence angle(rad)
+        clath_sun_glint_calc = clath
+        clonh_sun_glint_calc = clonh
+        if(clonh_sun_glint_calc > 180._r_kind) clonh_sun_glint_calc = clonh_sun_glint_calc - 360.0_r_kind
+        doy = mday( int(amsrspot_d(3)) ) + int(amsrspot_d(4))
+        if ((mod( int(amsrspot_d(2)),4)==0).and.( int(amsrspot_d(3)) > 2))  then
+           doy = doy + 1
+        end if
+        time_4_sun_glint_calc = amsrspot_d(5)+amsrspot_d(6)*r60inv+amsrspot_d(7)*r60inv*r60inv
+        call zensun(doy,time_4_sun_glint_calc,clath_sun_glint_calc,clonh_sun_glint_calc,sun_zenith,sun_azimuth_ang)
+
+        sun_zen_ang = 90.0_r_kind-sun_zenith
+        sun_az_ang = sun_azimuth_ang
 
         iobs=iobs+1
         if (iobs > maxobs) then
@@ -609,6 +628,8 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
              call gsi_nstcoupler_deter(dlat_earth,dlon_earth,t4dv,zob,tref,dtw,dtc,tz_tr)
            endif
         endif
+!       calculate scan angles.
+        sat_scan_ang = asin( sin(sat_zen_ang)*rearth/(rearth+sat_altitude) )
 
         data_all(1,itx) = bufsat                     ! satellite ID
         data_all(2,itx) = t4dv                       ! time diff (obs - anal) (hours)
@@ -616,8 +637,8 @@ integer(i_kind),dimension(npe)  ,intent(inout) :: nobs
         data_all(4,itx) = dlat                       ! grid relative latitude
         data_all(5,itx) = sat_zen_ang                ! satellite zenith angle (rad)
         data_all(6,itx) = sat_az_ang                 ! satellite azimuth angle
-        data_all(7,itx) = zero                       ! look angle (rad)
-        data_all(8,itx) = ifov                       ! scan position
+        data_all(7,itx) = sat_scan_ang               ! look angle (rad)
+        data_all(8,itx) = float(ifov)                ! scan position
         data_all(9,itx) = sun_zen_ang                ! solar zenith angle (deg)
         data_all(10,itx)= sun_az_ang                 ! solar azimuth angle (deg)
         data_all(11,itx) = sfcpct(0)                 ! sea percentage of

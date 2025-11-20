@@ -277,6 +277,7 @@ contains
   use satthin, only: super_val1
   use constants, only: quarter,half,tiny_r_kind,zero,one,deg2rad,rad2deg,one_tenth, &
       two,three,cg_term,wgtlim,r100,r10,r0_01,r_missing
+  use constants, only: pi
   use jfunc, only: jiter,miter,jiterstart
   use sst_retrieval, only: setup_sst_retrieval,avhrr_sst_retrieval,&
       finish_sst_retrieval,spline_cub
@@ -290,6 +291,7 @@ contains
   use crtm_interface, only: ilzen_ang2,iscan_ang2,iszen_ang2,isazi_ang2
   use clw_mod, only: calc_clw, ret_amsua, gmi_37pol_diff
   use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
+  use qcmod, only: ifail_crtm_nan  
   use qcmod, only: ifail_cao_qc,cao_check  
   use qcmod, only: ifail_iland_det, ifail_isnow_det, ifail_iice_det, ifail_iwater_det, ifail_imix_det, &
                    ifail_iomg_det, ifail_isst_det, ifail_itopo_det,ifail_iwndspeed_det
@@ -305,6 +307,8 @@ contains
   use sparsearr, only: sparr2, new, writearray, size, fullarray
   use radiance_mod, only: radiance_ex_obserr_gmi,radiance_ex_biascor_gmi
   use cads, only: cads_imager_calc
+
+  use, intrinsic :: ieee_arithmetic
 
   implicit none
 
@@ -996,6 +1000,20 @@ contains
            varinv(1:nchanl) = zero
         endif
 
+! Include a separate check for NaNs in CRTM calculations.  These are not always caught by other tests
+
+        if (ANY(ieee_is_nan(tsim(1:nchanl)))) then
+           write(*,*) 'WARNING: NaN found in CRTM simulated radiance output'
+           do i = 1, nchanl
+              if (ieee_is_nan(tsim(i))) then
+                  write(*,*) 'NaN for ',trim(isis),' channel ', sc_index(i), ' at latitude = ', &
+                          cenlat,' longitude = ',cenlon
+              end if
+           end do
+           id_qc(1:nchanl) = ifail_crtm_nan
+           varinv(1:nchanl) = zero
+        endif
+
 !  For SST retrieval, use interpolated NCEP SST analysis
         if (retrieval) then
            if( avhrr_navy )then
@@ -1024,7 +1042,7 @@ contains
 !       uses total angle dependent bias correction for channels 1 and 2
            do i=1,nchanl
               mm=ich(i)
-              if (goessndr .or. goes_img .or. ahi .or. seviri .or. ssmi .or. ssmis .or. gmi .or. abi) then
+              if (goessndr .or. goes_img .or. ahi .or. seviri .or. ssmi .or. ssmis .or. gmi .or. abi .or. amsr2) then
                  pred(npred,i)=nadir*deg2rad
               else
                  pred(npred,i)=data_s(iscan_ang,n)
@@ -1619,9 +1637,16 @@ contains
   
            sun_azimuth=data_s(isazi_ang,n)
            sun_zenith=data_s(iszen_ang,n)
+           frac_sea=data_s(ifrac_sea,n)
+           bearaz=(data_s(isazi_ang,n)-data_s(ilazi_ang,n))*deg2rad + pi
+           sun_zenith=data_s(iszen_ang,n)*deg2rad
+           sgagl = acos( cos(sun_zenith)*cosza + sin(sun_zenith)*sin(zasat)*cos(bearaz))*rad2deg
 
-           call qc_amsr2(nchanl,zsges,luse(n),sea,kraintype,clw_obs,tsavg5, &
-              tb_obs,sun_azimuth,sun_zenith,amsr2,varinv,aivals(1,is),id_qc)
+           call qc_amsr2(nchanl,zsges,luse(n),sea, &
+              kraintype,clw_obs,tsavg5,tb_obs,sun_azimuth,sun_zenith,amsr2,varinv,aivals(1,is),id_qc, &
+              tzbgr,frac_sea, sgagl,    &
+              radmod%lcloud_fwd, cenlat, sfc_speed,   &
+              tpwc_guess=tcwv,clw_guess_retrieval=clw_guess_retrieval)
 
 !  ---------- GMI  -------------------
 !       GMI Q C
@@ -1679,6 +1704,12 @@ contains
                        errf(i) = min(2.5_r_kind*errf(i),10.0_r_kind)
                     else
                        errf(i) = min(three*errf(i),10.0_r_kind)
+                    endif
+                 else if(radmod%rtype == 'amsr2') then
+                    if( (i >=7 .and. i <=14) ) then
+                       errf(i) = min(two*errf(i),ermax_rad(m))
+                    else
+                       errf(i) = min(three*errf(i),ermax_rad(m))
                     endif
                  else if(radmod%rtype == 'gmi') then
                     errf(i) = min(2.0_r_kind*errf(i),ermax_rad(m))

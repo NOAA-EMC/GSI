@@ -36,12 +36,12 @@ module satthin
 !   2012-01-31  hchuang - add read_nemsnst in sub getnst
 !   2012-03-05  akella  - remove create_nst,getnst and destroy_nst; nst fields now handled by gsi_nstcoupler
 !   2015-05-01  li      - modify to use single precision for the variables read from sfc files
-!   2016-08-18  li      - tic591: when use_readin_anl_sfcmask is true, 
-!                                 add read sili_anl from analysis grid/resolution sfc file (sfcf06_anl) 
+!   2016-08-18  li      - tic591: when use_readin_anl_sfcmask is true,
+!                                 add read sili_anl from analysis grid/resolution sfc file (sfcf06_anl)
 !                                 modify to use isli_anl
-!                                 determine sno2 with interpolate, accordingly 
+!                                 determine sno2 with interpolate, accordingly
 !                                 use the modified 2d interpolation (sfc_interpolate to intrp22)
-!   2018-05-21  j.jin   - add an option for time-thinning. Check time preference (including thin4d) here. 
+!   2018-05-21  j.jin   - add an option for time-thinning. Check time preference (including thin4d) here.
 !
 !   2019-07-09  todling - revisit Li''s shuffling of nst init, read and final routines
 !   2019-08-08  j.jin   - add a comment block for an example of dtype-wise time-thinning
@@ -65,11 +65,11 @@ module satthin
 !   []_makegvals                        - set up for superob weighting
 !   []_getsfc                           - create full horizontal fields of surface arrays
 !                     []_makegrids      - set up thinning grids
-!                     []_tdiff2crit     - get time preference and time cell id in time-thinning 
+!                     []_tdiff2crit     - get time preference and time cell id in time-thinning
 !                     []_map2tgrid      - map observation to location on thinning grid
 !                     []_checkob        - intermediate ob checking to see if it should not be used
 !                     []_finalcheck     - the final criterion check for sat obs and increments counters
-!                     combine_radobs    - 
+!                     combine_radobs    -
 !                     []_destroygrids   - deallocate thinning grid arrays
 !   []_destroy_sfc                      - deallocate full horizontal fields of surface arrays
 !
@@ -104,12 +104,12 @@ module satthin
 ! > ! ptime:      Time interval (hour) for thinning radiance and ozone data.
 ! > !             It defines the number of time thinning bins (time_window/ptime).
 ! > !             0, only one time thinning bin, by default.
-! > ! ithin_time: Time preference is given 
-! > !             1, (default) at the center time when thin4d=false, or 
+! > ! ithin_time: Time preference is given
+! > !             1, (default) at the center time when thin4d=false, or
 ! > !                observation time is ignored when thin4d=true. ptime must be 0.0;
 ! > !             2, at the center of time intervals (suppressing thin4d);
 ! > !             3, at the end of time intervals (suppressing thin4d);
-! > !             4, at the beginning, middle, and end of the 1st, 2nd,and 3rd two-hour 
+! > !             4, at the beginning, middle, and end of the 1st, 2nd,and 3rd two-hour
 ! > !                time interval, respectively. ptime must be 2.0 (suppressing thin4d);
 ! > !             5, select observations at random time, and ptime must be 0.0
 ! > !                (Only applicable to seviri data, May 2018).
@@ -120,8 +120,8 @@ module satthin
 ! >  seviri      m10         seviri_m10            2.0     4
 ! >  seviri      m11         seviri_m11            2.0     4
 ! > ::
-!   
-! details through an info file.  
+!
+! details through an info file.
 !
 ! attributes:
 !   language: f90
@@ -135,6 +135,7 @@ module satthin
   use constants, only: deg2rad,rearth_equator,zero,two,pi,half,one,&
        rad2deg,r1000
   use chemmod, only: laeroana_fv3smoke
+  use sp_mod, only: splat
 
   implicit none
 
@@ -145,7 +146,7 @@ module satthin
   public :: makegrids
   public :: getsfc
   public :: get_hsst
-  public :: map2tgrid,map2tgrid2,binit
+  public :: map2tgrid,map2tgrid2,binit,itx_all
   public :: destroygrids
   public :: destroy_sfc
   public :: indexx
@@ -163,7 +164,7 @@ module satthin
   integer(i_kind) itxmax0
   integer(i_kind), save:: itx_all
   integer(i_kind),dimension(0:51):: istart_val
-  
+
   integer(i_kind),allocatable,dimension(:):: mlon
   logical,allocatable,dimension(:)::icount
 
@@ -185,7 +186,7 @@ module satthin
   real(r_single), allocatable, dimension(:,:)   :: zs_full_gfs
 ! declare the dummy variables of routine read_gfssfc_anl
   integer(i_kind),allocatable, dimension(:,:)   :: isli_anl
-! declare local array sno_anl 
+! declare local array sno_anl
   real(r_single),allocatable, dimension(:,:,:)   :: sno_anl
 ! declare the dummy variables of routine berror_read_hsst
   real(r_single), allocatable, dimension(:,:) :: hsst
@@ -197,7 +198,7 @@ contains
   subroutine makegvals
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    makegvals                            
+! subprogram:    makegvals
 !     prgmmr:    derber      org: np23                date: 2002-10-17
 !
 ! abstract:  This routine allocates and initializes arrays
@@ -208,7 +209,7 @@ contains
 !   2004-06-22  treadon - update documentation
 !   2004-12-09  treadon - allocate thinning grids consistent with analysis domain
 !   2006-07-28  derber  - use r1000 from constants
-!   2007-05-01  wu      - correct error which incorrectly defines longitude range 
+!   2007-05-01  wu      - correct error which incorrectly defines longitude range
 !                         on regional grid when domain includes north pole.
 !   2008-05-23  safford - rm unused vars
 !   2008-09-08  lueken  - merged ed's changes into q1fy09 code
@@ -252,7 +253,7 @@ contains
     do i=1,ndat
        maxthin=max(maxthin,abs(dthin(i)))
     end do
-!   Check if there are any time-thinning 
+!   Check if there are any time-thinning
     allocate(n_tbin_m1(0:maxthin))
     n_tbin_m1 = 0
     do i=1,ndat
@@ -317,7 +318,7 @@ contains
              glatx = rlat_min + (j-1)*delat
              glatx = glatx*deg2rad
              glatm = glatx + dgv*deg2rad
-             
+
              factor = abs(cos(abs(glatm)))
              if (dmesh(ii)>zero) then
                 mlonj = nint(mlonx*factor)
@@ -333,19 +334,19 @@ contains
              enddo
 
           enddo
-          istart_val(ii+1) = istart_val(ii+1)+ & 
+          istart_val(ii+1) = istart_val(ii+1)+ &
                              (istart_val(ii+1)-istart_val(ii))*n_tbin_m1(ii)
        end if
     end do
     superp=istart_val(maxthin+1)
-    
+
 !   Allocate and initialize arrays for superobs weighthing
     allocate(super_val(0:superp),super_val1(0:superp))
     do i=0,superp
        super_val(i)=zero
     end do
-    deallocate(n_tbin_m1) 
-    
+    deallocate(n_tbin_m1)
+
     return
   end subroutine makegvals
 
@@ -353,7 +354,7 @@ contains
   subroutine makegrids(rmesh,ithin,n_tbin,itxmax_in)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
-! subprogram:    makegrids                            
+! subprogram:    makegrids
 !     prgmmr:    treadon     org: np23                date: 2002-10-17
 !
 ! abstract:  This routine sets up dimensions for and allocates
@@ -368,7 +369,7 @@ contains
 !   2015-03-23  zaizhong ma - changed itxmax=1e9 for Himawari-8 ahi read in
 !
 !   input argument list:
-!     rmesh - mesh size (km) of thinning grid.  If (rmesh <= one), 
+!     rmesh - mesh size (km) of thinning grid.  If (rmesh <= one),
 !             then no thinning of the data will occur.  Instead,
 !             all data will be used without thinning.
 !     n_tbin - (optional) number of time intervals.
@@ -466,7 +467,7 @@ contains
     end do
 
     if (present(n_tbin)) then
-        itxmax0 = itxmax 
+        itxmax0 = itxmax
         itxmax  = itxmax0 * n_tbin
     endif
 
@@ -505,7 +506,7 @@ contains
 !     prgmmr:    parrish     org: np23                date: 2006-02-02
 !
 ! abstract:  This routine converts subdomain surface fields in
-!            guess_grids to full horizontal fields for use in 
+!            guess_grids to full horizontal fields for use in
 !            reading of observations.
 !
 ! program history log:
@@ -677,7 +678,7 @@ contains
              veg_type_full,soil_type_full,zs_full_gfs,isli_full,use_sfc_any)
 
           if ( use_readin_anl_sfcmask ) then
-             call read_gfssfc_anl(mype_io,isli_anl) 
+             call read_gfssfc_anl(mype_io,isli_anl)
           endif
        endif
 !
@@ -695,7 +696,7 @@ contains
 
        if (bcoption>0) then
           if (mype==0) write(6,*)'GETSFC:   add bias correction to guess field ', trim(filename)
- 
+
 !         Correct Tskin over the full grid
           if(nlon == nlon_sfc .and. nlat == nlat_sfc)then
              call bkg_bias_model(work2,'sst',bias_hour,ierror)
@@ -704,7 +705,7 @@ contains
                 call mpi_allgatherv(zsm,ijn(mm1),mpi_rtype,&
                    work1,ijn,displs_g,mpi_rtype,&
                    mpi_comm_world,ierror)
- 
+
                 do k=1,iglobal
                    i=ltosi(k) ; j=ltosj(k)
                    bias(i,j)=nint(work1(k))
@@ -724,7 +725,7 @@ contains
           end if
        end if
 
-    else                   ! for regional 
+    else                   ! for regional
 #else /* HAVE_ESMF */
 !
 !      read NSST variables while .not. sfcnst_comb (in sigio or nemsio)
@@ -902,7 +903,7 @@ contains
              deallocate(work)
           endif
        endif
-    endif                 
+    endif
 
 !   find subdomain for isli2
     if (nlon == nlon_sfc .and. nlat == nlat_sfc) then
@@ -999,13 +1000,13 @@ contains
 !     crit1      - quality indicator for observation (smaller = better)
 !     ithin      - number of obs to retain per thinning grid box
 !     sis        - sensor/instrument/satellite
-!     it_mesh    - time meth id 
+!     it_mesh    - time meth id
 !
 !   output argument list:
 !     itx   - combined (i,j) index of observation on thinning grid
 !     itt   - superobs thinning counter
 !     iuse  - .true. if observation should be used
-!     
+!
 !
 ! attributes:
 !   language: f90
@@ -1043,7 +1044,7 @@ contains
        return
     end if
 
-!   Compute (i,j) indices of coarse mesh grid (grid number 1) which 
+!   Compute (i,j) indices of coarse mesh grid (grid number 1) which
 !   contains the current observation.
     dlat1=dlat_earth
     dlon1=dlon_earth
@@ -1076,8 +1077,8 @@ contains
 !   if ( dx > zero ) ratio=dy/dx
 !   dista=sin(two*atan(ratio))
 !   distb=sin(pi*dx)                !dista+distb is max at grid box center
-!   dist1=one - quarter*(dista + distb)  !dist1 is min at grid box center and 
-                                    !ranges from 1 (at corners)to 
+!   dist1=one - quarter*(dista + distb)  !dist1 is min at grid box center and
+                                    !ranges from 1 (at corners)to
                                     !.5 (at center of box)
     iuse=.true.
 
@@ -1141,6 +1142,9 @@ contains
        iuse=.true.
        itt=1
        dist1=one
+       ! This subroutine is called from within an OpenMP region so we need to ensure
+       ! the threads don't race on the itx_all counter 
+       !$omp critical
        if(itx_all < itxmax) then
           itx_all=itx_all+1
        else
@@ -1148,6 +1152,7 @@ contains
           write(6,*)'MAP2TGRID2:  ndata > maxobs when reading data for ',sis,itxmax
        end if
        itx=itx_all
+       !$omp end critical
        return
     end if
 
@@ -1193,7 +1198,7 @@ contains
     return
   end subroutine map2tgrid2
 
-  subroutine binit(dlat_earth,dlon_earth,itx,it_mesh)
+  subroutine binit(dlat_earth,dlon_earth,itx,ithin,sis,it_mesh)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    binit
@@ -1213,9 +1218,10 @@ contains
 !     itx   - combined (i,j) index of observation on thinning grid
 !$$$
     implicit none
-
+    integer(i_kind),intent(in   ) :: ithin
     integer(i_kind),intent(  out) :: itx
     real(r_kind)   ,intent(in   ) :: dlat_earth,dlon_earth
+    character(20)  ,intent(in   ) :: sis
     integer(i_kind),intent(in   ), optional :: it_mesh
 
     integer(i_kind) ix,iy
@@ -1223,19 +1229,15 @@ contains
 
 
 !   If using all data (no thinning), simply return to calling routine
-!    if(use_all .or. ithin <= 0)then
-!       !iuse=.true.
-!       !itt=1
-!       !dist1=one
-!       if(itx_all < itxmax) then
-!          itx_all=itx_all+1
-!       else
-!          !iuse = .false.
-!          !write(6,*)'MAP2TGRID2:  ndata > maxobs when reading data for ',sis,itxmax
-!       end if
-!       itx=itx_all
-!       return
-!    end if
+    if(use_all .or. ithin <= 0)then
+       if(itx_all < itxmax) then
+          itx_all=itx_all+1
+       else
+          write(6,*)'binit:  ndata > maxobs when reading data for ',sis,itxmax
+       end if
+       itx=itx_all
+       return
+    end if
 
 !   Compute (i,j) indices of coarse mesh grid (grid number 1) which
 !   contains the current observation.
@@ -1278,7 +1280,7 @@ contains
 !
 !   output argument list:
 !     iuse  - .true. if observation should be used
-!     
+!
 !
 ! attributes:
 !   language: f90
@@ -1305,7 +1307,7 @@ contains
 ! subprogram:    finalcheck
 !     prgmmr:    derber     org: np23                date: 2002-10-17
 !
-! abstract:  This routine performs the final criterion check for sat 
+! abstract:  This routine performs the final criterion check for sat
 !              obs and increments counters
 !
 ! program history log:
@@ -1318,7 +1320,7 @@ contains
 !
 !   output argument list:
 !     iuse   - .true. if observation should be used
-!     
+!
 !
 ! attributes:
 !   language: f90
@@ -1526,22 +1528,22 @@ contains
     parameter (m=7,nstack=500)
     integer(i_kind) i,indxt,ir,itemp,j,jstack,k,l,istack(nstack)
     real(r_kind) a
-    
+
     do j=1,n
        indx(j)=j
     end do
     jstack=0
     l=1
     ir=n
-    
-    loop0: do 
-    
+
+    loop0: do
+
        if(ir-l<m)then
           loop: do j=l+1,ir
              indxt=indx(j)
              a=arr(indxt)
              do i=j-1,l,-1
-                if(arr(indx(i))<=a)then   
+                if(arr(indx(i))<=a)then
                    indx(i+1)=indxt
                    cycle loop
                 end if
@@ -1554,7 +1556,7 @@ contains
           ir=istack(jstack)
           l=istack(jstack-1)
           jstack=jstack-2
-          
+
        else
           k=(l+ir)/2
           itemp=indx(k)
@@ -1582,8 +1584,8 @@ contains
           loop1: do
             i=i+1
             if(arr(indx(i))<a)cycle loop1
-          
-            loop2: do 
+
+            loop2: do
                j=j-1
                if(arr(indx(j))<=a)exit loop2
             end do loop2
@@ -1592,7 +1594,7 @@ contains
             indx(i)=indx(j)
             indx(j)=itemp
           end do loop1
-       
+
           indx(l+1)=indx(j)
           indx(j)=indxt
           jstack=jstack+2
@@ -1616,12 +1618,12 @@ contains
 
   subroutine tdiff2crit(tdiff,ptime,ithin_time,timeinflat,crit0,crit1,it_mesh)
 
-!$$$ 
+!$$$
 ! Abstract:  Get time preference and time cell id in time-thinning.
 ! Program history log:
 !   2018-05-18   j.jin      - initial code.
-! 
-!$$$ 
+!
+!$$$
 !Inputs
 !     tdiff         - observational time minus gsttime.
 !     ptime         - thinning time interval
@@ -1630,10 +1632,10 @@ contains
 !     crit0         - an added value to crit
 !Outputs
 !     crit1         - thinning crit
-!     it_mesh       - time cell id 
+!     it_mesh       - time cell id
 
     use constants, only: tiny_r_kind
-    use gsi_4dvar, only: thin4d 
+    use gsi_4dvar, only: thin4d
     implicit none
     integer(i_kind),intent(in   ) :: ithin_time
     real(r_kind)   ,intent(in   ) :: tdiff,ptime,timeinflat
@@ -1664,7 +1666,7 @@ contains
           crit1=abs(critb-(it_mesh+0.5_r_kind)*ptimeb)
        case (3)
           crit1=abs(critb-(it_mesh+1_r_kind)*ptimeb)
-       case (4) 
+       case (4)
           crit1=abs(critb-it_mesh*time_window_max)
        case (5)
           crit1=abs(tdiff)      ! .eqv. ithin_time==1 .and. .not.thin4d
@@ -1681,20 +1683,20 @@ contains
 
   subroutine radthin_time_info(obstype, platid, sis, ptime, ithin_time)
 
-!$$$ 
+!$$$
 ! Abstract:  Read time-thinning options for radiance and ozone data.
 ! Program history log:
 !   2018-05-10   j.jin      - initial code.
-! 
-!$$$ 
+!
+!$$$
 
 ! Inputs
 !   obstype     - observation type to process
 !   platid      - satellite indicator
 !   sis         - satellite_instrument/sensor indicator
 ! Outputs
-!   ptime       - time interval 
-!   ithin_time  - indicator of time preference  
+!   ptime       - time interval
+!   ithin_time  - indicator of time preference
 !
   use kinds, only: r_kind,i_kind
   use file_utility, only: get_lun
@@ -1704,7 +1706,7 @@ contains
   real(r_kind),intent(out)   :: ptime
   integer(i_kind),intent(out):: ithin_time
 
-  character(len=*),parameter:: rcname='anavinfo' 
+  character(len=*),parameter:: rcname='anavinfo'
   character(len=*),parameter:: tbname='rad_time_thinning_options::'
   integer(i_kind) luin,ii,ntot, nvars
   character(len=256),allocatable,dimension(:):: utable
@@ -1747,12 +1749,12 @@ contains
   deallocate(utable)
 
 ! Check the settings
-  if( ithin_time == 1 .or. ithin_time == 5 ) then 
+  if( ithin_time == 1 .or. ithin_time == 5 ) then
      if( ptime /= 0.0_r_kind ) then
         call die("satthin.F90 (subroutine radthin_time_info)", &
             "ithin_time=1 or 5 requires ptime=0.0"  )
      endif
-  else if( ithin_time == 4) then 
+  else if( ithin_time == 4) then
      if( ptime /= 2.0_r_kind .or. time_window_max /= 3.0_r_kind ) then
         call die("satthin.F90 (subroutine radthin_time_info)", &
             "ithin_time=4 requires ptime=2.0 and time_window_max=3.0" )

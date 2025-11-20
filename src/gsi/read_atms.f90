@@ -74,7 +74,7 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
 !$$$
   use kinds, only: r_kind,r_double,i_kind
   use satthin, only: super_val,itxmax,makegrids,destroygrids,checkob, &
-      finalcheck,map2tgrid,score_crit,map2tgrid2,binit
+      finalcheck,map2tgrid,score_crit,map2tgrid2,binit,itx_all
   use satthin, only: radthin_time_info,tdiff2crit
   use obsmod,  only: time_window_max, ta2tb
   use radinfo, only: iuse_rad,newchn,cbias,nusis,jpch_rad,air_rad,ang_rad, &
@@ -195,13 +195,12 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   real(r_kind)    :: ptime,timeinflat,crit0,score
   integer(i_kind) :: ithin_time,n_tbin
   integer(i_kind),pointer :: it_mesh => null()
-  integer(kind=4) :: good,bin,bin2,Obindx,maxPerBin,numBinsWithObs
-  integer(kind=4),allocatable,dimension(:)   :: binCount,binsWithObs,hash
-  integer(kind=4),allocatable,dimension(:,:) :: binObs
+  integer(i_kind) :: good,bin,bin2,Obindx,maxPerBin,numBinsWithObs
+  integer(i_kind),allocatable,dimension(:)   :: binCount,binsWithObs,hash
+  integer(i_kind),allocatable,dimension(:,:) :: binObs
 
 !**************************************************************************
 ! Initialize variables
-  !write(6,'("read_atms: Enter ithin is " I8)') ithin
 
   maxinfo=31
   lnbufr = 15
@@ -532,7 +531,8 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   allocate(binCount(itxmax))
   binCount(:)=0
 
-! First scan to determine which obs fall into which bins
+! First scan to count how many obs fall in each bin.  Will use this info to allocate the binObs array
+! Consider removing all the "cycles" as that code is repeated several times
   ObsLoop: do iob=1,num_obs
 
      t4dv       => t4dv_save(iob)
@@ -582,17 +582,21 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
        ifovmod=ifov
      endif
  
-!    Map obs to thinning grid
-     call binit(dlat_earth*deg2rad,dlon_earth*deg2rad,itx2,it_mesh)
+!    Map obs to thinning grid or return immediately if ithin<=0
+     call binit(dlat_earth*deg2rad,dlon_earth*deg2rad,itx2,ithin,sis,it_mesh)
      binCount(itx2) = binCount(itx2)+1
   end do ObsLoop
 
   maxPerBin=maxval(binCount)
   numBinsWithObs = count(mask=binCount>0)
-  ! Find the indices of positive elements
+
+  ! Find thinning bins with at least one observation
+  ! Packing those bins into a dense vector allows us to greatly reduce
+  ! memory useage for binObs
   allocate(binsWithObs(numBinsWithObs))
   binsWithObs = pack( (/ (i, i=1,size(binCount)) /), binCount > 0)
 
+  ! Map between physical bin index and Packed index
   allocate(hash(itxmax))
   hash=0
   do bin = 1,numBinsWithObs
@@ -606,6 +610,11 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
   binObs(:,:)=0
   binCount(:)=0
 
+  ! Reset itx_all counter held in the satthin module
+  itx_all=0
+
+  ! Second scan to place obs within the bins that actually have obs (binObs).
+  ! This is a space saving measure since otherwise we would need to allocate a MUCH larger array
   ObsLoop2: do iob=1,num_obs
 
      t4dv       => t4dv_save(iob)
@@ -655,14 +664,18 @@ subroutine read_atms(mype,val_tovs,ithin,isfcalc,&
        ifovmod=ifov
      endif
 
-!    Map obs to thinning grid
-     call binit(dlat_earth*deg2rad,dlon_earth*deg2rad,itx2,it_mesh)
+!    Map obs to thinning grid or return immediately if ithin<=0
+     call binit(dlat_earth*deg2rad,dlon_earth*deg2rad,itx2,ithin,sis,it_mesh)
      binCount(itx2) = binCount(itx2)+1
      binObs(binCount(itx2),hash(itx2)) = iob
   end do ObsLoop2
   deallocate(hash)
 
-! Second scan to determine which observation in a given bin is best to use
+  ! Reset itx_all counter held in the satthin module.  Not an issue as of 2025, but would
+  ! start to be a problem when an observation file contains more than 1/3 of itxmax observations
+  itx_all=0
+
+! Third scan to determine which observation in a given bin is best to use
   good=0
   !$omp parallel do default(none), schedule(dynamic,12), &
   !$omp& firstprivate(ich1,ich2,ich3,ich16,ich17), &

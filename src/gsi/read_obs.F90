@@ -408,7 +408,8 @@ subroutine read_obs_check (lexist,filename,jsatid,dtype,minuse,nread)
                (said == 42) .or. (said == 43) .or. (said == 722) .or. & 
                (said == 723).or. (said == 265).or. (said == 266) .or. &
                (said == 267).or. (said == 268).or. (said == 269) .or. &
-               (said == 803).or. (said == 804).or. (said == 66)) then
+               (said == 803).or. (said == 804).or. (said == 66)  .or. &
+               (said == 768)) then
                lexist=.true. 
              exit gpsloop 
            end if 
