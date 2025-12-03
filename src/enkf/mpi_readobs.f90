@@ -148,7 +148,6 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     ! associate fortran pointer with c pointer to shared memory 
     ! segment (containing observation prior ensemble) on each task.
     call MPI_Win_shared_query(shm_win, 0, segment_size, disp_unit, anal_ob_cp, ierr)
-    !call c_f_pointer(anal_ob_cp, anal_ob, [nanals, nobs_tot])
     allocate(anal_ob(nanals, nobs_tot))
     ! initialize shared memory window.
     anal_ob=0
@@ -250,7 +249,6 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     if (nproc == 0) t1 = mpi_wtime()
 ! exchange obs prior ensemble members across all tasks to fully populate shared
 ! memory array pointer on each node.
-!    if (nproc_shm == 0) then
        if (real(nanals)*real(nobs_tot) < 2_r_kind**32/2_r_kind - 1_r_kind) then
           call mpi_allreduce(mpi_in_place,anal_ob,nanals*nobs_tot,mpi_real4,mpi_sum,mpi_comm_world,ierr)
        else
@@ -289,7 +287,6 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     do nob=1,nobs_tot
        ensmean_obbc(nob)  = sum(anal_ob(:,nob))*analsi
     enddo
-    !if (nproc_shm == 0) then
        do nob=1,nobs_tot
 ! remove ensemble mean from each member.
 ! ensmean_obbc is biascorrected ensemble mean (anal_ob is ens pert)
