@@ -235,6 +235,9 @@ logical,public :: lobsdiag_forenkf = .false.
 ! if true, use netcdf diag files, otherwise use binary diags
 logical,public :: netcdf_diag = .false.
 
+! Option to toggle the shared memory segment in mpi_readobs
+logical,public :: use_shmem_window = .true.
+
 ! use fv3 cubed-sphere tiled restart files
 logical,public :: fv3_native = .false.
 character(len=500),public :: fv3fixpath = ' '
@@ -286,7 +289,7 @@ namelist /nam_enkf/datestring,datapath,iassim_order,nvars,&
                    fv3_native, paranc, nccompress, write_fv3_incr,incvars_to_zero,write_ensmean, &
                    corrlengthrdrnh,corrlengthrdrsh,corrlengthrdrtr,&
                    lnsigcutoffrdrnh,lnsigcutoffrdrsh,lnsigcutoffrdrtr,&
-                   l_use_enkf_directZDA
+                   l_use_enkf_directZDA,use_shmem_window
 namelist /nam_wrf/arw,nmm,nmm_restart
 namelist /nam_fv3/fv3fixpath,nx_res,ny_res,ntiles,l_pres_add_saved,l_fv3reg_filecombined, &
                   fv3_io_layout_nx,fv3_io_layout_ny

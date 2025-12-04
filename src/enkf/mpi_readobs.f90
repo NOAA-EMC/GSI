@@ -33,7 +33,7 @@ module mpi_readobs
 !$$$
   
 use kinds, only: r_double,i_kind,r_kind,r_single,num_bytes_for_r_single
-use params, only: ntasks_io, nanals_per_iotask, nanal1, nanal2
+use params, only: ntasks_io, nanals_per_iotask, nanal1, nanal2, use_shmem_window
 use radinfo, only: npred
 use readconvobs
 use readsatobs
@@ -148,7 +148,11 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     ! associate fortran pointer with c pointer to shared memory 
     ! segment (containing observation prior ensemble) on each task.
     call MPI_Win_shared_query(shm_win, 0, segment_size, disp_unit, anal_ob_cp, ierr)
-    allocate(anal_ob(nanals, nobs_tot))
+    if (use_shmem_window) then
+       call c_f_pointer(anal_ob_cp, anal_ob, [nanals, nobs_tot])
+    else
+       allocate(anal_ob(nanals, nobs_tot))
+    endif
     ! initialize shared memory window.
     anal_ob=0
     if (neigv > 0) then
@@ -249,27 +253,37 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     if (nproc == 0) t1 = mpi_wtime()
 ! exchange obs prior ensemble members across all tasks to fully populate shared
 ! memory array pointer on each node.
+    if ((use_shmem_window .and. nproc_shm == 0) .or. (.not. use_shmem_window)) then
        if (real(nanals)*real(nobs_tot) < 2_r_kind**32/2_r_kind - 1_r_kind) then
-          call mpi_allreduce(mpi_in_place,anal_ob,nanals*nobs_tot,mpi_real4,mpi_sum,mpi_comm_world,ierr)
+          if (use_shmem_window) then
+             call mpi_allreduce(mpi_in_place,anal_ob,nanals*nobs_tot,mpi_real4,mpi_sum,mpi_comm_shmemroot,ierr)
+          else
+             call mpi_allreduce(mpi_in_place,anal_ob,nanals*nobs_tot,mpi_real4,mpi_sum,mpi_comm_world,ierr)
+          endif
        else
           ! count won't fit in 32-bit integer and mpi_allreduce doesn't handle
           ! 64 bit counts.  Split up into smaller chunks.
           mem_ob = 0.
           do na=1,nanals
               mem_ob(:) = anal_ob(na,:)
-              call mpi_allreduce(mpi_in_place,mem_ob,nobs_tot,mpi_real4,mpi_sum,mpi_comm_world,ierr)
+              if (use_shmem_window) then
+                 call mpi_allreduce(mpi_in_place,mem_ob,nobs_tot,mpi_real4,mpi_sum,mpi_comm_world,ierr)
+              else
+                 call mpi_allreduce(mpi_in_place,mem_ob,nobs_tot,mpi_real4,mpi_sum,mpi_comm_shmemroot,ierr)
+              endif
               anal_ob(na,:) = mem_ob(:)
           enddo
        endif
        !print *,nproc,'min/max anal_ob',minval(anal_ob),maxval(anal_ob)
-    if (nproc_shm == 0) then
-       if (neigv > 0) then
-          mem_ob_modens = 0.
-          do na=1,nanals
-             mem_ob_modens(:,:) = anal_ob_modens(neigv*(na-1)+1:neigv*na,:)
-             call mpi_allreduce(mpi_in_place,mem_ob_modens,neigv*nobs_tot,mpi_real4,mpi_sum,mpi_comm_shmemroot,ierr)
-             anal_ob_modens(neigv*(na-1)+1:neigv*na,:) = mem_ob_modens(:,:)
-          enddo
+       if (use_shmem_window .or. nproc_shm == 0) then
+          if (neigv > 0) then
+             mem_ob_modens = 0.
+             do na=1,nanals
+                mem_ob_modens(:,:) = anal_ob_modens(neigv*(na-1)+1:neigv*na,:)
+                call mpi_allreduce(mpi_in_place,mem_ob_modens,neigv*nobs_tot,mpi_real4,mpi_sum,mpi_comm_shmemroot,ierr)
+                anal_ob_modens(neigv*(na-1)+1:neigv*na,:) = mem_ob_modens(:,:)
+             enddo
+          endif
        endif
     endif
     if (nproc == 0) then
@@ -287,16 +301,18 @@ subroutine mpi_getobs(obspath, datestring, nobs_conv, nobs_oz, nobs_sat, nobs_to
     do nob=1,nobs_tot
        ensmean_obbc(nob)  = sum(anal_ob(:,nob))*analsi
     enddo
+    if ((use_shmem_window .and. nproc_shm == 0) .or. (.not. use_shmem_window)) then
        do nob=1,nobs_tot
 ! remove ensemble mean from each member.
 ! ensmean_obbc is biascorrected ensemble mean (anal_ob is ens pert)
           anal_ob(:,nob) = anal_ob(:,nob)-ensmean_obbc(nob)
        enddo
-    if (nproc_shm == 0) then
-       if (neigv > 0) then
-          do nob=1,nobs_tot
-             anal_ob_modens(:,nob) = anal_ob_modens(:,nob)-ensmean_obbc(nob)
-          enddo
+       if (use_shmem_window .or. nproc_shm == 0) then ! NEW
+          if (neigv > 0) then
+             do nob=1,nobs_tot
+                anal_ob_modens(:,nob) = anal_ob_modens(:,nob)-ensmean_obbc(nob)
+             enddo
+          endif
        endif
     endif
     call mpi_barrier(mpi_comm_world,ierr)
