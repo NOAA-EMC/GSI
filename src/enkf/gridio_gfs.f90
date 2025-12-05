@@ -102,7 +102,6 @@
 
   integer(i_kind) :: k,iret,nb,i,imem,idvc,nlonsin,nlatsin,nlevsin,ne,nanal
   ! surface
-  integer(i_kind) :: nlonsin_sfc,nlatsin_sfc
 
   logical ice
   logical use_full_hydro
@@ -1453,7 +1452,6 @@
 
   logical :: write_sfc_file, write_atm_file
   character(len=max_varname_length), dimension(n3d) :: no_vars3d
-  character(len=max_varname_length), dimension(n2d) :: no_vars2d
 
   call set_ncio_file_flags(vars3d, n3d, vars2d, n2d, write_sfc_file, write_atm_file)
 

@@ -73,8 +73,8 @@ contains
      integer(i_kind),     intent(in   ) :: ntindex
      type(gsi_bundle),    intent(inout) :: atm_bundle
      integer(i_kind),     intent(  out) :: iret
-!    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
-!    end associate
+     associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+     end associate
      iret = 0
  
      return

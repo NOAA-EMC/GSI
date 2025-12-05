@@ -132,11 +132,10 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 
   integer(i_kind),allocatable,dimension(:):: gpsro_itype,gpsro_ikx,nmrecs_id
   !!!! LSW Check Variables 
-  real(r_kind) real_lsw,real_flsw,fraclsw,lsw_flag_hold
-  integer(i_kind) keep_level,keep_level_sorted,count_check
-  real(r_kind),allocatable,dimension(:) :: bend4060,lsw_flag,&
+  real(r_kind) lsw_flag_hold
+  real(r_kind),allocatable,dimension(:) :: lsw_flag,&
                                            sorted_lsw,sorted_fraclsw,sorted_impact, &
-                                           test_qc,array_lsw,array_fraclsw,array_impact, &
+                                           array_lsw,array_fraclsw,array_impact, &
                                            sorted_lswflag
   integer(i_kind),allocatable,dimension(:) :: indices
   !!!!  

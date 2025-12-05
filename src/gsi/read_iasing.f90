@@ -133,7 +133,6 @@ subroutine read_iasing(mype,val_iasing,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 
 ! Other work variables
-  real(r_kind)     :: piece
   real(r_kind)     :: rsat, dlon, dlat
   real(r_kind)     :: dlon_earth,dlat_earth,dlon_earth_deg,dlat_earth_deg
   real(r_kind)     :: pred, crit1, dist1
@@ -154,7 +153,7 @@ subroutine read_iasing(mype,val_iasing,ithin,isfcalc,rmesh,jsatid,gstime,&
   logical          :: quiet,cloud_info
 
   integer(i_kind)  :: ifov, ifov2, ifor, istep, ipos, instr, iscn, ioff, sensorindex_iasing
-  integer(i_kind)  :: i, j, l, iskip, ifovn, ksatid, kidsat, llll
+  integer(i_kind)  :: i, j, l, iskip, ksatid, kidsat, llll
   integer(i_kind)  :: nreal, isflg
   integer(i_kind)  :: itx, k, nele, itt, n
   integer(i_kind)  :: iexponent,maxinfo, bufr_nchan, dval_info

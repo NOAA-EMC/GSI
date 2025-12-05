@@ -203,7 +203,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     character(len=*),parameter :: myname_='get_user_ens_gfs_fastread_'
     character(len=70) :: filename
     character(len=70) :: filenamesfc
-    integer(i_kind) :: i,ii,j,k,n
+    integer(i_kind) :: i,j,k,n
     integer(i_kind) :: io_pe,n_io_pe_s,n_io_pe_e,n_io_pe_em,i_ens
     integer(i_kind) :: ip
     integer(i_kind) :: nlon,nlat,nsig
@@ -406,7 +406,7 @@ subroutine move2bundle_(grd3d,en_loc3,atm_bundle,m_cvars2d,m_cvars3d,iret)
     ! Declare internal variables
     character(len=*),parameter :: myname_='move2bundle_'
 
-    integer(i_kind) :: ierr,i,j
+    integer(i_kind) :: ierr
     integer(i_kind) :: km1,m
     real(r_single),pointer,dimension(:,:) :: ps
     !real(r_kind),pointer,dimension(:,:) :: sst

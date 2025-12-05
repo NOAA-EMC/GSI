@@ -102,7 +102,7 @@ real(r_single) sprdmin, sprdmax, sprdmaxall, &
 real(r_single),dimension(ndiag) :: sumcoslat,suma,suma2,sumi,sumf,sumitot,sumatot, &
      sumcoslattot,suma2tot,sumftot
 real(r_single) fnanalsml,coslat
-integer(i_kind) i,k,nlev,nn,iunit,ierr,nb,nnlvl,ps_ind, this_ind, ind
+integer(i_kind) i,nlev,nn,iunit,ierr,nb,nnlvl,ps_ind, this_ind, ind
 integer(i_kind), dimension(8) :: soil_index
 character(len=500) filename
 real(r_single), allocatable, dimension(:,:) :: tmp_chunk2,covinfglobal,store_presmooth

@@ -299,8 +299,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 
   logical, allocatable,dimension(:)     :: rusage,rthin
   logical save_all
-! integer(i_kind)  numthin,numqc,numrem
-  integer(i_kind) nxdata,pmot,numall
+! integer(i_kind)  numthin,numqc,numrem,numall
+  integer(i_kind) nxdata,pmot
   
   data lnbufr/10/
   data hdrstr(1) / 'CLAT CLON SELV ANEL YEAR MNTH DAYS HOUR MINU MGPT' /
@@ -3352,8 +3352,8 @@ subroutine read_radar_l2rw_novadqc(ndata,nodata,lunout,obstype,sis,nobs)
   integer(i_kind) nsuper2_in,nsuper2_kept
   real(r_kind) errzmax
   logical, allocatable,dimension(:)     :: rusage
-  integer(i_kind)  numqc,numrem
-  integer(i_kind) nxdata,pmot,numall
+! integer(i_kind)  numqc,numrem,numall
+  integer(i_kind) nxdata,pmot
   logical save_all
 
 
@@ -3805,8 +3805,8 @@ subroutine read_radar_l2rw(ndata,nodata,lunout,obstype,sis,nobs,hgtl_full)
   integer(i_kind) iyref,imref,idref,ihref,nout
   logical, allocatable,dimension(:)     :: rusage,rthin
   logical save_all
-! integer(i_kind)  numthin,numqc,numrem
-  integer(i_kind) nxdata,pmot,numall
+! integer(i_kind)  numthin,numqc,numrem,numall
+  integer(i_kind) nxdata,pmot
 
 ! following variables are for fore/aft separation
   integer(i_kind) irec

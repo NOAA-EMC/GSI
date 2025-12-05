@@ -1056,7 +1056,9 @@ contains
     integer(i_kind),intent(in   ) :: num_pe
     logical :: l_mkdir_stat, l_dir_exist
 
+#ifndef __INTEL_COMPILER
     character(len=144):: command
+#endif    
     character(len=8):: pe_name, loc_pe_name
     character(len=128):: loc_dirname
     integer(i_kind) :: i, ierror
