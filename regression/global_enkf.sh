@@ -87,6 +87,7 @@ export denkf=${denkf:-".true."}
 export nobsl_max=${nobsl_max:-10000}
 export lobsdiag_forenkf=${lobsdiag_forenkf:-".true."}
 export write_spread_diag=${write_spread_diag:-".false."}
+export hofx_2m_sfcfile=${hofx_2m_sfcfile:-".true."}
 export cnvw_option=${cnvw_option:-".false."}
 export netcdf_diag=${netcdf_diag:-".true."}
 export modelspace_vloc=${modelspace_vloc:-".true."} # if true, 'vlocal_eig.dat' is needed
@@ -160,12 +161,15 @@ done
 nfhrs=`echo $IAUFHRS_ENKF | sed 's/,/ /g'`
 for fhr in $nfhrs; do
     for imem in $(seq 1 $NMEM_ENKF); do
-	memchar="mem"$(printf %03i $imem)
-	$nln $datens/$memchar/model/atmos/history/${prefix_ens}.atmf00${fhr}.nc sfg_${global_adate}_fhr0${fhr}_${memchar}
-        if [ $cnvw_option = ".true." ]; then
-            $nln $datens/$memchar/model/atmos/history/${prefix_ens}sfcf00${fhr}.nc sfgsfc_${global_adate}_fhr0${fhr}_${memchar}
+        memchar="mem"$(printf %03i $imem)
+        $nln $datens/$memchar/model/atmos/history/${prefix_ens}.atmf00${fhr}.nc sfg_${global_adate}_fhr0${fhr}_${memchar}
+        if [[ "${hofx_2m_sfcfile}" == ".true." ]]; then
+            $nln $datens/$memchar/model/atmos/history/${prefix_ens}.sfcf00${fhr}.nc bfg_${global_adate}_fhr0${fhr}_${memchar}
         fi
-	(( imem = $imem + 1 ))
+        if [ $cnvw_option = ".true." ]; then
+            $nln $datens/$memchar/model/atmos/history/${prefix_ens}.sfcf00${fhr}.nc sfgsfc_${global_adate}_fhr0${fhr}_${memchar}
+        fi
+        (( imem = $imem + 1 ))
     done
     $nln $datens/ensstat/model/atmos/history/${prefix_ens}.atmf00${fhr}.ensmean.nc sfg_${global_adate}_fhr0${fhr}_ensmean
     if [ $cnvw_option = ".true." ]; then
