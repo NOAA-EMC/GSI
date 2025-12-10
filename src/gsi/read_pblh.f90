@@ -374,13 +374,13 @@
 ! OBLVL == SRC FHR <PEVN> <QEVN> <TEVN> <ZEVN> <WEVN> <CEVN> <SEVN>
 !       == SRC FHR POB PMO QOB    TOB    ZOB   UOB VOB ...  ! {P,Q,T,Z,W}EVN
 !     cnem='SRC FHR POB PMO QOB TOB ZOB UOB VOB'
-!     call ufbin3(lunin,olv,MXNM,MXRP,MXRP, nlevp,nlevo,cnem)
+!     call ufbevn(lunin,olv,MXNM,MXRP,MXRP, nlevp,nlevo,cnem)
 
 ! CEVN == CAPE CINH LI PBL TROP PWO
 !     cnem='CAPE CINH LI PBL TROP PWO'
       cnem='PBL'   ! for Caterina's files (ruc_raobs)
       clv=bmiss
-      call ufbin3(lunin,clv,MXNM,MXRP,MXRP, nlevp,nlevc,cnem)
+      call ufbevn(lunin,clv,MXNM,MXRP,MXRP, nlevp,nlevc,cnem)
 !     pblhob=clv(4,1,2)
       pblhob=clv(1,1,2)
       pblbak=clv(1,1,1)   ! model PBL; from Caterina's files
@@ -422,7 +422,7 @@
 
 ! SEVN == HOVI MXTM MITM TDO TOCC MXGS THI TCH CDBZ
 !     cnem='HOVI MXTM MITM TDO TOCC MXGS THI TCH CDBZ'
-!     call ufbin3(lunin,slv,MXNM,MXRP,MXRP, nlevp,nlevs,cnem)
+!     call ufbevn(lunin,slv,MXNM,MXRP,MXRP, nlevp,nlevs,cnem)
 
 !--Outputs
 
