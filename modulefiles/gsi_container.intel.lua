@@ -16,6 +16,7 @@ load("gsi_common")
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/contrib/global-workflow-shared-data/fix/gsi/20250529")
+-- pushenv("GSI_BINARY_SOURCE_DIR", "/contrib/global-workflow-shared-data/fix/gsi/20250529")
+pushenv("GSI_BINARY_SOURCE_DIR", "/scratch3/NCEPDEV/global/role.glopara/fix/gsi/20251105")
 
 whatis("Description: GSI environment in a container with Intel Compilers")
