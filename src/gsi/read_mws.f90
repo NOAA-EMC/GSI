@@ -65,7 +65,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   use satthin, only: super_val,itxmax,makegrids,destroygrids,checkob, &
       finalcheck,map2tgrid,score_crit
   use satthin, only: radthin_time_info,tdiff2crit
-  use obsmod,  only: time_window_max, ta2tb
+  use obsmod,  only: time_window_max
   use radinfo, only: iuse_rad,newchn,cbias,nusis,jpch_rad,air_rad,ang_rad, &
       use_edges,radedge1,radedge2,nusis,radstart,radstep,newpc4pred,maxscan
   use radinfo, only: adp_anglebc
@@ -129,7 +129,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) kidsat,maxinfo,eu_mws_id
   integer(i_kind) nmind,itx,nreal,nele,itt,num_obs
   integer(i_kind) iskip,ichan2,ichan1,ichan16,ichan17
-  integer(i_kind) lnbufr,ksatid,isflg,ichan3,ich3,ich4,ich6
+  integer(i_kind) lnbufr,ksatid,isflg,ichan3,ich3,ich6
   integer(i_kind) ilat,ilon, ifovmod, nadir
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) instr,ichan

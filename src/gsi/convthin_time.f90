@@ -349,6 +349,9 @@ contains
     dx=dlon1-ix
     ix=max(1,min(ix,mlon(iy)))
 
+    if (pflag /= pflag) then
+       call exit(2)
+    endif    
 !   dxx=half-min(dx,one-dx)
 !   dyy=half-min(dy,one-dy)
 !   if( pflag == 1) then

@@ -98,7 +98,6 @@ subroutine get_gfs_Nens(this,grd,members,ntindex,atm_bundle,iret)
     use gridmod, only: use_gfs_nemsio, use_gfs_ncio
     use general_sub2grid_mod, only: sub2grid_info
     use hybrid_ensemble_parameters, only: ens_fast_read
-    use hybrid_ensemble_parameters, only: grd_ens
     use gsi_bundlemod, only: gsi_bundle
     use control_vectors, only: nc2d,nc3d
 
@@ -122,7 +121,6 @@ subroutine get_gfs_Nens(this,grd,members,ntindex,atm_bundle,iret)
 
     if ( (use_gfs_nemsio .or. use_gfs_ncio) .and. ens_fast_read ) then
        call get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
-                         grd_ens%lat2,grd_ens%lon2, &
                          nc2d,nc3d,iret,grd)
     else
        do n = 1,members
@@ -135,7 +133,7 @@ subroutine get_gfs_Nens(this,grd,members,ntindex,atm_bundle,iret)
 end subroutine get_gfs_Nens
 
 subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
-                           lat2in,lon2in,nc2din,nc3din,iret,grd)
+                           nc2din,nc3din,iret,grd)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    get_user_ens_gfs_fastread_
@@ -183,7 +181,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
     use gsi_bundlemod, only : assignment(=)
     use hybrid_ensemble_parameters, only: n_ens,grd_ens,ntlevs_ens
     use hybrid_ensemble_parameters, only: ensemble_path
-    use control_vectors, only: cvars2d,cvars3d,nc2d,nc3d
+    use control_vectors, only: cvars3d,nc2d,nc3d
     use genex_mod, only: genex_create_info,genex,genex_destroy_info
     use gridmod, only: use_gfs_nemsio
     use jfunc, only: cnvw_option
@@ -193,7 +191,7 @@ subroutine get_user_ens_gfs_fastread_(ntindex,atm_bundle, &
 
     ! Declare passed variables
     integer(i_kind),     intent(in   ) :: ntindex
-    integer(i_kind),     intent(in   ) :: lat2in,lon2in,nc2din,nc3din
+    integer(i_kind),     intent(in   ) :: nc2din,nc3din
     integer(i_kind),     intent(  out) :: iret
     type(sub2grid_info), intent(in   ) :: grd
     type(gsi_bundle),    intent(inout) :: atm_bundle(:)
@@ -1312,7 +1310,7 @@ end subroutine move1_
                zflag,atm_bundle,iret)
        else
           call general_read_gfsatm_nc(grd,sp_ens,filename,uv_hyb_ens,.false., &
-               zflag,atm_bundle,.true.,iret)
+               zflag,atm_bundle,iret)
        endif
     else
        call general_read_gfsatm(grd,sp_ens,sp_ens,filename,uv_hyb_ens,.false., &

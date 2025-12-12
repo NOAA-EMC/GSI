@@ -642,7 +642,7 @@ subroutine get_gefs_for_regional
                atm_bundle,.true.,iret)
      else if (use_gfs_ncio) then
         call general_read_gfsatm_nc(grd_gfst,sp_gfs,filename,uv_hyb_ens,.false.,.true., &
-               atm_bundle,.true.,iret)
+               atm_bundle,iret)
      else
         call general_read_gfsatm(grd_gfst,sp_gfs,sp_gfs,filename,uv_hyb_ens,.false.,.true., &
                atm_bundle,inithead,iret)

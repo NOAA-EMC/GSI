@@ -94,6 +94,9 @@ contains
     logical:: diagsave
 
     if(nobs == 0) return
+    if (init_pass .or. last_pass) then
+       ! none operation to remove not used debug remark
+    endif
 
         ! try data header
     read(lunin,iostat=ier) obstype,isis,nreal,nchanl

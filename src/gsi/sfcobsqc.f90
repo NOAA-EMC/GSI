@@ -509,7 +509,7 @@ subroutine destroy_sfcuselist
 end subroutine destroy_sfcuselist
 
 subroutine apply_sfcuselist(kx,obstype,c_station_id_in,c_prvstg_in,c_sprvstg_in, &
-                       dlon,dlat,usage_rj)
+                       usage_rj)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -532,23 +532,19 @@ subroutine apply_sfcuselist(kx,obstype,c_station_id_in,c_prvstg_in,c_sprvstg_in,
 !
 !$$$ end documentation block
 
-  use gridmod, only: twodvar_regional,tll2xy
+  use gridmod, only: tll2xy
   implicit none
 
   integer(i_kind),intent(in   ) :: kx
   character(10)  ,intent(in   ) :: obstype
   character(8)   ,intent(in   ) :: c_station_id_in
   character(8)   ,intent(in   ) :: c_prvstg_in,c_sprvstg_in
-  real(r_kind)   ,intent(in   ) :: dlon
-  real(r_kind)   ,intent(in   ) :: dlat
   real(r_kind)   ,intent(inout) :: usage_rj
 
 ! Declare local variables
   integer(i_kind) k,m,m0,nlen1,nlen2,nlen3,mlen1,mlen2,mlen3
   real(r_kind) usage_rj0
-  real(r_kind) xob,yob
   logical lwind
-  logical outside
 
 ! Declare local parameters
   real(r_kind),parameter:: r6    = 6.0_r_kind
@@ -987,7 +983,7 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
 !$$$ end documentation block
 
   use constants, only: zero_single
-  use gridmod, only: twodvar_regional,tll2xy
+  use gridmod, only: tll2xy
 
   implicit none
 
@@ -1003,13 +999,11 @@ subroutine get_usagerj(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
   real(r_kind)   ,intent(inout) :: usage_rj
 
 ! Declare local variables
-  integer(i_kind) k,m,nlen,nlen2
+  integer(i_kind) m,nlen
   integer(i_kind) ibin
   character(8)  ch8
   real(r_kind) usage_rj0
   real(r_single) sunangle
-  real(r_kind) xob,yob
-  logical outside
 
 ! Declare local parameters
   real(r_kind),parameter:: r6    = 6.0_r_kind
@@ -1453,7 +1447,7 @@ subroutine readin_wbiaslist(clistname)
 
 end subroutine readin_wbiaslist
 
-subroutine get_wbias_afactor(kx,obstype,c_station_id,c_prvstg,c_sprvstg,afactor)
+subroutine get_wbias_afactor(kx,c_station_id,c_prvstg,c_sprvstg,afactor)
 
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -1485,14 +1479,13 @@ subroutine get_wbias_afactor(kx,obstype,c_station_id,c_prvstg,c_sprvstg,afactor)
   implicit none
 
   integer(i_kind),intent(in   ) :: kx
-  character(10)  ,intent(in   ) :: obstype
   character(8)   ,intent(in   ) :: c_station_id
   character(8)   ,intent(in   ) :: c_prvstg,c_sprvstg
   real(r_kind)   ,intent(out)   :: afactor
 
 ! Declare local variables
   integer(i_kind) m,n,nlen,m0,n0,i1,i2,ipos
-  character(8)  cstn,cprv,csubprv
+  character(8)  cstn
   logical mesonetob
 
 ! Declare local parameters

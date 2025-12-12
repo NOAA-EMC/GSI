@@ -1137,6 +1137,9 @@ real(r_quad) function qdot_prod_cv(xcv,ycv,mold)
      call stop2(114)
   end if
 
+  if (mold /= mold) then
+     call exit(2)
+  endif
   dd(1) = qdot_prod_sub(xcv,ycv)
   call mpl_allreduce(1,qpvals=dd)
   qdot_prod_cv = dd(1)
@@ -1182,6 +1185,9 @@ real(r_quad) function qdot_prod_cv_eb(xcv,ycv,mold,eb)
   real(r_quad) :: zz(nsubwin+1)
   integer(i_kind) :: ii
 
+  if (mold /= mold) then
+     call exit(2)
+  endif
   if (xcv%lencv/=ycv%lencv) then
       write(6,*)'qdot_prod_cv_eb: error length',xcv%lencv,ycv%lencv
       call stop2(114)

@@ -321,6 +321,13 @@ _EXIT_(myname_)
   endif
 !! Nothing to be done here, is equivalent to an identity model.
 _EXIT_(myname_)
+if (.false.) then
+   print *,ndt
+   associate(xini => xini)
+   end associate
+   associate(xobs => xobs)
+   end associate
+endif
 end subroutine pertmod_TLrun_
 
 !------------------------------------------------------------------------------------
@@ -393,6 +400,10 @@ _EXIT_(myname_)
    endif
 
 _EXIT_(myname_)
+if (.false.) then
+   associate(xini => xini)
+   end associate
+endif
 end subroutine pertmod_TLfin_
 
 !------------------------------------------------------------------------------------
@@ -539,6 +550,13 @@ _EXIT_(myname_)
   endif
 !! Nothing to be done here, is equivalent to an identity model.
 _EXIT_(myname_)
+if (.false.) then
+   print *,ndt
+   associate(xini => xini)
+   end associate
+   associate(xobs => xobs)
+   end associate
+endif
 end subroutine pertmod_ADrun_
 
 !------------------------------------------------------------------------------------
@@ -612,6 +630,10 @@ _EXIT_(myname_)
    endif
 
 _EXIT_(myname_)
+if (.false.) then
+   associate(xobs => xobs)
+   end associate
+endif
 end subroutine pertmod_ADfin_
 
 !------------------------------------------------------------------------------------
@@ -623,6 +645,12 @@ integer(i_kind),intent(in) :: nsubwin,nobs_bins
 type(gsi_bundle),intent(inout):: mval(nsubwin)
 type(gsi_bundle),intent(inout):: sval(nobs_bins)
 ! user-specific gradient tests related to TL and AD models
+if (.false.) then
+   associate(mval => mval)
+   end associate
+   associate(sval => sval)
+   end associate
+endif
 end subroutine grtests_
 !------------------------------------------------------------------------------------
 subroutine get_1pert_ (xx,what,filename)
@@ -635,6 +663,9 @@ type(gsi_bundle),intent(inout) :: xx
 character(len=*),intent(in) :: what     ! indicates whether tl or ad type perturbation
 character(len=*),intent(in) :: filename ! filename containing pert - set to NULL when n/a
 xx=zero
+if (.false.) then
+   print *,what,filename
+endif
 end subroutine get_1pert_
 !------------------------------------------------------------------------------------
 subroutine put_1pert_ (xx,nymd,nhms,what,label)
@@ -647,6 +678,11 @@ character(len=*),intent(in)    :: what   ! indicates whether tl or ad type pertu
 character(len=*),intent(in)    :: label  ! label used to identify output filename
 integer(i_kind), intent(in)    :: nymd   ! date to write out field, as in, YYYYMMDD
 integer(i_kind), intent(in)    :: nhms   ! time to write out field, as in, HHMMSS
+if (.false.) then
+   print *,what,label,nymd,nhms
+   associate(xx => xx)
+   end associate
+endif
 end subroutine put_1pert_
 !------------------------------------------------------------------------------------
 subroutine get_Npert_ (xx,n,what,filename)
@@ -664,6 +700,9 @@ integer(i_kind) ii
 do ii=1,n
    xx(ii)=zero
 enddo
+if (.false.) then
+   print *,filename,what
+endif
 end subroutine get_Npert_
 !------------------------------------------------------------------------------------
 subroutine put_Npert_ (xx,n,what)
@@ -674,6 +713,9 @@ implicit none
 integer(i_kind),intent(in) :: n
 type(gsi_bundle),intent(in) :: xx(n)     ! gsi perturbation (bundle) vector
 character(len=*),intent(in) :: what      ! indicates whether tl or ad type perturbation
+if (.false.) then
+   print *,what,size(xx)
+endif
 end subroutine put_Npert_
 !------------------------------------------------------------------------------------
 

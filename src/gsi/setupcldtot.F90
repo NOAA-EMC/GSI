@@ -7,6 +7,8 @@ module cldtot_setup
   character(len=*),parameter:: myname="cldtot_setup"
 contains
 
+#ifdef RR_CLOUDANALYSIS
+  
 subroutine setupcldtot(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
 !$$$  subprogram documentation block
 !!                .      .    .                                       .
@@ -94,7 +96,6 @@ subroutine setupcldtot(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_di
   integer(i_kind)                                  ,intent(in   ) :: is     ! ndat index
   logical                                          ,intent(in   ) :: conv_diagsave
 
-#ifdef RR_CLOUDANALYSIS
 ! Declare local parameters
   real(r_single) :: cloudqvis
 
@@ -1039,12 +1040,38 @@ subroutine setupcldtot(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_di
 
 #else
 
+subroutine setupcldtot(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsave)
+  use kinds, only: r_kind,i_kind
+  use mpeu_util, only: die
+  use m_obsLList, only: obsLList
+  use m_obsdiagNode, only: obs_diags
+  use gridmod, only: nsig
+  use qcmod, only: npres_print
+  use convinfo, only: nconvtype
+  
+  ! Declare passed variables
+  type(obsLList ),target,dimension(:),intent(in):: obsLL
+  type(obs_diags),target,dimension(:),intent(in):: odiagLL
+
+  integer(i_kind)                                  ,intent(in   ) :: lunin,mype,nele,nobs
+  real(r_kind),dimension(100+7*nsig)               ,intent(inout) :: awork
+  real(r_kind),dimension(npres_print,nconvtype,5,3),intent(inout) :: bwork
+  integer(i_kind)                                  ,intent(in   ) :: is     ! ndat index                                                         
+  logical                                          ,intent(in   ) :: conv_diagsave
+      
   character(len=*),parameter:: myname_=myname//"::setupcldtot"
   integer(i_kind):: ier
 
 ! Skip the record, and does nothing
   read(lunin,iostat=ier)
   if(ier/=0) call die(myname_,'unexpected empty block, iostat =',ier)
+
+  if (.false.) then
+     print *,size(ObsLL)
+     print *,size(odiagLL)
+     print *,mype,nele,nobs,is,conv_diagsave
+     print *,awork(1),bwork(1,1,1,1)
+  endif
 #endif
 
 end subroutine setupcldtot

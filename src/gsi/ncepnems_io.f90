@@ -1839,7 +1839,7 @@ contains
 
    character(len=256) :: berror_stats = "berror_stats"      ! filename
 
-   integer(i_kind) :: nv,n
+   integer(i_kind) :: nv
    type(nc_berror_vars) bvars
    real(r_single), pointer :: ptr2d(:,:)
 

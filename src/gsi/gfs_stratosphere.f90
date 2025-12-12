@@ -1318,7 +1318,7 @@ subroutine add_gfs_stratosphere
                                        atm_bundle,.true.,iret)
       else if (use_gfs_ncio) then
          call general_read_gfsatm_nc(grd_gfst,sp_gfs,filename,.true.,.false.,.true., &
-                                       atm_bundle,.true.,iret)
+                                       atm_bundle,iret)
       else
          if ( hires ) then
             call general_read_gfsatm(grd_gfst,sp_gfs,sp_b,filename,.true.,.false.,.true., &

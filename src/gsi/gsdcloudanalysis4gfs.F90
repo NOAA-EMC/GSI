@@ -47,9 +47,11 @@ subroutine  gsdcloudanalysis4gfs(mype)
 !_____________________________________________________________________
 !
 ! 
+  use kinds,   only: r_single,i_kind, r_kind
+
+#ifdef RR_CLOUDANALYSIS
   use constants, only: zero,one,rad2deg,fv
   use constants, only: rd_over_cp, h1000
-  use kinds,   only: r_single,i_kind, r_kind
   use gridmod, only: pt_ll,eta1_ll,aeta1_ll
   use gridmod, only: regional,wrf_mass_regional,regional_time
   use gridmod, only: nsig,lat2,lon2,istart,jstart,twodvar_regional
@@ -78,7 +80,6 @@ subroutine  gsdcloudanalysis4gfs(mype)
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
 
-#ifdef RR_CLOUDANALYSIS
   implicit none
 
 ! Declare passed variables

@@ -64,6 +64,9 @@ subroutine  gsdcloudanalysis(mype)
 !_____________________________________________________________________
 !
 ! 
+  use kinds,   only: i_kind
+
+#ifdef RR_CLOUDANALYSIS
   use constants, only: zero,one,rad2deg,fv
   use constants, only: rd_over_cp,h1000
   use kinds,   only: r_single,i_kind, r_kind
@@ -78,6 +81,7 @@ subroutine  gsdcloudanalysis(mype)
   use guess_grids, only: ges_tsen
   use jfunc, only: tsensible
   use mpimod, only: mpi_comm_world,ierror,mpi_real4
+  
   use rapidrefresh_cldsurf_mod, only: dfi_radar_latent_heat_time_period,   &
                                       metar_impact_radius,                 &
                                       l_cleanSnow_WarmTs,l_conserve_thetaV,&
@@ -94,9 +98,7 @@ subroutine  gsdcloudanalysis(mype)
 
   use gsi_metguess_mod, only: GSI_MetGuess_Bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer
-  use gsi_io, only: verbose
-#ifdef RR_CLOUDANALYSIS
-
+  use gsi_io, only: verbose  
   implicit none
 
 ! Declare passed variables
