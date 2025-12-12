@@ -332,5 +332,5 @@ elif [[ "$machine" = "wcoss2" || "$machine" = "acorn" ]]; then
    export APRUN="mpiexec -n \$ntasks -ppn \$ppn --cpu-bind core --depth \$threads"
 elif [[ "$machine" = "noaacloud" ]]; then
    export I_MPI_ADJUST_ALLREDUCE=5
-   export APRUN="srun --exclusive --distribution=cyclic:block --mpi=pmi2 -n \$ntasks --cpus-per-task=\$threads"
+   export APRUN="srun --exclusive --mpi=pmi2 -n \$ntasks --cpus-per-task=\$threads"
 fi
