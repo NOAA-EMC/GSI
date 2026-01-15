@@ -185,7 +185,7 @@
                             i_cloud_q_innovation,i_ens_mean,DTsTmax,&
                             i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check, &
                             corp_howv, hwllp_howv, corp_gust, hwllp_gust, oerr_gust, i_howv_mask, &
-                            i_sfcrough_fgs, corp_vis, hwllp_vis
+                            i_sfcrough_fgs, corp_vis, hwllp_vis, i_gsd_terrain_match_mesonet
   use gsi_metguess_mod, only: gsi_metguess_init,gsi_metguess_final
   use gsi_chemguess_mod, only: gsi_chemguess_init,gsi_chemguess_final
   use tcv_mod, only: init_tcps_errvals,tcp_refps,tcp_width,tcp_ermin,tcp_ermax
@@ -1632,6 +1632,10 @@
 !                            in transformed space, not physical space
 !      hwllp_vis     - real, background error de-correlation length scale of visibility
 !                            in transformed space, not physical space
+!      i_gsd_terrain_match_mesonet - namelist integer, control application of GSD Terrain Match to MESONET (MSO)
+!                                observations of Temp (188, 195)
+!                          = 0 : do not apply GSD terrain match to MESONET Obs of T (default)
+!                          = 1 : apply GSD terrain match to MESONET Obs of T
 !
   namelist/rapidrefresh_cldsurf/dfi_radar_latent_heat_time_period, &
                                 metar_impact_radius,metar_impact_radius_lowcloud, &
@@ -1654,7 +1658,7 @@
                                 i_cloud_q_innovation,i_ens_mean,DTsTmax, &
                                 i_T_Q_adjust,l_saturate_bkCloud,l_rtma3d,i_precip_vertical_check, &
                                 corp_howv, hwllp_howv, corp_gust, hwllp_gust, oerr_gust, i_howv_mask, &
-                                i_sfcrough_fgs, corp_vis, hwllp_vis
+                                i_sfcrough_fgs, corp_vis, hwllp_vis, i_gsd_terrain_match_mesonet
 
 ! chem(options for gsi chem analysis) :
 !     berror_chem       - .true. when background  for chemical species that require

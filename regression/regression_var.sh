@@ -52,6 +52,12 @@ elif [[ -d /lfs/h2 ]]; then # wcoss2 or acorn
   else
     export machine="wcoss2"
   fi
+elif [[ ! -z "${PW_CSP:+x}" ]]; then # noaacloud
+   case "${PW_CSP}" in
+      "aws" | "google" | "azure")
+        export machine="noaacloud"
+        ;;
+   esac
 fi
 echo "Running Regression Tests on '$machine'";
 
@@ -169,6 +175,18 @@ case $machine in
     #  After completion of regression tests, will remove the regression test subdirecories
     export clean=".false."
   ;;
+  noaacloud)
+
+    export noscrub="${noscrub:-/contrib/$USER/noscrub}"
+    export group="${group:-$USER}"
+    export queue="${queue:-batch}"
+    export ptmp="${ptmp:-/lustre/$USER/ptmp}"
+    export casesdir="${casesdir:-/lustre/GSI_RTs}"
+    export partition="${partition:-compute}"
+    export check_resource="no"
+    export accnt="${accnt:-}"
+    export clean=".false."
+  ;;
 
   *)
     echo "Regression tests are not setup on '$machine', ABORT!"
@@ -189,7 +207,13 @@ export savdir="$ptmp"
 export JCAP="62"
 
 # Case Study analysis dates
-export global_adate="2024022300"
+if [[ "${machine}" == "noaacloud" ]]; then
+  # due to unavailable unrestricted versions of obs data 
+  # for 2024022300 noaacloud uses its own global date
+  export global_adate="2021122100"
+else
+  export global_adate="2024022300"
+fi
 export rtma_adate="2020022420"
 export rrfs_enkf_adate="2023061012"
 export rrfs_3denvar_rdasens_adate="2023061012"
