@@ -191,6 +191,7 @@ type(kdtree2_result),dimension(:),allocatable :: sresults1,sresults2
 integer(i_kind) nanal,nn,nnn,nobm,nsame,nn1,nn2,oz_ind,nlev,dbz_ind
 real(r_single),dimension(nlevs_pres):: taperv
 logical lastiter, kdgrid, kdobs
+real(r_single) :: meanval
 
 ! allocate temporary arrays.
 allocate(anal_obchunk(nanals,nobs_max))
@@ -764,22 +765,25 @@ do niter=1,numiter
 
   ! make sure posterior perturbations still have zero mean.
   ! (roundoff errors can accumulate)
+  meanval=zero  !use firstprivate to avoid "false sharing'
   if (lastiter .and. .not. lupd_obspace_serial) then
-     !$omp parallel do schedule(dynamic) private(npt,nb,i)
-     do npt=1,npts_max
-        do nb=1,nbackgrounds
-           do i=1,ncdim
-              anal_chunk(1:nanals,npt,i,nb) = anal_chunk(1:nanals,npt,i,nb)-&
-              sum(anal_chunk(1:nanals,npt,i,nb),1)*r_nanals
-           end do
-        end do
-     enddo
+       !$omp parallel do schedule(dynamic) private(npt, nb, i) firstprivate(meanval)
+       do npt = 1, npts_max
+          do nb = 1, nbackgrounds
+            do i = 1, ncdim
+               meanval = sum(anal_chunk(1:nanals, npt, i, nb), 1) * r_nanals
+               anal_chunk(1:nanals, npt, i, nb) = anal_chunk(1:nanals, npt, i, nb) - meanval
+            end do
+         end do
+      end do
      !$omp end parallel do
   endif
-  !$omp parallel do schedule(dynamic) private(nob)
+  meanval=zero  !use firstprivate to avoid "false sharing"
+  !$omp parallel do schedule(dynamic) private(nob) firstprivate(meanval)
   do nob=1,nobs_max
+     meanval=sum(anal_obchunk(1:nanals,nob),1)
      anal_obchunk(1:nanals,nob) = anal_obchunk(1:nanals,nob)-&
-     sum(anal_obchunk(1:nanals,nob),1)*r_nanals
+     meanval*r_nanals
   enddo
   !$omp end parallel do
 

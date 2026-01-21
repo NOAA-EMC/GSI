@@ -240,6 +240,8 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
      kidsat = 271
   elseif (jsatid == 'g18') then 
      kidsat = 272
+  elseif (jsatid == 'g19') then 
+     kidsat = 273
   else
      write(6,*) 'READ_ABI: Unrecognized value for jsatid '//jsatid//': RETURNING'
      return
