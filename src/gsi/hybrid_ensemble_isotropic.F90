@@ -1085,7 +1085,6 @@ subroutine normal_new_factorization_rf_x
         endif
         ! File didnt exist so we computed the data.  Now save it for subsequent runs.
         if(mype==0) then
-          inunit=2000+mype
           open(inunit,file=trim(input),form='unformatted',action='write')
           write(inunit) xnorm_new
           close(inunit)
