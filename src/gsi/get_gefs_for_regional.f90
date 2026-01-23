@@ -83,6 +83,7 @@ subroutine get_gefs_for_regional
   use get_wrf_mass_ensperts_mod, only: get_wrf_mass_ensperts_class
   use gsi_io, only: verbose
   use obsmod, only: l_wcp_cwm
+  use mpi, only : MPI_Wtime, MPI_REAL8, MPI_SUCCESS
   implicit none
 
   type(sub2grid_info) grd_gfs,grd_mix,grd_gfst
@@ -187,6 +188,8 @@ subroutine get_gefs_for_regional
   real(r_kind), pointer :: ges_q (:,:,:)=>NULL()
   logical :: print_verbose
   real(r_kind), allocatable :: ges_z_ens(:,:)
+  real(kind=8) :: time_beg,time_end,walltime, tb,te,wt
+  integer(i_kind) :: ierr
 
   print_verbose=.false.
   if(verbose)print_verbose=.true.
@@ -621,6 +624,7 @@ subroutine get_gefs_for_regional
 
   rewind(10)
   inithead=.true.
+  tb=MPI_Wtime()
   do n=1,n_ens_gfs
      read(10,'(a)',err=20,end=20)filename 
      filename=trim(ensemble_path) // trim(filename)
@@ -641,8 +645,13 @@ subroutine get_gefs_for_regional
         call general_read_gfsatm_nems(grd_gfst,sp_gfs,filename,uv_hyb_ens,.false.,.true., &
                atm_bundle,.true.,iret)
      else if (use_gfs_ncio) then
+        time_beg=MPI_Wtime()
         call general_read_gfsatm_nc(grd_gfst,sp_gfs,filename,uv_hyb_ens,.false.,.true., &
                atm_bundle,.true.,iret)
+        time_end=MPI_Wtime()
+        call MPI_Reduce(time_end-time_beg, walltime, 1, MPI_REAL8, MPI_MAX, 0, MPI_COMM_WORLD, ierr)
+        if(ierr /= MPI_SUCCESS) print*,'MPI_Reduce ',ierr
+        if(mype==0) write(6,'("Maximum Walltime for general_read_gfsatm_nc" f15.4)') walltime
      else
         call general_read_gfsatm(grd_gfst,sp_gfs,sp_gfs,filename,uv_hyb_ens,.false.,.true., &
                atm_bundle,inithead,iret)
@@ -955,6 +964,10 @@ subroutine get_gefs_for_regional
 !                   if(mype==0) write(6,*)' with halo, n,min,max ges_ps - matt ps =',n,pdiffmin0,pdiffmax0
 
   end do   !  end loop over ensemble members.
+  te=MPI_Wtime()
+  call MPI_Reduce(te-tb, wt, 1, MPI_REAL8, MPI_MAX, 0, MPI_COMM_WORLD, ierr)
+  if(ierr /= MPI_SUCCESS) print*,'MPI_Reduce ',ierr
+  if(mype==0) write(6,'("Maximum Walltime to read ",I4," ensemble members ", f15.4)') n_ens_gfs,wt
 
   deallocate(ges_z_ens)
 

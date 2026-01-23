@@ -116,6 +116,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
      end if
      deallocate(icrit)
      allocate(data_all_in(nele,ndata))
+     data_all_in=zero
 !$omp parallel do private(kk,k,l)
      do kk=1,ndata
         k=nloc(kk)
@@ -131,6 +132,7 @@ subroutine combine_radobs(mype_sub,mype_root,&
         
      end do
      deallocate(nloc)
+     
 
 !    get all data on process mype_root
 !    data_all(:,:) = zero
