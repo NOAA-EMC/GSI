@@ -131,6 +131,8 @@
 !                         related to the GOES/GLM lightnig assimilation
 !   2019-07-09  todling - add initialization of abstract layer defining use of GFS ensemble
 !   2019-08-04  guo     - moved ensemble object configuration into module gsi_fixture.
+!   2022-03-15  K Apodaca - add CYGNSS and Spire Ocean wind speed observations
+!   2023-03-15  K Apodaca - add GNSS-R Doppler Delay Map observations
 !
 ! usage:
 !   input files:
@@ -194,7 +196,7 @@
 !         read_goesglm, read_goesndr, read_gps_ref, read_guess, read_ieeetovs, 
 !         read_lidar, read_obs, read_ozone, read_pcp, read_prepbufr, read_radar, 
 !         read_superwinds, read_wrf_mass_files, read_wrf_mass_guess, 
-!         read_wrf_nmm_files, read_wrf_nmm_guess, rfdpar, rsearch, satthin,
+!         read_wrf_nmm_files, read_wrf_nmm_guess, read_gnssrspd, rfdpar, rsearch, satthin,
 !         setupdw, setupoz, setuppcp, setupps, setuppw, setupq, setuprad,
 !         setupref, setupbend, setuplight, setuprhsall, setuprw, setupspd, setupsst,
 !         setupt, setupw, simpin1, simpin1_init, smooth121, smoothrf,

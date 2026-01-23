@@ -101,6 +101,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !   2019-03-15  Ladwig  - add option for cloud analysis in observer
 !   2019-03-28  Ladwig  - add metar cloud obs as pseudo water vapor in var analysis
 !   2020-09-08  CAPS(G. Zhao) - add 'l_use_dbz_directDA' flag not to sort obsdiag
+!   2023-03-20  K Apodaca - add GNSS-R L2 Ocean Wind Speed
 !
 !   input argument list:
 !     ndata(*,1)- number of prefiles retained for further processing
@@ -138,7 +139,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use ozinfo, only: mype_oz,jpch_oz,ihave_oz
   use coinfo, only: mype_co,jpch_co,ihave_co
   use lightinfo, only: mype_light
-  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum
+  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum,mpi_real16
   use gridmod, only: twodvar_regional,wrf_mass_regional,nems_nmmb_regional
   use gridmod, only: cmaq_regional,fv3_regional
   use gsi_4dvar, only: nobs_bins,l4dvar
@@ -165,7 +166,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use m_rhs, only: toss_gps_sub => rhs_toss_gps
 
   use m_rhs, only: i_ps,i_uv,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
-                   i_gust,i_vis,i_pblh,i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv, &
+                   i_gust,i_vis,i_pblh,i_wspd10m,i_gnssrspd,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv, &
                    i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,i_swcp,i_lwcp
   use m_rhs, only: i_dbz
   use m_rhs, only: i_fed
@@ -195,6 +196,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
   use mpeu_util, only: basename
 
   use directDA_radaruse_mod, only: l_use_dbz_directDA
+  use mpi, only: mpi_in_place
 
   implicit none
 
@@ -567,16 +569,16 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 
 ! Collect information for preconditioning
   if (newpc4pred) then
-     call mpl_allreduce(jpch_rad,rpvals=ostats)
-     call mpl_allreduce(npred,jpch_rad,rstats)
+     call MPI_Allreduce(mpi_in_place, ostats, jpch_rad, mpi_rtype, mpi_sum, mpi_comm_world, ier)
+     call MPI_Allreduce(mpi_in_place, rstats, npred*jpch_rad, mpi_real16, mpi_sum, mpi_comm_world, ier)
   end if
 
 ! Collect information for aircraft data
   if (aircraft_t_bc_pof .or. aircraft_t_bc) then
 !    call mpl_allreduce(npredt,max_tail,ostats_t)
 !    call mpl_allreduce(npredt,max_tail,rstats_t)
-     call mpl_allreduce(npredt,ntail,ostats_t)
-     call mpl_allreduce(npredt,ntail,rstats_t)
+     call MPI_Allreduce(mpi_in_place, ostats_t, npredt*ntail, mpi_real16, mpi_sum, mpi_comm_world, ier)
+     call MPI_Allreduce(mpi_in_place, rstats_t, npredt*ntail, mpi_real16, mpi_sum, mpi_comm_world, ier)
   end if
 
 ! Collect satellite and precip. statistics
@@ -625,7 +627,7 @@ subroutine setuprhsall(ndata,mype,init_pass,last_pass)
 !    Compute and print statistics for "conventional" data
      call statsconv(mype,&
           i_ps,i_uv,i_t,i_q,i_pw,i_rw,i_dw,i_gps,i_sst,i_tcp,i_lag, &
-          i_gust,i_vis,i_pblh,i_wspd10m,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv, &
+          i_gust,i_vis,i_pblh,i_wspd10m,i_gnssrspd,i_td2m,i_mxtm,i_mitm,i_pmsl,i_howv, &
           i_tcamt,i_lcbas,i_cldch,i_uwnd10m,i_vwnd10m,i_swcp,i_lwcp,i_fed,i_dbz, &
           size(awork1,2),bwork1,awork1,ndata)
 

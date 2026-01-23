@@ -277,6 +277,7 @@ contains
   use satthin, only: super_val1
   use constants, only: quarter,half,tiny_r_kind,zero,one,deg2rad,rad2deg,one_tenth, &
       two,three,cg_term,wgtlim,r100,r10,r0_01,r_missing
+  use constants, only: pi
   use jfunc, only: jiter,miter,jiterstart
   use sst_retrieval, only: setup_sst_retrieval,avhrr_sst_retrieval,&
       finish_sst_retrieval,spline_cub
@@ -290,6 +291,7 @@ contains
   use crtm_interface, only: ilzen_ang2,iscan_ang2,iszen_ang2,isazi_ang2
   use clw_mod, only: calc_clw, ret_amsua, gmi_37pol_diff
   use qcmod, only: igood_qc,ifail_gross_qc,ifail_interchan_qc,ifail_crtm_qc,ifail_satinfo_qc,qc_noirjaco3,ifail_cloud_qc
+  use qcmod, only: ifail_crtm_nan  
   use qcmod, only: ifail_cao_qc,cao_check  
   use qcmod, only: ifail_iland_det, ifail_isnow_det, ifail_iice_det, ifail_iwater_det, ifail_imix_det, &
                    ifail_iomg_det, ifail_isst_det, ifail_itopo_det,ifail_iwndspeed_det
@@ -297,7 +299,7 @@ contains
   use radinfo, only: iland_det, isnow_det, iwater_det, imix_det, iice_det, &
                       iomg_det, itopo_det, isst_det,iwndspeed_det, optconv
   use qcmod, only: setup_tzr_qc,ifail_scanedge_qc,ifail_outside_range
-  use qcmod, only: iasi_cads, cris_cads
+  use qcmod, only: iasi_cads, iasing_cads, cris_cads
   use state_vectors, only: svars3d, levels, svars2d, ns3d
   use oneobmod, only: lsingleradob,obchan,oblat,oblon,oneob_type
   use correlated_obsmod, only: corr_adjust_jacobian, idnames
@@ -305,6 +307,8 @@ contains
   use sparsearr, only: sparr2, new, writearray, size, fullarray
   use radiance_mod, only: radiance_ex_obserr_gmi,radiance_ex_biascor_gmi
   use cads, only: cads_imager_calc
+
+  use, intrinsic :: ieee_arithmetic
 
   implicit none
 
@@ -342,7 +346,7 @@ contains
 
   real(r_single) freq4,pol4,wave4,varch4,tlap4
   real(r_kind) node 
-  real(r_kind) term,tlap,tb_obsbc1,tb_obsbc16,tb_obsbc17 
+  real(r_kind) term,tlap,tb_obsbc1,tb_obsbc16,tb_obsbc17,tb_obsbc18
   real(r_kind) drad,dradnob,varrad,error,errinv,useflag
   real(r_kind) cg_rad,wgross,wnotgross,wgt,arg,exp_arg
   real(r_kind) tzbgr,tsavg5,trop5,pangs,cld,cldp
@@ -367,8 +371,9 @@ contains
   logical cao_flag                       
   logical hirs2,msu,goessndr,hirs3,hirs4,hirs,amsua,amsub,airs,hsb,goes_img,ahi,mhs,abi
   type(sparr2) :: dhx_dx
-  logical avhrr,avhrr_navy,viirs,lextra,ssu,iasi,cris,seviri,atms
+  logical avhrr,avhrr_navy,viirs,lextra,ssu,iasi,iasing,cris,seviri,atms
   logical ssmi,ssmis,amsre,amsre_low,amsre_mid,amsre_hig,amsr2,gmi,saphir
+  logical :: mws
   logical ssmis_las,ssmis_uas,ssmis_env,ssmis_img
   logical sea,mixed,land,ice,snow,toss,l_may_be_passive,eff_area
   logical microwave, microwave_low
@@ -522,16 +527,18 @@ contains
   ssmis_img  = obstype == 'ssmis_img'
   ssmis_env  = obstype == 'ssmis_env'
   iasi       = obstype == 'iasi'
+  iasing     = obstype == 'iasi-ng'
   cris       = obstype == 'cris' .or. obstype == 'cris-fsr'
   seviri     = obstype == 'seviri'
   atms       = obstype == 'atms'
   saphir     = obstype == 'saphir'
   abi        = obstype == 'abi'
+  mws        = obstype == 'mws'
 
   ssmis=ssmis_las.or.ssmis_uas.or.ssmis_img.or.ssmis_env.or.ssmis 
 
   microwave=amsua .or. amsub  .or. mhs .or. msu .or. hsb .or. &
-            ssmi  .or. ssmis  .or. amsre .or. atms .or. &
+            ssmi  .or. ssmis  .or. amsre .or. atms .or. mws .or. &
             amsr2 .or. gmi  .or.  saphir
 
   microwave_low =amsua  .or.  msu .or. ssmi .or. ssmis .or. amsre
@@ -610,7 +617,7 @@ contains
   imager_cluster_bt=zero
   imager_chan_stdev=zero
   imager_model_bt=zero
-  if ((iasi_cads .and. iasi) .or. (cris_cads .and. cris)) then
+  if ((iasi_cads .and. iasi) .or. (iasing_cads .and. iasing) .or. (cris_cads .and. cris)) then
 
     call cads_imager_calc(obstype,isis,nobs,nreal,nchanl,nsig,data_s,init_pass,mype, &
                              imager_cluster_fraction,imager_cluster_bt,imager_chan_stdev, imager_model_bt)
@@ -993,6 +1000,20 @@ contains
            varinv(1:nchanl) = zero
         endif
 
+! Include a separate check for NaNs in CRTM calculations.  These are not always caught by other tests
+
+        if (ANY(ieee_is_nan(tsim(1:nchanl)))) then
+           write(*,*) 'WARNING: NaN found in CRTM simulated radiance output'
+           do i = 1, nchanl
+              if (ieee_is_nan(tsim(i))) then
+                  write(*,*) 'NaN for ',trim(isis),' channel ', sc_index(i), ' at latitude = ', &
+                          cenlat,' longitude = ',cenlon
+              end if
+           end do
+           id_qc(1:nchanl) = ifail_crtm_nan
+           varinv(1:nchanl) = zero
+        endif
+
 !  For SST retrieval, use interpolated NCEP SST analysis
         if (retrieval) then
            if( avhrr_navy )then
@@ -1021,7 +1042,7 @@ contains
 !       uses total angle dependent bias correction for channels 1 and 2
            do i=1,nchanl
               mm=ich(i)
-              if (goessndr .or. goes_img .or. ahi .or. seviri .or. ssmi .or. ssmis .or. gmi .or. abi) then
+              if (goessndr .or. goes_img .or. ahi .or. seviri .or. ssmi .or. ssmis .or. gmi .or. abi .or. amsr2) then
                  pred(npred,i)=nadir*deg2rad
               else
                  pred(npred,i)=data_s(iscan_ang,n)
@@ -1050,12 +1071,12 @@ contains
         cldeff_obs=zero 
         cldeff_fg=zero  
         if(microwave .and. sea) then 
-           if(radmod%lcloud_fwd .and. (amsua .or. atms)) then
-              call ret_amsua(tb_obs,nchanl,tsavg5,zasat,clw_obs,ierrret,scat)
+           if(radmod%lcloud_fwd .and. (amsua .or. atms .or. mws)) then
+              call ret_amsua(tb_obs,nchanl,tsavg5,zasat,clw_obs,ierrret,scat=scat)
               scatp=scat 
            else
               call calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms, &
-                   amsr2,gmi,saphir,tsavg5,sfc_speed,zasat,clw_obs,tpwc_obs,gwp,kraintype,ierrret)
+                   mws,amsr2,gmi,saphir,tsavg5,sfc_speed,zasat,clw_obs,tpwc_obs,gwp,kraintype,ierrret)
            end if
 
            if (ierrret /= 0) then
@@ -1069,6 +1090,11 @@ contains
                 id_qc(1:7) = ifail_cloud_qc
                 varinv(16:22)=zero
                 id_qc(16:22) = ifail_cloud_qc
+             else if (mws) then 
+                varinv(1:8)=zero
+                id_qc(1:8) = ifail_cloud_qc
+                varinv(17:24)=zero
+                id_qc(17:24) = ifail_cloud_qc
              else       
                 varinv(1:nchanl)=zero
                 id_qc(1:nchanl) = ifail_cloud_qc
@@ -1089,6 +1115,11 @@ contains
                        id_qc(1:7) = ifail_cao_qc
                        varinv(16:22)=zero
                        id_qc(16) = ifail_cao_qc
+                    else if (mws) then
+                       varinv(1:8)=zero
+                       id_qc(1:8) = ifail_cao_qc
+                       varinv(17:24)=zero
+                       id_qc(17:24) = ifail_cao_qc
                     else
                        varinv(1:nchanl)=zero
                        id_qc(1:nchanl) = ifail_cao_qc
@@ -1100,7 +1131,7 @@ contains
 
         predbias=zero
 
-!$omp parallel do  schedule(dynamic,1) private(i,mm,j,k,tlap,node,bias)
+!##!$omp parallel do  schedule(dynamic,1) private(i,mm,j,k,tlap,node,bias)
         do i=1,nchanl
            mm=ich(i)
 
@@ -1218,7 +1249,7 @@ contains
 
         kmax = 0
         if (lwrite_peakwt .or. passive_bc) then
-!$omp parallel do  schedule(dynamic,1) private(i,k,ptau5derivmax,ptau5deriv)
+!##!$omp parallel do  schedule(dynamic,1) private(i,k,ptau5derivmax,ptau5deriv)
            do i=1,nchanl
               ptau5derivmax = -9.9e31_r_kind
 ! maximum of weighting function is level at which transmittance
@@ -1244,7 +1275,7 @@ contains
         cld_rbc_idx2=zero
         if (radmod%lcloud_fwd .and. radmod%ex_biascor .and. eff_area) then
            ierrret=0
-!$omp parallel do  schedule(dynamic,1) private(i,mm,j)
+!##!$omp parallel do  schedule(dynamic,1) private(i,mm,j)
            do i=1,nchanl
               mm=ich(i)
               tsim_bc(i)=tsim(i)
@@ -1260,7 +1291,7 @@ contains
               tsim_clr_bc(i)=tsim_clr_bc(i)+predbias(npred+2,i)
            end do
 
-           if(amsua.or.atms) then
+           if(amsua.or.atms .or. mws) then
               call ret_amsua(tsim_bc,nchanl,tsavg5,zasat,clw_guess_retrieval,ierrret)
            else if(gmi) then
               call gmi_37pol_diff(tsim(6),tsim(7),tsim_clr(6),tsim_clr(7),clw_guess_retrieval,ierrret)
@@ -1287,6 +1318,11 @@ contains
                 id_qc(1:7) = ifail_cloud_qc
                 varinv(16:22)=zero
                 id_qc(16:22) = ifail_cloud_qc
+             else if (mws) then 
+                varinv(1:8)=zero
+                id_qc(1:8) = ifail_cloud_qc
+                varinv(17:24)=zero
+                id_qc(17:24) = ifail_cloud_qc
              else       
                 varinv(1:nchanl)=zero
                 id_qc(1:nchanl) = ifail_cloud_qc
@@ -1355,7 +1391,7 @@ contains
 !  ---------- IR -------------------
 !       QC HIRS/2, GOES, HIRS/3 and AIRS sounder data
 !
-        ObsQCs: if (hirs .or. goessndr .or. airs .or. iasi .or. cris) then
+        ObsQCs: if (hirs .or. goessndr .or. airs .or. iasi .or. iasing .or. cris) then
 
            frac_sea=data_s(ifrac_sea,n)
 
@@ -1376,7 +1412,7 @@ contains
            end do
 
            call qc_irsnd(nchanl,is,ndat,nsig,ich,sea,land,ice,snow,luse(n),goessndr,airs,cris,iasi,      &
-              hirs,zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise, &
+              iasing,hirs,zsges,cenlat,frac_sea,pangs,trop5,zasat,tzbgr,tsavg5,tbc,tb_obs,tbcnob,tnoise, &
               wavenumber,ptau5,prsltmp,tvp,temp,wmix,chan_level,emissivity_k,ts,tsim,         &
               id_qc,aivals,errf,varinv,varinv_use,cld,cldp,kmax,zero_irjaco3_pole(n),     &
               imager_cluster_fraction(:,n), imager_cluster_bt(:,:,n), imager_chan_stdev(:,n),imager_model_bt(:,n))
@@ -1437,6 +1473,29 @@ contains
            end if
            si_obs = (tb_obsbc16-tb_obsbc17) - (tsim_clr(16)-tsim_clr(17)) 
            si_fg  = (tsim(16)-tsim(17)) - (tsim_clr(16)-tsim_clr(17)) 
+!          si_mean= half*(si_obs+si_fg) 
+
+           call qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse(n),    &
+              zsges,cenlat,tb_obsbc1,cosza,clw_obs,tbc,ptau5,emissivity_k,ts, & 
+              pred,predchan,id_qc,aivals,errf,errf0,clw_obs,varinv,cldeff_obs,cldeff_fg,factch6, &
+              cld_rbc_idx,sfc_speed,error0,clw_guess_retrieval,scatp,radmod)                   
+
+!  ---------- MWS ------------------- 
+!       QC MWS data (Using the QC for ATMS)
+
+        else if (mws) then
+
+           if (adp_anglebc) then
+              tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))-predx(1,ich(1))
+              tb_obsbc17=tb_obs(17)-cbias(nadir,ich(17))-predx(1,ich(17))
+              tb_obsbc18=tb_obs(18)-cbias(nadir,ich(18))-predx(1,ich(18))
+           else
+              tb_obsbc1=tb_obs(1)-cbias(nadir,ich(1))
+              tb_obsbc17=tb_obs(17)-cbias(nadir,ich(17))
+              tb_obsbc18=tb_obs(18)-cbias(nadir,ich(18))
+           end if
+           si_obs = (tb_obsbc17-tb_obsbc18) - (tsim_clr(17)-tsim_clr(18))
+           si_fg  = (tsim(17)-tsim(18)) - (tsim_clr(17)-tsim_clr(18))
 !          si_mean= half*(si_obs+si_fg) 
 
            call qc_atms(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse(n),    &
@@ -1578,9 +1637,16 @@ contains
   
            sun_azimuth=data_s(isazi_ang,n)
            sun_zenith=data_s(iszen_ang,n)
+           frac_sea=data_s(ifrac_sea,n)
+           bearaz=(data_s(isazi_ang,n)-data_s(ilazi_ang,n))*deg2rad + pi
+           sun_zenith=data_s(iszen_ang,n)*deg2rad
+           sgagl = acos( cos(sun_zenith)*cosza + sin(sun_zenith)*sin(zasat)*cos(bearaz))*rad2deg
 
-           call qc_amsr2(nchanl,zsges,luse(n),sea,kraintype,clw_obs,tsavg5, &
-              tb_obs,sun_azimuth,sun_zenith,amsr2,varinv,aivals(1,is),id_qc)
+           call qc_amsr2(nchanl,zsges,luse(n),sea, &
+              kraintype,clw_obs,tsavg5,tb_obs,sun_azimuth,sun_zenith,amsr2,varinv,aivals(1,is),id_qc, &
+              tzbgr,frac_sea, sgagl,    &
+              radmod%lcloud_fwd, cenlat, sfc_speed,   &
+              tpwc_guess=tcwv,clw_guess_retrieval=clw_guess_retrieval)
 
 !  ---------- GMI  -------------------
 !       GMI Q C
@@ -1633,9 +1699,22 @@ contains
                     else
                        errf(i) = min(three*errf(i),10.0_r_kind)
                     endif
+                 else if(radmod%rtype == 'mws' .and. (i <= 7 .or. i>=17) ) then
+                    if (radmod%lprecip) then
+                       errf(i) = min(2.5_r_kind*errf(i),10.0_r_kind)
+                    else
+                       errf(i) = min(three*errf(i),10.0_r_kind)
+                    endif
+                 else if(radmod%rtype == 'amsr2') then
+                    if( (i >=7 .and. i <=14) ) then
+                       errf(i) = min(two*errf(i),ermax_rad(m))
+                    else
+                       errf(i) = min(three*errf(i),ermax_rad(m))
+                    endif
                  else if(radmod%rtype == 'gmi') then
                     errf(i) = min(2.0_r_kind*errf(i),ermax_rad(m))
-                 else if (radmod%rtype/='amsua' .and. radmod%rtype/='atms' .and. radmod%rtype/='gmi' .and. radmod%lcloud4crtm(i)>=0) then
+                 else if (radmod%rtype/='amsua' .and. radmod%rtype/='atms' .and. radmod%rtype/='gmi' .and. &
+                         radmod%rtype/='mws' .and. radmod%lcloud4crtm(i)>=0) then
                     errf(i) = three*errf(i)    
                  else 
                     errf(i) = min(three*errf(i),ermax_rad(m))
@@ -1660,11 +1739,13 @@ contains
            end if
         end do
 
-        if(amsua .or. atms .or. amsub .or. mhs .or. msu .or. hsb)then
+        if(amsua .or. atms .or. mws .or. amsub .or. mhs .or. msu .or. hsb)then
            if(amsua)then
               nlev=6
            else if(atms)then
               nlev=7
+           else if(mws)then
+              nlev=8
            else if(amsub .or. mhs)then
               nlev=5
            else if(hsb)then
@@ -1681,7 +1762,7 @@ contains
                  kval=max(i-1,kval)
                  if(amsub .or. hsb .or. mhs)then
                     kval=nlev
-                 else if((amsua .or. atms) .and. i <= 3) then
+                 else if((amsua .or. atms .or. mws) .and. i <= 3) then
                     kval = zero
                  end if
               end if
@@ -1699,6 +1780,11 @@ contains
                  if(id_qc(16) == igood_qc)id_qc(16)=ifail_interchan_qc
                  if(id_qc(17) == igood_qc)id_qc(17)=ifail_interchan_qc
                  if(id_qc(18) == igood_qc)id_qc(18)=ifail_interchan_qc
+              else if (mws) then
+                 varinv(17:19)=zero
+                 if(id_qc(17) == igood_qc)id_qc(17)=ifail_interchan_qc
+                 if(id_qc(18) == igood_qc)id_qc(18)=ifail_interchan_qc
+                 if(id_qc(19) == igood_qc)id_qc(19)=ifail_interchan_qc
               end if
            end if
 
@@ -1784,14 +1870,14 @@ contains
         account_for_corr_obs = .false.
         varinv0=zero
         raterr2 = zero
-!$omp parallel do  schedule(dynamic,1) private(ii,m,k,asum)
+!##!$omp parallel do  schedule(dynamic,1) private(ii,m,k,asum)
         do ii=1,nchanl
            m=ich(ii)
            if (varinv(ii)>tiny_r_kind .and. iuse_rad(m)>=1) then
              varinv0(ii)=varinv(ii)
              raterr2(ii)=error0(ii)**2*varinv0(ii)
              if (l_may_be_passive .and. .not. retrieval) then
-               if(optconv > zero .and. (iasi .or. cris) .and. iinstr /= -1)then
+               if(optconv > zero .and. (iasi .or. iasing .or. cris) .and. iinstr /= -1)then
                  asum=zero
                  do k=1,nsig
                    asum=asum+abs(jacobian(iqs+k,ii))*qs(k)

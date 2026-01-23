@@ -76,7 +76,7 @@ contains
   !$$$ end documentation block
   
       use kinds, only: i_kind,r_kind
-      use mpimod, only: mpi_integer4,mpi_rtype
+      use mpimod, only: mpi_integer4,mpi_rtype,mpi_itype
       use gridmod, only: wrf_mass_regional,wrf_nmm_regional,&
          nems_nmmb_regional,cmaq_regional,&
          twodvar_regional,netcdf
@@ -88,6 +88,8 @@ contains
       use mpimod, only: mpi_comm_world,ierror
       use wrf_params_mod, only: update_pint,cold_start
       use gsi_io, only: verbose
+      use rapidrefresh_cldsurf_mod, only: i_howv_3dda, i_gust_3dda, i_vis_3dda
+      use rapidrefresh_cldsurf_mod, only: i_howv_mask, i_sfcrough_fgs
 
       implicit none
   
@@ -145,7 +147,17 @@ contains
          end if
          call mpi_barrier(mpi_comm_world,ierror)
          call mpi_bcast(byte_swap,1,mpi_integer4,0,mpi_comm_world,ierror)
+         call mpi_bcast(i_howv_3dda, 1, mpi_itype, 0, mpi_comm_world, ierror)
+         call mpi_bcast(i_gust_3dda, 1, mpi_itype, 0, mpi_comm_world, ierror)
+         call mpi_bcast(i_vis_3dda,  1, mpi_itype, 0, mpi_comm_world, ierror)
+         call mpi_bcast(i_howv_mask, 1, mpi_itype, 0, mpi_comm_world, ierror)
+         call mpi_bcast(i_sfcrough_fgs, 1, mpi_itype, 0, mpi_comm_world, ierror)
          if(print_verbose)write(6,*)' in convert_regional_guess, for wrf arw binary input, byte_swap=',byte_swap
+         if (mype <= 1 .and. print_verbose) then
+            write(6,'(1x,A,5(2x,I4),2x,A6,I6.6,A2)')                                   &
+              ' in convert_regional_guess, i_howv_3dda i_gust_3dda i_vis_3dda i_howv_mask i_sfcrough_fgs=',     &
+              i_howv_3dda,i_gust_3dda,i_vis_3dda,i_howv_mask,i_sfcrough_fgs,'  (pe=',mype,').'
+         end if
   
       elseif (cmaq_regional) then
          if (mype==0) then

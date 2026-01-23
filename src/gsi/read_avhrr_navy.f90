@@ -255,6 +255,7 @@ subroutine read_avhrr_navy(mype,val_avhrr,ithin,rmesh,jsatid,&
   next=0
 
 ! Read BUFR Navy data
+  nrec = 999999
   irec=0
   read_msg: do while (ireadmg(lnbufr,subset,idate) >= 0)
      irec=irec+1

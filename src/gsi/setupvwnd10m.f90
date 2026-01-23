@@ -32,6 +32,8 @@ subroutine setupvwnd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
 !   2018-01-08  pondeca - addd option l_closeobs to use closest obs to analysis
 !                                     time in analysis
 !   2020-05-04  wu   - no rotate_wind for fv3_regional
+!   2022-04-16  pondeca - write bias correction multiplicative factor for mesonet
+!                         winds, windbiasfact, to diagnostic file
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -145,6 +147,7 @@ subroutine setupvwnd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
   integer(i_kind) i,nchar,nreal,k,ii,ikxx,nn,isli,ibin,ioff,ioff0,jj,itype
   integer(i_kind) l,mm1
   integer(i_kind) idomsfc,iskint,iff10,isfcr
+  integer(i_kind) ibiascor
   
   logical,dimension(nobs):: luse,muse
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
@@ -219,6 +222,7 @@ subroutine setupvwnd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
   izz=21      ! index of surface height
   iprvd=22    ! index of provider
   isprvd=23   ! index of subprovider
+  ibiascor=26 ! index of multiplicative factor for ob bias correction
 
   mm1=mype+1
   scale=one
@@ -277,7 +281,7 @@ subroutine setupvwnd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
      ioff0=23
      nreal=ioff0
      if (lobsdiagsave) nreal=nreal+4*miter+1
-     if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
+     if (twodvar_regional) then; nreal=nreal+3; allocate(cprvstg(nobs),csprvstg(nobs)); endif
      if (binary_diag) allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
      if (netcdf_diag) call init_netcdf_diag_
   end if
@@ -954,6 +958,7 @@ subroutine setupvwnd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
            cprvstg(ii)     = c_prvstg               ! provider name
            r_sprvstg       = data(isprvd,i)
            csprvstg(ii)    = c_sprvstg              ! subprovider name
+           rdiagbuf(ioff+3,ii) = data(ibiascor,i)      !bias correction a-factor
         endif
  
   end subroutine contents_binary_diag_
@@ -1048,6 +1053,7 @@ subroutine setupvwnd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
            cprvstg(ii)     = c_prvstg               ! provider name
            r_sprvstg       = data(isprvd,i)
            csprvstg(ii)    = c_sprvstg              ! subprovider name
+           call nc_diag_metadata("bias_correction_a_factor", sngl(data(ibiascor,i))    )
         endif
   
   end subroutine contents_netcdf_diag_

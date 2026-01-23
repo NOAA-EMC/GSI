@@ -278,7 +278,7 @@ if (nobs_sat > 0) then
                   sqrt(sumerr_sat(nchan))
      end if
   end do
-9805 format(a20,i4,1x,i5,5(1x,e10.3))
+9805 format(a20,1x,i5,1x,i5,5(1x,e10.3))
 end if !nobs_sat>0
 end subroutine print_innovstats
 

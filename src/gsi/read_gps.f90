@@ -61,6 +61,8 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 !   2017-11-16  dutta   - addition of profile quality flags for KOMPSAT5 GPSRO.
 !   2019-08-21  Shao    - add qc flags input for METOP-C, COSMIC-2 and PAZ
 !   2020-05-21  Shao    - add qc flags input for commercial GNSSRO data
+!   2025-01-21  Li      - add LSW variables
+!   2025-02-05  Li      - unify the quality flag for CDACC and GRAS - QFRO used for both 
 !
 !   input argument list:
 !     infile   - unit from which to read BUFR data
@@ -102,7 +104,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 
 ! Declare local parameters  
   integer(i_kind),parameter:: maxlevs=500
-  integer(i_kind),parameter:: maxinfo=16
+  integer(i_kind),parameter:: maxinfo=18
   real(r_kind),parameter:: r10000=10000.0_r_kind
   real(r_kind),parameter:: r360=360.0_r_kind
 
@@ -129,12 +131,20 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 
 
   integer(i_kind),allocatable,dimension(:):: gpsro_itype,gpsro_ikx,nmrecs_id
-  
+  !!!! LSW Check Variables 
+  real(r_kind) real_lsw,real_flsw,fraclsw,lsw_flag_hold
+  integer(i_kind) keep_level,keep_level_sorted,count_check
+  real(r_kind),allocatable,dimension(:) :: bend4060,lsw_flag,&
+                                           sorted_lsw,sorted_fraclsw,sorted_impact, &
+                                           test_qc,array_lsw,array_fraclsw,array_impact, &
+                                           sorted_lswflag
+  integer(i_kind),allocatable,dimension(:) :: indices
+  !!!!  
   real(r_kind) timeo,t4dv
   real(r_kind) pcc,qfro,usage,dlat,dlat_earth,dlon,dlon_earth,freq_chk,freq
   real(r_kind) dlat_earth_deg,dlon_earth_deg
   real(r_kind) height,rlat,rlon,ref,bend,impact,roc,geoid,&
-               bend_error,ref_error,bend_pccf,ref_pccf
+               bend_error,ref_error,bend_pccf,ref_pccf,bend_lsw
 
   real(r_kind),allocatable,dimension(:,:):: cdata_all
  
@@ -257,45 +267,31 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
            endif
         endif
  
-! Check profile quality flags
-        if ( ((said > 739).and.(said < 746)).or.(said == 820).or.(said == 786).or. &
-             ((said > 749).and.(said < 756)).or.(said == 825).or.(said == 44) .or. &
-              (said == 265).or.(said == 266).or.(said == 267).or.(said == 268).or. & 
-              (said == 269)) then  !CDAAC processing
-           if(pcc==zero) then
-!             write(6,*)'READ_GPS:  bad profile said=',said,'ptid=',ptid,&
-!                 ' SKIP this report'
-              cycle read_loop
-           endif
+! Check profile quality flags - qfro
+
+        call upftbv(lnbufr,nemo,qfro,mxib,ibit,nib)
+        lone = .false.
+        if(nib > 0) then
+          do i=1,nib
+            if(ref_obs) then
+              if(ibit(i)== 6) then
+                 lone = .true.
+                 exit
+              endif
+            else
+              if(ibit(i)== 5) then
+                 lone = .true.
+                 exit
+              endif
+            endif
+          enddo
+        endif 
+
+        if(lone) then
+           write(6,*)'READ_GPS:  bad profile said=',said,'ptid=',ptid,&
+                ' SKIP this report'
+           cycle read_loop
         endif
-
-        if ((said == 4).or.(said == 3).or.(said == 421).or.(said == 440).or.&
-            (said == 821).or.(said == 5)) then ! GRAS SAF processing
-           call upftbv(lnbufr,nemo,qfro,mxib,ibit,nib)
-           lone = .false.
-             if(nib > 0) then
-               do i=1,nib
-                 if(ref_obs) then
-                    if(ibit(i)== 6) then
-                       lone = .true.
-                       exit
-                    endif
-                 else
-                    if(ibit(i)== 5) then
-                       lone = .true.
-                       exit
-                    endif
-                 endif
-               enddo
-             endif 
-
-           if(lone) then
-              write(6,*)'READ_GPS:  bad profile said=',said,'ptid=',ptid,&
-                   ' SKIP this report'
-              cycle read_loop
-           endif
-        endif
-
 
 ! Read bending angle information
 ! Get the number of occurences of sequence ROSEQ2 in this subset
@@ -340,6 +336,46 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
            if(mod(nmrecs,ncnumgrp(ikx))== ncgroup(ikx)-1)usage=ncmiter(ikx)
         end if
 
+! New LSW Check 
+        if (allocated(lsw_flag)) deallocate(lsw_flag)
+        allocate(array_lsw(levs),array_fraclsw(levs),array_impact(levs), &
+                 sorted_lsw(levs),sorted_fraclsw(levs),sorted_impact(levs), &
+                 indices(levs),lsw_flag(levs),sorted_lswflag(levs))
+        lsw_flag(:) = 0.0_r_kind
+        sorted_lswflag(:) = 0.0_r_kind
+        do k=1, levs
+           do i=1,nreps_this_ROSEQ2(k)
+              m=(6*i)-2
+              freq_chk=data1b(m,k)      ! frequency (hertz)
+              if(nint(freq_chk).ne.0) cycle ! do not want non-zero freq., go on to next replication of ROSEQ2
+              freq=data1b(m,k)
+              array_impact(k)=(data1b(m+1,k) -  roc)/1000._r_kind      ! impactparameter (m)
+              array_lsw(k) = data1b(m+4,k)  ! RMSE in bending angle (rad)
+              if (data1b(m+2,k) > zero) then
+                array_fraclsw(k) = (data1b(m+4,k)/data1b(m+2,k))*100._r_kind
+              else
+                array_fraclsw(k) = 40._r_kind
+              endif
+           enddo
+        enddo
+        !
+        call sort(levs,array_impact,indices)
+        do k=1,levs
+          sorted_impact(k) = array_impact(indices(k))
+          sorted_lsw(k) = array_lsw(indices(k))
+          sorted_fraclsw(k) = array_fraclsw(indices(k))
+          if (array_lsw(indices(k)) > 1.0e8 .and. array_impact(indices(k)) <= 10._r_kind) then
+            lsw_flag(indices(k)) = 2.0_r_kind
+            sorted_lswflag(k) = 2.0_r_kind
+          else if (array_fraclsw(indices(k)) > 35._r_kind .and. array_lsw(indices(k)) < 1.0e8 &
+                   .and. array_impact(indices(k)) <= 10._r_kind) then
+            lsw_flag(indices(k)) = 1.0_r_kind
+            sorted_lswflag(k) = 1.0_r_kind
+          endif
+        enddo
+        deallocate(array_lsw,array_fraclsw,array_impact, &
+                 sorted_lsw,sorted_fraclsw,sorted_impact,indices,sorted_lswflag)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Loop over levs in profile
         do k=1, levs
            nread=nread+1  ! count observations
@@ -359,6 +395,8 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
               impact=data1b(m+1,k)      ! impact parameter (m)
               bend=data1b(m+2,k)        ! bending angle (rad)
               bend_error=data1b(m+4,k)  ! RMSE in bending angle (rad)
+              bend_lsw = data1b(m+4,k)  ! Bend Lsw
+              lsw_flag_hold = lsw_flag(k)
            enddo
            bend_pccf=data1b((6*nreps_this_ROSEQ2(k))+4,k)  ! percent confidence for this ROSEQ1 replication
 
@@ -368,7 +406,8 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
            good=.true.
            if((abs(rlat)>90._r_kind).or.(abs(rlon)>r360).or.(height<=zero)) then
               good=.false.
-           else if (ref_obs) then
+           endif
+           if (ref_obs) then
               if ((ref>=1.e+9_r_kind).or.(ref<=zero).or.(height>=1.e+9_r_kind)) then
                  good=.false.
               endif
@@ -420,11 +459,15 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
                  cdata_all(4,ndata) = height         ! geometric height above geoid (m)
                  cdata_all(5,ndata) = ref            ! refractivity obs (units of N)
 !                cdata_all(9,ndata) = ref_pccf       ! per cent confidence (%)
+                 cdata_all(17,ndata) = 0.0_r_kind
+                 cdata_all(18,ndata) = -99.0_r_kind
               else
                  cdata_all(1,ndata) = bend_error     ! gps bending error (radians)
                  cdata_all(4,ndata) = impact         ! impact parameter (m)
                  cdata_all(5,ndata) = bend           ! bending angle obs (radians)
 !                cdata_all(9,ndata) = bend_pccf      ! per cent confidence (%)
+                 cdata_all(17,ndata) = bend_lsw
+                 cdata_all(18,ndata) = lsw_flag_hold
               endif
               cdata_all(9,ndata) = pcc             ! profile per cent confidence (0 or 100)
               cdata_all(2,ndata) = dlon            ! grid relative longitude
@@ -447,7 +490,7 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
 
 ! End of k loop over levs
         end do
-
+        deallocate(lsw_flag)
      enddo read_loop        ! subsets
   enddo                     ! messages
 
@@ -475,6 +518,65 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
   deallocate(gpsro_ctype,gpsro_itype,gpsro_ikx,nmrecs_id)
 
   return
+contains
+subroutine sort(num,x,indx)
+integer(i_kind),  intent(in)  :: num
+real(r_kind),     intent(in)  :: x(num)
+integer(i_kind),  intent(inout) :: indx(num)
+
+integer(i_kind)  :: ind, i, j, value_indx, line
+real(r_kind) :: values
+
+! Initialize the index array to input order
+do i = 1, num
+   indx(i) = i
+end do
+
+! Only one element, just send it back
+if(num <= 1) return
+
+line = num / 2 + 1
+ind = num
+
+! Keep looping until finished
+do
+   ! Keep going down lines until bottom
+   if(line > 1) then
+      line = line - 1
+      values = x(indx(line))
+      value_indx = indx(line)
+   else
+      values = x(indx(ind))
+      value_indx = indx(ind)
+
+      indx(ind) = indx(1)
+      ind = ind - 1
+      if(ind == 1) then
+         indx(1) = value_indx
+         return
+      endif
+   endif
+
+   i = line
+   j = 2 * line
+
+   do while(j <= ind)
+      if(j < ind) then
+         if(x(indx(j)) < x(indx(j + 1))) j = j + 1
+      endif
+      if(values < x(indx(j))) then
+         indx(i) = indx(j)
+         i = j
+         j = 2 * j
+      else
+         j = ind + 1
+      endif
+   end do
+
+   indx(i) = value_indx
+end do
+end subroutine sort
+
 end subroutine read_gps
 
 

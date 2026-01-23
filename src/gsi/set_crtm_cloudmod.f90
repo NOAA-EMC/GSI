@@ -187,7 +187,7 @@ CONTAINS
               cloud(n)%Effective_Radius(:) = cloud_efr(:,n)
            else
              !cloud(n)%Effective_Radius(:) = EftSize_(cloud_name(jcloud(n))) 
-              if ( imp_physics==11 .and. lprecip ) then
+              if (lprecip) then
                  cloud(n)%Effective_Radius(:) = cloud_efr(:,n)
               else
                  do k = 1, km

@@ -875,6 +875,11 @@ subroutine special_eigvv(qmat0,hmat0,smat0,nmat,swww0,szzz0,swwwd0,szzzd0,nvmode
 
 !      iterative improvement to get eigvals, eigvects of qtildemat
 
+  !$omp parallel do default(none), &
+  !$omp& private(i,sum,j,eigval_this,iret,dist_to_closest_eigval, &
+  !$omp&   perturb_eigval,aminv,aminvt,err_aminv,noskip,istop,eigval_next), &
+  !$omp& shared(nvmodes_keep,szzz,szzzd,btemp,nmat,eigvals,qtildemat, &
+  !$omp&   swww,swwwd,print_verbose,zero_quad,one_quad)
   do i=1,nvmodes_keep
      szzz(:,i)=btemp(:,i)
      szzzd(:,i)=btemp(:,i)

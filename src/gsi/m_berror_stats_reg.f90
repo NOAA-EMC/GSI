@@ -313,6 +313,8 @@ end subroutine berror_read_bal_reg
       use mpeu_util,only: getindex
       use radiance_mod, only: icloud_cv,n_clouds_fwd,cloud_names_fwd
       use chemmod, only: berror_fv3_cmaq_regional,berror_fv3_sd_regional
+      use rapidrefresh_cldsurf_mod, only: corp_gust, hwllp_gust, l_rtma3d
+      use rapidrefresh_cldsurf_mod, only: corp_vis,  hwllp_vis
 
       implicit none
 
@@ -825,11 +827,35 @@ end subroutine berror_read_bal_reg
 !       end if
      else if (n==nrf2_gust) then
         do i=1,mlat
-           corp(i,n)=three
+           corp(i,n)=three    ! background error stddev of wind gust = 3 m/s (default: legacy code from 2DRTMA) 
         end do
         do i=0,mlat+1
-           hwllp(i,n)=hwll(i,1,nrf3_q)
+           hwllp(i,n)=hwll(i,1,nrf3_q)  ! de-correlation length of bkgd error of gust is
+                                        ! same as the value of q at bottom level (default: legacy code from 2DRTMA)
+                                        ! for other DA apps, it is recommended to change it 
+                                        ! by setting hwllp_gust in GSI namelist.
         end do
+        if ( l_rtma3d ) then  ! For 3drtma only: allowing to change the stddev and 
+                              ! de-correlation length of bkgd error of gust:
+                              !   corp_gust : set in namelist(if <=0, using default value above (3.0)
+                              !   hwllp_gust: set in namelist(if <=0, using default value above (value of q)
+           if ( corp_gust  .gt. 0.0_r_kind ) then
+              corp(1:mlat,   n) = corp_gust
+              if (mype==0) write(6,'(1x,A,A,I5.5,A,F8.3)') &
+                           myname_,"@pe=",mype," (3drtma) set b_error stddev of gust = ",corp_gust
+           else
+              if (mype==0) write(6,'(1x,A,A,I5.5,A,F8.3)') &
+                           myname_,"@pe=",mype," (3drtma) set b_error stddev of gust (default) = ",three
+           end if
+           if ( hwllp_gust .gt. 0.0_r_kind ) then
+              hwllp(0:mlat+1,n) = hwllp_gust
+              if (mype==0) write(6,'(1x,A,A,I5.5,A,F12.3)') &
+                           myname_,"@pe=",mype," (3drtma) set b_error de-corr length of gust = ",hwllp_gust
+           else
+              if (mype==0) write(6,'(1x,A,A,I5.5,A)') &
+                           myname_,"@pe=",mype," (3drtma) set b_error de-corr length of gust is same as length of q."
+           end if
+        end if
      else if (n==nrf2_vis) then
         do i=1,mlat
            corp(i,n)=3.0_r_kind
@@ -837,6 +863,28 @@ end subroutine berror_read_bal_reg
         do i=0,mlat+1
            hwllp(i,n)=hwll(i,1,nrf3_t)
         end do
+        if ( l_rtma3d ) then  ! For 3drtma only: allowing to change the stddev and 
+                              ! de-correlation length of bkgd error of visibility:
+                              !   corp_vis : set in namelist(if <=0, using default value above (3.0)
+                              !   hwllp_vis: set in namelist(if <=0, using default value above (value of t)
+                              !   Be aware that they are in transformed analysis g-space, not physical space.
+           if ( corp_vis  .gt. 0.0_r_kind ) then
+              corp(1:mlat,   n) = corp_vis
+              if (mype==0) write(6,'(1x,A,A,I5.5,A,F8.3)') &
+                           myname_,"@pe=",mype," (3drtma) set b_error stddev of visibility = ",corp_vis
+           else
+              if (mype==0) write(6,'(1x,A,A,I5.5,A,F8.3)') &
+                           myname_,"@pe=",mype," (3drtma) set b_error stddev of visibility (default) = ",three
+           end if
+           if ( hwllp_vis .gt. 0.0_r_kind ) then
+              hwllp(0:mlat+1,n) = hwllp_vis
+              if (mype==0) write(6,'(1x,A,A,I5.5,A,F12.3)') &
+                           myname_,"@pe=",mype," (3drtma) set b_error de-corr length of visibility = ",hwllp_vis
+           else
+              if (mype==0) write(6,'(1x,A,A,I5.5,A)') &
+                           myname_,"@pe=",mype," (3drtma) set b_error de-corr length of visibility is same as length of t."
+           end if
+        end if
      else if (n==nrf2_pblh) then
         do i=1,mlat
            corp(i,n)=500.0_r_kind
@@ -1142,7 +1190,7 @@ subroutine read_howv_stats(nlat,nlon,npar,arrout,mype)
       arrout(:,:,2)=50000.0_r_kind        ! values were specified by Manuel and Stelio for 2DRTMA
    else
       arrout(:,:,1) = corp_howv           ! 0.42_r_kind used in 3dvar (default) if not set in namelist
-      arrout(:,:,2) = hwllp_howv          ! 17000.0_r_kind used in 3dvar (default) if not set in namelist
+      arrout(:,:,2) = hwllp_howv          ! 170,000.0_r_kind used in 3dvar (default) if not set in namelist
    end if
 
    reclength=nlat*r_kind

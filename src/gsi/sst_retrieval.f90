@@ -86,7 +86,7 @@ contains
 
 ! Define parameters
   
-    character(10)  , intent(in   ) :: obstype,csatid
+    character(len=*), intent(in   ) :: obstype,csatid
     integer(i_kind), intent(in   ) :: mype
 
     integer(i_kind) i
@@ -173,7 +173,7 @@ contains
          dtp_avh
     real(r_kind),dimension(nchanl)           , intent(in   ) :: ts
     real(r_kind),dimension(nsig,nchanl)      , intent(in   ) :: wmix,temp
-    character(10)                            , intent(in   ) :: csatid
+    character(len=*)                         , intent(in   ) :: csatid
     logical                                  , intent(in   ) :: duse
     real(r_kind)                             , intent(  out) :: sstph,dta,dqa
 

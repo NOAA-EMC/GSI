@@ -381,3 +381,101 @@ subroutine unfill_mass_grid2t_drycheck(gout,nx,ny,gin,qs)
   end do
   
 end subroutine unfill_mass_grid2t_drycheck
+
+subroutine unfill_mass_grid2t_ldlkmask(gout,nx,ny,gin,landmask, &
+                            lakemask,i_howv_mask)
+!$$$  subprogram documentation block
+!                .      .    .                                       .
+! subprogram:    unfill_mass_grid2t_ldlkmask
+!   prgmmr: zhao             org: saic@ncep/emc       date: 2025-01-28
+!
+! abstract: This subroutine is based on subroutine unfill_mass_grid2t andi
+!           unfill_mass_grid2t_ldmk, but screen off analysis increment over
+!           land and/or lake area with land-mask and lake-mask. 
+!
+!
+! program history log:
+!   2025-01-28  zhao    - apply land and lake mask for howv (wave height) fields
+!
+!   input argument list:
+!     gout     - input A-grid (reorganized for distibution to local domains)
+!     gin      - preexisting input values to be added to on C-grid
+!     nx,ny    - input grid dimensions
+!     landmask - land mask (0: water, 1: land)
+!     lakemask - lake mask (0: sea and land (including Great Lakes), 1: lake)
+!     i_howv_mask - input option for HOWV adjustment
+!                  = 0: no adjustment
+!                  = 1: mask off data over land
+!                  = 2: mask off data over land and lake
+!
+!   output argument list:
+!     gin      - output result on C grid
+!
+! attributes:
+!   language: f90
+!   machine:  ibm RS/6000 SP
+!
+!$$$
+  use kinds, only: r_single,i_kind
+  use gridmod, only: itotsub,iglobal
+  use general_commvars_mod, only: ltosi,ltosj
+  use mod_wrfmass_to_a, only: wrfmass_a_to_h4
+  use gridmod, only: nlon, nlat
+
+  implicit none
+
+  integer(i_kind), intent(in   ) :: nx,ny
+  real(r_single) , intent(in   ) :: gout(itotsub)
+  real(r_single) , intent(inout) :: gin(nx,ny)
+  real(r_single) , intent(in)    :: landmask(nx,ny)
+  real(r_single) , intent(in)    :: lakemask(nx,ny)
+  integer(i_kind), intent(in   ) :: i_howv_mask
+  
+  real(r_single) ba(nlon,nlat)
+  real(r_single) b(nx,ny)
+  integer(i_kind) i,j
+
+  do i=1,iglobal
+     ba(ltosj(i),ltosi(i))=gout(i)
+  end do
+
+  if(nlon == nx .and. nlat == ny) then
+     b=ba
+  else
+     call wrfmass_a_to_h4(ba,b)
+  endif
+
+! Only add analysis increment over sea water (no land and lake)
+  select case (i_howv_mask)
+    case(2)
+      write(6,*) 'unfill_mass_grid2t_ldlkmask: using landlakemask to screen off HOWV analysis increment over land and lake.'
+      do j=1,ny
+        do i=1,nx
+          if (landmask(i,j) > 0.00001_r_single  .or. lakemask(i,j) > 0.00001_r_single) then
+            b(i,j) = 0.0_r_single
+          end if
+       end do
+      end do
+    case(1)
+      write(6,*) 'unfill_mass_grid2t_ldlkmask: using landmask to screen off HOWV analysis increment over land.'
+      do j=1,ny
+        do i=1,nx
+          if (landmask(i,j) > 0.00001_r_single) then
+            b(i,j) = 0.0_r_single
+          end if
+       end do
+      end do
+    case default 
+      write(6,*) 'unfill_mass_grid2t_ldlkmask: no land iand lake mask used to screen off HOWV analysis increment.'
+  end select
+
+! Mass grids--just copy
+  do j=1,ny
+     do i=1,nx
+        gin(i,j)=b(i,j)+gin(i,j)
+     end do
+  end do
+
+  return
+  
+end subroutine unfill_mass_grid2t_ldlkmask

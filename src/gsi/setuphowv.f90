@@ -68,6 +68,7 @@ subroutine setuphowv(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
                     lobsdiagsave,nobskeep,lobsdiag_allocated, & 
                     time_offset,bmiss,luse_obsdiag,ianldate
   use obsmod, only: netcdf_diag, binary_diag, dirname
+  use obsmod, only: l_obsprvdiag
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
        nc_diag_write, nc_diag_data2d
   use nc_diag_read_mod, only: nc_diag_read_init, nc_diag_read_get_dim, nc_diag_read_close
@@ -230,7 +231,7 @@ subroutine setuphowv(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
      ioff0=19
      nreal=ioff0
      if (lobsdiagsave) nreal=nreal+4*miter+1
-     if (twodvar_regional) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
+     if (twodvar_regional .or. l_obsprvdiag) then; nreal=nreal+2; allocate(cprvstg(nobs),csprvstg(nobs)); endif
      allocate(cdiagbuf(nobs),rdiagbuf(nreal,nobs))
      if (netcdf_diag) call init_netcdf_diag_
   end if
@@ -443,7 +444,7 @@ subroutine setuphowv(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
        write(7)cdiagbuf(1:ii),rdiagbuf(:,1:ii)
        deallocate(cdiagbuf,rdiagbuf)
 
-      if (twodvar_regional) then
+      if (twodvar_regional .or. l_obsprvdiag) then
          write(7)cprvstg(1:ii),csprvstg(1:ii)
          deallocate(cprvstg,csprvstg)
       endif
@@ -623,7 +624,7 @@ subroutine setuphowv(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
            enddo
         endif
 
-        if (twodvar_regional) then
+        if (twodvar_regional .or. l_obsprvdiag) then
            rdiagbuf(ioff+1,ii) = data(idomsfc,i) ! dominate surface type
            rdiagbuf(ioff+2,ii) = data(izz,i)     ! model terrain at observation location
            r_prvstg        = data(iprvd,i)
@@ -680,7 +681,7 @@ subroutine setuphowv(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diag
               call nc_diag_data2d("ObsDiagSave_obssen",   odiag%obssen   )             
            endif
    
-           if (twodvar_regional) then
+           if (twodvar_regional .or. l_obsprvdiag) then
               call nc_diag_metadata("Dominant_Sfc_Type", data(idomsfc,i)              )
               call nc_diag_metadata("Model_Terrain",     data(izz,i)                  )
               r_prvstg            = data(iprvd,i)

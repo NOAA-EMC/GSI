@@ -1149,7 +1149,6 @@ subroutine deter_sfc_fov(fov_flag,ifov,instr,ichan,sat_aziang,dlat_earth_deg,&
 !    "chopped" into smaller pieces.
 
      if (sum(sfc_sum%count) == zero) then
-        close(9)
         subgrid_lengths_x = subgrid_lengths_x + 1
         subgrid_lengths_y = subgrid_lengths_y + 1
 !       print*,'NO GRID POINTS INSIDE FOV, CHOP MODEL BOX INTO FINER PIECES',subgrid_lengths_x,subgrid_lengths_y
@@ -1410,7 +1409,7 @@ subroutine deter_sfc_gmi(dlat_earth,dlon_earth,isflg)
      n_grid=int(40000 / grid_dist) + 1
      klatn = max(klat1 - n_grid, 1)
      klonn = klon1 - n_grid
-     if (klonn < 0)  klonn = nlon_sfc - klonn
+     if (klonn < 1)  klonn = nlon_sfc - klonn
      klatpn = min((klat1 + n_grid), nlat_sfc)
      klonpn = klon1 + n_grid
      if (klonpn > nlon_sfc)  klonpn = klonpn - nlon_sfc

@@ -8,44 +8,43 @@
 #
 # Thank you for your contribution
 
+# Overwrite auto-detect in in container
+if [[ -v SINGULARITY_CONTAINER ]]; then
+  MACHINE_ID=container
+fi
+
 # If the MACHINE_ID variable is set, skip this script.
 [[ -n ${MACHINE_ID:-} ]] && return
 
 # First detect w/ hostname
 case $(hostname -f) in
 
-  adecflow0[12].acorn.wcoss2.ncep.noaa.gov)  MACHINE_ID=acorn ;; ### acorn
-  alogin0[12].acorn.wcoss2.ncep.noaa.gov)    MACHINE_ID=acorn ;; ### acorn
+  adecflow0[1-3].acorn.wcoss2.ncep.noaa.gov)  MACHINE_ID=acorn ;; ### acorn
+  alogin0[1-3].acorn.wcoss2.ncep.noaa.gov)    MACHINE_ID=acorn ;; ### acorn
   clogin0[1-9].cactus.wcoss2.ncep.noaa.gov)  MACHINE_ID=wcoss2 ;; ### cactus01-9
   clogin10.cactus.wcoss2.ncep.noaa.gov)      MACHINE_ID=wcoss2 ;; ### cactus10
   dlogin0[1-9].dogwood.wcoss2.ncep.noaa.gov) MACHINE_ID=wcoss2 ;; ### dogwood01-9
   dlogin10.dogwood.wcoss2.ncep.noaa.gov)     MACHINE_ID=wcoss2 ;; ### dogwood10
 
-  gaea5[1-8])          MACHINE_ID=gaea ;; ### gaea51-58
-  gaea5[1-8].ncrc.gov) MACHINE_ID=gaea ;; ### gaea51-58
+  gaea6[1-8])          MACHINE_ID=gaeac6 ;; ### gaea61-68
+  gaea6[1-8].ncrc.gov) MACHINE_ID=gaeac6 ;; ### gaea61-68
 
   hfe0[1-9]) MACHINE_ID=hera ;; ### hera01-09
   hfe1[0-2]) MACHINE_ID=hera ;; ### hera10-12
   hecflow01) MACHINE_ID=hera ;; ### heraecflow01
 
-  s4-submit.ssec.wisc.edu) MACHINE_ID=s4 ;; ### s4
-
-  fe[1-8]) MACHINE_ID=jet ;; ### jet01-8
-  tfe[12]) MACHINE_ID=jet ;; ### tjet1-2
+  ufe0[1-9]) MACHINE_ID=ursa ;; ### ursa01-09
+  ufe1[0-2]) MACHINE_ID=ursa ;; ### ursa10-12
+  uecflow01) MACHINE_ID=ursa ;; ### ursaecflow01
 
   Orion-login-[1-4].HPC.MsState.Edu) MACHINE_ID=orion ;; ### orion1-4
 
   [Hh]ercules-login-[1-4].[Hh][Pp][Cc].[Mm]s[Ss]tate.[Ee]du) MACHINE_ID=hercules ;; ### hercules1-4
 
-  login[1-4].stampede2.tacc.utexas.edu) MACHINE_ID=stampede ;; ### stampede1-4
-
-  login0[1-2].expanse.sdsc.edu) MACHINE_ID=expanse ;; ### expanse1-2
-
-  discover3[1-5].prv.cube) MACHINE_ID=discover ;; ### discover31-35
   *) MACHINE_ID=UNKNOWN ;;  # Unknown platform
 esac
 
-if [[ ${MACHINE_ID} == "UNKNOWN" ]]; then 
+if [[ ${MACHINE_ID} == "UNKNOWN" ]]; then
    case ${PW_CSP:-} in
       "aws" | "google" | "azure") MACHINE_ID=noaacloud ;;
       *) PW_CSP="UNKNOWN"
@@ -67,26 +66,25 @@ if [[ -d /lfs/h3 ]]; then
 elif [[ -d /lfs/h1 && ! -d /lfs/h3 ]]; then
   # We are on NOAA TDS Acorn
   MACHINE_ID=acorn
-elif [[ -d /mnt/lfs1 ]]; then
-  # We are on NOAA Jet
-  MACHINE_ID=jet
-elif [[ -d /scratch1 ]]; then
-  # We are on NOAA Hera
-  MACHINE_ID=hera
+elif [[ -d /scratch3 ]]; then
+  # We are on NOAA Hera or Ursa
+  mount=$(findmnt -n -o SOURCE /home)
+  if [[ ${mount} =~ "ursa" ]]; then
+    MACHINE_ID=ursa
+  else
+    MACHINE_ID=hera
+  fi
 elif [[ -d /work ]]; then
   # We are on MSU Orion or Hercules
-  if [[ -d /apps/other ]]; then
-    # We are on Hercules
+  mount=$(findmnt -n -o SOURCE /home)
+  if [[ ${mount} =~ "hercules" ]]; then
     MACHINE_ID=hercules
   else
     MACHINE_ID=orion
   fi
-elif [[ -d /gpfs && -d /ncrc ]]; then
-  # We are on GAEA.
-  MACHINE_ID=gaea
-elif [[ -d /data/prod ]]; then
-  # We are on SSEC's S4
-  MACHINE_ID=s4
+elif [[ -d /gpfs/f6 ]]; then
+  # We are on GAEAC6.
+  MACHINE_ID=gaeac6
 else
   echo WARNING: UNKNOWN PLATFORM 1>&2
 fi

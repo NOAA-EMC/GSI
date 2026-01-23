@@ -228,6 +228,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 !                         new module interface name. gpsStats_destroy().
 !   2016-11-29 shlyaeva - increase the size of nreal for saving linearized Hx for EnKF
 !   2016-12-09 mccarty  - add ncdiag writing support
+!   2024-12-17 li       - add new hybrid obs error model by Chris Riedel
 !
 !   input argument list:
 !     toss_gps_sub  - array of qc'd profile heights
@@ -247,7 +248,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   use m_obsdiagNode, only: obs_diag
   use m_obsdiagNode, only: obsdiagNode_set
   use obsmod, only: nprof_gps,lobsdiag_forenkf
-  use obsmod, only: lobsdiagsave,luse_obsdiag
+  use obsmod, only: lobsdiagsave,luse_obsdiag,nobs_gps 
   use obsmod, only: binary_diag,netcdf_diag,dirname,ianldate
   use nc_diag_write_mod, only: nc_diag_init, nc_diag_header, nc_diag_metadata, &
                           nc_diag_write, nc_diag_data2d, nc_diag_metadata_to_single
@@ -255,10 +256,11 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   use gridmod, only: nsig,regional
   use constants, only: tiny_r_kind,half,wgtlim,one,two,zero,five,four
   use qcmod, only: npres_print,ptop,pbot
-  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum,mpi_max
+  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum,mpi_max,mpi_integer,npe
   use jfunc, only: jiter,miter,jiterstart
   use gsi_4dvar, only: nobs_bins
   use convinfo, only: nconvtype
+  use m_gpsrhs, only: rdiagbuf
   implicit none
 
 ! Declare passed variables
@@ -279,7 +281,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   logical:: luse,muse,toss,save_jacobian
   integer(i_kind):: k,jsig,icnt,khgt,kprof,ikx,nn,j,nchar,nreal,mreal,ii,ioff
   real(r_kind):: pressure,arg,wgross,wgt,term,cg_gps,valqc,elev,satid,dtype,dobs
-  real(r_kind):: ress,val,ratio_errors,val2
+  real(r_kind):: ress,val,ratio_errors,ratio_errors_adjst,val2
   real(r_kind):: exp_arg,data_ikx,data_rinc,cg_term,rat_err2,elat
   real(r_kind):: wnotgross,data_ipg,data_ier,data_ib,factor,super_gps_up,rhgt
   real(r_kind),dimension(nsig,max(1,nprof_gps)):: super_gps_sub,super_gps
@@ -287,15 +289,37 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   real(r_kind),dimension(max(1,nprof_gps)):: high_gps,high_gps_sub
   real(r_kind),dimension(max(1,nprof_gps)):: dobs_height,dobs_height_sub
 
+  real(r_kind),dimension(nobs_gps) :: complete_hght,complete_gps,complete_qc, &
+                                      complete_prof
+
   real(r_single),allocatable,dimension(:,:)::sdiag
   character(8),allocatable,dimension(:):: cdiag
+  integer(i_kind) :: iprof,counts,total_obs
+  real(r_kind) :: gpsOb,gpsHght
+  !integer(i_kind), dimension(max(1,nprof_gps)) :: hold_profs
+  !integer(i_kind),allocatable, dimension(:) :: unique_IDs
+  !real(r_kind),dimension(nobs_gps) :: array_hght,array_gps,array_qc, &
+  !                                    array_prof
+  real(r_kind),allocatable,dimension(:) :: array_hght,array_gps
+  real(r_kind),allocatable,dimension(:) :: array_qc,array_prof
+  real(r_kind),allocatable,dimension(:) :: collect_hght,collect_gps,collect_qc, &
+                                      collect_prof
+  real(r_kind),dimension(max(1,nobs_gps)) :: holder_hght,holder_gps,holder_qc, &
+                                      holder_prof
+  real(r_kind),dimension(max(1,nprof_gps)) :: STD4060
+  real(r_kind),allocatable,dimension(:) :: profile_benda,profile_impact, &
+                                           sorted_profile_benda,sorted_profile_impact
+  real(r_kind) :: old_err,new_err,input_impact,input_std4060,input_FracLsw, &
+                  relative_error
+  character(len=20) :: hold_place
+  !!!!!!!!!!!!!!!!!!!!!
 
   type(obs_diag), pointer :: obsptr => NULL()
-
-  integer(i_kind) :: nnz, nind
+  integer(i_kind),allocatable,dimension(:) :: revcounts,displs,indices
+  integer(i_kind) :: nnz, nind,nobs,total_size,ind,prof_size
   type(gps_ob_type), pointer:: gpsptr
   type(gps_all_ob_type), pointer:: gps_allptr
-  
+
   save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
 
 !*******************************************************************************
@@ -304,7 +328,150 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
      if (mype==0) write(6,*)'GENSTATS_GPS:  no profiles to process (nprof_gfs=',nprof_gps,'), EXIT routine'
      return
   endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  call mpi_comm_size(mpi_comm_world,total_size,ierror)
+  nobs = 0
+  holder_hght(:) = 0.0_r_kind;holder_gps(:) = 0.0_r_kind
+  holder_qc(:) = 0.0_r_kind;holder_prof(:) = 0.0_r_kind
+  DO ii=1,nobs_bins
+    gps_allptr => gps_allhead(ii)%head
+    do while (associated(gps_allptr))
+      luse = gps_allptr%luse
+      if (luse) then
+       nobs = nobs + 1
+       holder_hght(nobs) = gps_allptr%rdiag(7)
+       holder_gps(nobs) = gps_allptr%rdiag(17)
+       holder_qc(nobs) = gps_allptr%rdiag(10)
+       holder_prof(nobs) = gps_allptr%rdiag(2)
+      endif
+      gps_allptr => gps_allptr%llpoint
+    end do
+  END DO
 
+  allocate(collect_hght(max(1,nobs)), source=zero)
+  allocate(collect_gps(max(1,nobs)), source=zero)
+  allocate(collect_qc(max(1,nobs)), source=zero)
+  allocate(collect_prof(max(1,nobs)), source=zero)
+
+  if (nobs > 0) then
+     do ii=1,nobs
+        collect_hght(ii) = holder_hght(ii)
+        collect_gps(ii)  = holder_gps(ii)
+        collect_qc(ii)   = holder_qc(ii)
+        collect_prof(ii) = holder_prof(ii)
+     end do
+  endif
+  
+  allocate(revcounts(total_size),array_hght(nobs_gps),array_gps(nobs_gps), &
+       array_qc(nobs_gps),array_prof(nobs_gps))
+       
+  call mpi_gather(nobs,1,mpi_integer, &
+                  revcounts,1,mpi_integer,0,mpi_comm_world,ierror)
+  allocate(displs(total_size))
+  if (mype == 0) then
+    displs(1) = 0
+    do ii=2,total_size
+      displs(ii) = displs(ii-1) + revcounts(ii-1)
+    enddo
+    !write(6,*) "CHECK DISPLS: ",displs
+    array_hght(:) = 0.0_r_kind
+    array_gps(:) = 0.0_r_kind
+    array_qc(:) = 0.0_r_kind
+    array_prof(:) = 0.0_r_kind
+  endif
+  call mpi_gatherv(collect_hght,nobs,mpi_rtype,&
+                  array_hght,revcounts,displs,mpi_rtype, &
+                  0,mpi_comm_world,ierror)
+  call mpi_gatherv(collect_gps,nobs,mpi_rtype,&
+                  array_gps,revcounts,displs,mpi_rtype, &
+                  0,mpi_comm_world,ierror)
+  call mpi_gatherv(collect_qc,nobs,mpi_rtype,&
+                  array_qc,revcounts,displs,mpi_rtype, &
+                  0,mpi_comm_world,ierror)
+  call mpi_gatherv(collect_prof,nobs,mpi_rtype,&
+                  array_prof,revcounts,displs,mpi_rtype, &
+                  0,mpi_comm_world,ierror)
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!! Compute STD4060 for hybrid error model
+  if (mype == 0) then
+    STD4060(:) = 0.0_r_kind
+    !$omp parallel do default(none), schedule(dynamic,1), &
+    !$omp& private(ii,prof_size,profile_benda,profile_impact,indices,sorted_profile_benda,sorted_profile_impact,k), &
+    !$omp& shared(nprof_gps,array_prof,array_hght,array_qc,array_gps,STD4060)
+    do ii=1,nprof_gps
+      prof_size = count(((array_prof(:) == ii).and.(array_hght(:)>=40.E3).and.(array_hght(:)<=60.E3).and.(array_qc/=6.0_r_kind)))
+      if (prof_size <= 15) then
+        STD4060(ii) = 40.0_r_kind
+        cycle
+      endif
+      allocate(profile_benda(prof_size),profile_impact(prof_size),indices(prof_size),sorted_profile_benda(prof_size),&
+             sorted_profile_impact(prof_size))
+      profile_benda(:) = pack(array_gps,((array_prof == ii).and.(array_hght(:)>=40.E3).and.(array_hght(:)<=60.E3).and.(array_qc/=6.0_r_kind)))
+      profile_impact(:) = pack(array_hght,((array_prof == ii).and.(array_hght>=40.E3).and.(array_hght<=60.E3).and.(array_qc/=6.0_r_kind)))
+      call sort(prof_size,profile_impact,indices)
+      do k=1,prof_size
+        sorted_profile_benda(k) = profile_benda(indices(k))
+        sorted_profile_impact(k) = profile_impact(indices(k))
+      enddo
+      call cal_std4060(prof_size,sorted_profile_benda,sorted_profile_impact,STD4060(ii))
+      if (STD4060(ii) > 40.0_r_kind) then
+        STD4060(ii) = 40.0_r_kind
+      endif
+      deallocate(profile_benda,profile_impact,indices,sorted_profile_benda, &
+                 sorted_profile_impact)
+    enddo
+  endif
+ call mpi_bcast(STD4060,nprof_gps,mpi_rtype,0,mpi_comm_world,ierror)
+ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ deallocate(collect_hght,collect_gps,collect_qc,collect_prof)
+ deallocate(revcounts,displs,array_hght,array_gps,array_qc,array_prof)
+ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! compute error
+ DO ii=1,nobs_bins
+    gps_allptr => gps_allhead(ii)%head
+    do while (associated(gps_allptr))
+      muse = gps_allptr%muse
+      if (muse) then
+        if (gps_allptr%rdiag(25) == 2.0) then
+          input_impact = gps_allptr%rdiag(7)
+          call compute_threeCH_uncert(input_impact*r1em3,relative_error)
+          new_err = (relative_error/100._r_kind) * gps_allptr%rdiag(17)
+          if (new_err < 1.0D-6) new_err = 1.0D-6
+          input_std4060 = STD4060(int(gps_allptr%rdiag(2)))
+          gps_allptr%rdiag(24) = input_std4060
+          old_err = (1.0_r_kind/gps_allptr%rdiag(14))
+          gps_allptr%ratio_err = old_err/new_err
+          gpsptr       => gps_allptr%mmpoint
+          if (associated(gpsptr)) then
+            gpsptr%raterr2 = gps_allptr%ratio_err **2
+          endif
+          gps_allptr%rdiag(15) = gps_allptr%ratio_err * gps_allptr%rdiag(14)
+          gps_allptr%rdiag(16) = one/new_err
+        else
+          input_impact = gps_allptr%rdiag(7)
+          input_FracLsw = gps_allptr%rdiag(23)
+          if (input_FracLsw > 40.0_r_kind) then
+            input_FracLsw = 40.0_r_kind
+          endif
+          input_std4060 = STD4060(int(gps_allptr%rdiag(2)))
+          call error_model(input_impact,input_FracLsw,input_std4060,relative_error)
+          new_err = (relative_error/100._r_kind) * gps_allptr%rdiag(17)
+          if (new_err < 1.0D-6) new_err = 1.0D-6
+          gps_allptr%rdiag(24) = input_std4060
+          old_err = (1.0_r_kind/gps_allptr%rdiag(14))
+          gps_allptr%ratio_err = old_err/new_err
+          gpsptr       => gps_allptr%mmpoint
+          if (associated(gpsptr)) then
+            gpsptr%raterr2 = gps_allptr%ratio_err **2
+          endif
+          gps_allptr%rdiag(15) = gps_allptr%ratio_err * gps_allptr%rdiag(14)
+          gps_allptr%rdiag(16) = one/new_err
+        endif
+      endif
+      gps_allptr => gps_allptr%llpoint
+    end do
+  END DO
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Reduce sub-domain specific QC'd profile height cutoff values to
 ! maximum global value for each profile
   toss_gps=zero
@@ -427,7 +594,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
         end do
      END DO
      if(icnt > 0)then
-        nreal =22
+        nreal =25
         ioff  =nreal
         if (lobsdiagsave) nreal=nreal+4*miter+1
         if (save_jacobian) then
@@ -478,8 +645,10 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
            else
               factor = one / sqrt(max(super_gps(k-1,kprof),super_gps(k,kprof)))
            endif
+           ratio_errors_adjst = ratio_errors
            ratio_errors = ratio_errors * factor
            if(conv_diagsave .and. luse) then
+              if(gps_allptr%rdiag(15) >tiny_r_kind) gps_allptr%rdiag(15)=ratio_errors_adjst*data_ier
               if(gps_allptr%rdiag(16) >tiny_r_kind) gps_allptr%rdiag(16)=ratio_errors*data_ier
            endif
  
@@ -539,6 +708,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
                     if(conv_diagsave) then
                       gps_allptr%rdiag(10) = four
                       gps_allptr%rdiag(12) = -one
+                      gps_allptr%rdiag(15) = zero
                       gps_allptr%rdiag(16) = zero
                       if(lobsdiagsave) gps_allptr%rdiag(mreal+jiter) = -one
                     endif
@@ -588,6 +758,7 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
                  if(conv_diagsave) then
                     gps_allptr%rdiag(10) = four
                     gps_allptr%rdiag(12) = -one
+                    gps_allptr%rdiag(15) = -one
                     gps_allptr%rdiag(16) = zero
                     if(lobsdiagsave) gps_allptr%rdiag(mreal+jiter) = -one
                  endif
@@ -708,6 +879,287 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
 ! Destroy arrays holding gps data
   call destroy_genstats_gps
 contains
+subroutine sort(num,x,indx)
+integer(i_kind),  intent(in)  :: num
+real(r_kind),     intent(in)  :: x(num)
+integer(i_kind),  intent(inout) :: indx(num)
+
+integer(i_kind)  :: ind, i, j, value_indx, line
+real(r_kind) :: values
+
+! Initialize the index array to input order
+do i = 1, num
+   indx(i) = i
+end do
+
+! Only one element, just send it back
+if(num <= 1) return
+
+line = num / 2 + 1
+ind = num
+do
+  if(line > 1) then
+      line = line - 1
+      values = x(indx(line))
+      value_indx = indx(line)
+   else
+      values = x(indx(ind))
+      value_indx = indx(ind)
+
+      indx(ind) = indx(1)
+      ind = ind - 1
+      if(ind == 1) then
+         indx(1) = value_indx
+         return
+      endif
+   endif
+
+   i = line
+   j = 2 * line
+
+   do while(j <= ind)
+      if(j < ind) then
+         if(x(indx(j)) < x(indx(j + 1))) j = j + 1
+      endif
+      if(values < x(indx(j))) then
+         indx(i) = indx(j)
+         i = j
+         j = 2 * j
+      else
+         j = ind + 1
+      endif
+   end do
+
+   indx(i) = value_indx
+
+end do
+end subroutine sort
+!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine lsqs(n,x,y,m,c)
+  ! Subroutine computes a least squares fit
+  ! Returns the slope and intercept
+  integer(i_kind) ,intent(in) :: n
+  real(r_kind) ,intent(in) :: x(n)
+  real(r_kind) ,intent(in) :: y(n)
+  real(r_kind) ,intent(out) :: m,c
+  !!!!
+  real(r_kind) :: top,bot
+  !real(r_kind) :: bot
+  integer(i_kind) :: ii
+  !!!!
+  real(r_kind) x_avg,y_avg
+  !!!!
+  x_avg = sum(x)/float(n)
+  y_avg = sum(y)/float(n)
+  !Sum of terms
+  top = 0.0
+  bot = 0.0
+  do ii=1,n
+    top = top + ((x(ii) - x_avg)*y(ii))
+    bot = bot + ((x(ii) - x_avg)**2)
+  enddo
+  ! Calculate Slope
+  m = top/bot
+  ! Calculate intercept
+  c = y_avg - (m*x_avg)
+  return
+end subroutine lsqs
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine cal_std4060(num_pts,benda,impacts,stddev)
+  integer(i_kind) ,intent(in) :: num_pts
+  real(r_kind) ,intent(in) :: benda(num_pts)
+  real(r_kind) ,intent(in) :: impacts(num_pts)
+  real(r_kind) ,intent(out) :: stddev
+  !
+  real(r_kind) least_squares_fit(num_pts),norm_fit(num_pts)
+  real(r_kind) slope,intercept,mean
+  !
+  call lsqs(num_pts, impacts, log(benda),slope,intercept)
+  !
+  least_squares_fit = exp(slope*impacts + intercept)
+  norm_fit = (least_squares_fit - benda)/least_squares_fit * 100.0_r_kind
+  !
+  mean = sum(norm_fit)/float(num_pts)
+  stddev = sqrt(sum((norm_fit - mean)**2)/(float(num_pts)))
+  return
+end subroutine cal_std4060
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine std4060_errmodel(input_hght,input_std4060,error)
+  real(r_kind) ,intent(in) :: input_hght,input_std4060
+  real(r_kind) ,intent(out) :: error
+  !
+  integer(i_kind) :: n_coefs_x = 4
+  integer(i_kind) :: n_coefs_y = 5
+  integer(i_kind) :: aa,bb
+  real(r_kind), dimension(4,5) ::  coefs
+  !
+  coefs(:,:) = 0.0_r_kind
+  coefs(1,:) = (/ 1.25000000000000000000000000D+00,0.00000000000000000000000000D+00,&
+                  0.00000000000000000000000000D+00,0.00000000000000000000000000D+00,&
+                  0.00000000000000000000000000D+00 /)
+  coefs(2,:) = (/ 1.99128045049602960634847933D-06, 6.75863476049698542422747641D-06,&
+                  8.25883030063171995856295508D-07,-2.74722471254849586614206177D-08,&
+                  1.82378331607358961583961066D-10 /)
+  coefs(3,:) = (/ -6.55621669612269976911399984D-09,3.15300096566169468056300701D-09,&
+                  -3.77925688851882344702164472D-10,1.06712353466978524015944812D-11,&
+                  -8.65642894028274826191107202D-14 /)
+  coefs(4,:) = (/  2.66873781200705724938244662D-13,-7.28569101066463132754885337D-14,&
+                   1.68201368786068197554617494D-14,-5.49152377448293150781835625D-16,&
+                   5.43287924985643301111631898D-18 /)
+  !!!!
+  error = 0.0_r_kind
+  do aa=1, n_coefs_x
+    do bb=1,n_coefs_y
+      error = error + (coefs(aa,bb)*(input_hght**(aa-1))*(input_std4060**(bb-1)))
+    enddo
+  enddo
+  return
+end subroutine std4060_errmodel
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine lsw_errmodel(input_hght,input_lsw,error)
+  real(r_kind) ,intent(in) :: input_hght,input_lsw
+  real(r_kind) ,intent(out) :: error
+  !
+  integer(i_kind) :: n_coefs_x = 4
+  integer(i_kind) :: n_coefs_y = 4
+  integer(i_kind) :: aa,bb,a,b
+  real(r_kind), dimension(4,4) ::  coefs
+  !
+  coefs(:,:) = 0.0_r_kind
+  coefs(1,:) = (/ 1.25000000000000000000000000D+00,0.00000000000000000000000000D+00,&
+                  0.00000000000000000000000000D+00,0.00000000000000000000000000D+00 /)
+  coefs(2,:) = (/ 8.79644062400577173878313264D-04,5.00524082314834873816411509D-04,&
+                 -7.06272962581374830816913560D-06,2.41695480315650456302628568D-08 /)
+  coefs(3,:) = (/-1.32890117750533099169737636D-07,-1.00068031233479483283742046D-07,&
+                  8.15492853573235497611204411D-10,1.37351779555849664534897326D-12 /)
+  coefs(4,:) = (/ 6.84487441321994421597774228D-12,6.99590380726247359733035140D-12,&
+                 -3.31568154481349481116764491D-14,-2.52493347933840834626797529D-16 /)
+
+  !!!!
+  error = 0.0_r_kind
+  do aa=1, n_coefs_x
+    do bb=1,n_coefs_y
+      error = error + (coefs(aa,bb)*(input_hght**(aa-1))*(input_lsw**(bb-1)))
+    enddo
+  enddo
+  return
+end subroutine lsw_errmodel
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine error_model(impact_hght,lsw,std4060,errstd)
+  real(r_kind) ,intent(in) :: impact_hght,lsw,std4060
+  real(r_kind) ,intent(inout) :: errstd
+  !
+  real(r_kind),parameter :: min_error = 1.25_r_kind
+  real(r_kind),parameter :: lsw_boundary = 10.E3
+  real(r_kind),parameter :: std4060_boundary = 30.E3
+  !!!!
+  if (impact_hght <= lsw_boundary) then
+    call lsw_errmodel(lsw_boundary - impact_hght,lsw,errstd)
+  else if (impact_hght >= std4060_boundary) then
+    call std4060_errmodel(impact_hght-std4060_boundary,std4060,errstd)
+  else
+    errstd = min_error
+  endif
+  return
+end subroutine error_model
+!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!! Subroutine to compute statistical error (from 3CHMethod) for a given
+!! height using a spline fit
+subroutine compute_threeCH_uncert(input_impact,error)
+    use kinds, only: r_kind,i_kind,r_single
+    real(r_kind), intent(in) :: input_impact
+    real(r_kind), intent(out) :: error
+    !!Define coefs arrays
+    real(r_kind),dimension(66) :: a,b,c,d
+    real(r_single),dimension(67) :: interp_impact
+    integer(i_kind) :: l,level_index
+    real(r_kind) :: interp_err,min_error
+    !!!!!!!!!!!!!
+    a(:) = 0.0_r_kind
+    a(:) = (/ -1.8072472782194637_r_kind,-4.553293905977256_r_kind,-1.042632730866977_r_kind,9.100931165806573_r_kind,1.6912359147188525_r_kind,-1.2982719737865533_r_kind,0.9843419625507028_r_kind,-0.7317115785860473_r_kind,&
+              -0.4110048129739834_r_kind,1.183432121346243_r_kind,0.07889575704898277_r_kind,0.1037405051596565_r_kind,0.12554091733179007_r_kind,-0.13836375493037956_r_kind,-0.31793666720456226_r_kind,1.2790616977422875_r_kind,&
+               0.009323454981171042_r_kind,-0.03068971657715175_r_kind,-0.012434437302992873_r_kind,0.06721442044491856_r_kind,3.7505350493542786D-06,-0.0334244677836707_r_kind,-0.02819257166121869_r_kind,-0.2493119206629355_r_kind,&
+              -0.016830473861980624_r_kind,0.4977689706039675_r_kind,0.17375087190815963_r_kind,-0.01710203102076152_r_kind,-0.00047596910806305126_r_kind,0.005636654598357445_r_kind,0.0004980015635230243_r_kind,-0.006028788035461538_r_kind,&
+              -0.007278154670571774_r_kind,0.005612112069916075_r_kind,-0.003520194640361976_r_kind,-0.010140903000390833_r_kind,0.012442340314416822_r_kind,-0.013974982052712498_r_kind,-0.006212583721363296_r_kind,0.009663352106410006_r_kind,&
+               0.0006611375699540623_r_kind,-0.021742887710101355_r_kind,0.01441853441306784_r_kind,-0.007862465965627119_r_kind,0.017098553464325428_r_kind,0.011225188873242864_r_kind,-0.052329516422997324_r_kind,0.02090873344068611_r_kind,&
+              -0.026410224720464726_r_kind,0.01045825824505231_r_kind,0.03388155526222891_r_kind,0.007517729045328103_r_kind,-0.05995059920209567_r_kind,-0.0418887916237658_r_kind,0.0779203213611881_r_kind,-0.06077763068895248_r_kind,&
+               0.07575414794899071_r_kind,-0.014759941559792988_r_kind,-0.01213449120653376_r_kind,0.020914920476412746_r_kind,-0.04953774742002803_r_kind,0.25641102955203987_r_kind,-0.23665477425886117_r_kind,-0.03603425208201827_r_kind,&
+               0.14615239845937822_r_kind,-0.06624648006639511_r_kind /)
+
+    b(:) = 0.0_r_kind
+    b(:) = (/ -2.0561518447819296_r_kind,0.22049510820670193_r_kind,-0.4190389657895395_r_kind,-9.198242153793373_r_kind,-0.9470909055722503_r_kind,1.1951837100964111_r_kind,-0.6014140841997015_r_kind,0.6781444896434916_r_kind,&
+               0.15003497758938922_r_kind,-0.8993086265952344_r_kind,0.20466466226031566_r_kind,0.18582750259752912_r_kind,0.170732464302648_r_kind,0.29451752503827366_r_kind,0.28822391802870695_r_kind,-0.6705595296494151_r_kind,&
+               0.13353892042182558_r_kind,0.07289920169604404_r_kind,0.0208726883903759_r_kind,-0.07184111814190572_r_kind,0.0003379043049377586_r_kind,0.09345868741198415_r_kind,0.09717121911947513_r_kind,0.31906967975033607_r_kind,&
+              -0.018060435327087093_r_kind,-0.9433878688650862_r_kind,-0.13252807790515786_r_kind,0.06912762861774696_r_kind,0.015100757244949484_r_kind,0.0004800603807383688_r_kind,0.0010927527090346537_r_kind,0.015791494516346934_r_kind,&
+               0.01563726374305644_r_kind,-0.00441866911778142_r_kind,0.01567255621904334_r_kind,0.023098270970024787_r_kind,-0.00936941457649551_r_kind,0.038235607387624285_r_kind,0.018612906103360458_r_kind,-0.0028718956893171443_r_kind,&
+               0.01997358604096397_r_kind,0.04864454552748257_r_kind,-0.009024393794918734_r_kind,0.031210993807183396_r_kind,0.000167081939952074_r_kind,0.031472883074656566_r_kind,0.12331185037652542_r_kind,-0.0008671938265990553_r_kind,&
+               0.07384170712382765_r_kind,0.011975287250526767_r_kind,0.0023017716173047154_r_kind,0.07679146481147481_r_kind,0.1722967313253665_r_kind,0.09943744879226468_r_kind,-0.06185583905726744_r_kind,0.16991926963328696_r_kind,&
+              -0.024082417185988136_r_kind,0.16481175816820093_r_kind,0.16889848541950192_r_kind,0.14476259759272248_r_kind,0.26699662506041877_r_kind,-0.06743664171335473_r_kind,0.8258835018193778_r_kind,0.4525933320273996_r_kind,&
+               0.2969649654467448_r_kind,0.7880092025646874_r_kind /)
+
+    c(:) = 0.0_r_kind
+    c(:) = (/ 7.80707613866254_r_kind,4.395488835216012_r_kind,1.2010135139397722_r_kind,0.0_r_kind,-2.3725437794384443_r_kind,-2.051207748971555_r_kind,-1.8297280192150587_r_kind,-1.692885631501733_r_kind,-1.5635248257977767_r_kind,&
+              -1.721743457938875_r_kind,-1.733477993524427_r_kind,-1.4696415134773744_r_kind,-1.206008632010103_r_kind,-0.9411204797086128_r_kind,-0.7503757708681239_r_kind,-0.7006043532428387_r_kind,-0.41186760958553814_r_kind,&
+              -0.11681940379837381_r_kind,-0.06309015013774097_r_kind,-0.0586480852659678_r_kind,-0.0006870602150235801_r_kind,0.0_r_kind,0.08664397147295622_r_kind,0.19640869472825037_r_kind,0.08661229224011606_r_kind,0.0_r_kind,&
+              -0.3934688259182698_r_kind,-0.13727236600410664_r_kind,-0.050323201830897266_r_kind,-0.021549594665187452_r_kind,-0.0036795101086383804_r_kind,0.0_r_kind,0.013496624926309255_r_kind,0.022936688400706822_r_kind,0.030935686374892208_r_kind,&
+               0.05172021489189296_r_kind,0.06749404783077004_r_kind,0.08608223962102947_r_kind,0.12062850823814054_r_kind,0.13921656928077156_r_kind,0.16246283422136729_r_kind,0.2043934190131574_r_kind,0.23645384693781848_r_kind,&
+               0.26166066258718457_r_kind,0.30049525230467_r_kind,0.35212507657755043_r_kind,0.4487464093465922_r_kind,0.5383815608306511_r_kind,0.5993733734995114_r_kind,0.6678261135857724_r_kind,0.723151462821983_r_kind,0.8293996718432791_r_kind,&
+               1.0055357886022132_r_kind,1.1702774536466594_r_kind,1.243485976359891_r_kind,1.3535352623289207_r_kind,1.511040909528637_r_kind,1.690138519003633_r_kind,1.975482210660656_r_kind,2.2768757078800586_r_kind,2.6291456644947417_r_kind,&
+               3.014525672355495_r_kind,3.6488854775849053_r_kind,4.590688158447078_r_kind,5.387772066255823_r_kind,6.420159192527448_r_kind /)
+    d(:) = 0.0_r_kind
+    d(:) = (/  6.6174092389358306_r_kind,9.781003437294185_r_kind,11.46470989370671_r_kind,11.830127817870839_r_kind,10.668183675148317_r_kind,9.456543548375889_r_kind,8.567451604690895_r_kind,7.625276819352278_r_kind,6.856906178689028_r_kind,&
+               6.061276908565739_r_kind,5.123507038115774_r_kind,4.317796176549762_r_kind,3.642399858605414_r_kind,3.0977712733424982_r_kind,2.683544945381463_r_kind,2.3406709560540073_r_kind,1.9826116092380202_r_kind,1.7136063750554786_r_kind,&
+               1.6389964563759971_r_kind,1.5843445573256392_r_kind,1.5210697743626842_r_kind,1.5207243689876477_r_kind,1.5807585886159612_r_kind,1.7363812075471738_r_kind,2.002547661362825_r_kind,2.054269044413873_r_kind,1.6086501461527545_r_kind,&
+               1.2564041142374864_r_kind,1.1711573458303652_r_kind,1.1354589321363544_r_kind,1.1200260524502628_r_kind,1.117937296614182_r_kind,1.1277000030950675_r_kind,1.1495557370938614_r_kind,1.1736858684467029_r_kind,1.2167739164002764_r_kind,&
+               1.2814514992618034_r_kind,1.3520184728304947_r_kind,1.462361337786436_r_kind,1.5953901684065737_r_kind,1.741398194104438_r_kind,1.9244957519367234_r_kind,2.155790828767262_r_kind,2.3976388163232296_r_kind,2.6826480067519705_r_kind,&
+               3.000408894460918_r_kind,3.395232042986368_r_kind,3.914960786286488_r_kind,4.473383886731226_r_kind,5.120188742634101_r_kind,5.810448401715452_r_kind,6.569783191416969_r_kind,7.483492057117051_r_kind,8.601373977842535_r_kind,&
+               9.829200088657693_r_kind,11.088750547321505_r_kind,12.55142744859476_r_kind,14.1141400888864_r_kind,15.95433042449844_r_kind,18.086576629372065_r_kind,20.52912985532126_r_kind,23.37573439745639_r_kind,26.57923445765057_r_kind,&
+               30.817348662795993_r_kind,35.82459590118845_r_kind,41.6554853313504_r_kind /)
+
+
+    interp_impact(:) = (/ 2._r_single,  2.5_r_single,  3._r_single,3.5_r_single, 4._r_single,  4.5_r_single,  5._r_single,  5.5_r_single,6._r_single, &
+                          6.5_r_single,  7._r_single, 7.5_r_single,8._r_single, 8.5_r_single,  9._r_single,  9.5_r_single, 10._r_single,11._r_single,  &
+                          12._r_single, 13._r_single, 14._r_single,15._r_single, 16._r_single, 17._r_single, 18._r_single, 19._r_single,20._r_single, &
+                          21._r_single, 22._r_single, 23._r_single,24._r_single, 25._r_single, 26._r_single, 27._r_single, 28._r_single,29._r_single, &
+                          30._r_single, 31._r_single, 32._r_single,33._r_single, 34._r_single, 35._r_single, 36._r_single, 37._r_single,38._r_single, 39._r_single,&
+                         40._r_single, 41._r_single, 42._r_single, 43._r_single, 44._r_single, 45._r_single, 46._r_single, 47._r_single,48._r_single,49._r_single,&
+                         50._r_single, 51._r_single, 52._r_single, 53._r_single,54._r_single, 55._r_single, 56._r_single, 57._r_single, 58._r_single,59._r_single, 60._r_single /)
+ !!!!!!!!!!!!!!!
+  min_error = 1.25_r_kind
+
+  if (input_impact <= interp_impact(1)) then
+    error = a(1)*(interp_impact(1) - interp_impact(1))**3 + b(1)*(interp_impact(1)-interp_impact(1))**2 + &
+            c(1)*(interp_impact(1)-interp_impact(1)) + d(1)
+  else if  (input_impact > interp_impact(67)) then
+    error = 48.79740724637614_r_kind
+  else
+    level_index = 1
+    do l=1,size(interp_impact)
+      if (interp_impact(l) >= input_impact) then
+        level_index = l
+        exit
+      else
+        continue
+      endif
+    enddo
+    interp_err = a(level_index-1)*(input_impact - interp_impact(level_index-1))**3 + &
+                 b(level_index-1)*(input_impact-interp_impact(level_index-1))**2 + &
+                 c(level_index-1)*(input_impact-interp_impact(level_index-1)) + d(level_index-1)
+    if (input_impact > 9.0_r_kind .and. input_impact < 11.0_r_kind) then
+      error = ((11.0_r_kind - input_impact)/2.0_r_kind)*interp_err + ((input_impact - 9.0_r_kind)/2.0_r_kind)*min_error
+    else if (input_impact > 29.0_r_kind .and. input_impact < 31.0_r_kind) then
+      error = ((31.0_r_kind - input_impact)/2.0_r_kind)*min_error + ((input_impact - 29.0_r_kind)/2.0_r_kind)*interp_err
+    else
+      if (input_impact <= 9.0_r_kind .or. input_impact >= 31.0_r_kind) then
+        error = interp_err
+      else
+        error = min_error
+      endif
+    endif
+  endif
+  return
+end subroutine compute_threeCH_uncert
 
 subroutine init_netcdf_diag_
   integer(i_kind) ncd_fileid, ncd_nobs
@@ -787,6 +1239,10 @@ subroutine contents_netcdf_diag_
            call nc_diag_metadata_to_single("GPS_Type",                    gps_allptr%rdiag(20)         )
            call nc_diag_metadata_to_single("Temperature_at_Obs_Location", gps_allptr%rdiag(18)         )
            call nc_diag_metadata_to_single("Specific_Humidity_at_Obs_Location",gps_allptr%rdiag(21)    )
+
+           call nc_diag_metadata_to_single("Frac_LSW",                    gps_allptr%rdiag(23)   )
+           call nc_diag_metadata_to_single("STD4060",                     gps_allptr%rdiag(24)   )
+           call nc_diag_metadata_to_single("LSWFlag",                     gps_allptr%rdiag(25)   )
 
            if (save_jacobian) then
               call readarray(dhx_dx, gps_allptr%rdiag(ioff+1:nreal))

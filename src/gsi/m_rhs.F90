@@ -17,6 +17,7 @@ module m_rhs
 !                         through an enum block.
 !                       - removed external dimension argument aworkdim2 of
 !                         rhs_alloc().
+!   2022-03-15  K. Apodaca - add GNSS-R L2 ocean wind speed index (i_gnssrspd)
 !
 !   input argument list: see Fortran 90 style document below
 !
@@ -66,6 +67,7 @@ module m_rhs
   public:: i_vis
   public:: i_pblh
   public:: i_wspd10m
+  public:: i_gnssrspd
   public:: i_td2m
   public:: i_mxtm
   public:: i_mitm
@@ -133,6 +135,7 @@ module m_rhs
     enumerator:: i_vis
     enumerator:: i_pblh
     enumerator:: i_wspd10m
+    enumerator:: i_gnssrspd
     enumerator:: i_td2m
     enumerator:: i_mxtm
     enumerator:: i_mitm
@@ -207,7 +210,6 @@ _ENTRY_(myname_)
   allocate(rhs_stats_oz(9,jpch_oz))
 
   allocate(rhs_toss_gps(max(1,nprof_gps)))
-
   rhs_awork    =zero
   rhs_bwork    =zero
   rhs_aivals   =zero

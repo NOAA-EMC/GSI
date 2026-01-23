@@ -142,9 +142,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   integer(i_kind)  ,intent(in   ) :: mype_sub
   integer(i_kind)  ,intent(in   ) :: npe_sub
   integer(i_kind)  ,intent(in   ) :: mpi_comm_sub  
-  character(len=*), intent(in   ) :: infile
-  character(len=10),intent(in   ) :: jsatid
-  character(len=*), intent(in   ) :: obstype
+  character(len=*) ,intent(in   ) :: infile
+  character(len=*) ,intent(in   ) :: jsatid
+  character(len=*) ,intent(in   ) :: obstype
   character(len=20),intent(in   ) :: sis
   real(r_kind)     ,intent(in   ) :: twind
   real(r_kind)     ,intent(inout) :: val_iasi
@@ -233,7 +233,6 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
   real(r_kind),dimension(33,7) :: imager_info
   real(r_kind),dimension(7)    :: imager_cluster_size
   real(r_kind),dimension(2)    :: imager_mean, imager_std_dev
-  real(r_kind)                 :: imager_cluster_tot
 
 ! Set standard parameters
   character(8),parameter:: fov_flag="crosstrk"
@@ -443,6 +442,7 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 ! Big loop to read data file
   next=0
   irec=0
+  data_all(:,:)=zero
   nrec=999999
 ! Big loop over standard data feed and possible rars/db data
 ! llll=1 is normal feed, llll=2 RARS/EARS data, llll=3 DB/UW data)
@@ -761,17 +761,16 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !$omp parallel do schedule(dynamic,1) private(i,sc_chan,bufr_chan,radiance)
            channel_loop: do i=1,satinfo_nchan
+              sc_chan = sc_index(i)
+              if ( bufr_index(i) == 0 ) cycle channel_loop
               bufr_chan = bufr_index(i)
-              if (bufr_chan > 0 ) then
 !             check that channel number is within reason
-                if (( allchan(2,bufr_chan) > zero .and. allchan(2,bufr_chan) < 99999._r_kind)) then  ! radiance bounds
-                  radiance = allchan(2,bufr_chan)*scalef(bufr_chan)
-                  sc_chan = sc_index(i)
-                  call crtm_planck_temperature(sensorindex_iasi,sc_chan,radiance,temperature(bufr_chan))
-                else
-                   temperature(bufr_chan) = tbmin
-                endif
-              end if
+              if (( allchan(2,bufr_chan) > zero .and. allchan(2,bufr_chan) < 99999._r_kind)) then  ! radiance bounds
+                radiance = allchan(2,bufr_chan)*scalef(bufr_chan)
+                call crtm_planck_temperature(sensorindex_iasi,sc_chan,radiance,temperature(bufr_chan))
+              else
+                 temperature(bufr_chan) = tbmin
+              endif
            end do channel_loop
 
 !          Check for reasonable temperature values
@@ -814,10 +813,9 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
            if ( iasi_cads ) then
              call ufbseq(lnbufr,imager_info,33,7,iret,'IASIL1CS')
              if (iret == 7 .and. imager_info(3,1) <= 100.0_r_kind .and. &
-                  imager_info(3,1) >= zero .and. imager_coeff ) then   ! if imager cluster info exists
+                  sum(imager_info(3,:)) > zero .and. imager_coeff ) then   ! if imager cluster info exists
                imager_mean = zero
                imager_std_dev = zero
-               imager_cluster_tot = zero
                imager_cluster_flag = .TRUE.
                imager_cluster_size = imager_info(3,1:7)
                imager_cluster_size(:) = imager_cluster_size(:) / sum(imager_cluster_size(:))
@@ -835,49 +833,62 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
                imager_cluster_info: do j=1,7
                  i = imager_cluster_index(j)
 
-                 data_all(maxinfo+j,itx) =  imager_cluster_size(i)                ! Imager cluster fraction
-                 imager_cluster_tot = imager_cluster_tot + imager_info(3,i)
+!   If the cluster size, or radiance values of channel 4 or 5 are zero, do not compute statistics for that cluster
+                 if ( imager_cluster_size(i) > zero .and. imager_info(26,i) > zero .and. imager_info(31,i) > zero ) then
+                   data_all(maxinfo+j,itx) =  imager_cluster_size(i)                   ! Imager cluster fraction
 
-                 iexponent = -(nint(imager_info(25,i))-5 )                        ! channel 4 radiance for each cluster.
-                 imager_info(26,i) =  imager_info(26,i) * (ten ** iexponent)
+                   iexponent = -(nint(imager_info(25,i))-5 )                           ! channel 4 radiance for each cluster.
+                   imager_info(26,i) =  imager_info(26,i) * (ten ** iexponent)
 
-                 iexponent = -(nint(imager_info(27,i))-5 )                        ! channel 4 radiance std dev for each cluster.
-                 imager_info(28,i) =  imager_info(28,i) * (ten ** iexponent)
+                   iexponent = -(nint(imager_info(27,i))-5 )                           ! channel 4 radiance std dev for each cluster.
+                   imager_info(28,i) =  imager_info(28,i) * (ten ** iexponent)
 
-                 call crtm_planck_temperature(sensorindex_imager,2,imager_info(26,i),data_all(maxinfo+7+j,itx))
-                 data_all(maxinfo+7+j,itx) = max(data_all(maxinfo+7+j,itx),zero)
+                   iexponent = -(nint(imager_info(30,i))-5 )                           ! channel 5 radiance for each cluster
+                   imager_info(31,i) =  imager_info(31,i) * (ten ** iexponent)
 
-                 iexponent = -(nint(imager_info(30,i))-5 )                        ! channel 5 radiance for each cluster
-                 imager_info(31,i) =  imager_info(31,i) * (ten ** iexponent)
+                   iexponent = -(nint(imager_info(32,i))-5 )                           ! channel 5 radiance std dev for each cluser.
+                   imager_info(33,i) =  imager_info(33,i) * (ten ** iexponent)
 
-                 iexponent = -(nint(imager_info(32,i))-5 )                        ! channel 5 radiance std dev for each cluser.
-                 imager_info(33,i) =  imager_info(33,i) * (ten ** iexponent)
-
-                 call crtm_planck_temperature(sensorindex_imager,3,imager_info(31,i),data_all(maxinfo+14+j,itx))
-                 data_all(maxinfo+14+j,itx) = max(data_all(maxinfo+14+j,itx),zero)
+                   call crtm_planck_temperature(sensorindex_imager,2,imager_info(26,i),data_all(maxinfo+7+j,itx))
+                   data_all(maxinfo+7+j,itx) = max(data_all(maxinfo+7+j,itx),zero)
+                   call crtm_planck_temperature(sensorindex_imager,3,imager_info(31,i),data_all(maxinfo+14+j,itx))
+                   data_all(maxinfo+14+j,itx) = max(data_all(maxinfo+14+j,itx),zero)
+                 else                                                                  ! something is wrong
+                   data_all(maxinfo+j,itx) = zero                                      ! set everything to zero
+                   data_all(maxinfo+7+j,itx) = zero
+                   data_all(maxinfo+14+j,itx) = zero
+                 endif
 
                end do imager_cluster_info
 
 ! Compute cluster averages for each channel
 
-               imager_mean(1) = sum(imager_cluster_size(:) * imager_info(26,:))      ! Channel 4 radiance cluster average
+               imager_mean(1) = sum(imager_cluster_size(:) * imager_info(26,:))        ! Channel 4 radiance cluster average
                imager_std_dev(1) = sum(imager_cluster_size(:) * (imager_info(26,:)**2 + imager_info(28,:)**2)) - imager_mean(1)**2
-               imager_std_dev(1) = sqrt(max(imager_std_dev(1),zero))                 ! Channel 4 radiance RMSE
-               call crtm_planck_temperature(sensorindex_imager,2,(imager_std_dev(1) + imager_mean(1)),imager_std_dev(1))
-               call crtm_planck_temperature(sensorindex_imager,2,imager_mean(1),imager_mean(1))    ! Channel 4 average BT
-               imager_std_dev(1) = imager_std_dev(1) - imager_mean(1)                ! Channel 4 BT std dev
-               data_all(maxinfo+22,itx) = imager_std_dev(1)
+               imager_std_dev(1) = sqrt(max(imager_std_dev(1),zero))                   ! Channel 4 radiance RMSE
+               if ( imager_mean(1) > zero .and. imager_std_dev(1) > zero ) then
+                 call crtm_planck_temperature(sensorindex_imager,2,(imager_std_dev(1) + imager_mean(1)),imager_std_dev(1))
+                 call crtm_planck_temperature(sensorindex_imager,2,imager_mean(1),imager_mean(1))    ! Channel 4 average BT
+                 imager_std_dev(1) = imager_std_dev(1) - imager_mean(1)                ! Channel 4 BT std dev
+                 data_all(maxinfo+22,itx) = imager_std_dev(1)
+               else
+                 data_all(maxinfo+22,itx) = zero
+               endif
 
-               imager_mean(2) = sum(imager_cluster_size(:) * imager_info(31,:))      ! Channel 5 radiance cluster average
+               imager_mean(2) = sum(imager_cluster_size(:) * imager_info(31,:))        ! Channel 5 radiance cluster average
                imager_std_dev(2) = sum(imager_cluster_size(:) * (imager_info(31,:)**2 + imager_info(33,:)**2)) - imager_mean(1)**2
-               imager_std_dev(2) = sqrt(max(imager_std_dev(1),zero))                 ! Channel 5 radiance RMSE
-               call crtm_planck_temperature(sensorindex_imager,3,(imager_std_dev(2) + imager_mean(2)),imager_std_dev(2))
-               call crtm_planck_temperature(sensorindex_imager,3,imager_mean(2),imager_mean(2))     ! Channel 5 average BT
-               imager_std_dev(2) = imager_std_dev(2) - imager_mean(2)                ! Channel 5 BT std dev
-               data_all(maxinfo+23,itx) = imager_std_dev(2)
+               imager_std_dev(2) = sqrt(max(imager_std_dev(1),zero))                   ! Channel 5 radiance RMSE
+               if ( imager_mean(2) > zero .and. imager_std_dev(2) > zero ) then 
+                 call crtm_planck_temperature(sensorindex_imager,3,(imager_std_dev(2) + imager_mean(2)),imager_std_dev(2))
+                 call crtm_planck_temperature(sensorindex_imager,3,imager_mean(2),imager_mean(2))     ! Channel 5 average BT
+                 imager_std_dev(2) = imager_std_dev(2) - imager_mean(2)                ! Channel 5 BT std dev
+                 data_all(maxinfo+23,itx) = imager_std_dev(2)
+               else
+                 data_all(maxinfo+23,itx) = zero
+               endif
 
              else  ! Imager cluster information is missing.  Set everything to zero
-               data_all(maxinfo+1 : maxinfo+25,itx) = zero
+               data_all(maxinfo+1 : maxinfo+cads_info,itx) = zero
              endif
            endif ! iasi_cads = .true.
 !
@@ -940,10 +951,8 @@ subroutine read_iasi(mype,val_iasi,ithin,isfcalc,rmesh,jsatid,gstime,&
 
 !          Put satinfo defined channel temperatures into data array
            do l=1,satinfo_nchan
-              ! Prevent out of bounds reference from temperature
-              if ( bufr_index(l) == 0 ) cycle
               i = bufr_index(l)
-              if(i /= 0)then
+              if(bufr_index(l) /= 0)then
                  data_all(l+nreal,itx) = temperature(i)   ! brightness temerature
               else
                  data_all(l+nreal,itx) = tbmin

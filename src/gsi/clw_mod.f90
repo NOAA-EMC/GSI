@@ -39,12 +39,13 @@ implicit none
   private
 ! set routines used externally to public
   public :: calc_clw, ret_amsua, gmi_37pol_diff
+  public :: retrieval_amsr2
 
 contains
 
 
  subroutine calc_clw(nadir,tb_obs,tsim,ich,nchanl,no85GHz,amsua,ssmi,ssmis,amsre,atms, &   
-          amsr2,gmi,saphir,tsavg5,sfc_speed,zasat,clw,tpwc,gwp,kraintype,ierrret)
+          mws,amsr2,gmi,saphir,tsavg5,sfc_speed,zasat,clw,tpwc,gwp,kraintype,ierrret)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:   calc_clw    estimates cloud liquid water for micro. QC
@@ -81,6 +82,7 @@ contains
 !     ssmis     - flag for ssmis data
 !     amsre     - flag for amsre data
 !     atms      - flag for atms data
+!     mws       - flag for mws data
 !     amsr2     - flag for amsr2 data
 !     gmi       - flag for gmi data
 !     saphir    - flag for saphir data
@@ -108,6 +110,7 @@ contains
   real(r_kind),dimension(nchanl)    ,intent(in   ) :: tb_obs,tsim
   integer(i_kind),dimension(nchanl) ,intent(in   ) :: ich
   logical                           ,intent(in   ) :: no85GHz,amsre,ssmi,ssmis,amsua,atms,amsr2,gmi,saphir
+  logical                           ,intent(in   ) :: mws
   real(r_kind)                      ,intent(in   ) :: tsavg5,sfc_speed,zasat
   real(r_kind)                      ,intent(  out) :: clw,tpwc,gwp
   integer(i_kind)                   ,intent(  out) :: kraintype,ierrret
@@ -121,8 +124,13 @@ contains
 ! Declare local variables
   real(r_kind) tbcx1,tbcx2
 
+  clw = zero
+  tpwc = zero
+  gwp = zero
+  kraintype = 0
+  ierrret = 0
 
-  if (amsua .or. atms) then
+  if (amsua .or. atms .or. mws) then
 
      clw = zero
     ! We want to reject sea ice points that may be frozen.  The sea freezes
@@ -1961,6 +1969,7 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)
 ! Declare local variables 
   real(r_kind) :: d0, d1, d2, coszat
 ! real(r_kind) :: c0, c1, c2
+  real(r_kind) :: tb890 = zero
 
   
   coszat=cos(zasat)
@@ -1979,9 +1988,23 @@ subroutine ret_amsua(tb_obs,nchanl,tsavg5,zasat,clwp_amsua,ierrret,scat)
   endif
 
   if (present(scat)) then
-      scat=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*tb_obs(1))*tb_obs(1)  &
-           +0.454_r_kind*tb_obs(2)-tb_obs(15)
-      scat=max(zero,scat)
+     if (nchanl == 15) then
+!       AMSU-A
+        tb890 = tb_obs(15)
+     else if (nchanl == 22) then
+!       ATMS
+        tb890 = tb_obs(16)
+     else if (nchanl == 24) then
+!       MWS (Metop-SG)
+        tb890 = tb_obs(17)
+     endif
+     if (tb890 > zero) then
+        scat=-113.2_r_kind+(2.41_r_kind-0.0049_r_kind*tb_obs(1))*tb_obs(1)  &
+             +0.454_r_kind*tb_obs(2)-tb890
+        scat=max(zero,scat)
+     else
+        scat=zero
+     endif
   end if
 
 end subroutine ret_amsua

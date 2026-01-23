@@ -135,7 +135,7 @@ subroutine statsoz(stats_oz,ndata)
 1102 format(1x,i4,i4,1x,a20,2i7,1x,f8.3,1x,6(e11.4,1x))
 1109 format(t5,'it',t11,'sat',t22,'inst',t36,'# read',t46,'# keep',t55,'# assim',&
           t63,'penalty',t78,'cpen',t88,'qcpen',t101,'qcfail')
-1115 format('o-g',1x,i2.2,1x,'oz ',a10,1x,a10,1x,3(i9,1x),3(g12.5,1x),i8)
+1115 format('o-g',1x,i2.2,1x,'oz ',a11,1x,a10,1x,3(i9,1x),3(g12.5,1x),i8)
 
 ! End of ozone diagnostic print block.
 

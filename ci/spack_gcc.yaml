@@ -1,0 +1,29 @@
+# Spack environment file to build GSI dependencies
+spack:
+  packages:
+    all:
+      providers:
+        blas: [openblas]
+        lapack: [openblas]
+        mpi: [mpich]
+      compiler:
+        - gcc@13
+  specs:
+  - netcdf-c@4.9.2
+  - netcdf-fortran@4.6.1
+  - bufr@12.1.0
+  - bacio@2.4.1
+  - w3emc@2.10.0
+  - ip@5.1.0
+  - sigio@2.3.3
+  - sfcio@1.4.2
+  - nemsio@2.5.4
+  - wrf-io@1.2.0
+  - ncio@1.1.2
+  - crtm@2.4.0.1
+  - gsi-ncdiag@1.1.2
+  - mpich@3.4.2
+  - openblas@0.3.28
+  view: true
+  concretizer:
+    unify: true

@@ -768,7 +768,8 @@ contains
        end select 
 
        if ( .not. diag_rad .and. iuse_rad(j) < 0 .and. iextra_det(j) < 0 .and. &
-          ( nusis(j)(1:4) == 'cris' .or. nusis(j)(1:4) == 'iasi' .or. nusis(j)(1:4) == 'airs')) cycle
+          ( nusis(j)(1:4) == 'cris' .or. nusis(j)(1:7) == 'iasi-ng' .or. nusis(j)(1:4) == 'iasi'  &
+            .or. nusis(j)(1:4) == 'airs')) cycle
 
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 2) air_rad(j)=zero
        if(iuse_rad(j) == 4 .or. iuse_rad(j) == 3) ang_rad(j)=zero
@@ -805,10 +806,10 @@ contains
     end do
     close(lunin)
 100 format(a1,a120)
-110 format(i4,1x,a20,' chan= ',i4,  &
+110 format(i5,1x,a20,' chan= ',i5,  &
           ' var= ',f7.3,' varch_cld=',f7.3,' use= ',i2,' ermax= ',F7.3, &
           ' b_rad= ',F7.2,' pg_rad=',F7.2,' icld_det=',I2,' icloud=',I2,' iaeros=',I2)
-111 format(i4,1x,a20,' chan= ',i4,  &
+111 format(i4,1x,a20,' chan= ',i5,  &
           ' var= ',f7.3,' varch_cld=',f7.3,' use= ',i2,' ermax= ',F7.3, &
           ' b_rad= ',F7.2,' pg_rad=',F7.2,' iextra_det=',I2, 'icloud=',I2,'iaeros=', I2)
 
@@ -869,7 +870,7 @@ contains
 !            The second part of the if statement keeps from printing them.
              if ( .not. cfound ) then
                 if ((diag_rad .and. mype ==0) .or. &
-                   (.not. diag_rad .and. isis(1:4)/='airs' .and. isis(1:4) /= 'cris' .and. isis(1:4) /= 'iasi')) &
+                   (.not. diag_rad .and. isis(1:4)/='airs' .and. isis(1:4) /= 'cris' .and. isis(1:7) /= 'iasi-ng' .and. isis(1:4) /= 'iasi')) &
                    write(6,*) '***WARNING instrument/channel ',isis,ichan,'found in satbias_pc file but not found in satinfo'
              endif
 
@@ -1112,7 +1113,7 @@ contains
 !         The second part of the if statement keeps from printing them.
           if ( .not. cfound ) then
              if ((diag_rad .and. mype ==0) .or. &
-                (.not. diag_rad .and. isis(1:4)/='airs' .and. isis(1:4) /= 'cris' .and. isis(1:4) /= 'iasi')) &
+                (.not. diag_rad .and. isis(1:4)/='airs' .and. isis(1:4) /= 'cris' .and. isis(1:7) /= 'iasi-ng' .and. isis(1:4) /= 'iasi')) &
                 write(6,*) '***WARNING instrument/channel ',isis,ichan,'found in satbias_in file but not found in satinfo'
           endif
 
@@ -1135,7 +1136,7 @@ contains
                 nusis(j),nuchan(j),' not found in satbias_in file - set to zero '
              endif
           end do
-140       format(i4,1x,a20,12f12.6)
+140       format(i5,1x,a20,12f12.6)
 
        endif
 
@@ -1687,7 +1688,6 @@ contains
    integer(i_kind),parameter:: lntemp = 51
 
    integer(i_kind),parameter:: nthreshold = 100
-   integer(i_kind),parameter:: maxchn = 3000
    integer(i_kind),parameter:: maxdat = 100
    real(r_kind),   parameter:: atiny  = 1.0e-10_r_kind
 
@@ -1712,7 +1712,7 @@ contains
    integer(i_kind):: np,new_chan,nc
    integer(i_kind):: counttmp, jjstart, sensor_start, sensor_end
    integer(i_kind):: radedge_min, radedge_max
-   integer(i_kind),dimension(maxchn):: ich
+   integer(i_kind),allocatable,dimension(:):: ich
    integer(i_kind),dimension(maxdat):: ipoint
  
    real(r_kind):: bias,scan,errinv,rnad
@@ -1814,6 +1814,7 @@ contains
            mype, trim(fdiag_rad), header_fix%idate
       satsens = header_fix%isis
       n_chan = header_fix%nchan
+      allocate(ich(n_chan))
 
 !     Check for consistency between specified and retrieved satellite id
 !     after first sorting out some historical naming conventions
@@ -1828,6 +1829,7 @@ contains
       if (satsens /= satsens_id) then
          write(6,'(''INIT_PREDX:  ***ERROR*** inconsistent satellite ids '',&
               '' fdiag_rad= '',a,'' satsens,satsens_id='')')trim(fdiag_rad),satsens,satsens_id
+         deallocate(ich)
          cycle loopf
       endif
 
@@ -1840,7 +1842,10 @@ contains
             sensor_end = j
          endif
       end do
-      if ( sensor_start == 0 ) cycle loopf
+      if ( sensor_start == 0 ) then
+        deallocate(ich)
+        cycle loopf
+      endif
 
 !     Extract satinfo relative index and get new_chan
       new_chan=0
@@ -1850,6 +1855,7 @@ contains
 !     do not use this diag* file
       if ( satsens(1:6) == 'seviri' .and. header_chan(1)%nuchan < 4) then
         call close_radiag(fdiag_rad,lndiag)
+        deallocate(ich)
         cycle loopf
       endif
 
@@ -1871,6 +1877,7 @@ contains
       write(6,*) 'INIT_PREDX: inst_sat  new_chan = ', trim(fdiag_rad), new_chan
       if (.not. update .and. new_chan==0) then 
          call close_radiag(fdiag_rad,lndiag)
+         deallocate(ich)
          cycle loopf
       end if
 
@@ -2063,7 +2070,7 @@ contains
                if ( nuchan(jj) == header_chan(j)%nuchan ) then
                   jjstart = jj + 1
                   write(lntemp,220) jj,tlapmean(jj),tsum_tlapmean(jj),count_tlapmean(jj)
-220               format(I5,1x,2e15.6,1x,I5)
+220               format(I5,1x,2e15.6,1x,I6)
                   cycle loop_c
                endif
             end do
@@ -2074,6 +2081,7 @@ contains
       if (new_chan/=0) then
          if (all(iobs<nthreshold)) then
             deallocate(A,b,iobs,pred)
+            deallocate(ich)
             cycle loopf
          endif
 
@@ -2120,6 +2128,8 @@ contains
          deallocate(A,b)
          deallocate(iobs,pred)
       end if
+
+      deallocate(ich)
 
 !  End of loop over satellite/sensor types
    end do loopf

@@ -1873,8 +1873,12 @@ contains
     use constants, only: one,zero_single,rd_over_cp_mass,one_tenth,r10,r100
     use constants, only: soilmoistmin
     use gsi_io, only: lendian_in, lendian_out
+    use gsi_io, only: verbose
     use rapidrefresh_cldsurf_mod, only: l_hydrometeor_bkio,l_gsd_soilTQ_nudge,&
          i_use_2mq4b,i_use_2mt4b
+    use rapidrefresh_cldsurf_mod, only: i_howv_3dda, i_gust_3dda, i_vis_3dda
+    use rapidrefresh_cldsurf_mod, only: i_howv_mask, i_sfcrough_fgs
+    
     use chemmod, only: laeroana_gocart,wrf_pm2_5
     use gsi_bundlemod, only: GSI_BundleGetPointer
     use gsi_metguess_mod, only: gsi_metguess_get,GSI_MetGuess_Bundle
@@ -1887,6 +1891,8 @@ contains
     use directDA_radaruse_mod, only: l_use_dbz_directDA
     use directDA_radaruse_mod, only: init_mm_qnr
     use directDA_radaruse_mod, only: l_cvpnr, cvpnr_pval
+    use qcmod, only: pvis,scale_cv,vis_thres
+    use nltransf, only: nltransf_inverse 
 
     implicit none
   
@@ -1913,6 +1919,7 @@ contains
     integer(i_kind) i_qc,i_qi,i_qr,i_qs,i_qg,i_qnr,i_qni,i_qnc
     integer(i_kind) kqc,kqi,kqr,kqs,kqg,kqnr,kqni,kqnc,i_tt,ktt,kw,kdbz
     integer(i_kind) i_sst,i_skt,i_th2,i_q2,i_soilt1,i_tslb,i_smois,ktslb,ksmois
+    integer(i_kind) i_howv, i_gust, i_vis
     integer(i_kind) :: iv, n_gocart_var,i_snowT_check
     integer(i_kind),allocatable :: i_chem(:), kchem(:)
     integer(i_kind) num_mass_fields,num_all_fields,num_all_pad,num_mass_fields_base
@@ -1926,11 +1933,21 @@ contains
     real(r_single) aeta10(nsig),eta10(nsig+1),aeta20(nsig),eta20(nsig+1)
     real(r_single) glon0(nlon_regional,nlat_regional),glat0(nlon_regional,nlat_regional)
     real(r_single) dx_mc0(nlon_regional,nlat_regional),dy_mc0(nlon_regional,nlat_regional)
+    real(r_kind)   tempvis,visout
+
+!--- used to read lakemask for screen off analysis over lake area (e.g., for wave height HOWV)
+    character(len=20)   :: filename_lakemask    ! lakemask.bin
+    integer(i_kind)     :: iunit_lakemask
+    logical             :: l_iunit_opened
+    real(r_single),allocatable::lakemask(:)
   
     real(r_kind), pointer :: ges_ps(:,:  )=>NULL()
     real(r_kind), pointer :: ges_tsk(:,:)=>NULL()
     real(r_kind), pointer :: ges_t2m(:,:)=>NULL()
     real(r_kind), pointer :: ges_q2(:,:)=>NULL()
+    real(r_kind), pointer :: ges_howv_it(:,:)=>NULL()       ! wave height
+    real(r_kind), pointer :: ges_gust_it(:,:)=>NULL()       ! wind gust
+    real(r_kind), pointer :: ges_vis_it( :,:)=>NULL()       ! visibility
     real(r_kind), pointer :: ges_soilt1(:,:)=>NULL()
     real(r_kind), pointer :: ges_tslb_it(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_smois_it(:,:,:)=>NULL()
@@ -1964,6 +1981,11 @@ contains
     real(r_kind), pointer :: ges_seas4(:,:,:)=>NULL()
     real(r_kind), pointer :: ges_p25  (:,:,:)=>NULL()
     real(r_kind), pointer :: ges_pm2_5  (:,:,:)=>NULL()
+
+    logical :: print_verbose
+  
+    print_verbose = .false.
+    if(verbose .and. mype == 0)print_verbose=.true.
 
     associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
     end associate
@@ -2003,6 +2025,9 @@ contains
     if(l_gsd_soilTQ_nudge) num_mass_fields=num_mass_fields+2*nsig_soil+1
     if(i_use_2mt4b > 0 ) num_mass_fields=num_mass_fields+2
     if(i_use_2mt4b <= 0 .and. i_use_2mq4b > 0) num_mass_fields=num_mass_fields+1
+    if(i_howv_3dda > 0) num_mass_fields = num_mass_fields + 1
+    if(i_gust_3dda > 0) num_mass_fields = num_mass_fields + 1
+    if(i_vis_3dda > 0 ) num_mass_fields = num_mass_fields + 1
     if ( laeroana_gocart ) then
        call gsi_chemguess_get ( 'aerosols::3d', n_gocart_var, ier )
        if ( n_gocart_var > 0 ) then
@@ -2060,10 +2085,28 @@ contains
     else
        i_q2=i_skt
     endif
+!   howv is after q2, and before gust
+    if ( i_howv_3dda > 0 ) then
+       i_howv=i_q2+1
+    else
+       i_howv=i_q2
+    end if
+!   gust is after howv, and before vis(ibility)
+    if ( i_gust_3dda > 0 ) then
+       i_gust=i_howv+1
+    else
+       i_gust=i_howv
+    end if
+!   vis(ibility) is after gust, and before cloud hydrometers
+    if ( i_vis_3dda > 0 ) then
+       i_vis=i_gust+1
+    else
+       i_vis=i_gust
+    end if
   
-  ! for hydrometeors
+  ! for hydrometeors (after q2/howv/gust/vis)
     if(l_hydrometeor_bkio .and. n_actual_clouds>0) then
-       i_qc=i_q2+1
+       i_qc=i_vis+1
        i_qr=i_qc+lm
        i_qs=i_qr+lm
        i_qi=i_qs+lm
@@ -2097,13 +2140,13 @@ contains
     else
        if ( laeroana_gocart) then
           do iv = 1, n_gocart_var
-             i_chem(iv)=i_skt+(iv-1)*lm+1
+             i_chem(iv)=i_vis+(iv-1)*lm+1
           end do
        endif
   
        if ( wrf_pm2_5 ) then
           iv=1
-          i_chem(iv)=i_skt+(iv-1)*lm+1
+          i_chem(iv)=i_vis+(iv-1)*lm+1
        endif
   
   
@@ -2594,6 +2637,49 @@ contains
           end do
        end do
     endif
+  ! Wave height (howv)
+    if ( i_howv_3dda > 0 ) then
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'howv', ges_howv_it, istatus );ier=ier+istatus
+        if (ier/=0) then ! doesn't have to die - code can be generalized to bypass missing vars
+            write(6,*)'wrwrfmassa_netcdf_wrf: getpointer for howv failed, cannot retrieve howv, ier =',ier
+            call stop2(999)
+        end if
+        do i=1,lon2
+           do j=1,lat2
+               all_loc(j,i,i_howv)=ges_howv_it(j,i)
+           end do
+        end do
+    end if
+  ! Wind gust (gust)
+    if ( i_gust_3dda > 0 ) then
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'gust', ges_gust_it, istatus );ier=ier+istatus
+        if (ier/=0) then ! doesn't have to die - code can be generalized to bypass missing vars
+            write(6,*)'wrwrfmassa_netcdf_wrf: getpointer for gust failed, cannot retrieve gust, ier =',ier
+            call stop2(999)
+        end if
+        do i=1,lon2
+           do j=1,lat2
+               all_loc(j,i,i_gust)=ges_gust_it(j,i)
+           end do
+        end do
+    end if
+  ! Visibility (vis)
+    if ( i_vis_3dda > 0 ) then
+        call GSI_BundleGetPointer ( GSI_MetGuess_Bundle(it), 'vis', ges_vis_it, istatus );ier=ier+istatus
+        if (ier/=0) then ! doesn't have to die - code can be generalized to bypass missing vars
+            write(6,*)'wrwrfmassa_netcdf_wrf: getpointer for visibility failed, cannot retrieve vis, ier =',ier
+            call stop2(999)
+        end if
+        do i=1,lon2
+           do j=1,lat2
+  !          applying inverse nonlinear transform to analysis of visibility 
+  !            analysis "g-space" ==> physical space
+               tempvis=ges_vis_it(j,i)
+               call nltransf_inverse(tempvis,visout,pvis,scale_cv) 
+               all_loc(j,i,i_vis)=max(min(visout,vis_thres),one)
+           end do
+        end do
+    end if
   
     if(mype == 0) then
   ! SM   This is landmask
@@ -2803,6 +2889,154 @@ contains
           write(lendian_out)temp1
        end if     !endif mype==0
     endif  ! i_use_2mt4b>0
+
+  ! update HOWV (wave height): after TSK/Q2/SOILT1/TH2
+    if ( i_howv_3dda > 0 ) then
+
+  !--- reading lakemask if existing
+       if(mype == 0) then
+          allocate(lakemask(im*jm))
+          lakemask(:) = -1.0_r_single
+          if(i_howv_mask == 2) then
+             filename_lakemask="lakemask.bin"
+             iunit_lakemask=115
+             l_iunit_opened=.true.
+             inquire(unit=iunit_lakemask, opened=l_iunit_opened)
+             if(l_iunit_opened) iunit_lakemask=iunit_lakemask+5000
+             if(print_verbose) write(6,*)' I/O unit for reading lakemask: ', iunit_lakemask
+             open(iunit_lakemask,file=trim(adjustl(filename_lakemask)),form='unformatted',status='old')
+             read(iunit_lakemask)temp1   !LAKEMASK   (1=lake, 0=water)
+             lakemask = temp1
+             close(iunit_lakemask)
+          end if
+  !---    checking the land and lake mask
+          if ( i_howv_mask > 0 ) then
+             if (maxval(landmask) > 1.01_r_single .or. minval(landmask) < -0.01_r_single) then
+                i_howv_mask = 0
+                if (print_verbose) then
+                   write(6,*) ' bad landmask, do not use land and lake mask to filter howv field.'
+                endif
+             else
+                if (maxval(lakemask) > 1.01_r_single .or. minval(lakemask) < -0.01_r_single) then
+                   i_howv_mask = 1
+                   if (print_verbose) then
+                      write(6,*) ' bad lakemask, do not use it, only use land mask to filter howv field.'
+                   endif
+                endif
+             endif
+          else
+             i_howv_mask = 0
+             if (print_verbose) then
+                write(6,*) ' No land and lake mask would be used to filter howv field.'
+             endif
+          endif
+       endif   ! mype = 0 (reading mask data only on pe=0)
+
+       if(mype == 0) read(lendian_in)temp1
+       if(mype == 0) write(6,*)' at 10.15 (howv: fgs) in wrwrfmassa,max,min(temp1)=', &
+                                           maxval(temp1),minval(temp1)
+       call strip(all_loc(:,:,i_howv),strp)
+       tempa=zero_single
+       call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+            tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+       if(mype == 0) then
+          write(6,*)' at 10.16 (howv: anl on analysis grid) in wrwrfmassa,max,min(tempa)=', &
+                            maxval(tempa),minval(tempa)
+          call fill_mass_grid2t(temp1,im,jm,tempb,2)
+          do i=1,iglobal
+             tempa(i)=tempa(i)-tempb(i)
+          end do
+          write(6,*)' at 10.17 (howv: inc on analysis grid) in wrwrfmassa,max,min(tempa)=', &
+                             maxval(tempa),minval(tempa)
+
+          if ( i_howv_mask > 0 ) then
+  ! ---      mask/screen off the howv analysis over land and lake area
+             if (print_verbose) write(6,*)                                &
+                ' Analysis of howv is masked/modified by landmask/lakemask.'
+             call unfill_mass_grid2t_ldlkmask(tempa,im,jm,temp1,landmask, &
+                                           lakemask,i_howv_mask)
+          else
+             if (print_verbose) write(6,*)                                &
+                ' Analysis of howv is NOT masked by landmask/lakemask.'
+             call unfill_mass_grid2t(tempa,im,jm,temp1)
+          end if
+          write(6,*)' at 10.18 (howv: anl on   model  grid) in wrwrfmassa,max,min(temp1)=', &
+                             maxval(temp1),minval(temp1)
+          write(lendian_out)temp1
+         
+          deallocate(lakemask)
+
+       end if     !endif mype==0
+
+    end if ! i_howv_3dda > 0
+
+  ! update GUST (wind gust): after howv
+    if ( i_gust_3dda > 0 ) then
+
+       if(mype == 0) read(lendian_in)temp1
+       if(mype == 0) write(6,*)' at 10.19 (gust: fgs) in wrwrfmassa,max,min(temp1)=', &
+                                           maxval(temp1),minval(temp1)
+       call strip(all_loc(:,:,i_gust),strp)
+       tempa=zero_single
+       call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+            tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+       if(mype == 0) then
+          write(6,*)' at 10.20 (gust: anl on analysis grid) in wrwrfmassa,max,min(tempa)=', &
+                            maxval(tempa),minval(tempa)
+          call fill_mass_grid2t(temp1,im,jm,tempb,2)
+          do i=1,iglobal
+             tempa(i)=tempa(i)-tempb(i)
+          end do
+          write(6,*)' at 10.21 (gust: inc on analysis grid) in wrwrfmassa,max,min(tempa)=', &
+                             maxval(tempa),minval(tempa)
+
+          call unfill_mass_grid2t(tempa,im,jm,temp1)
+          write(6,*)' at 10.22 (gust: anl on   model  grid) in wrwrfmassa,max,min(temp1)=', &
+                             maxval(temp1),minval(temp1)
+          write(lendian_out)temp1
+
+       end if     !endif mype==0
+
+    end if ! i_gust_3dda > 0
+
+  ! ZNT: surface roughness (no updating to it)
+    if ( i_sfcrough_fgs > 0 ) then
+       if(mype == 0) then
+  !         This is surface roughness
+          read(lendian_in)temp1
+          write(lendian_out)temp1
+       end if
+    end if
+
+  ! update VIS (visibility): after gust
+    if ( i_vis_3dda > 0 ) then
+
+       if(mype == 0) read(lendian_in)temp1
+       if(mype == 0) write(6,*)' at 10.23 (vis: fgs) in wrwrfmassa,max,min(temp1)=', &
+                                           maxval(temp1),minval(temp1)
+       call strip(all_loc(:,:,i_vis),strp)
+       tempa=zero_single
+       call mpi_gatherv(strp,ijn(mype+1),mpi_real4, &
+            tempa,ijn,displs_g,mpi_real4,0,mpi_comm_world,ierror)
+       if(mype == 0) then
+          write(6,*)' at 10.24 (vis: anl on analysis grid) in wrwrfmassa,max,min(tempa)=', &
+                            maxval(tempa),minval(tempa)
+          call fill_mass_grid2t(temp1,im,jm,tempb,2)
+          do i=1,iglobal
+             tempa(i)=tempa(i)-tempb(i)
+          end do
+          write(6,*)' at 10.25 (vis: inc on analysis grid) in wrwrfmassa,max,min(tempa)=', &
+                             maxval(tempa),minval(tempa)
+
+          call unfill_mass_grid2t(tempa,im,jm,temp1)
+          write(6,*)' at 10.26 (vis: anl on   model  grid) in wrwrfmassa,max,min(temp1)=', &
+                             maxval(temp1),minval(temp1)
+          write(lendian_out)temp1
+
+       end if     !endif mype==0
+
+    end if ! i_vis_3dda > 0
+
   !
   ! for saving cloud analysis results
     if(l_hydrometeor_bkio .and. n_actual_clouds>0) then

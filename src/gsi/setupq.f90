@@ -114,6 +114,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !   2023-03-09 Draper added option to interpolate screen-level q from model 2m output.
 !              (hofx_2m_sfcfile)
 !   2024-01-11 zhao     - added tdry/tvflg in obs diagnostic files for (2D/3D)RTMA
+!   2024-10-31 zhao     - added code to use valley-map data for 3DRTMA (l_rtma3d = .TRUE.)
 !
 !
 !   input argument list:
@@ -755,7 +756,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         qcgross=cgross(ikx)
      endif
 
-     if (twodvar_regional) then
+     if (twodvar_regional .or. l_rtma3d) then
         if ( (data(iuse,i)-real(int(data(iuse,i)),kind=r_kind)) == 0.25_r_kind) &
                qcgross=r3p5*qcgross
      endif
@@ -1322,8 +1323,8 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         rdiagbufp(21,iip) = 1e+10_r_single     ! spread (filled in by EnKF)
 
         if (l_rtma3d .or. twodvar_regional) then  ! in binary obsdiag for 2D/3DRTMA
-          rdiagbufp(22,ii) = data(itemp,i)    ! dry temperature associated to qob
-          rdiagbufp(23,ii) = data(iqt,  i)    ! tv flag (0: virtual temp; 1: sensible temp)
+          rdiagbufp(22,iip) = data(itemp,i)    ! dry temperature associated to qob
+          rdiagbufp(23,iip) = data(iqt,  i)    ! tv flag (0: virtual temp; 1: sensible temp)
         end if
 
         ioff=ioff0

@@ -76,23 +76,22 @@ export use_correlated_oberrs=${use_correlated_oberrs:-".false."}
 if [ $USE_CORRELATED_OBERRS == "YES" ]; then
     export use_correlated_oberrs=".true."
 fi
-export imp_physics=${imp_physics:-"11"}
 export lupp=${lupp:-".true."}
 export corrlength=${corrlength:-1250}
 export lnsigcutoff=${lnsigcutoff:-2.75}
 export analpertwt=${analpertwt:-0.85}
 export readin_localization_enkf=".false."
-export readin_localization_enkf=${readin_localization_enkf:-".true."}
-export reducedgrid=${reducedgrid:-".true."}
 export letkf_flag=${letkf_flag:-".true."}
 export getkf=${getkf:-".true."}
 export denkf=${denkf:-".true."}
 export nobsl_max=${nobsl_max:-10000}
 export lobsdiag_forenkf=${lobsdiag_forenkf:-".true."}
 export write_spread_diag=${write_spread_diag:-".false."}
+export hofx_2m_sfcfile=${hofx_2m_sfcfile:-".true."}
 export cnvw_option=${cnvw_option:-".false."}
 export netcdf_diag=${netcdf_diag:-".true."}
 export modelspace_vloc=${modelspace_vloc:-".true."} # if true, 'vlocal_eig.dat' is needed
+export taperanalperts=${taperanalperts:-".true."}
 export IAUFHRS_ENKF=${IAUFHRS_ENKF:-'3,6,9'}
 export DO_CALC_INCREMENT=${DO_CALC_INCREMENT:-"NO"}
 export INCREMENTS_TO_ZERO="'liq_wat_inc','icmr_inc','rwmr_inc','snmr_inc','grle_inc'"
@@ -162,14 +161,17 @@ done
 nfhrs=`echo $IAUFHRS_ENKF | sed 's/,/ /g'`
 for fhr in $nfhrs; do
     for imem in $(seq 1 $NMEM_ENKF); do
-	memchar="mem"$(printf %03i $imem)
-	$nln $datens/$memchar/model_data/atmos/history/${prefix_ens}.atmf00${fhr}.nc sfg_${global_adate}_fhr0${fhr}_${memchar}
-        if [ $cnvw_option = ".true." ]; then
-            $nln $datens/$memchar/model_data/atmos/history/${prefix_ens}sfcf00${fhr}.nc sfgsfc_${global_adate}_fhr0${fhr}_${memchar}
+        memchar="mem"$(printf %03i $imem)
+        $nln $datens/$memchar/model/atmos/history/${prefix_ens}.atmf00${fhr}.nc sfg_${global_adate}_fhr0${fhr}_${memchar}
+        if [[ "${hofx_2m_sfcfile}" == ".true." ]]; then
+            $nln $datens/$memchar/model/atmos/history/${prefix_ens}.sfcf00${fhr}.nc bfg_${global_adate}_fhr0${fhr}_${memchar}
         fi
-	(( imem = $imem + 1 ))
+        if [ $cnvw_option = ".true." ]; then
+            $nln $datens/$memchar/model/atmos/history/${prefix_ens}.sfcf00${fhr}.nc sfgsfc_${global_adate}_fhr0${fhr}_${memchar}
+        fi
+        (( imem = $imem + 1 ))
     done
-    $nln $datens/ensstat/model_data/atmos/history/${prefix_ens}.atmf00${fhr}.ensmean.nc sfg_${global_adate}_fhr0${fhr}_ensmean
+    $nln $datens/ensstat/model/atmos/history/${prefix_ens}.atmf00${fhr}.ensmean.nc sfg_${global_adate}_fhr0${fhr}_ensmean
     if [ $cnvw_option = ".true." ]; then
         $nln $datens/${prefix_ens}.sfcf00${fhr}.ensmean.nc sfgsfc_${global_adate}_fhr0${fhr}_ensmean
     fi

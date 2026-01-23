@@ -100,7 +100,7 @@ subroutine statsrad(aivals,stats,ndata)
            write(iout_rad,4002) 'qcpenalty','qc1','qc2','qc3','qc4','qc5','qc6','qc7'    
            write(iout_rad,4003) aivals(39,is),(nint(aivals(i,is)),i=8,14)
 4000       format(2x,a3,7x,a4,14x,a7,1x,8(a7,1x))
-4001       format(1x,a10,1x,a10,f16.8,8(i7,1x))
+4001       format(1x,a11,1x,a10,f16.8,8(i7,1x))
 4002       format(28x,a9,1x,8(a7,1x))
 4003       format(22x,f16.8,8(i7,1x))
            
@@ -161,11 +161,11 @@ subroutine statsrad(aivals,stats,ndata)
 2011 format(8x,f16.8,8(i7,1x))
 2012 format(12x,A7,5x,8(a7,1x))
 2999 format(' Illegal satellite type ')
-1102 format(1x,i4,i5,1x,a16,2i7,1x,f10.3,1x,6(f11.7,1x))
+1102 format(1x,i6,i6,1x,a20,2i7,1x,f10.3,1x,6(f11.7,1x))
 1109 format(t5,'it',t13,'satellite',t23,'instrument',t40, &
           '# read',t53,'# keep',t65,'# assim',&
           t75,'penalty',t88,'qcpnlty',t104,'cpen',t115,'qccpen')
-1115 format('o-g',1x,i2.2,1x,'rad',2x,2A10,2x,3(i11,2x),4(g12.5,1x))
+1115 format('o-g',1x,i2.2,1x,'rad',2x,2A12,2x,3(i11,2x),4(g12.5,1x))
 
 ! Close output unit
   close(iout_rad)
