@@ -890,6 +890,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
            call nc_diag_metadata("Observation_Class",       obsclass               )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
+           ! Place holder: call nc_diag_metadata_to_single("Observation_Category", data(icat,i)    )
            !Replace direct calls to nc_diag_metadata with the screening subroutine
            call nc_diag_metadata_to_single("Latitude",      data(ilate,i)          )
            call nc_diag_metadata_to_single("Longitude",     data(ilone,i)          )
