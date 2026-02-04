@@ -519,7 +519,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
      iqm = 11
      iuse = 13
   else if(psob) then
-     nreal=20
+     nreal=21
      iqm=10
      iuse = 12
   else if(qob) then
@@ -2482,7 +2482,12 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  cdata_all(18,iout)=r_prvstg(1,1)          ! provider name
                  cdata_all(19,iout)=r_sprvstg(1,1)         ! subprovider name
                  cdata_all(20,iout)=var_jb(1,k)            ! non linear qc b parameter
-                 if(perturb_obs)cdata_all(21,iout)=ran01dom()*perturb_fact ! ps perturbation
+                 if (it29 > 500) then
+                    cdata_all(21,iout)=t29                 ! it29
+                 else
+                    cdata_all(21,iout)=obsdat(10,k)        ! cat
+                 end if
+                 if(perturb_obs)cdata_all(22,iout)=ran01dom()*perturb_fact ! ps perturbation
                  if (twodvar_regional) &
                     call adjust_error(cdata_all(14,iout),cdata_all(15,iout),cdata_all(11,iout),cdata_all(1,iout))
 
