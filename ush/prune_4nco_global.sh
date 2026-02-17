@@ -115,7 +115,7 @@ done
 
 # Process ush directories and files
 cd $topdir/ush
-rlist="sub"
+rlist="sub run_observer"
 for type in $rlist; do
     if [[ "$mode" = "prune" ]]; then
 	if [ -e $type ]; then
