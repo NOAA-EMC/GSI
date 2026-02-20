@@ -132,7 +132,6 @@ subroutine combine_radobs(mype_sub,mype_root,&
         
      end do
      deallocate(nloc)
-     
 
 !    get all data on process mype_root
 !    data_all(:,:) = zero
