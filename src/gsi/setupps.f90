@@ -184,7 +184,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   real(r_kind),dimension(nele,nobs):: data
   real(r_single),allocatable,dimension(:,:)::rdiagbuf
 
-  integer(i_kind) ier,ilon,ilat,ipres,ihgt,itemp,id,itime,ikx,iqc,iptrb,ijb
+  integer(i_kind) ier,ilon,ilat,ipres,ihgt,itemp,id,itime,ikx,iqc,iptrb,ijb,icat
   integer(i_kind) ier2,iuse,ilate,ilone,istnelv,idomsfc,izz,iprvd,isprvd
   integer(i_kind) ikxx,nn,ibin,ioff,ioff0
   integer(i_kind) i,j,nchar,nreal,ii,jj,k,l,mm1
@@ -249,7 +249,8 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
   iprvd=18    ! index of observation provider
   isprvd=19   ! index of observation subprovider
   ijb=20      ! index of non linear qc parameter
-  iptrb=21    ! index of ps perturbation
+  icat=21     ! index of ps perturbation
+  iptrb=22    ! index of ps perturbation
 
 ! Declare local constants
   halfpi = half*pi
@@ -890,6 +891,7 @@ subroutine setupps(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsa
            call nc_diag_metadata("Observation_Class",       obsclass               )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
+           call nc_diag_metadata_to_single("Observation_Category", data(icat,i)    )
            !Replace direct calls to nc_diag_metadata with the screening subroutine
            call nc_diag_metadata_to_single("Latitude",      data(ilate,i)          )
            call nc_diag_metadata_to_single("Longitude",     data(ilone,i)          )

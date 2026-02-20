@@ -115,11 +115,11 @@ done
 
 # Process ush directories and files
 cd $topdir/ush
-rlist="sub"
+rlist="sub* run_observer"
 for type in $rlist; do
     if [[ "$mode" = "prune" ]]; then
-	if [ -e $type ]; then
-	    git $string ${type}*
+	if [ -e ${type} ]; then
+	    git $string ${type}
 	    rc=$?
 	    if [[ $rc -ne 0 ]]; then
 		echo "***ERROR*** git $string ${type}"
@@ -128,12 +128,12 @@ for type in $rlist; do
 	fi
     elif [[ "$mode" = "restore" ]]; then
         if [[ "$use_checkout" = "YES" ]]; then
-            git reset HEAD ${type}* 
-            git checkout ${type}*
+            git reset HEAD ${type} 
+            git checkout ${type}
             rc=$?
         else
-            git restore --staged ${type}*
-            git restore ${type}*
+            git restore --staged ${type}
+            git restore ${type}
             rc=$?
         fi
         if [[ $rc -ne 0 ]]; then
