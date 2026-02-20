@@ -912,8 +912,7 @@ subroutine normal_new_factorization_rf_x
   use hybrid_ensemble_parameters, only: grd_loc,vvlocal
   use hybrid_ensemble_parameters, only: naensgrp,naensloc
   use constants, only: zero,one
-  use mpimod, only: mpi_rtype
-  use mpi
+  use mpimod, only: mpi_rtype, mpi
   use crc32
 
   implicit none
@@ -922,7 +921,7 @@ subroutine normal_new_factorization_rf_x
   integer(i_kind) name_len,message_len,nodeID,nodeComm,nodeRank,RanksPerNode,ierr
   real(r_kind) f(grd_loc%nlat,grd_loc%nlon,grd_loc%kend_alloc+1-grd_loc%kbegin_loc)
   real(r_kind),allocatable:: diag(:,:,:)
-  real(i_kind),allocatable:: sz(:)
+  integer(i_kind),allocatable:: sz(:)
   character(len=72) :: input
   character(len=5) :: np,nlat,nlon
   logical :: exists
@@ -1104,6 +1103,8 @@ subroutine normal_new_factorization_rf_x
     write(6,'("new_factorization_rf_x: Scenario not yet supported")')
     call MPI_Abort(MPI_COMM_WORLD, 13, ierr)
   endif
+
+  deallocate(sz)
 
   return
 
