@@ -9,7 +9,7 @@ local cmake_ver= os.getenv("cmake_ver") or "3.20.2"
 local prod_util_ver=os.getenv("prod_util_ver") or "2.0.10"
 
 local zlib_ver=os.getenv("zlib_ver") or "1.2.11"
-local bufr_ver=os.getenv("bufr_ver") or "11.7.0"
+local bufr_ver=os.getenv("bufr_ver") or "12.1.0"
 local hdf5_ver=os.getenv("hdf5_ver") or "1.14.0"
 local pnetcdf_ver=os.getenv("pnetcdf_ver") or "1.12.2"
 local netcdf_ver=os.getenv("netcdf_ver") or "4.9.2"
