@@ -167,9 +167,7 @@ t1 = mpi_wtime()
 ! assume work load proportional to number of 'nearby' obs
 call estimate_work_enkf1(numobs) ! fill numobs array with number of obs per horiz point
 ! distribute the results of estimate_work to all processors.
-!clt call mpi_barrier(mpi_comm_world,ierr)  !added, for debug mode, on wcoss2 ,otherwise, 
-!clt                               !"  MPICH suspects a hang due to rendezvous message resource exhaustion."
-!clt                               commented out now for the noticeable  degraded performance
+! added mpi_barrier for debug mode, on wcoss2.
 call mpi_allreduce(mpi_in_place,numobs,npts,mpi_integer,mpi_sum,mpi_comm_world,ierr)
 if (letkf_flag .and. nobsl_max > 0) then
   where(numobs > nobsl_max) numobs = nobsl_max
