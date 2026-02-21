@@ -912,7 +912,7 @@ subroutine normal_new_factorization_rf_x
   use hybrid_ensemble_parameters, only: grd_loc,vvlocal
   use hybrid_ensemble_parameters, only: naensgrp,naensloc
   use constants, only: zero,one
-  use mpimod, only: mpi_rtype, mpi
+  use mpimod, only: mpi_rtype,mype
   use crc32
 
   implicit none
