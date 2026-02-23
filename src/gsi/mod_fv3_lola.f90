@@ -132,8 +132,6 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
   use egrid2agrid_mod, only: egrid2agrid_parm
   use mpi
   use crc32
-  use ifcore
-  use ifport
   implicit none
 
   real(r_kind),allocatable,dimension(:)::xbh_a,xa_a,xa_b
@@ -700,8 +698,6 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
                       fv3dx,fv3dx1,fv3dy,fv3dy1,fv3ix,fv3ixp,fv3jy,fv3jyp, &
                       a3dx,a3dx1,a3dy,a3dy1,a3ix,a3ixp,a3jy,a3jyp, &
                       cangu,sangu,cangv,sangv
-        !call flush(inunit)
-        !res = COMMITQQ(inunit)
         close(inunit)
         !write(6,'("generate_anl_grid: Wrote ana_grid ",I4,A)') mype, trim(input)
       endif

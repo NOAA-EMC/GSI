@@ -1003,7 +1003,7 @@ subroutine normal_new_factorization_rf_x
        enddo
        write(6,*)' in normal_new_factorization_rf_x,min,max(diag)=',minval(diag),maxval(diag)
     endif
-  elseif (any(sz == sz(1))) then ! Use optimization
+  elseif (all(sz == sz(1))) then ! Use optimization
     if(mype==0) write(6,'("new_factorization_rf_x: Opt")')
     !write(6,'("new_factorization_rf_x: Opt ",5I6)'),mype,grd_loc%nlat,grd_loc%nlon,kl,naensloc
     ! Fill xnorm_new using one rank per compute node to avoid
