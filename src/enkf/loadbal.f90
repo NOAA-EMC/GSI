@@ -167,7 +167,6 @@ t1 = mpi_wtime()
 ! assume work load proportional to number of 'nearby' obs
 call estimate_work_enkf1(numobs) ! fill numobs array with number of obs per horiz point
 ! distribute the results of estimate_work to all processors.
-! added mpi_barrier for debug mode, on wcoss2.
 call mpi_allreduce(mpi_in_place,numobs,npts,mpi_integer,mpi_sum,mpi_comm_world,ierr)
 if (letkf_flag .and. nobsl_max > 0) then
   where(numobs > nobsl_max) numobs = nobsl_max
