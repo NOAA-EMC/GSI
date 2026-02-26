@@ -20,7 +20,6 @@ load(pathJoin("cmake", cmake_ver))
 -- local oneapi_mkl_ver=os.getenv("oneapi_mkl_ver") or "2024.2.1"
 -- load(pathJoin("intel-oneapi-mkl", oneapi_mkl_ver))
 local crtm_fix_ver=os.getenv("crtm_fix_ver") or "2.4.0.2"
-load(pathJoin("cmake", cmake_ver))
 
 load("gsi_common")
 
