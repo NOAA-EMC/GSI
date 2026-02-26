@@ -24,7 +24,8 @@ load(pathJoin("cmake", cmake_ver))
 
 load("gsi_common")
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/gpfs/csfs1/work/huangwei/GW-fix-data/gsi/20251105")
-setenv("CRTM_FIX", pathJoin("/gpfs/csfs1/work/huangwei/GW-fix-data/crtm", "v" .. crtm_fix_ver))
+local fix_base_path = os.getenv("GSI_FIX_BASE") or "/gpfs/csfs1/work/huangwei/GW-fix-data"
+pushenv("GSI_BINARY_SOURCE_DIR", pathJoin(fix_base_path, "gsi/20251105"))
+setenv("CRTM_FIX", pathJoin(pathJoin(fix_base_path, "crtm"), "v" .. crtm_fix_ver))
 
 whatis("Description: GSI environment on NCAR derecho with Intel Compilers")
