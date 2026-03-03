@@ -40,6 +40,8 @@ case $(hostname -f) in
   der*) MACHINE_ID=derecho ;; ### derecho[1-8]
   dec*) MACHINE_ID=derecho ;; ### decxxx computing node
 
+  ip-*) MACHINE_ID=aws-ec2 ;; ### aws-ec2
+
   Orion-login-[1-4].HPC.MsState.Edu) MACHINE_ID=orion ;; ### orion1-4
 
   [Hh]ercules-login-[1-4].[Hh][Pp][Cc].[Mm]s[Ss]tate.[Ee]du) MACHINE_ID=hercules ;; ### hercules1-4
@@ -91,6 +93,9 @@ elif [[ -d /gpfs/f6 ]]; then
 elif [[ -d /gpfs/csfs1 ]]; then
   # We are on NCAR DERECHO.
   MACHINE_ID=derecho
+elif [[ -d /opt/spack-stack ]]; then
+  # We are on AWS ec2
+  MACHINE_ID=aws-ec2
 else
   echo WARNING: UNKNOWN PLATFORM 1>&2
 fi
