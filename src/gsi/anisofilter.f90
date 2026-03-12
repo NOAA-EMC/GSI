@@ -5415,16 +5415,16 @@ subroutine get2berr_reg_subdomain_option(mype)
 !
 !     CONVERT bckgvar4 FROM FILTER GRID TO ANALYSIS GRID BEFORE WRITING OUT
 !
+   if(mype==0) then
      bckgvar8f=bckgvar4f
      call fgrid2agrid(pf2aP1,bckgvar8f,bckgvar8a)
      bckgvar4=bckgvar8a
-     if(mype==0) then
         ivar=jdvar(k)
         chvarname=fvarname(ivar)
         open (94,file='bckgvar.dat_'//trim(chvarname),form='unformatted')
         write(94) bckgvar4
         close(94)
-     end if
+   end if
   enddo
   deallocate(bckgvar4t,bckgvar4f,bckgvar4,bckgvar8f,bckgvar8a,bckgvar0f)
 

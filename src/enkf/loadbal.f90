@@ -298,6 +298,7 @@ if (.not. letkf_flag .or. lupd_obspace_serial) then
    end if
    ! for serial enkf, create observation priors to be updated on each processor.
    allocate(anal_obchunk_prior(nanals,nobs_max))
+   anal_obchunk_prior=zero
    do nob1=1,numobsperproc(nproc+1)
       nob2 = indxproc_obs(nproc+1,nob1)
       anal_obchunk_prior(1:nanals,nob1) = anal_ob(1:nanals,nob2)
@@ -357,6 +358,7 @@ allocate(displs(0:numproc-1))
 allocate(rcounts(0:numproc-1))
 ! allocate array to hold pieces of state vector on each proc.
 allocate(anal_chunk(nanals,npts_max,ncdim,nbackgrounds))
+anal_chunk=zero
 if (nproc == 0) print *,'anal_chunk size = ',size(anal_chunk,kind=8)
 
 ! only IO tasks send any data.

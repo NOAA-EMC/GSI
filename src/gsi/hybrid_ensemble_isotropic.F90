@@ -732,6 +732,8 @@ subroutine new_factorization_rf_y(f,iadvance,iback,nlevs,ig)
   nx=grd_loc%nlon ; ny=grd_loc%nlat ; nz=nlevs
 
   if(vvlocal)then
+!$omp parallel do default(none), schedule(static,1) private(k,j,i,l) &
+!$omp shared(nx,ny,nz,ig,iadvance,ynorm_new,f,fmaty,fmat0y,iback)
      do k=1,nz
         do j=1,nx
 
@@ -764,6 +766,8 @@ subroutine new_factorization_rf_y(f,iadvance,iback,nlevs,ig)
         enddo
      enddo
   else
+!$omp parallel do default(none),schedule(static,1) private(k,j,i,l) &
+!$omp shared(nx,ny,nz,ig,iadvance,ynorm_new,f,fmaty,fmat0y,iback)
      do k=1,nz
         do j=1,nx
 
@@ -908,12 +912,21 @@ subroutine normal_new_factorization_rf_x
   use hybrid_ensemble_parameters, only: grd_loc,vvlocal
   use hybrid_ensemble_parameters, only: naensgrp,naensloc
   use constants, only: zero,one
+  use mpimod, only: mpi_rtype,mype
+  use crc32
 
   implicit none
 
-  integer(i_kind) i,j,k,iadvance,iback,kl,ig
+  integer(i_kind) i,j,k,iadvance,iback,kl,ig,npes,inunit
+  integer(i_kind) name_len,message_len,nodeID,nodeComm,nodeRank,RanksPerNode,ierr
   real(r_kind) f(grd_loc%nlat,grd_loc%nlon,grd_loc%kend_alloc+1-grd_loc%kbegin_loc)
   real(r_kind),allocatable:: diag(:,:,:)
+  integer(i_kind),allocatable:: sz(:)
+  character(len=72) :: input
+  character(len=5) :: np,nlat,nlon
+  logical :: exists
+  character(len=MPI_MAX_PROCESSOR_NAME) :: nodeName
+  character(len=MPI_MAX_ERROR_STRING) :: message
 !  real(r_kind) diag(grd_loc%nlat,grd_loc%nlon)
 
 !                       possible to have kend_loc - kbegin_loc-1 for processors not involved
@@ -926,59 +939,173 @@ subroutine normal_new_factorization_rf_x
   else
      kl=1
   endif
-  if(allocated(xnorm_new)) deallocate(xnorm_new)
-  allocate(xnorm_new(grd_loc%nlat,grd_loc%nlon,kl,naensloc))
-  if(allocated(diag)) deallocate(diag)
-  allocate(diag(grd_loc%nlat,grd_loc%nlon,kl))
-  xnorm_new=one
 
-  do ig=1,naensgrp
-     do j=1,grd_loc%nlon
-        f=zero
-        do k=1,kl
-           do i=1,grd_loc%nlat
-              f(i,j,k)=one
-           enddo
-        enddo
-        iadvance=1 ; iback=2
-        call new_factorization_rf_x(f,iadvance,iback,kl,ig)
-        iadvance=2 ; iback=1
-        call new_factorization_rf_x(f,iadvance,iback,kl,ig)
-        do k=1,kl
-           do i=1,grd_loc%nlat
-              diag(i,j,k)=sqrt(one/f(i,j,k))
-           enddo
-        enddo
-     enddo
-     do k=1,kl
-        do j=1,grd_loc%nlon
-           do i=1,grd_loc%nlat
-              xnorm_new(i,j,k,ig)=diag(i,j,k)
-           enddo
-        enddo
-     enddo
-  enddo !ig loop
+! The Optimization depends on each rank on a node having the same sized xnorm_new array.
+! This is generally not true when vvlocal=.true. (readin_localization in gsiparm.anl) because kl varies in that case
+  call MPI_Comm_size(MPI_COMM_WORLD,npes,ierr)
+  allocate(sz(npes))
+  call MPI_Allgather((grd_loc%nlat*grd_loc%nlon*kl*naensloc),1,MPI_Integer,sz,1,MPI_Integer,MPI_COMM_WORLD,ierr)
+
+  if(vvlocal .or. any(sz /= sz(1))) then
+    ! Must generate xnorm_new on all ranks
+    if (mype==0) write(6,'("new_factorization_rf_x: Default")')
+    if(allocated(xnorm_new)) deallocate(xnorm_new)
+    allocate(xnorm_new(grd_loc%nlat,grd_loc%nlon,kl,naensloc))
+    !write(6,'("new_factorization_rf_x: Default ",5I6)'),mype,grd_loc%nlat,grd_loc%nlon,kl,naensloc
+    if(allocated(diag)) deallocate(diag)
+    allocate(diag(grd_loc%nlat,grd_loc%nlon,kl))
+    xnorm_new=one
+
+    do ig=1,naensgrp
+       do j=1,grd_loc%nlon
+          f=zero
+          do k=1,kl
+             do i=1,grd_loc%nlat
+                f(i,j,k)=one
+             enddo
+          enddo
+          iadvance=1 ; iback=2
+          call new_factorization_rf_x(f,iadvance,iback,kl,ig)
+          iadvance=2 ; iback=1
+          call new_factorization_rf_x(f,iadvance,iback,kl,ig)
+          do k=1,kl
+             do i=1,grd_loc%nlat
+                diag(i,j,k)=sqrt(one/f(i,j,k))
+             enddo
+          enddo
+       enddo
+       do k=1,kl
+          do j=1,grd_loc%nlon
+             do i=1,grd_loc%nlat
+                xnorm_new(i,j,k,ig)=diag(i,j,k)
+             enddo
+          enddo
+       enddo
+    enddo !ig loop
 !           check accuracy of xnorm
-  if(debug) then
-     do j=1,grd_loc%nlon
-        f=zero
-        do k=1,kl
-           do i=1,grd_loc%nlat
-              f(i,j,k)=one
+    if(debug) then
+       do j=1,grd_loc%nlon
+          f=zero
+          do k=1,kl
+             do i=1,grd_loc%nlat
+                f(i,j,k)=one
+             enddo
+          enddo
+          iadvance=1 ; iback=2
+          call new_factorization_rf_x(f,iadvance,iback,kl,1)
+          iadvance=2 ; iback=1
+          call new_factorization_rf_x(f,iadvance,iback,kl,1)
+          do k=1,kl
+             do i=1,grd_loc%nlat
+                diag(i,j,k)=f(i,j,k)
+             enddo
+          enddo
+       enddo
+       write(6,*)' in normal_new_factorization_rf_x,min,max(diag)=',minval(diag),maxval(diag)
+    endif
+  elseif (all(sz == sz(1))) then ! Use optimization
+    if(mype==0) write(6,'("new_factorization_rf_x: Opt")')
+    !write(6,'("new_factorization_rf_x: Opt ",5I6)'),mype,grd_loc%nlat,grd_loc%nlon,kl,naensloc
+    ! Fill xnorm_new using one rank per compute node to avoid
+    ! contension for memory bandwidth
+    call MPI_Get_processor_name(nodeName,name_len,ierr)
+    nodeID=digest(trim(nodeName))
+    !read(nodeName(4:9),*) nodeID ! Danger! This approach will not to work on platforms other than WCOSS2
+    call MPI_Comm_split(mpi_comm_world, nodeID, mype, nodeComm, ierr)
+    call MPI_Comm_rank(nodeComm,nodeRank,ierr)
+    call MPI_Comm_size(nodeComm,RanksPerNode,ierr)
+
+    if(allocated(xnorm_new)) deallocate(xnorm_new)
+    allocate(xnorm_new(grd_loc%nlat,grd_loc%nlon,kl,naensloc))
+
+    if(nodeRank==0) then
+      ! Check for existing file
+      write(nlat, '(i0)') grd_loc%nlat; nlat = adjustl(nlat)
+      write(nlon, '(i0)') grd_loc%nlon; nlon = adjustl(nlon)
+      write(np, '(i0)') npes; np = adjustl(np)
+      input= 'xnorm_new.'//trim(np)//'.'//trim(nlat)//'.'//trim(nlon)
+      inquire (file=trim(input), EXIST=exists)
+      inunit=2000+mype
+      if (exists) then
+        open(inunit,file=trim(input),form='unformatted',action='read')
+        read(inunit) xnorm_new
+        close(inunit)
+      else ! Generate the data and have rank 0 write it out for later use
+        if(allocated(diag)) deallocate(diag)
+        allocate(diag(grd_loc%nlat,grd_loc%nlon,kl))
+        xnorm_new=one
+
+        do ig=1,naensgrp
+           do j=1,grd_loc%nlon
+              f=zero
+              do k=1,kl
+                 do i=1,grd_loc%nlat
+                    f(i,j,k)=one
+                 enddo
+              enddo
+              iadvance=1 ; iback=2
+              call new_factorization_rf_x(f,iadvance,iback,kl,ig)
+              iadvance=2 ; iback=1
+              call new_factorization_rf_x(f,iadvance,iback,kl,ig)
+              do k=1,kl
+                 do i=1,grd_loc%nlat
+                    diag(i,j,k)=sqrt(one/f(i,j,k))
+                 enddo
+              enddo
            enddo
-        enddo
-        iadvance=1 ; iback=2
-        call new_factorization_rf_x(f,iadvance,iback,kl,1)
-        iadvance=2 ; iback=1
-        call new_factorization_rf_x(f,iadvance,iback,kl,1)
-        do k=1,kl
-           do i=1,grd_loc%nlat
-              diag(i,j,k)=f(i,j,k)
+           do k=1,kl
+              do j=1,grd_loc%nlon
+                 do i=1,grd_loc%nlat
+                    xnorm_new(i,j,k,ig)=diag(i,j,k)
+                 enddo
+              enddo
            enddo
-        enddo
-     enddo
-     write(6,*)' in normal_new_factorization_rf_x,min,max(diag)=',minval(diag),maxval(diag)
+        enddo !ig loop
+!           check accuracy of xnorm
+        if(debug) then
+         do j=1,grd_loc%nlon
+            f=zero
+            do k=1,kl
+               do i=1,grd_loc%nlat
+                  f(i,j,k)=one
+               enddo
+            enddo
+            iadvance=1 ; iback=2
+            call new_factorization_rf_x(f,iadvance,iback,kl,1)
+            iadvance=2 ; iback=1
+            call new_factorization_rf_x(f,iadvance,iback,kl,1)
+            do k=1,kl
+               do i=1,grd_loc%nlat
+                  diag(i,j,k)=f(i,j,k)
+               enddo
+            enddo
+         enddo
+         write(6,*)' in normal_new_factorization_rf_x,min,max(diag)=',minval(diag),maxval(diag)
+        endif
+        ! File didnt exist so we computed the data.  Now save it for subsequent runs.
+        if(mype==0) then
+          open(inunit,file=trim(input),form='unformatted',action='write')
+          write(inunit) xnorm_new
+          close(inunit)
+        endif
+      endif ! file exists
+    endif ! nodeRank==0
+
+! Broadcast xnorm_new to the other ranks on the same node
+    call MPI_Bcast(xnorm_new,size(xnorm_new),mpi_rtype,0,nodeComm,ierr)
+    if(ierr /= MPI_SUCCESS) then
+      call MPI_Error_string(ierr, message, message_len, ierr)
+      write(6,'("new_factorization_rf_x: Error from MPI_Bcast ",I4,A)') mype, trim(message)
+      call MPI_Abort(MPI_COMM_WORLD, 10, ierr)
+    endif
+    call MPI_Comm_free(nodeComm,ierr)
+  else
+    write(6,'("new_factorization_rf_x: Scenario not yet supported")')
+    call MPI_Abort(MPI_COMM_WORLD, 13, ierr)
   endif
+
+  deallocate(sz)
+
   return
 
 end subroutine normal_new_factorization_rf_x
