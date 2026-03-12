@@ -1025,8 +1025,8 @@ subroutine normal_new_factorization_rf_x
       write(np, '(i0)') npes; np = adjustl(np)
       input= 'xnorm_new.'//trim(np)//'.'//trim(nlat)//'.'//trim(nlon)
       inquire (file=trim(input), EXIST=exists)
+      inunit=2000+mype
       if (exists) then
-        inunit=2000+mype
         open(inunit,file=trim(input),form='unformatted',action='read')
         read(inunit) xnorm_new
         close(inunit)
