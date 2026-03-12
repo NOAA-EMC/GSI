@@ -647,7 +647,7 @@ subroutine get_gefs_for_regional
      else if (use_gfs_ncio) then
         time_beg=MPI_Wtime()
         call general_read_gfsatm_nc(grd_gfst,sp_gfs,filename,uv_hyb_ens,.false.,.true., &
-               atm_bundle,.true.,iret)
+               atm_bundle,iret)
         time_end=MPI_Wtime()
         call MPI_Reduce(time_end-time_beg, walltime, 1, MPI_REAL8, MPI_MAX, 0, MPI_COMM_WORLD, ierr)
         if(ierr /= MPI_SUCCESS) print*,'MPI_Reduce ',ierr
