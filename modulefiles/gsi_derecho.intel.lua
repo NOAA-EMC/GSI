@@ -23,7 +23,7 @@ local crtm_fix_ver=os.getenv("crtm_fix_ver") or "2.4.0.2"
 
 load("gsi_common")
 
-local fix_base_path = os.getenv("GSI_FIX_BASE") or "/gpfs/csfs1/work/huangwei/GW-fix-data"
+local fix_base_path = os.getenv("GSI_FIX_BASE") or "/lustre/desc1/p/nral0032/global/data/fix"
 pushenv("GSI_BINARY_SOURCE_DIR", pathJoin(fix_base_path, "gsi/20251105"))
 setenv("CRTM_FIX", pathJoin(pathJoin(fix_base_path, "crtm"), "v" .. crtm_fix_ver))
 
