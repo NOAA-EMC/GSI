@@ -430,11 +430,11 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
            cdata_all(3,iout)=dlat                    ! grid relative latitude
            cdata_all(4,iout)=dlnpob                  ! ln(pressure in cb)
            cdata_all(5,iout)=obsdat(5,1)             ! specific humidity ob.
-           cdata_all(6,iout)=rstation_id            ! station id
+           cdata_all(6,iout)=rstation_id             ! station id
            cdata_all(7,iout)=t4dv                    ! time
            cdata_all(8,iout)=nc                      ! type
            cdata_all(9,iout)=emerr                   ! q max error
-           cdata_all(10,iout)= obsdat(3,1)           ! dry temperature (obs is tv? No, depending on tvflg)
+           cdata_all(10,iout)= obsdat(3,1)           ! dry temperature
            cdata_all(11,iout)= zero                  ! quality mark
            cdata_all(12,iout)= obserr*one_tenth      ! original obs error
            cdata_all(13,iout)= usage                 ! usage parameter
