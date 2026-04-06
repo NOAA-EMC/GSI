@@ -364,7 +364,7 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
           cdata_all(6,iout)=rstation_id             ! station id
           cdata_all(7,iout)=t4dv                    ! time
           cdata_all(8,iout)=nc                      ! type
-          cdata_all(9,iout)=zero                    ! qtflg (virtual temperature flag)
+          cdata_all(9,iout)=one                     ! obs are sensible/dry bulb
           cdata_all(10,iout)=zero                   ! quality mark
           cdata_all(11,iout)=obserr                 ! original obs error
           cdata_all(12,iout)=usage                  ! usage parameter
@@ -434,7 +434,7 @@ subroutine read_gsb(nread,ndata,nodata,infile,obstype,lunout,gstime,twindin,sis,
            cdata_all(7,iout)=t4dv                    ! time
            cdata_all(8,iout)=nc                      ! type
            cdata_all(9,iout)=emerr                   ! q max error
-           cdata_all(10,iout)= bmiss                 ! dry temperature (obs is tv? No, depending on tvflg)
+           cdata_all(10,iout)= obsdat(3,1)           ! dry temperature (obs is tv? No, depending on tvflg)
            cdata_all(11,iout)= zero                  ! quality mark
            cdata_all(12,iout)= obserr*one_tenth      ! original obs error
            cdata_all(13,iout)= usage                 ! usage parameter
