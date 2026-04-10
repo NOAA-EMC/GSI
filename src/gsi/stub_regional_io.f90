@@ -36,6 +36,10 @@ contains
   subroutine init_regional_io_dummy(this)
     implicit none
     class(regional_io_class), intent(inout) :: this
+
+    associate( this => this )
+    end associate
+
     if(VERBOSE) write(6,*) 'DUMMY CALL to init_regional_io'
     return
   end subroutine init_regional_io_dummy
@@ -45,6 +49,10 @@ contains
     implicit none
     class(regional_io_class), intent(inout) :: this
     integer(i_kind),intent(in):: mype
+
+    associate( this => this, mype => mype )
+    end associate
+
     if(VERBOSE) write(6,*) 'DUMMY CALL to write_regional_analysis'
     return
   end subroutine write_regional_analysis_dummy
@@ -58,6 +66,10 @@ contains
     ctph0 = 0.0_r_kind
     stph0 = 0.0_r_kind
     tlm0 = 0.0_r_kind
+
+    associate( this => this, mype => mype )
+    end associate
+
     if(VERBOSE) write(6,*) 'DUMMY CALL to convert_regional_guess'
     return
   end subroutine convert_regional_guess_dummy

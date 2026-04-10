@@ -34,7 +34,10 @@ contains
     class(get_pseudo_ensperts_class), intent(inout) :: this
     type(gsi_bundle),allocatable, intent(in   ) :: en_perts(:,:,:)
     integer(i_kind),                   intent(in   ) :: nelen
-  
+
+    associate( this => this, en_perts => en_perts, nelen => nelen )
+    end associate  
+
     write(6,*)'get_pseudo_ensperts:  ***WARNING*** dummy call ... does nothing!'
   
     return

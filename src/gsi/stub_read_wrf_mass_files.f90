@@ -45,7 +45,10 @@ contains
     class(read_wrf_mass_files_class),intent(inout) :: this
     integer(i_kind),intent(in   ) :: mype
 
-  
+
+    associate( this => this, mype => mype )
+    end associate
+
     write(6,*)'READ_WRF_MASS_FILES:     ***WARNING*** dummy call ... does nothing!'
   ! End of routine
     return

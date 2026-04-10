@@ -36,7 +36,10 @@ contains
     implicit none
     class(wrwrfmassa_class), intent(inout) :: this 
     integer(i_kind),intent(in   ) :: mype
-  
+
+    associate( this => this )
+    end associate
+
     if (mype==0) write(6,*)'WRWRFMASSA_BINARY:  enter dummy call, do nothing'
   end subroutine wrwrfmassa_binary_dummy
   
@@ -92,6 +95,9 @@ contains
     class(wrwrfmassa_class), intent(inout) :: this 
     integer(i_kind),intent(in   ) :: mype
   
+    associate( this => this )
+    end associate
+
     if (mype==0) write(6,*)'WRWRFMASSA_NETCDF:  enter dummy call, do nothing'
     
   end subroutine wrwrfmassa_netcdf_dummy

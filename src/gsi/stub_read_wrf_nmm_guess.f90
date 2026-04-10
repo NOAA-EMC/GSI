@@ -14,6 +14,10 @@ contains
   ! Declare passed variables here
     class(read_wrf_nmm_guess_class),intent(inout) :: this
     integer(i_kind),intent(in):: mype
+
+    associate( this => this, mype => mype )
+    end associate
+
     write(6,*)'READ_WRF_NMM_BINARY_GUESS:  dummy routine, does nothing!'
   end subroutine read_wrf_nmm_binary_guess_dummy
   
@@ -24,6 +28,10 @@ contains
   ! Declare passed variables here
     class(read_wrf_nmm_guess_class),intent(inout) :: this
     integer(i_kind),intent(in):: mype
+
+    associate( this => this, mype => mype )
+    end associate
+
     write(6,*)'READ_WRF_NMM_NETCDF_GUESS:  dummy routine, does nothing!'
   end subroutine read_wrf_nmm_netcdf_guess_dummy
   subroutine read_nems_nmmb_guess_dummy(this,mype)
@@ -33,6 +41,10 @@ contains
   ! Declare passed variables here
     class(read_wrf_nmm_guess_class),intent(inout) :: this
     integer(i_kind),intent(in):: mype
+
+    associate( this => this, mype => mype )
+    end associate
+
     write(6,*)'READ_NEMS_NMMB_GUESS:  dummy routine, does nothing!'
   end subroutine read_nems_nmmb_guess_dummy
 

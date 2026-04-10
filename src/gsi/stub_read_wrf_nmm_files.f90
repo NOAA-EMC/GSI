@@ -48,6 +48,9 @@ contains
     integer(i_kind),intent(in   ) :: mype
     class(read_wrf_nmm_files_class),intent(inout) :: this
   
+    associate( this => this, mype => mype )
+    end associate
+
     write(6,*)'READ_WRF_NMM_FILES:     ***WARNING*** dummy call ... does nothing!'
   
   ! End of routine
@@ -62,6 +65,9 @@ contains
     integer(i_kind),intent(in   ) :: mype
     class(read_wrf_nmm_files_class),intent(inout) :: this
   
+    associate( this => this, mype => mype )
+    end associate
+
     write(6,*)'READ_NEMS_NMMB_FILES:     ***WARNING*** dummy call ... does nothing!'
   
   ! End of routine

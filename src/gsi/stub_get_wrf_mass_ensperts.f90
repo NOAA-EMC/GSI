@@ -41,6 +41,10 @@ contains
     type(gsi_bundle),allocatable, intent(in   ) :: en_perts(:,:,:)
     integer(i_kind), intent(in   ):: nelen
     type(gsi_bundle),OPTIONAL,intent(in):: en_bar
+
+    associate( this => this, mype => mype, en_perts => en_perts, nelen => nelen, en_bar => en_bar )
+    end associate
+
     write(6,*)'get_wrf_mass_ensperts:  ***WARNING*** dummy call ... does nothing!'
   return
   end subroutine ens_spread_dualres_regional_dummy
@@ -53,6 +57,10 @@ contains
     type(gsi_bundle),allocatable, intent(inout) :: en_perts(:,:,:)
     integer(i_kind), intent(in   ):: nelen
     real(r_single),dimension(:,:,:),allocatable:: ps_bar
+
+    associate( this => this, en_perts => en_perts, nelen => nelen, ps_bar => ps_bar )
+    end associate
+
     write(6,*)'get_wrf_mass_ensperts:  ***WARNING*** dummy call ... does nothing!'
   return
   end subroutine get_wrf_mass_ensperts_dummy

@@ -17,7 +17,11 @@ contains
     integer(i_kind), intent(in   ):: nelen
     real(r_kind),allocatable, intent(inout):: region_lat_ens(:,:),region_lon_ens(:,:)
     real(r_single),dimension(:,:,:),allocatable, intent(inout):: ps_bar
-  
+
+    associate( this => this, en_perts => en_perts, nelen => nelen, ps_bar => ps_bar, &
+               region_lat_ens => region_lat_ens, region_lon_ens => region_lon_ens )
+    end associate 
+
     write(6,*)'GET_WRF_NMM_ENSPERTS:  ***WARNING*** dummy call ... does nothing!'
   return
   end subroutine get_wrf_nmm_ensperts_dummy
@@ -44,6 +48,9 @@ contains
   !$$$ end documentation block
     implicit none
     class(get_wrf_nmm_ensperts_class), intent(inout) :: this
+
+    associate( this => this )
+    end associate
   
     write(6,*)'CONVERT_BINARY_NMM_ENS:  ***WARNING*** dummy call ... does nothing!'
     return
