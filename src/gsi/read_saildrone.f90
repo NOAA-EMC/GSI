@@ -101,8 +101,9 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
   real(r_kind) :: uwind, vwind, u0, v0, u00, v00, ppb, usage
   real(r_kind) :: obserr, var_jb, del, ediff
   real(r_kind) :: tsavg,ff10,sfcr,zz
-  real(r_kind) :: qjbmin,tjbmin,wjbmin
+  real(r_kind) :: qjbmin,tjbmin,wjbmin,pjbmin
   real(r_kind) :: terrmin=half
+  real(r_kind) :: perrmin=0.3_r_kind
   real(r_kind) :: werrmin=one
   real(r_kind) :: qerrmin=0.05_r_kind
   real(r_kind),allocatable,dimension(:,:):: cdata_all   !,cdata_out
@@ -127,6 +128,7 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
   qjbmin = zero
   tjbmin = zero
   wjbmin = zero
+  pjbmin = zero
 
   if (print_verbose) write(6,*) 'Entering READ_SAILDRONE, obstype =',obstype 
   tob = obstype == 't'
@@ -356,13 +358,13 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
                del = huge_r_kind
            endif
            del=max(zero,min(del,one))
-           ! Temperature error
-           obserr=(one-del)*etabl(kx,k1,2)+del*etabl(kx,k2,2)
-           obserr=max(obserr,terrmin)
+           ! Pressure error
+           obserr=(one-del)*etabl(kx,k1,5)+del*etabl(kx,k2,5)
+           obserr=max(obserr,perrmin)
            ! Varjb
            if (njqc) then
                var_jb=(one-del)*btabl_ps(kx,k1,2)+del*btabl_ps(kx,k2,2)
-               var_jb=max(var_jb,tjbmin) 
+               var_jb=max(var_jb,pjbmin) 
                if (var_jb >=10.0_r_kind) var_jb=zero
            else
                var_jb=zero
