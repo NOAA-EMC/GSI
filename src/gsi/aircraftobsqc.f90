@@ -76,7 +76,7 @@ subroutine init_aircraft_rjlists
   integer(i_kind) aircraft_unit,m
   character(80) cstring
 
-  integer(i_kind), parameter::nmax=500
+  integer(i_kind), parameter::nmax=5000
 
   data aircraft_unit / 20 /
 !**************************************************************************
@@ -114,7 +114,7 @@ subroutine init_aircraft_rjlists
        q_aircraft_rjlist(nqrjs_aircraft,1)=cstring(1:8)
        q_aircraft_rjlist(nqrjs_aircraft,2)=cstring(22:29)
     endif
-    if(max(ntrjs_aircraft,nqrjs_aircraft,nqrjs_aircraft) == nmax)then
+    if(max(ntrjs_aircraft,nwrjs_aircraft,nqrjs_aircraft) == nmax)then
       print*, 'aircraft_rjlist reached maximum ', nmax, ' stop reading list -- increase nmax'
       exit read_loop
     end if

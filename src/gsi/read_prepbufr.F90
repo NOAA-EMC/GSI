@@ -1199,7 +1199,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
            if (sfctype) then
               call ufbint(lunin,r_prvstg,1,1,iret,prvstr)
               call ufbint(lunin,r_sprvstg,1,1,iret,sprvstr)
-           else if(kx == 120 .and. tob .or. qob .or. psob)then
+           else if(kx == 120 .and. (tob .or. qob .or. psob))then
               c_prvstg=cspval
               c_sprvstg='PREP'
            else if(kx == 220 .and. uvob)then
