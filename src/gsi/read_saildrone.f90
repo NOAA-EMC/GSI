@@ -109,7 +109,7 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
   real(r_kind),allocatable,dimension(:,:):: cdata_all   !,cdata_out
   real(r_double) :: rstation_id
   real(r_double),dimension(8,1):: hdr
-  real(r_double),dimension(5,1):: obsdat
+  real(r_double),dimension(6,1):: obsdat
 
 ! data statements
   data hdstr  /'YEAR MNTH DAYS HOUR MINU CLATH CLONH LSTN'/
@@ -464,21 +464,29 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
    
        end if 
  
-       rhob = obsdat(6,1)       ! DW adding rhob 
+       rhob = obsdat(6,1)       ! Relative humidity from BUFR (REHU), expected units: % 
        if (qob .AND. &
-          (rhob>=0 .AND. rhob<=100) .AND. &    ! This is relative humidity
            abs(obsdat(2,1)-225.0_r_kind) < 125.0_r_kind .AND. &
            obsdat(1,1) > zero .AND. obsdat(1,1) < 1.4e5_r_kind) then
-  
+
            !          Convert raw moisture data from dew point temperature to specific humidity
            pob_cb = obsdat(1,1) * r0_001  ! convert [Pa] to [cb]
            dew_point_temperature_ob =  obsdat(3,1)
            temperature_ob = obsdat(2,1)
-!           rhob_calc = exp((one-temperature_ob/dew_point_temperature_ob)*(hvap/rv)/temperature_ob) ! e.g. rh=0.98
            call fpvsx_ad(temperature_ob,es,dummy,dummy,.false.)
            qsat = eps*es/(pob_cb-omeps*es)
 
-           relative_humidity_ob = rhob * 0.01_r_kind  ! DW adding rhob (rh unit to 1)
+           ! Prefer observed RH (REHU) when it is valid; otherwise fall back to deriving RH
+           ! from TMDB/TMDP (some Saildrone acting as buoy may provide only dewpoint).
+           if (rhob >= 0.0_r_kind .AND. rhob <= 100.0_r_kind) then
+              relative_humidity_ob = rhob * 0.01_r_kind   ! convert % to 0-1
+           else if (abs(dew_point_temperature_ob) < 320.0_r_kind) then
+              rhob_calc = exp((one-temperature_ob/dew_point_temperature_ob)*(hvap/rv)/temperature_ob) ! rh in 0-1
+              relative_humidity_ob = rhob_calc
+           else
+              cycle   ! no usable moisture information
+           end if
+
            humidity_ob  = relative_humidity_ob * qsat
 
            ! Assign obs error from error table
