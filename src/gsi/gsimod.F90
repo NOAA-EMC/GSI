@@ -1632,10 +1632,14 @@
 !                            in transformed space, not physical space
 !      hwllp_vis     - real, background error de-correlation length scale of visibility
 !                            in transformed space, not physical space
-!      i_gsd_terrain_match_mesonet - namelist integer, control application of GSD Terrain Match to MESONET (MSO)
-!                                observations of Temp (188/195) and some types of surface t obs (192/193)
-!                          = 0 : do not apply GSD terrain match to MESONET Obs of T (default)
-!                          = 1 : apply GSD terrain match to MESONET Obs of T (kx=188/195, and 193/195)
+!      i_gsd_terrain_match_mesonet - namelist integer, control application of GSD Terrain Match to more 
+!                                types of surface observations of temperature, including MESONET obs-type
+!                                (kx=188/195) and other types of surface t obs with missing pressure
+!                                (kx=192/193, 192 corresponding to 181 with missing pressure, and 193 to 187.)
+!                          = 0 : apply GSD terrain match ONLY to surface obs of T with type kx=181/187
+!                                (default, using initial setup in gsd_terrain_match_surfTobs.f90 by GSD developer.)
+!                          = 1 : apply GSD terrain match to more surface Obs type, kx=188/195/192/193.
+!                                (recommended for 3DRTMA run, see gsd_terrain_match_surfTobs.f90.)
 !
   namelist/rapidrefresh_cldsurf/dfi_radar_latent_heat_time_period, &
                                 metar_impact_radius,metar_impact_radius_lowcloud, &
