@@ -252,10 +252,9 @@ module rapidrefresh_cldsurf_mod
 !                          = 1 (vis-on) : if variable name "vis" is found in anavinfo,
 !                                          set it to be 1 to turn on analysis of visibility;
 !      i_gsd_terrain_match_mesonet - namelist integer, control application of GSD Terrain Match to MESONET (MSO)
-!                                observations of Temp (188, 195)
+!                                observations of Temp (188/195) and some types of surface t obs (192/193)
 !                          = 0 : do not apply GSD terrain match to MESONET Obs of T (default)
-!                          = 1 : apply GSD terrain match to MESONET Obs of T (kx=188)
-!                          = 2 : apply GSD terrain match to MESONET Obs of T (kx=188/192/193/195)
+!                          = 1 : apply GSD terrain match to MESONET Obs of T (kx=188/195, and 192/193)
 !
 ! attributes:
 !   language: f90
