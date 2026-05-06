@@ -2071,7 +2071,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  elseif (i_gsdsfc_uselist==2 ) then
                     if (kx==188 .or. kx==195 .or. kx==288.or.kx==295) then
                        call apply_sfcuselist(kx,obstype,c_station_id,c_prvstg,c_sprvstg, &
-                                               dlon_earth,dlat_earth,usage)
+                                               usage)
                        if (gustob .and. usage>=r6) then ; gustqm=r10 ; qm=gustqm ; endif
                     endif
                  else
@@ -2096,7 +2096,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
                  endif
                  if (sfcwndob_biasc) then
                     if ( kx==288.or.kx==295 .or. (gustob .and. (kx==188.or.kx==195)) )  then
-                       call get_wbias_afactor(kx,obstype,c_station_id,c_prvstg,c_sprvstg,windbiasfact)
+                       call get_wbias_afactor(kx,c_station_id,c_prvstg,c_sprvstg,windbiasfact)
                     endif
                  endif
                  !retrieve wind sensor height for mesonet gustob only when running 3DRTMA

@@ -191,7 +191,7 @@ subroutine read_control()
 ! read ensemble members on IO tasks
 implicit none
 real(r_double)  :: t1,t2
-integer(i_kind) :: nb,nlev,ne
+integer(i_kind) :: nb,ne
 integer(i_kind) :: q_ind
 integer(i_kind) :: ierr
 

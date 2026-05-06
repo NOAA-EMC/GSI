@@ -169,7 +169,7 @@ subroutine generate_anl_grid(nx,ny,grid_lon,grid_lont,grid_lat,grid_latt)
   integer(i_kind) name_len,nodeID,nodeComm,nodeRank,RanksPerNode,ierr,npes,inunit
   character(len=72) :: input
   character(len=5) :: np,nlatc,nlonc
-  logical :: res,exists
+  logical :: exists
   character(len=MPI_MAX_PROCESSOR_NAME) :: nodeName
   !real(kind=8) :: time_beg,time_end,walltime
 
@@ -833,8 +833,7 @@ subroutine definecoef_regular_grids(nxen,nyen,grid_lon,grid_lont,grid_lat,grid_l
 !
 !$$$ end documentation block
   use kinds, only: r_kind,i_kind
-  use constants, only: quarter,one,two,half,zero,deg2rad,rearth,rad2deg
-  use gridmod,  only:grid_ratio_fv3_regional
+  use constants, only: quarter,one,two,half,zero,deg2rad,rad2deg
   use mpimod, only: mype
   use hybrid_ensemble_parameters, only: nlon_ens,nlat_ens,region_lon_ens,region_lat_ens
   implicit none

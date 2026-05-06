@@ -94,6 +94,9 @@ contains
     logical:: diagsave
 
     if(nobs == 0) return
+    if (init_pass .or. last_pass) then
+       ! none operation to remove not used debug remark
+    endif
 
     read(lunin,iostat=ier) obstype,isis,nreal,nchanl
     if(ier/=0) call die(myname_,'read(obstype,...), iostat =',ier)

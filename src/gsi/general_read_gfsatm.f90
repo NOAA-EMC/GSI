@@ -1937,7 +1937,7 @@ subroutine general_read_gfsatm_nems(grd,sp_a,filename,uvflag,vordivflag,zflag, &
 end subroutine general_read_gfsatm_nems
 
 subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
-           gfs_bundle,init_head,iret_read)
+           gfs_bundle,iret_read)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    general_read_gfsatm_nc  adaptation of read_gfsatm for general resolutions
@@ -1996,7 +1996,7 @@ subroutine general_read_gfsatm_nc(grd,sp_a,filename,uvflag,vordivflag,zflag, &
    type(sub2grid_info)                   ,intent(in   ) :: grd
    type(spec_vars)                       ,intent(in   ) :: sp_a
    character(*)                          ,intent(in   ) :: filename
-   logical                               ,intent(in   ) :: uvflag,zflag,vordivflag,init_head
+   logical                               ,intent(in   ) :: uvflag,zflag,vordivflag
    integer(i_kind)                       ,intent(  out) :: iret_read
    type(gsi_bundle)                      ,intent(inout) :: gfs_bundle
 

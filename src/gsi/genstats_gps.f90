@@ -256,11 +256,10 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   use gridmod, only: nsig,regional
   use constants, only: tiny_r_kind,half,wgtlim,one,two,zero,five,four
   use qcmod, only: npres_print,ptop,pbot
-  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum,mpi_max,mpi_integer,npe
+  use mpimod, only: ierror,mpi_comm_world,mpi_rtype,mpi_sum,mpi_max,mpi_integer
   use jfunc, only: jiter,miter,jiterstart
   use gsi_4dvar, only: nobs_bins
   use convinfo, only: nconvtype
-  use m_gpsrhs, only: rdiagbuf
   implicit none
 
 ! Declare passed variables
@@ -289,13 +288,8 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
   real(r_kind),dimension(max(1,nprof_gps)):: high_gps,high_gps_sub
   real(r_kind),dimension(max(1,nprof_gps)):: dobs_height,dobs_height_sub
 
-  real(r_kind),dimension(nobs_gps) :: complete_hght,complete_gps,complete_qc, &
-                                      complete_prof
-
   real(r_single),allocatable,dimension(:,:)::sdiag
   character(8),allocatable,dimension(:):: cdiag
-  integer(i_kind) :: iprof,counts,total_obs
-  real(r_kind) :: gpsOb,gpsHght
   !integer(i_kind), dimension(max(1,nprof_gps)) :: hold_profs
   !integer(i_kind),allocatable, dimension(:) :: unique_IDs
   !real(r_kind),dimension(nobs_gps) :: array_hght,array_gps,array_qc, &
@@ -311,12 +305,11 @@ subroutine genstats_gps(bwork,awork,toss_gps_sub,conv_diagsave,mype)
                                            sorted_profile_benda,sorted_profile_impact
   real(r_kind) :: old_err,new_err,input_impact,input_std4060,input_FracLsw, &
                   relative_error
-  character(len=20) :: hold_place
   !!!!!!!!!!!!!!!!!!!!!
 
   type(obs_diag), pointer :: obsptr => NULL()
   integer(i_kind),allocatable,dimension(:) :: revcounts,displs,indices
-  integer(i_kind) :: nnz, nind,nobs,total_size,ind,prof_size
+  integer(i_kind) :: nnz, nind,nobs,total_size,prof_size
   type(gps_ob_type), pointer:: gpsptr
   type(gps_all_ob_type), pointer:: gps_allptr
 

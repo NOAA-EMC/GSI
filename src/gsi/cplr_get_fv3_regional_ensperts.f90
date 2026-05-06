@@ -1110,7 +1110,7 @@ contains
   end subroutine general_read_fv3_regional
 
   subroutine general_read_fv3_regional_parallel_over_ens(this,iope,fv3_filenameginput,g_ps,g_u,g_v,g_tv,g_rh,g_oz, &
-                                                  g_ql,g_qi,g_qr,g_qs,g_qg,g_qnr,g_w,g_dbz,g_fed)
+                                                  g_ql,g_qi,g_qr,g_qs,g_qg,g_w,g_dbz,g_fed)
   !$$$  subprogram documentation block
   !     first compied from general_read_arw_regional           .      .    .                                       .
   ! subprogram:    general_read_fv3_regional  read fv3sar model ensemble members
@@ -1172,7 +1172,7 @@ contains
     type (type_fv3regfilenameg)                  , intent (in)   :: fv3_filenameginput
     real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig),intent(out)::g_u,g_v,g_tv,g_rh,g_oz
     real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig),optional,intent(out)::g_ql,g_qi,g_qr,g_dbz,g_fed
-    real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig),optional,intent(out)::g_qs,g_qg,g_qnr,g_w
+    real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig),optional,intent(out)::g_qs,g_qg,g_w
 
     real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon),intent(out):: g_ps
     real(r_kind),dimension(grd_ens%nlat,grd_ens%nlon,grd_ens%nsig+1) ::g_prsi 
@@ -1223,19 +1223,19 @@ contains
    
        if(fv3sar_ensemble_opt == 0) then
           if (if_model_dbz .or. if_model_fed) then
-             call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%dynvars,fv3_filenameginput,delp=g_delp,tsen=g_tsen,w=g_w,iope=iope)
-             call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%tracers,fv3_filenameginput,q=g_q,oz=g_oz,ql=g_ql,qr=g_qr,&
+             call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%dynvars,delp=g_delp,tsen=g_tsen,w=g_w,iope=iope)
+             call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%tracers,q=g_q,oz=g_oz,ql=g_ql,qr=g_qr,&
                                                   qs=g_qs,qi=g_qi,qg=g_qg,iope=iope)
              if(if_model_dbz .and. if_model_fed) then
-               call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%phyvars,fv3_filenameginput,dbz=g_dbz,fed=g_fed,iope=iope)
+               call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%phyvars,dbz=g_dbz,fed=g_fed,iope=iope)
              elseif(if_model_dbz) then
-               call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%phyvars,fv3_filenameginput,dbz=g_dbz,iope=iope)
+               call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%phyvars,dbz=g_dbz,iope=iope)
              elseif(if_model_fed) then
-               call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%phyvars,fv3_filenameginput,fed=g_fed,iope=iope)
+               call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%phyvars,fed=g_fed,iope=iope)
              end if
           else
-             call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%dynvars,fv3_filenameginput,delp=g_delp,tsen=g_tsen,iope=iope)         
-             call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%tracers,fv3_filenameginput,q=g_q,oz=g_oz,iope=iope)
+             call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%dynvars,delp=g_delp,tsen=g_tsen,iope=iope)         
+             call gsi_fv3ncdf_read_ens_parallel_over_ens(fv3_filenameginput%tracers,q=g_q,oz=g_oz,iope=iope)
           end if
        else
           write(6,*) "Warning: we can only grab fields from restart files not cold start files for ensemble!"

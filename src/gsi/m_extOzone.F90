@@ -1482,7 +1482,8 @@ subroutine ozlev_bufrread_(dfile,dtype,dsis, ozout,nmrecs,ndata,nodata, &
      use gsi_4dvar, only: l4dvar,iwinbgn,winlen,l4densvar
      
      use constants, only: deg2rad,zero,one_tenth,r60inv
-     use ozinfo, only: jpch_oz,nusis_oz,iuse_oz
+     use ozinfo, only: jpch_oz,nusis_oz
+     !use ozinfo, only: iuse_oz
      use mpeu_util, only: perr,die
      !  use mpeu_util, only: mprefix,stdout
      

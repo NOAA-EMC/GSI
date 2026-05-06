@@ -73,8 +73,15 @@ contains
      integer(i_kind),     intent(in   ) :: ntindex
      type(gsi_bundle),    intent(inout) :: atm_bundle
      integer(i_kind),     intent(  out) :: iret
-!    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
-!    end associate
+     associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+     end associate
+     if (.false.) then
+        associate( grd => grd )
+        end associate
+        associate( atm_bundle => atm_bundle )
+        end associate
+        print *, member,ntindex
+     endif
      iret = 0
  
      return
@@ -96,8 +103,15 @@ contains
      integer(i_kind),     intent(in   ) :: ntindex
      type(gsi_bundle),    intent(inout) :: atm_bundle(:)
      integer(i_kind),     intent(  out) :: iret
-!!   associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
-!!   end associate
+     if (.false.) then
+        print *,members,ntindex
+        associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+        end associate
+        associate( grd => grd )
+        end associate
+        associate( atm_bundel => atm_bundle)            
+        end associate
+     endif
      iret = 0
  
      return
@@ -117,7 +131,9 @@ contains
 
      ! This is a simple copy
      s2gi = s2gi_ref
- 
+     if (.false.) then
+        print *,nsig,npe
+     endif
      return
   end subroutine create_sub2grid_info
 
@@ -150,6 +166,15 @@ contains
      type(gsi_bundle),    intent(inout) :: pert
      integer(i_kind),     intent(  out) :: iret
 
+     if (.false.) then
+        print *,member,ntindex
+        associate(pert => pert)
+        end associate
+        associate(this => this)
+        end associate
+        associate(grd => grd)
+        end associate
+     endif     
 !    associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
 !    end associate
      iret = 0
@@ -168,8 +193,10 @@ contains
  
      elats=sp_ens%rlats
      elons=sp_ens%rlons
-!!   associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
-!!   end associate
+     if (.false.) then
+        associate( this => this ) ! eliminates warning for unused dummy argument needed for binding
+        end associate
+     endif
  
      return
   end subroutine non_gaussian_ens_grid

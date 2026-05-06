@@ -108,6 +108,9 @@ contains
     character(80):: string
 
     if(nobs == 0) then
+    if (init_pass .or. last_pass) then
+       ! none operation to remove not used debug remark
+    endif
 
        if( (mype == 0) .and. init_pass .and. (.not. l_use_dbz_directDA) ) then
           write(string,600) jiter

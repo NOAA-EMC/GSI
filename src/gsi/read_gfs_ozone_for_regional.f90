@@ -525,7 +525,7 @@ subroutine read_gfs_ozone_for_regional
                               atm_bundle,.true.,iret)
   else if (use_gfs_ncio) then
      call general_read_gfsatm_nc(grd_gfst,sp_gfs,filename,uv_hyb_ens,.false.,.true., &
-                              atm_bundle,.true.,iret)
+                              atm_bundle,iret)
   else
      if (hires) then
         call general_read_gfsatm(grd_gfst,sp_gfs,sp_b,filename,uv_hyb_ens,.false.,.false., &

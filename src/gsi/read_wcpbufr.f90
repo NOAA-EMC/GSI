@@ -128,8 +128,8 @@ subroutine read_wcpbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind),allocatable,dimension(:,:):: cdata_all
   logical,allocatable,dimension(:)::rthin,rusage
   logical save_all
-! integer(i_kind) numthin,numqc,numrem
-  integer(i_kind) nxdata,pmot,numall
+! integer(i_kind) numthin,numqc,numrem,numall
+  integer(i_kind) nxdata,pmot
 
 
   real(r_double) rstation_id,qcmark_huge

@@ -216,7 +216,7 @@ contains
           if (mype==0) write(*,*) 'calling general_read_gfsatm_nc for 2m data', it
           write(filename,'(''sfcf'',i2.2)') ifilesig(it)
           call general_read_gfsatm_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
-              atm_bundle,.true.,istatus)
+              atm_bundle,istatus)
           if (mype==0) write(*,*) 'done with general_read_gfsatm_nc for 2m data', it
        end if
        write(filename,'(''sigf'',i2.2)') ifilesig(it)
@@ -228,7 +228,7 @@ contains
        else
           if (mype==0) write(*,*) 'calling general_read_gfsatm_nc'
           call general_read_gfsatm_nc(grd_t,sp_a,filename,.true.,.true.,.true.,&
-              atm_bundle,.true.,istatus)
+              atm_bundle,istatus)
           if (mype==0) write(*,*) 'done with general_read_gfsatm_nc'
        end if
 

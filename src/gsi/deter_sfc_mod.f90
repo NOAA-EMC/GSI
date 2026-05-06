@@ -1364,7 +1364,7 @@ subroutine deter_sfc_gmi(dlat_earth,dlon_earth,isflg)
 
    real(r_kind)               ,intent(in   ) :: dlat_earth,dlon_earth
    integer(i_kind)            ,intent(  out) :: isflg
-   integer(i_kind) jsli,it, i, j
+   integer(i_kind) it, i, j
    integer(i_kind):: klat1,klon1,klatp1,klonp1, ksmall, klarge, n_grid
    real(r_kind) :: dlat,dlon, grid_dist
    integer(i_kind):: klatn,klonn,klatpn,klonpn

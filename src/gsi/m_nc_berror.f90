@@ -82,7 +82,7 @@ subroutine read_dims_ (fname,nlat,nlon,nlev,rc, myid,root)
   integer, intent(in), optional :: myid, root
 
 ! This will be the netCDF ID for the file and data variable.
-  integer :: ncid, varid, ier
+  integer :: ncid, varid
   integer :: mype_,root_
 
 ! Local variables
@@ -129,7 +129,6 @@ subroutine read_berror_ (fname,bvars,rc, myid,root)
   character(len=*), parameter :: myname_ = myname//"::read_"
   character(len=4) :: cindx
   integer :: nv,nl,nlat,nlon,nlev
-  integer :: ndims_, nvars_, ngatts_, unlimdimid_
   integer :: nlat_,nlon_,nlev_
   integer :: mype_,root_
   real(4), allocatable :: data_in(:,:,:)

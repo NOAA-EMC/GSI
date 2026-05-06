@@ -3210,7 +3210,7 @@ subroutine gsi_fv3ncdf_readuv_v1(grd_uv,ges_u,ges_v,fv3filenamegin,ensgrid)
 
 end subroutine gsi_fv3ncdf_readuv_v1
 
-subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
+subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein, &
            delp,tsen,w,q,oz,ql,qr,qs,qi,qg,dbz,fed,iope)
 !$$$  subprogram documentation block
 !                .      .    .                                       .
@@ -3249,7 +3249,6 @@ subroutine gsi_fv3ncdf_read_ens_parallel_over_ens(filenamein,fv3filenamegin, &
 
     implicit none
     character(*),                          intent(in) :: filenamein
-    type (type_fv3regfilenameg),           intent(in) ::fv3filenamegin
     integer(i_kind)   ,                    intent(in) :: iope
     real(r_kind),dimension(nlat,nlon,nsig),intent(out),optional:: delp,tsen,w,q,oz,ql,qr,qs,qi,qg,dbz,fed
     real(r_kind),allocatable,dimension(:,:):: uu2d, uu2d_tmp
@@ -4085,7 +4084,6 @@ subroutine gsi_fv3ncdf_writeuv(grd_uv,ges_u,ges_v,add_saved,fv3filenamegin)
     integer(i_kind),allocatable :: gfile_loc_layout(:)
     character(len=180)  :: filename_layout
     integer(i_kind):: kend_native,kbgn_native
-    integer(i_kind):: istat
 
     mm1=mype+1
     

@@ -30,6 +30,10 @@ contains
     implicit none
     class(read_wrf_mass_guess_class),intent(inout) :: this
     integer(i_kind),intent(in)::mype
+
+    associate( this => this, mype => mype )
+    end associate
+
     write(6,*)'READ_WRF_MASS_BINARY_GUESS:  dummy routine, does nothing!'
   end subroutine read_wrf_mass_binary_guess_dummy
   
@@ -57,6 +61,10 @@ contains
     implicit none
     class(read_wrf_mass_guess_class),intent(inout) :: this
     integer(i_kind),intent(in)::mype
+
+    associate( this => this, mype => mype )
+    end associate
+
     write(6,*)'READ_WRF_MASS_NETCDF_GUESS:  dummy routine, does nothing!'
   end subroutine read_wrf_mass_netcdf_guess_dummy
 end module read_wrf_mass_guess_mod

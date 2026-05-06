@@ -26,6 +26,10 @@ contains
     
     implicit none
     class(convert_netcdf_class) ,intent(inout) :: this
+
+    associate( this => this )
+    end associate
+
   end subroutine convert_netcdf_mass_dummy
   
   subroutine convert_netcdf_nmm_dummy(this,update_pint,ctph0,stph0,tlm0,guess)
@@ -39,12 +43,19 @@ contains
     ctph0 = zero 
     stph0 = zero 
     tlm0 = zero 
+
+    associate( this => this, update_pint => update_pint, guess => guess )
+    end associate
+
   end subroutine convert_netcdf_nmm_dummy
   
   subroutine update_netcdf_mass_dummy(this)
   
     implicit none
     class(convert_netcdf_class) ,intent(inout) :: this
+
+    associate( this => this )
+    end associate
   
   end subroutine update_netcdf_mass_dummy
   
@@ -52,6 +63,10 @@ contains
   
     implicit none
     class(convert_netcdf_class) ,intent(inout) :: this
+  
+
+    associate( this => this )
+    end associate
   
   end subroutine update_netcdf_nmm_dummy
 end module convert_netcdf_mod

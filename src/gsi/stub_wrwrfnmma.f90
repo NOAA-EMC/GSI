@@ -35,7 +35,10 @@ contains
     implicit none
     class(wrwrfnmma_class), intent(inout) :: this 
     integer(i_kind),intent(in   ) :: mype
-  
+
+    associate( this => this )
+    end associate
+
     if (mype==0) write(6,*)'WRWRFNMMA_BINARY:  enter dummy call, do nothing'
   end subroutine  wrwrfnmma_binary_dummy
   
@@ -68,7 +71,10 @@ contains
   
     class(wrwrfnmma_class), intent(inout) :: this 
     integer(i_kind),intent(in   ) :: mype
-  
+ 
+    associate( this => this )
+    end associate
+
     if (mype==0) write(6,*)'WRNEMSNMMA_BINARY:  enter dummy call, do nothing'
   end subroutine  wrnemsnmma_binary_dummy
   
@@ -103,6 +109,9 @@ contains
     class(wrwrfnmma_class), intent(inout) :: this 
     integer(i_kind),intent(in   ) :: mype
   
+    associate( this => this )
+    end associate
+
     if (mype==0) write(6,*)'WRWRFNMMA_NETCDF:  enter dummy call, do nothing'
   end subroutine wrwrfnmma_netcdf_dummy
 end module wrwrfnmma_mod
