@@ -1782,6 +1782,7 @@ subroutine setupw(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Observation_Class",       obsclass               )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
+           call nc_diag_metadata_to_single("Observation_Category", data(icat,i)    )
            call nc_diag_metadata_to_single("Latitude",data(ilate,i)     )
            call nc_diag_metadata_to_single("Longitude",data(ilone,i)     )
            call nc_diag_metadata_to_single("Station_Elevation",data(ielev,i)     )

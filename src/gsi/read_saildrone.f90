@@ -101,8 +101,9 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
   real(r_kind) :: uwind, vwind, u0, v0, u00, v00, ppb, usage
   real(r_kind) :: obserr, var_jb, del, ediff
   real(r_kind) :: tsavg,ff10,sfcr,zz
-  real(r_kind) :: qjbmin,tjbmin,wjbmin
+  real(r_kind) :: qjbmin,tjbmin,wjbmin,pjbmin
   real(r_kind) :: terrmin=half
+  real(r_kind) :: perrmin=0.3_r_kind
   real(r_kind) :: werrmin=one
   real(r_kind) :: qerrmin=0.05_r_kind
   real(r_kind),allocatable,dimension(:,:):: cdata_all   !,cdata_out
@@ -127,6 +128,7 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
   qjbmin = zero
   tjbmin = zero
   wjbmin = zero
+  pjbmin = zero
 
   if (print_verbose) write(6,*) 'Entering READ_SAILDRONE, obstype =',obstype 
   tob = obstype == 't'
@@ -356,13 +358,13 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
                del = huge_r_kind
            endif
            del=max(zero,min(del,one))
-           ! Temperature error
-           obserr=(one-del)*etabl(kx,k1,2)+del*etabl(kx,k2,2)
-           obserr=max(obserr,terrmin)
+           ! Pressure error
+           obserr=(one-del)*etabl(kx,k1,5)+del*etabl(kx,k2,5)
+           obserr=max(obserr,perrmin)
            ! Varjb
            if (njqc) then
                var_jb=(one-del)*btabl_ps(kx,k1,2)+del*btabl_ps(kx,k2,2)
-               var_jb=max(var_jb,tjbmin) 
+               var_jb=max(var_jb,pjbmin) 
                if (var_jb >=10.0_r_kind) var_jb=zero
            else
                var_jb=zero
@@ -436,7 +438,7 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
            cdata_all(6,iout)=rstation_id             ! station id
            cdata_all(7,iout)=t4dv                    ! time
            cdata_all(8,iout)=nc                      ! type
-           cdata_all(9,iout)=zero                    ! qtflg (virtual temperature flag)
+           cdata_all(9,iout)=one                     ! obs are sensible/dry bulb
            cdata_all(10,iout)=zero                   ! quality mark
            cdata_all(11,iout)=obserr                 ! original obs error
            cdata_all(12,iout)=usage                  ! usage parameter
@@ -516,7 +518,7 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
            cdata_all(7,iout)=t4dv                    ! time
            cdata_all(8,iout)=nc                      ! type
            cdata_all(9,iout)=emerr                   ! q max error
-           cdata_all(10,iout)= bmiss                 ! dry temperature (obs is tv? No, depending on tvflg)
+           cdata_all(10,iout)= obsdat(2,1)           ! dry temperature
            cdata_all(11,iout)= zero                  ! quality mark
            cdata_all(12,iout)= obserr*one_tenth      ! original obs error
            cdata_all(13,iout)= usage                 ! usage parameter
