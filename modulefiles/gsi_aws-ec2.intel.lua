@@ -17,7 +17,7 @@ load("gsi_common")
 pushenv("CFLAGS", "-xHOST")
 pushenv("FFLAGS", "-xHOST")
 
-local fix_base_path = os.getenv("GSI_FIX_BASE") or "/lustre/sharedGWdata/fix"
+local fix_base_path = os.getenv("GSI_FIX_BASE") or "/lustre/global/data/fix"
 local crtm_fix_ver=os.getenv("crtm_fix_ver") or "2.4.0.2"
 pushenv("GSI_BINARY_SOURCE_DIR", pathJoin(fix_base_path, "gsi/20251105"))
 setenv("CRTM_FIX", pathJoin(pathJoin(fix_base_path, "crtm"), "v" .. crtm_fix_ver))
