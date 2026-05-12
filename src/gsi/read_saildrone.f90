@@ -96,7 +96,7 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
   real(r_kind) :: rlon00, rlat00, cdist, disterr, disterrmax, vdisterrmax
   real(r_kind) :: dlnpob, pob_cb, rhob_calc, es, dummy, qsat
   real(r_kind) :: temperature_ob, dew_point_temperature_ob
-  real(r_kind) :: relative_humidity_ob, humidity_ob, rhob  ! DW addition: rhob
+  real(r_kind) :: relative_humidity_ob, humidity_ob, rhob  
   real(r_kind) :: toff, t4dv, tdiff
   real(r_kind) :: uwind, vwind, u0, v0, u00, v00, ppb, usage
   real(r_kind) :: obserr, var_jb, del, ediff
@@ -114,7 +114,7 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
 ! data statements
   data hdstr  /'YEAR MNTH DAYS HOUR MINU CLATH CLONH LSTN'/
   data obstr  /'PMSL TMDB TMDP WDIR WSPD REHU'/ ! Saildrone does not have Pressure (but PMSL)
-                                                ! DW addition : REHU
+                                                
   data lunin / 13 /
 
 ! Initialize variables
