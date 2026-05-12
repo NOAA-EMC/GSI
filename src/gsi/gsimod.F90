@@ -32,7 +32,7 @@
      r_hgt_fed
 
   use obsmod, only: lwrite_predterms, &
-     lwrite_peakwt,use_limit,lrun_subdirs,l_foreaft_thin,lobsdiag_forenkf,&
+     lwrite_peakwt,use_limit,lrun_subdirs,l_foreaft_thin,l_tdr_thin_alongbeam,lobsdiag_forenkf,&
      obsmod_init_instr_table,obsmod_final_instr_table
   use obsmod, only: luse_obsdiag
   use obsmod, only: netcdf_diag, binary_diag
@@ -1092,6 +1092,7 @@
 !      time_window_rad  - upper limit on time window for certain radiance input data
 !      ext_sonde        - logical for extended forward model on sonde data
 !      l_foreaft_thin -   separate TDR fore/aft scan for thinning
+!      l_tdr_thin_alongbeam - use default along-beam thinning of TDR data
 !      hofx_2m_sfcfile  - Calculate h(x) for q2m and T2m from 
 !                         same fields in sfc_data.tile files
 !                         (for use in global 2m DA) 
@@ -1101,7 +1102,7 @@
 !                         allows use of archived prepbufr files)
 
   namelist/obs_input/dmesh,time_window_max,time_window_rad, &
-       ext_sonde,l_foreaft_thin,hofx_2m_sfcfile, ignore_2mQM
+       ext_sonde,l_foreaft_thin,l_tdr_thin_alongbeam,hofx_2m_sfcfile, ignore_2mQM
 
 ! SINGLEOB_TEST (one observation test case setup):
 !      maginnov   - magnitude of innovation for one ob
