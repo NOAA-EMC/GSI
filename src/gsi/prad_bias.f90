@@ -174,7 +174,6 @@ contains
   use timermod, only: timer_ini,timer_fnl
   use constants, only : zero,one,zero_quad
   use mpi, only: mpi_in_place,mpi_real8,mpi_real16,mpi_sum,mpi_comm_world
-  use mpl_allreducemod, only: mpl_allreduce
   implicit none
 
   integer(i_kind),parameter :: nthreshold=100
@@ -277,8 +276,7 @@ contains
 
 !    Collect data from all processors for each channel
      Atmp(:,:) = A(:,:,n)
-     call mpl_allreduce(npred,npred,Atmp)
-    !call MPI_Allreduce(mpi_in_place, Atmp, npred*npred, mpi_real16, mpi_sum, mpi_comm_world, ier)
+     call MPI_Allreduce(mpi_in_place, Atmp, npred*npred, mpi_real16, mpi_sum, mpi_comm_world, ier)
 
 !    Solve linear system
      iorder=0
