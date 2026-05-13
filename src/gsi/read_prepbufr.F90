@@ -370,7 +370,6 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_double) rstation_id,qcmark_huge
   integer(i_kind) vtcd,glcd !virtual temp program code and GLERL program code
 
-  real(r_double) rstation_id,qcmark_huge,vtcd,glcd
   real(r_double),dimension(8):: hdr,hdrtsb
   real(r_double),dimension(3,255):: hdr3
   real(r_double),dimension(8,255):: drfdat,qcmark,obserr,var_jb
