@@ -367,7 +367,8 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind) :: windbiasfact
   real(r_kind) :: usage_valleyadj
 
-  integer(i_kind) ivtcd,iglcd !integer virtual temp program code and GLERL program code
+  real(r_double) rstation_id,qcmark_huge
+  integer(i_kind) vtcd,glcd !virtual temp program code and GLERL program code
 
   real(r_double) rstation_id,qcmark_huge,vtcd,glcd
   real(r_double),dimension(8):: hdr,hdrtsb
@@ -887,16 +888,14 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !------------------------------------------------------------------------
 
 ! Obtain program code (VTCD) associated with "VIRTMP" step
-  call ufbqcd(lunin,'VIRTMP',ivtcd)
-  vtcd = ivtcd
+  call ufbqcd(lunin,'VIRTMP',vtcd)
 
 !see if file contains GLERL program code (GLCD)
 !Obtain code if it exists.  Otherwise set to missing (-999)
   call status(lunin,lindx,idummy1,idummy2)
   call nemtab(lindx,'GLERL',idummy1,cdummy,glret)
   if (glret /= 0) then
-     call ufbqcd(lunin,'GLERL',iglcd)
-     glcd = iglcd
+     call ufbqcd(lunin,'GLERL',glcd)
   else
      !warn that GLERL adjustment is not available.
      print*, "WARNING: GLERL program code not in this file."
@@ -3458,7 +3457,7 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
 
 ! !INPUT PARAMETERS:
   integer(i_kind)                                  , intent(in   ) ::kx
-  real(r_double)                                   , intent(in   ) ::vtcd
+  integer(i_kind)                                  , intent(in   ) ::vtcd
 ! !INPUT/OUTPUT PARAMETERS:
   integer(i_kind)                                  , intent(inout) ::levsio
   real(r_double),dimension(13,255), intent(inout) :: obsdat
