@@ -40,9 +40,12 @@ case $(hostname -f) in
   der*) MACHINE_ID=derecho ;; ### derecho[1-8]
   dec*) MACHINE_ID=derecho ;; ### decxxx computing node
 
-  ip-*) MACHINE_ID=aws-ec2 ;; ### aws-ec2
-  compute-dy-*) MACHINE_ID=aws-ec2 ;; ### aws-ec2
-  processing-dy-*) MACHINE_ID=aws-ec2 ;; ### aws-ec2
+  ip-*|compute-dy-*|processing-dy-*)
+    case ${PW_CSP:-} in
+      "aws" | "google" | "azure") MACHINE_ID=noaacloud ;;
+      *) MACHINE_ID=aws-ec2 ;;
+    esac
+    ;;
 
   Orion-login-[1-4].HPC.MsState.Edu) MACHINE_ID=orion ;; ### orion1-4
 
