@@ -532,7 +532,6 @@ subroutine apply_sfcuselist(kx,obstype,c_station_id_in,c_prvstg_in,c_sprvstg_in,
 !
 !$$$ end documentation block
 
-  use gridmod, only: tll2xy
   implicit none
 
   integer(i_kind),intent(in   ) :: kx
