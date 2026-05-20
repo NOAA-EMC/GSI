@@ -887,7 +887,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !------------------------------------------------------------------------
 
 ! Obtain program code (VTCD) associated with "VIRTMP" step
-  call ufbqcd(lunin,'VIRTMP',ivtcd)
+  call fixqcd(lunin,'VIRTMP',ivtcd)
   vtcd = ivtcd
 
 !see if file contains GLERL program code (GLCD)
@@ -895,7 +895,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   call status(lunin,lindx,idummy1,idummy2)
   call nemtab(lindx,'GLERL',idummy1,cdummy,glret)
   if (glret /= 0) then
-     call ufbqcd(lunin,'GLERL',iglcd)
+     call fixqcd(lunin,'GLERL',iglcd)
      glcd = iglcd
   else
      !warn that GLERL adjustment is not available.
@@ -3629,4 +3629,27 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
   return
 
 end subroutine sonde_ext
+
+!-------------------------------------------------------------------------
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
+!-------------------------------------------------------------------------
+!
+! !ROUTINE:  fixqcd - A wrapper around ufbqcd can make it work with any generation of bufrlib.
+!
+! !INTERFACE:
+!
+subroutine fixqcd(lunit,nemo,icd)
+  implicit none
+  character(*) nemo
+  equivalence (jcd,xcd)
+  integer  lunit,icd,jcd
+  real xcd
+  call ufbqcd(lunit,nemo,jcd)
+  if(abs(jcd)<=abs(xcd).or.abs(xcd)<1) then
+     icd = jcd
+  else
+     icd = nint(xcd)
+  endif
+  print*,nemo,' ',icd
+end subroutine fixqcd
 
