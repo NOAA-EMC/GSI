@@ -3650,6 +3650,5 @@ subroutine fixqcd(lunit,nemo,icd)
   else
      icd = nint(xcd)
   endif
-  print*,nemo,' ',icd
 end subroutine fixqcd
 
