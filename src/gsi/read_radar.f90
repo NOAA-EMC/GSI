@@ -2803,7 +2803,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
               if(l_tdr_thin_alongbeam) then
 !                Select data every 3 km along each beam
                  if(MOD(INT(tdr_obs(1,k)-tdr_obs(1,1)),3000) < 100)then
-                    if(tdr_obs(3,k) >= 800.) then
+                    if(tdr_obs(3,k) >= 800.0_r_double) then
                        nmissing=nmissing+1     !xx
                     else
                        ii=ii+1
@@ -2818,8 +2818,8 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
                     ntdrvr_thin1=ntdrvr_thin1+1
                  endif
               else
-                 if(tdr_obs(3,k) >= 800.) nmissing=nmissing+1     !xx
-                 if(tdr_obs(3,k) < 800.) then
+                 if(tdr_obs(3,k) >= 800.0_r_double) nmissing=nmissing+1     !xx
+                 if(tdr_obs(3,k) < 800.0_r_double) then
                     ii=ii+1
                     dopbin(ii)=tdr_obs(3,k)
                     thisrange=tdr_obs(1,k)
@@ -3128,7 +3128,11 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   write(6,*)'READ_RADAR: # data read in nread=', nread 
   write(6,*)'READ_RADAR: # data with missing value nmissing=', nmissing
   write(6,*)'READ_RADAR: # data likely to be below sealevel nsubzero=', nsubzero
-  write(6,*)'READ_RADAR: # data removed by thinning along the beam ntdrvr_thin1=', ntdrvr_thin1 
+  if(l_tdr_thin_alongbeam) then
+    write(6,*)'READ_RADAR: # data removed by thinning along the beam ntdrvr_thin1=', ntdrvr_thin1
+  else
+    write(6,*) 'READ_RADAR: # offline superob applied on TDR, thinning along the beam is disabled'
+  end if
   write(6,*)'READ_RADAR: # data retained after thinning along the beam ntdrvr_in=', ntdrvr_in
   write(6,*)'READ_RADAR: # out of domain =', noutside
   write(6,*)'READ_RADAR: # out of range =', nirrr
