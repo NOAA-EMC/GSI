@@ -3639,11 +3639,14 @@ end subroutine sonde_ext
 ! !INTERFACE:
 !
 subroutine fixqcd(lunit,nemo,icd)
+  use kinds, only: i_kind, r_single
   implicit none
-  character(*) nemo
+  integer(i_kind), intent(in)  :: lunit
+  character(*),    intent(in)  :: nemo
+  integer(i_kind), intent(out) :: icd
+  integer(i_kind) :: jcd
+  real(r_single)  :: xcd
   equivalence (jcd,xcd)
-  integer  lunit,icd,jcd
-  real xcd
   call ufbqcd(lunit,nemo,jcd)
   if(abs(jcd)<=abs(xcd).or.abs(xcd)<1) then
      icd = jcd
