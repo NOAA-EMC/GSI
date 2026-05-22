@@ -1092,7 +1092,7 @@
 !      time_window_rad  - upper limit on time window for certain radiance input data
 !      ext_sonde        - logical for extended forward model on sonde data
 !      l_foreaft_thin -   separate TDR fore/aft scan for thinning
-!      l_tdr_thin_alongbeam - apply along-the-beam thining to TDR data. default: .true.
+!      l_tdr_thin_alongbeam - apply along-the-beam thinning to TDR data. default: .true.
 !      hofx_2m_sfcfile  - Calculate h(x) for q2m and T2m from 
 !                         same fields in sfc_data.tile files
 !                         (for use in global 2m DA) 
