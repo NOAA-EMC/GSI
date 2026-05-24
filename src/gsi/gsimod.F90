@@ -2335,9 +2335,7 @@
      write(6,jcopts)
      write(6,strongopts)
      write(6,obsqc)
-     write(6,*)'EXT_SONDE on type 120 =',ext_sonde
-     write(6,*)'hofx_2m_sfcfile =', hofx_2m_sfcfile
-     write(6,*)'ignore_2mQM =', ignore_2mQM
+     write(6,obs_input)
      ngroup=0
      do i=1,ndat
         dthin(i) = max(dthin(i),0)
