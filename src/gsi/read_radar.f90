@@ -3131,7 +3131,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   if(l_tdr_thin_alongbeam) then
     write(6,*)'READ_RADAR: # data removed by thinning along the beam ntdrvr_thin1=', ntdrvr_thin1
   else
-    write(6,*) 'READ_RADAR: # offline superob applied on TDR, thinning along the beam is disabled'
+    write(6,*) 'READ_RADAR: # thinning along the beam is disabled, (l_tdr_thin_alongbeam = .false.)'
   end if
   write(6,*)'READ_RADAR: # data retained after thinning along the beam ntdrvr_in=', ntdrvr_in
   write(6,*)'READ_RADAR: # out of domain =', noutside
