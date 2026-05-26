@@ -436,7 +436,6 @@
       write(*,'(1x,f7.2,2(1x,f6.2),$)') (hdr(i),i=2,4)           ! XOB,YOB,DHR
       write(*,'(1x,i6,1x,i3,1x,i4,1x,i3,$)') (int(hdr(i)),i=5,8) ! ELV,TYP,T29,ITP
 
-      write(*,'("(nlevp=",i3,") ")', advance='no') nlevp
       write(*,'("(nlevp=",i3,")")') nlevp
 
       ndata=ndata+1
