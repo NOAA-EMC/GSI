@@ -2242,7 +2242,23 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
   endif
 
 ! Call CRTM K Matrix model
+  ! -------------------------------------------------------------------
+  ! SANITY CHECK: Fix Invalid Soil Temperatures
+  ! -------------------------------------------------------------------
+  ! If Soil Temp is garbage (negative or missing value) and we are on land,
+  ! replace it with the valid Land Skin Temperature.
+  if (surface(1)%land_coverage > 0.0_r_kind) then
+      if (surface(1)%soil_temperature < 100.0_r_kind .or. &
+          surface(1)%soil_temperature > 350.0_r_kind) then
 
+          ! Optional: Print a warning 
+          ! if (mype == 0 .and. i == 1) write(6,*) "WARNING: Fixing bad Soil Temp using Skin Temp at location ", data_s(ilate),
+          ! data_s(ilone) 
+
+          surface(1)%soil_temperature = surface(1)%land_temperature
+      endif
+  endif
+  ! -------------------------------------------------------------------
 
   error_status = 0
   if ( trim(obstype) /= 'modis_aod' .and. trim(obstype) /= 'viirs_aod' ) then
