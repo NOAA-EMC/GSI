@@ -3633,25 +3633,32 @@ end subroutine sonde_ext
 !-------------------------------------------------------------------------
 !    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
 !-------------------------------------------------------------------------
-!
+!       
 ! !ROUTINE:  fixqcd - A wrapper around ufbqcd can make it work with any generation of bufrlib.
-!
+!       
 ! !INTERFACE:
-!
+!          
 subroutine fixqcd(lunit,nemo,icd)
-  use kinds, only: i_kind, r_single
+  use kinds, only: i_kind, r_single, r_double
   implicit none
+
   integer(i_kind), intent(in)  :: lunit
   character(*),    intent(in)  :: nemo
   integer(i_kind), intent(out) :: icd
-  integer(i_kind) :: jcd
-  real(r_single)  :: xcd
+  integer(i_kind) :: jcd(2)
+  real(r_single)  :: xcd(2)
+  real(r_double)  :: rcd
+  equivalence (xcd,rcd)
   equivalence (jcd,xcd)
-  call ufbqcd(lunit,nemo,jcd)
-  if(abs(jcd)<=abs(xcd).or.abs(xcd)<1) then
-     icd = jcd
-  else
-     icd = nint(xcd)
-  endif
-end subroutine fixqcd
 
+  call ufbqcd(lunit,nemo,rcd) 
+
+  if(rcd>0.and.rcd<99) then
+     icd = nint(rcd)
+  elseif(xcd(1)>0.and.xcd(1)<99) then
+     icd = nint(xcd(1))
+  else        
+     icd = jcd(1)
+  endif    
+
+end subroutine fixqcd
