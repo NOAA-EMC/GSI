@@ -163,6 +163,7 @@ module obsmod
 !  2022-03-15  K. Apodaca - add GNSS-R L2 ocean wind speed observations (CYGNSS, Spire) 
 !   2023-07-10  Y. Wang, D. Dowell - add variables for flash extent density
 !   2023-10-10  H. Wang (GSL) - add variables for flash extent density EnVar DA
+!   2023-11-01  B. Dahl  - l_tdr_thin_alongbeam to allow user to bypass hard-coded thinning of TDR data along radar beam
 ! 
 ! Subroutines Included:
 !   sub init_obsmod_dflts   - initialize obs related variables to default values
@@ -405,6 +406,7 @@ module obsmod
 !   def lrun_subdirs - logical to toggle use of subdirectories at run time for pe specific
 !                      files
 !   def l_foreaft_thin -   separate TDR fore/aft scan for thinning
+!   def l_tdr_thin_alongbeam - .false. to disable hard-coded, along-beam thinning of TDR data (default is .true.)
 !   def dval_use       -   = .true. if any dval weighting is used for satellite
 !                           data
 !   def obs_sub        - number of observations of each type in each subdomain
@@ -477,7 +479,7 @@ module obsmod
   public :: mype_pm2_5,iout_pm2_5
   public :: mype_pm10,iout_pm10
   public :: use_limit,lrun_subdirs
-  public :: l_foreaft_thin,luse_obsdiag
+  public :: l_foreaft_thin,l_tdr_thin_alongbeam,luse_obsdiag
 
   ! ==== DBZ DA ===
   public :: ntilt_radarfiles
@@ -671,6 +673,7 @@ module obsmod
   logical ext_sonde
   logical lrun_subdirs
   logical l_foreaft_thin
+  logical l_tdr_thin_alongbeam
   logical neutral_stability_windfact_2dvar
   logical use_similarity_2dvar
 
@@ -958,6 +961,7 @@ contains
     lwrite_peakwt    = .false.
     lrun_subdirs     = .false.
     l_foreaft_thin   = .false.
+    l_tdr_thin_alongbeam = .true. ! default is hard-coded thinning along TDR beam
     luse_obsdiag     = .false.
 
 !   set default on diag writing
