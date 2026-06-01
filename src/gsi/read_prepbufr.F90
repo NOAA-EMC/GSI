@@ -3651,14 +3651,14 @@ subroutine fixqcd(lunit,nemo,icd)
   equivalence (xcd,rcd)
   equivalence (jcd,xcd)
 
-  call ufbqcd(lunit,nemo,rcd) 
+  call ufbqcd(lunit,nemo,rcd)
 
-  if(rcd>0.and.rcd<99) then
+  if(rcd>tiny(rcd).and.rcd<99) then
      icd = nint(rcd)
-  elseif(xcd(1)>0.and.xcd(1)<99) then
+  elseif(xcd(1)>tiny(xcd(1)).and.xcd(1)<99) then
      icd = nint(xcd(1))
   else        
      icd = jcd(1)
-  endif    
+  endif
 
 end subroutine fixqcd
