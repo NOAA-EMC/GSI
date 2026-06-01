@@ -368,7 +368,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   real(r_kind) :: usage_valleyadj
 
   real(r_double) rstation_id,qcmark_huge
-  integer(i_kind) vtcd,glcd !virtual temp program code and GLERL program code
+  real(r_double) vtcd,glcd !virtual temp program code and GLERL program code
 
   real(r_double),dimension(8):: hdr,hdrtsb
   real(r_double),dimension(3,255):: hdr3
@@ -3456,7 +3456,7 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
 
 ! !INPUT PARAMETERS:
   integer(i_kind)                                  , intent(in   ) ::kx
-  integer(i_kind)                                  , intent(in   ) ::vtcd
+  real(r_double)                                   , intent(in   ) ::vtcd
 ! !INPUT/OUTPUT PARAMETERS:
   integer(i_kind)                                  , intent(inout) ::levsio
   real(r_double),dimension(13,255), intent(inout) :: obsdat
@@ -3627,4 +3627,3 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
   return
 
 end subroutine sonde_ext
-
