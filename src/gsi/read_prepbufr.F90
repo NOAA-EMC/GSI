@@ -3630,14 +3630,14 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
 
 end subroutine sonde_ext
 
-!-------------------------------------------------------------------------
-!    NOAA/NCEP, National Centers for Environmental Prediction GSI        !
-!-------------------------------------------------------------------------
-!       
+!--------------------------------------------------------------------------!
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI  !
+!--------------------------------------------------------------------------!
+!
 ! !ROUTINE:  fixqcd - A wrapper around ufbqcd can make it work with any generation of bufrlib.
-!       
+!
 ! !INTERFACE:
-!          
+!
 subroutine fixqcd(lunit,nemo,icd)
   use kinds, only: i_kind, r_single, r_double
   implicit none
@@ -3645,20 +3645,29 @@ subroutine fixqcd(lunit,nemo,icd)
   integer(i_kind), intent(in)  :: lunit
   character(*),    intent(in)  :: nemo
   integer(i_kind), intent(out) :: icd
-  integer(i_kind) :: jcd(2)
-  real(r_single)  :: xcd(2)
-  real(r_double)  :: rcd
-  equivalence (xcd,rcd)
-  equivalence (jcd,xcd)
 
+  ! Use distinct variables instead of equivalence overlays
+  real(r_double)  :: rcd
+  real(r_single)  :: xcd_part
+  integer(i_kind) :: jcd_part
+
+  ! Always initialize to prevent leftover garbage memory bugs
+  rcd = 0.0_r_double
+
+  ! Safe library call filling the full 8-byte block
   call ufbqcd(lunit,nemo,rcd)
 
-  if(rcd>tiny(rcd).and.rcd<99) then
+  ! Extract component parts using the safe bitwise transfer intrinsic
+  xcd_part = transfer(rcd, xcd_part)
+  jcd_part = transfer(rcd, jcd_part)
+
+  ! Evaluate the extracted components cleanly
+  if (rcd > tiny(0.0_r_double) .and. rcd < 99.0_r_double) then
      icd = nint(rcd)
-  elseif(xcd(1)>tiny(xcd(1)).and.xcd(1)<99) then
-     icd = nint(xcd(1))
+  else if (xcd_part > tiny(0.0_r_single) .and. xcd_part < 99.0_r_single) then
+     icd = nint(xcd_part)
   else        
-     icd = jcd(1)
+     icd = jcd_part
   endif
 
 end subroutine fixqcd
