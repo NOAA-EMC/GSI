@@ -283,6 +283,10 @@ subroutine read_gps(nread,ndata,nodata,infile,lunout,obstype,twind, &
                  lone = .true.
                  exit
               endif
+              if ( (ibit(i)== 1) .and. (said == 66.) ) then
+                 lone = .true.
+                 exit
+              endif
             endif
           enddo
         endif 

@@ -1323,8 +1323,8 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
         rdiagbufp(21,iip) = 1e+10_r_single     ! spread (filled in by EnKF)
 
         if (l_rtma3d .or. twodvar_regional) then  ! in binary obsdiag for 2D/3DRTMA
-          rdiagbufp(22,ii) = data(itemp,i)    ! dry temperature associated to qob
-          rdiagbufp(23,ii) = data(iqt,  i)    ! tv flag (0: virtual temp; 1: sensible temp)
+          rdiagbufp(22,iip) = data(itemp,i)    ! dry temperature associated to qob
+          rdiagbufp(23,iip) = data(iqt,  i)    ! tv flag (0: virtual temp; 1: sensible temp)
         end if
 
         ioff=ioff0
@@ -1380,6 +1380,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Observation_Class",       obsclass               )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
            call nc_diag_metadata("Observation_Subtype",     icsubtype(ikx)         )
+           call nc_diag_metadata_to_single("Observation_Category", data(icat,i)    )
            call nc_diag_metadata_to_single("Latitude",      data(ilate,i)          )
            call nc_diag_metadata_to_single("Longitude",     data(ilone,i)          )
 ! this is the obs height after being interpolated to the model (=model height)
@@ -1450,6 +1451,7 @@ subroutine setupq(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
            call nc_diag_metadata("Observation_Class",       obsclass               )
            call nc_diag_metadata("Observation_Type",        ictype(ikx)            )
            call nc_diag_metadata("Observation_Subtype",     -1                     )  ! (-1 for pseudo obs sub-type)
+           call nc_diag_metadata_to_single("Observation_Category", data(icat,i)    )
            call nc_diag_metadata_to_single("Latitude",      data(ilate,i)          )
            call nc_diag_metadata_to_single("Longitude",     data(ilone,i)          )
            call nc_diag_metadata_to_single("Station_Elevation",data(istnelv,i)     )

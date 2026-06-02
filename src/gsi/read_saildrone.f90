@@ -96,25 +96,24 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
   real(r_kind) :: rlon00, rlat00, cdist, disterr, disterrmax, vdisterrmax
   real(r_kind) :: dlnpob, pob_cb, rhob_calc, es, dummy, qsat
   real(r_kind) :: temperature_ob, dew_point_temperature_ob
-  real(r_kind) :: relative_humidity_ob, humidity_ob
+  real(r_kind) :: relative_humidity_ob, humidity_ob, rhob
   real(r_kind) :: toff, t4dv, tdiff
   real(r_kind) :: uwind, vwind, u0, v0, u00, v00, ppb, usage
   real(r_kind) :: obserr, var_jb, del, ediff
   real(r_kind) :: tsavg,ff10,sfcr,zz
-  real(r_kind) :: qjbmin,tjbmin,wjbmin
+  real(r_kind) :: qjbmin,tjbmin,wjbmin,pjbmin
   real(r_kind) :: terrmin=half
+  real(r_kind) :: perrmin=0.3_r_kind
   real(r_kind) :: werrmin=one
   real(r_kind) :: qerrmin=0.05_r_kind
   real(r_kind),allocatable,dimension(:,:):: cdata_all   !,cdata_out
   real(r_double) :: rstation_id
   real(r_double),dimension(8,1):: hdr
-  real(r_double),dimension(5,1):: obsdat
+  real(r_double),dimension(6,1):: obsdat
 
 ! data statements
   data hdstr  /'YEAR MNTH DAYS HOUR MINU CLATH CLONH LSTN'/
-  data obstr  /'PMSL TMDB TMDP WDIR WSPD'/ ! Saildrone does not have Pressure 
-                                           ! (but PMSL) and only dew point for humidity
-
+  data obstr  /'PMSL TMDB TMDP WDIR WSPD REHU'/ ! Saildrone does not have Pressure (but PMSL)
   data lunin / 13 /
 
 ! Initialize variables
@@ -127,6 +126,7 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
   qjbmin = zero
   tjbmin = zero
   wjbmin = zero
+  pjbmin = zero
 
   if (print_verbose) write(6,*) 'Entering READ_SAILDRONE, obstype =',obstype 
   tob = obstype == 't'
@@ -333,7 +333,7 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
        ! Set surface type
        call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr,zz)
 
-       call ufbint(lunin,obsdat,5,1,levs,obstr)  ! PMSL TMDB TMDP WDIR WSPD
+       call ufbint(lunin,obsdat,6,1,levs,obstr)  ! PMSL TMDB TMDP WDIR WSPD REHU
        dlnpob=log(obsdat(1,1)/1000_r_kind)
 
 
@@ -356,13 +356,13 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
                del = huge_r_kind
            endif
            del=max(zero,min(del,one))
-           ! Temperature error
-           obserr=(one-del)*etabl(kx,k1,2)+del*etabl(kx,k2,2)
-           obserr=max(obserr,terrmin)
+           ! Pressure error
+           obserr=(one-del)*etabl(kx,k1,5)+del*etabl(kx,k2,5)
+           obserr=max(obserr,perrmin)
            ! Varjb
            if (njqc) then
                var_jb=(one-del)*btabl_ps(kx,k1,2)+del*btabl_ps(kx,k2,2)
-               var_jb=max(var_jb,tjbmin) 
+               var_jb=max(var_jb,pjbmin) 
                if (var_jb >=10.0_r_kind) var_jb=zero
            else
                var_jb=zero
@@ -436,7 +436,7 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
            cdata_all(6,iout)=rstation_id             ! station id
            cdata_all(7,iout)=t4dv                    ! time
            cdata_all(8,iout)=nc                      ! type
-           cdata_all(9,iout)=zero                    ! qtflg (virtual temperature flag)
+           cdata_all(9,iout)=one                     ! obs are sensible/dry bulb
            cdata_all(10,iout)=zero                   ! quality mark
            cdata_all(11,iout)=obserr                 ! original obs error
            cdata_all(12,iout)=usage                  ! usage parameter
@@ -462,19 +462,30 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
            if(perturb_obs)cdata_all(nreal,iout)=ran01dom()*perturb_fact ! t perturbation
    
        end if 
-  
-       if (qob .AND. abs(obsdat(3,1)) < 320.0_r_kind .AND. &    ! This is dewpoint.
+ 
+       rhob = obsdat(6,1)       ! Relative humidity from BUFR (REHU), expected units: % 
+       if (qob .AND. &
            abs(obsdat(2,1)-225.0_r_kind) < 125.0_r_kind .AND. &
            obsdat(1,1) > zero .AND. obsdat(1,1) < 1.4e5_r_kind) then
-  
+
            !          Convert raw moisture data from dew point temperature to specific humidity
            pob_cb = obsdat(1,1) * r0_001  ! convert [Pa] to [cb]
            dew_point_temperature_ob =  obsdat(3,1)
            temperature_ob = obsdat(2,1)
-           rhob_calc = exp((one-temperature_ob/dew_point_temperature_ob)*(hvap/rv)/temperature_ob) ! e.g. rh=0.98
            call fpvsx_ad(temperature_ob,es,dummy,dummy,.false.)
            qsat = eps*es/(pob_cb-omeps*es)
-           relative_humidity_ob = rhob_calc   ! calculate RH (%) since rhob is missing          
+
+           ! Prefer observed RH (REHU) when it is valid; otherwise fall back to deriving RH
+           ! from TMDB/TMDP (some Saildrone acting as buoy may provide only dewpoint).
+           if (rhob >= 0.0_r_kind .AND. rhob <= 100.0_r_kind) then
+              relative_humidity_ob = rhob * 0.01_r_kind   ! convert % to 0-1
+           else if (abs(dew_point_temperature_ob) < 320.0_r_kind) then
+              rhob_calc = exp((one-temperature_ob/dew_point_temperature_ob)*(hvap/rv)/temperature_ob) ! rh in 0-1
+              relative_humidity_ob = rhob_calc
+           else
+              cycle   ! no usable moisture information
+           end if
+
            humidity_ob  = relative_humidity_ob * qsat
 
            ! Assign obs error from error table
@@ -516,7 +527,7 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
            cdata_all(7,iout)=t4dv                    ! time
            cdata_all(8,iout)=nc                      ! type
            cdata_all(9,iout)=emerr                   ! q max error
-           cdata_all(10,iout)= bmiss                 ! dry temperature (obs is tv? No, depending on tvflg)
+           cdata_all(10,iout)= obsdat(2,1)           ! dry temperature
            cdata_all(11,iout)= zero                  ! quality mark
            cdata_all(12,iout)= obserr*one_tenth      ! original obs error
            cdata_all(13,iout)= usage                 ! usage parameter

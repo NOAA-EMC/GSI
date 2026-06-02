@@ -513,7 +513,7 @@ read_obs.F90
 read_ozone.f90
 read_pblh.f90
 read_pcp.f90
-read_prepbufr.f90
+read_prepbufr.F90
 read_radar.f90
 read_radar_wind_ascii.f90
 read_radarref_mosaic.f90

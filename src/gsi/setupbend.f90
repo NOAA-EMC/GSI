@@ -111,7 +111,7 @@ subroutine setupbend(obsLL,odiagLL, &
 !   2024-12-04  Li       - remove the QC check for rejecting MetOp data <8 km
 !   2024-12-04  Li       - add GRACE-FO (803&804) data 
 !   2024-12-04  Li       - add new obs error model by Chris Riedel
-!   2025-12-08  Li       - add PlanetiQ YAM-8 (768) data
+!   2025-09-08  Li       - add PlanetiQ YAM-8 (768) data
 !
 !   input argument list:
 !     lunin    - unit from which to read observations
@@ -151,7 +151,7 @@ subroutine setupbend(obsLL,odiagLL, &
 
   use gsi_4dvar, only: nobs_bins,hr_obsbin
   use guess_grids, only: ges_lnprsi,hrdifsig,geop_hgti,nfldsig
-  use guess_grids, only: nsig_ext,gpstop,commgpstop,commgpserrinf
+  use guess_grids, only: nsig_ext,gpstop,commgpstop
   use gridmod, only: nsig
   use gridmod, only: get_ij,latlon11
   use constants, only: fv,n_a,n_b,n_c,deg2rad,tiny_r_kind,r0_01,r18,r61,r63,r10000
@@ -274,6 +274,7 @@ subroutine setupbend(obsLL,odiagLL, &
 
   type(obsLList),pointer,dimension(:):: gpshead
   logical:: commdat
+
   gpshead => obsLL(:)
 
   save_jacobian = conv_diagsave .and. jiter==jiterstart .and. lobsdiag_forenkf
@@ -444,8 +445,31 @@ subroutine setupbend(obsLL,odiagLL, &
 
 ! A loop over all obs.
   call dtime_setup()
-  loopoverobs1: &
-  do i=1,nobs ! loop over obs 
+
+  !$omp parallel do default(none), schedule(dynamic,1), &
+  !$omp& firstprivate(itime,iuse,jiter,ilate,ilat,ilon,iroc,igeoid,ihgt,ikxx, &
+  !$omp&   nsig,n_a,n_b,k4,ier,isatid,iptid,igps,iprof,gpstop,commgpstop, &
+  !$omp&   deg2rad,mype,ilone,ilsw,ilswflag,nsig_up,grids_dim,rsig_up,ds, &
+  !$omp&   eccentricity,tiny_r_kind), &
+  !$omp& private(i,dtime,obs_check,in_curbin,in_anybin,sin2,dlat,dlon, &
+  !$omp&   rocprof,unprof,ikx,prsltmp,tges,qges,hges,zsges,termg,termr, &
+  !$omp&   termrg,qc_layer_SR,count_SR,top_layer_SR,bot_layer_SR,k,zges, &
+  !$omp&   qmean,tmean,fact,pw,pressure,nrefges1,nrefges2,nrefges3, &
+  !$omp&   irefges,ref_rad,qges_o,alt,grad_mod, &
+  !$omp&   hob,satellite_id,transmitter_id, &
+  !$omp&   kprof,dpressure,ihob,k1,k2,delz,trefges,qrefges, &
+  !$omp&   commdat,d_ref_rad,q_w,ref_rad_s,hob_s,w4,dw4,ddnj,kk,ref_rad_out, &
+  !$omp&   dbend,j,ddbend,cgrossuse,cermaxuse,cerminuse,obserror, &
+  !$omp&   obserrlm,residual,ratio,cutoff,cutoff1,cutoff2,cutoff3,cutoff4, &
+  !$omp&   cutoff12,cutoff23,cutoff34), &
+  !$omp& shared(nobs,data,muse,tpdpres,ges_lnprsi,hrdifsig,nfldsig, &
+  !$omp&   prsltmp_o,nrefges,grav,gp2gm,rges,tges_o,eps,luse,ictype, &
+  !$omp&   n_q,n_p,n_t,fv,nsigstart,ges_tv,ges_q,geop_hgti,ges_z, &
+  !$omp&   error,error_adjst,rsig,ratio_errors,qcfail_one,cdiagbuf, &
+  !$omp&   rdiagbuf,qcfail,xj,dbend_loc,qcfail_three,cgross,time_offset,nsig_ext, &
+  !$omp&   cermax,cermin,qcfail_seven,qcfail_five,qcfail_six,qcfail_two,grid_s), &
+  !$omp& reduction(+:nobs_out,awork), reduction(max:toss_gps_sub,hob_s_top)
+  loopoverobs1: do i=1,nobs ! loop over obs
      dtime=data(itime,i)
      obs_check=.false. 
 
@@ -464,16 +488,11 @@ subroutine setupbend(obsLL,odiagLL, &
 
 !    Interpolate log(pres),temperature,specific humidity, 
 !    corrected geopotential heights and topography to obs location
-     call tintrp2a1(ges_lnprsi,prsltmp,dlat,dlon,dtime,hrdifsig,&
-          nsig+1,mype,nfldsig)
-     call tintrp2a1(ges_tv,tges,dlat,dlon,dtime,hrdifsig,&
-          nsig,mype,nfldsig)
-     call tintrp2a1(ges_q,qges,dlat,dlon,dtime,hrdifsig,&
-          nsig,mype,nfldsig)
-     call tintrp2a1(geop_hgti,hges,dlat,dlon,dtime,hrdifsig,&
-          nsig+1,mype,nfldsig)
-     call tintrp2a11(ges_z,zsges,dlat,dlon,dtime,hrdifsig,&
-          mype,nfldsig)
+     call tintrp2a1(ges_lnprsi,prsltmp,dlat,dlon,dtime,hrdifsig,nsig+1,mype,nfldsig)
+     call tintrp2a1(    ges_tv,   tges,dlat,dlon,dtime,hrdifsig,nsig,mype,nfldsig)
+     call tintrp2a1(     ges_q,   qges,dlat,dlon,dtime,hrdifsig,nsig,mype,nfldsig)
+     call tintrp2a1( geop_hgti,   hges,dlat,dlon,dtime,hrdifsig,nsig+1,mype,nfldsig)
+     call tintrp2a11(    ges_z,  zsges,dlat,dlon,dtime,hrdifsig,mype,nfldsig)
 
      prsltmp_o(1:nsig,i)=prsltmp(1:nsig) ! needed in minimization
 
@@ -499,7 +518,7 @@ subroutine setupbend(obsLL,odiagLL, &
      top_layer_SR=0
      bot_layer_SR=0
 
-!$omp parallel do  schedule(dynamic,1) private(k,qmean,tmean,fact,pw,pressure,nrefges1,nrefges2,nrefges3)
+     !!dir$ ivdep
      do k=1,nsig 
         zges(k) = (termr*hges(k)) / (termrg-hges(k))  ! eq (23) at interface (topo corrected)
         gp2gm(k,i)= termr/(termrg-hges(k))+((termr*hges(k))/(termrg-hges(k))**2)
@@ -586,9 +605,11 @@ subroutine setupbend(obsLL,odiagLL, &
 
 !    Save some diagnostic information
 !    occultation identification
-     satellite_id         = data(isatid,i) ! receiver occ id
-     transmitter_id       = data(iptid,i)  ! transmitter occ id
-     write(cdiagbuf(i),'(2(i4.4))') satellite_id,transmitter_id
+     !satellite_id         = data(isatid,i) ! receiver occ id
+     !transmitter_id       = data(iptid,i)  ! transmitter occ id
+     !!$omp critical
+     !write(cdiagbuf(i),'(2(i4.4))') satellite_id,transmitter_id
+     !!$omp end critical
 
      rdiagbuf(:,i)         = zero
 
@@ -792,7 +813,7 @@ subroutine setupbend(obsLL,odiagLL, &
                else   
 !                  Statistics QC check if obs passed gross error check
                    cutoff=zero
-                   if (((data(isatid,i) > 749).and.(data(isatid,i) < 756)).or.commdat) then
+                   if (((data(isatid,i) > 749).and.(data(isatid,i) < 756)).or.commdat.or.(data(isatid,i) == 66)) then
                       cutoff1=(-4.725_r_kind+0.045_r_kind*alt+0.005_r_kind*alt**2)*one/two
                    else
                       cutoff1=(-4.725_r_kind+0.045_r_kind*alt+0.005_r_kind*alt**2)*two/three
@@ -803,12 +824,12 @@ subroutine setupbend(obsLL,odiagLL, &
                    else
                       cutoff3=0.005_r_kind*trefges**2-2.3_r_kind*trefges+266_r_kind
                    endif
-                   if (((data(isatid,i) > 749).and.(data(isatid,i) < 756)).or.commdat) then
+                   if (((data(isatid,i) > 749).and.(data(isatid,i) < 756)).or.commdat.or.(data(isatid,i) == 66)) then
                       cutoff3=cutoff3*one/two
                    else
                       cutoff3=cutoff3*two/three
                    end if
-                   if (((data(isatid,i) > 749).and.(data(isatid,i) < 756)).or.commdat) then
+                   if (((data(isatid,i) > 749).and.(data(isatid,i) < 756)).or.commdat.or.(data(isatid,i) == 66)) then
                       cutoff4=(four+eight*cos(data(ilate,i)*deg2rad))*one/two
                    else
                       cutoff4=(four+eight*cos(data(ilate,i)*deg2rad))*two/three
@@ -827,7 +848,7 @@ subroutine setupbend(obsLL,odiagLL, &
                    if((alt<=six).and.(alt>four)) cutoff=cutoff34
                    if(alt<=four) cutoff=cutoff4
 
-                   if (((data(isatid,i) > 749).and.(data(isatid,i) < 756)).or.commdat) then
+                   if (((data(isatid,i) > 749).and.(data(isatid,i) < 756)).or.commdat.or.(data(isatid,i) == 66)) then
                       cutoff=two*cutoff*r0_01
                    else
                       cutoff=three*cutoff*r0_01
@@ -855,8 +876,8 @@ subroutine setupbend(obsLL,odiagLL, &
      end if ! obs inside the vertical grid
 
   end do loopoverobs1 ! end of loop over observations
-
-! write(6,'("setupbend: Number of obs considered and accepted " 2I10)') nobs, count(mask=muse .neqv. .false.)
+  !$omp end parallel do
+  !write(6,'("setupbend: Number of obs considered and accepted " 2I10)') nobs, count(mask=muse .neqv. .false.)
 
   if (nobs_out>=1) then
      write(6,*)'WARNING GPSRO:',nobs_out,'obs outside integration grid. Increase nsig_ext to',&
@@ -1002,6 +1023,9 @@ subroutine setupbend(obsLL,odiagLL, &
         gps_alltail(ibin)%head%type     = data(ikxx,i)
         gps_alltail(ibin)%head%luse     = luse(i) ! logical
         gps_alltail(ibin)%head%muse     = muse(i) ! logical
+        satellite_id         = data(isatid,i) ! receiver occ id
+        transmitter_id       = data(iptid,i)  ! transmitter occ id
+        write(cdiagbuf(i),'(2(i4.4))') satellite_id,transmitter_id
         gps_alltail(ibin)%head%cdiag    = cdiagbuf(i)
 
 !       Fill obs diagnostics structure
