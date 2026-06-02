@@ -3658,8 +3658,8 @@ subroutine fixqcd(lunit,nemo,icd)
   call ufbqcd(lunit,nemo,rcd)
 
   ! Extract component parts using the safe bitwise transfer intrinsic
-  xcd_part = transfer(rcd, xcd_part)
-  jcd_part = transfer(rcd, jcd_part)
+  xcd_part = transfer(rcd, 0.0_r_single)
+  jcd_part = transfer(rcd, 0_i_kind)
 
   ! Evaluate the extracted components cleanly
   if (rcd > tiny(0.0_r_double) .and. rcd < 99.0_r_double) then
