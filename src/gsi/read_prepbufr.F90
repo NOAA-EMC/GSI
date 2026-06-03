@@ -3666,8 +3666,10 @@ subroutine fixqcd(lunit,nemo,icd)
      icd = nint(rcd)
   else if (xcd_part > tiny(0.0_r_single) .and. xcd_part < 99.0_r_single) then
      icd = nint(xcd_part)
-  else        
+  else if (jcd_part > 0 .and. jcd_part < 99) then       
      icd = jcd_part
+  else
+     icd = 99     
   endif
 
 end subroutine fixqcd
