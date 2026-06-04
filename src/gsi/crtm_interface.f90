@@ -2243,12 +2243,12 @@ subroutine call_crtm(obstype,obstime,data_s,nchanl,nreal,ich, &
 
 ! Call CRTM K Matrix model
   ! -------------------------------------------------------------------
-  ! SANITY CHECK: Fix Invalid Soil Temperatures
+  ! SANITY CHECK: Fix unphysical soil temperatures before calling CRTM_K_MATRIX
   ! -------------------------------------------------------------------
-  ! If Soil Temp is garbage (negative or missing value) and we are on land,
+  ! If Soil Temp is outside a plausible physical range (K) and we are on land,
   ! replace it with the valid Land Skin Temperature.
   if (surface(1)%land_coverage > 0.0_r_kind) then
-     if (surface(1)%soil_temperature < 100.0_r_kind .or. &
+     if (surface(1)%soil_temperature < 220.0_r_kind .or. &
         surface(1)%soil_temperature > 450.0_r_kind) then
 
         ! Optional: Print a warning 
