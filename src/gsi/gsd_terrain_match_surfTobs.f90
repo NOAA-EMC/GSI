@@ -89,8 +89,8 @@ subroutine gsd_terrain_match_surfTobs(mype,nreal,ndata,cdata_all)
      iqtflg=nint(cdata_all(9,iobsout)) == 0
 
 !here starts surface data correction   DEDE 28 April 2009
-     if(kx==181.or.kx==187.or.                                                  &
-        (i_gsd_terrain_match_mesonet>=1.and.(kx==188.or.kx==192.or.kx==193.or.kx==195))) then
+     if(  kx==181.or.kx==187.or.                                                &
+        ((kx==188.or.kx==195.or.kx==192.or.kx==193).and.i_gsd_terrain_match_mesonet>=1) ) then
         toe     = cdata_all(1,iobsout)
         dlon    = cdata_all(2,iobsout)
         dlat    = cdata_all(3,iobsout)
@@ -120,18 +120,19 @@ subroutine gsd_terrain_match_surfTobs(mype,nreal,ndata,cdata_all)
         toe=cdata_all(1,iobsout)
 !       adjustment of observation error
         if(kx>179.and.kx<200) then
-!           special treatment of obs error for RTMA3D run
-            if (l_rtma3d) then
+            if (l_rtma3d) then    ! special treatment of obs error for 3DRTMA run
+                                  ! because very small oberr is used for sfcobs (1/16 of oberr as used in HRRR).
                 oe_factor=1.0_r_kind
                 select case (i_gsd_terrain_match_mesonet)
-                    case (0:1)    ! default: no adjustment to oberr, because very small oberr is used
-                                  !          for surface obs in 3DRTMA (1/16 of oberr used in HRRR).
+                    case (0)      ! default: no adjustment to oberr of kx=181/187,
+                                  !          because very small oberr is used in 3DRTMA
                         oe_factor=1.0_r_kind
-                    case (2:10)   ! for tunning oberr with gsd terrain matching
-                        oe_factor=real(i_gsd_terrain_match_mesonet, r_kind)/10.0_r_kind
-                    case (11:)    ! adjusted in the same way as the original setup by GSD developer
+                    case (1)      ! no adjustment to oberr of kx=181/187/188/192/193/195
+                        oe_factor=1.0_r_kind
+                    case (2:)     ! oberr is adjusted to half of pre-defined value for kx=181/187/188/192/193/195
+                                  ! (the same way as the original setup by GSD developer)
                         oe_factor=r0_5
-                    case ( :-1)   ! only kx=181/187 is adjusted in the same way as the original setup by GSD developer
+                    case (:-1)    ! oberr is adjusted to half of pre-defined value for kx=181/187
                         oe_factor=r0_5
                 end select
                 toe=toe*oe_factor

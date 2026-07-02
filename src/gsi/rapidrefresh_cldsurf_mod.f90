@@ -257,8 +257,9 @@ module rapidrefresh_cldsurf_mod
 !                                (kx=192/193, 192 corresponding to 181 with missing pressure, and 193 to 187.)
 !                          = 0 : apply GSD terrain match ONLY to surface obs of T with type kx=181/187
 !                                (default, using initial setup in gsd_terrain_match_surfTobs.f90 by GSD developer.)
-!                          = 1 : apply GSD terrain match to more surface Obs type, kx=188/195/192/193.
-!                                (recommended for 3DRTMA run, see gsd_terrain_match_surfTobs.f90.)
+!                          = 1 : apply GSD terrain match to more surface Obs type, kx=181/187/188/195/192/193.
+!                                (recommended for 3DRTMA run, see gsd_terrain_match_surfTobs.f90 for the details
+!                                 on the adjustment of the observation error for 3DRTMA run.)
 !
 ! attributes:
 !   language: f90
