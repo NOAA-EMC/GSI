@@ -887,7 +887,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
 !------------------------------------------------------------------------
 
 ! Obtain program code (VTCD) associated with "VIRTMP" step
-  call ufbqcd(lunin,'VIRTMP',ivtcd)
+  call fixqcd(lunin,'VIRTMP',ivtcd)
   vtcd = ivtcd
 
 !see if file contains GLERL program code (GLCD)
@@ -895,7 +895,7 @@ subroutine read_prepbufr(nread,ndata,nodata,infile,obstype,lunout,twindin,sis,&
   call status(lunin,lindx,idummy1,idummy2)
   call nemtab(lindx,'GLERL',idummy1,cdummy,glret)
   if (glret /= 0) then
-     call ufbqcd(lunin,'GLERL',iglcd)
+     call fixqcd(lunin,'GLERL',iglcd)
      glcd = iglcd
   else
      !warn that GLERL adjustment is not available.
@@ -3630,3 +3630,46 @@ subroutine sonde_ext(obsdat,tpc,qcmark,obserr,drfdat,levsio,kx,vtcd)
 
 end subroutine sonde_ext
 
+!--------------------------------------------------------------------------!
+!    NOAA/NCEP, National Centers for Environmental Prediction GSI  !
+!--------------------------------------------------------------------------!
+!
+! !ROUTINE:  fixqcd - A wrapper around ufbqcd can make it work with any generation of bufrlib.
+!
+! !INTERFACE:
+!
+subroutine fixqcd(lunit,nemo,icd)
+  use kinds, only: i_kind, r_single, r_double
+  implicit none
+
+  integer(i_kind), intent(in)  :: lunit
+  character(*),    intent(in)  :: nemo
+  integer(i_kind), intent(out) :: icd
+
+  ! Use distinct variables instead of equivalence overlays
+  real(r_double)  :: rcd
+  real(r_single)  :: xcd_part
+  integer(i_kind) :: jcd_part
+
+  ! Always initialize to prevent leftover garbage memory bugs
+  rcd = 0.0_r_double
+
+  ! Safe library call filling the full 8-byte block
+  call ufbqcd(lunit,nemo,rcd)
+
+  ! Extract component parts using the safe bitwise transfer intrinsic
+  xcd_part = transfer(rcd, 0.0_r_single)
+  jcd_part = transfer(rcd, 0_i_kind)
+
+  ! Evaluate the extracted components cleanly
+  if (rcd > tiny(0.0_r_double) .and. rcd < 99.0_r_double) then
+     icd = nint(rcd)
+  else if (xcd_part > tiny(0.0_r_single) .and. xcd_part < 99.0_r_single) then
+     icd = nint(xcd_part)
+  else if (jcd_part > 0 .and. jcd_part < 99) then       
+     icd = jcd_part
+  else
+     icd = 99     
+  endif
+
+end subroutine fixqcd

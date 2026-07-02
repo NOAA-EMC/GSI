@@ -96,7 +96,7 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
   real(r_kind) :: rlon00, rlat00, cdist, disterr, disterrmax, vdisterrmax
   real(r_kind) :: dlnpob, pob_cb, rhob_calc, es, dummy, qsat
   real(r_kind) :: temperature_ob, dew_point_temperature_ob
-  real(r_kind) :: relative_humidity_ob, humidity_ob
+  real(r_kind) :: relative_humidity_ob, humidity_ob, rhob  
   real(r_kind) :: toff, t4dv, tdiff
   real(r_kind) :: uwind, vwind, u0, v0, u00, v00, ppb, usage
   real(r_kind) :: obserr, var_jb, del, ediff
@@ -109,13 +109,12 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
   real(r_kind),allocatable,dimension(:,:):: cdata_all   !,cdata_out
   real(r_double) :: rstation_id
   real(r_double),dimension(8,1):: hdr
-  real(r_double),dimension(5,1):: obsdat
+  real(r_double),dimension(6,1):: obsdat
 
 ! data statements
   data hdstr  /'YEAR MNTH DAYS HOUR MINU CLATH CLONH LSTN'/
-  data obstr  /'PMSL TMDB TMDP WDIR WSPD'/ ! Saildrone does not have Pressure 
-                                           ! (but PMSL) and only dew point for humidity
-
+  data obstr  /'PMSL TMDB TMDP WDIR WSPD REHU'/ ! Saildrone does not have Pressure (but PMSL)
+                                                
   data lunin / 13 /
 
 ! Initialize variables
@@ -335,7 +334,7 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
        ! Set surface type
        call deter_sfc2(dlat_earth,dlon_earth,t4dv,idomsfc,tsavg,ff10,sfcr,zz)
 
-       call ufbint(lunin,obsdat,5,1,levs,obstr)  ! PMSL TMDB TMDP WDIR WSPD
+       call ufbint(lunin,obsdat,6,1,levs,obstr)  ! PMSL TMDB TMDP WDIR WSPD REHU
        dlnpob=log(obsdat(1,1)/1000_r_kind)
 
 
@@ -464,19 +463,30 @@ subroutine read_saildrone(nread,ndata,nodata,infile,obstype,lunout,gstime,twindi
            if(perturb_obs)cdata_all(nreal,iout)=ran01dom()*perturb_fact ! t perturbation
    
        end if 
-  
-       if (qob .AND. abs(obsdat(3,1)) < 320.0_r_kind .AND. &    ! This is dewpoint.
+ 
+       rhob = obsdat(6,1)       ! Relative humidity from BUFR (REHU), expected units: % 
+       if (qob .AND. &
            abs(obsdat(2,1)-225.0_r_kind) < 125.0_r_kind .AND. &
            obsdat(1,1) > zero .AND. obsdat(1,1) < 1.4e5_r_kind) then
-  
+
            !          Convert raw moisture data from dew point temperature to specific humidity
            pob_cb = obsdat(1,1) * r0_001  ! convert [Pa] to [cb]
            dew_point_temperature_ob =  obsdat(3,1)
            temperature_ob = obsdat(2,1)
-           rhob_calc = exp((one-temperature_ob/dew_point_temperature_ob)*(hvap/rv)/temperature_ob) ! e.g. rh=0.98
            call fpvsx_ad(temperature_ob,es,dummy,dummy,.false.)
            qsat = eps*es/(pob_cb-omeps*es)
-           relative_humidity_ob = rhob_calc   ! calculate RH (%) since rhob is missing          
+
+           ! Prefer observed RH (REHU) when it is valid; otherwise fall back to deriving RH
+           ! from TMDB/TMDP (some Saildrone acting as buoy may provide only dewpoint).
+           if (rhob >= 0.0_r_kind .AND. rhob <= 100.0_r_kind) then
+              relative_humidity_ob = rhob * 0.01_r_kind   ! convert % to 0-1
+           else if (abs(dew_point_temperature_ob) < 320.0_r_kind) then
+              rhob_calc = exp((one-temperature_ob/dew_point_temperature_ob)*(hvap/rv)/temperature_ob) ! rh in 0-1
+              relative_humidity_ob = rhob_calc
+           else
+              cycle   ! no usable moisture information
+           end if
+
            humidity_ob  = relative_humidity_ob * qsat
 
            ! Assign obs error from error table

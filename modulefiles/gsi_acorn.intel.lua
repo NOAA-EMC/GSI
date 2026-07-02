@@ -7,7 +7,6 @@ local craype_ver=os.getenv("craype_ver") or "2.7.8"
 local cray_mpich_ver=os.getenv("cray_mpich_ver") or "8.1.7"
 local cmake_ver= os.getenv("cmake_ver") or "3.20.2"
 local python_ver=os.getenv("python_ver") or "3.8.6"
-local prod_util_ver=os.getenv("prod_util_ver") or "2.0.10"
 
 local netcdf_ver=os.getenv("netcdf_ver") or "4.7.4"
 local bufr_ver=os.getenv("bufr_ver") or "12.1.0"
@@ -29,8 +28,6 @@ load(pathJoin("craype", craype_ver))
 load(pathJoin("cray-mpich", cray_mpich_ver))
 load(pathJoin("cmake", cmake_ver))
 load(pathJoin("python", python_ver))
-
-load(pathJoin("prod_util", prod_util_ver))
 
 load(pathJoin("netcdf", netcdf_ver))
 load(pathJoin("bufr", bufr_ver))

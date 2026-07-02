@@ -63,7 +63,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
 !                              listed in the OBS_INPUT table) and for added flexibility for experimental setups.
 !   2018-02-15  wu      - add code for fv3_regional option
 !   2020-05-04  wu   - no rotate_wind for fv3_regional
-!
+!   2023-11-01  B. Dahl - add l_tdr_thin_alongbeam to allow bypass of hard-coded along-beam thinning of TDR data
 !
 !   input argument list:
 !     infile   - file from which to read BUFR data
@@ -90,7 +90,7 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
       eccentricity,somigliana,grav_ratio,grav, &
       semi_major_axis,flattening,two
   use qcmod, only: erradar_inflate,vadfile,newvad
-  use obsmod, only: iadate,ianldate,l_foreaft_thin,reduce_diag
+  use obsmod, only: iadate,ianldate,l_foreaft_thin,l_tdr_thin_alongbeam,reduce_diag
   use gsi_4dvar, only: l4dvar,l4densvar,iwinbgn,winlen,time_4dvar,thin4d
   use gridmod, only: regional,nlat,nlon,tll2xy,rlats,rlons,rotate_wind_ll2xy,nsig,&
       fv3_regional
@@ -2800,22 +2800,35 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
            ii=0
            do k=1,levs
               nread=nread+1
-!             Select data every 3 km along each beam
-              if(MOD(INT(tdr_obs(1,k)-tdr_obs(1,1)),3000) < 100)then
-                 if(tdr_obs(3,k) >= 800.) then
-                    nmissing=nmissing+1     !xx
+              if(l_tdr_thin_alongbeam) then
+!                Select data every 3 km along each beam
+                 if(MOD(INT(tdr_obs(1,k)-tdr_obs(1,1)),3000) < 100)then
+                    if(tdr_obs(3,k) >= 800.0_r_double) then
+                       nmissing=nmissing+1     !xx
+                    else
+                       ii=ii+1
+                       dopbin(ii)=tdr_obs(3,k)
+                       thisrange=tdr_obs(1,k)
+
+                       call getvrlocalinfo(thisrange,thisazimuth,this_stahgt,aactual,a43,selev0,celev0, &
+                                  rlon0,clat0,slat0,r8,r89_5,nsubzero,ii,z(ii),elev(ii),elat8(ii), &
+                                  elon8(ii),glob_azimuth8(ii))
+                    end if
                  else
+                    ntdrvr_thin1=ntdrvr_thin1+1
+                 endif
+              else
+                 if(tdr_obs(3,k) >= 800.0_r_double) nmissing=nmissing+1     !xx
+                 if(tdr_obs(3,k) < 800.0_r_double) then
                     ii=ii+1
                     dopbin(ii)=tdr_obs(3,k)
                     thisrange=tdr_obs(1,k)
 
                     call getvrlocalinfo(thisrange,thisazimuth,this_stahgt,aactual,a43,selev0,celev0, &
-                                   rlon0,clat0,slat0,r8,r89_5,nsubzero,ii,z(ii),elev(ii),elat8(ii), &
-                                   elon8(ii),glob_azimuth8(ii))
+                                rlon0,clat0,slat0,r8,r89_5,nsubzero,ii,z(ii),elev(ii),elat8(ii), &
+                                elon8(ii),glob_azimuth8(ii))
                  end if
-              else
-                 ntdrvr_thin1=ntdrvr_thin1+1
-              endif
+              end if
            end do
 
 !          Further process tail Doppler radar Vr data
@@ -3115,7 +3128,11 @@ subroutine read_radar(nread,ndata,nodata,infile,lunout,obstype,twind,sis,hgtl_fu
   write(6,*)'READ_RADAR: # data read in nread=', nread 
   write(6,*)'READ_RADAR: # data with missing value nmissing=', nmissing
   write(6,*)'READ_RADAR: # data likely to be below sealevel nsubzero=', nsubzero
-  write(6,*)'READ_RADAR: # data removed by thinning along the beam ntdrvr_thin1=', ntdrvr_thin1 
+  if(l_tdr_thin_alongbeam) then
+    write(6,*)'READ_RADAR: # data removed by thinning along the beam ntdrvr_thin1=', ntdrvr_thin1
+  else
+    write(6,*) 'READ_RADAR: # thinning along the beam is disabled, (l_tdr_thin_alongbeam = .false.)'
+  end if
   write(6,*)'READ_RADAR: # data retained after thinning along the beam ntdrvr_in=', ntdrvr_in
   write(6,*)'READ_RADAR: # out of domain =', noutside
   write(6,*)'READ_RADAR: # out of range =', nirrr

@@ -173,11 +173,11 @@ contains
     real(r_kind),dimension(1,1):: poe,qoe,toe,woe
     real(r_kind),dimension(1):: xob,yob,dhr
     real(r_kind),dimension(1,1):: pob
-    integer(i_kind) vtcd
+    integer(i_kind) ivtcd
     integer(i_kind) n,k,iret
     real(r_double) hdr(10),obs(13,255),qms(10,255),err(10,255),cld2seq(2,1), &
                  cldseq(3,10),owave(1,255),maxtmint(2,255),cldceilh(1,255),&
-                 pcd(10,255)
+                 pcd(10,255),vtcd
     character(80):: hdrstr='SID XOB YOB DHR TYP'
     character(80):: obsstr='POB QOB TOB ZOB UOB VOB CAT PWO MXGS HOVI PRSS TDO PMO'
     character(80):: qmsstr='PQM QQM TQM ZQM WQM PWQ PMQ'
@@ -286,7 +286,8 @@ contains
     call datelen(10)
     call openbf(lendian_in,'OUT',ludx)
     if (virtmp) then
-       call ufbqcd(lendian_in,'VIRTMP',vtcd)
+       call fixqcd(lendian_in,'VIRTMP',ivtcd)
+       vtcd = ivtcd
     end if
     do n=1,nobs
        hdr(1)=transfer(sid(n),hdr(1))

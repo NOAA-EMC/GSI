@@ -36,6 +36,13 @@ elif [[ $MACHINE_ID = container ]] ; then
     fi
     module purge
 
+elif [[ $MACHINE_ID = aws-ec2 ]] ; then
+    # We are on aws ec2
+    if ( ! eval module help > /dev/null 2>&1 ) ; then
+        source /usr/share/lmod/lmod/init/bash
+    fi
+    module purge
+
 elif [[ $MACHINE_ID = wcoss2 || $MACHINE_ID = acorn ]]; then
     # We are on WCOSS2 (cactus, dogwood, or acorn)
     module reset
