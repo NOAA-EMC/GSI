@@ -244,6 +244,7 @@ subroutine get_gefs_ensperts_dualres
        end do !c3d
        do i=1,nelen
           en_bar%values(i)=en_bar%values(i)+en_real8(n)%values(i)*bar_norm
+          en_perts(n,1,m)%valuesr4(i)=real(en_real8(n)%values(i),r_single)
        end do
 
 
