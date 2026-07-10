@@ -61,8 +61,8 @@ case $regtest in
     global_4denvar)
 
         if [[ "$machine" = "Hera" ]]; then
-           topts[1]="0:10:00" ; popts[1]="12/8/" ; ropts[1]="/1"
-           topts[2]="0:10:00" ; popts[2]="12/10/" ; ropts[2]="/2"
+           topts[1]="0:15:00" ; popts[1]="12/8/" ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="12/10/" ; ropts[2]="/2"
         elif [[ "$machine" = "Ursa" ]]; then
            topts[1]="0:10:00" ; popts[1]="48/2/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="48/3/" ; ropts[2]="/2"
