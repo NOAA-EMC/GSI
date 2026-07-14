@@ -246,6 +246,11 @@ subroutine get_gefs_ensperts_dualres
           en_bar%values(i)=en_bar%values(i)+en_real8(n)%values(i)*bar_norm
        end do
 
+       if (write_ens_sprd) then
+          do i=1,nelen
+             en_perts(n,1,m)%valuesr4(i)=real(en_real8(n)%values(i),r_single)
+          end do
+       end if
 
 ! NOTE: if anyone implements alternative use of SST (as from sst2) care need
 !       be given to those applications getting SST directly from the members of
