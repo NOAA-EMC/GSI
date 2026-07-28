@@ -251,10 +251,18 @@ module rapidrefresh_cldsurf_mod
 !                          = 0 (vis-off: default) : no analysis of visibility in 3D analysis.
 !                          = 1 (vis-on) : if variable name "vis" is found in anavinfo,
 !                                          set it to be 1 to turn on analysis of visibility;
-!      i_gsd_terrain_match_mesonet - namelist integer, control application of GSD Terrain Match to MESONET (MSO)
-!                                observations of Temp (188, 195)
-!                          = 0 : do not apply GSD terrain match to MESONET Obs of T (default)
-!                          = 1 : apply GSD terrain match to MESONET Obs of T
+!      i_gsd_terrain_match_mesonet - namelist integer, control application of GSD Terrain Match adjustment to more 
+!                                type of surface observations of temperature, including MESONET obs-type (kx=188)
+!                                and other types of surface obs of T with missing pressure (kx=192/193/195,
+!                                192 corresponding to 181 with missing pressure, 193 to 187, 195 to 188.)
+!                          = 0 : apply terrain match adjustment to kx=181/187 only; (default)
+!                                and the obs error of the adjusted obs is halved.
+!                                But in 3DRTMA (l_rtma3d=.true.), obs error is NOT halved;
+!                          = 1 : apply terrain match adjustment to kx=181/187/188/195/192/193.
+!                                and obs error is halved. But in 3DRTMA, obs error is NOT halved;
+!                          > 1 : like 1, and in 3DRTMA, also halve pre-defined obs error for these kx
+!                          < 0 : like 0, and in 3DRTMA, also halve pre-defined obs error
+!                                (see gsd_terrain_match_surfTobs.f90 for details.)
 !
 ! attributes:
 !   language: f90

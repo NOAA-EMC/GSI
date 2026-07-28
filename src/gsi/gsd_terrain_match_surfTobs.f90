@@ -32,7 +32,7 @@ subroutine gsd_terrain_match_surfTobs(mype,nreal,ndata,cdata_all)
   use gsi_metguess_mod, only: gsi_metguess_bundle
   use gsi_bundlemod, only: gsi_bundlegetpointer  
   use mpeu_util, only: die
-  use rapidrefresh_cldsurf_mod, only: i_gsd_terrain_match_mesonet
+  use rapidrefresh_cldsurf_mod, only: i_gsd_terrain_match_mesonet, l_rtma3d
 
   implicit none
 
@@ -62,6 +62,7 @@ subroutine gsd_terrain_match_surfTobs(mype,nreal,ndata,cdata_all)
   integer(i_kind) iobsout, kx, nc, ier, istatus
   real(r_kind) toe,dlat,dlon
   real(r_kind) stnelev, dlnpob, usage
+  real(r_kind) oe_factor
 
   real(r_kind),dimension(:,:  ),pointer:: ges_ps_nt=>NULL()
   real(r_kind),dimension(:,:  ),pointer:: ges_z_nt =>NULL()
@@ -88,7 +89,8 @@ subroutine gsd_terrain_match_surfTobs(mype,nreal,ndata,cdata_all)
      iqtflg=nint(cdata_all(9,iobsout)) == 0
 
 !here starts surface data correction   DEDE 28 April 2009
-     if(kx==181.or.kx==187.or.(i_gsd_terrain_match_mesonet==1.and.kx==188)) then
+     if(  kx==181.or.kx==187.or.                                                &
+        ((kx==188.or.kx==195.or.kx==192.or.kx==193).and.i_gsd_terrain_match_mesonet>=1) ) then
         toe     = cdata_all(1,iobsout)
         dlon    = cdata_all(2,iobsout)
         dlat    = cdata_all(3,iobsout)
@@ -116,7 +118,28 @@ subroutine gsd_terrain_match_surfTobs(mype,nreal,ndata,cdata_all)
         dlnpob=log(pres1)
 
         toe=cdata_all(1,iobsout)
-        if(kx>179.and.kx<190) toe=toe*r0_5  !DEDE 12 Feb 2009
+!       adjustment of observation error
+        if(kx>179.and.kx<200) then
+            if (l_rtma3d) then    ! special treatment of obs error for 3DRTMA run
+                                  ! because very small oberr is used for sfcobs (1/16 of oberr as used in HRRR).
+                oe_factor=1.0_r_kind
+                select case (i_gsd_terrain_match_mesonet)
+                    case (0)      ! default: no adjustment to oberr of kx=181/187,
+                                  !          because very small oberr is used in 3DRTMA
+                        oe_factor=1.0_r_kind
+                    case (1)      ! no adjustment to oberr of kx=181/187/188/192/193/195
+                        oe_factor=1.0_r_kind
+                    case (2:)     ! oberr is adjusted to half of pre-defined value for kx=181/187/188/192/193/195
+                                  ! (the same way as the original setup by GSD developer)
+                        oe_factor=r0_5
+                    case (:-1)    ! oberr is adjusted to half of pre-defined value for kx=181/187
+                        oe_factor=r0_5
+                end select
+                toe=toe*oe_factor
+            else
+                toe=toe*r0_5  !DEDE 12 Feb 2009 (original setup by GSD developer)
+            end if
+        end if
 
         cdata_all(1,iobsout)=toe
         cdata_all(4,iobsout)=dlnpob
