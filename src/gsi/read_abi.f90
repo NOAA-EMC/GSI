@@ -208,7 +208,7 @@ subroutine read_abi(mype,val_abi,ithin,rmesh,jsatid,&
   if (clrsky) then
      nchn=10
      ncld=nchn
-     nbrst=nchn
+     nbrst=nchn*2
   else if (allsky) then
      nchn=10
      ncld=2
