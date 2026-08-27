@@ -54,6 +54,13 @@ elif [[ $MACHINE_ID = gaeac6 ]] ; then
     fi
     module reset
 
+elif [[ $MACHINE_ID = nimbus ]] ; then
+    # We are on nimbus
+    if ( ! eval module help > /dev/null 2>&1 ) ; then
+        source /usr/share/lmod/lmod/init/bash
+    fi
+    module purge
+    
 elif [[ $MACHINE_ID = derecho ]] ; then
     # We are on NCAR derecho
     if ( ! eval module help > /dev/null 2>&1 ) ; then
