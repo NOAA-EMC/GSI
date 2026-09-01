@@ -111,8 +111,9 @@ echo "#SBATCH --job-name=$jobname"          >> $cfile
 echo "#SBATCH --partition=compute"          >> $cfile
 echo "#SBATCH --time=$timew"                >> $cfile
 echo "#SBATCH --nodes=$nodes"               >> $cfile
-echo "#SBATCH --tasks-per-node=$procs"      >> $cfile
+echo "#SBATCH --ntasks-per-node=$procs"     >> $cfile
 echo "#SBATCH --cpus-per-task=$threads"     >> $cfile
+echo "#SBATCH --exclusive"                  >> $cfile
 echo "#SBATCH --mem=0"                      >> $cfile
 ##echo "#SBATCH --account=$accnt"             >> $cfile
 
