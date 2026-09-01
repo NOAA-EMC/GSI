@@ -89,7 +89,7 @@ output=${output:-$jobname.out}
 myuser=$LOGNAME
 myhost=$(hostname)
 
-DATA=/lfs/home/$LOGNAME/stmp/tmp
+DATA=${DATA:-${ptmp:-/lfs/home/$LOGNAME/stmp}/tmp}
 mkdir -p $DATA
 
 queue=${queue:-dev}

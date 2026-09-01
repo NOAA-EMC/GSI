@@ -109,8 +109,7 @@ case $machine in
       fi
       export ptmp="${ptmp:-/lfs/home/$LOGNAME/stmp/$ptmpName}"
 
-      export casesdir="/lfs/home/russ_treadon_hpc_noaa_gov/CASES/regtest"
-
+      export casesdir="${casesdir:-/lfs/home/russ_treadon_hpc_noaa_gov/CASES/regtest}"
       export check_resource="no"
       export accnt="${accnt:-GFS-DEV}"
   ;;
