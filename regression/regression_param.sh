@@ -46,9 +46,9 @@ case $machine in
     ;;
     nimbus)
            sub_cmd="sub_nimbus"
-           memmode=512
+           memnode=512
            numcore=192
-    ;;	
+    ;;
     *) # EXIT out for unresolved machine
         echo "unknown $machine"
         exit 1
