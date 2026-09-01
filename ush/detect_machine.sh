@@ -77,6 +77,9 @@ if [[ -d /lfs/h3 ]]; then
 elif [[ -d /lfs/h1 && ! -d /lfs/h3 ]]; then
   # We are on NOAA TDS Acorn
   MACHINE_ID=acorn
+elif [[ -d /lfs/home ]]; then
+  # We are on NOAA Nimbus
+  MACHINE_ID=nimbus
 elif [[ -d /scratch3 ]]; then
   # We are on NOAA Hera or Ursa
   mount=$(findmnt -n -o SOURCE /home)
