@@ -132,6 +132,8 @@ echo "" >> $cfile
 
 echo "source /opt/intel/oneapi/compiler/2023.2.1/env/vars.sh" >> $cfile
 echo "source /opt/intel/oneapi/mpi/2021.18/env/vars.sh" >> $cfile
+echo ". /usr/share/lmod/lmod/init/bash"     >> $cfile
+echo "module purge"                         >> $cfile
 echo "module use $modulefiles"              >> $cfile
 echo "module load gsi_${machine}.intel"     >> $cfile
 echo "module load mpi"                      >> $cfile
@@ -185,7 +187,7 @@ if [[ -w $SUBLOG ]];then
   jobn=$(grep -i submitted $ofile|head -n1|cut -d\" -f2)
   date -u +"%Y%m%d%H%M%S : $subcmd : $jobn" >>$SUBLOG
 fi
-##rm $cfile $ofile
-##[[ $MKDATA = YES ]] && rmdir $DATA
+rm $cfile $ofile
+[[ $MKDATA = YES ]] && rmdir $DATA
 echo "ending sub_${machine}"
 exit $rc

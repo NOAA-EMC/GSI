@@ -53,6 +53,7 @@ setenv("CC","mpiicc")
 setenv("CXX","mpiicpc")
 setenv("FC","mpiifort")
 
-pushenv("GSI_BINARY_SOURCE_DIR", "/home/russ_treadon_hpc_noaa_gov/fix/gsi/20260224")
+local gsi_binary_source_dir=os.getenv("GSI_BINARY_SOURCE_DIR") or "/home/russ_treadon_hpc_noaa_gov/fix/gsi/20260224"
+pushenv("GSI_BINARY_SOURCE_DIR", gsi_binary_source_dir)
 
-whatis("Description: GSI environment on Ursa with Intel Compilers")
+whatis("Description: GSI environment on Nimbus with Intel Compilers")
