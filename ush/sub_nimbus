@@ -148,7 +148,7 @@ echo "export FI_OFI_RXM_BUFFER_SIZE=4096"   >> $cfile
 echo "export FI_UNIVERSE_SIZE=\$SLURM_NTASKS"   >> $cfile
 echo "export FI_OFI_RXM_SAR_LIMIT=2147483648"  >> $cfile
 echo "export I_MPI_PIN_DOMAIN=numa"         >> $cfile
-echo "export I_MPI_DEBUG=5"                 >> $cfile
+# echo "export I_MPI_DEBUG=5"                 >> $cfile
 echo "export I_MPI_PMI=pmi2"                >> $cfile
 echo "export I_MPI_PMI_LIBRARY=/usr/lib64/libpmi2.so" >> $cfile
 echo "ulimit -l unlimited || true"          >> $cfile
