@@ -1,4 +1,4 @@
-#!/bin/sh --login
+#!/bin/bash -l
 set -x
 echo "starting sub_${machine}"  # nimbus
 usage="\
