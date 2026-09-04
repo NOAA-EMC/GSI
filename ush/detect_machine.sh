@@ -25,6 +25,7 @@ case $(hostname -f) in
   clogin10.cactus.wcoss2.ncep.noaa.gov)      MACHINE_ID=wcoss2 ;; ### cactus10
   dlogin0[1-9].dogwood.wcoss2.ncep.noaa.gov) MACHINE_ID=wcoss2 ;; ### dogwood01-9
   dlogin10.dogwood.wcoss2.ncep.noaa.gov)     MACHINE_ID=wcoss2 ;; ### dogwood10
+  wcoss3-login-0[1-3]*)                      MACHINE_ID=nimbus ;; ### nimbus
 
   gaea6[1-8])          MACHINE_ID=gaeac6 ;; ### gaea61-68
   gaea6[1-8].ncrc.gov) MACHINE_ID=gaeac6 ;; ### gaea61-68
@@ -76,6 +77,9 @@ if [[ -d /lfs/h3 ]]; then
 elif [[ -d /lfs/h1 && ! -d /lfs/h3 ]]; then
   # We are on NOAA TDS Acorn
   MACHINE_ID=acorn
+elif [[ -d /lfs/home ]]; then
+  # We are on NOAA Nimbus
+  MACHINE_ID=nimbus
 elif [[ -d /scratch3 ]]; then
   # We are on NOAA Hera or Ursa
   mount=$(findmnt -n -o SOURCE /home)

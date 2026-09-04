@@ -39,6 +39,8 @@ if [[ -d /scratch3 ]]; then # Hera or Ursa
   fi
 elif [[ -d /gpfs/f6 ]]; then # GaeaC6
   export machine="gaeac6"
+elif [[ -d /lfs/home ]]; then # nimbus
+  export machine="nimbus"
 elif [[ -d /work ]]; then # Orion or Hercules
   mount=$(findmnt -n -o SOURCE /home)
   if [[ ${mount} =~ "hercules" ]]; then
@@ -92,6 +94,26 @@ case $machine in
       export check_resource="no"
       export accnt="${accnt:-GFS-DEV}"
   ;;
+  nimbus)
+      export local_or_default="${local_or_default:-/lfs/home/$LOGNAME}"
+      if [ -d $local_or_default ]; then
+          export noscrub="$local_or_default/noscrub"
+      elif [ -d /lfs/home/$LOGNAME ]; then
+          export noscrub="/lfs/home/$LOGNAME/noscrub"
+      fi
+
+      export queue="${queue:-dev}"
+      export group="${group:-global}"
+      if [[ "$cmaketest" = "false" ]]; then
+	  export basedir="/lfs/home/$LOGNAME/gsi"
+      fi
+      export ptmp="${ptmp:-/lfs/home/$LOGNAME/stmp/$ptmpName}"
+
+      export casesdir="${casesdir:-/lfs/home/russ_treadon_hpc_noaa_gov/CASES/regtest}"
+      export check_resource="no"
+      export accnt="${accnt:-GFS-DEV}"
+  ;;
+
   Orion | Hercules)
       export local_or_default="${local_or_default:-/work2/noaa/da/$LOGNAME}"
       if [ -d $local_or_default ]; then
