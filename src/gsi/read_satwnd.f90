@@ -224,7 +224,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
   real(r_double),dimension(2) :: hdrdat_test,hdrdat_005099
 ! real(r_double),dimension(3,5) :: heightdat
 ! real(r_double),dimension(6,4) :: derdwdat
-  real(r_double),dimension(3,12) :: qcdat
+  real(r_double),dimension(3,13) :: qcdat
   real(r_double),dimension(1,1):: r_prvstg,r_sprvstg
   real(r_kind),allocatable,dimension(:):: presl_thin
   real(r_kind),allocatable,dimension(:,:):: cdata_all
@@ -571,7 +571,7 @@ subroutine read_satwnd(nread,ndata,nodata,infile,obstype,lunout,gstime,twind,sis
            !if(itype>=240.and.itype<=279) icnt(itype)=icnt(itype)+1             
 
            ! collect any qc data ahead of time to use it !
-           call ufbrep(lunin,qcdat,3,12,qcret,qcstr)
+           call ufbrep(lunin,qcdat,3,13,qcret,qcstr)
 
 !------------------------------------------------------------------------------------------
            select case (istype) ! special treatment for each istype        
