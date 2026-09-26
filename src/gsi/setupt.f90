@@ -95,6 +95,7 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   use obsmod, only: t_doe_a_136,t_doe_a_137,t_doe_b_136,t_doe_b_137
   
 
+  use dupcheckmod, only: dupcheck
   implicit none
 
   type(obsLList ),target,dimension(:),intent(in):: obsLL
@@ -233,6 +234,11 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 !              (hofx_2m_sfcfile)
 !   2024-10-31  zhao    - added code to use valley-map data for 3DRTMA (l_rtma3d = .TRUE.)
 !
+!   2026-09-16  pondeca/morris - duplicate check code refactored into dupcheckmod;
+!                                  use true lat/lon values (ilate/ilone) with epsdup/epsdup_2
+!                                  station matching to allow slight lat/lon differences b/w nearby
+!                                  stations and to support TAC/BUFR station id match option
+!
 ! !REMARKS:
 !   language: f90
 !   machine:  ibm RS/6000 SP; SGI Origin 2000; Compaq/HP
@@ -316,9 +322,10 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   logical,dimension(nobs):: luse,muse
   integer(i_kind),dimension(nobs):: ioid ! initial (pre-distribution) obs ID
   logical sfctype, landsfctype
+  logical :: rtmasfctype
+  logical :: skip_pres_check(nobs)
   logical iqtflg
   logical aircraftobst
-  logical duplogic
 
   logical:: in_curbin, in_anybin, save_jacobian
   logical proceed
@@ -330,7 +337,6 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
 
   real(r_kind) :: thisPBL_height,ratio_PBL_height,prestsfc,diffsfc,dthetav
   real(r_kind) :: tges2m,qges2m,tges2m_water,qges2m_water
-  real(r_kind) :: hr_offset
 
   equivalence(rstation_id,station_id)
   equivalence(r_prvstg,c_prvstg)
@@ -466,43 +472,16 @@ subroutine setupt(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_diagsav
   var_jb=zero
 
 !  handle multiple reported data at a station
-  hr_offset=min_offset/60.0_r_kind
-  dup=one
+! Check for duplicate observations at same location
   do k=1,nobs
-     ikx=nint(data(ikxx,k))
-     itype=ictype(ikx)
-     landsfctype =( itype==181 .or. itype==183 .or. itype==187 )
-     do l=k+1,nobs
-        if (twodvar_regional .or. (hofx_2m_sfcfile .and. landsfctype) ) then
-           duplogic=data(ilat,k) == data(ilat,l) .and.  &
-           data(ilon,k) == data(ilon,l) .and.  &
-           data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
-           muse(k) .and. muse(l)
-         else
-           duplogic=data(ilat,k) == data(ilat,l) .and.  &
-           data(ilon,k) == data(ilon,l) .and.  &
-           data(ipres,k) == data(ipres,l) .and. &
-           data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
-           muse(k) .and. muse(l)
-        end if
-
-        if (duplogic) then
-           if(l_closeobs) then
-              if(abs(data(itime,k)-hr_offset)<abs(data(itime,l)-hr_offset)) then
-                  muse(l)=.false.
-              else
-                  muse(k)=.false.
-              endif
-!              write(*,'(a,2f10.5,2I8,2L10)') 'chech obs time==',data(itime,k)-hr_offset,data(itime,l)-hr_offset,k,l,&
-!                           muse(k),muse(l)
-           else
-              tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
-              dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
-              dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
-           endif
-        end if
-     end do
+     itype=ictype(nint(data(ikxx,k)))
+     rtmasfctype = (itype>=180 .and. itype<=195)
+     landsfctype = (itype==181 .or. itype==183 .or. itype==187)
+     skip_pres_check(k) = twodvar_regional .or. (l_rtma3d .and. rtmasfctype) .or. &
+                          (hofx_2m_sfcfile .and. landsfctype)
   end do
+  call dupcheck(nobs, nele, data, muse, dup, ier, itime, ilate, ilone, id, &
+                l_closeobs, min_offset, ipres=ipres, skip_pres_check=skip_pres_check)
 
 ! Run a buddy-check
 ! Note: buddy check crashes for hofx_2m_sfcfile option.

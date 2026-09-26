@@ -151,6 +151,7 @@ derivsmod.f90
 deter_sfc_mod.f90
 dtast.f90
 directDA_radaruse_mod.f90
+dupcheckmod.f90
 egrid2agrid_mod.f90
 en_perts_io.f90
 enorm_state.f90
