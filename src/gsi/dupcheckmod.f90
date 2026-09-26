@@ -81,6 +81,8 @@ subroutine dupcheck(nobs, nele, data, muse, dup, &
   use kinds, only: r_kind, i_kind, r_double
   use constants, only: one, r1000
   use qcmod, only: dfact, dfact1, epsdup, epsdup_2
+! epsdup and epsdup_2 are initialized to zero in qcmod and may be set via
+! the OBSQC namelist group (e.g., epsdup~0.005 deg, epsdup_2~0.1 deg)
 
   integer(i_kind), intent(in)    :: nobs, nele
   integer(i_kind), intent(in)    :: ier, itime, ilate, ilone, id
@@ -97,7 +99,7 @@ subroutine dupcheck(nobs, nele, data, muse, dup, &
   real(r_double)             :: rstn1, rstn2
   character(len=8)           :: cstn1, cstn2
   character(len=1), parameter :: cblank = ' '
-  logical :: duplogic, duplogic_1, duplogic_2, apply_pres_k
+  logical :: duplogic, duplogic_1, duplogic_2, apply_pres_k, apply_pres_l
 
   equivalence(rstn1, cstn1)
   equivalence(rstn2, cstn2)
@@ -146,7 +148,15 @@ subroutine dupcheck(nobs, nele, data, muse, dup, &
         (nlen==nlen2.and.cstn1(1:nlen)==cstn2(1:nlen))                 !this logic addresses this situation, but only when the station ids
                                                                        !are the same. when they are different, the duplicate obs will slip in
 
-        if (apply_pres_k) then
+!       Determine if pressure check applies for obs l; pressure check is only applied
+!       when both obs k and obs l require it
+        if (present(skip_pres_check) .and. present(ipres)) then
+           apply_pres_l = .not. skip_pres_check(l)
+        else
+           apply_pres_l = .false.
+        end if
+
+        if (apply_pres_k .and. apply_pres_l) then
            duplogic=(duplogic_1.or.duplogic_2).and.&
            data(ipres_loc,k) == data(ipres_loc,l) .and. &
            data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
