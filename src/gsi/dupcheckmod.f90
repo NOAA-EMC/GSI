@@ -86,7 +86,7 @@ subroutine dupcheck(nobs, nele, data, muse, dup, &
 
   integer(i_kind), intent(in)    :: nobs, nele
   integer(i_kind), intent(in)    :: ier, itime, ilate, ilone, id
-  real(r_kind),    intent(in)    :: min_offset
+  integer(i_kind), intent(in)    :: min_offset
   real(r_kind),    intent(in)    :: data(nele,nobs)
   logical,         intent(inout) :: muse(nobs)
   real(r_kind),    intent(inout) :: dup(nobs)
@@ -110,7 +110,7 @@ subroutine dupcheck(nobs, nele, data, muse, dup, &
      ipres_loc = 0
   end if
 
-  hr_offset = min_offset/60.0_r_kind
+  hr_offset = real(min_offset/60.0_r_kind,r_kind)
   dup = one
 
   kloop: do k=1,nobs
