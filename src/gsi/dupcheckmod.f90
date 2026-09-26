@@ -99,7 +99,7 @@ subroutine dupcheck(nobs, nele, data, muse, dup, &
   real(r_double)             :: rstn1, rstn2
   character(len=8)           :: cstn1, cstn2
   character(len=1), parameter :: cblank = ' '
-  logical :: duplogic, duplogic_1, duplogic_2, apply_pres_k, apply_pres_l
+  logical :: duplogic, duplogic_1, duplogic_2, apply_pres_k
 
   equivalence(rstn1, cstn1)
   equivalence(rstn2, cstn2)
@@ -148,23 +148,13 @@ subroutine dupcheck(nobs, nele, data, muse, dup, &
         (nlen==nlen2.and.cstn1(1:nlen)==cstn2(1:nlen))                 !this logic addresses this situation, but only when the station ids
                                                                        !are the same. when they are different, the duplicate obs will slip in
 
-!       Determine if pressure check applies for obs l; pressure check is only applied
-!       when both obs k and obs l require it
-        if (present(skip_pres_check) .and. present(ipres)) then
-           apply_pres_l = .not. skip_pres_check(l)
-        else
-           apply_pres_l = .false.
-        end if
-
-        if (apply_pres_k .and. apply_pres_l) then
+        if (apply_pres_k) then
            duplogic=(duplogic_1.or.duplogic_2).and.&
            data(ipres_loc,k) == data(ipres_loc,l) .and. &
-           data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
-           muse(k) .and. muse(l)
+           data(ier,k) < r1000 .and. data(ier,l) < r1000
         else
            duplogic=(duplogic_1.or.duplogic_2).and.&
-           data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
-           muse(k) .and. muse(l)
+           data(ier,k) < r1000 .and. data(ier,l) < r1000
         end if
 
         if (duplogic) then
