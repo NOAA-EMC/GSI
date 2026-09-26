@@ -115,7 +115,8 @@ subroutine dupcheck(nobs, nele, data, muse, dup, &
      if (.not. muse(k)) cycle kloop
 
 !    Determine if pressure check applies for this observation
-     if (present(skip_pres_check)) then
+!    (requires both ipres and skip_pres_check to be present)
+     if (present(skip_pres_check) .and. present(ipres)) then
         apply_pres_k = .not. skip_pres_check(k)
      else
         apply_pres_k = .false.
@@ -124,9 +125,9 @@ subroutine dupcheck(nobs, nele, data, muse, dup, &
      rstn1 = data(id,k)
      nlen=0
      do i=1,8
-        if (cstn1(i:i)==cblank) exit    !accounts for mesonet station ids that end with
-        nlen=nlen+1                      !an "a" in the eighth position preceded by blanks
-     enddo
+        if (cstn1(i:i)==cblank) exit    !stop at first blank; for mesonet station ids of the form
+        nlen=nlen+1                      !"STNIxxxxa" the trailing "a" in position 8 (preceded by blanks)
+     enddo                               !is intentionally excluded from the comparison
 
      lloop: do l=k+1,nobs
         if (.not. muse(l)) cycle lloop
