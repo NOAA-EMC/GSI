@@ -193,6 +193,7 @@ module qcmod
 ! set passed variables to public
   public :: npres_print,nlnqc_iter,varqc_iter,pbot,ptop,c_varqc,njqc,vqc,nvqc,hub_norm
   public :: use_poq7,noiqc,vadfile,dfact1,dfact,erradar_inflate,gps_jacqc
+  public :: epsdup, epsdup_2
   public :: pboto3,ptopo3,pbotq,ptopq,newvad,tdrerr_inflate
   public :: igood_qc,ifail_crtm_qc,ifail_crtm_nan,ifail_satinfo_qc,ifail_interchan_qc,&
             ifail_gross_qc,ifail_cloud_qc,ifail_outside_range,&
@@ -231,6 +232,7 @@ module qcmod
   integer(i_kind) npres_print
   integer(i_kind) nrand
   real(r_kind) dfact,dfact1,erradar_inflate,c_varqc
+  real(r_kind) epsdup, epsdup_2
   real(r_kind) varqc_iter
   real(r_kind) lat_c
   real(r_kind) pvis,pcldch,scale_cv,estvisoe,estcldchoe,vis_thres,cldch_thres
@@ -432,6 +434,8 @@ contains
     
     dfact    = zero
     dfact1   = three
+    epsdup   = zero
+    epsdup_2 = zero
     varqc_iter=one
 
     erradar_inflate   = one

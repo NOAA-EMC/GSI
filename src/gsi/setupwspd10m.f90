@@ -41,6 +41,11 @@ subroutine setupwspd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
 !   2022-04-16  pondeca - write bias correction multiplicative factor for mesonet
 !                         winds, windbiasfact, to diagnostic file
 !
+!
+!   2026-09-16  pondeca/morris - duplicate check code refactored into dupcheckmod;
+!                                  use true lat/lon values (ilate/ilone) with epsdup/epsdup_2
+!                                  station matching to allow slight lat/lon differences b/w nearby
+!                                  stations and to support TAC/BUFR station id match option
 !   input argument list:
 !     lunin    - unit from which to read observations
 !     mype     - mpi task id
@@ -99,6 +104,7 @@ subroutine setupwspd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
   use state_vectors, only: svars3d, levels
   use sparsearr, only: sparr2
   use aux2dvarflds, only: rtma_comp_fact10
+  use dupcheckmod, only: dupcheck
   implicit none
 
 ! Declare passed variables
@@ -176,7 +182,6 @@ subroutine setupwspd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
   type(wspd10mNode), pointer:: my_head
   type(obs_diag   ), pointer:: my_diag
   type(obs_diags  ), pointer:: my_diagLL
-  real(r_kind) :: hr_offset
   type(sparr2) :: dhx_dx_u, dhx_dx_v
 
 
@@ -251,29 +256,7 @@ subroutine setupwspd10m(obsLL,odiagLL,lunin,mype,bwork,awork,nele,nobs,is,conv_d
   end do
 
 ! Check for duplicate observations at same location
-  hr_offset=min_offset/60.0_r_kind
-  dup=one
-  do k=1,nobs
-     do l=k+1,nobs
-        if(data(ilat,k) == data(ilat,l) .and.  &
-           data(ilon,k) == data(ilon,l) .and.  &
-           data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
-           muse(k) .and. muse(l))then
-
-           if(l_closeobs) then
-              if(abs(data(itime,k)-hr_offset)<abs(data(itime,l)-hr_offset)) then
-                  muse(l)=.false.
-              else
-                  muse(k)=.false.
-              endif
-           else
-              tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
-              dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
-              dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
-           endif
-        end if
-     end do
-  end do
+  call dupcheck(nobs, nele, data, muse, dup, ier, itime, ilate, ilone, id, l_closeobs, min_offset)
 
 
 
