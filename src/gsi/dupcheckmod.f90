@@ -81,6 +81,8 @@ subroutine dupcheck(nobs, nele, data, muse, dup, &
   use kinds, only: r_kind, i_kind, r_double
   use constants, only: one, r1000
   use qcmod, only: dfact, dfact1, epsdup, epsdup_2
+  use gridmod, only: regional
+  
 ! epsdup and epsdup_2 are initialized to zero in qcmod and may be set via
 ! the OBSQC namelist group (e.g., epsdup~0.005 deg, epsdup_2~0.1 deg)
 
@@ -113,66 +115,117 @@ subroutine dupcheck(nobs, nele, data, muse, dup, &
   hr_offset = real(min_offset/60.0_r_kind,r_kind)
   dup = one
 
-  kloop: do k=1,nobs
+! Apply duplicate check for regional and global applications.
+!
+!   regional: check if the difference between station latitudes
+!             and longitudes are within a specified tolerance
+!   global:   check if station latitudes and longitues are equal
+
+! Regional block  
+  if (regional) then
+     kloop: do k=1,nobs
 
 !    Determine if pressure check applies for this observation
 !    (requires both ipres and skip_pres_check to be present)
-    if (present(skip_pres_check) .and. present(ipres)) then
-       apply_pres_k = .not. skip_pres_check(k)
-    else
-       apply_pres_k = .false.
-    end if
+        if (present(skip_pres_check) .and. present(ipres)) then
+           apply_pres_k = .not. skip_pres_check(k)
+        else
+           apply_pres_k = .false.
+        end if
+        
+        rstn1 = data(id,k)
+        nlen=0
+        do i=1,8
+           if (cstn1(i:i)==cblank) exit    !stop at first blank; for mesonet station ids of the form
+           nlen=nlen+1                     !"STNIxxxxa" the trailing "a" in position 8 (preceded by blanks)
+        enddo                              !is intentionally excluded from the comparison
+        
+        lloop: do l=k+1,nobs
+           rstn2 = data(id,l)
+           nlen2=0
+           do i=1,8
+              if (cstn2(i:i)==cblank) exit
+              nlen2=nlen2+1
+           enddo
+           
+           duplogic_1=abs(data(ilate,k)-data(ilate,l))<=epsdup .and.  &       !duplicate stations can have lat/lon specs
+                abs(data(ilone,k)-data(ilone,l))<=epsdup                      !differing by as much as epsdup (~0.005 deg)
+           
+           duplogic_2=abs(data(ilate,k)-data(ilate,l))<=epsdup_2 .and.  &     !station can appear as TAC station and BUFR station
+                abs(data(ilone,k)-data(ilone,l))<=epsdup_2 .and.  &           !with lat/lon specs differing by as much as epsdup_2 (~0.1 deg)
+                (nlen > 0 .and. nlen==nlen2.and.cstn1(1:nlen)==cstn2(1:nlen)) !this logic addresses this situation, but only when the station ids
+                                                                              !are the same. when they are different, the duplicate obs will slip in
+           
+           if (apply_pres_k) then
+              duplogic=(duplogic_1.or.duplogic_2).and.&
+                   data(ipres_loc,k) == data(ipres_loc,l) .and. &
+                   data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
+                   muse(k) .and. muse(l)
+           else
+              duplogic=(duplogic_1.or.duplogic_2).and.&
+                   data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
+                   muse(k) .and. muse(l)
+           end if
+           
+           if (duplogic) then
+              if(l_closeobs) then
+                 if(abs(data(itime,k)-hr_offset)<abs(data(itime,l)-hr_offset)) then
+                    muse(l)=.false.
+                 else
+                    muse(k)=.false.
+                    exit lloop
+                 endif
+              else
+                 tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
+                 dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
+                 dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
+              endif
+           end if
+        end do lloop
+     end do kloop
 
-    rstn1 = data(id,k)
-    nlen=0
-    do i=1,8
-       if (cstn1(i:i)==cblank) exit    !stop at first blank; for mesonet station ids of the form
-       nlen=nlen+1                      !"STNIxxxxa" the trailing "a" in position 8 (preceded by blanks)
-    enddo                               !is intentionally excluded from the comparison
+! Global branch
+  else
+     kloopg: do k=1,nobs
 
-    lloop: do l=k+1,nobs
-       rstn2 = data(id,l)
-       nlen2=0
-       do i=1,8
-          if (cstn2(i:i)==cblank) exit
-          nlen2=nlen2+1
-       enddo
-
-       duplogic_1=abs(data(ilate,k)-data(ilate,l))<=epsdup .and.  &  !duplicate stations can have lat/lon specs
-       abs(data(ilone,k)-data(ilone,l))<=epsdup                      !differing by as much as epsdup (~0.005 deg)
-
-       duplogic_2=abs(data(ilate,k)-data(ilate,l))<=epsdup_2 .and.  & !station can appear as TAC station and BUFR station
-       abs(data(ilone,k)-data(ilone,l))<=epsdup_2 .and.  &            !with lat/lon specs differing by as much as epsdup_2 (~0.1 deg)
-       (nlen > 0 .and. nlen==nlen2.and.cstn1(1:nlen)==cstn2(1:nlen))  !this logic addresses this situation, but only when the station ids
-                                                                       !are the same. when they are different, the duplicate obs will slip in
-
-       if (apply_pres_k) then
-          duplogic=(duplogic_1.or.duplogic_2).and.&
-          data(ipres_loc,k) == data(ipres_loc,l) .and. &
-          data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
-          muse(k) .and. muse(l)
-       else
-          duplogic=(duplogic_1.or.duplogic_2).and.&
-          data(ier,k) < r1000 .and. data(ier,l) < r1000 .and. &
-          muse(k) .and. muse(l)
-       end if
-
-       if (duplogic) then
-          if(l_closeobs) then
-             if(abs(data(itime,k)-hr_offset)<abs(data(itime,l)-hr_offset)) then
-                 muse(l)=.false.
-             else
-                 muse(k)=.false.
-                 exit lloop
-             endif
-          else
-             tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
-             dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
-             dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
-          endif
-       end if
-    end do lloop
-  end do kloop
+!    Determine if pressure check applies for this observation
+!    (requires both ipres and skip_pres_check to be present)
+        if (present(skip_pres_check) .and. present(ipres)) then
+           apply_pres_k = .not. skip_pres_check(k)
+        else
+           apply_pres_k = .false.
+        end if
+        
+        lloopg: do l=k+1,nobs
+           
+           duplogic = &
+                (data(ilate,k) == data(ilate,l)) .and. & 
+                (data(ilone,k) == data(ilone,l)) .and. &
+                (data(ier,k) < r1000) .and. &
+                (data(ier,l) < r1000) .and. &
+                muse(k) .and. muse(l)
+           
+           if (apply_pres_k) then
+              duplogic=duplogic .and. (data(ipres_loc,k) == data(ipres_loc,l))
+           end if
+           
+           if (duplogic) then
+              if(l_closeobs) then
+                 if(abs(data(itime,k)-hr_offset)<abs(data(itime,l)-hr_offset)) then
+                    muse(l)=.false.
+                 else
+                    muse(k)=.false.
+                    exit lloopg
+                 endif
+              else
+                 tfact=min(one,abs(data(itime,k)-data(itime,l))/dfact1)
+                 dup(k)=dup(k)+one-tfact*tfact*(one-dfact)
+                 dup(l)=dup(l)+one-tfact*tfact*(one-dfact)
+              endif
+           end if
+        end do lloopg
+     end do kloopg
+  endif
 
 end subroutine dupcheck
 
