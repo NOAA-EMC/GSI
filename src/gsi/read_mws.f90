@@ -126,11 +126,11 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) i,j,k,ntest,iob,llll
   integer(i_kind) nscan
   integer(i_kind) iret,idate,nchanl,n,idomsfc(1)
-  integer(i_kind) ich1,ich2,ich9,ich16,ich17,ich18
+  integer(i_kind) ich1,ich2,ich17,ich18
   integer(i_kind) kidsat,maxinfo,eu_mws_id
   integer(i_kind) nmind,itx,nreal,nele,itt,num_obs
   integer(i_kind) iskip,ichan2,ichan1,ichan16,ichan17
-  integer(i_kind) lnbufr,ksatid,isflg,ichan3,ich3,ich6
+  integer(i_kind) lnbufr,ksatid,isflg,ichan3,ich3
   integer(i_kind) ilat,ilon, ifovmod, nadir
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) instr,ichan
@@ -151,7 +151,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 
   real(r_kind) pred
   real(r_kind) dlat,panglr,dlon,tdiff
-  real(r_kind) dlon_earth_deg,dlat_earth_deg,r01
+  real(r_kind) dlon_earth_deg,dlat_earth_deg
   real(r_kind) step,start,dist1
   real(r_kind) tt,lzaest
   real(r_kind),dimension(0:4):: rlndsea
@@ -225,14 +225,10 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 !  instrument specific variables
   d1 =  0.754_r_kind
   d2 = -2.265_r_kind 
-  r01 = 0.01_r_kind
+
   ich1   = 1   !1
   ich2   = 2   !2
   ich3   = 3   !3
-
-  ich6   = 6   !6
-  ich9   = 9   !8
-  ich16  = 16  !16
   ich17  = 17  !17
   ich18  = 18  !18
 ! Set array index for surface-sensing channels
