@@ -67,15 +67,29 @@ jobs:
           sudo apt-get clean
           echo "source /opt/intel/oneapi/setvars.sh" >> ~/.bash_profile
 
-      # Install dependencies using Spack
       - name: install-dependencies-with-spack
         if: steps.cache-env.outputs.cache-hit != 'true'
+        env:
+          SPACK_STACK_DIR: ${{ github.workspace }}
         run: |
-          sudo mv /usr/local/ /usr_local_mv
-          sudo apt-get install cmake
+          set -euxo pipefail
+
+          sudo mv /usr/local/ /usr_local_mv || true
+          sudo apt-get update
+          sudo apt-get install -y cmake
+
           rm -rf spack
-          git clone -c feature.manyFiles=true https://github.com/JCSDA/spack.git
-          source spack/share/spack/setup-env.sh
+          git clone --depth 1 https://github.com/JCSDA/spack.git spack
+
+          # Some Spack configs expect a companion spack-stack checkout under
+          # ${SPACK_STACK_DIR}/spack-ext/lib/spack-stack/stack/cmd
+          mkdir -p "${SPACK_STACK_DIR}/spack-ext/lib/spack-stack"
+          if [ ! -d "${SPACK_STACK_DIR}/spack-ext/lib/spack-stack/.git" ]; then
+            git clone --depth 1 https://github.com/JCSDA/spack-stack.git \
+              "${SPACK_STACK_DIR}/spack-ext/lib/spack-stack"
+          fi
+
+          . spack/share/spack/setup-env.sh
           spack env create gsi-env gsi/ci/spack_intel.yaml
           spack env activate gsi-env
           spack compiler find
