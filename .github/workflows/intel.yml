@@ -106,8 +106,17 @@ jobs:
           # mpi provider. Register the apt-installed copy as the (only) external so Spack
           # uses it instead of downloading/building a second copy, and so the MPI that
           # Spack builds against is the same one the GSI build uses via mpiicc/mpiifort.
-          spack config add "packages:intel-oneapi-mpi:externals:[{spec: 'intel-oneapi-mpi@2021.10.0', prefix: /opt/intel/oneapi}]"
-          spack config add "packages:intel-oneapi-mpi:buildable:false"
+          # (Done with a YAML file: the one-line "path:value" form of 'spack config add'
+          # cannot parse a value containing '@' and ':', which failed in the first run.)
+          cat > intel-mpi-external.yaml <<'EOF'
+          packages:
+            intel-oneapi-mpi:
+              externals:
+              - spec: intel-oneapi-mpi@2021.10.0
+                prefix: /opt/intel/oneapi
+              buildable: false
+          EOF
+          spack config add -f intel-mpi-external.yaml
           # Log which versions this Spack knows about (helps if concretize fails)
           spack versions bufr ip crtm gsi-ncdiag w3emc netcdf-c || true
           spack concretize
