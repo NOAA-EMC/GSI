@@ -68,7 +68,7 @@ jobs:
             spack
             ~/.spack
             /opt/intel
-          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles(format('gsi/{0}', env.SPACK_ENV_FILE)) }}-3
+          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles(format('gsi/{0}', env.SPACK_ENV_FILE)) }}-4
 
       # Compilers and MPI are pinned to the same oneAPI release (2023.2) so that
       # icc/ifort and the Intel MPI wrappers (mpiicc/mpiifort) match.
@@ -101,28 +101,6 @@ jobs:
           "${MPIBIN}/mpiicc" -show || true
           printf '#include <mpi.h>\nint main(int c,char**v){MPI_Init(&c,&v);MPI_Finalize();return 0;}\n' > /tmp/mpitest.c
           "${MPIBIN}/mpiicc" /tmp/mpitest.c -o /tmp/mpitest && echo "mpiicc test compile OK" || echo "mpiicc test compile FAILED"
-          # --- Make CMake's FindMPI succeed under Spack ---
-          # hdf5 (and later the NCEP libs with +mpi) failed in 'cmake' with
-          #   Could NOT find MPI_C (missing: MPI_C_LIB_NAMES MPI_C_HEADER_DIR MPI_C_WORKS)
-          # i.e. FindMPI did not find/interrogate a usable Intel MPI wrapper inside the Spack
-          # build environment. Spack's cmake packages do not pass MPI_<lang>_COMPILER, so shadow
-          # the (external) /usr/bin/cmake with a thin wrapper that adds them to configure
-          # invocations ('cmake -G ...'). All other cmake calls pass straight through.
-          sudo mv /usr/bin/cmake /usr/bin/cmake.real
-          sudo tee /usr/bin/cmake > /dev/null <<'WRAP'
-          #!/bin/bash
-          MPIBIN=/opt/intel/oneapi/mpi/2021.10.0/bin
-          if [[ "$1" == "-G" ]]; then
-            exec /usr/bin/cmake.real "$1" "$2" \
-              -DMPI_C_COMPILER=${MPIBIN}/mpiicc \
-              -DMPI_CXX_COMPILER=${MPIBIN}/mpiicpc \
-              -DMPI_Fortran_COMPILER=${MPIBIN}/mpiifort \
-              "${@:3}"
-          fi
-          exec /usr/bin/cmake.real "$@"
-          WRAP
-          sudo chmod +x /usr/bin/cmake
-          cmake --version
           rm -rf spack
           git clone -c feature.manyFiles=true --depth 1 --branch "${SPACK_REF}" "${SPACK_REPO}" spack
           source spack/share/spack/setup-env.sh
@@ -135,13 +113,18 @@ jobs:
           # mpi provider. Register the apt-installed copy as the (only) external so Spack
           # uses it instead of downloading/building a second copy, and so the MPI that
           # Spack builds against is the same one the GSI build uses via mpiicc/mpiifort.
+          # +classic-names is essential: without it Spack tells CMake to use the oneAPI
+          # wrappers mpiicx/mpiicpx (icx/icpx), which do not match the classic icc/ifort
+          # ('intel') compiler everything else is built with. That is why hdf5's CMake
+          # failed with "Could NOT find MPI_C" (its configure line contained
+          # -DMPI_C_COMPILER=.../mpiicx). With +classic-names Spack uses mpiicc/mpiicpc/mpiifort.
           # (Done with a YAML file: the one-line "path:value" form of 'spack config add'
           # cannot parse a value containing '@' and ':', which failed in the first run.)
           cat > intel-mpi-external.yaml <<'EOF'
           packages:
             intel-oneapi-mpi:
               externals:
-              - spec: intel-oneapi-mpi@2021.10.0
+              - spec: intel-oneapi-mpi@2021.10.0+classic-names
                 prefix: /opt/intel/oneapi
               buildable: false
           EOF
@@ -149,12 +132,12 @@ jobs:
           # Log which versions this Spack knows about (helps if concretize fails)
           for pkg in bufr ip crtm gsi-ncdiag w3emc netcdf-c hdf5; do spack versions "$pkg" || true; done
           spack concretize
-          if ! spack install --fail-fast --dirty; then
+          if ! spack install --fail-fast --dirty --keep-stage; then
             echo "::group::Failed build logs"
-            for f in /tmp/*/spack-stage/spack-stage-*/spack-build-out.txt; do
+            for f in $(find /tmp spack/var -name spack-build-out.txt 2>/dev/null); do
               echo "=== ${f}"; tail -n 120 "${f}"
             done
-            for f in $(find /tmp -name CMakeError.log -path '*spack-stage*' 2>/dev/null); do
+            for f in $(find /tmp -name CMakeError.log 2>/dev/null); do
               echo "=== ${f}"; tail -n 80 "${f}"
             done
             echo "::endgroup::"
@@ -177,7 +160,7 @@ jobs:
           path: gsi
 
       # Restore only (the setup job saves it). The key must match the setup job
-      # exactly, including the trailing "-3" and the same hashed file.
+      # exactly, including the trailing "-4" and the same hashed file.
       - name: cache-env
         id: cache-env
         uses: actions/cache/restore@v4
@@ -186,7 +169,7 @@ jobs:
             spack
             ~/.spack
             /opt/intel
-          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles(format('gsi/{0}', env.SPACK_ENV_FILE)) }}-3
+          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles(format('gsi/{0}', env.SPACK_ENV_FILE)) }}-4
           fail-on-cache-miss: true
 
       - name: build
