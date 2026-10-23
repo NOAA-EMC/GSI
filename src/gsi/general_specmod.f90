@@ -166,11 +166,13 @@ contains
     integer(i_kind) i,ii1,j,l,m,jhe,n
     integer(i_kind) :: ldafft
     real(r_kind) :: dlon_a,half_pi,two_pi
-    real(r_kind),dimension(nlat_a-2) :: wlatx,slatx
+    real(r_double),dimension(nlat_a-2) :: wlatx,slatx
     real(r_kind) :: epsi0(0:jcap)  ! epsilon factor for m=0
     real(r_kind) :: fnum, fden
-    real(r_kind), dimension(:, :), allocatable :: dummy_w
-    real(r_kind), dimension(:, :), allocatable :: dummy_g
+    real(r_double), dimension(:, :), allocatable :: dummy_w
+    real(r_double), dimension(:, :), allocatable :: dummy_g
+    real(r_double), dimension(:), allocatable :: eps8,epstop8,enn18,elonn18,eon8,eontop8
+    real(r_double), dimension(:), allocatable :: pln8,plntop8
 
 !   Set constants used in transforms for analysis grid
     sp%jcap=jcap
@@ -233,10 +235,17 @@ contains
     allocate( sp%clat(sp%jb:sp%je) )
     allocate( sp%slat(sp%jb:sp%je) )
     allocate( sp%wlat(sp%jb:sp%je) )
-    call spwget(sp%iromb,sp%jcap,sp%eps,sp%epstop,sp%enn1, &
-          sp%elonn1,sp%eon,sp%eontop)
+    allocate(eps8(sp%ncd2),epstop8(sp%jcap+1),enn18(sp%ncd2),elonn18(sp%ncd2), &
+      eon8(sp%ncd2),eontop8(sp%jcap+1))
+    call spwget(sp%iromb,sp%jcap,eps8,epstop8,enn18,elonn18,eon8,eontop8)
+    sp%eps=real(eps8,r_kind)
+    sp%epstop=real(epstop8,r_kind)
+    sp%enn1=real(enn18,r_kind)
+    sp%elonn1=real(elonn18,r_kind)
+    sp%eon=real(eon8,r_kind)
+    sp%eontop=real(eontop8,r_kind)
 ! Allocate dummy_w and dummy_g arrays for spffte (unused, but required by spffte)
-    allocate(dummy_w((sp%imax+2)/2,2), dummy_g(sp%imax,2))
+    allocate(dummy_w(sp%imax+2,2), dummy_g(sp%imax,2))
     dummy_w=zero
     dummy_g=zero
     call spffte(sp%imax,(sp%imax+2)/2,sp%imax,2,dummy_w,dummy_g,0,sp%afft)
@@ -254,15 +263,20 @@ contains
       sp%precalc_pln=.true.
       allocate( sp%pln(sp%ncd2,sp%jb:sp%je) )
       allocate( sp%plntop(sp%jcap+1,sp%jb:sp%je) )
+      allocate(pln8(sp%ncd2),plntop8(sp%jcap+1))
       do j=sp%jb,sp%je
-        call splegend(sp%iromb,sp%jcap,sp%slat(j),sp%clat(j),sp%eps, &
-          sp%epstop,sp%pln(:,j),sp%plntop(:,j))
+        call splegend(sp%iromb,sp%jcap,real(sp%slat(j),r_double),real(sp%clat(j),r_double), &
+          eps8,epstop8,pln8,plntop8)
+        sp%pln(:,j)=real(pln8,r_kind)
+        sp%plntop(:,j)=real(plntop8,r_kind)
       end do
+      deallocate(pln8,plntop8)
     else
       sp%precalc_pln=.false.
       allocate( sp%pln(sp%ncd2,1) )
       allocate( sp%plntop(sp%jcap+1,1) )
     end if
+    deallocate(eps8,epstop8,enn18,elonn18,eon8,eontop8)
 
 !     obtain rlats and rlons
     half_pi=half*pi
