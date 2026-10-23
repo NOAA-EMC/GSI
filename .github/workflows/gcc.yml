@@ -41,14 +41,24 @@ jobs:
             ~/.spack
           key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles('gsi/ci/spack.yaml') }}
 
-      # Install dependencies using Spack
       - name: install-dependencies-with-spack
-        # if: steps.cache-env.outputs.cache-hit != 'true'
         run: |
-          sudo apt-get install cmake
+          set -euxo pipefail
+
+          sudo apt-get update
+          sudo apt-get install -y cmake
+
           rm -rf spack
-          git clone -c feature.manyFiles=true https://github.com/JCSDA/spack.git
-          source spack/share/spack/setup-env.sh
+          git clone --depth 1 https://github.com/JCSDA/spack.git spack
+
+          export SPACK_STACK_DIR="${{ github.workspace }}"
+          mkdir -p "${SPACK_STACK_DIR}/spack-ext/lib/spack-stack"
+          if [ ! -d "${SPACK_STACK_DIR}/spack-ext/lib/spack-stack/.git" ]; then
+            git clone --depth 1 https://github.com/JCSDA/spack-stack.git \
+              "${SPACK_STACK_DIR}/spack-ext/lib/spack-stack"
+          fi
+
+          . spack/share/spack/setup-env.sh
           spack env create gsi-env gsi/ci/spack_gcc.yaml
           spack env activate gsi-env
           spack compiler find
