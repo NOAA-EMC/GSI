@@ -180,19 +180,22 @@ jobs:
           # NOTE: do NOT re-concretize or add specs here. The cached environment was built
           # on a different runner CPU (target=zen2); concretizing on another CPU fails with
           # "target=zen2 is not compatible with this machine". Activating is enough.
-          spack env activate gsi-env
-          VIEW="${SPACK_ENV}/.spack-env/view"
+          #
+          # Activate WITHOUT the Spack view and point CMake at each package's own install prefix
+          # (this is how the spack-stack modules on RDHPCS Hera look). In the merged view,
+          # include_4/ combines bacio's modules with ip's 4-byte modules (including sp_mod.mod
+          # with 4-byte reals). GSI lists include_4 (for bacio_4) BEFORE include_d, so the 4-byte
+          # sp_mod/ip modules were found first and general_specmod.f90 failed with error #6633
+          # on spffte/splat/splegend. With per-package prefixes, ip contributes only include_d
+          # (libip_d), exactly as in the Hera build log.
+          spack env activate --without-view gsi-env
+          PREFIXES=$(spack find --format '{prefix}' | grep '/spack/opt/spack/' | sort -u | paste -sd';' -)
+          echo "CMAKE_PREFIX_PATH entries:"; echo "${PREFIXES}" | tr ';' '\n'
           spack find -lv ip
-          # Diagnostics: which ip module/include dirs exist and where sp_mod comes from
-          ls -d "${VIEW}"/include* || true
-          find -L "${VIEW}" -name 'sp_mod.mod' || true
           cd gsi
           mkdir -p build && cd build
-          # GSI is built against libip_d (8-byte reals). ip@5 provides sp_mod separately for the
-          # 4-byte (include_4) and 8-byte (include_d) builds; put include_d first on the module
-          # search path so the 4-byte sp_mod cannot be picked up (error #6633 on spffte/splat/splegend).
           cmake -DCMAKE_INSTALL_PREFIX=../install -DGSI_MODE=Regional -DENKF_MODE=GFS -DBUILD_REG_TESTING=OFF \
-                -DCMAKE_Fortran_FLAGS="-I${VIEW}/include_d" ..
+                -DCMAKE_PREFIX_PATH="${PREFIXES}" ..
           # Diagnostics: include order and flags GSI is compiled with, and ip/sp on the link line
           grep -h "Fortran_INCLUDES\|Fortran_FLAGS" src/gsi/CMakeFiles/gsi_fortran_obj.dir/flags.make | tr ' ' '\n' | grep -E '^-I|^-r8|^-real|^-module' || true
           grep -rhoE "[^ ]*lib(ip|sp)_[48d][^ ]*" src/gsi/CMakeFiles/*/link.txt 2>/dev/null | sort -u || true
