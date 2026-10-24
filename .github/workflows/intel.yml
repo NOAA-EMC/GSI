@@ -129,10 +129,6 @@ jobs:
               buildable: false
           EOF
           spack config add -f intel-mpi-external.yaml
-          # GSI's general_specmod.f90 does 'use sp_mod' (spffte, splat, splegend, spwget).
-          # ip@5.x also ships an sp_mod, but only for its own precision; NOAA RDHPCS stacks
-          # load the standalone sp library as well. Add it (not in ci/spack_intel.yaml).
-          spack add sp@2.5.0
           # Log which versions this Spack knows about (helps if concretize fails)
           for pkg in bufr ip crtm gsi-ncdiag w3emc netcdf-c hdf5; do spack versions "$pkg" || true; done
           spack concretize
@@ -181,19 +177,25 @@ jobs:
           sudo mv /usr/local/ /usr_local_mv
           sudo apt-get install -y cmake libblas-dev liblapack-dev
           source spack/share/spack/setup-env.sh
+          # NOTE: do NOT re-concretize or add specs here. The cached environment was built
+          # on a different runner CPU (target=zen2); concretizing on another CPU fails with
+          # "target=zen2 is not compatible with this machine". Activating is enough.
           spack env activate gsi-env
-          # The cached environment may predate the sp addition: add and install it here
-          # (everything else is already installed, so only sp is built; takes ~1-2 min).
-          spack add sp@2.5.0 || true
-          spack concretize
-          spack install --fail-fast --dirty
-          spack find -lv ip sp
+          VIEW="${SPACK_ENV}/.spack-env/view"
+          spack find -lv ip
+          # Diagnostics: which ip module/include dirs exist and where sp_mod comes from
+          ls -d "${VIEW}"/include* || true
+          find -L "${VIEW}" -name 'sp_mod.mod' || true
           cd gsi
           mkdir -p build && cd build
-          cmake -DCMAKE_INSTALL_PREFIX=../install -DGSI_MODE=Regional -DENKF_MODE=GFS -DBUILD_REG_TESTING=OFF ..
-          # Diagnostics: which ip/sp include dirs and libraries GSI is compiled against
+          # GSI is built against libip_d (8-byte reals). ip@5 provides sp_mod separately for the
+          # 4-byte (include_4) and 8-byte (include_d) builds; put include_d first on the module
+          # search path so the 4-byte sp_mod cannot be picked up (error #6633 on spffte/splat/splegend).
+          cmake -DCMAKE_INSTALL_PREFIX=../install -DGSI_MODE=Regional -DENKF_MODE=GFS -DBUILD_REG_TESTING=OFF \
+                -DCMAKE_Fortran_FLAGS="-I${VIEW}/include_d" ..
+          # Diagnostics: include order and flags GSI is compiled with, and ip/sp on the link line
           grep -h "Fortran_INCLUDES\|Fortran_FLAGS" src/gsi/CMakeFiles/gsi_fortran_obj.dir/flags.make | tr ' ' '\n' | grep -E '^-I|^-r8|^-real|^-module' || true
-          grep -rhoE "(ip|sp)(::|/)[A-Za-z_0-9/.-]*" src/gsi/CMakeFiles/gsi.x.dir/link.txt 2>/dev/null | sort -u || true
+          grep -rhoE "[^ ]*lib(ip|sp)_[48d][^ ]*" src/gsi/CMakeFiles/*/link.txt 2>/dev/null | sort -u || true
           make -j2 VERBOSE=1
           make install
         env:
