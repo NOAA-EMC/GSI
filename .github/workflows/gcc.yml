@@ -12,6 +12,16 @@ env:
   CC: gcc-13
   FC: gfortran-13
   CXX: g++-13
+  # Spack must come from the upstream project at a fixed release.
+  # JCSDA/spack's default branch is now a spack-stack-only fork whose config refers to
+  # ${SPACK_STACK_DIR}; that variable is not set here, which caused
+  # "No such file or directory ... ${SPACK_STACK_DIR}/spack-ext/..." (see gcc_fail.txt).
+  # v0.23 is used because ci/spack_gcc.yaml pins recent NCEP library versions
+  # (bufr@12.1.0, ip@5.1.0, crtm@2.4.0.1, ...) that older Spack releases do not contain.
+  SPACK_REPO: https://github.com/spack/spack.git
+  SPACK_REF: releases/v0.23
+  # Spack environment file used by BOTH the cache key and 'spack env create'
+  SPACK_ENV_FILE: ci/spack_gcc.yaml
 
 # The jobs are split into:
 # 1. a dependency build step (setup), and
@@ -21,68 +31,112 @@ env:
 
 jobs:
   setup:
-    runs-on: ubuntu-latest
+    # Pinned: gcc-13/gfortran-13 are available on Ubuntu 24.04 and the cache is tied to this image
+    runs-on: ubuntu-24.04
 
     steps:
-      # Checkout the GSI to get the ci/spack.yaml file
+      # Checkout the GSI to get the spack environment file.
+      # Must always run: hashFiles() in the cache key below needs it.
       - name: checkout
-        if: steps.cache-env.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
-            path: gsi
+          path: gsi
 
-      # Cache spack, compiler and dependencies
+      # Cache spack and dependencies
       - name: cache-env
         id: cache-env
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             spack
             ~/.spack
-          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles('gsi/ci/spack.yaml') }}
+          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles(format('gsi/{0}', env.SPACK_ENV_FILE)) }}-1
 
-      # Install dependencies using Spack
+      # Install dependencies using Spack (skipped when the cache already holds them)
       - name: install-dependencies-with-spack
-        # if: steps.cache-env.outputs.cache-hit != 'true'
+        if: steps.cache-env.outputs.cache-hit != 'true'
         run: |
-          sudo apt-get install cmake
+          sudo apt-get update
+          sudo apt-get install -y cmake gcc-13 g++-13 gfortran-13
           rm -rf spack
-          git clone -c feature.manyFiles=true https://github.com/JCSDA/spack.git
+          git clone -c feature.manyFiles=true --depth 1 --branch "${SPACK_REF}" "${SPACK_REPO}" spack
           source spack/share/spack/setup-env.sh
-          spack env create gsi-env gsi/ci/spack_gcc.yaml
+          spack env create gsi-env gsi/${SPACK_ENV_FILE}
           spack env activate gsi-env
           spack compiler find
+          spack compilers
+          # ci/spack_gcc.yaml prefers gcc@13 (matches CC/FC above) and builds mpich@3.4.2,
+          # which provides the mpicc/mpif90 wrappers used by the gsi job.
           spack external find
+          # Log which versions this Spack knows about (helps if concretize fails)
+          for pkg in bufr ip crtm gsi-ncdiag w3emc netcdf-c hdf5 mpich openblas; do spack versions "$pkg" || true; done
           spack concretize
-          spack install --fail-fast --dirty
+          if ! spack install --fail-fast --dirty --keep-stage; then
+            echo "::group::Failed build logs"
+            for f in $(find /tmp spack/var -name spack-build-out.txt 2>/dev/null); do
+              echo "=== ${f}"; tail -n 120 "${f}"
+            done
+            for f in $(find /tmp -name CMakeError.log 2>/dev/null); do
+              echo "=== ${f}"; tail -n 80 "${f}"
+            done
+            echo "::endgroup::"
+            exit 1
+          fi
           spack clean -a
 
   gsi:
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
-            path: gsi
+          path: gsi
 
+      # Restore only (the setup job saves it). The key must match the setup job
+      # exactly, including the trailing "-1" and the same hashed file.
       - name: cache-env
         id: cache-env
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             spack
             ~/.spack
-          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles('gsi/ci/spack.yaml') }}
+          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles(format('gsi/{0}', env.SPACK_ENV_FILE)) }}-1
+          fail-on-cache-miss: true
 
       - name: build
         run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libblas-dev liblapack-dev gcc-13 g++-13 gfortran-13
           source spack/share/spack/setup-env.sh
-          spack env activate gsi-env
+          # NOTE: do NOT re-concretize or add specs here. The cached environment was built
+          # on a runner whose CPU may differ from this one; concretizing on another CPU fails
+          # with "target=... is not compatible with this machine". Activating is enough.
+          #
+          # Activate WITHOUT the Spack view and point CMake at each package's own install
+          # prefix (the layout of the spack-stack modules on RDHPCS). In the merged view,
+          # include_4/ combines bacio's modules with ip's 4-byte modules (incl. sp_mod.mod with
+          # 4-byte reals); GSI lists include_4 before include_d, so general_specmod.f90 failed
+          # with 'type of the actual argument differs from the type of the dummy argument'.
+          spack env activate --without-view gsi-env
+          PREFIXES=$(spack find --format '{prefix}' | grep '/spack/opt/spack/' | sort -u | paste -sd';' -)
+          echo "CMAKE_PREFIX_PATH entries:"; echo "${PREFIXES}" | tr ';' '\n'
+          # Without the view nothing puts the Spack-built MPI wrappers (mpicc/mpif90) on PATH
+          for pfx in $(echo "${PREFIXES}" | tr ';' ' '); do
+            if [[ -x "${pfx}/bin/mpif90" && -x "${pfx}/bin/mpicc" ]]; then
+              export PATH="${pfx}/bin:${PATH}"
+              export LD_LIBRARY_PATH="${pfx}/lib:${LD_LIBRARY_PATH:-}"
+              echo "Using MPI from ${pfx}"
+            fi
+          done
+          which mpicc mpif90
+          spack find -lv ip
           cd gsi
           mkdir -p build && cd build
-          cmake -DCMAKE_INSTALL_PREFIX=../install -DGSI_MODE=Regional -DENKF_MODE=GFS -DBUILD_REG_TESTING=OFF ..
+          cmake -DCMAKE_INSTALL_PREFIX=../install -DGSI_MODE=Regional -DENKF_MODE=GFS -DBUILD_REG_TESTING=OFF \
+                -DCMAKE_PREFIX_PATH="${PREFIXES}" ..
           make -j2 VERBOSE=1
           make install
         env:

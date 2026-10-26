@@ -15,6 +15,19 @@ env:
   CXX: icpc
   I_MPI_CC: icc
   I_MPI_F90: ifort
+  # Spack must come from the upstream project at a fixed release.
+  # JCSDA/spack's default branch is now a spack-stack-only fork whose config
+  # refers to ${SPACK_STACK_DIR}; that variable is not set here, which caused
+  # the "No such file or directory ... ${SPACK_STACK_DIR}/spack-ext/..." error.
+  # v0.23 is used because ci/spack_intel.yaml pins recent NCEP library versions
+  # (bufr@12.1.0, ip@5.1.0, crtm@2.4.0.1, ...) that older Spack releases (<=0.21,
+  # as used by spack-stack 1.6) do not contain. It is also the last line of
+  # releases that still supports the classic 'intel' (icc/ifort) compiler
+  # that spack_intel.yaml requests (compiler: [intel]); Spack 1.0 removed it.
+  SPACK_REPO: https://github.com/spack/spack.git
+  SPACK_REF: releases/v0.23
+  # Spack environment file used by BOTH the cache key and the spack env create
+  SPACK_ENV_FILE: ci/spack_intel.yaml
 
 # The jobs are split into:
 # 1. a dependency build step (setup), and
@@ -24,7 +37,8 @@ env:
 
 jobs:
   setup:
-    runs-on: ubuntu-latest
+    # Pinned: icc/ifort 2023.2 are not tested against the glibc/GCC of ubuntu 24.04
+    runs-on: ubuntu-22.04
 
     steps:
       # Free up disk space
@@ -38,32 +52,39 @@ jobs:
           if [[ ! -z "${DOCKER_IMGS}" ]]; then docker rmi ${DOCKER_IMGS}; fi
           df -h
 
-      # Checkout the GSI to get the ci/spack.yaml file
+      # Checkout the GSI to get the spack environment file.
+      # Must always run: hashFiles() in the cache key below needs it.
       - name: checkout
-        if: steps.cache-env.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
-            path: gsi
+          path: gsi
 
       # Cache spack, compiler and dependencies
       - name: cache-env
         id: cache-env
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: |
             spack
             ~/.spack
             /opt/intel
-          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles('gsi/ci/spack.yaml') }}-1
+          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles(format('gsi/{0}', env.SPACK_ENV_FILE)) }}-4
 
+      # Compilers and MPI are pinned to the same oneAPI release (2023.2) so that
+      # icc/ifort and the Intel MPI wrappers (mpiicc/mpiifort) match.
       - name: install-intel-compilers
         if: steps.cache-env.outputs.cache-hit != 'true'
         run: |
-          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-          sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-          echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
+          wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+            | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
           sudo apt-get update
-          sudo apt-get install intel-oneapi-dev-utilities intel-oneapi-mpi-devel intel-oneapi-openmp intel-oneapi-compiler-fortran-2023.2.1 intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic-2023.2.1
+          sudo apt-get install -y \
+            intel-oneapi-dev-utilities-2021.10.0 \
+            intel-oneapi-mpi-devel-2021.10.0 \
+            intel-oneapi-openmp-2023.2.1 \
+            intel-oneapi-compiler-fortran-2023.2.1 \
+            intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic-2023.2.1
           sudo apt-get clean
           echo "source /opt/intel/oneapi/setvars.sh" >> ~/.bash_profile
 
@@ -72,21 +93,61 @@ jobs:
         if: steps.cache-env.outputs.cache-hit != 'true'
         run: |
           sudo mv /usr/local/ /usr_local_mv
-          sudo apt-get install cmake
+          sudo apt-get install -y cmake
+          # --- Intel MPI sanity check (informational; shows what CMake's FindMPI will see) ---
+          MPIBIN=/opt/intel/oneapi/mpi/2021.10.0/bin
+          ls "${MPIBIN}" | head -50
+          which mpiicc mpiifort mpicc || true
+          "${MPIBIN}/mpiicc" -show || true
+          printf '#include <mpi.h>\nint main(int c,char**v){MPI_Init(&c,&v);MPI_Finalize();return 0;}\n' > /tmp/mpitest.c
+          "${MPIBIN}/mpiicc" /tmp/mpitest.c -o /tmp/mpitest && echo "mpiicc test compile OK" || echo "mpiicc test compile FAILED"
           rm -rf spack
-          git clone -c feature.manyFiles=true https://github.com/JCSDA/spack.git
+          git clone -c feature.manyFiles=true --depth 1 --branch "${SPACK_REF}" "${SPACK_REPO}" spack
           source spack/share/spack/setup-env.sh
-          spack env create gsi-env gsi/ci/spack_intel.yaml
+          spack env create gsi-env gsi/${SPACK_ENV_FILE}
           spack env activate gsi-env
           spack compiler find
+          spack compilers
           spack external find
+          # ci/spack_intel.yaml lists intel-oneapi-mpi@2021.10.0 as both a spec and the
+          # mpi provider. Register the apt-installed copy as the (only) external so Spack
+          # uses it instead of downloading/building a second copy, and so the MPI that
+          # Spack builds against is the same one the GSI build uses via mpiicc/mpiifort.
+          # +classic-names is essential: without it Spack tells CMake to use the oneAPI
+          # wrappers mpiicx/mpiicpx (icx/icpx), which do not match the classic icc/ifort
+          # ('intel') compiler everything else is built with. That is why hdf5's CMake
+          # failed with "Could NOT find MPI_C" (its configure line contained
+          # -DMPI_C_COMPILER=.../mpiicx). With +classic-names Spack uses mpiicc/mpiicpc/mpiifort.
+          # (Done with a YAML file: the one-line "path:value" form of 'spack config add'
+          # cannot parse a value containing '@' and ':', which failed in the first run.)
+          cat > intel-mpi-external.yaml <<'EOF'
+          packages:
+            intel-oneapi-mpi:
+              externals:
+              - spec: intel-oneapi-mpi@2021.10.0+classic-names
+                prefix: /opt/intel/oneapi
+              buildable: false
+          EOF
+          spack config add -f intel-mpi-external.yaml
+          # Log which versions this Spack knows about (helps if concretize fails)
+          for pkg in bufr ip crtm gsi-ncdiag w3emc netcdf-c hdf5; do spack versions "$pkg" || true; done
           spack concretize
-          spack install --fail-fast --dirty
+          if ! spack install --fail-fast --dirty --keep-stage; then
+            echo "::group::Failed build logs"
+            for f in $(find /tmp spack/var -name spack-build-out.txt 2>/dev/null); do
+              echo "=== ${f}"; tail -n 120 "${f}"
+            done
+            for f in $(find /tmp -name CMakeError.log 2>/dev/null); do
+              echo "=== ${f}"; tail -n 80 "${f}"
+            done
+            echo "::endgroup::"
+            exit 1
+          fi
           spack clean -a
 
   gsi:
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: install-intel
@@ -94,29 +155,50 @@ jobs:
           echo "source /opt/intel/oneapi/setvars.sh" >> ~/.bash_profile
 
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
-            path: gsi
+          path: gsi
 
+      # Restore only (the setup job saves it). The key must match the setup job
+      # exactly, including the trailing "-4" and the same hashed file.
       - name: cache-env
         id: cache-env
-        uses: actions/cache@v3
+        uses: actions/cache/restore@v5
         with:
           path: |
             spack
             ~/.spack
             /opt/intel
-          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles('gsi/ci/spack.yaml') }}
+          key: spack-${{ runner.os }}-${{ env.cache_key }}-${{ hashFiles(format('gsi/{0}', env.SPACK_ENV_FILE)) }}-4
+          fail-on-cache-miss: true
 
       - name: build
         run: |
           sudo mv /usr/local/ /usr_local_mv
-          sudo apt-get install cmake libblas-dev liblapack-dev
+          sudo apt-get install -y cmake libblas-dev liblapack-dev
           source spack/share/spack/setup-env.sh
-          spack env activate gsi-env
+          # NOTE: do NOT re-concretize or add specs here. The cached environment was built
+          # on a different runner CPU (target=zen2); concretizing on another CPU fails with
+          # "target=zen2 is not compatible with this machine". Activating is enough.
+          #
+          # Activate WITHOUT the Spack view and point CMake at each package's own install prefix
+          # (this is how the spack-stack modules on RDHPCS Hera look). In the merged view,
+          # include_4/ combines bacio's modules with ip's 4-byte modules (including sp_mod.mod
+          # with 4-byte reals). GSI lists include_4 (for bacio_4) BEFORE include_d, so the 4-byte
+          # sp_mod/ip modules were found first and general_specmod.f90 failed with error #6633
+          # on spffte/splat/splegend. With per-package prefixes, ip contributes only include_d
+          # (libip_d), exactly as in the Hera build log.
+          spack env activate --without-view gsi-env
+          PREFIXES=$(spack find --format '{prefix}' | grep '/spack/opt/spack/' | sort -u | paste -sd';' -)
+          echo "CMAKE_PREFIX_PATH entries:"; echo "${PREFIXES}" | tr ';' '\n'
+          spack find -lv ip
           cd gsi
           mkdir -p build && cd build
-          cmake -DCMAKE_INSTALL_PREFIX=../install -DGSI_MODE=Regional -DENKF_MODE=GFS -DBUILD_REG_TESTING=OFF ..
+          cmake -DCMAKE_INSTALL_PREFIX=../install -DGSI_MODE=Regional -DENKF_MODE=GFS -DBUILD_REG_TESTING=OFF \
+                -DCMAKE_PREFIX_PATH="${PREFIXES}" ..
+          # Diagnostics: include order and flags GSI is compiled with, and ip/sp on the link line
+          grep -h "Fortran_INCLUDES\|Fortran_FLAGS" src/gsi/CMakeFiles/gsi_fortran_obj.dir/flags.make | tr ' ' '\n' | grep -E '^-I|^-r8|^-real|^-module' || true
+          grep -rhoE "[^ ]*lib(ip|sp)_[48d][^ ]*" src/gsi/CMakeFiles/*/link.txt 2>/dev/null | sort -u || true
           make -j2 VERBOSE=1
           make install
         env:
