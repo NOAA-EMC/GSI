@@ -55,14 +55,14 @@ jobs:
       # Checkout the GSI to get the spack environment file.
       # Must always run: hashFiles() in the cache key below needs it.
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: gsi
 
       # Cache spack, compiler and dependencies
       - name: cache-env
         id: cache-env
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             spack
@@ -155,7 +155,7 @@ jobs:
           echo "source /opt/intel/oneapi/setvars.sh" >> ~/.bash_profile
 
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: gsi
 
@@ -163,7 +163,7 @@ jobs:
       # exactly, including the trailing "-4" and the same hashed file.
       - name: cache-env
         id: cache-env
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             spack

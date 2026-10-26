@@ -38,14 +38,14 @@ jobs:
       # Checkout the GSI to get the spack environment file.
       # Must always run: hashFiles() in the cache key below needs it.
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: gsi
 
       # Cache spack and dependencies
       - name: cache-env
         id: cache-env
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             spack
@@ -90,7 +90,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: gsi
 
@@ -98,7 +98,7 @@ jobs:
       # exactly, including the trailing "-1" and the same hashed file.
       - name: cache-env
         id: cache-env
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             spack
