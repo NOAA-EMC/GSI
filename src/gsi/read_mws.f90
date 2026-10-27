@@ -460,7 +460,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 
 !          Read data record.  Increment data counter
            call ufbrep(lnbufr,data1b8,3,nchanl,iret,'CHNM TMBRST MWSCPF')
-           if (any(data1b8(1,:) >  float(max_chanl)) )then
+           if (any(data1b8(1,:) < 1.0_r_double .or. data1b8(1,:) > real(max_chanl,r_double))) then
               ! Skip obs at this fovn if any channel number is missing.
               cycle read_loop
            endif
