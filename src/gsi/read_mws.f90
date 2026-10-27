@@ -464,6 +464,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
               ! Skip obs at this fovn if any channel number is missing.
               cycle read_loop
            endif
+           bt_save(1:max_chanl,iob) = tbmin - one
            do i = 1, nchanl
               jchan = nint(data1b8(1,i))
               bt_save(jchan,iob) = data1b8(2,i)
