@@ -6,7 +6,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_mws                  read mws 1b data
-!   prgmmr:         Jin          org: ncep/emc                date: 2024-10-15
+!   prgmmr:         Jin          org: ncep/emc                date: 2024-12-01
 !
 ! abstract:  This routine reads BUFR format MWS radiance 
 !            (brightness temperature) files. This is edited from read_atms.f90
@@ -122,7 +122,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   character(8) subset
   character(80) hdr1b,hdr2b
 
-  integer(i_kind) ireadsb,ireadmg,nrec_startx
+  integer(i_kind) ireadsb,ireadmg
   integer(i_kind) i,j,k,ntest,iob,llll
   integer(i_kind) nscan
   integer(i_kind) iret,idate,nchanl,n,idomsfc(1)
@@ -130,7 +130,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) kidsat,maxinfo,eu_mws_id
   integer(i_kind) nmind,itx,nreal,nele,itt,num_obs
   integer(i_kind) iskip,ichan2,ichan1,ichan17,ichan18
-  integer(i_kind) lnbufr,ksatid,isflg,ichan3,ich3
+  integer(i_kind) lnbufr,ksatid,isflg
   integer(i_kind) ilat,ilon, ifovmod, nadir
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) instr,ichan
@@ -141,7 +141,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind), ALLOCATABLE :: IScan(:)
 
   real(r_kind) cosza,sfcr
-  real(r_kind) ch1,ch2,ch3,d0,d1,d2,ch16,qval
+  real(r_kind) ch1,ch2,d0,d1,d2,ch16,qval
   real(r_kind) expansion
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:3):: ts
@@ -199,6 +199,22 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   nodata  = 0
   nread  = 0
 
+! Check obstype and satellite before allocating anything (e.g. thinning grids)
+  if (obstype /= 'mws') then
+     write(6,*) 'READ_MWS called for obstype '//obstype//': RETURNING'
+     return
+  end if
+
+  if(jsatid == 'metop-sg-a1') then
+!    24: Metop-SG-A1
+     kidsat=24   
+  else 
+     write(6,*) 'READ_MWS: Unrecognized value for jsatid '//jsatid//': RETURNING'
+     return
+  end if
+! ESA/EUMETSAT Radiometer MWS (Microwave Sounder)
+  eu_mws_id = 233
+
   ilon=3
   ilat=4
   nscan=0
@@ -215,15 +231,8 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 ! Make thinning grids
   call makegrids(rmesh,ithin,n_tbin=n_tbin)
 
-! Set nadir position based on value of maxscan (95) for MWW
+! Set nadir position based on value of maxscan (95) for MWS
   nadir=47
-
-! Set various variables depending on type of data to be read
-
-  if (obstype /= 'mws') then
-     write(6,*) 'READ_MWS called for obstype '//obstype//': RETURNING'
-     return
-  end if
 
 !  instrument specific variables
   d1 =  0.754_r_kind
@@ -231,35 +240,23 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 
   ich1   = 1   !1
   ich2   = 2   !2
-  ich3   = 3   !3
   ich17  = 17  !17
   ich18  = 18  !18
 ! Set array index for surface-sensing channels
   ichan1  = newchn(sis,ich1)
   ichan2  = newchn(sis,ich2)
-  ichan3  = newchn(sis,ich3)
 
   ichan17 = newchn(sis,ich17)
   ichan18 = newchn(sis,ich18)
 
 ! A channel missing from satinfo gives index 0 and would index bias arrays out of bounds
-  if (ichan1 <= 0 .or. ichan2 <= 0 .or. ichan3 <= 0 .or. &
+  if (ichan1 <= 0 .or. ichan2 <= 0 .or. &
       ichan17 <= 0 .or. ichan18 <= 0) then
-     write(6,*) 'READ_MWS: required channels 1,2,3,17,18 not all found for sis ', &
+     write(6,*) 'READ_MWS: required channels 1,2,17,18 not all found for sis ', &
           trim(sis), ': RETURNING'
      call destroygrids
      return
   end if
-
-  if(jsatid == 'metop-sg-a1') then
-!    24: metop-D
-     kidsat=24   
-  else 
-     write(6,*) 'READ_MWS: Unrecognized value for jsatid '//jsatid//': RETURNING'
-     return
-  end if
-! ESA/EUMETSAT Radiometer MWS (Microwave Sounder)
-  eu_mws_id = 233
 
   radedge_min = 0
   radedge_max = 1000
@@ -356,13 +353,10 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   ears_db_loop: do llll= 1, 3
 
      if(llll == 1)then
-        nrec_startx = nrec_start
         infile2 = trim(infile)         ! Set bufr subset names based on type of data to read
      elseif(llll == 2) then
-        nrec_startx = nrec_start_ears
         infile2 = trim(infile)//'ears' ! Set bufr subset names based on type of data to read
      elseif(llll == 3) then
-        nrec_startx = nrec_start_db
         infile2 = trim(infile)//'_db'  ! Set bufr subset names based on type of data to read
      end if
 
@@ -660,7 +654,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
            else
 
 !    Set data quality predictor
-!    Simply modify the AMSU-A-Type calculations and use them for all ATMS channels.
+!    Simply modify the AMSU-A-Type calculations and use them for all MWS channels.
 !    Remove angle dependent pattern (not mean).
               if (adp_anglebc .and. newpc4pred) then
                  ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifovmod,ichan1)
@@ -691,14 +685,8 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
                  endif
                  pred  = max(zero,qval)*100.0_r_kind
               else
-!          This is taken straight from AMSU-A even though Ch 3 has a different polarisation
-!          and ATMS Ch16 is at a slightly different frequency to AMSU-A Ch 15.
-                 if (adp_anglebc .and. newpc4pred) then
-                    ch3 = bt_in(ich3)-ang_rad(ichan3)*cbias(ifovmod,ichan3)
-                 else
-                    ch3  = bt_in(ich3)-ang_rad(ichan3)*cbias(ifovmod,ichan3)+ &
-                         air_rad(ichan3)*cbias(nadir,ichan3)   
-                 end if
+!          This is taken straight from AMSU-A; MWS Ch17 is at a slightly
+!          different frequency to AMSU-A Ch 15.
                  pred = abs(ch1-ch16)
                  if(ch1-ch16 >= three) then
                     tt   = 168._r_kind-0.49_r_kind*ch16
