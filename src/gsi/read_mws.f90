@@ -104,7 +104,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 ! Declare local parameters
 
   character(8),parameter:: fov_flag="crosstrk"
-  integer(i_kind),parameter:: n1bhdr=12
+  integer(i_kind),parameter:: n1bhdr=14
   integer(i_kind),parameter:: n2bhdr=4
   integer(i_kind),parameter:: maxobs = 1000000
   integer(i_kind),parameter:: max_chanl = 24
@@ -367,9 +367,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
      iseg_beg(llll) = iob
 
      call openbf(lnbufr,'IN',lnbufr)
-!    Mnemonics follow BUFR table NC021000 (HYMS brightness temperature data):
-!    1 SAID, 2 FOVN, 3-8 YEAR..SECO, 9 CLATH, 10 CLONH, 11 HMSL (altitude, m), 12 SIID
-     hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLATH CLONH HMSL SIID'
+     hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH SELV SIID'
      hdr2b ='SAZA SOZA BEARAZ SOLAZI'
    
 !    Loop to read bufr file
@@ -399,10 +397,13 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
            rsat=bfr1bhdr(1) 
            ksatid=nint(bfr1bhdr(1))
            if(ksatid /= kidsat) cycle read_subset
-           if(nint(bfr1bhdr(12)) /= eu_mws_id) cycle read_subset
+           if(nint(bfr1bhdr(14)) /= eu_mws_id) cycle read_subset
 
 !          Extract observation location and other required information
-           if(abs(bfr1bhdr(9)) <= 90._r_kind .and. abs(bfr1bhdr(10)) <= r360)then
+           if(abs(bfr1bhdr(11)) <= 90._r_kind .and. abs(bfr1bhdr(12)) <= r360)then
+              dlat_earth = bfr1bhdr(11)
+              dlon_earth = bfr1bhdr(12)
+           elseif(abs(bfr1bhdr(9)) <= 90._r_kind .and. abs(bfr1bhdr(10)) <= r360)then
               dlat_earth = bfr1bhdr(9)
               dlon_earth = bfr1bhdr(10)
            else
@@ -444,7 +445,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
            if(ifov == nadir) nscan = nscan+1 
 
            panglr=(start+real(ifov-1,r_kind)*step)*deg2rad
-           satellite_height=bfr1bhdr(11)
+           satellite_height=bfr1bhdr(13)
 !          Ensure orbit height is reasonable, 840 km 
            if (satellite_height < 780000.0_r_kind .OR. &
               satellite_height > 900000.0_r_kind) satellite_height = 840000.0_r_kind
@@ -467,10 +468,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
            solazi_save(iob)=bfr2bhdr(4) 
 
 !          Read data record.  Increment data counter
-!          Per-channel block HYMSCH: channel number, brightness temperature, channel quality flags.
-!          Pre-set to zero so entries not filled by ufbrep fail the channel-number check below.
-           data1b8 = 0.0_r_double
-           call ufbrep(lnbufr,data1b8,3,nchanl,iret,'CHNM TMBR HMSCHQ')
+           call ufbrep(lnbufr,data1b8,3,nchanl,iret,'CHNM TMBRST MWSCPF')
            if (any(data1b8(1,:) < 1.0_r_double .or. data1b8(1,:) > real(max_chanl,r_double))) then
               ! Skip obs at this fovn if any channel number is missing.
               cycle read_loop
