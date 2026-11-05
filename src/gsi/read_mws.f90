@@ -129,7 +129,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind) ich1,ich2,ich17,ich18
   integer(i_kind) kidsat,maxinfo,eu_mws_id
   integer(i_kind) nmind,itx,nreal,nele,itt,num_obs
-  integer(i_kind) iskip,ichan2,ichan1,ichan16,ichan17
+  integer(i_kind) iskip,ichan2,ichan1,ichan17,ichan18
   integer(i_kind) lnbufr,ksatid,isflg,ichan3,ich3
   integer(i_kind) ilat,ilon, ifovmod, nadir
   integer(i_kind),dimension(5):: idate5
@@ -185,6 +185,9 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind),pointer :: it_mesh => null()
 
   integer(i_kind) :: jchan
+  integer(i_kind) :: iseg,ibeg,iend,nseg
+  integer(i_kind),dimension(3) :: iseg_beg,iseg_end
+  real(r_kind),allocatable :: bt_orig(:,:)
 !**************************************************************************
 ! Initialize variables
 
@@ -236,8 +239,17 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   ichan2  = newchn(sis,ich2)
   ichan3  = newchn(sis,ich3)
 
-  ichan16 = newchn(sis,ich17)
-  ichan17 = newchn(sis,ich18)
+  ichan17 = newchn(sis,ich17)
+  ichan18 = newchn(sis,ich18)
+
+! A channel missing from satinfo gives index 0 and would index bias arrays out of bounds
+  if (ichan1 <= 0 .or. ichan2 <= 0 .or. ichan3 <= 0 .or. &
+      ichan17 <= 0 .or. ichan18 <= 0) then
+     write(6,*) 'READ_MWS: required channels 1,2,3,17,18 not all found for sis ', &
+          trim(sis), ': RETURNING'
+     call destroygrids
+     return
+  end if
 
   if(jsatid == 'metop-sg-a1') then
 !    24: metop-D
@@ -337,6 +349,8 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   ALLOCATE(bt_save(max_chanl,maxobs))
 
   iob=1
+  iseg_beg=1
+  iseg_end=0
 ! Big loop over standard data feed and possible rars/db data
 ! llll=1 normal feed, llll=2 RARS/EARS data, llll=3 DB/UW data
   ears_db_loop: do llll= 1, 3
@@ -356,6 +370,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
      open(lnbufr,file=trim(infile2),form='unformatted',status = 'old', &
          iostat = ierr)
      if(ierr /= 0) cycle ears_db_loop
+     iseg_beg(llll) = iob
 
      call openbf(lnbufr,'IN',lnbufr)
      hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH SELV SIID'
@@ -476,30 +491,54 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
      end do read_subset
      call closbf(lnbufr)
      close(lnbufr)
+     iseg_end(llll) = iob-1
   end do ears_db_loop
   deallocate(data1b8)
 
   num_obs = iob-1
 
+! Do not return early here: combine_radobs below is collective over the
+! sub-communicator, so every task must reach it even with no data.
   if (num_obs <= 0) then
      write(6,*) 'READ_MWS: No MWS Data were read in'
-     return
+     num_obs = 0
   end if
   if( mype_sub==mype_root) write(6,*) 'READ_MWS: num_obs=', num_obs, ', nscan=', nscan
-! Call filtering code 
 
-  ALLOCATE(Relative_Time_In_Seconds(Num_Obs))
-  ALLOCATE(IScan(Num_Obs))
-  Relative_Time_In_Seconds = 3600.0_r_kind*T4DV_Save(1:Num_Obs)
-  call mws_spatial_average(Num_Obs, NChanl, IFOV_Save(1:Num_Obs), &
-       Relative_Time_In_Seconds, BT_Save(1:nchanl,1:Num_Obs), IScan, IRet)
-  write(6,*) 'mws_spatial_average Called with IRet=',IRet
-  DEALLOCATE(Relative_Time_In_Seconds)
-  
-  IF (IRet /= 0) THEN
-     write(6,*) 'Error Calling mws_spatial_average from READ_MWS'
-     RETURN
-  END IF
+  ALLOCATE(IScan(max(num_obs,1)))
+
+! Spatial averaging is done separately for each feed (normal, ears, db) so
+! that scans from different files are not mixed.  Channels with missing or
+! out-of-range values are restored afterwards so averaging cannot spread
+! (or alter) bad data.
+  seg_loop: do iseg = 1, 3
+     ibeg = iseg_beg(iseg)
+     iend = iseg_end(iseg)
+     nseg = iend - ibeg + 1
+     if (num_obs <= 0 .or. nseg <= 0) cycle seg_loop
+
+     ALLOCATE(Relative_Time_In_Seconds(nseg))
+     ALLOCATE(bt_orig(nchanl,nseg))
+     Relative_Time_In_Seconds = 3600.0_r_kind*t4dv_save(ibeg:iend)
+     bt_orig = bt_save(1:nchanl,ibeg:iend)
+     call mws_spatial_average(nseg, nchanl, ifov_save(ibeg:iend), &
+          Relative_Time_In_Seconds, bt_save(1:nchanl,ibeg:iend), IScan(ibeg:iend), IRet)
+     write(6,*) 'mws_spatial_average Called for feed ',iseg,' with IRet=',IRet
+     DEALLOCATE(Relative_Time_In_Seconds)
+
+     if (IRet /= 0) then
+!       Discard all data on this task but continue to the collective call
+        write(6,*) 'Error Calling mws_spatial_average from READ_MWS'
+        DEALLOCATE(bt_orig)
+        num_obs = 0
+        exit seg_loop
+     end if
+
+     where (bt_orig < tbmin .or. bt_orig > tbmax)
+        bt_save(1:nchanl,ibeg:iend) = bt_orig
+     end where
+     DEALLOCATE(bt_orig)
+  end do seg_loop
 
 ! Complete Read_MWS thinning and QC steps
 
@@ -626,14 +665,14 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
               if (adp_anglebc .and. newpc4pred) then
                  ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifovmod,ichan1)
                  ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifovmod,ichan2)
-                 ch16= bt_in(ich17)-ang_rad(ichan16)*cbias(ifovmod,ichan16)
+                 ch16= bt_in(ich17)-ang_rad(ichan17)*cbias(ifovmod,ichan17)
               else
                  ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifovmod,ichan1)+ &
                       air_rad(ichan1)*cbias(nadir,ichan1)
                  ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifovmod,ichan2)+ &
                       air_rad(ichan2)*cbias(nadir,ichan2)   
-                 ch16= bt_in(ich17)-ang_rad(ichan16)*cbias(ifovmod,ichan16)+ &
-                      air_rad(ichan16)*cbias(nadir,ichan16)
+                 ch16= bt_in(ich17)-ang_rad(ichan17)*cbias(ifovmod,ichan17)+ &
+                      air_rad(ichan17)*cbias(nadir,ichan17)
               end if
               if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
                  cosza = cos(lza)
