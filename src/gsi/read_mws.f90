@@ -6,7 +6,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 !$$$  subprogram documentation block
 !                .      .    .                                       .
 ! subprogram:    read_mws                  read mws 1b data
-!   prgmmr:         Jin          org: ncep/emc                date: 2024-10-15
+!   prgmmr:         Jin          org: ncep/emc                date: 2024-12-01
 !
 ! abstract:  This routine reads BUFR format MWS radiance 
 !            (brightness temperature) files. This is edited from read_atms.f90
@@ -106,7 +106,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   character(8),parameter:: fov_flag="crosstrk"
   integer(i_kind),parameter:: n1bhdr=14
   integer(i_kind),parameter:: n2bhdr=4
-  integer(i_kind),parameter:: maxobs = 800000
+  integer(i_kind),parameter:: maxobs = 1000000
   integer(i_kind),parameter:: max_chanl = 24
   real(r_kind),parameter:: r360=360.0_r_kind
   real(r_kind),parameter:: tbmin=50.0_r_kind
@@ -122,14 +122,15 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   character(8) subset
   character(80) hdr1b,hdr2b
 
-  integer(i_kind) ireadsb,ireadmg,nrec_startx
+  integer(i_kind) ireadsb,ireadmg
   integer(i_kind) i,j,k,ntest,iob,llll
+  integer(i_kind) nscan
   integer(i_kind) iret,idate,nchanl,n,idomsfc(1)
-  integer(i_kind) ich1,ich2,ich9,ich16,ich17,ich18
+  integer(i_kind) ich1,ich2,ich17,ich18
   integer(i_kind) kidsat,maxinfo,eu_mws_id
   integer(i_kind) nmind,itx,nreal,nele,itt,num_obs
-  integer(i_kind) iskip,ichan2,ichan1,ichan16,ichan17
-  integer(i_kind) lnbufr,ksatid,isflg,ichan3,ich3,ich6
+  integer(i_kind) iskip,ichan2,ichan1,ichan17,ichan18
+  integer(i_kind) lnbufr,ksatid,isflg
   integer(i_kind) ilat,ilon, ifovmod, nadir
   integer(i_kind),dimension(5):: idate5
   integer(i_kind) instr,ichan
@@ -140,7 +141,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   integer(i_kind), ALLOCATABLE :: IScan(:)
 
   real(r_kind) cosza,sfcr
-  real(r_kind) ch1,ch2,ch3,d0,d1,d2,ch16,qval
+  real(r_kind) ch1,ch2,d0,d1,d2,ch16,qval
   real(r_kind) expansion
   real(r_kind),dimension(0:3):: sfcpct
   real(r_kind),dimension(0:3):: ts
@@ -150,7 +151,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 
   real(r_kind) pred
   real(r_kind) dlat,panglr,dlon,tdiff
-  real(r_kind) dlon_earth_deg,dlat_earth_deg,r01
+  real(r_kind) dlon_earth_deg,dlat_earth_deg
   real(r_kind) step,start,dist1
   real(r_kind) tt,lzaest
   real(r_kind),dimension(0:4):: rlndsea
@@ -172,7 +173,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   real(r_kind), ALLOCATABLE, TARGET :: bt_save(:,:)
 
   integer(i_kind),allocatable,dimension(:):: nrec
-  real(r_double),allocatable,dimension(:):: data1b8
+  real(r_double),allocatable,dimension(:,:):: data1b8
   real(r_double),dimension(n1bhdr):: bfr1bhdr
   real(r_double),dimension(n2bhdr):: bfr2bhdr
 
@@ -182,6 +183,11 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   real(r_kind)    :: ptime,timeinflat,crit0
   integer(i_kind) :: ithin_time,n_tbin
   integer(i_kind),pointer :: it_mesh => null()
+
+  integer(i_kind) :: jchan
+  integer(i_kind) :: iseg,ibeg,iend,nseg
+  integer(i_kind),dimension(3) :: iseg_beg,iseg_end
+  real(r_kind),allocatable :: bt_orig(:,:)
 !**************************************************************************
 ! Initialize variables
 
@@ -193,9 +199,25 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   nodata  = 0
   nread  = 0
 
+! Check obstype and satellite before allocating anything (e.g. thinning grids)
+  if (obstype /= 'mws') then
+     write(6,*) 'READ_MWS called for obstype '//obstype//': RETURNING'
+     return
+  end if
+
+  if(jsatid == 'metop-sg-a1') then
+!    24: Metop-SG-A1
+     kidsat=24   
+  else 
+     write(6,*) 'READ_MWS: Unrecognized value for jsatid '//jsatid//': RETURNING'
+     return
+  end if
+! ESA/EUMETSAT Radiometer MWS (Microwave Sounder)
+  eu_mws_id = 233
+
   ilon=3
   ilat=4
-
+  nscan=0
   if(nst_gsi>0) then
      call gsi_nstcoupler_skindepth(obstype,zob)
   endif
@@ -209,46 +231,32 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 ! Make thinning grids
   call makegrids(rmesh,ithin,n_tbin=n_tbin)
 
-! Set nadir position based on value of maxscan (95) for MWW
+! Set nadir position based on value of maxscan (95) for MWS
   nadir=47
-
-! Set various variables depending on type of data to be read
-
-  if (obstype /= 'mws') then
-     write(6,*) 'READ_MWS called for obstype '//obstype//': RETURNING'
-     return
-  end if
 
 !  instrument specific variables
   d1 =  0.754_r_kind
   d2 = -2.265_r_kind 
-  r01 = 0.01_r_kind
+
   ich1   = 1   !1
   ich2   = 2   !2
-  ich3   = 3   !3
-
-  ich6   = 6   !6
-  ich9   = 9   !8
-  ich16  = 16  !16
   ich17  = 17  !17
   ich18  = 18  !18
 ! Set array index for surface-sensing channels
   ichan1  = newchn(sis,ich1)
   ichan2  = newchn(sis,ich2)
-  ichan3  = newchn(sis,ich3)
 
-  ichan16 = newchn(sis,ich17)
-  ichan17 = newchn(sis,ich18)
+  ichan17 = newchn(sis,ich17)
+  ichan18 = newchn(sis,ich18)
 
-  if(jsatid == 'metop-sg-a1') then
-!    24: metop-D
-     kidsat=24   
-  else 
-     write(6,*) 'READ_MWS: Unrecognized value for jsatid '//jsatid//': RETURNING'
+! A channel missing from satinfo gives index 0 and would index bias arrays out of bounds
+  if (ichan1 <= 0 .or. ichan2 <= 0 .or. &
+      ichan17 <= 0 .or. ichan18 <= 0) then
+     write(6,*) 'READ_MWS: required channels 1,2,17,18 not all found for sis ', &
+          trim(sis), ': RETURNING'
+     call destroygrids
      return
   end if
-! ESA/EUMETSAT Radiometer MWS (Microwave Sounder)
-  eu_mws_id = 233
 
   radedge_min = 0
   radedge_max = 1000
@@ -273,7 +281,6 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   nrec=999999
 
 ! IFSCALC setup
-  isfcalc = 0
   if (isfcalc==1) then
      instr=20                    
      ichan=17                    ! pick a surface sens. channel
@@ -325,7 +332,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   endif
 
 ! Allocate arrays for BUFR I/O
-  ALLOCATE(data1b8(nchanl))
+  ALLOCATE(data1b8(3,nchanl))
   ALLOCATE(rsat_save(maxobs))
   ALLOCATE(t4dv_save(maxobs))
   ALLOCATE(dlon_earth_save(maxobs))
@@ -339,18 +346,17 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   ALLOCATE(bt_save(max_chanl,maxobs))
 
   iob=1
+  iseg_beg=1
+  iseg_end=0
 ! Big loop over standard data feed and possible rars/db data
 ! llll=1 normal feed, llll=2 RARS/EARS data, llll=3 DB/UW data
   ears_db_loop: do llll= 1, 3
 
      if(llll == 1)then
-        nrec_startx = nrec_start
         infile2 = trim(infile)         ! Set bufr subset names based on type of data to read
      elseif(llll == 2) then
-        nrec_startx = nrec_start_ears
         infile2 = trim(infile)//'ears' ! Set bufr subset names based on type of data to read
      elseif(llll == 3) then
-        nrec_startx = nrec_start_db
         infile2 = trim(infile)//'_db'  ! Set bufr subset names based on type of data to read
      end if
 
@@ -358,9 +364,10 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
      open(lnbufr,file=trim(infile2),form='unformatted',status = 'old', &
          iostat = ierr)
      if(ierr /= 0) cycle ears_db_loop
+     iseg_beg(llll) = iob
 
      call openbf(lnbufr,'IN',lnbufr)
-     hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH HMSL SIID'
+     hdr1b ='SAID FOVN YEAR MNTH DAYS HOUR MINU SECO CLAT CLON CLATH CLONH SELV SIID'
      hdr2b ='SAZA SOZA BEARAZ SOLAZI'
    
 !    Loop to read bufr file
@@ -435,6 +442,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
            ifov = nint(bfr1bhdr(2))
            lza = bfr2bhdr(1)*deg2rad      ! local zenith angle
            if(ifov <= nadir)    lza=-lza
+           if(ifov == nadir) nscan = nscan+1 
 
            panglr=(start+real(ifov-1,r_kind)*step)*deg2rad
            satellite_height=bfr1bhdr(13)
@@ -444,7 +452,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
            rato = one + satellite_height/rearth_equator
            lzaest = asin(rato*sin(panglr))
 
-           if(abs(lza)*rad2deg > MAX_SENSOR_ZENITH_ANGLE) then
+           if(abs(lza)*rad2deg > max_sensor_zenith_angle) then
               write(6,*)'READ_MWS WARNING lza error ',lza,panglr
               cycle read_loop
            end if
@@ -460,12 +468,16 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
            solazi_save(iob)=bfr2bhdr(4) 
 
 !          Read data record.  Increment data counter
-           call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBR')
-           if (iret <= 0) then
-!             Read 'TMBRST' in the sample data.
-              call ufbrep(lnbufr,data1b8,1,nchanl,iret,'TMBRST')
+           call ufbrep(lnbufr,data1b8,3,nchanl,iret,'CHNM TMBRST MWSCPF')
+           if (any(data1b8(1,:) < 1.0_r_double .or. data1b8(1,:) > real(max_chanl,r_double))) then
+              ! Skip obs at this fovn if any channel number is missing.
+              cycle read_loop
            endif
-           bt_save(1:nchanl,iob) = data1b8(1:nchanl)
+           bt_save(1:max_chanl,iob) = tbmin - one
+           do i = 1, nchanl
+              jchan = nint(data1b8(1,i))
+              bt_save(jchan,iob) = data1b8(2,i)
+           end do
 
            iob=iob+1
 
@@ -473,30 +485,54 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
      end do read_subset
      call closbf(lnbufr)
      close(lnbufr)
+     iseg_end(llll) = iob-1
   end do ears_db_loop
   deallocate(data1b8)
 
   num_obs = iob-1
 
+! Do not return early here: combine_radobs below is collective over the
+! sub-communicator, so every task must reach it even with no data.
   if (num_obs <= 0) then
      write(6,*) 'READ_MWS: No MWS Data were read in'
-     return
+     num_obs = 0
   end if
+  if( mype_sub==mype_root) write(6,*) 'READ_MWS: num_obs=', num_obs, ', nscan=', nscan
 
-! Call filtering code 
+  ALLOCATE(IScan(max(num_obs,1)))
 
-  ALLOCATE(Relative_Time_In_Seconds(Num_Obs))
-  ALLOCATE(IScan(Num_Obs))
-  Relative_Time_In_Seconds = 3600.0_r_kind*T4DV_Save(1:Num_Obs)
-  call mws_spatial_average(Num_Obs, NChanl, IFOV_Save(1:Num_Obs), &
-       Relative_Time_In_Seconds, BT_Save(1:nchanl,1:Num_Obs), IScan, IRet)
-  write(6,*) 'mws_spatial_average Called with IRet=',IRet
-  DEALLOCATE(Relative_Time_In_Seconds)
-  
-  IF (IRet /= 0) THEN
-     write(6,*) 'Error Calling mws_spatial_average from READ_MWS'
-     RETURN
-  END IF
+! Spatial averaging is done separately for each feed (normal, ears, db) so
+! that scans from different files are not mixed.  Channels with missing or
+! out-of-range values are restored afterwards so averaging cannot spread
+! (or alter) bad data.
+  seg_loop: do iseg = 1, 3
+     ibeg = iseg_beg(iseg)
+     iend = iseg_end(iseg)
+     nseg = iend - ibeg + 1
+     if (num_obs <= 0 .or. nseg <= 0) cycle seg_loop
+
+     ALLOCATE(Relative_Time_In_Seconds(nseg))
+     ALLOCATE(bt_orig(nchanl,nseg))
+     Relative_Time_In_Seconds = 3600.0_r_kind*t4dv_save(ibeg:iend)
+     bt_orig = bt_save(1:nchanl,ibeg:iend)
+     call mws_spatial_average(nseg, nchanl, ifov_save(ibeg:iend), &
+          Relative_Time_In_Seconds, bt_save(1:nchanl,ibeg:iend), IScan(ibeg:iend), IRet)
+     write(6,*) 'mws_spatial_average Called for feed ',iseg,' with IRet=',IRet
+     DEALLOCATE(Relative_Time_In_Seconds)
+
+     if (IRet /= 0) then
+!       Discard all data on this task but continue to the collective call
+        write(6,*) 'Error Calling mws_spatial_average from READ_MWS'
+        DEALLOCATE(bt_orig)
+        num_obs = 0
+        exit seg_loop
+     end if
+
+     where (bt_orig < tbmin .or. bt_orig > tbmax)
+        bt_save(1:nchanl,ibeg:iend) = bt_orig
+     end where
+     DEALLOCATE(bt_orig)
+  end do seg_loop
 
 ! Complete Read_MWS thinning and QC steps
 
@@ -560,20 +596,8 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 !    Check FOV and scan-edge usage
      if (.not. use_edges .and. (ifov < radedge_min .OR. ifov > radedge_max )) &
           cycle ObsLoop
-
-     if (maxscan < 96) then
-       ! For ATMS when using the old style satang files, 
-       ! we shift the FOV number down by three as we can only use
-       ! 90 of the 96 positions right now because of the scan bias limitation.
-       ifovmod=ifov-3
-       ! Check that ifov is not out of range of cbias dimension
-       if (ifovmod < 1 .OR. ifovmod > 90) cycle ObsLoop
-     else
-       ! This line is for consistency with previous treatment
-       if (ifov < 4 .OR. ifov > 93) cycle ObsLoop
-       ifovmod=ifov
-     endif
-
+     ifovmod=ifov
+     if (ifovmod < 1 .or. ifovmod > maxscan) cycle ObsLoop
      nread=nread+nchanl
      
 !    Transfer observed brightness temperature to work array.  If any
@@ -630,19 +654,19 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
            else
 
 !    Set data quality predictor
-!    Simply modify the AMSU-A-Type calculations and use them for all ATMS channels.
+!    Simply modify the AMSU-A-Type calculations and use them for all MWS channels.
 !    Remove angle dependent pattern (not mean).
               if (adp_anglebc .and. newpc4pred) then
                  ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifovmod,ichan1)
                  ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifovmod,ichan2)
-                 ch16= bt_in(ich17)-ang_rad(ichan16)*cbias(ifovmod,ichan16)
+                 ch16= bt_in(ich17)-ang_rad(ichan17)*cbias(ifovmod,ichan17)
               else
                  ch1 = bt_in(ich1)-ang_rad(ichan1)*cbias(ifovmod,ichan1)+ &
                       air_rad(ichan1)*cbias(nadir,ichan1)
                  ch2 = bt_in(ich2)-ang_rad(ichan2)*cbias(ifovmod,ichan2)+ &
                       air_rad(ichan2)*cbias(nadir,ichan2)   
-                 ch16= bt_in(ich17)-ang_rad(ichan16)*cbias(ifovmod,ichan16)+ &
-                      air_rad(ichan16)*cbias(nadir,ichan16)
+                 ch16= bt_in(ich17)-ang_rad(ichan17)*cbias(ifovmod,ichan17)+ &
+                      air_rad(ichan17)*cbias(nadir,ichan17)
               end if
               if (isflg == 0 .and. ch1<285.0_r_kind .and. ch2<285.0_r_kind) then
                  cosza = cos(lza)
@@ -661,14 +685,8 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
                  endif
                  pred  = max(zero,qval)*100.0_r_kind
               else
-!          This is taken straight from AMSU-A even though Ch 3 has a different polarisation
-!          and ATMS Ch16 is at a slightly different frequency to AMSU-A Ch 15.
-                 if (adp_anglebc .and. newpc4pred) then
-                    ch3 = bt_in(ich3)-ang_rad(ichan3)*cbias(ifovmod,ichan3)
-                 else
-                    ch3  = bt_in(ich3)-ang_rad(ichan3)*cbias(ifovmod,ichan3)+ &
-                         air_rad(ichan3)*cbias(nadir,ichan3)   
-                 end if
+!          This is taken straight from AMSU-A; MWS Ch17 is at a slightly
+!          different frequency to AMSU-A Ch 15.
                  pred = abs(ch1-ch16)
                  if(ch1-ch16 >= three) then
                     tt   = 168._r_kind-0.49_r_kind*ch16
@@ -754,7 +772,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
   end do ObsLoop
 
 
-  DEALLOCATE(iscan)
+  DEALLOCATE(IScan)
 ! DEAllocate I/O arrays
   DEALLOCATE(rsat_save)
   DEALLOCATE(t4dv_save)
@@ -770,7 +788,7 @@ subroutine read_mws(mype,val_tovs,ithin,isfcalc,&
 
   call combine_radobs(mype_sub,mype_root,npe_sub,mpi_comm_sub,&
        nele,itxmax,nread,ndata,data_all,score_crit,nrec)
-
+  if( mype_sub==mype_root) write(6,*) 'READ_MWS: after combine_obs, nread,ndata is ',nread,ndata
 ! 
   if(mype_sub==mype_root)then
      do n=1,ndata

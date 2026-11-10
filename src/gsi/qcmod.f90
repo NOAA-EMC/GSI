@@ -3285,6 +3285,7 @@ subroutine qc_amsua(nchanl,is,ndat,nsig,npred,sea,land,ice,snow,mixed,luse,   &
       ich183a= 23
   else
       latms = .false.   ! If \= 16 channels (should be 15), it's amsua  
+      lmws  = .false.
       ich238 =  1
       ich314 =  2
       ich503 =  3
