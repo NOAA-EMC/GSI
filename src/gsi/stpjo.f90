@@ -288,8 +288,8 @@ subroutine stpjo(dval,dbias,xval,xbias,sges,pbcjo,nstep)
   class(obOper),pointer:: it_obOper
 !************************************************************************************  
 
-
-!$omp parallel do  schedule(dynamic,1) private(ll,mm,ib,it_obOper)
+! omp directive below generates seg fault with IntelLLVM 2026.1.1 (compiler bug?)
+!!!$omp parallel do  schedule(dynamic,1) private(ll,mm,ib,it_obOper)
   do mm=1,stpcnt
     ll=ll_jo(mm)
     ib=ib_jo(mm)

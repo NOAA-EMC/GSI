@@ -56,11 +56,18 @@ elif [[ $MACHINE_ID = gaeac6 ]] ; then
 
 elif [[ $MACHINE_ID = nimbus ]] ; then
     # We are on nimbus
+    # Source Intel oneAPI environment (disable unbound variable check temporarily)
+    set +u
+    source /opt/intel/oneapi/compiler/2026.1/env/vars.sh > /dev/null 2>&1
+    source /opt/intel/oneapi/mpi/2021.18/env/vars.sh > /dev/null 2>&1
+    set -u
+    # Save oneAPI library paths before module load
+    export ONEAPI_LD_PATH="${LD_LIBRARY_PATH}"
     if ( ! eval module help > /dev/null 2>&1 ) ; then
         source /usr/share/lmod/lmod/init/bash
     fi
     module purge
-    
+
 elif [[ $MACHINE_ID = derecho ]] ; then
     # We are on NCAR derecho
     if ( ! eval module help > /dev/null 2>&1 ) ; then

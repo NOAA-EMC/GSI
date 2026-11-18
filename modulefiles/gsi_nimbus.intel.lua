@@ -1,9 +1,11 @@
 help([[
 ]])
 
-prepend_path("MODULEPATH", "/opt/intel/oneapi/mpi/2021.18/etc/modulefiles/mpi")
-prepend_path("MODULEPATH", "/lfs/work/alexander_richert/stack/spack-stack/envs/nco-core-gcc-11.5.0/modules_flat/Core")
-prepend_path("MODULEPATH", "/lfs/work/alexander_richert/stack/spack-stack/envs/nco-sci-intel-2021.10.0/modules_flat/Core")
+--prepend_path("MODULEPATH", "/opt/intel/oneapi/mpi/2021.18/etc/modulefiles/mpi")
+--prepend_path("MODULEPATH", "/lfs/work/alexander_richert/stack/spack-stack/envs/nco-core-gcc-11.5.0/modules_flat/Core")
+--prepend_path("MODULEPATH", "/lfs/work/alexander_richert/stack/spack-stack/envs/nco-sci-intel-2021.10.0/modules_flat/Core")
+prepend_path("MODULEPATH", "/lfs/work/alexander_richert/stack/spack-stack/envs/g2-3.4.5-oneapi-2026.1.0-addon/modules_flat/Core")
+--prepend_path("MODULEPATH", ": /lfs/work/alexander_richert/stack/spack-stack/envs/crtm-2.4.0.1-byterecl-oneapi-2026.1.0-addon/modules/flat/Core")
 
 load("2021.18")
 load("cmake/3.31.11")
@@ -24,7 +26,6 @@ local ncio_ver=os.getenv("ncio_ver") or "1.1.2"
 local crtm_ver=os.getenv("crtm_ver") or "2.4.0.1"
 local crtm_fix_ver=os.getenv("crtm_fix_ver") or "2.4.0.1_emc"
 local ncdiag_ver=os.getenv("ncdiag_ver") or "1.1.3"
-local prod_util_ver=os.getenv("prod_util_ver") or "2.1.2"
 
 load(pathJoin("netcdf-c", netcdf_c_ver))
 load(pathJoin("netcdf-fortran", netcdf_fortran_ver))
@@ -45,13 +46,12 @@ load(pathJoin("crtm", crtm_ver))
 load(pathJoin("crtm-fix", crtm_fix_ver))
 
 load(pathJoin("gsi-ncdiag", ncdiag_ver))
---load(pathJoin("prod_util", prod_util_ver))
 
 load("openblas/0.3.33")
 
-setenv("CC","mpiicc")
-setenv("CXX","mpiicpc")
-setenv("FC","mpiifort")
+setenv("CC","mpiicx")
+setenv("CXX","mpiicpx")
+setenv("FC","mpiiffx")
 
 local gsi_binary_source_dir=os.getenv("GSI_BINARY_SOURCE_DIR") or "/home/russ_treadon_hpc_noaa_gov/fix/gsi/20260224"
 pushenv("GSI_BINARY_SOURCE_DIR", gsi_binary_source_dir)

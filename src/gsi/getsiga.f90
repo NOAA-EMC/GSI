@@ -106,6 +106,7 @@ use control_vectors, only: control_vector,write_cv
 use state_vectors, only: allocate_state,deallocate_state,prt_state_norms
 use bias_predictors, only: predictors,allocate_preds,deallocate_preds
 use bias_predictors, only: write_preds
+use control2state_mod, only: control2state
 implicit none
 type(control_vector)        :: xhat
 integer(i_kind), intent(in) :: mydate(5) ! as in iadate or ibdate, or similar
