@@ -1,11 +1,7 @@
 help([[
 ]])
 
-prepend_path("MODULEPATH", "/opt/intel/oneapi/mpi/2021.18/etc/modulefiles/mpi")
---prepend_path("MODULEPATH", "/lfs/work/alexander_richert/stack/spack-stack/envs/nco-core-gcc-11.5.0/modules_flat/Core")
---prepend_path("MODULEPATH", "/lfs/work/alexander_richert/stack/spack-stack/envs/nco-sci-intel-2021.10.0/modules_flat/Core")
 prepend_path("MODULEPATH", "/lfs/work/alexander_richert/stack/spack-stack/envs/g2-3.4.5-oneapi-2026.1.0-addon/modules_flat/Core")
---prepend_path("MODULEPATH", ": /lfs/work/alexander_richert/stack/spack-stack/envs/crtm-2.4.0.1-byterecl-oneapi-2026.1.0-addon/modules/flat/Core")
 
 load("2021.18")
 load("cmake/3.31.11")
@@ -52,6 +48,15 @@ load("openblas/0.3.33")
 setenv("CC","mpiicx")
 setenv("CXX","mpiicpx")
 setenv("FC","mpiifx")
+
+-- TODO:  Remove when official oneAPI crtm is updated on Nimbus
+prepend_path("LD_LIBRARY_PATH", "/lfs/work/alexander_richert/stack/spack-stack/envs/crtm-2.4.0.1-flags-oneapi-2026.1.0-addon/install/crtm-2.4.0.1-flagfix-aryg62t/lib", ":")
+prepend_path("DYLD_LIBRARY_PATH", "/lfs/work/alexander_richert/stack/spack-stack/envs/crtm-2.4.0.1-flags-oneapi-2026.1.0-addon/install/crtm-2.4.0.1-flagfix-aryg62t/lib", ":")
+prepend_path("CPATH", "/lfs/work/alexander_richert/stack/spack-stack/envs/crtm-2.4.0.1-flags-oneapi-2026.1.0-addon/install/crtm-2.4.0.1-flagfix-aryg62t/include", ":")
+prepend_path("CMAKE_PREFIX_PATH", "/lfs/work/alexander_richert/stack/spack-stack/envs/crtm-2.4.0.1-flags-oneapi-2026.1.0-addon/install/crtm-2.4.0.1-flagfix-aryg62t/.", ":")
+setenv("crtm_ROOT", "/lfs/work/alexander_richert/stack/spack-stack/envs/crtm-2.4.0.1-flags-oneapi-2026.1.0-addon/install/crtm-2.4.0.1-flagfix-aryg62t")
+setenv("CRTM_INC", "/lfs/work/alexander_richert/stack/spack-stack/envs/crtm-2.4.0.1-flags-oneapi-2026.1.0-addon/install/crtm-2.4.0.1-flagfix-aryg62t/include")
+setenv("CRTM_LIB", "/lfs/work/alexander_richert/stack/spack-stack/envs/crtm-2.4.0.1-flags-oneapi-2026.1.0-addon/install/crtm-2.4.0.1-flagfix-aryg62t/lib/libcrtm.a")
 
 local gsi_binary_source_dir=os.getenv("GSI_BINARY_SOURCE_DIR") or "/home/russ_treadon_hpc_noaa_gov/fix/gsi/20260224"
 pushenv("GSI_BINARY_SOURCE_DIR", gsi_binary_source_dir)

@@ -84,8 +84,8 @@ case $regtest in
            topts[1]="0:10:00" ; popts[1]="12/8/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="12/10/" ; ropts[2]="/2"
         elif [[ "$machine" = "nimbus" ]]; then
-           topts[1]="0:10:00" ; popts[1]="12/8/" ; ropts[1]="/1"
-           topts[2]="0:10:00" ; popts[2]="12/10/" ; ropts[2]="/2"
+           topts[1]="0:10:00" ; popts[1]="48/2/" ; ropts[1]="/1"
+           topts[2]="0:10:00" ; popts[2]="48/3/" ; ropts[2]="/2"
         elif [[ "$machine" = "noaacloud" ]]; then
            topts[1]="0:10:00" ; popts[1]="48/2/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="24/5/" ; ropts[2]="/2"
@@ -120,8 +120,8 @@ case $regtest in
            topts[1]="0:15:00" ; popts[1]="64/2/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="128/2/" ; ropts[2]="/1"
         elif [[ "$machine" = "nimbus" ]]; then
-           topts[1]="0:15:00" ; popts[1]="64/2/" ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="128/2/" ; ropts[2]="/1"	   
+           topts[1]="0:15:00" ; popts[1]="40/2/" ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="40/3/" ; ropts[2]="/1" 
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -153,8 +153,8 @@ case $regtest in
            topts[1]="0:15:00" ; popts[1]="64/1/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="128/2/" ; ropts[2]="/1"
         elif [[ "$machine" = "nimbus" ]]; then
-           topts[1]="0:15:00" ; popts[1]="64/1/" ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="128/2/" ; ropts[2]="/1"	   
+           topts[1]="0:15:00" ; popts[1]="10/2/" ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="20/2/" ; ropts[2]="/1"	   
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -186,8 +186,8 @@ case $regtest in
            topts[1]="0:15:00" ; popts[1]="64/1/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="128/2/" ; ropts[2]="/1"
        elif [[ "$machine" = "nimbus" ]]; then
-           topts[1]="0:15:00" ; popts[1]="64/1/" ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="128/2/" ; ropts[2]="/1"	   
+           topts[1]="0:15:00" ; popts[1]="10/2/" ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="20/2/" ; ropts[2]="/1"	   
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -219,8 +219,8 @@ case $regtest in
            topts[1]="0:15:00" ; popts[1]="64/1/" ; ropts[1]="/1"
            topts[2]="0:15:00" ; popts[2]="64/2/" ; ropts[2]="/1"
         elif [[ "$machine" = "nimbus" ]]; then
-           topts[1]="0:15:00" ; popts[1]="64/1/" ; ropts[1]="/1"
-           topts[2]="0:15:00" ; popts[2]="64/2/" ; ropts[2]="/1"	   
+           topts[1]="0:15:00" ; popts[1]="40/2/" ; ropts[1]="/1"
+           topts[2]="0:15:00" ; popts[2]="40/3/" ; ropts[2]="/1"	   
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -252,8 +252,8 @@ case $regtest in
            topts[1]="0:30:00" ; popts[1]="14/8/" ; ropts[1]="/1"
            topts[2]="0:30:00" ; popts[2]="14/14/" ; ropts[2]="/2"
         elif [[ "$machine" = "nimbus" ]]; then
-           topts[1]="0:30:00" ; popts[1]="14/8/" ; ropts[1]="/1"
-           topts[2]="0:30:00" ; popts[2]="14/14/" ; ropts[2]="/2"	   
+           topts[1]="0:30:00" ; popts[1]="36/2/" ; ropts[1]="/1"
+           topts[2]="0:30:00" ; popts[2]="48/2/" ; ropts[2]="/2"	   
         fi
 
         if [ "$debug" = ".true." ] ; then
@@ -285,8 +285,8 @@ case $regtest in
            topts[1]="0:10:00" ; popts[1]="16/2/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="16/4/" ; ropts[2]="/2"
        elif [[ "$machine" = "nimbus" ]]; then
-           topts[1]="0:10:00" ; popts[1]="16/2/" ; ropts[1]="/1"
-           topts[2]="0:10:00" ; popts[2]="16/4/" ; ropts[2]="/2"	   
+           topts[1]="0:10:00" ; popts[1]="18/2/" ; ropts[1]="/1"
+           topts[2]="0:10:00" ; popts[2]="30/2/" ; ropts[2]="/2"	   
         elif [[ "$machine" = "noaacloud" ]]; then
            topts[1]="0:10:00" ; popts[1]="36/1/" ; ropts[1]="/1"
            topts[2]="0:10:00" ; popts[2]="30/2/" ; ropts[2]="/1"
@@ -358,7 +358,7 @@ elif [[ "$machine" = "wcoss2" || "$machine" = "acorn" ]]; then
    export APRUN="mpiexec -n \$ntasks -ppn \$ppn --cpu-bind core --depth \$threads"
 elif [[ "$machine" = "nimbus" ]]; then
    export OMP_STACKSIZE=1G
-   export APRUN="srun -n \$ntasks --mpi=pmi2 --mem=0 --cpus-per-task=\$threads"
+   export APRUN="srun -n \$ntasks --mpi=pmix --mem=0 --cpus-per-task=\$threads"
 elif [[ "$machine" = "noaacloud" ]]; then
    export I_MPI_ADJUST_ALLREDUCE=5
    export APRUN="srun --exclusive --mpi=pmi2 -n \$ntasks --cpus-per-task=\$threads"
