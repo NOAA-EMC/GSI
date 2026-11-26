@@ -131,12 +131,14 @@ echo "" >> $cfile
 echo ". "$(awk '{ print $1, $2, $3, $4, $5, $6, $7, $8, $9 }' $regdir/regression_var.out)  >>$cfile
 echo "" >> $cfile
 
-echo "source /opt/intel/oneapi/compiler/2023.2.1/env/vars.sh" >> $cfile
+echo "source /opt/intel/oneapi/compiler/2026.1/env/vars.sh" >> $cfile
 echo "source /opt/intel/oneapi/mpi/2021.18/env/vars.sh" >> $cfile
+echo "export ONEAPI_LD_PATH=\"\${LD_LIBRARY_PATH}\"" >> $cfile
 echo ". /usr/share/lmod/lmod/init/bash"     >> $cfile
 echo "module purge"                         >> $cfile
 echo "module use $modulefiles"              >> $cfile
-echo "module load gsi_${machine}.intel"     >> $cfile
+echo "module load gsi_${machine}.oneapi"    >> $cfile
+echo "module load pmix/5.0.11"              >> $cfile
 echo "module list"                          >> $cfile
 
 echo "" >> $cfile
@@ -149,10 +151,9 @@ echo "export FI_UNIVERSE_SIZE=\$SLURM_NTASKS"   >> $cfile
 echo "export FI_OFI_RXM_SAR_LIMIT=2147483648"  >> $cfile
 echo "export I_MPI_PIN_DOMAIN=numa"         >> $cfile
 # echo "export I_MPI_DEBUG=5"                 >> $cfile
-echo "export I_MPI_PMI=pmi2"                >> $cfile
-echo "export I_MPI_PMI_LIBRARY=/usr/lib64/libpmi2.so" >> $cfile
 echo "ulimit -l unlimited || true"          >> $cfile
 echo "ulimit -n 65535 || true"              >> $cfile
+echo "ulimit -s unlimited || true"          >> $cfile
 
 cat $exec >> $cfile
 

@@ -258,7 +258,8 @@ class(obOper),pointer:: it_obOper
 !******************************************************************************
 
 ! "RHS for jo", as it was labeled in intall().
-!$omp parallel do  schedule(dynamic,1) private(ibin,it,ix,it_obOper)
+! omp directive below generates seg fault with IntelLLVM 2026.1.1 (compiler bug?)
+!!!$omp parallel do  schedule(dynamic,1) private(ibin,it,ix,it_obOper)
   do ibin=1,size(sval)
     do it=1,obOper_count
       !ix=ix_obtype(it)  ! Use this line to ensure the same jo summartion

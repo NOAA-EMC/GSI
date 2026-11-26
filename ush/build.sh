@@ -24,7 +24,13 @@ source $DIR_ROOT/ush/detect_machine.sh
 set +x
 source $DIR_ROOT/ush/module-setup.sh
 module use $DIR_ROOT/modulefiles
-module load "gsi_${MACHINE_ID}.${COMPILER}"
+# Use oneAPI by default for Nimbus, allow override with COMPILER_VARIANT
+if [[ ${MACHINE_ID} == "nimbus" && ${COMPILER} == "intel" ]]; then
+  COMPILER_VARIANT=${COMPILER_VARIANT:-"oneapi"}
+  module load "gsi_${MACHINE_ID}.${COMPILER_VARIANT}"
+else
+  module load "gsi_${MACHINE_ID}.${COMPILER}"
+fi
 module list
 set -x
 
