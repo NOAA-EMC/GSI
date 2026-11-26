@@ -115,11 +115,11 @@ case $machine in
   ;;
 
   Orion | Hercules)
-      export local_or_default="${local_or_default:-/work2/noaa/da/$LOGNAME}"
+      export local_or_default="${local_or_default:-/work3/noaa/da/$LOGNAME}"
       if [ -d $local_or_default ]; then
          export noscrub="$local_or_default/noscrub"
-      elif [ -d /work2/noaa/global/$LOGNAME ]; then
-         export noscrub="/work2/noaa/global/$LOGNAME/noscrub"
+      elif [ -d /work3/noaa/global/$LOGNAME ]; then
+         export noscrub="/work3/noaa/global/$LOGNAME/noscrub"
       fi
 
       export queue="${queue:-batch}"
@@ -132,11 +132,11 @@ case $machine in
 
       export group="${group:-global}"
       if [[ "$cmaketest" = "false" ]]; then
-         export basedir="/work2/noaa/da/$LOGNAME/gsi"
+         export basedir="/work3/noaa/da/$LOGNAME/gsi"
       fi
-      export ptmp="${ptmp:-/work2/noaa/stmp/$LOGNAME/${machine}/$ptmpName}"
+      export ptmp="${ptmp:-/work3/noaa/stmp/$LOGNAME/${machine}/$ptmpName}"
 
-      export casesdir="/work2/noaa/da/rtreadon/CASES/regtest"
+      export casesdir="/work3/noaa/da/rtreadon/CASES/regtest"
 
       export check_resource="no"
       export accnt="${accnt:-da-cpu}"
